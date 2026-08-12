@@ -1,0 +1,12 @@
+paths:
+  /users:
+    get:
+      summary: List users
+      responses:
+        "200":
+          description: Users retrieved
+    post:
+      summary: Create user
+      responses:
+        "201":
+          description: User created

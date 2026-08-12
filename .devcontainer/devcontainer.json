@@ -1,0 +1,38 @@
+{
+  "name": "Express App Development",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "prisma.prisma",
+        "ms-vscode.vscode-typescript-next",
+        "ms-azuretools.vscode-docker",
+        "eamodio.gitlens",
+        "humao.rest-client",
+        "hbenl.vscode-test-explorer",
+        "sst-dev.opencode"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.windows": "PowerShell",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "prettier.tabWidth": 2,
+        "prettier.semi": false,
+        "eslint.validate": ["javascript", "json"],
+        "files.watcherExclude": {
+          "**/node_modules/**": true,
+          "**/.git/**": true
+        }
+      }
+    }
+  },
+  "forwardPorts": [3000, 3306, 6379, 8080],
+  "postCreateCommand": "npm install && npx prisma generate"
+}

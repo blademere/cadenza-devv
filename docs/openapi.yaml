@@ -1,0 +1,12 @@
+openapi: 3.0.3
+info:
+  title: Express App API
+  version: 1.0.0
+  description: Backend API documentation.
+servers:
+  - url: http://localhost:3000/api/v1
+paths:
+  /auth/login:
+    $ref: 'auth.yaml#/paths/~1auth~1login'
+  /users:
+    $ref: 'users.yaml#/paths/~1users'

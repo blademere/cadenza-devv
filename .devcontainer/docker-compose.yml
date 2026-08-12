@@ -1,0 +1,64 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspace
+      - /workspace/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=mysql://user:password@db:3306/express_app
+      - JWT_SECRET=your-super-secret-jwt-key-min-32-chars-long
+      - JWT_EXPIRES_IN=15m
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - CORS_ORIGIN=*
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "3000:3000"
+    command: npm run dev
+
+  db:
+    image: mariadb:lts
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: express_app
+      MARIADB_USER: user
+      MARIADB_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    environment:
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=rootpassword
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+volumes:
+  mariadb_data:
