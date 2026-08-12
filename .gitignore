@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+.openclaude/
+.vscode/
+.openclaude.json
 
 # Environment variables
 .env

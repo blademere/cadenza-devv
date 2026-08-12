@@ -1,12 +1,49 @@
 openapi: 3.0.3
+
 info:
   title: Express App API
   version: 1.0.0
   description: Backend API documentation.
+
 servers:
   - url: http://localhost:3000/api/v1
+    description: Development server
+
 paths:
   /auth/login:
-    $ref: 'auth.yaml#/paths/~1auth~1login'
+    post:
+      summary: User login
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+
+      responses:
+        "200":
+          description: Login successful
+
   /users:
-    $ref: 'users.yaml#/paths/~1users'
+    get:
+      summary: List users
+      responses:
+        "200":
+          description: Users retrieved
+
+    post:
+      summary: Create user
+      responses:
+        "201":
+          description: User created
