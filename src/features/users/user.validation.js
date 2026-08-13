@@ -10,7 +10,7 @@ const listUsersSchema = z.object({
 
 const createUserSchema = z.object({
   body: z.object({
-    email: z.email(),
+    email: z.email().trim().toLowerCase(),
 
     roleId: z.coerce.number().int().positive(),
 

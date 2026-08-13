@@ -1,45 +1,48 @@
 class AppError extends Error {
-  constructor(message, statusCode, details = []) {
-    super(message);
-    this.name = this.constructor.name;
-    this.statusCode = statusCode;
-    this.details = details;
+  constructor(message, statusCode, errors = []) {
+    super(message)
+
+    this.name = this.constructor.name
+    this.statusCode = statusCode
+    this.errors = errors
+
+    Error.captureStackTrace(this, this.constructor)
   }
 }
 
 class BadRequestError extends AppError {
-  constructor(message = "Bad request.", details = []) {
-    super(message, 400, details);
+  constructor(message = "Bad request.", errors = []) {
+    super(message, 400, errors)
   }
 }
 
 class UnauthorizedError extends AppError {
-  constructor(message = "Unauthorized.", details = []) {
-    super(message, 401, details);
+  constructor(message = "Unauthorized.", errors = []) {
+    super(message, 401, errors)
   }
 }
 
 class ForbiddenError extends AppError {
-  constructor(message = "Forbidden.", details = []) {
-    super(message, 403, details);
+  constructor(message = "Forbidden.", errors = []) {
+    super(message, 403, errors)
   }
 }
 
 class NotFoundError extends AppError {
-  constructor(message = "Resource not found.", details = []) {
-    super(message, 404, details);
+  constructor(message = "Resource not found.", errors = []) {
+    super(message, 404, errors)
   }
 }
 
 class ConflictError extends AppError {
-  constructor(message = "Conflict detected.", details = []) {
-    super(message, 409, details);
+  constructor(message = "Conflict detected.", errors = []) {
+    super(message, 409, errors)
   }
 }
 
 class ValidationError extends AppError {
-  constructor(message = "Validation failed.", details = []) {
-    super(message, 422, details);
+  constructor(message = "Validation failed.", errors = []) {
+    super(message, 422, errors)
   }
 }
 
@@ -51,4 +54,4 @@ module.exports = {
   NotFoundError,
   ConflictError,
   ValidationError,
-};
+}

@@ -1,11 +1,13 @@
 const express = require("express")
-
-const { asyncHandler, validate } = require("../../common/middleware")
-
-const { loginController, refreshController } = require("./auth.controller")
-
-const { loginValidator, refreshTokenValidator } = require("./auth.validation")
-
+const {
+  loginController,
+  refreshAccessTokenController,
+  logoutController,
+} = require("./auth.controller")
+const { loginValidator } = require("./auth.validation")
+const { asyncHandler } = require("../../common/middleware")
+const validate = require("../../common/middleware/validate")
+const { csrfProtection } = require("../../common/middleware/csrf")
 const authRouter = express.Router()
 
 authRouter.post(
@@ -16,8 +18,10 @@ authRouter.post(
 
 authRouter.post(
   "/refresh",
-  validate(refreshTokenValidator),
-  asyncHandler(refreshController),
+  csrfProtection,
+  asyncHandler(refreshAccessTokenController),
 )
+
+authRouter.post("/logout", csrfProtection, asyncHandler(logoutController))
 
 module.exports = authRouter

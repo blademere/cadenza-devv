@@ -4,13 +4,7 @@ const loginSchema = z.object({
   body: z.object({
     email: z.email().trim().toLowerCase(),
 
-    password: z.string().min(8),
-  }),
-})
-
-const refreshTokenSchema = z.object({
-  body: z.object({
-    refreshToken: z.string().min(20),
+    password: z.string().min(8).max(72),
   }),
 })
 
@@ -20,13 +14,6 @@ const loginValidator = async (req) => {
   })
 }
 
-const refreshTokenValidator = async (req) => {
-  return refreshTokenSchema.parse({
-    body: req.body || {},
-  })
-}
-
 module.exports = {
   loginValidator,
-  refreshTokenValidator,
 }

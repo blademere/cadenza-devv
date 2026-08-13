@@ -1,3 +1,4 @@
+const crypto = require("crypto")
 const { getPrismaClient } = require("../../infrastructure/database/prisma")
 
 const prisma = getPrismaClient()
@@ -8,12 +9,14 @@ const findUserByEmail = async (email) => {
       email,
     },
 
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      passwordHash: true,
-      isActive: true,
+    include: {
+      role: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+      },
     },
   })
 }
@@ -24,11 +27,79 @@ const findUserById = async (id) => {
       id: Number(id),
     },
 
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      isActive: true,
+    include: {
+      role: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+      },
+    },
+  })
+}
+
+const hashRefreshToken = (token) => {
+  return crypto.createHash("sha256").update(token).digest("hex")
+}
+
+const createRefreshTokenRecord = async ({ token, userId, expiresAt }) => {
+  const tokenHash = hashRefreshToken(token)
+
+  return prisma.refreshToken.create({
+    data: {
+      tokenHash,
+      userId: Number(userId),
+      expiresAt,
+    },
+  })
+}
+
+const findRefreshToken = async (token) => {
+  const tokenHash = hashRefreshToken(token)
+
+  return prisma.refreshToken.findUnique({
+    where: {
+      tokenHash,
+    },
+
+    include: {
+      user: {
+        include: {
+          role: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
+        },
+      },
+    },
+  })
+}
+
+const revokeRefreshToken = async (tokenId) => {
+  return prisma.refreshToken.update({
+    where: {
+      id: tokenId,
+    },
+
+    data: {
+      revokedAt: new Date(),
+    },
+  })
+}
+
+const revokeAllRefreshTokensForUser = async (userId) => {
+  return prisma.refreshToken.updateMany({
+    where: {
+      userId: Number(userId),
+      revokedAt: null,
+    },
+
+    data: {
+      revokedAt: new Date(),
     },
   })
 }
@@ -36,4 +107,9 @@ const findUserById = async (id) => {
 module.exports = {
   findUserByEmail,
   findUserById,
+  hashRefreshToken,
+  createRefreshTokenRecord,
+  findRefreshToken,
+  revokeRefreshToken,
+  revokeAllRefreshTokensForUser,
 }

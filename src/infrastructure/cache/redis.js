@@ -1,12 +1,40 @@
-const cache = new Map();
+const { createClient } = require("redis")
+const { env } = require("../../config")
 
-const redis = {
-  get: async (key) => cache.get(key) || null,
-  set: async (key, value) => {
-    cache.set(key, value);
-    return "OK";
-  },
-  del: async (key) => cache.delete(key),
-};
+let redisClient
 
-module.exports = redis;
+const getRedisClient = () => {
+  if (!redisClient) {
+    redisClient = createClient({
+      url: env.REDIS_URL,
+    })
+
+    redisClient.on("error", (error) => {
+      console.error("Redis Client Error:", error)
+    })
+  }
+
+  return redisClient
+}
+
+const connectRedis = async () => {
+  const client = getRedisClient()
+
+  if (!client.isOpen) {
+    await client.connect()
+  }
+
+  return client
+}
+
+const disconnectRedis = async () => {
+  if (redisClient?.isOpen) {
+    await redisClient.quit()
+  }
+}
+
+module.exports = {
+  getRedisClient,
+  connectRedis,
+  disconnectRedis,
+}

@@ -1,7 +1,5 @@
 const { ForbiddenError } = require("../errors/appError")
-const {
-  userHasPermission,
-} = require("../../features/auth/authorization.repository")
+const { hasPermission } = require("../../features/rbac/rbac.service")
 
 const authorize = (moduleKey, action) => {
   return async (req, _res, next) => {
@@ -10,7 +8,7 @@ const authorize = (moduleKey, action) => {
         return next(new ForbiddenError("User context not found."))
       }
 
-      const allowed = await userHasPermission(req.user.id, moduleKey, action)
+      const allowed = await hasPermission(req.user.id, moduleKey, action)
 
       if (!allowed) {
         return next(
