@@ -1,13 +1,16 @@
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient } = require("@prisma/client")
 
-let prismaClient;
+const prismaClient = new PrismaClient({
+  log:
+    process.env.NODE_ENV === "development"
+      ? ["query", "warn", "error"]
+      : ["warn", "error"],
+})
 
-if (!prismaClient) {
-  prismaClient = new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query", "warn", "error"] : ["warn", "error"],
-  });
+const getPrismaClient = () => {
+  return prismaClient
 }
 
 module.exports = {
-  getPrismaClient: () => prismaClient,
-};
+  getPrismaClient,
+}

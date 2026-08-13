@@ -1,12 +1,22 @@
 const toUserResponse = (user) => {
   return {
     id: user.id,
-    name: user.name,
     email: user.email,
-    role: user.role,
-  };
-};
+    isActive: user.isActive,
+
+    role: user.role
+      ? {
+          id: user.role.id,
+          name: user.role.name,
+          description: user.role.description,
+        }
+      : null,
+
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  }
+}
 
 module.exports = {
   toUserResponse,
-};
+}

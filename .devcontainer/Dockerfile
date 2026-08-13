@@ -3,7 +3,7 @@ FROM node:22-alpine
 RUN apk add --no-cache \
     git \
     bash \
-    mariadb-client
+    postgresql-client
 
 RUN npm install -g @gitlawb/openclaude@latest
 

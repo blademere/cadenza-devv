@@ -11,7 +11,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3000
-      DATABASE_URL: mysql://user:password@db:3306/express_app
+      DATABASE_URL: postgresql://user:password@db:5432/express_app?schema=public
       JWT_SECRET: your-super-secret-jwt-key-min-32-chars-long
       JWT_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
@@ -26,36 +26,24 @@ services:
     ports:
       - "3000:3000"
 
-    # Keep the container alive without starting Express
     command: sleep infinity
 
   db:
-    image: mariadb:lts
+    image: postgres:18-alpine
 
     environment:
-      MARIADB_ROOT_PASSWORD: rootpassword
-      MARIADB_DATABASE: express_app
-      MARIADB_USER: user
-      MARIADB_PASSWORD: password
+      POSTGRES_DB: express_app
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
 
     ports:
-      - "3306:3306"
+      - "5432:5432"
 
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "mariadb-admin",
-          "ping",
-          "-h",
-          "localhost",
-          "-u",
-          "root",
-          "-prootpassword",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U user -d express_app"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -72,14 +60,12 @@ services:
       timeout: 5s
       retries: 5
 
-  phpmyadmin:
-    image: phpmyadmin:latest
+  pgadmin:
+    image: dpage/pgadmin4:9
 
     environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: rootpassword
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: adminpassword
 
     ports:
       - "8080:80"
@@ -88,5 +74,9 @@ services:
       db:
         condition: service_healthy
 
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
 volumes:
-  mariadb_data:
+  postgres_data:
+  pgadmin_data:

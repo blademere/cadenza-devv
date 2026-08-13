@@ -1,17 +1,30 @@
-const { ForbiddenError } = require("../errors/appError");
+const { ForbiddenError } = require("../errors/appError")
+const {
+  userHasPermission,
+} = require("../../features/auth/authorization.repository")
 
-const authorize = (allowedRoles) => {
-  return (req, _res, next) => {
-    if (!req.user) {
-      return next(new ForbiddenError("User context not found."));
+const authorize = (moduleKey, action) => {
+  return async (req, _res, next) => {
+    try {
+      if (!req.user) {
+        return next(new ForbiddenError("User context not found."))
+      }
+
+      const allowed = await userHasPermission(req.user.id, moduleKey, action)
+
+      if (!allowed) {
+        return next(
+          new ForbiddenError(
+            "You do not have permission to perform this action.",
+          ),
+        )
+      }
+
+      return next()
+    } catch (error) {
+      return next(error)
     }
+  }
+}
 
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(new ForbiddenError("You do not have permission to access this resource."));
-    }
-
-    return next();
-  };
-};
-
-module.exports = authorize;
+module.exports = authorize
