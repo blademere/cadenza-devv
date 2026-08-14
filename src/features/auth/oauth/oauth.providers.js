@@ -3,7 +3,9 @@ const crypto = require('crypto')
 const { env } = require('../../../config')
 
 const OAUTH_STATE_COOKIE = 'oauthState'
+const OAUTH_LINK_STATE_COOKIE = 'oauthLinkState'
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000
+const OAUTH_LINK_STATE_MAX_AGE_MS = 10 * 60 * 1000
 
 const providerConfig = {
   google: {
@@ -61,6 +63,51 @@ const createAuthorizationUrl = (provider, state) => {
   return url.toString()
 }
 
+const createLinkState = (userId) => {
+  const payload = JSON.stringify({
+    userId: Number(userId),
+    nonce: createState(),
+    expiresAt: Date.now() + OAUTH_LINK_STATE_MAX_AGE_MS,
+  })
+
+  const encodedPayload = Buffer.from(payload, 'utf8').toString('base64url')
+  const signature = crypto
+    .createHmac('sha256', env.JWT_ACCESS_SECRET)
+    .update(encodedPayload)
+    .digest('base64url')
+
+  return `${encodedPayload}.${signature}`
+}
+
+const verifyLinkState = (value) => {
+  if (typeof value !== 'string') return null
+
+  const [encodedPayload, signature] = value.split('.')
+  if (!encodedPayload || !signature) return null
+
+  const expectedSignature = crypto
+    .createHmac('sha256', env.JWT_ACCESS_SECRET)
+    .update(encodedPayload)
+    .digest('base64url')
+
+  if (!safeEqual(signature, expectedSignature)) return null
+
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'))
+    const userId = Number(payload.userId)
+
+    if (!Number.isInteger(userId) || userId <= 0) return null
+    if (!Number.isInteger(payload.expiresAt) || payload.expiresAt < Date.now()) return null
+
+    return {
+      userId,
+      nonce: payload.nonce,
+    }
+  } catch {
+    return null
+  }
+}
+
 const setOAuthStateCookie = (res, state) => {
   res.cookie(OAUTH_STATE_COOKIE, state, {
     httpOnly: true,
@@ -82,6 +129,27 @@ const clearOAuthStateCookie = (res) => {
   })
 }
 
+const setOAuthLinkStateCookie = (res, state) => {
+  res.cookie(OAUTH_LINK_STATE_COOKIE, state, {
+    httpOnly: true,
+    secure: env.COOKIE_SECURE,
+    sameSite: env.COOKIE_SAME_SITE,
+    domain: env.COOKIE_DOMAIN || undefined,
+    path: '/api/v1/auth/oauth',
+    maxAge: OAUTH_LINK_STATE_MAX_AGE_MS,
+  })
+}
+
+const clearOAuthLinkStateCookie = (res) => {
+  res.clearCookie(OAUTH_LINK_STATE_COOKIE, {
+    httpOnly: true,
+    secure: env.COOKIE_SECURE,
+    sameSite: env.COOKIE_SAME_SITE,
+    domain: env.COOKIE_DOMAIN || undefined,
+    path: '/api/v1/auth/oauth',
+  })
+}
+
 const safeEqual = (left, right) => {
   if (typeof left !== 'string' || typeof right !== 'string') return false
 
@@ -95,10 +163,15 @@ const safeEqual = (left, right) => {
 
 module.exports = {
   OAUTH_STATE_COOKIE,
+  OAUTH_LINK_STATE_COOKIE,
   getProviderConfig,
   createState,
   createAuthorizationUrl,
+  createLinkState,
+  verifyLinkState,
   setOAuthStateCookie,
   clearOAuthStateCookie,
+  setOAuthLinkStateCookie,
+  clearOAuthLinkStateCookie,
   safeEqual,
 }
