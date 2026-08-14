@@ -50,6 +50,16 @@ const envSchema = z.object({
   OAUTH_GITHUB_CLIENT_ID: z.string().optional(),
   OAUTH_GITHUB_CLIENT_SECRET: z.string().optional(),
   OAUTH_GITHUB_CALLBACK_URL: z.url().optional(),
+
+  OAUTH_DEFAULT_ROLE_NAME: z.string().min(1).default('client'),
+
+  OAUTH_FRONTEND_SUCCESS_URL: z
+    .url()
+    .default('http://localhost:5173/auth/callback/success'),
+
+  OAUTH_FRONTEND_FAILURE_URL: z
+    .url()
+    .default('http://localhost:5173/auth/callback/failure'),
 })
 
 const parsed = envSchema.safeParse(process.env)
@@ -79,7 +89,7 @@ if (data.NODE_ENV === 'production' && data.CORS_ORIGIN === '*') {
 const hasGoogleConfig = Boolean(
   data.OAUTH_GOOGLE_CLIENT_ID ||
     data.OAUTH_GOOGLE_CLIENT_SECRET ||
-    data.OAUTH_GOOGLE_CALLBACK_URL
+    data.OAUTH_GOOGLE_CALLBACK_URL,
 )
 
 if (
@@ -89,14 +99,14 @@ if (
     !data.OAUTH_GOOGLE_CALLBACK_URL)
 ) {
   throw new Error(
-    'Google OAuth requires OAUTH_GOOGLE_CLIENT_ID, OAUTH_GOOGLE_CLIENT_SECRET, and OAUTH_GOOGLE_CALLBACK_URL.'
+    'Google OAuth requires OAUTH_GOOGLE_CLIENT_ID, OAUTH_GOOGLE_CLIENT_SECRET, and OAUTH_GOOGLE_CALLBACK_URL.',
   )
 }
 
 const hasGithubConfig = Boolean(
   data.OAUTH_GITHUB_CLIENT_ID ||
     data.OAUTH_GITHUB_CLIENT_SECRET ||
-    data.OAUTH_GITHUB_CALLBACK_URL
+    data.OAUTH_GITHUB_CALLBACK_URL,
 )
 
 if (
@@ -106,7 +116,25 @@ if (
     !data.OAUTH_GITHUB_CALLBACK_URL)
 ) {
   throw new Error(
-    'GitHub OAuth requires OAUTH_GITHUB_CLIENT_ID, OAUTH_GITHUB_CLIENT_SECRET, and OAUTH_GITHUB_CALLBACK_URL.'
+    'GitHub OAuth requires OAUTH_GITHUB_CLIENT_ID, OAUTH_GITHUB_CLIENT_SECRET, and OAUTH_GITHUB_CALLBACK_URL.',
+  )
+}
+
+if (
+  data.NODE_ENV === 'production' &&
+  data.OAUTH_FRONTEND_SUCCESS_URL.startsWith('http://')
+) {
+  throw new Error(
+    'OAUTH_FRONTEND_SUCCESS_URL must use HTTPS in production.',
+  )
+}
+
+if (
+  data.NODE_ENV === 'production' &&
+  data.OAUTH_FRONTEND_FAILURE_URL.startsWith('http://')
+) {
+  throw new Error(
+    'OAUTH_FRONTEND_FAILURE_URL must use HTTPS in production.',
   )
 }
 
