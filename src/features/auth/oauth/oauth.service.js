@@ -1,40 +1,23 @@
+const crypto = require('crypto')
+
 const { UnauthorizedError, ConflictError } = require('../../../common/errors/appError')
 
 const {
   findOAuthAccount,
   findUserByEmail,
+  findUserById,
   createOAuthUser,
   createRefreshTokenRecord,
+  linkOAuthAccount: linkOAuthAccountRepository,
+  listOAuthAccounts,
+  unlinkOAuthAccount: unlinkOAuthAccountRepository,
 } = require('../auth.repository')
 
-const {
-  createAccessToken,
-  createRefreshToken,
-} = require('../auth.tokens')
+const { createAccessToken, createRefreshToken } = require('../auth.tokens')
 
 const { env } = require('../../../config')
 
-const {
-  getProviderConfig,
-} = require('./oauth.providers')
-
-const getRefreshTokenExpiration = () => {
-  const match = env.JWT_REFRESH_EXPIRES_IN.match(/^(\d+)([smhd])$/)
-
-  if (!match) {
-    throw new Error('JWT_REFRESH_EXPIRES_IN must use s, m, h, or d format.')
-  }
-
-  const amount = Number(match[1])
-  const multipliers = {
-    s: 1000,
-    m: 60 * 1000,
-    h: 60 * 60 * 1000,
-    d: 24 * 60 * 60 * 1000,
-  }
-
-  return new Date(Date.now() + amount * multipliers[match[2]])
-}
+const { getProviderConfig } = require('./oauth.providers')
 
 const fetchJson = async (url, options = {}) => {
   const response = await fetch(url, options)
@@ -82,9 +65,7 @@ const exchangeCode = async (provider, code) => {
 
 const getGoogleIdentity = async (accessToken) => {
   const { data } = await fetchJson('https://openidconnect.googleapis.com/v1/userinfo', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { Authorization: `Bearer ${accessToken}` },
   })
 
   if (!data?.sub || !data.email || data.email_verified !== true) {
@@ -99,25 +80,19 @@ const getGoogleIdentity = async (accessToken) => {
 }
 
 const getGithubIdentity = async (accessToken) => {
-  const { data: user } = await fetchJson('https://api.github.com/user', {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${accessToken}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-  })
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    Authorization: `Bearer ${accessToken}`,
+    'X-GitHub-Api-Version': '2022-11-28',
+  }
+
+  const { data: user } = await fetchJson('https://api.github.com/user', { headers })
 
   if (!user?.id) {
     throw new UnauthorizedError('GitHub account could not be identified.')
   }
 
-  const { data: emails } = await fetchJson('https://api.github.com/user/emails', {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${accessToken}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-  })
+  const { data: emails } = await fetchJson('https://api.github.com/user/emails', { headers })
 
   const verifiedEmail = Array.isArray(emails)
     ? emails.find((item) => item.primary && item.verified) || emails.find((item) => item.verified)
@@ -144,7 +119,6 @@ const getProviderIdentity = async (provider, accessToken) => {
 const authenticateWithOAuth = async ({ provider, code }) => {
   const accessToken = await exchangeCode(provider, code)
   const identity = await getProviderIdentity(provider, accessToken)
-
   const linkedAccount = await findOAuthAccount(identity)
 
   let user
@@ -170,7 +144,7 @@ const authenticateWithOAuth = async ({ provider, code }) => {
     throw new UnauthorizedError('User account is inactive.')
   }
 
-  const tokenId = require('crypto').randomUUID()
+  const tokenId = crypto.randomUUID()
   const refreshToken = createRefreshToken(user, tokenId)
   const accessTokenJwt = createAccessToken(user)
 
@@ -178,7 +152,7 @@ const authenticateWithOAuth = async ({ provider, code }) => {
     tokenId,
     token: refreshToken,
     userId: user.id,
-    expiresAt: getRefreshTokenExpiration(),
+    expiresAt: new Date(Date.now() + env.COOKIE_REFRESH_MAX_AGE_MS),
   })
 
   return {
@@ -188,6 +162,85 @@ const authenticateWithOAuth = async ({ provider, code }) => {
   }
 }
 
+const linkOAuthAccountWithCode = async ({ userId, provider, code }) => {
+  const user = await findUserById(userId)
+
+  if (!user || !user.isActive) {
+    throw new UnauthorizedError('User account is inactive or does not exist.')
+  }
+
+  const accessToken = await exchangeCode(provider, code)
+  const identity = await getProviderIdentity(provider, accessToken)
+  const existingAccount = await findOAuthAccount(identity)
+
+  if (existingAccount && existingAccount.userId !== Number(userId)) {
+    throw new ConflictError('This OAuth account is already linked to another user.')
+  }
+
+  if (existingAccount && existingAccount.userId === Number(userId)) {
+    return {
+      provider: identity.provider,
+      alreadyLinked: true,
+    }
+  }
+
+  const existingUser = await findUserByEmail(identity.email)
+
+  if (existingUser && existingUser.id !== Number(userId)) {
+    throw new ConflictError(
+      'The verified OAuth email belongs to another account. The provider account cannot be linked automatically.',
+    )
+  }
+
+  try {
+    await linkOAuthAccountRepository({
+      userId,
+      provider: identity.provider,
+      providerAccountId: identity.providerAccountId,
+    })
+  } catch (error) {
+    if (error?.code === 'OAUTH_ACCOUNT_ALREADY_LINKED') {
+      throw new ConflictError('This OAuth account is already linked to another user.')
+    }
+
+    throw error
+  }
+
+  return {
+    provider: identity.provider,
+    alreadyLinked: false,
+  }
+}
+
+const getLinkedOAuthAccounts = async (userId) => {
+  return listOAuthAccounts(userId)
+}
+
+const unlinkOAuthAccount = async ({ userId, provider }) => {
+  try {
+    await unlinkOAuthAccountRepository({ userId, provider })
+  } catch (error) {
+    if (error?.code === 'LAST_AUTH_METHOD') {
+      throw new ConflictError('Cannot unlink the only authentication method on the account.')
+    }
+
+    if (error?.code === 'OAUTH_ACCOUNT_NOT_LINKED') {
+      throw new ConflictError('OAuth account is not linked.')
+    }
+
+    if (error?.code === 'USER_NOT_FOUND') {
+      throw new UnauthorizedError('User account does not exist.')
+    }
+
+    throw error
+  }
+
+  return { provider }
+}
+
 module.exports = {
   authenticateWithOAuth,
+  linkOAuthAccountWithCode,
+  getLinkedOAuthAccounts,
+  unlinkOAuthAccount,
 }
