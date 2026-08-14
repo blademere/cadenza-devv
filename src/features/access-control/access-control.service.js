@@ -1,48 +1,90 @@
 const {
-  getUserPermissions,
+  getUserAuthorizationContext,
   findRoleById,
   findUserIdsByRoleId,
-} = require('./access-control.repository')
+} = require("./access-control.repository")
 
 const {
   hasCachedPermission,
   cacheUserPermissions,
   invalidateUserPermissionCache,
-} = require('./access-control.cache')
+} = require("./access-control.cache")
 
-const hasPermission = async (userId, moduleKey, action) => {
+const { getPermissionKey } = require("./access-control.constants")
+
+const loadUserPermissions = async (userId) => {
   try {
-    const cachedPermission = await hasCachedPermission(
-      userId,
-      moduleKey,
-      action
+    const context = await getUserAuthorizationContext(userId)
+
+    if (!context) {
+      return { role: null, permissions: [] }
+    }
+
+    const permissions = context.permissions.map((permission) =>
+      getPermissionKey(permission.resource, permission.action),
     )
+
+    try {
+      await cacheUserPermissions(userId, permissions)
+    } catch {
+      // Redis is an optimization. PostgreSQL remains the source of truth.
+    }
+
+    return {
+      role: context.role,
+      permissions,
+    }
+  } catch (error) {
+    throw error
+  }
+}
+
+const hasPermission = async (userId, resource, action) => {
+  try {
+    const cachedPermission = await hasCachedPermission(userId, resource, action)
 
     if (cachedPermission !== null) {
       return cachedPermission
     }
   } catch {
-    // Ignore Redis errors.
-    // PostgreSQL remains the source of truth.
+    // Ignore Redis errors and fall back to PostgreSQL.
   }
 
-  const permissions = await getUserPermissions(userId)
+  const { permissions } = await loadUserPermissions(userId)
+  return permissions.includes(getPermissionKey(resource, action))
+}
 
-  try {
-    await cacheUserPermissions(userId, permissions)
-  } catch {
-    // Ignore Redis cache errors.
+const getAuthorizationContext = async (userId) => {
+  const context = await loadUserPermissions(userId)
+
+  return {
+    userId: Number(userId),
+    role: context.role,
+    permissions: new Set(context.permissions),
+  }
+}
+
+const can = async ({ userId, resource, action }) => {
+  return hasPermission(userId, resource, action)
+}
+
+const canAny = async ({ userId, resource, action }) => {
+  return can({ userId, resource, action })
+}
+
+const canOwn = async ({ userId, resource, action, resourceOwnerId }) => {
+  if (Number(userId) !== Number(resourceOwnerId)) {
+    return false
   }
 
-  return permissions.includes(`${moduleKey}:${action}`)
+  return can({ userId, resource, action })
 }
 
 const clearUserPermissionCache = async (userId) => {
   try {
     await invalidateUserPermissionCache(userId)
   } catch {
-    // Cache invalidation failure should not break
-    // the primary database operation.
+    // Cache invalidation failure should not break the primary operation.
   }
 }
 
@@ -54,6 +96,10 @@ const clearRolePermissionCache = async (roleId) => {
 
 module.exports = {
   hasPermission,
+  getAuthorizationContext,
+  can,
+  canAny,
+  canOwn,
   clearUserPermissionCache,
   clearRolePermissionCache,
   findRoleById,
