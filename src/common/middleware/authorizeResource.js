@@ -1,4 +1,4 @@
-const { ForbiddenError } = require("../errors/appError")
+const { ForbiddenError, NotFoundError } = require("../errors/appError")
 const { can, getAuthorizationContext } = require("../../features/access-control/access-control.service")
 const { assertPolicy } = require("../../features/access-control/access-control.policy")
 
@@ -7,10 +7,15 @@ const authorizeResource = ({
   action,
   loadResource,
   policy,
-  getResourceId,
+  getResourceId = (req) => req.params?.id,
+  getOwnerId,
 }) => {
   if (typeof loadResource !== "function") {
     throw new TypeError("authorizeResource requires a loadResource function.")
+  }
+
+  if (policy !== undefined && typeof policy !== "function") {
+    throw new TypeError("authorizeResource policy must be a function.")
   }
 
   return async (req, _res, next) => {
@@ -33,25 +38,27 @@ const authorizeResource = ({
         )
       }
 
-      const resourceId = getResourceId
-        ? getResourceId(req)
-        : req.params?.id
-
+      const resourceId = getResourceId(req)
       const resourceInstance = await loadResource(resourceId, req)
 
       if (!resourceInstance) {
-        return next(new ForbiddenError("Resource access is not allowed."))
+        return next(new NotFoundError("Resource not found."))
       }
 
-      const authorizationContext = await getAuthorizationContext(req.user.id)
-
       if (policy) {
+        const authorizationContext = await getAuthorizationContext(req.user.id)
+        const user = {
+          ...req.user,
+          role: authorizationContext.role,
+        }
+
+        if (typeof getOwnerId === "function") {
+          user.ownerId = getOwnerId(resourceInstance, req)
+        }
+
         await assertPolicy({
           policy,
-          user: {
-            id: req.user.id,
-            role: authorizationContext.role,
-          },
+          user,
           resource: resourceInstance,
         })
       }

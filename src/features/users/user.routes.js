@@ -13,13 +13,17 @@ const {
 } = require("./user.controller")
 
 const { createUserValidator, listUsersValidator } = require("./user.validation")
+const {
+  ACCESS_CONTROL_MODULES,
+  ACCESS_CONTROL_ACTIONS,
+} = require("../access-control/access-control.constants")
 
 const userRouter = express.Router()
 
 userRouter.get(
   "/",
   authenticate,
-  authorize("users", "read"),
+  authorize(ACCESS_CONTROL_MODULES.USERS, ACCESS_CONTROL_ACTIONS.READ),
   validate(listUsersValidator),
   asyncHandler(listUsersController),
 )
@@ -27,7 +31,7 @@ userRouter.get(
 userRouter.post(
   "/",
   authenticate,
-  authorize("users", "create"),
+  authorize(ACCESS_CONTROL_MODULES.USERS, ACCESS_CONTROL_ACTIONS.CREATE),
   validate(createUserValidator),
   asyncHandler(createUserController),
 )
