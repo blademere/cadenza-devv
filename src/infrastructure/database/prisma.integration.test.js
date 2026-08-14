@@ -1,9 +1,7 @@
 const { beforeAll, afterAll, beforeEach, describe, expect, it } = require('vitest')
+const crypto = require('crypto')
 const { getPrismaClient } = require('./prisma')
-const {
-  findAllUsers,
-  createUser,
-} = require('../../features/users/user.repository')
+const { findAllUsers } = require('../../features/users/user.repository')
 const {
   getUserPermissions,
   findRoleById,
@@ -18,11 +16,10 @@ const {
 
 const prisma = getPrismaClient()
 
-const describeIfDatabaseConfigured = process.env.DATABASE_URL
-  ? describe
-  : describe.skip
+const runIntegrationTests = process.env.RUN_INTEGRATION_TESTS === 'true'
+const describeIfEnabled = runIntegrationTests ? describe : describe.skip
 
-describeIfDatabaseConfigured('Prisma/PostgreSQL integration', () => {
+describeIfEnabled('Prisma/PostgreSQL integration', () => {
   let role
   let module
   let readPermission
@@ -31,7 +28,6 @@ describeIfDatabaseConfigured('Prisma/PostgreSQL integration', () => {
   const createdUserIds = []
   const createdRoleIds = []
   const createdModuleIds = []
-  const createdRefreshTokenIds = []
 
   beforeAll(async () => {
     await prisma.$connect()
@@ -56,16 +52,10 @@ describeIfDatabaseConfigured('Prisma/PostgreSQL integration', () => {
 
     ;[readPermission, createPermission] = await Promise.all([
       prisma.permission.create({
-        data: {
-          moduleId: module.id,
-          action: 'read',
-        },
+        data: { moduleId: module.id, action: 'read' },
       }),
       prisma.permission.create({
-        data: {
-          moduleId: module.id,
-          action: 'create',
-        },
+        data: { moduleId: module.id, action: 'create' },
       }),
     ])
 
@@ -94,7 +84,6 @@ describeIfDatabaseConfigured('Prisma/PostgreSQL integration', () => {
       await prisma.refreshToken.deleteMany({
         where: { userId: { in: createdUserIds } },
       })
-
       await prisma.user.deleteMany({
         where: { id: { in: createdUserIds } },
       })
@@ -134,19 +123,12 @@ describeIfDatabaseConfigured('Prisma/PostgreSQL integration', () => {
 
   it('enforces unique role and permission constraints', async () => {
     await expect(
-      prisma.role.create({
-        data: {
-          name: role.name,
-        },
-      }),
+      prisma.role.create({ data: { name: role.name } }),
     ).rejects.toMatchObject({ code: 'P2002' })
 
     await expect(
       prisma.permission.create({
-        data: {
-          moduleId: module.id,
-          action: 'read',
-        },
+        data: { moduleId: module.id, action: 'read' },
       }),
     ).rejects.toMatchObject({ code: 'P2002' })
   })
@@ -194,7 +176,6 @@ describeIfDatabaseConfigured('Prisma/PostgreSQL integration', () => {
       userId,
       expiresAt: new Date(Date.now() + 60_000),
     })
-    createdRefreshTokenIds.push(tokenId)
 
     const stored = await findRefreshToken(token)
     expect(stored).not.toBeNull()
@@ -221,15 +202,11 @@ describeIfDatabaseConfigured('Prisma/PostgreSQL integration', () => {
       userId,
       expiresAt: new Date(Date.now() + 60_000),
     })
-    createdRefreshTokenIds.push(currentTokenId, newTokenId)
 
     const result = await rotateRefreshToken({
       currentTokenId,
       newTokenId,
-      newTokenHash: require('crypto')
-        .createHash('sha256')
-        .update(newToken)
-        .digest('hex'),
+      newTokenHash: crypto.createHash('sha256').update(newToken).digest('hex'),
       userId,
       expiresAt: new Date(Date.now() + 120_000),
     })
