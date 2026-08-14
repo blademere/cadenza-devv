@@ -9,6 +9,7 @@ const {
   loginRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
+  oauthRateLimiter,
 } = require('./authRateLimiter')
 
 module.exports = {
@@ -22,4 +23,5 @@ module.exports = {
   loginRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
+  oauthRateLimiter,
 }
