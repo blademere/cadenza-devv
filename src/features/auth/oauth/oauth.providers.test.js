@@ -1,4 +1,4 @@
-const { beforeEach, describe, expect, it, vi } = require('vitest');
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../config', () => ({
   env: {
