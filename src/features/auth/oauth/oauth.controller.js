@@ -12,6 +12,8 @@ const {
   OAUTH_STATE_COOKIE,
   createState,
   createAuthorizationUrl,
+  storeOAuthState,
+  consumeOAuthState,
   setOAuthStateCookie,
   clearOAuthStateCookie,
   OAUTH_LINK_STATE_COOKIE,
@@ -49,12 +51,13 @@ const redirectSuccess = (res, params = {}) => {
   return res.redirect(url.toString())
 }
 
-const startOAuth = (provider) => (_req, res) => {
+const startOAuth = (provider) => async (_req, res) => {
   clearOAuthLinkStateCookie(res)
 
   const state = createState()
   const authorizationUrl = createAuthorizationUrl(provider, state)
 
+  await storeOAuthState(state, `login:${provider}`, 10 * 60 * 1000)
   setOAuthStateCookie(res, state)
 
   return res.redirect(authorizationUrl)
@@ -75,6 +78,13 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     const linkPayload = verifyLinkState(linkState)
 
     if (!code || !state || !linkPayload || !safeEqual(state, linkState)) {
+      clearOAuthLinkStateCookie(res)
+      return redirectFailure(res, 'invalid_oauth_state')
+    }
+
+    const stateConsumed = await consumeOAuthState(state, `link:${provider}`)
+
+    if (!stateConsumed) {
       clearOAuthLinkStateCookie(res)
       return redirectFailure(res, 'invalid_oauth_state')
     }
@@ -114,6 +124,13 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     return redirectFailure(res, 'invalid_oauth_state')
   }
 
+  const stateConsumed = await consumeOAuthState(state, `login:${provider}`)
+
+  if (!stateConsumed) {
+    clearOAuthStateCookie(res)
+    return redirectFailure(res, 'invalid_oauth_state')
+  }
+
   try {
     const result = await authenticateWithOAuth({
       provider,
@@ -140,7 +157,7 @@ const handleOAuthCallback = (provider) => async (req, res) => {
   }
 }
 
-const startOAuthLink = (provider) => (req, res) => {
+const startOAuthLink = (provider) => async (req, res) => {
   if (!req.user?.id) {
     return redirectFailure(res, 'unauthorized')
   }
@@ -150,6 +167,7 @@ const startOAuthLink = (provider) => (req, res) => {
   const state = createLinkState(req.user.id)
   const authorizationUrl = createAuthorizationUrl(provider, state)
 
+  await storeOAuthState(state, `link:${provider}`, 10 * 60 * 1000)
   setOAuthLinkStateCookie(res, state)
 
   return res.redirect(authorizationUrl)
