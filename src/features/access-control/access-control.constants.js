@@ -1,4 +1,4 @@
-const RBAC_MODULES = Object.freeze({
+const ACCESS_CONTROL_MODULES = Object.freeze({
   USERS: "users",
   APPLICATIONS: "applications",
   DOCUMENTS: "documents",
@@ -6,7 +6,7 @@ const RBAC_MODULES = Object.freeze({
   REPORTS: "reports",
 })
 
-const RBAC_ACTIONS = Object.freeze({
+const ACCESS_CONTROL_ACTIONS = Object.freeze({
   READ: "read",
   CREATE: "create",
   UPDATE: "update",
@@ -20,7 +20,7 @@ const RBAC_ACTIONS = Object.freeze({
   UPLOAD: "upload",
 })
 
-const RBAC_PERMISSION_KEYS = Object.freeze({
+const ACCESS_CONTROL_PERMISSION_KEYS = Object.freeze({
   USERS_READ: "users.read",
   USERS_CREATE: "users.create",
   USERS_UPDATE: "users.update",
@@ -47,7 +47,7 @@ const RBAC_PERMISSION_KEYS = Object.freeze({
 })
 
 module.exports = {
-  RBAC_MODULES,
-  RBAC_ACTIONS,
-  RBAC_PERMISSION_KEYS,
+  ACCESS_CONTROL_MODULES,
+  ACCESS_CONTROL_ACTIONS,
+  ACCESS_CONTROL_PERMISSION_KEYS,
 }

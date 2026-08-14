@@ -1,5 +1,5 @@
 const { ForbiddenError } = require("../errors/appError")
-const { hasPermission } = require("../../features/rbac/rbac.service")
+const { hasPermission } = require("../../features/access-control/access-control.service")
 
 const authorize = (moduleKey, action) => {
   return async (req, _res, next) => {

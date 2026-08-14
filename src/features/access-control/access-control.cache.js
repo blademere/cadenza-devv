@@ -3,7 +3,7 @@ const { connectRedis } = require("../../infrastructure/cache/redis")
 const PERMISSION_CACHE_TTL = 300
 
 const getPermissionCacheKey = (userId) => {
-  return `rbac:user:${userId}:permissions`
+  return `access-control:user:${userId}:permissions`
 }
 
 const hasCachedPermission = async (userId, moduleKey, action) => {

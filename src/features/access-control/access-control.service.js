@@ -2,13 +2,13 @@ const {
   getUserPermissions,
   findRoleById,
   findUserIdsByRoleId,
-} = require('./rbac.repository')
+} = require('./access-control.repository')
 
 const {
   hasCachedPermission,
   cacheUserPermissions,
   invalidateUserPermissionCache,
-} = require('./rbac.cache')
+} = require('./access-control.cache')
 
 const hasPermission = async (userId, moduleKey, action) => {
   try {
