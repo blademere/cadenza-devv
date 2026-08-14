@@ -38,9 +38,9 @@ authRouter.post(
 )
 
 /* OAuth authentication. */
-authRouter.get('/oauth/google', oauthRateLimiter, startOAuth('google'))
+authRouter.get('/oauth/google', oauthRateLimiter, asyncHandler(startOAuth('google')))
 authRouter.get('/oauth/google/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('google')))
-authRouter.get('/oauth/github', oauthRateLimiter, startOAuth('github'))
+authRouter.get('/oauth/github', oauthRateLimiter, asyncHandler(startOAuth('github')))
 authRouter.get('/oauth/github/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('github')))
 
 /*
@@ -60,14 +60,14 @@ authRouter.get(
   '/oauth/link/google',
   oauthRateLimiter,
   authenticate,
-  startOAuthLink('google'),
+  asyncHandler(startOAuthLink('google')),
 )
 
 authRouter.get(
   '/oauth/link/github',
   oauthRateLimiter,
   authenticate,
-  startOAuthLink('github'),
+  asyncHandler(startOAuthLink('github')),
 )
 
 authRouter.delete(
