@@ -19,7 +19,7 @@ const hasCachedPermission = async (userId, moduleKey, action) => {
 
   const permission = `${moduleKey}:${action}`
 
-  return redis.sIsMember(key, permission)
+  return Boolean(await redis.sIsMember(key, permission))
 }
 
 const cacheUserPermissions = async (userId, permissions) => {
@@ -31,9 +31,8 @@ const cacheUserPermissions = async (userId, permissions) => {
 
   if (permissions.length > 0) {
     await redis.sAdd(key, permissions)
+    await redis.expire(key, PERMISSION_CACHE_TTL)
   }
-
-  await redis.expire(key, PERMISSION_CACHE_TTL)
 
   return permissions
 }
