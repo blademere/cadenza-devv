@@ -40,6 +40,8 @@ const getProviderConfig = (provider) => {
   return config
 }
 
+// OAuth providers should only receive an opaque, high-entropy value.
+// All application state (flow, provider, userId) is kept server-side in Redis.
 const createState = () => crypto.randomBytes(32).toString('base64url')
 
 const createAuthorizationUrl = (provider, state) => {
@@ -65,66 +67,44 @@ const createAuthorizationUrl = (provider, state) => {
   return url.toString()
 }
 
-const createLinkState = (userId) => {
-  const payload = JSON.stringify({
-    userId: Number(userId),
-    nonce: createState(),
-    expiresAt: Date.now() + OAUTH_LINK_STATE_MAX_AGE_MS,
-  })
-
-  const encodedPayload = Buffer.from(payload, 'utf8').toString('base64url')
-  const signature = crypto
-    .createHmac('sha256', env.OAUTH_STATE_SECRET)
-    .update(encodedPayload)
-    .digest('base64url')
-
-  return `${encodedPayload}.${signature}`
-}
-
-const verifyLinkState = (value) => {
-  if (typeof value !== 'string') return null
-
-  const [encodedPayload, signature] = value.split('.')
-  if (!encodedPayload || !signature) return null
-
-  const expectedSignature = crypto
-    .createHmac('sha256', env.OAUTH_STATE_SECRET)
-    .update(encodedPayload)
-    .digest('base64url')
-
-  if (!safeEqual(signature, expectedSignature)) return null
-
-  try {
-    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'))
-    const userId = Number(payload.userId)
-
-    if (!Number.isInteger(userId) || userId <= 0) return null
-    if (!Number.isInteger(payload.expiresAt) || payload.expiresAt < Date.now()) return null
-    if (typeof payload.nonce !== 'string' || payload.nonce.length < 32) return null
-
-    return {
-      userId,
-      nonce: payload.nonce,
-    }
-  } catch {
-    return null
-  }
-}
-
 const getStateKey = (state) => {
   return `${OAUTH_STATE_KEY_PREFIX}${crypto.createHash('sha256').update(state).digest('hex')}`
 }
 
-const storeOAuthState = async (state, flow, maxAgeMs) => {
-  if (typeof state !== 'string' || !state) {
-    throw new Error('OAuth state must be a non-empty string.')
+const storeOAuthState = async (state, metadata, maxAgeMs) => {
+  if (typeof state !== 'string' || state.length < 32) {
+    throw new Error('OAuth state must be a high-entropy string.')
   }
+
+  if (!metadata || typeof metadata !== 'object') {
+    throw new Error('OAuth state metadata is required.')
+  }
+
+  const { flow, provider, userId } = metadata
+
+  if (!['login', 'link'].includes(flow)) {
+    throw new Error('Invalid OAuth state flow.')
+  }
+
+  if (!providerConfig[provider]) {
+    throw new Error('Invalid OAuth state provider.')
+  }
+
+  if (flow === 'link' && (!Number.isInteger(Number(userId)) || Number(userId) <= 0)) {
+    throw new Error('A valid userId is required for OAuth linking.')
+  }
+
+  const value = JSON.stringify({
+    flow,
+    provider,
+    ...(flow === 'link' ? { userId: Number(userId) } : {}),
+  })
 
   const client = await connectRedis()
   const ttlSeconds = Math.ceil(maxAgeMs / 1000)
   const key = getStateKey(state)
 
-  const stored = await client.set(key, flow, {
+  const stored = await client.set(key, value, {
     NX: true,
     EX: ttlSeconds,
   })
@@ -134,13 +114,35 @@ const storeOAuthState = async (state, flow, maxAgeMs) => {
   }
 }
 
-const consumeOAuthState = async (state, expectedFlow) => {
-  if (typeof state !== 'string' || !state) return false
+const consumeOAuthState = async (state, expectedFlow, expectedProvider) => {
+  if (typeof state !== 'string' || state.length < 32) return null
 
   const client = await connectRedis()
   const value = await client.getDel(getStateKey(state))
 
-  return value === expectedFlow
+  if (!value) return null
+
+  try {
+    const metadata = JSON.parse(value)
+
+    if (
+      metadata.flow !== expectedFlow ||
+      metadata.provider !== expectedProvider
+    ) {
+      return null
+    }
+
+    if (
+      expectedFlow === 'link' &&
+      (!Number.isInteger(metadata.userId) || metadata.userId <= 0)
+    ) {
+      return null
+    }
+
+    return metadata
+  } catch {
+    return null
+  }
 }
 
 const setOAuthStateCookie = (res, state) => {
@@ -199,11 +201,11 @@ const safeEqual = (left, right) => {
 module.exports = {
   OAUTH_STATE_COOKIE,
   OAUTH_LINK_STATE_COOKIE,
+  OAUTH_STATE_MAX_AGE_MS,
+  OAUTH_LINK_STATE_MAX_AGE_MS,
   getProviderConfig,
   createState,
   createAuthorizationUrl,
-  createLinkState,
-  verifyLinkState,
   storeOAuthState,
   consumeOAuthState,
   setOAuthStateCookie,
