@@ -2,36 +2,54 @@ const { getPrismaClient } = require("../../infrastructure/database/prisma")
 
 const prisma = getPrismaClient()
 
-const getUserPermissions = async (userId) => {
-  const permissions = await prisma.permission.findMany({
+const getUserAuthorizationContext = async (userId) => {
+  const user = await prisma.user.findUnique({
     where: {
-      roles: {
-        some: {
-          role: {
-            users: {
-              some: {
-                id: Number(userId),
+      id: Number(userId),
+    },
+    select: {
+      id: true,
+      isActive: true,
+      role: {
+        select: {
+          id: true,
+          name: true,
+          permissions: {
+            select: {
+              permission: {
+                select: {
+                  action: true,
+                  module: {
+                    select: {
+                      key: true,
+                    },
+                  },
+                },
               },
             },
           },
         },
       },
     },
-
-    select: {
-      action: true,
-
-      module: {
-        select: {
-          key: true,
-        },
-      },
-    },
   })
 
-  return permissions.map(
-    (permission) => `${permission.module.key}:${permission.action}`,
-  )
+  if (!user || !user.isActive) {
+    return null
+  }
+
+  return {
+    userId: user.id,
+    role: user.role.name,
+    permissions: user.role.permissions.map(({ permission }) => ({
+      resource: permission.module.key,
+      action: permission.action,
+    })),
+  }
+}
+
+const getUserPermissions = async (userId) => {
+  const context = await getUserAuthorizationContext(userId)
+  return context?.permissions ?? []
 }
 
 const findRoleById = async (roleId) => {
@@ -63,6 +81,7 @@ const findUserIdsByRoleId = async (roleId) => {
 }
 
 module.exports = {
+  getUserAuthorizationContext,
   getUserPermissions,
   findRoleById,
   findUserIdsByRoleId,

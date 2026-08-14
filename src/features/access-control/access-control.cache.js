@@ -1,30 +1,26 @@
 const { connectRedis } = require("../../infrastructure/cache/redis")
+const { getPermissionKey } = require("./access-control.constants")
 
-const PERMISSION_CACHE_TTL = 300
+const PERMISSION_CACHE_TTL = 1800
 
 const getPermissionCacheKey = (userId) => {
   return `access-control:user:${userId}:permissions`
 }
 
-const hasCachedPermission = async (userId, moduleKey, action) => {
+const hasCachedPermission = async (userId, resource, action) => {
   const redis = await connectRedis()
-
   const key = getPermissionCacheKey(userId)
-
   const exists = await redis.exists(key)
 
   if (!exists) {
     return null
   }
 
-  const permission = `${moduleKey}:${action}`
-
-  return Boolean(await redis.sIsMember(key, permission))
+  return Boolean(await redis.sIsMember(key, getPermissionKey(resource, action)))
 }
 
 const cacheUserPermissions = async (userId, permissions) => {
   const redis = await connectRedis()
-
   const key = getPermissionCacheKey(userId)
 
   await redis.del(key)
@@ -39,10 +35,7 @@ const cacheUserPermissions = async (userId, permissions) => {
 
 const invalidateUserPermissionCache = async (userId) => {
   const redis = await connectRedis()
-
-  const key = getPermissionCacheKey(userId)
-
-  await redis.del(key)
+  await redis.del(getPermissionCacheKey(userId))
 }
 
 module.exports = {
