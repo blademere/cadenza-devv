@@ -8,11 +8,7 @@
     "dev": "nodemon --legacy-watch src/server.js",
     "test": "echo \"No tests yet\" && exit 0",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "prisma db seed"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
+    "prisma:migrate": "prisma migrate dev"
   },
   "keywords": [],
   "author": "",
@@ -51,8 +47,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@prisma/client": "^6.19.3",
-    "eslint": "^10.8.0",
+    "eslint": "^10.8.1",
+    "globals": "^17.11.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "nodemon": "^3.1.14",
