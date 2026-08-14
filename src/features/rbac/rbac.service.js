@@ -2,44 +2,35 @@ const {
   getUserPermissions,
   findRoleById,
   findUserIdsByRoleId,
-} = require("./rbac.repository")
+} = require('./rbac.repository')
 
 const {
   hasCachedPermission,
   cacheUserPermissions,
   invalidateUserPermissionCache,
-} = require("./rbac.cache")
+} = require('./rbac.cache')
 
 const hasPermission = async (userId, moduleKey, action) => {
-  /*
-   * Redis is only a cache.
-   *
-   * If Redis is unavailable, fall back to PostgreSQL.
-   */
   try {
     const cachedPermission = await hasCachedPermission(
       userId,
       moduleKey,
-      action,
+      action
     )
 
     if (cachedPermission !== null) {
       return cachedPermission
     }
-  } catch (_error) {
+  } catch {
     // Ignore Redis errors.
     // PostgreSQL remains the source of truth.
   }
 
   const permissions = await getUserPermissions(userId)
 
-  /*
-   * Try to populate the cache.
-   * A Redis failure should not break authorization.
-   */
   try {
     await cacheUserPermissions(userId, permissions)
-  } catch (_error) {
+  } catch {
     // Ignore Redis cache errors.
   }
 
@@ -49,7 +40,7 @@ const hasPermission = async (userId, moduleKey, action) => {
 const clearUserPermissionCache = async (userId) => {
   try {
     await invalidateUserPermissionCache(userId)
-  } catch (_error) {
+  } catch {
     // Cache invalidation failure should not break
     // the primary database operation.
   }
