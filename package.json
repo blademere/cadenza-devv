@@ -10,6 +10,7 @@
     "test:watch": "vitest",
     "test:coverage": "prisma generate && vitest run --coverage",
     "test:integration": "prisma generate && prisma migrate deploy && RUN_INTEGRATION_TESTS=true vitest run src/infrastructure/database/prisma.integration.test.js",
+    "test:redis": "RUN_REDIS_INTEGRATION_TESTS=true vitest run src/infrastructure/cache/redis.integration.test.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy"
