@@ -81,24 +81,48 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     return redirectFailure(res, 'oauth_denied')
   }
 
+  if (!code || !state) {
+    clearOAuthStateCookie(res)
+    clearOAuthLinkStateCookie(res)
+    return redirectFailure(res, 'invalid_oauth_state')
+  }
+
+  const loginState = req.cookies?.[OAUTH_STATE_COOKIE]
   const linkState = req.cookies?.[OAUTH_LINK_STATE_COOKIE]
 
-  if (linkState) {
-    if (!code || !state || !safeEqual(state, linkState)) {
-      clearOAuthLinkStateCookie(res)
-      return redirectFailure(res, 'invalid_oauth_state')
-    }
+  let cookieMatches = false
 
-    const linkStateData = await consumeOAuthState(state, 'link', provider)
+  if (loginState && safeEqual(loginState, state)) {
+    cookieMatches = true
+  }
 
-    if (!linkStateData) {
+  if (linkState && safeEqual(linkState, state)) {
+    cookieMatches = true
+  }
+
+  if (!cookieMatches) {
+    clearOAuthStateCookie(res)
+    clearOAuthLinkStateCookie(res)
+    return redirectFailure(res, 'invalid_oauth_state')
+  }
+
+  const stateData = await consumeOAuthState(state)
+
+  if (!stateData || stateData.provider !== provider) {
+    clearOAuthStateCookie(res)
+    clearOAuthLinkStateCookie(res)
+    return redirectFailure(res, 'invalid_oauth_state')
+  }
+
+  if (stateData.flow === 'link') {
+    if (!stateData.userId || !Number.isInteger(Number(stateData.userId))) {
       clearOAuthLinkStateCookie(res)
       return redirectFailure(res, 'invalid_oauth_state')
     }
 
     try {
       const result = await linkOAuthAccountWithCode({
-        userId: linkStateData.userId,
+        userId: Number(stateData.userId),
         provider,
         code,
       })
@@ -124,17 +148,9 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     }
   }
 
-  const storedState = req.cookies?.[OAUTH_STATE_COOKIE]
-
-  if (!code || !state || !safeEqual(storedState, state)) {
+  if (stateData.flow !== 'login') {
     clearOAuthStateCookie(res)
-    return redirectFailure(res, 'invalid_oauth_state')
-  }
-
-  const stateValid = await consumeOAuthState(state, 'login', provider)
-
-  if (!stateValid) {
-    clearOAuthStateCookie(res)
+    clearOAuthLinkStateCookie(res)
     return redirectFailure(res, 'invalid_oauth_state')
   }
 
