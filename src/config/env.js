@@ -31,7 +31,7 @@ const envSchema = z.object({
   COOKIE_REFRESH_MAX_AGE_MS: z.coerce.number().int().positive().default(7 * 24 * 60 * 60 * 1000),
   OAUTH_STATE_SECRET: z.string().min(32, 'OAUTH_STATE_SECRET must be at least 32 characters.'),
 
-  // OAuth providers are optional. Empty strings in .env mean the provider is disabled.
+  // OAuth providers are optional. Empty strings mean the provider is disabled.
   OAUTH_GOOGLE_CLIENT_ID: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_SECRET: optionalEnvString,
   OAUTH_GOOGLE_CALLBACK_URL: optionalEnvUrl,
@@ -96,14 +96,15 @@ if (data.COOKIE_REFRESH_MAX_AGE_MS !== refreshTokenLifetimeMs) {
   )
 }
 
-const hasGoogleConfig = Boolean(
-  data.OAUTH_GOOGLE_CLIENT_ID ||
-    data.OAUTH_GOOGLE_CLIENT_SECRET ||
-    data.OAUTH_GOOGLE_CALLBACK_URL,
+// A provider is enabled only when its client credentials are configured.
+// A callback URL alone is allowed in development templates and does not
+// make the provider partially configured.
+const hasGoogleCredentials = Boolean(
+  data.OAUTH_GOOGLE_CLIENT_ID || data.OAUTH_GOOGLE_CLIENT_SECRET,
 )
 
 if (
-  hasGoogleConfig &&
+  hasGoogleCredentials &&
   (!data.OAUTH_GOOGLE_CLIENT_ID ||
     !data.OAUTH_GOOGLE_CLIENT_SECRET ||
     !data.OAUTH_GOOGLE_CALLBACK_URL)
@@ -113,14 +114,12 @@ if (
   )
 }
 
-const hasGithubConfig = Boolean(
-  data.OAUTH_GITHUB_CLIENT_ID ||
-    data.OAUTH_GITHUB_CLIENT_SECRET ||
-    data.OAUTH_GITHUB_CALLBACK_URL,
+const hasGithubCredentials = Boolean(
+  data.OAUTH_GITHUB_CLIENT_ID || data.OAUTH_GITHUB_CLIENT_SECRET,
 )
 
 if (
-  hasGithubConfig &&
+  hasGithubCredentials &&
   (!data.OAUTH_GITHUB_CLIENT_ID ||
     !data.OAUTH_GITHUB_CLIENT_SECRET ||
     !data.OAUTH_GITHUB_CALLBACK_URL)
