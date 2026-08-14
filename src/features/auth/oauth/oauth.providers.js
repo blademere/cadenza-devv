@@ -1,11 +1,13 @@
 const crypto = require('crypto')
 
 const { env } = require('../../../config')
+const { connectRedis } = require('../../../infrastructure/cache/redis')
 
 const OAUTH_STATE_COOKIE = 'oauthState'
 const OAUTH_LINK_STATE_COOKIE = 'oauthLinkState'
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000
 const OAUTH_LINK_STATE_MAX_AGE_MS = 10 * 60 * 1000
+const OAUTH_STATE_KEY_PREFIX = 'oauth:state:'
 
 const providerConfig = {
   google: {
@@ -98,6 +100,7 @@ const verifyLinkState = (value) => {
 
     if (!Number.isInteger(userId) || userId <= 0) return null
     if (!Number.isInteger(payload.expiresAt) || payload.expiresAt < Date.now()) return null
+    if (typeof payload.nonce !== 'string' || payload.nonce.length < 32) return null
 
     return {
       userId,
@@ -106,6 +109,38 @@ const verifyLinkState = (value) => {
   } catch {
     return null
   }
+}
+
+const getStateKey = (state) => {
+  return `${OAUTH_STATE_KEY_PREFIX}${crypto.createHash('sha256').update(state).digest('hex')}`
+}
+
+const storeOAuthState = async (state, flow, maxAgeMs) => {
+  if (typeof state !== 'string' || !state) {
+    throw new Error('OAuth state must be a non-empty string.')
+  }
+
+  const client = await connectRedis()
+  const ttlSeconds = Math.ceil(maxAgeMs / 1000)
+  const key = getStateKey(state)
+
+  const stored = await client.set(key, flow, {
+    NX: true,
+    EX: ttlSeconds,
+  })
+
+  if (stored !== 'OK') {
+    throw new Error('OAuth state collision detected.')
+  }
+}
+
+const consumeOAuthState = async (state, expectedFlow) => {
+  if (typeof state !== 'string' || !state) return false
+
+  const client = await connectRedis()
+  const value = await client.getDel(getStateKey(state))
+
+  return value === expectedFlow
 }
 
 const setOAuthStateCookie = (res, state) => {
@@ -169,6 +204,8 @@ module.exports = {
   createAuthorizationUrl,
   createLinkState,
   verifyLinkState,
+  storeOAuthState,
+  consumeOAuthState,
   setOAuthStateCookie,
   clearOAuthStateCookie,
   setOAuthLinkStateCookie,
