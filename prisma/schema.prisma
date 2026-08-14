@@ -74,18 +74,19 @@ model RolePermission {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id String @id
 
-  tokenHash String   @unique
+  tokenHash String @unique
 
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id],onDelete: Cascade)
+  userId Int
+  user   User @relation(fields: [userId],references: [id],onDelete: Cascade)
 
   expiresAt DateTime
   revokedAt DateTime?
 
-  replacedByTokenId String?
-  replacedByToken   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
+  replacedByTokenId String? @unique
+
+  replacedByToken RefreshToken? @relation("RefreshTokenReplacement",fields: [replacedByTokenId],references: [id])
 
   replacesToken RefreshToken? @relation("RefreshTokenReplacement")
 
