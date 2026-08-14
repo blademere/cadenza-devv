@@ -10,16 +10,34 @@ datasource db {
 model User {
   id           Int      @id @default(autoincrement())
   email        String   @unique
-  passwordHash String
+  passwordHash String?
   isActive     Boolean  @default(true)
 
   roleId       Int
-  role         Role     @relation(fields: [roleId],references: [id])
+  role         Role     @relation(fields: [roleId], references: [id])
 
+  oauthAccounts OAuthAccount[]
   refreshTokens RefreshToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([roleId])
+}
+
+model OAuthAccount {
+  id                String   @id @default(uuid())
+  provider          String
+  providerAccountId String
+  userId            Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Role {
@@ -79,16 +97,15 @@ model RefreshToken {
   tokenHash String @unique
 
   userId Int
-  user   User @relation(fields: [userId],references: [id],onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   expiresAt DateTime
   revokedAt DateTime?
 
   replacedByTokenId String? @unique
 
-  replacedByToken RefreshToken? @relation("RefreshTokenReplacement",fields: [replacedByTokenId],references: [id])
-
-  replacesToken RefreshToken? @relation("RefreshTokenReplacement")
+  replacedByToken RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
+  replacesToken   RefreshToken? @relation("RefreshTokenReplacement")
 
   createdAt DateTime @default(now())
 
