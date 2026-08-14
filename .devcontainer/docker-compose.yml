@@ -11,11 +11,23 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3000
+      CORS_ORIGIN: http://localhost:5173
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: express_app
+      POSTGRES_PORT: 5432
       DATABASE_URL: postgresql://user:password@db:5432/express_app?schema=public
-      JWT_SECRET: your-super-secret-jwt-key-min-32-chars-long
-      JWT_EXPIRES_IN: 15m
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: super-secret-access-token-key-min-32-chars-long
+      JWT_REFRESH_SECRET: super-secret-refresh-token-key-min-32-chars-long
+      JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
-      CORS_ORIGIN: '*'
+      OAUTH_STATE_SECRET: super-secret-oauth-state-key-min-32-chars-long
+      COOKIE_SECURE: 'false'
+      COOKIE_SAME_SITE: lax
+      COOKIE_DOMAIN: ''
+      COOKIE_REFRESH_MAX_AGE_MS: 604800000
 
     depends_on:
       db:
