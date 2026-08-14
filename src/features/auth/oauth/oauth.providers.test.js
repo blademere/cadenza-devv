@@ -1,19 +1,25 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-vi.mock('../../../config', () => ({
-  env: {
-    OAUTH_STATE_TTL_SECONDS: 600,
-    OAUTH_GOOGLE_CLIENT_ID: 'google-client',
-    OAUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
-    OAUTH_GOOGLE_CALLBACK_URL: 'http://localhost:3000/api/v1/auth/oauth/google/callback',
-    OAUTH_GITHUB_CLIENT_ID: 'github-client',
-    OAUTH_GITHUB_CLIENT_SECRET: 'github-secret',
-    OAUTH_GITHUB_CALLBACK_URL: 'http://localhost:3000/api/v1/auth/oauth/github/callback',
-  },
-}));
+// oauth.providers.js is CommonJS, so configure the environment before requiring it.
+process.env.NODE_ENV = 'test';
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/test';
+process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'test-access-secret-key-minimum-32-characters';
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key-minimum-32-characters';
+process.env.JWT_ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || '15m';
+process.env.JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+process.env.COOKIE_REFRESH_MAX_AGE_MS = process.env.COOKIE_REFRESH_MAX_AGE_MS || '604800000';
+process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+process.env.COOKIE_SECURE = 'false';
+process.env.COOKIE_SAME_SITE = 'lax';
+process.env.OAUTH_GOOGLE_CLIENT_ID = 'google-client';
+process.env.OAUTH_GOOGLE_CLIENT_SECRET = 'google-secret';
+process.env.OAUTH_GOOGLE_CALLBACK_URL = 'http://localhost:3000/api/v1/auth/oauth/google/callback';
+process.env.OAUTH_GITHUB_CLIENT_ID = 'github-client';
+process.env.OAUTH_GITHUB_CLIENT_SECRET = 'github-secret';
+process.env.OAUTH_GITHUB_CALLBACK_URL = 'http://localhost:3000/api/v1/auth/oauth/github/callback';
 
 const {
-  createOAuthState,
+  createState,
   createAuthorizationUrl,
   safeEqual,
   getProviderConfig,
@@ -21,11 +27,11 @@ const {
 
 describe('OAuth providers', () => {
   it('creates an opaque cryptographically random state', () => {
-    const state = createOAuthState();
+    const state = createState();
 
     expect(typeof state).toBe('string');
     expect(state.length).toBeGreaterThanOrEqual(40);
-    expect(createOAuthState()).not.toBe(state);
+    expect(createState()).not.toBe(state);
   });
 
   it('creates a Google authorization URL with the supplied state', () => {
