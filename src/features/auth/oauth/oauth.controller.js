@@ -1,6 +1,7 @@
 const { env } = require('../../../config')
 const { UnauthorizedError, ConflictError } = require('../../../common/errors/appError')
 const { setCsrfCookie } = require('../../../common/middleware/csrf')
+const asyncHandler = require('../../../common/middleware/asyncHandler')
 const {
   authenticateWithOAuth,
   linkOAuthAccountWithCode,
@@ -17,11 +18,11 @@ const {
   setOAuthStateCookie,
   clearOAuthStateCookie,
   OAUTH_LINK_STATE_COOKIE,
-  createLinkState,
-  verifyLinkState,
   setOAuthLinkStateCookie,
   clearOAuthLinkStateCookie,
   safeEqual,
+  OAUTH_STATE_MAX_AGE_MS,
+  OAUTH_LINK_STATE_MAX_AGE_MS,
 } = require('./oauth.providers')
 
 const setAuthCookies = (res, refreshToken) => {
@@ -57,7 +58,12 @@ const startOAuth = (provider) => async (_req, res) => {
   const state = createState()
   const authorizationUrl = createAuthorizationUrl(provider, state)
 
-  await storeOAuthState(state, `login:${provider}`, 10 * 60 * 1000)
+  await storeOAuthState(
+    state,
+    { flow: 'login', provider },
+    OAUTH_STATE_MAX_AGE_MS,
+  )
+
   setOAuthStateCookie(res, state)
 
   return res.redirect(authorizationUrl)
@@ -75,23 +81,21 @@ const handleOAuthCallback = (provider) => async (req, res) => {
   const linkState = req.cookies?.[OAUTH_LINK_STATE_COOKIE]
 
   if (linkState) {
-    const linkPayload = verifyLinkState(linkState)
-
-    if (!code || !state || !linkPayload || !safeEqual(state, linkState)) {
+    if (!code || !state || !safeEqual(state, linkState)) {
       clearOAuthLinkStateCookie(res)
       return redirectFailure(res, 'invalid_oauth_state')
     }
 
-    const stateConsumed = await consumeOAuthState(state, `link:${provider}`)
+    const linkStateData = await consumeOAuthState(state, 'link', provider)
 
-    if (!stateConsumed) {
+    if (!linkStateData) {
       clearOAuthLinkStateCookie(res)
       return redirectFailure(res, 'invalid_oauth_state')
     }
 
     try {
       const result = await linkOAuthAccountWithCode({
-        userId: linkPayload.userId,
+        userId: linkStateData.userId,
         provider,
         code,
       })
@@ -124,9 +128,9 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     return redirectFailure(res, 'invalid_oauth_state')
   }
 
-  const stateConsumed = await consumeOAuthState(state, `login:${provider}`)
+  const stateData = await consumeOAuthState(state, 'login', provider)
 
-  if (!stateConsumed) {
+  if (!stateData) {
     clearOAuthStateCookie(res)
     return redirectFailure(res, 'invalid_oauth_state')
   }
@@ -164,10 +168,15 @@ const startOAuthLink = (provider) => async (req, res) => {
 
   clearOAuthStateCookie(res)
 
-  const state = createLinkState(req.user.id)
+  const state = createState()
   const authorizationUrl = createAuthorizationUrl(provider, state)
 
-  await storeOAuthState(state, `link:${provider}`, 10 * 60 * 1000)
+  await storeOAuthState(
+    state,
+    { flow: 'link', provider, userId: Number(req.user.id) },
+    OAUTH_LINK_STATE_MAX_AGE_MS,
+  )
+
   setOAuthLinkStateCookie(res, state)
 
   return res.redirect(authorizationUrl)
@@ -199,9 +208,9 @@ const unlinkOAuthAccountController = async (req, res) => {
 }
 
 module.exports = {
-  startOAuth,
+  startOAuth: (provider) => asyncHandler(startOAuth(provider)),
   handleOAuthCallback,
-  startOAuthLink,
+  startOAuthLink: (provider) => asyncHandler(startOAuthLink(provider)),
   listOAuthAccountsController,
   unlinkOAuthAccountController,
 }
