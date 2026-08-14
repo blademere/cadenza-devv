@@ -32,8 +32,17 @@ const logoutRateLimiter = rateLimit({
   handler: authRateLimitHandler,
 })
 
+const oauthRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler: authRateLimitHandler,
+})
+
 module.exports = {
   loginRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
+  oauthRateLimiter,
 }
