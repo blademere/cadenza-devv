@@ -1,14 +1,14 @@
-const bcrypt = require("bcrypt")
+const bcrypt = require('bcrypt')
 
-const { ConflictError, NotFoundError } = require("../../common/errors/appError")
+const { ConflictError, NotFoundError } = require('../../common/errors/appError')
 
-const { findAllUsers, createUser } = require("./user.repository")
+const { findAllUsers, createUser } = require('./user.repository')
 
-const { toUserResponse } = require("./user.mapper")
+const { toUserResponse } = require('./user.mapper')
 
-const { findUserByEmail } = require("../auth/auth.repository")
+const { findUserByEmail } = require('../auth/auth.repository')
 
-const { findRoleById } = require("../rbac/rbac.repository")
+const { findRoleById } = require('../access-control/access-control.repository')
 
 const listUsers = async ({ page, limit }) => {
   const skip = (page - 1) * limit
@@ -36,13 +36,13 @@ const registerUser = async ({ email, roleId, password }) => {
   const existingUser = await findUserByEmail(email)
 
   if (existingUser) {
-    throw new ConflictError("A user with this email already exists.")
+    throw new ConflictError('A user with this email already exists.')
   }
 
   const role = await findRoleById(roleId)
 
   if (!role) {
-    throw new NotFoundError("Role not found.")
+    throw new NotFoundError('Role not found.')
   }
 
   const passwordHash = await bcrypt.hash(password, 12)

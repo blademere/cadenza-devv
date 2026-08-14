@@ -2,40 +2,36 @@ const {
   getUserAuthorizationContext,
   findRoleById,
   findUserIdsByRoleId,
-} = require("./access-control.repository")
+} = require('./access-control.repository')
 
 const {
   hasCachedPermission,
   cacheUserPermissions,
   invalidateUserPermissionCache,
-} = require("./access-control.cache")
+} = require('./access-control.cache')
 
-const { getPermissionKey } = require("./access-control.constants")
+const { getPermissionKey } = require('./access-control.constants')
 
 const loadUserPermissions = async (userId) => {
+  const context = await getUserAuthorizationContext(userId)
+
+  if (!context) {
+    return { role: null, permissions: [] }
+  }
+
+  const permissions = context.permissions.map((permission) =>
+    getPermissionKey(permission.resource, permission.action)
+  )
+
   try {
-    const context = await getUserAuthorizationContext(userId)
+    await cacheUserPermissions(userId, permissions)
+  } catch {
+    // Redis is an optimization. PostgreSQL remains the source of truth.
+  }
 
-    if (!context) {
-      return { role: null, permissions: [] }
-    }
-
-    const permissions = context.permissions.map((permission) =>
-      getPermissionKey(permission.resource, permission.action),
-    )
-
-    try {
-      await cacheUserPermissions(userId, permissions)
-    } catch {
-      // Redis is an optimization. PostgreSQL remains the source of truth.
-    }
-
-    return {
-      role: context.role,
-      permissions,
-    }
-  } catch (error) {
-    throw error
+  return {
+    role: context.role,
+    permissions,
   }
 }
 

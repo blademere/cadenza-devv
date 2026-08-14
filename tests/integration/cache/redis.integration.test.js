@@ -1,18 +1,39 @@
 import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest'
 
-const { getRedisClient, connectRedis, disconnectRedis } = require('../../../src/infrastructure/cache/redis')
-const { PERMISSION_CACHE_TTL, getPermissionCacheKey, hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } = require('../../../src/features/rbac/rbac.cache')
+const {
+  getRedisClient,
+  connectRedis,
+  disconnectRedis,
+} = require('../../../src/infrastructure/cache/redis')
+const {
+  PERMISSION_CACHE_TTL,
+  getPermissionCacheKey,
+  hasCachedPermission,
+  cacheUserPermissions,
+  invalidateUserPermissionCache,
+} = require('../../../src/features/access-control/access-control.cache')
 const runIntegrationTests = process.env.RUN_REDIS_INTEGRATION_TESTS === 'true'
 const describeIfEnabled = runIntegrationTests ? describe : describe.skip
 
 describeIfEnabled('Redis integration', () => {
   const testKeys = new Set()
   let redis
-  const trackKey = (key) => { testKeys.add(key); return key }
+  const trackKey = (key) => {
+    testKeys.add(key)
+    return key
+  }
 
-  beforeAll(async () => { redis = await connectRedis() })
-  beforeEach(async () => { for (const key of testKeys) await redis.del(key); testKeys.clear() })
-  afterAll(async () => { for (const key of testKeys) await redis.del(key); await disconnectRedis() })
+  beforeAll(async () => {
+    redis = await connectRedis()
+  })
+  beforeEach(async () => {
+    for (const key of testKeys) await redis.del(key)
+    testKeys.clear()
+  })
+  afterAll(async () => {
+    for (const key of testKeys) await redis.del(key)
+    await disconnectRedis()
+  })
 
   it('connects to Redis and executes commands', async () => {
     expect(redis).toBe(getRedisClient())
@@ -25,7 +46,7 @@ describeIfEnabled('Redis integration', () => {
     expect(await redis.get(key)).toBe('integration-value')
     expect(await redis.ttl(key)).toBeGreaterThan(0)
   })
-  it('stores and resolves RBAC permissions through Redis sets', async () => {
+  it('stores and resolves access-control permissions through Redis sets', async () => {
     const userId = `integration-${Date.now()}-${Math.random().toString(36).slice(2)}`
     const key = trackKey(getPermissionCacheKey(userId))
     const permissions = ['users:read', 'users:create']
@@ -33,7 +54,9 @@ describeIfEnabled('Redis integration', () => {
     expect(await hasCachedPermission(userId, 'users', 'read')).toBe(true)
     expect(await hasCachedPermission(userId, 'users', 'create')).toBe(true)
     expect(await hasCachedPermission(userId, 'users', 'delete')).toBe(false)
-    expect(await redis.sMembers(key)).toEqual(expect.arrayContaining(permissions))
+    expect(await redis.sMembers(key)).toEqual(
+      expect.arrayContaining(permissions)
+    )
     expect(await redis.ttl(key)).toBeGreaterThan(0)
     expect(await redis.ttl(key)).toBeLessThanOrEqual(PERMISSION_CACHE_TTL)
   })
