@@ -3,6 +3,18 @@ const { z } = require('zod')
 
 dotenv.config()
 
+const emptyToUndefined = (value) => (value === '' ? undefined : value)
+
+const optionalEnvString = z.preprocess(
+  emptyToUndefined,
+  z.string().optional(),
+)
+
+const optionalEnvUrl = z.preprocess(
+  emptyToUndefined,
+  z.url().optional(),
+)
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -15,15 +27,19 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().min(1).default('http://localhost:5173'),
   COOKIE_SECURE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   COOKIE_SAME_SITE: z.enum(['strict', 'lax', 'none']).default('lax'),
-  COOKIE_DOMAIN: z.string().optional(),
+  COOKIE_DOMAIN: optionalEnvString,
   COOKIE_REFRESH_MAX_AGE_MS: z.coerce.number().int().positive().default(7 * 24 * 60 * 60 * 1000),
   OAUTH_STATE_SECRET: z.string().min(32, 'OAUTH_STATE_SECRET must be at least 32 characters.'),
-  OAUTH_GOOGLE_CLIENT_ID: z.string().optional(),
-  OAUTH_GOOGLE_CLIENT_SECRET: z.string().optional(),
-  OAUTH_GOOGLE_CALLBACK_URL: z.url().optional(),
-  OAUTH_GITHUB_CLIENT_ID: z.string().optional(),
-  OAUTH_GITHUB_CLIENT_SECRET: z.string().optional(),
-  OAUTH_GITHUB_CALLBACK_URL: z.url().optional(),
+
+  // OAuth providers are optional. Empty strings in .env mean the provider is disabled.
+  OAUTH_GOOGLE_CLIENT_ID: optionalEnvString,
+  OAUTH_GOOGLE_CLIENT_SECRET: optionalEnvString,
+  OAUTH_GOOGLE_CALLBACK_URL: optionalEnvUrl,
+
+  OAUTH_GITHUB_CLIENT_ID: optionalEnvString,
+  OAUTH_GITHUB_CLIENT_SECRET: optionalEnvString,
+  OAUTH_GITHUB_CALLBACK_URL: optionalEnvUrl,
+
   OAUTH_DEFAULT_ROLE_NAME: z.string().min(1).default('client'),
   OAUTH_FRONTEND_SUCCESS_URL: z.url().default('http://localhost:5173/auth/callback/success'),
   OAUTH_FRONTEND_FAILURE_URL: z.url().default('http://localhost:5173/auth/callback/failure'),
@@ -81,12 +97,16 @@ if (data.COOKIE_REFRESH_MAX_AGE_MS !== refreshTokenLifetimeMs) {
 }
 
 const hasGoogleConfig = Boolean(
-  data.OAUTH_GOOGLE_CLIENT_ID || data.OAUTH_GOOGLE_CLIENT_SECRET || data.OAUTH_GOOGLE_CALLBACK_URL,
+  data.OAUTH_GOOGLE_CLIENT_ID ||
+    data.OAUTH_GOOGLE_CLIENT_SECRET ||
+    data.OAUTH_GOOGLE_CALLBACK_URL,
 )
 
 if (
   hasGoogleConfig &&
-  (!data.OAUTH_GOOGLE_CLIENT_ID || !data.OAUTH_GOOGLE_CLIENT_SECRET || !data.OAUTH_GOOGLE_CALLBACK_URL)
+  (!data.OAUTH_GOOGLE_CLIENT_ID ||
+    !data.OAUTH_GOOGLE_CLIENT_SECRET ||
+    !data.OAUTH_GOOGLE_CALLBACK_URL)
 ) {
   throw new Error(
     'Google OAuth requires OAUTH_GOOGLE_CLIENT_ID, OAUTH_GOOGLE_CLIENT_SECRET, and OAUTH_GOOGLE_CALLBACK_URL.',
@@ -94,12 +114,16 @@ if (
 }
 
 const hasGithubConfig = Boolean(
-  data.OAUTH_GITHUB_CLIENT_ID || data.OAUTH_GITHUB_CLIENT_SECRET || data.OAUTH_GITHUB_CALLBACK_URL,
+  data.OAUTH_GITHUB_CLIENT_ID ||
+    data.OAUTH_GITHUB_CLIENT_SECRET ||
+    data.OAUTH_GITHUB_CALLBACK_URL,
 )
 
 if (
   hasGithubConfig &&
-  (!data.OAUTH_GITHUB_CLIENT_ID || !data.OAUTH_GITHUB_CLIENT_SECRET || !data.OAUTH_GITHUB_CALLBACK_URL)
+  (!data.OAUTH_GITHUB_CLIENT_ID ||
+    !data.OAUTH_GITHUB_CLIENT_SECRET ||
+    !data.OAUTH_GITHUB_CALLBACK_URL)
 ) {
   throw new Error(
     'GitHub OAuth requires OAUTH_GITHUB_CLIENT_ID, OAUTH_GITHUB_CLIENT_SECRET, and OAUTH_GITHUB_CALLBACK_URL.',
