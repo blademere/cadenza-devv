@@ -128,9 +128,9 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     return redirectFailure(res, 'invalid_oauth_state')
   }
 
-  const stateData = await consumeOAuthState(state, 'login', provider)
+  const stateValid = await consumeOAuthState(state, 'login', provider)
 
-  if (!stateData) {
+  if (!stateValid) {
     clearOAuthStateCookie(res)
     return redirectFailure(res, 'invalid_oauth_state')
   }
