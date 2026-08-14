@@ -5,9 +5,13 @@ const redis = {
   getDel: vi.fn(),
 };
 
-vi.mock('../../../infrastructure/cache/redis', () => ({
-  connectRedis: vi.fn(async () => redis),
-}));
+// oauth.providers.js is CommonJS and loads its Redis dependency with require().
+// Vitest's vi.mock() does not reliably replace that CommonJS require path in
+// this setup, so patch the real module export before dynamically importing the
+// provider module. This keeps the production Redis implementation unchanged
+// while ensuring these unit tests never connect to localhost:6379.
+const redisModule = require('../../../infrastructure/cache/redis');
+redisModule.connectRedis = vi.fn(async () => redis);
 
 vi.mock('../../../config', () => ({
   env: {
@@ -23,8 +27,8 @@ vi.mock('../../../config', () => ({
   },
 }));
 
-// oauth.providers.js is CommonJS. Import it dynamically so Vitest can apply
-// the mocked CommonJS dependencies above before Node evaluates the module.
+// Import after the Redis module has been patched because oauth.providers.js is
+// CommonJS and captures connectRedis during module evaluation.
 const { consumeOAuthState, storeOAuthState } = await import('./oauth.providers.js');
 
 const validState = 'a'.repeat(43);
