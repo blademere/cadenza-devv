@@ -4,38 +4,96 @@ const { getPrismaClient } = require('../../infrastructure/database/prisma')
 
 const prisma = getPrismaClient()
 
+const userInclude = {
+  role: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+    },
+  },
+}
+
 const findUserByEmail = async (email) => {
   return prisma.user.findUnique({
-    where: {
-      email,
-    },
-
-    include: {
-      role: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-        },
-      },
-    },
+    where: { email },
+    include: userInclude,
   })
 }
 
 const findUserById = async (id) => {
   return prisma.user.findUnique({
-    where: {
-      id: Number(id),
-    },
+    where: { id: Number(id) },
+    include: userInclude,
+  })
+}
 
+const findOAuthAccount = async ({ provider, providerAccountId }) => {
+  return prisma.oAuthAccount.findUnique({
+    where: {
+      provider_providerAccountId: {
+        provider,
+        providerAccountId,
+      },
+    },
     include: {
-      role: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
+      user: {
+        include: userInclude,
+      },
+    },
+  })
+}
+
+const createOAuthUser = async ({
+  email,
+  provider,
+  providerAccountId,
+  roleName,
+}) => {
+  return prisma.$transaction(async (tx) => {
+    const role = await tx.role.findUnique({
+      where: { name: roleName },
+    })
+
+    if (!role) {
+      throw new Error(`OAuth default role '${roleName}' does not exist.`)
+    }
+
+    const existingUser = await tx.user.findUnique({
+      where: { email },
+    })
+
+    if (existingUser) {
+      throw new Error('An account already exists for this email address.')
+    }
+
+    return tx.user.create({
+      data: {
+        email,
+        passwordHash: null,
+        roleId: role.id,
+        oauthAccounts: {
+          create: {
+            provider,
+            providerAccountId,
+          },
         },
       },
+      include: userInclude,
+    })
+  })
+}
+
+const linkOAuthAccount = async ({
+  userId,
+  provider,
+  providerAccountId,
+}) => {
+  return prisma.oAuthAccount.create({
+    data: {
+      userId: Number(userId),
+      provider,
+      providerAccountId,
     },
   })
 }
@@ -44,12 +102,7 @@ const hashRefreshToken = (token) => {
   return crypto.createHash('sha256').update(token).digest('hex')
 }
 
-const createRefreshTokenRecord = async ({
-  tokenId,
-  token,
-  userId,
-  expiresAt,
-}) => {
+const createRefreshTokenRecord = async ({ tokenId, token, userId, expiresAt }) => {
   const tokenHash = hashRefreshToken(token)
 
   return prisma.refreshToken.create({
@@ -66,23 +119,11 @@ const findRefreshToken = async (token) => {
   const tokenHash = hashRefreshToken(token)
 
   return prisma.refreshToken.findUnique({
-    where: {
-      tokenHash,
-    },
-
+    where: { tokenHash },
     include: {
       user: {
-        include: {
-          role: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-            },
-          },
-        },
+        include: userInclude,
       },
-
       replacedByToken: {
         select: {
           id: true,
@@ -96,23 +137,11 @@ const findRefreshToken = async (token) => {
 
 const findRefreshTokenById = async (tokenId) => {
   return prisma.refreshToken.findUnique({
-    where: {
-      id: tokenId,
-    },
-
+    where: { id: tokenId },
     include: {
       user: {
-        include: {
-          role: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-            },
-          },
-        },
+        include: userInclude,
       },
-
       replacedByToken: {
         select: {
           id: true,
@@ -130,7 +159,6 @@ const revokeRefreshToken = async (tokenId) => {
       id: tokenId,
       revokedAt: null,
     },
-
     data: {
       revokedAt: new Date(),
     },
@@ -143,7 +171,6 @@ const revokeAllRefreshTokensForUser = async (userId) => {
       userId: Number(userId),
       revokedAt: null,
     },
-
     data: {
       revokedAt: new Date(),
     },
@@ -164,7 +191,6 @@ const rotateRefreshToken = async ({
         userId: Number(userId),
         revokedAt: null,
       },
-
       data: {
         revokedAt: new Date(),
         replacedByTokenId: newTokenId,
@@ -172,9 +198,7 @@ const rotateRefreshToken = async ({
     })
 
     if (consumed.count !== 1) {
-      return {
-        success: false,
-      }
+      return { success: false }
     }
 
     await tx.refreshToken.create({
@@ -186,9 +210,7 @@ const rotateRefreshToken = async ({
       },
     })
 
-    return {
-      success: true,
-    }
+    return { success: true }
   })
 }
 
@@ -205,6 +227,9 @@ const deleteExpiredRefreshTokens = async () => {
 module.exports = {
   findUserByEmail,
   findUserById,
+  findOAuthAccount,
+  createOAuthUser,
+  linkOAuthAccount,
   hashRefreshToken,
   createRefreshTokenRecord,
   findRefreshToken,
