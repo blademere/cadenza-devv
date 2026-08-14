@@ -1,4 +1,5 @@
-const { beforeAll, afterAll, beforeEach, describe, expect, it } = require('vitest')
+import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest'
+
 const crypto = require('crypto')
 const { getPrismaClient } = require('./prisma')
 const { findAllUsers } = require('../../features/users/user.repository')
