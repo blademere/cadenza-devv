@@ -1,14 +1,18 @@
 const { ForbiddenError } = require("../errors/appError")
-const { hasPermission } = require("../../features/access-control/access-control.service")
+const { can } = require("../../features/access-control/access-control.service")
 
-const authorize = (moduleKey, action) => {
+const authorize = (resource, action) => {
   return async (req, _res, next) => {
     try {
       if (!req.user) {
         return next(new ForbiddenError("User context not found."))
       }
 
-      const allowed = await hasPermission(req.user.id, moduleKey, action)
+      const allowed = await can({
+        userId: req.user.id,
+        resource,
+        action,
+      })
 
       if (!allowed) {
         return next(
