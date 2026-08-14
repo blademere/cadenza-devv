@@ -72,7 +72,7 @@ const createLinkState = (userId) => {
 
   const encodedPayload = Buffer.from(payload, 'utf8').toString('base64url')
   const signature = crypto
-    .createHmac('sha256', env.JWT_ACCESS_SECRET)
+    .createHmac('sha256', env.OAUTH_STATE_SECRET)
     .update(encodedPayload)
     .digest('base64url')
 
@@ -86,7 +86,7 @@ const verifyLinkState = (value) => {
   if (!encodedPayload || !signature) return null
 
   const expectedSignature = crypto
-    .createHmac('sha256', env.JWT_ACCESS_SECRET)
+    .createHmac('sha256', env.OAUTH_STATE_SECRET)
     .update(encodedPayload)
     .digest('base64url')
 
