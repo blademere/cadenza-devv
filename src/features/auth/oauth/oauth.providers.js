@@ -116,6 +116,17 @@ const storeOAuthState = async (state, metadata, maxAgeMs) => {
 const consumeOAuthState = async (state, expectedFlow, expectedProvider) => {
   if (typeof state !== 'string' || state.length < 32) return null
 
+  if (expectedFlow !== undefined && !['login', 'link'].includes(expectedFlow)) {
+    throw new Error('Invalid expected OAuth state flow.')
+  }
+
+  if (
+    expectedProvider !== undefined &&
+    !Object.prototype.hasOwnProperty.call(providerConfig, expectedProvider)
+  ) {
+    throw new Error('Invalid expected OAuth state provider.')
+  }
+
   const client = await connectRedis()
   const value = await client.getDel(getStateKey(state))
 
@@ -125,14 +136,29 @@ const consumeOAuthState = async (state, expectedFlow, expectedProvider) => {
     const metadata = JSON.parse(value)
 
     if (
-      metadata.flow !== expectedFlow ||
-      metadata.provider !== expectedProvider
+      expectedFlow !== undefined &&
+      metadata.flow !== expectedFlow
     ) {
       return null
     }
 
     if (
-      expectedFlow === 'link' &&
+      expectedProvider !== undefined &&
+      metadata.provider !== expectedProvider
+    ) {
+      return null
+    }
+
+    if (!['login', 'link'].includes(metadata.flow)) {
+      return null
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(providerConfig, metadata.provider)) {
+      return null
+    }
+
+    if (
+      metadata.flow === 'link' &&
       (!Number.isInteger(metadata.userId) || metadata.userId <= 0)
     ) {
       return null
