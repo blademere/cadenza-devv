@@ -1,5 +1,10 @@
 const { env } = require('../../../config')
-const { UnauthorizedError } = require('../../../common/errors/appError')
+const {
+  UnauthorizedError,
+  ConflictError,
+} = require('../../../common/errors/appError')
+
+const { setCsrfCookie } = require('../../../common/middleware/csrf')
 
 const { authenticateWithOAuth } = require('./oauth.service')
 
@@ -19,20 +24,6 @@ const setAuthCookies = (res, refreshToken) => {
     sameSite: env.COOKIE_SAME_SITE,
     domain: env.COOKIE_DOMAIN || undefined,
     path: '/api/v1/auth',
-    maxAge: env.COOKIE_REFRESH_MAX_AGE_MS,
-  })
-}
-
-const setCsrfCookie = (res) => {
-  const crypto = require('crypto')
-  const token = crypto.randomBytes(32).toString('hex')
-
-  res.cookie('csrfToken', token, {
-    httpOnly: false,
-    secure: env.COOKIE_SECURE,
-    sameSite: env.COOKIE_SAME_SITE,
-    domain: env.COOKIE_DOMAIN || undefined,
-    path: '/',
     maxAge: env.COOKIE_REFRESH_MAX_AGE_MS,
   })
 }
@@ -78,11 +69,12 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     clearOAuthStateCookie(res)
 
     /*
-     * Do not put the access token in the URL.
+     * Never put the access token in the URL.
      *
-     * The frontend receives the refresh cookie and
-     * calls POST /api/v1/auth/refresh with the CSRF
-     * token to obtain the access token as JSON.
+     * The browser now owns the HttpOnly refresh
+     * cookie and the CSRF cookie. The frontend
+     * should call POST /api/v1/auth/refresh to
+     * obtain the access token as JSON.
      */
     return res.redirect(env.OAUTH_FRONTEND_SUCCESS_URL)
   } catch (error) {
@@ -92,7 +84,7 @@ const handleOAuthCallback = (provider) => async (req, res) => {
       return redirectFailure(res, 'oauth_unauthorized')
     }
 
-    if (error.name === 'ConflictError') {
+    if (error instanceof ConflictError) {
       return redirectFailure(res, 'account_exists')
     }
 
