@@ -42,6 +42,14 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(7 * 24 * 60 * 60 * 1000),
+
+  OAUTH_GOOGLE_CLIENT_ID: z.string().optional(),
+  OAUTH_GOOGLE_CLIENT_SECRET: z.string().optional(),
+  OAUTH_GOOGLE_CALLBACK_URL: z.url().optional(),
+
+  OAUTH_GITHUB_CLIENT_ID: z.string().optional(),
+  OAUTH_GITHUB_CLIENT_SECRET: z.string().optional(),
+  OAUTH_GITHUB_CALLBACK_URL: z.url().optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)
@@ -54,22 +62,24 @@ if (!parsed.success) {
   throw new Error(`Invalid environment configuration. ${details}`)
 }
 
-if (parsed.data.COOKIE_SAME_SITE === 'none' && !parsed.data.COOKIE_SECURE) {
+const data = parsed.data
+
+if (data.COOKIE_SAME_SITE === 'none' && !data.COOKIE_SECURE) {
   throw new Error("COOKIE_SECURE must be true when COOKIE_SAME_SITE is 'none'.")
 }
 
-if (parsed.data.NODE_ENV === 'production' && !parsed.data.COOKIE_SECURE) {
+if (data.NODE_ENV === 'production' && !data.COOKIE_SECURE) {
   throw new Error('COOKIE_SECURE must be true in production.')
 }
 
-if (parsed.data.NODE_ENV === 'production' && parsed.data.CORS_ORIGIN === '*') {
+if (data.NODE_ENV === 'production' && data.CORS_ORIGIN === '*') {
   throw new Error("CORS_ORIGIN must not be '*' in production.")
 }
 
 const hasGoogleConfig = Boolean(
   data.OAUTH_GOOGLE_CLIENT_ID ||
-  data.OAUTH_GOOGLE_CLIENT_SECRET ||
-  data.OAUTH_GOOGLE_CALLBACK_URL
+    data.OAUTH_GOOGLE_CLIENT_SECRET ||
+    data.OAUTH_GOOGLE_CALLBACK_URL
 )
 
 if (
@@ -85,8 +95,8 @@ if (
 
 const hasGithubConfig = Boolean(
   data.OAUTH_GITHUB_CLIENT_ID ||
-  data.OAUTH_GITHUB_CLIENT_SECRET ||
-  data.OAUTH_GITHUB_CALLBACK_URL
+    data.OAUTH_GITHUB_CLIENT_SECRET ||
+    data.OAUTH_GITHUB_CALLBACK_URL
 )
 
 if (
