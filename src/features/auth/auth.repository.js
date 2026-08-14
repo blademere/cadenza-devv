@@ -1,5 +1,6 @@
-const crypto = require("crypto")
-const { getPrismaClient } = require("../../infrastructure/database/prisma")
+const crypto = require('crypto')
+
+const { getPrismaClient } = require('../../infrastructure/database/prisma')
 
 const prisma = getPrismaClient()
 
@@ -40,14 +41,20 @@ const findUserById = async (id) => {
 }
 
 const hashRefreshToken = (token) => {
-  return crypto.createHash("sha256").update(token).digest("hex")
+  return crypto.createHash('sha256').update(token).digest('hex')
 }
 
-const createRefreshTokenRecord = async ({ token, userId, expiresAt }) => {
+const createRefreshTokenRecord = async ({
+  tokenId,
+  token,
+  userId,
+  expiresAt,
+}) => {
   const tokenHash = hashRefreshToken(token)
 
   return prisma.refreshToken.create({
     data: {
+      id: tokenId,
       tokenHash,
       userId: Number(userId),
       expiresAt,
@@ -75,14 +82,53 @@ const findRefreshToken = async (token) => {
           },
         },
       },
+
+      replacedByToken: {
+        select: {
+          id: true,
+          revokedAt: true,
+          expiresAt: true,
+        },
+      },
+    },
+  })
+}
+
+const findRefreshTokenById = async (tokenId) => {
+  return prisma.refreshToken.findUnique({
+    where: {
+      id: tokenId,
+    },
+
+    include: {
+      user: {
+        include: {
+          role: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
+        },
+      },
+
+      replacedByToken: {
+        select: {
+          id: true,
+          revokedAt: true,
+          expiresAt: true,
+        },
+      },
     },
   })
 }
 
 const revokeRefreshToken = async (tokenId) => {
-  return prisma.refreshToken.update({
+  return prisma.refreshToken.updateMany({
     where: {
       id: tokenId,
+      revokedAt: null,
     },
 
     data: {
@@ -104,12 +150,67 @@ const revokeAllRefreshTokensForUser = async (userId) => {
   })
 }
 
+const rotateRefreshToken = async ({
+  currentTokenId,
+  newTokenId,
+  newTokenHash,
+  userId,
+  expiresAt,
+}) => {
+  return prisma.$transaction(async (tx) => {
+    const consumed = await tx.refreshToken.updateMany({
+      where: {
+        id: currentTokenId,
+        userId: Number(userId),
+        revokedAt: null,
+      },
+
+      data: {
+        revokedAt: new Date(),
+        replacedByTokenId: newTokenId,
+      },
+    })
+
+    if (consumed.count !== 1) {
+      return {
+        success: false,
+      }
+    }
+
+    await tx.refreshToken.create({
+      data: {
+        id: newTokenId,
+        tokenHash: newTokenHash,
+        userId: Number(userId),
+        expiresAt,
+      },
+    })
+
+    return {
+      success: true,
+    }
+  })
+}
+
+const deleteExpiredRefreshTokens = async () => {
+  return prisma.refreshToken.deleteMany({
+    where: {
+      expiresAt: {
+        lt: new Date(),
+      },
+    },
+  })
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
   hashRefreshToken,
   createRefreshTokenRecord,
   findRefreshToken,
+  findRefreshTokenById,
   revokeRefreshToken,
   revokeAllRefreshTokensForUser,
+  rotateRefreshToken,
+  deleteExpiredRefreshTokens,
 }

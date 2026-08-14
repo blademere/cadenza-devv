@@ -79,13 +79,20 @@ model RefreshToken {
   tokenHash String   @unique
 
   userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade )
+  user      User     @relation(fields: [userId], references: [id],onDelete: Cascade)
 
   expiresAt DateTime
   revokedAt DateTime?
+
+  replacedByTokenId String?
+  replacedByToken   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
+
+  replacesToken RefreshToken? @relation("RefreshTokenReplacement")
 
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([revokedAt])
+  @@index([replacedByTokenId])
 }
