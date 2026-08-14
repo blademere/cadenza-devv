@@ -12,15 +12,15 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
-const rbacService = require('../../../src/features/rbac/rbac.service')
+const accessControlService = require('../../../src/features/access-control/access-control.service')
 const userService = require('../../../src/features/users/user.service')
 const { createAccessToken } = require('../../../src/features/auth/auth.tokens')
-const hasPermission = vi.spyOn(rbacService, 'hasPermission')
+const hasPermission = vi.spyOn(accessControlService, 'hasPermission')
 const listUsers = vi.spyOn(userService, 'listUsers')
 const registerUser = vi.spyOn(userService, 'registerUser')
 const app = require('../../../src/app')
 
-describe('Auth/RBAC integration', () => {
+describe('Auth/Access Control integration', () => {
   const user = { id: 42 }
 
   beforeEach(() => {
