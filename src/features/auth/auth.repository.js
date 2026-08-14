@@ -1,7 +1,5 @@
 const crypto = require('crypto')
-
 const { getPrismaClient } = require('../../infrastructure/database/prisma')
-
 const prisma = getPrismaClient()
 
 const userInclude = {
@@ -44,7 +42,12 @@ const findOAuthAccount = async ({ provider, providerAccountId }) => {
   })
 }
 
-const createOAuthUser = async ({ email, provider, providerAccountId, roleName }) => {
+const createOAuthUser = async ({
+  email,
+  provider,
+  providerAccountId,
+  roleName,
+}) => {
   return prisma.$transaction(async (tx) => {
     const role = await tx.role.findUnique({
       where: { name: roleName },
@@ -94,7 +97,9 @@ const linkOAuthAccount = async ({ userId, provider, providerAccountId }) => {
       return existingAccount
     }
 
-    const error = new Error('This OAuth account is already linked to another user.')
+    const error = new Error(
+      'This OAuth account is already linked to another user.'
+    )
     error.code = 'OAUTH_ACCOUNT_ALREADY_LINKED'
     throw error
   }
@@ -151,10 +156,14 @@ const unlinkOAuthAccount = async ({ userId, provider }) => {
     }
 
     const hasPassword = Boolean(user.passwordHash)
-    const hasAnotherOAuthAccount = accounts.some((item) => item.id !== account.id)
+    const hasAnotherOAuthAccount = accounts.some(
+      (item) => item.id !== account.id
+    )
 
     if (!hasPassword && !hasAnotherOAuthAccount) {
-      const error = new Error('Cannot unlink the only authentication method on the account.')
+      const error = new Error(
+        'Cannot unlink the only authentication method on the account.'
+      )
       error.code = 'LAST_AUTH_METHOD'
       throw error
     }
@@ -171,7 +180,12 @@ const hashRefreshToken = (token) => {
   return crypto.createHash('sha256').update(token).digest('hex')
 }
 
-const createRefreshTokenRecord = async ({ tokenId, token, userId, expiresAt }) => {
+const createRefreshTokenRecord = async ({
+  tokenId,
+  token,
+  userId,
+  expiresAt,
+}) => {
   const tokenHash = hashRefreshToken(token)
 
   return prisma.refreshToken.create({
@@ -236,7 +250,13 @@ const revokeAllRefreshTokensForUser = async (userId) => {
   })
 }
 
-const rotateRefreshToken = async ({ currentTokenId, newTokenId, newTokenHash, userId, expiresAt }) => {
+const rotateRefreshToken = async ({
+  currentTokenId,
+  newTokenId,
+  newTokenHash,
+  userId,
+  expiresAt,
+}) => {
   return prisma.$transaction(async (tx) => {
     const consumed = await tx.refreshToken.updateMany({
       where: {

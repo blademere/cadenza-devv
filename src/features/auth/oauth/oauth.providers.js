@@ -1,8 +1,6 @@
 const crypto = require('crypto')
-
 const { env } = require('../../../config')
 const { connectRedis } = require('../../../infrastructure/cache/redis')
-
 const OAUTH_STATE_COOKIE = 'oauthState'
 const OAUTH_LINK_STATE_COOKIE = 'oauthLinkState'
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000
@@ -40,8 +38,6 @@ const getProviderConfig = (provider) => {
   return config
 }
 
-// OAuth providers should only receive an opaque, high-entropy value.
-// All application state (flow, provider, userId) is kept server-side in Redis.
 const createState = () => crypto.randomBytes(32).toString('base64url')
 
 const createAuthorizationUrl = (provider, state) => {
@@ -90,7 +86,10 @@ const storeOAuthState = async (state, metadata, maxAgeMs) => {
     throw new Error('Invalid OAuth state provider.')
   }
 
-  if (flow === 'link' && (!Number.isInteger(Number(userId)) || Number(userId) <= 0)) {
+  if (
+    flow === 'link' &&
+    (!Number.isInteger(Number(userId)) || Number(userId) <= 0)
+  ) {
     throw new Error('A valid userId is required for OAuth linking.')
   }
 

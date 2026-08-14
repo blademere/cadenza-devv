@@ -34,67 +34,68 @@ authRouter.post(
   '/login',
   loginRateLimiter,
   validate(loginValidator),
-  asyncHandler(loginController),
+  asyncHandler(loginController)
 )
 
-/* OAuth authentication. */
-authRouter.get('/oauth/google', oauthRateLimiter, asyncHandler(startOAuth('google')))
-authRouter.get('/oauth/google/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('google')))
-authRouter.get('/oauth/github', oauthRateLimiter, asyncHandler(startOAuth('github')))
-authRouter.get('/oauth/github/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('github')))
+authRouter.get(
+  '/oauth/google',
+  oauthRateLimiter,
+  asyncHandler(startOAuth('google'))
+)
+authRouter.get(
+  '/oauth/google/callback',
+  oauthRateLimiter,
+  asyncHandler(handleOAuthCallback('google'))
+)
+authRouter.get(
+  '/oauth/github',
+  oauthRateLimiter,
+  asyncHandler(startOAuth('github'))
+)
+authRouter.get(
+  '/oauth/github/callback',
+  oauthRateLimiter,
+  asyncHandler(handleOAuthCallback('github'))
+)
 
-/*
- * OAuth account management.
- *
- * Linking requires an existing application session.
- * The authenticated user ID is cryptographically bound
- * into the short-lived OAuth link state.
- */
 authRouter.get(
   '/oauth/accounts',
   authenticate,
-  asyncHandler(listOAuthAccountsController),
+  asyncHandler(listOAuthAccountsController)
 )
 
 authRouter.get(
   '/oauth/link/google',
   oauthRateLimiter,
   authenticate,
-  asyncHandler(startOAuthLink('google')),
+  asyncHandler(startOAuthLink('google'))
 )
 
 authRouter.get(
   '/oauth/link/github',
   oauthRateLimiter,
   authenticate,
-  asyncHandler(startOAuthLink('github')),
+  asyncHandler(startOAuthLink('github'))
 )
 
 authRouter.delete(
   '/oauth/link/:provider',
   authenticate,
-  asyncHandler(unlinkOAuthAccountController),
+  asyncHandler(unlinkOAuthAccountController)
 )
 
-/*
- * Refresh.
- *
- * The refresh token is supplied through the
- * HttpOnly cookie, so CSRF protection remains
- * required.
- */
 authRouter.post(
   '/refresh',
   refreshRateLimiter,
   csrfProtection,
-  asyncHandler(refreshAccessTokenController),
+  asyncHandler(refreshAccessTokenController)
 )
 
 authRouter.post(
   '/logout',
   logoutRateLimiter,
   csrfProtection,
-  asyncHandler(logoutController),
+  asyncHandler(logoutController)
 )
 
 module.exports = authRouter

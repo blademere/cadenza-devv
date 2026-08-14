@@ -1,5 +1,8 @@
 const { env } = require('../../../config')
-const { UnauthorizedError, ConflictError } = require('../../../common/errors/appError')
+const {
+  UnauthorizedError,
+  ConflictError,
+} = require('../../../common/errors/appError')
 const { setCsrfCookie } = require('../../../common/middleware/csrf')
 const asyncHandler = require('../../../common/middleware/asyncHandler')
 const {
@@ -61,7 +64,7 @@ const startOAuth = (provider) => async (_req, res) => {
   await storeOAuthState(
     state,
     { flow: 'login', provider },
-    OAUTH_STATE_MAX_AGE_MS,
+    OAUTH_STATE_MAX_AGE_MS
   )
 
   setOAuthStateCookie(res, state)
@@ -174,7 +177,7 @@ const startOAuthLink = (provider) => async (req, res) => {
   await storeOAuthState(
     state,
     { flow: 'link', provider, userId: Number(req.user.id) },
-    OAUTH_LINK_STATE_MAX_AGE_MS,
+    OAUTH_LINK_STATE_MAX_AGE_MS
   )
 
   setOAuthLinkStateCookie(res, state)

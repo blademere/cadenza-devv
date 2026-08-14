@@ -1,7 +1,8 @@
 const crypto = require('crypto')
-
-const { UnauthorizedError, ConflictError } = require('../../../common/errors/appError')
-
+const {
+  UnauthorizedError,
+  ConflictError,
+} = require('../../../common/errors/appError')
 const {
   findOAuthAccount,
   findUserByEmail,
@@ -14,9 +15,7 @@ const {
 } = require('../auth.repository')
 
 const { createAccessToken, createRefreshToken } = require('../auth.tokens')
-
 const { env } = require('../../../config')
-
 const { getProviderConfig } = require('./oauth.providers')
 
 const fetchJson = async (url, options = {}) => {
@@ -31,7 +30,9 @@ const fetchJson = async (url, options = {}) => {
   }
 
   if (!response.ok) {
-    throw new Error(`OAuth provider request failed with status ${response.status}.`)
+    throw new Error(
+      `OAuth provider request failed with status ${response.status}.`
+    )
   }
 
   return { data, response }
@@ -64,12 +65,17 @@ const exchangeCode = async (provider, code) => {
 }
 
 const getGoogleIdentity = async (accessToken) => {
-  const { data } = await fetchJson('https://openidconnect.googleapis.com/v1/userinfo', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
+  const { data } = await fetchJson(
+    'https://openidconnect.googleapis.com/v1/userinfo',
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  )
 
   if (!data?.sub || !data.email || data.email_verified !== true) {
-    throw new UnauthorizedError('Google account does not provide a verified email address.')
+    throw new UnauthorizedError(
+      'Google account does not provide a verified email address.'
+    )
   }
 
   return {
@@ -86,20 +92,28 @@ const getGithubIdentity = async (accessToken) => {
     'X-GitHub-Api-Version': '2022-11-28',
   }
 
-  const { data: user } = await fetchJson('https://api.github.com/user', { headers })
+  const { data: user } = await fetchJson('https://api.github.com/user', {
+    headers,
+  })
 
   if (!user?.id) {
     throw new UnauthorizedError('GitHub account could not be identified.')
   }
 
-  const { data: emails } = await fetchJson('https://api.github.com/user/emails', { headers })
+  const { data: emails } = await fetchJson(
+    'https://api.github.com/user/emails',
+    { headers }
+  )
 
   const verifiedEmail = Array.isArray(emails)
-    ? emails.find((item) => item.primary && item.verified) || emails.find((item) => item.verified)
+    ? emails.find((item) => item.primary && item.verified) ||
+      emails.find((item) => item.verified)
     : null
 
   if (!verifiedEmail?.email) {
-    throw new UnauthorizedError('GitHub account does not provide a verified email address.')
+    throw new UnauthorizedError(
+      'GitHub account does not provide a verified email address.'
+    )
   }
 
   return {
@@ -130,7 +144,7 @@ const authenticateWithOAuth = async ({ provider, code }) => {
 
     if (existingUser) {
       throw new ConflictError(
-        'An account already exists with this email. Sign in with your password first, then link the OAuth provider.',
+        'An account already exists with this email. Sign in with your password first, then link the OAuth provider.'
       )
     }
 
@@ -174,7 +188,9 @@ const linkOAuthAccountWithCode = async ({ userId, provider, code }) => {
   const existingAccount = await findOAuthAccount(identity)
 
   if (existingAccount && existingAccount.userId !== Number(userId)) {
-    throw new ConflictError('This OAuth account is already linked to another user.')
+    throw new ConflictError(
+      'This OAuth account is already linked to another user.'
+    )
   }
 
   if (existingAccount && existingAccount.userId === Number(userId)) {
@@ -188,7 +204,7 @@ const linkOAuthAccountWithCode = async ({ userId, provider, code }) => {
 
   if (existingUser && existingUser.id !== Number(userId)) {
     throw new ConflictError(
-      'The verified OAuth email belongs to another account. The provider account cannot be linked automatically.',
+      'The verified OAuth email belongs to another account. The provider account cannot be linked automatically.'
     )
   }
 
@@ -200,7 +216,9 @@ const linkOAuthAccountWithCode = async ({ userId, provider, code }) => {
     })
   } catch (error) {
     if (error?.code === 'OAUTH_ACCOUNT_ALREADY_LINKED') {
-      throw new ConflictError('This OAuth account is already linked to another user.')
+      throw new ConflictError(
+        'This OAuth account is already linked to another user.'
+      )
     }
 
     throw error
@@ -221,7 +239,9 @@ const unlinkOAuthAccount = async ({ userId, provider }) => {
     await unlinkOAuthAccountRepository({ userId, provider })
   } catch (error) {
     if (error?.code === 'LAST_AUTH_METHOD') {
-      throw new ConflictError('Cannot unlink the only authentication method on the account.')
+      throw new ConflictError(
+        'Cannot unlink the only authentication method on the account.'
+      )
     }
 
     if (error?.code === 'OAUTH_ACCOUNT_NOT_LINKED') {
