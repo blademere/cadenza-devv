@@ -19,49 +19,73 @@ const validate = require('../../common/middleware/validate')
 
 const { csrfProtection } = require('../../common/middleware/csrf')
 
+const {
+  startOAuth,
+  handleOAuthCallback,
+} = require('./oauth/oauth.controller')
+
 const authRouter = express.Router()
 
 /*
- * Login
- *
- * The login limiter counts failed requests only.
- * Successful logins are removed from the rate-limit
- * count after the response completes.
+ * Password authentication.
  */
 authRouter.post(
   '/login',
   loginRateLimiter,
   validate(loginValidator),
-  asyncHandler(loginController)
+  asyncHandler(loginController),
 )
 
 /*
- * Refresh
+ * OAuth authorization endpoints.
+ *
+ * GET /api/v1/auth/oauth/google
+ * GET /api/v1/auth/oauth/google/callback
+ * GET /api/v1/auth/oauth/github
+ * GET /api/v1/auth/oauth/github/callback
+ */
+authRouter.get(
+  '/oauth/google',
+  startOAuth('google'),
+)
+
+authRouter.get(
+  '/oauth/google/callback',
+  asyncHandler(handleOAuthCallback('google')),
+)
+
+authRouter.get(
+  '/oauth/github',
+  startOAuth('github'),
+)
+
+authRouter.get(
+  '/oauth/github/callback',
+  asyncHandler(handleOAuthCallback('github')),
+)
+
+/*
+ * Refresh.
  *
  * The refresh token is supplied through the
  * HttpOnly cookie, so CSRF protection remains
- * required. The dedicated limiter prevents an
- * attacker from abusing the refresh endpoint
- * independently of the global API limiter.
+ * required.
  */
 authRouter.post(
   '/refresh',
   refreshRateLimiter,
   csrfProtection,
-  asyncHandler(refreshAccessTokenController)
+  asyncHandler(refreshAccessTokenController),
 )
 
 /*
- * Logout
- *
- * Keep logout protected by CSRF and give it a
- * separate, more permissive authentication limit.
+ * Logout.
  */
 authRouter.post(
   '/logout',
   logoutRateLimiter,
   csrfProtection,
-  asyncHandler(logoutController)
+  asyncHandler(logoutController),
 )
 
 module.exports = authRouter
