@@ -100,20 +100,26 @@ describe('Auth/Access Control integration', () => {
       total: 1,
       pages: 1,
     })
-    expect(hasPermission).toHaveBeenCalledWith(42, 'users', 'read')
+    expect(can).toHaveBeenCalledWith({
+      userId: 42,
+      resource: 'users',
+      action: 'read',
+    })
     expect(listUsers).toHaveBeenCalledWith({ page: 1, limit: 20 })
   })
 
   it('enforces the create permission independently from the read permission', async () => {
-    hasPermission.mockImplementation(
-      async (_userId, _module, action) => action === 'create'
-    )
+    can.mockImplementation(async ({ action }) => action === 'create')
     const token = createAccessToken(user)
     const forbiddenResponse = await request(app)
       .get('/api/v1/users')
       .set('Authorization', `Bearer ${token}`)
     expect(forbiddenResponse.status).toBe(403)
-    expect(hasPermission).toHaveBeenLastCalledWith(42, 'users', 'read')
+    expect(can).toHaveBeenLastCalledWith({
+      userId: 42,
+      resource: 'users',
+      action: 'read',
+    })
     const allowedResponse = await request(app)
       .post('/api/v1/users')
       .set('Authorization', `Bearer ${token}`)
@@ -124,7 +130,11 @@ describe('Auth/Access Control integration', () => {
       id: 7,
       email: 'new@example.com',
     })
-    expect(hasPermission).toHaveBeenLastCalledWith(42, 'users', 'create')
+    expect(can).toHaveBeenLastCalledWith({
+      userId: 42,
+      resource: 'users',
+      action: 'create',
+    })
     expect(registerUser).toHaveBeenCalledWith({
       email: 'new@example.com',
       roleId: 2,
