@@ -23,7 +23,9 @@ vi.mock('../../../config', () => ({
   },
 }));
 
-const { consumeOAuthState, storeOAuthState } = require('./oauth.providers');
+// oauth.providers.js is CommonJS. Import it dynamically so Vitest can apply
+// the mocked CommonJS dependencies above before Node evaluates the module.
+const { consumeOAuthState, storeOAuthState } = await import('./oauth.providers.js');
 
 const validState = 'a'.repeat(43);
 
