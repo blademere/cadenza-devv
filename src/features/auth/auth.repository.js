@@ -258,6 +258,18 @@ const rotateRefreshToken = async ({
   expiresAt,
 }) => {
   return prisma.$transaction(async (tx) => {
+    // Create the replacement first because replacedByTokenId is a foreign key
+    // to RefreshToken.id. Keeping both operations in the same transaction
+    // guarantees that a failed rotation rolls the replacement back as well.
+    await tx.refreshToken.create({
+      data: {
+        id: newTokenId,
+        tokenHash: newTokenHash,
+        userId: Number(userId),
+        expiresAt,
+      },
+    })
+
     const consumed = await tx.refreshToken.updateMany({
       where: {
         id: currentTokenId,
@@ -273,15 +285,6 @@ const rotateRefreshToken = async ({
     if (consumed.count !== 1) {
       return { success: false }
     }
-
-    await tx.refreshToken.create({
-      data: {
-        id: newTokenId,
-        tokenHash: newTokenHash,
-        userId: Number(userId),
-        expiresAt,
-      },
-    })
 
     return { success: true }
   })
