@@ -63,6 +63,7 @@ const handleOAuthCallback = (provider) => async (req, res) => {
 
   if (error) {
     clearOAuthStateCookie(res)
+    clearOAuthLinkStateCookie(res)
     return redirectFailure(res, 'oauth_denied')
   }
 
@@ -71,7 +72,7 @@ const handleOAuthCallback = (provider) => async (req, res) => {
   if (linkState) {
     const linkPayload = verifyLinkState(linkState)
 
-    if (!code || !state || !linkPayload || !safeEqual(state, linkPayload.nonce)) {
+    if (!code || !state || !linkPayload || !safeEqual(state, linkState)) {
       clearOAuthLinkStateCookie(res)
       return redirectFailure(res, 'invalid_oauth_state')
     }
