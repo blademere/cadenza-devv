@@ -33,9 +33,18 @@ const envSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
 
-  COOKIE_SAME_SITE: z.enum(["strict", "lax", "none"]).default("lax"),
+  COOKIE_SAME_SITE: z
+    .enum(["strict", "lax", "none"])
+    .default("lax"),
 
   COOKIE_DOMAIN: z.string().optional(),
+
+  COOKIE_REFRESH_MAX_AGE_MS: z
+    .coerce
+    .number()
+    .int()
+    .positive()
+    .default(7 * 24 * 60 * 60 * 1000),
 })
 
 const parsed = envSchema.safeParse(process.env)
@@ -50,6 +59,14 @@ if (!parsed.success) {
 
 if (parsed.data.COOKIE_SAME_SITE === "none" && !parsed.data.COOKIE_SECURE) {
   throw new Error("COOKIE_SECURE must be true when COOKIE_SAME_SITE is 'none'.")
+}
+
+if (parsed.data.NODE_ENV === "production" && !parsed.data.COOKIE_SECURE) {
+  throw new Error("COOKIE_SECURE must be true in production.")
+}
+
+if (parsed.data.NODE_ENV === "production" && parsed.data.CORS_ORIGIN === "*") {
+  throw new Error("CORS_ORIGIN must not be '*' in production.")
 }
 
 module.exports = Object.freeze(parsed.data)
