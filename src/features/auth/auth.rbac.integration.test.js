@@ -16,19 +16,20 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
-vi.mock('../rbac/rbac.service', () => ({
-  hasPermission: vi.fn(),
-}))
+// The application is CommonJS. Vitest module mocks do not reliably replace
+// CommonJS exports when the application is loaded through require(). Install
+// spies on the service exports before loading app.js instead. The controllers
+// destructure these exports during module initialization, so they receive the
+// spied functions.
+const rbacService = require('../rbac/rbac.service')
+const userService = require('../users/user.service')
+const { createAccessToken } = require('./auth.tokens')
 
-vi.mock('../users/user.service', () => ({
-  listUsers: vi.fn(),
-  registerUser: vi.fn(),
-}))
+const hasPermission = vi.spyOn(rbacService, 'hasPermission')
+const listUsers = vi.spyOn(userService, 'listUsers')
+const registerUser = vi.spyOn(userService, 'registerUser')
 
 const app = require('../../app')
-const { createAccessToken } = require('./auth.tokens')
-const { hasPermission } = require('../rbac/rbac.service')
-const { listUsers, registerUser } = require('../users/user.service')
 
 describe('Auth/RBAC integration', () => {
   const user = { id: 42 }
