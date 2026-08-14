@@ -24,6 +24,8 @@ const envSchema = z.object({
 
   JWT_REFRESH_EXPIRES_IN: z.string().min(2).default("7d"),
 
+  SENTRY_DSN: z.url().optional().or(z.literal("")),
+
   CORS_ORIGIN: z.string().min(1).default("http://localhost:5173"),
 
   COOKIE_SECURE: z

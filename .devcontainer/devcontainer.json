@@ -15,7 +15,8 @@
         "humao.rest-client",
         "hbenl.vscode-test-explorer",
         "zhucy.project-tree",
-        "SyedAbdullah.context-merger"
+        "SyedAbdullah.context-merger",
+        "postman.postman-for-vscode"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
@@ -26,6 +27,8 @@
         },
         "prettier.tabWidth": 2,
         "prettier.semi": false,
+        "prettier.singleQuote": true,
+        "prettier.trailingComma": "es5",
         "eslint.validate": ["javascript", "json"],
         "files.watcherExclude": {
           "**/node_modules/**": true,
@@ -34,6 +37,6 @@
       }
     }
   },
-  "forwardPorts": [3000, 5432, 6379, 8080],
+  "forwardPorts": [3000, 5432, 6379, 8080, 9090],
   "postCreateCommand": "npm install && npx prisma generate"
 }

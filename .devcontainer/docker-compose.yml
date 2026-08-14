@@ -15,7 +15,7 @@ services:
       JWT_SECRET: your-super-secret-jwt-key-min-32-chars-long
       JWT_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
-      CORS_ORIGIN: "*"
+      CORS_ORIGIN: '*'
 
     depends_on:
       db:
@@ -24,7 +24,7 @@ services:
         condition: service_healthy
 
     ports:
-      - "3000:3000"
+      - '3000:3000'
 
     command: sleep infinity
 
@@ -37,13 +37,13 @@ services:
       POSTGRES_PASSWORD: password
 
     ports:
-      - "5432:5432"
+      - '5432:5432'
 
     volumes:
       - postgres_data:/var/lib/postgresql
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d express_app"]
+      test: ['CMD-SHELL', 'pg_isready -U user -d express_app']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -52,10 +52,10 @@ services:
     image: redis:7-alpine
 
     ports:
-      - "6379:6379"
+      - '6379:6379'
 
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -68,7 +68,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: adminpassword
 
     ports:
-      - "8080:80"
+      - '8080:80'
 
     depends_on:
       db:
@@ -77,6 +77,33 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
+  prometheus:
+    image: prom/prometheus:latest
+
+    ports:
+      - '9090:9090'
+
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - '3001:3000'
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
 volumes:
   postgres_data:
   pgadmin_data:
+  prometheus_data:
+  grafana_data:

@@ -1,15 +1,22 @@
 const app = require("./app")
-const { env, logger } = require("./config")
+const { env } = require("./config")
+const {
+  initializeSentry,
+  flushSentry,
+} = require("./infrastructure/monitoring/sentry")
+
+initializeSentry()
 
 const server = app.listen(env.PORT, () => {
-  logger.info(`Server running on port ${env.PORT}`)
+  console.log(`Server running on port ${env.PORT}`)
 })
 
-const shutdown = (signal) => {
-  logger.info(`${signal} received, shutting down server.`)
+const shutdown = async (signal) => {
+  console.log(`${signal} received. Shutting down...`)
 
-  server.close(() => {
-    logger.info("Server closed.")
+  server.close(async () => {
+    await flushSentry()
+
     process.exit(0)
   })
 }
