@@ -10,25 +10,26 @@ const { loginValidator } = require('./auth.validation')
 
 const {
   asyncHandler,
+  authenticate,
   loginRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
+  oauthRateLimiter,
 } = require('../../common/middleware')
 
 const validate = require('../../common/middleware/validate')
-
 const { csrfProtection } = require('../../common/middleware/csrf')
 
 const {
   startOAuth,
   handleOAuthCallback,
+  startOAuthLink,
+  listOAuthAccountsController,
+  unlinkOAuthAccountController,
 } = require('./oauth/oauth.controller')
 
 const authRouter = express.Router()
 
-/*
- * Password authentication.
- */
 authRouter.post(
   '/login',
   loginRateLimiter,
@@ -36,32 +37,43 @@ authRouter.post(
   asyncHandler(loginController),
 )
 
+/* OAuth authentication. */
+authRouter.get('/oauth/google', oauthRateLimiter, startOAuth('google'))
+authRouter.get('/oauth/google/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('google')))
+authRouter.get('/oauth/github', oauthRateLimiter, startOAuth('github'))
+authRouter.get('/oauth/github/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('github')))
+
 /*
- * OAuth authorization endpoints.
+ * OAuth account management.
  *
- * GET /api/v1/auth/oauth/google
- * GET /api/v1/auth/oauth/google/callback
- * GET /api/v1/auth/oauth/github
- * GET /api/v1/auth/oauth/github/callback
+ * Linking requires an existing application session.
+ * The authenticated user ID is cryptographically bound
+ * into the short-lived OAuth link state.
  */
 authRouter.get(
-  '/oauth/google',
-  startOAuth('google'),
+  '/oauth/accounts',
+  authenticate,
+  asyncHandler(listOAuthAccountsController),
 )
 
 authRouter.get(
-  '/oauth/google/callback',
-  asyncHandler(handleOAuthCallback('google')),
+  '/oauth/link/google',
+  oauthRateLimiter,
+  authenticate,
+  startOAuthLink('google'),
 )
 
 authRouter.get(
-  '/oauth/github',
-  startOAuth('github'),
+  '/oauth/link/github',
+  oauthRateLimiter,
+  authenticate,
+  startOAuthLink('github'),
 )
 
-authRouter.get(
-  '/oauth/github/callback',
-  asyncHandler(handleOAuthCallback('github')),
+authRouter.delete(
+  '/oauth/link/:provider',
+  authenticate,
+  asyncHandler(unlinkOAuthAccountController),
 )
 
 /*
@@ -78,9 +90,6 @@ authRouter.post(
   asyncHandler(refreshAccessTokenController),
 )
 
-/*
- * Logout.
- */
 authRouter.post(
   '/logout',
   logoutRateLimiter,
