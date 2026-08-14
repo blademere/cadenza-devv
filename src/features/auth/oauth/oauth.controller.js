@@ -50,6 +50,8 @@ const redirectSuccess = (res, params = {}) => {
 }
 
 const startOAuth = (provider) => (_req, res) => {
+  clearOAuthLinkStateCookie(res)
+
   const state = createState()
   const authorizationUrl = createAuthorizationUrl(provider, state)
 
@@ -142,6 +144,8 @@ const startOAuthLink = (provider) => (req, res) => {
   if (!req.user?.id) {
     return redirectFailure(res, 'unauthorized')
   }
+
+  clearOAuthStateCookie(res)
 
   const state = createLinkState(req.user.id)
   const authorizationUrl = createAuthorizationUrl(provider, state)
