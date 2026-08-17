@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 
-vi.mock("../../../../src/infrastructure/database/prisma", () => ({
+const mocks = vi.hoisted(() => ({
   notificationDelivery: { findUnique: vi.fn(), updateMany: vi.fn(), update: vi.fn(), upsert: vi.fn() },
   notificationRule: { findMany: vi.fn() },
   notificationTemplate: { findUnique: vi.fn(), create: vi.fn() },
   user: { findMany: vi.fn() },
 }))
+vi.mock("../../../../src/infrastructure/database/prisma", () => mocks)
 vi.mock("../../../../src/platform/rules/rule.service", () => ({
   evaluateCondition: vi.fn(() => true),
   getPathValue: vi.fn((obj, key) => key?.split(".").reduce((v, k) => v?.[k], obj)),
@@ -16,7 +17,9 @@ const prisma = require("../../../../src/infrastructure/database/prisma")
 const { claimDelivery, markDeliveryFailed, markDeliverySent, computeRetryAt, stableIdempotencyKey, MAX_ATTEMPTS } = require("../../../../src/platform/notifications/notification.service")
 
 describe("notification delivery hardening", () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    for (const group of Object.values(mocks)) for (const mock of Object.values(group)) mock.mockReset()
+  })
 
   it("claims a queued delivery with optimistic concurrency protection", async () => {
     const updatedAt = new Date("2026-08-17T07:00:00.000Z")
