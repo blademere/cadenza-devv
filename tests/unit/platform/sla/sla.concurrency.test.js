@@ -9,12 +9,45 @@ prismaModule.getPrismaClient = () => mocks
 const auditModule = require("../../../../src/platform/audit/audit.service")
 auditModule.recordAudit = vi.fn()
 
-const { completeSla, markDueSlas, markEscalations } = await import("../../../../src/platform/sla/sla.service.js")
+const { createSlaPolicy, findApplicablePolicy, startSla, completeSla, markDueSlas, markEscalations } = await import("../../../../src/platform/sla/sla.service.js")
 
 describe("SLA hardening", () => {
   beforeEach(() => {
     for (const group of Object.values(mocks)) for (const mock of Object.values(group)) mock.mockReset()
     auditModule.recordAudit.mockReset()
+  })
+
+  it("rejects escalation at or after the SLA deadline", async () => {
+    for (const escalationSeconds of [300, 301]) {
+      await expect(createSlaPolicy({ key: "sla", name: "SLA", entityType: "CASE", durationSeconds: 300, escalationSeconds })).rejects.toThrow("before the SLA deadline")
+    }
+    expect(mocks.slaPolicy.create).not.toHaveBeenCalled()
+  })
+
+  it("accepts a valid escalation before the deadline", async () => {
+    mocks.slaPolicy.create.mockResolvedValue({ id: "p1", key: "sla" })
+    const result = await createSlaPolicy({ key: "sla", name: "SLA", entityType: "CASE", durationSeconds: 300, escalationSeconds: 299 })
+    expect(result.id).toBe("p1")
+    expect(mocks.slaPolicy.create).toHaveBeenCalledOnce()
+  })
+
+  it("selects the first matching active policy in priority order", async () => {
+    mocks.slaPolicy.findMany.mockResolvedValue([
+      { id: "p-high", priority: 10, conditions: { field: "tier", operator: "equals", value: "gold" } },
+      { id: "p-low", priority: 20, conditions: { field: "tier", operator: "equals", value: "gold" } },
+    ])
+    const result = await findApplicablePolicy({ entityType: "CASE", context: { tier: "gold" } })
+    expect(result.id).toBe("p-high")
+    expect(mocks.slaPolicy.findMany).toHaveBeenCalledWith(expect.objectContaining({ orderBy: [{ priority: "asc" }, { createdAt: "asc" }] }))
+  })
+
+  it("does not terminalize an SLA when escalation is processed", async () => {
+    const startedAt = new Date("2026-08-17T07:00:00.000Z")
+    mocks.slaInstance.findMany.mockResolvedValue([{ id: "s1", startedAt, policy: { escalationSeconds: 60 } }])
+    mocks.slaInstance.updateMany.mockResolvedValue({ count: 1 })
+    await markEscalations({ now: new Date("2026-08-17T07:02:00.000Z") })
+    expect(mocks.slaInstance.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { escalatedAt: expect.any(Date) } }))
+    expect(mocks.slaInstance.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: expect.anything() }) }))
   })
 
   it("allows completion from RUNNING, ESCALATED, and BREACHED", async () => {
@@ -58,5 +91,13 @@ describe("SLA hardening", () => {
     mocks.slaInstance.updateMany.mockResolvedValue({ count: 0 })
     const result = await markEscalations({ now: new Date("2026-08-17T07:02:00.000Z") })
     expect(result.count).toBe(0)
+  })
+
+  it("starts an SLA with due and warning timestamps derived from the policy", async () => {
+    const startedAt = new Date("2026-08-17T07:00:00.000Z")
+    mocks.slaPolicy.findUnique.mockResolvedValue({ id: "p1", durationSeconds: 300, warningSeconds: 120 })
+    mocks.slaInstance.create.mockResolvedValue({ id: "s1" })
+    await startSla({ policyKey: "sla", subjectType: "CASE", subjectId: 42, startedAt })
+    expect(mocks.slaInstance.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ policyId: "p1", subjectId: "42", startedAt, warningAt: new Date("2026-08-17T07:02:00.000Z"), dueAt: new Date("2026-08-17T07:05:00.000Z") }) }))
   })
 })
