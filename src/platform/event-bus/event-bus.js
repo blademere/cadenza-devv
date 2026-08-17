@@ -24,10 +24,10 @@ const buildEnvelope = ({ event, entityType = null, entityId = null, actorId = nu
   }
 }
 
-const publish = async (options) => {
+const publish = async (options = {}) => {
   const envelope = buildEnvelope(options)
   const idempotencyKey = options.idempotencyKey || `${envelope.event}:${envelope.entityType || "platform"}:${envelope.entityId || "none"}:${envelope.correlationId}`
-  return enqueueEvent({ ...envelope, idempotencyKey })
+  return enqueueEvent({ db: options.db, ...envelope, idempotencyKey })
 }
 
 const processEvent = async (envelope) => {
