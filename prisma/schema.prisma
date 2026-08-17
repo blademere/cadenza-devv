@@ -474,6 +474,7 @@ model NotificationDelivery {
   recipient String
   channel String
   status String @default("QUEUED")
+  idempotencyKey String @unique
   payload Json?
   sentAt DateTime?
   failedAt DateTime?

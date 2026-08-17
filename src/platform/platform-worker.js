@@ -37,17 +37,21 @@ const runPlatformMaintenance = async ({ now = new Date(), batchSize = 100 } = {}
   return { due: due?.count || 0, escalated: escalated?.count || 0 }
 }
 
-const processOutbox = async ({ batchSize = 50 } = {}) => {
-  const claimed = await claimBatch({ batchSize })
+const processOutbox = async ({ batchSize = 50, leaseSeconds } = {}) => {
+  const claimed = await claimBatch({ batchSize, leaseSeconds })
   let processed = 0
   let failed = 0
   for (const item of claimed) {
     try {
       await processEvent(item.payload)
-      await markProcessed(item.id)
+      await markProcessed(item.id, item.lockToken)
       processed += 1
     } catch (error) {
-      await markFailed(item.id, error)
+      try {
+        await markFailed(item.id, error, item.lockToken)
+      } catch (ownershipError) {
+        error = new Error(`${error?.message || error}; outbox ownership was lost: ${ownershipError.message}`)
+      }
       failed += 1
     }
   }
@@ -67,7 +71,11 @@ const startWorker = async ({ intervalMs = 5000, batchSize = 50 } = {}) => {
   process.once("SIGINT", shutdown)
 
   while (!stopping) {
-    await runWorkerCycle({ batchSize })
+    try {
+      await runWorkerCycle({ batchSize })
+    } catch (error) {
+      console.error("Platform worker cycle failed:", error)
+    }
     if (!stopping) await new Promise((resolve) => setTimeout(resolve, intervalMs))
   }
 }
