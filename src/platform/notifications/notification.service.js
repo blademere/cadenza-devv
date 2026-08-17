@@ -3,10 +3,8 @@ const { BadRequestError, NotFoundError } = require("../../common/errors/appError
 const { evaluateCondition, getPathValue } = require("../rules/rule.service")
 const { recordAudit } = require("../audit/audit.service")
 
-const render = (template, context) => String(template || "").replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, path) => {
-  const value = getPathValue(context, path.trim())
-  return value == null ? "" : String(value)
-})
+const render = (template, context) => String(template || "").replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, path) => { const value = getPathValue(context, path.trim()); return value == null ? "" : String(value) })
+const parsePermission = (key) => { const index = key?.indexOf("."); if (!key || index <= 0 || index === key.length - 1) throw new BadRequestError(`Invalid permission key '${key}'.`); return { resource: key.slice(0, index), action: key.slice(index + 1) } }
 
 const createNotificationTemplate = async ({ key, name, channel, subject = null, body, actorId = null }) => {
   if (!key || !name || !channel || !body) throw new BadRequestError("Notification template requires key, name, channel, and body.")
@@ -16,6 +14,7 @@ const createNotificationTemplate = async ({ key, name, channel, subject = null, 
 }
 
 const createNotificationRule = async ({ key, name, event, entityType = null, conditions = {}, templateKey, recipientType, recipientValue = null, priority = 100, actorId = null }) => {
+  if (!recipientType) throw new BadRequestError("Notification recipient type is required.")
   const template = await prisma.notificationTemplate.findUnique({ where: { key: templateKey } })
   if (!template) throw new NotFoundError(`Notification template '${templateKey}' was not found.`)
   const rule = await prisma.notificationRule.create({ data: { key, name, event, entityType, conditions, templateId: template.id, recipientType, recipientValue, priority } })
@@ -23,11 +22,20 @@ const createNotificationRule = async ({ key, name, event, entityType = null, con
   return rule
 }
 
-const resolveRecipient = (rule, context) => {
-  if (rule.recipientType === "STATIC") return rule.recipientValue
-  if (rule.recipientType === "FIELD") return getPathValue(context, rule.recipientValue)
-  if (rule.recipientType === "USER") return context.user?.email || context.user?.id
-  return null
+const resolveRecipients = async (rule, context) => {
+  if (rule.recipientType === "STATIC") return rule.recipientValue ? [String(rule.recipientValue)] : []
+  if (rule.recipientType === "FIELD") { const value = getPathValue(context, rule.recipientValue); return value == null ? [] : [String(value)] }
+  if (rule.recipientType === "USER") { const value = context.user?.email || context.user?.id; return value == null ? [] : [String(value)] }
+  if (rule.recipientType === "ROLE") {
+    const users = await prisma.user.findMany({ where: { isActive: true, role: { name: rule.recipientValue } }, select: { email: true } })
+    return users.map((user) => user.email)
+  }
+  if (rule.recipientType === "PERMISSION") {
+    const { resource, action } = parsePermission(rule.recipientValue)
+    const users = await prisma.user.findMany({ where: { isActive: true, role: { permissions: { some: { permission: { action, module: { key: resource } } } } } }, select: { email: true } })
+    return users.map((user) => user.email)
+  }
+  throw new BadRequestError(`Unsupported notification recipient type '${rule.recipientType}'.`)
 }
 
 const queueNotifications = async ({ event, entityType = null, context = {} }) => {
@@ -35,11 +43,10 @@ const queueNotifications = async ({ event, entityType = null, context = {} }) =>
   const deliveries = []
   for (const rule of rules) {
     if (!evaluateCondition(rule.conditions, context)) continue
-    const recipient = resolveRecipient(rule, context)
-    if (!recipient) continue
-    deliveries.push(await prisma.notificationDelivery.create({ data: { ruleId: rule.id, templateId: rule.templateId, recipient: String(recipient), channel: rule.template.channel, status: "QUEUED", payload: { subject: render(rule.template.subject, context), body: render(rule.template.body, context), context } } }))
+    const recipients = await resolveRecipients(rule, context)
+    for (const recipient of recipients) deliveries.push(await prisma.notificationDelivery.create({ data: { ruleId: rule.id, templateId: rule.templateId, recipient, channel: rule.template.channel, status: "QUEUED", payload: { subject: render(rule.template.subject, context), body: render(rule.template.body, context), context } } }))
   }
   return deliveries
 }
 
-module.exports = { render, createNotificationTemplate, createNotificationRule, queueNotifications }
+module.exports = { render, createNotificationTemplate, createNotificationRule, queueNotifications, resolveRecipients }
