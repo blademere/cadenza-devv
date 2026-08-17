@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 
 const mocks = vi.hoisted(() => ({ queryRaw: vi.fn() }))
-vi.mock("../../../../src/infrastructure/database/prisma", () => ({ $queryRaw: mocks.queryRaw }))
+vi.mock("../../../../src/infrastructure/database/prisma", () => ({ getPrismaClient: () => ({ $queryRaw: mocks.queryRaw }) }))
 
 const { makeExecutionKey, claimAction, markSucceeded, markFailed, getDueActions, MAX_ATTEMPTS } = await import("../../../../src/platform/rules/rule-execution.service.js")
 
