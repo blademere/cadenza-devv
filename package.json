@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "start:worker": "node src/platform/platform-worker.js",
     "dev": "nodemon --legacy-watch src/server.js",
     "test": "prisma generate && vitest run",
     "test:watch": "vitest",

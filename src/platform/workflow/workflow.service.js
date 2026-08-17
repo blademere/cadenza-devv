@@ -7,6 +7,7 @@ const {
 } = require("../../common/errors/appError")
 const { recordAudit } = require("../audit/audit.service")
 const { can } = require("../../features/access-control/access-control.service")
+const { publish } = require("../event-bus/event-bus")
 const {
   findWorkflowByKey,
   findPublishedVersion,
@@ -118,12 +119,22 @@ const startWorkflow = async ({ workflowKey, subjectType, subjectId, actorId = nu
   if (!version) throw new NotFoundError(`Published workflow '${workflowKey}' was not found.`)
   const initialStep = version.steps.find((step) => step.isInitial)
   if (!initialStep) throw new BadRequestError("The published workflow has no initial step.")
+  const normalizedSubjectId = String(subjectId)
   const instance = await prisma.$transaction(async (tx) => {
-    const created = await tx.workflowInstance.create({ data: { workflowVersionId: version.id, currentStepId: initialStep.id, subjectType, subjectId: String(subjectId), startedByUserId: actorId } })
+    const created = await tx.workflowInstance.create({ data: { workflowVersionId: version.id, currentStepId: initialStep.id, subjectType, subjectId: normalizedSubjectId, startedByUserId: actorId } })
     await tx.workflowHistory.create({ data: { instanceId: created.id, toStepId: initialStep.id, actorId, metadata: metadata || undefined } })
+    await publish({
+      db: tx,
+      event: "workflow.started",
+      entityType: subjectType,
+      entityId: normalizedSubjectId,
+      actorId,
+      context: { workflowKey, workflowInstanceId: created.id, workflowStepKey: initialStep.key, metadata: metadata || {} },
+      idempotencyKey: `workflow:${created.id}:started`,
+    })
     return created
   })
-  await recordAudit({ actorId, action: WORKFLOW_ACTIONS.STARTED, entityType: "WorkflowInstance", entityId: instance.id, after: instance, metadata: { workflowKey, subjectType, subjectId: String(subjectId) } })
+  await recordAudit({ actorId, action: WORKFLOW_ACTIONS.STARTED, entityType: "WorkflowInstance", entityId: instance.id, after: instance, metadata: { workflowKey, subjectType, subjectId: normalizedSubjectId } })
   return findInstance(instance.id)
 }
 
@@ -139,6 +150,22 @@ const transitionWorkflow = async ({ instanceId, transitionKey, actorId = null, m
     const result = await tx.workflowInstance.updateMany({ where: { id: instanceId, currentStepId: instance.currentStepId, completedAt: null }, data: { currentStepId: transition.toStepId, completedAt: transition.toStep.isFinal ? new Date() : null } })
     if (result.count !== 1) throw new ConflictError("Workflow instance changed concurrently. Retry the transition.")
     await tx.workflowHistory.create({ data: { instanceId, fromStepId: instance.currentStepId, toStepId: transition.toStepId, transitionId: transition.id, actorId, metadata: metadata || undefined } })
+    await publish({
+      db: tx,
+      event: transition.toStep.isFinal ? "workflow.completed" : "workflow.transitioned",
+      entityType: instance.subjectType,
+      entityId: instance.subjectId,
+      actorId,
+      context: {
+        workflowInstanceId: instanceId,
+        workflowStepKey: transition.toStep.key,
+        previousWorkflowStepKey: instance.currentStep.key,
+        transitionKey,
+        transitionId: transition.id,
+        metadata: metadata || {},
+      },
+      idempotencyKey: `workflow:${instanceId}:transition:${transition.id}:${transition.toStepId}`,
+    })
     return tx.workflowInstance.findUnique({ where: { id: instanceId }, include: { currentStep: true } })
   })
 
