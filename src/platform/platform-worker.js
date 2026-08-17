@@ -1,14 +1,7 @@
 const prisma = require("../infrastructure/database/prisma")
 const { markDueSlas, markEscalations } = require("./sla/sla.service")
-const { queueNotifications } = require("./notifications/notification.service")
-const { queueEvent } = require("./integrations/webhook.service")
 const { processEvent } = require("./event-bus/event-bus")
-const {
-  claimBatch,
-  markProcessed,
-  markFailed,
-  recoverStale,
-} = require("./event-bus/event-outbox.service")
+const { enqueueEvent, claimBatch, markProcessed, markFailed, recoverStale } = require("./event-bus/event-outbox.service")
 
 const runPlatformMaintenance = async ({ now = new Date(), batchSize = 100 } = {}) => {
   const [due, escalated] = await Promise.all([
@@ -24,9 +17,21 @@ const runPlatformMaintenance = async ({ now = new Date(), batchSize = 100 } = {}
   for (const item of events.slice(0, batchSize)) {
     const instance = await prisma.slaInstance.findUnique({ where: { id: item.id } })
     if (!instance) continue
-    const context = { slaInstanceId: instance.id, subjectType: instance.subjectType, subjectId: instance.subjectId, event: item.event }
-    await queueNotifications({ event: item.event, entityType: instance.subjectType, context })
-    await queueEvent({ event: item.event, entityType: instance.subjectType, entityId: instance.subjectId, payload: context })
+
+    const context = {
+      slaInstanceId: instance.id,
+      subjectType: instance.subjectType,
+      subjectId: instance.subjectId,
+      event: item.event,
+    }
+
+    await enqueueEvent({
+      event: item.event,
+      entityType: instance.subjectType,
+      entityId: instance.subjectId,
+      context,
+      idempotencyKey: `sla:${instance.id}:${item.event}`,
+    })
   }
 
   return { due: due?.count || 0, escalated: escalated?.count || 0 }
