@@ -19,14 +19,14 @@ describe("SLA hardening", () => {
 
   it("rejects escalation at or after the SLA deadline", async () => {
     for (const escalationSeconds of [300, 301]) {
-      await expect(createSlaPolicy({ key: "sla", name: "SLA", entityType: "CASE", durationSeconds: 300, escalationSeconds })).rejects.toThrow("before the SLA deadline")
+      await expect(createSlaPolicy({ key: "sla", name: "SLA", entityType: "CASE", durationSeconds: 300, escalationSeconds, conditions: { field: "tier", operator: "equals", value: "gold" } })).rejects.toThrow("before the SLA deadline")
     }
     expect(mocks.slaPolicy.create).not.toHaveBeenCalled()
   })
 
   it("accepts a valid escalation before the deadline", async () => {
     mocks.slaPolicy.create.mockResolvedValue({ id: "p1", key: "sla" })
-    const result = await createSlaPolicy({ key: "sla", name: "SLA", entityType: "CASE", durationSeconds: 300, escalationSeconds: 299 })
+    const result = await createSlaPolicy({ key: "sla", name: "SLA", entityType: "CASE", durationSeconds: 300, escalationSeconds: 299, conditions: { field: "tier", operator: "equals", value: "gold" } })
     expect(result.id).toBe("p1")
     expect(mocks.slaPolicy.create).toHaveBeenCalledOnce()
   })
