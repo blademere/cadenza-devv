@@ -15,6 +15,8 @@ const describeIfEnabled = runIntegrationTests ? describe : describe.skip
 
 describeIfEnabled('EventOutbox transactional consistency', () => {
   const createdEventIds = []
+  const createdUserIds = []
+  const createdRoleIds = []
 
   beforeAll(async () => {
     await prisma.$connect()
@@ -35,6 +37,12 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
           WHERE "id" = ${id}
         `
       }
+    }
+    if (createdUserIds.length) {
+      await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } })
+    }
+    if (createdRoleIds.length) {
+      await prisma.role.deleteMany({ where: { id: { in: createdRoleIds } } })
     }
     await prisma.$disconnect()
   })
@@ -100,10 +108,13 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
         idempotencyKey,
       })
 
-      return { user, event }
+      return { user, role, event }
     })
 
     createdEventIds.push(result.event.id)
+    createdUserIds.push(result.user.id)
+    createdRoleIds.push(result.role.id)
+
     const user = await prisma.user.findUnique({ where: { id: result.user.id } })
     const event = await prisma.$queryRaw`
       SELECT "id", "status", "entityId", "idempotencyKey"
