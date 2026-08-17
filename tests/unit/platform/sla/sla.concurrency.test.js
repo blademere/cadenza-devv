@@ -8,8 +8,8 @@ vi.mock("../../../../src/infrastructure/database/prisma", () => mocks)
 vi.mock("../../../../src/platform/rules/rule.service", () => ({ evaluateCondition: vi.fn(() => true), validateCondition: vi.fn() }))
 vi.mock("../../../../src/platform/audit/audit.service", () => ({ recordAudit: vi.fn() }))
 
-const prisma = require("../../../../src/infrastructure/database/prisma")
-const { completeSla, markDueSlas, markEscalations } = require("../../../../src/platform/sla/sla.service")
+const prisma = await import("../../../../src/infrastructure/database/prisma")
+const { completeSla, markDueSlas, markEscalations } = await import("../../../../src/platform/sla/sla.service.js")
 
 describe("SLA hardening", () => {
   beforeEach(() => {

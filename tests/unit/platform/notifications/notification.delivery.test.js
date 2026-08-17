@@ -13,8 +13,8 @@ vi.mock("../../../../src/platform/rules/rule.service", () => ({
 }))
 vi.mock("../../../../src/platform/audit/audit.service", () => ({ recordAudit: vi.fn() }))
 
-const prisma = require("../../../../src/infrastructure/database/prisma")
-const { claimDelivery, markDeliveryFailed, markDeliverySent, computeRetryAt, stableIdempotencyKey, MAX_ATTEMPTS } = require("../../../../src/platform/notifications/notification.service")
+const prisma = await import("../../../../src/infrastructure/database/prisma")
+const { claimDelivery, markDeliveryFailed, markDeliverySent, computeRetryAt, stableIdempotencyKey, MAX_ATTEMPTS } = await import("../../../../src/platform/notifications/notification.service.js")
 
 describe("notification delivery hardening", () => {
   beforeEach(() => {

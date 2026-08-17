@@ -11,8 +11,8 @@ vi.mock("../../../../src/infrastructure/database/prisma", () => mocks)
 vi.mock("../../../../src/platform/rules/rule.service", () => ({ evaluateCondition: vi.fn(() => true), validateCondition: vi.fn() }))
 vi.mock("../../../../src/platform/audit/audit.service", () => ({ recordAudit: vi.fn() }))
 
-const prisma = require("../../../../src/infrastructure/database/prisma")
-const { actOnApproval, startApproval } = require("../../../../src/platform/approvals/approval.service")
+const prisma = await import("../../../../src/infrastructure/database/prisma")
+const { actOnApproval, startApproval } = await import("../../../../src/platform/approvals/approval.service.js")
 
 describe("approval hardening", () => {
   beforeEach(() => {
