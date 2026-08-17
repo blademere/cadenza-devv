@@ -9,21 +9,21 @@ const parsePermissionKey = (key) => {
   return { resource: key.slice(0, index), action: key.slice(index + 1) }
 }
 
-const resolveApproverIds = async (step) => {
+const resolveApproverIds = async (step, db = prisma) => {
   if (!step.approverType || !step.approverValue) throw new BadRequestError(`Approval step '${step.name}' has no approver configuration.`)
   if (step.approverType === "USER") {
     const userId = Number(step.approverValue)
     if (!Number.isInteger(userId)) throw new BadRequestError(`Invalid user approver '${step.approverValue}'.`)
-    const user = await prisma.user.findFirst({ where: { id: userId, isActive: true }, select: { id: true } })
+    const user = await db.user.findFirst({ where: { id: userId, isActive: true }, select: { id: true } })
     return user ? [user.id] : []
   }
   if (step.approverType === "ROLE") {
-    const users = await prisma.user.findMany({ where: { isActive: true, role: { name: step.approverValue } }, select: { id: true }, orderBy: { id: "asc" } })
+    const users = await db.user.findMany({ where: { isActive: true, role: { name: step.approverValue } }, select: { id: true }, orderBy: { id: "asc" } })
     return users.map((user) => user.id)
   }
   if (step.approverType === "PERMISSION") {
     const { resource, action } = parsePermissionKey(step.approverValue)
-    const users = await prisma.user.findMany({ where: { isActive: true, role: { permissions: { some: { permission: { action, module: { key: resource } } } } } }, select: { id: true }, orderBy: { id: "asc" } })
+    const users = await db.user.findMany({ where: { isActive: true, role: { permissions: { some: { permission: { action, module: { key: resource } } } } } }, select: { id: true }, orderBy: { id: "asc" } })
     return users.map((user) => user.id)
   }
   throw new BadRequestError(`Unsupported approver type '${step.approverType}'.`)
@@ -50,11 +50,10 @@ const startApproval = async ({ policyKey, subjectType, subjectId, context = {}, 
   if (!policy) throw new NotFoundError("No applicable approval policy was found.")
   if (!policy.steps.length) throw new BadRequestError("Approval policy has no steps.")
 
-  const firstStep = policy.steps[0]
-  const approverIds = await resolveApproverIds(firstStep)
-  if (approverIds.length < firstStep.requiredCount) throw new ConflictError(`Approval step '${firstStep.name}' requires ${firstStep.requiredCount} eligible approver(s), but only ${approverIds.length} are available.`)
-
   const instance = await prisma.$transaction(async (tx) => {
+    const firstStep = policy.steps[0]
+    const approverIds = await resolveApproverIds(firstStep, tx)
+    if (approverIds.length < firstStep.requiredCount) throw new ConflictError(`Approval step '${firstStep.name}' requires ${firstStep.requiredCount} eligible approver(s), but only ${approverIds.length} are available.`)
     const created = await tx.approvalInstance.create({ data: { policyId: policy.id, subjectType, subjectId: String(subjectId), currentStepOrder: firstStep.stepOrder } })
     await tx.approvalRequest.createMany({ data: approverIds.map((assigneeUserId) => ({ instanceId: created.id, stepId: firstStep.id, assigneeUserId })) })
     return tx.approvalInstance.findUnique({ where: { id: created.id }, include: { policy: { include: { steps: true } }, requests: true } })
@@ -82,7 +81,7 @@ const actOnApproval = async ({ requestId, actorId, decision, comment = null }) =
     const currentIndex = steps.findIndex((step) => step.id === request.stepId)
     const next = steps[currentIndex + 1]
     if (!next) return tx.approvalInstance.update({ where: { id: request.instanceId }, data: { status: "APPROVED", completedAt: new Date() }, include: { requests: true } })
-    const nextApproverIds = await resolveApproverIds(next)
+    const nextApproverIds = await resolveApproverIds(next, tx)
     if (nextApproverIds.length < next.requiredCount) throw new ConflictError(`Approval step '${next.name}' requires ${next.requiredCount} eligible approver(s), but only ${nextApproverIds.length} are available.`)
     await tx.approvalRequest.createMany({ data: nextApproverIds.map((assigneeUserId) => ({ instanceId: request.instanceId, stepId: next.id, assigneeUserId })) })
     return tx.approvalInstance.update({ where: { id: request.instanceId }, data: { currentStepOrder: next.stepOrder }, include: { requests: true } })
