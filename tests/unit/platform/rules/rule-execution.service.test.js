@@ -1,4 +1,4 @@
-const { describe, expect, it, vi } = require("vitest")
+import { describe, expect, it, vi } from "vitest"
 
 const queryRaw = vi.fn()
 vi.mock("../../../../src/infrastructure/database/prisma", () => ({ $queryRaw: queryRaw }))
