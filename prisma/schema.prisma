@@ -21,6 +21,7 @@ model User {
   workflowInstancesStarted WorkflowInstance[] @relation("WorkflowInstanceStartedBy")
   workflowHistoryActions WorkflowHistory[] @relation("WorkflowHistoryActor")
   auditLogs AuditLog[] @relation("AuditLogActor")
+  formSubmissions FormSubmission[] @relation("FormSubmissionSubmittedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -141,6 +142,7 @@ model WorkflowVersion {
   steps WorkflowStep[]
   transitions WorkflowTransition[]
   instances WorkflowInstance[]
+  formRequirements DocumentRequirement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -254,4 +256,158 @@ model AuditLog {
   @@index([entityType, entityId, createdAt])
   @@index([actorId, createdAt])
   @@index([action, createdAt])
+}
+
+model Form {
+  id          String @id @default(uuid())
+  key         String @unique
+  name        String
+  description String?
+  entityType  String?
+  isActive    Boolean @default(true)
+
+  versions FormVersion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FormVersion {
+  id       String @id @default(uuid())
+  formId   String
+  version  Int
+  status   String @default("DRAFT")
+
+  form       Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+  sections  FormSection[]
+  fields    FormField[]
+  submissions FormSubmission[]
+  documentRequirements DocumentRequirement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([formId, version])
+  @@index([formId, status])
+}
+
+model FormSection {
+  id            String @id @default(uuid())
+  formVersionId String
+  key           String
+  title         String
+  description   String?
+  sortOrder     Int @default(0)
+  visibility    Json?
+
+  formVersion FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  fields FormField[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([formVersionId, key])
+  @@index([formVersionId, sortOrder])
+}
+
+model FormField {
+  id            String @id @default(uuid())
+  formVersionId String
+  sectionId     String?
+  key           String
+  label         String
+  description   String?
+  type          String
+  sortOrder     Int @default(0)
+  required      Boolean @default(false)
+  defaultValue  Json?
+  validation    Json?
+  visibility    Json?
+  config        Json?
+
+  formVersion FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  section FormSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  options FormOption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([formVersionId, key])
+  @@index([formVersionId, sortOrder])
+  @@index([sectionId, sortOrder])
+}
+
+model FormOption {
+  id       String @id @default(uuid())
+  fieldId  String
+  value    String
+  label    String
+  sortOrder Int @default(0)
+  metadata Json?
+
+  field FormField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([fieldId, value])
+  @@index([fieldId, sortOrder])
+}
+
+model FormSubmission {
+  id            String @id @default(uuid())
+  formVersionId String
+  subjectType   String?
+  subjectId     String?
+  submittedByUserId Int?
+  status        String @default("DRAFT")
+  values        Json
+  validationErrors Json?
+  submittedAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  formVersion FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
+  submittedBy User? @relation("FormSubmissionSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([formVersionId, status])
+  @@index([subjectType, subjectId])
+  @@index([submittedByUserId, createdAt])
+}
+
+model DocumentType {
+  id          String @id @default(uuid())
+  key         String @unique
+  name        String
+  description String?
+  isActive    Boolean @default(true)
+
+  requirements DocumentRequirement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentRequirement {
+  id              String @id @default(uuid())
+  documentTypeId  String
+  formVersionId   String?
+  workflowVersionId String?
+  fieldKey        String?
+  name            String
+  description     String?
+  required        Boolean @default(true)
+  allowedFileTypes String[]
+  maxSizeBytes    BigInt?
+  condition       Json?
+  source          String @default("CLIENT")
+  sortOrder       Int @default(0)
+
+  documentType DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
+  formVersion FormVersion? @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  workflowVersion WorkflowVersion? @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([documentTypeId])
+  @@index([formVersionId, sortOrder])
+  @@index([workflowVersionId, sortOrder])
 }
