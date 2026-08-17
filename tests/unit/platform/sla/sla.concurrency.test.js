@@ -1,4 +1,4 @@
-const { describe, expect, it, vi, beforeEach } = require("vitest")
+import { describe, expect, it, vi, beforeEach } from "vitest"
 
 vi.mock("../../../../src/infrastructure/database/prisma", () => ({
   slaPolicy: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
