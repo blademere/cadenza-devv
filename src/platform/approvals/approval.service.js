@@ -36,7 +36,8 @@ const createApprovalPolicy = async ({ key, name, description = null, entityType,
   const orders = new Set()
   for (const [index, step] of steps.entries()) {
     if (!step.name || !step.approverType || !step.approverValue) throw new BadRequestError("Every approval step requires an approver configuration.")
-    if (!Number.isInteger(step.requiredCount) || (step.requiredCount ?? 1) < 1) throw new BadRequestError("requiredCount must be a positive integer.")
+    const requiredCount = step.requiredCount ?? 1
+    if (!Number.isInteger(requiredCount) || requiredCount < 1) throw new BadRequestError("requiredCount must be a positive integer.")
     const stepOrder = step.stepOrder ?? index + 1
     if (!Number.isInteger(stepOrder) || stepOrder < 1 || orders.has(stepOrder)) throw new BadRequestError("Approval stepOrder values must be unique positive integers.")
     orders.add(stepOrder)
