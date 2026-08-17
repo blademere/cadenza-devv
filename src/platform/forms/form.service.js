@@ -1,19 +1,14 @@
 const prisma = require("../../infrastructure/database/prisma")
 const { BadRequestError, ConflictError, NotFoundError } = require("../../common/errors/appError")
 const { recordAudit } = require("../audit/audit.service")
+const { publish } = require("../event-bus/event-bus")
 const { FORM_STATUS, FIELD_TYPES, VALIDATION_OPERATORS } = require("./form.constants")
 
 const MAX_CONDITION_DEPTH = 8
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value)
 const getPathValue = (values, key) => key ? key.split(".").reduce((current, part) => current?.[part], values) : undefined
-const isSafeRegexPattern = (pattern) => {
-  const source = String(pattern)
-  return source.length <= 256 && !/(\?[:=!<]/.test(source) && !/\\\d/.test(source) && !/\([^)]*[+*][^)]*\)[+*]/.test(source)
-}
-const compileRegex = (pattern) => {
-  if (!isSafeRegexPattern(pattern)) return null
-  try { return new RegExp(String(pattern)) } catch { return null }
-}
+const isSafeRegexPattern = (pattern) => { const source = String(pattern); return source.length <= 256 && !/\(\?[:=!<]/.test(source) && !/\\\d/.test(source) && !/\([^)]*[+*][^)]*\)[+*]/.test(source) }
+const compileRegex = (pattern) => { if (!isSafeRegexPattern(pattern)) return null; try { return new RegExp(String(pattern)) } catch { return null } }
 
 const compare = (actual, operator, expected) => {
   switch (operator) {
@@ -50,15 +45,12 @@ const assertCondition = (condition, fieldKeys, depth = 0) => {
   if (groups.length > 1 || (condition.not !== undefined && (groups.length || condition.field !== undefined))) throw new BadRequestError("A form condition must contain exactly one logical/operator expression.")
   if (groups.length) {
     if (!Array.isArray(condition[groups[0]]) || condition[groups[0]].length === 0) throw new BadRequestError(`Condition '${groups[0]}' must be a non-empty array.`)
-    condition[groups[0]].forEach((item) => assertCondition(item, fieldKeys, depth + 1))
-    return
+    condition[groups[0]].forEach((item) => assertCondition(item, fieldKeys, depth + 1)); return
   }
   if (condition.not !== undefined) { assertCondition(condition.not, fieldKeys, depth + 1); return }
   if (typeof condition.field !== "string" || !fieldKeys.has(condition.field)) throw new BadRequestError(`Condition references unknown field '${condition.field}'.`)
   if (!VALIDATION_OPERATORS.includes(condition.operator)) throw new BadRequestError(`Unsupported condition operator '${condition.operator}'.`)
-  if (condition.operator === "matches_field") {
-    if (typeof condition.otherField !== "string" || !fieldKeys.has(condition.otherField)) throw new BadRequestError("matches_field requires a valid otherField.")
-  } else if (condition.value === undefined) throw new BadRequestError(`Operator '${condition.operator}' requires a value.`)
+  if (condition.operator === "matches_field") { if (typeof condition.otherField !== "string" || !fieldKeys.has(condition.otherField)) throw new BadRequestError("matches_field requires a valid otherField.") } else if (condition.value === undefined) throw new BadRequestError(`Operator '${condition.operator}' requires a value.`)
   if (["in", "not_in"].includes(condition.operator) && !Array.isArray(condition.value)) throw new BadRequestError(`Operator '${condition.operator}' requires an array value.`)
   if (["min", "max", "min_length", "max_length"].includes(condition.operator) && !Number.isFinite(Number(condition.value))) throw new BadRequestError(`Operator '${condition.operator}' requires a numeric value.`)
   if (condition.operator === "regex" && !compileRegex(condition.value)) throw new BadRequestError("Unsafe or invalid regex condition.")
@@ -80,7 +72,7 @@ const validateFieldValue = (field, value, values) => {
     case "date": case "datetime": if (typeof value !== "string" || Number.isNaN(Date.parse(value))) errors.push({ field: field.key, code: "DATE", message: `${field.label} must be a valid date.` }); break
     default: errors.push({ field: field.key, code: "FIELD_TYPE", message: `Unsupported field type '${field.type}'.` })
   }
-  for (const rule of Array.isArray(field.validation) ? field.validation : []) { const expected = rule.operator === "matches_field" ? getPathValue(values, rule.otherField) : rule.value; if (!compare(value, rule.operator, expected)) errors.push({ field: field.key, code: "VALIDATION", message: rule.message || `${field.label} failed validation.` }) }
+  for (const rule of Array.isArray(field.validation) ? field.validation : []) { if (!VALIDATION_OPERATORS.includes(rule.operator)) { errors.push({ field: field.key, code: "RULE", message: `Unsupported validation operator '${rule.operator}'.` }); continue } const expected = rule.operator === "matches_field" ? getPathValue(values, rule.otherField) : rule.value; if (!compare(value, rule.operator, expected)) errors.push({ field: field.key, code: "VALIDATION", message: rule.message || `${field.label} failed validation.` }) }
   return errors
 }
 
@@ -113,7 +105,7 @@ const validateDefinition = ({ sections = [], fields = [] }) => {
   }
 }
 
-const includeDefinition = { versions: { include: { sections: { orderBy: { sortOrder: "asc" } }, fields: { include: { options: { orderBy: { sortOrder: "asc" } }, }, orderBy: { sortOrder: "asc" } }, documentRequirements: { include: { documentType: true }, orderBy: { sortOrder: "asc" } } }, orderBy: { version: "desc" } } }
+const includeDefinition = { versions: { include: { sections: { orderBy: { sortOrder: "asc" } }, fields: { include: { options: { orderBy: { sortOrder: "asc" } } }, orderBy: { sortOrder: "asc" } }, documentRequirements: { include: { documentType: true }, orderBy: { sortOrder: "asc" } } }, orderBy: { version: "desc" } } }
 
 const createDefinitionRecords = async (tx, versionId, sections, fields) => {
   const sectionByKey = new Map()
@@ -150,6 +142,9 @@ const publishFormVersion = async ({ formKey, version, actorId = null }) => {
 
 const getPublishedForm = async (formKey) => { const form = await prisma.form.findUnique({ where: { key: formKey }, include: includeDefinition }); if (!form || !form.isActive) throw new NotFoundError(`Active form '${formKey}' was not found.`); const version = form.versions.find((item) => item.status === FORM_STATUS.PUBLISHED); if (!version) throw new NotFoundError(`Published form '${formKey}' was not found.`); return { ...form, versions: [version] } }
 const validateFormValues = async ({ formKey, version, values }) => { if (!isObject(values)) throw new BadRequestError("Form values must be an object."); const form = await prisma.form.findUnique({ where: { key: formKey }, include: includeDefinition }); if (!form) throw new NotFoundError(`Form '${formKey}' was not found.`); const formVersion = version == null ? form.versions.find((item) => item.status === FORM_STATUS.PUBLISHED) : form.versions.find((item) => item.version === version); if (!formVersion) throw new NotFoundError("Form version was not found."); const errors = formVersion.fields.flatMap((field) => validateFieldValue(field, values[field.key], values)); return { valid: errors.length === 0, errors, formVersionId: formVersion.id } }
-const submitForm = async ({ formKey, version, values, subjectType = null, subjectId = null, submittedByUserId = null }) => { const result = await validateFormValues({ formKey, version, values }); if (!result.valid) throw new BadRequestError("Form validation failed.", result.errors); const submission = await prisma.formSubmission.create({ data: { formVersionId: result.formVersionId, subjectType, subjectId: subjectId == null ? null : String(subjectId), submittedByUserId, status: "SUBMITTED", values, submittedAt: new Date() } }); await recordAudit({ actorId: submittedByUserId, action: "FORM_SUBMITTED", entityType: "FormSubmission", entityId: submission.id, after: submission }); return submission }
+const submitForm = async ({ formKey, version, values, subjectType = null, subjectId = null, submittedByUserId = null }) => { const result = await validateFormValues({ formKey, version, values }); if (!result.valid) throw new BadRequestError("Form validation failed.", result.errors); const normalizedSubjectId = subjectId == null ? null : String(subjectId); const submission = await prisma.$transaction(async (tx) => { const created = await tx.formSubmission.create({ data: { formVersionId: result.formVersionId, subjectType, subjectId: normalizedSubjectId, submittedByUserId, status: "SUBMITTED", values, submittedAt: new Date() } }); await publish({ db: tx, event: "form.submitted", entityType: subjectType || "FormSubmission", entityId: normalizedSubjectId || created.id, actorId: submittedByUserId, context: { formSubmissionId: created.id, formVersionId: result.formVersionId, formKey }, idempotencyKey: `form-submission:${created.id}` }); return created })
+  await recordAudit({ actorId: submittedByUserId, action: "FORM_SUBMITTED", entityType: "FormSubmission", entityId: submission.id, after: submission })
+  return submission
+}
 
 module.exports = { createForm, createFormVersion, publishFormVersion, getPublishedForm, validateFormValues, submitForm, evaluateCondition, validateFieldValue, validateDefinition, isSafeRegexPattern }
