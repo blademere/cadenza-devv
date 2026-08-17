@@ -1,5 +1,6 @@
 const FORM_STATUS = Object.freeze({
   DRAFT: "DRAFT",
+  VALIDATED: "VALIDATED",
   PUBLISHED: "PUBLISHED",
   ARCHIVED: "ARCHIVED",
 })
