@@ -17,16 +17,17 @@ describe("SLA hardening", () => {
     auditModule.recordAudit.mockReset()
   })
 
-  it("rejects escalation at or after the SLA deadline", async () => {
+  it("rejects warning or escalation at or after the SLA deadline", async () => {
+    await expect(createSlaPolicy({ key: "sla-warning", name: "SLA", entityType: "CASE", durationSeconds: 300, warningSeconds: 300, conditions: { field: "tier", operator: "equals", value: "gold" } })).rejects.toThrow("before the SLA deadline")
     for (const escalationSeconds of [300, 301]) {
-      await expect(createSlaPolicy({ key: "sla", name: "SLA", entityType: "CASE", durationSeconds: 300, escalationSeconds, conditions: { field: "tier", operator: "equals", value: "gold" } })).rejects.toThrow("before the SLA deadline")
+      await expect(createSlaPolicy({ key: "sla-escalation", name: "SLA", entityType: "CASE", durationSeconds: 300, escalationSeconds, conditions: { field: "tier", operator: "equals", value: "gold" } })).rejects.toThrow("before the SLA deadline")
     }
     expect(mocks.slaPolicy.create).not.toHaveBeenCalled()
   })
 
-  it("accepts a valid escalation before the deadline", async () => {
+  it("accepts valid warning and escalation before the deadline", async () => {
     mocks.slaPolicy.create.mockResolvedValue({ id: "p1", key: "sla" })
-    const result = await createSlaPolicy({ key: "sla", name: "SLA", entityType: "CASE", durationSeconds: 300, escalationSeconds: 299, conditions: { field: "tier", operator: "equals", value: "gold" } })
+    const result = await createSlaPolicy({ key: "sla", name: "SLA", entityType: "CASE", durationSeconds: 300, warningSeconds: 120, escalationSeconds: 299, conditions: { field: "tier", operator: "equals", value: "gold" } })
     expect(result.id).toBe("p1")
     expect(mocks.slaPolicy.create).toHaveBeenCalledOnce()
   })
@@ -41,13 +42,12 @@ describe("SLA hardening", () => {
     expect(mocks.slaPolicy.findMany).toHaveBeenCalledWith(expect.objectContaining({ orderBy: [{ priority: "asc" }, { createdAt: "asc" }] }))
   })
 
-  it("does not terminalize an SLA when escalation is processed", async () => {
+  it("transitions an eligible SLA to ESCALATED without making it terminal", async () => {
     const startedAt = new Date("2026-08-17T07:00:00.000Z")
     mocks.slaInstance.findMany.mockResolvedValue([{ id: "s1", startedAt, policy: { escalationSeconds: 60 } }])
     mocks.slaInstance.updateMany.mockResolvedValue({ count: 1 })
     await markEscalations({ now: new Date("2026-08-17T07:02:00.000Z") })
-    expect(mocks.slaInstance.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { escalatedAt: expect.any(Date) } }))
-    expect(mocks.slaInstance.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: expect.anything() }) }))
+    expect(mocks.slaInstance.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "ESCALATED", escalatedAt: expect.any(Date) } }))
   })
 
   it("allows completion from RUNNING, ESCALATED, and BREACHED", async () => {
@@ -82,7 +82,7 @@ describe("SLA hardening", () => {
     mocks.slaInstance.updateMany.mockResolvedValue({ count: 1 })
     const result = await markEscalations({ now: new Date("2026-08-17T07:02:00.000Z") })
     expect(result.count).toBe(1)
-    expect(mocks.slaInstance.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: "RUNNING", escalatedAt: null }), data: expect.objectContaining({ escalatedAt: expect.any(Date) }) }))
+    expect(mocks.slaInstance.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: "RUNNING", escalatedAt: null }), data: expect.objectContaining({ status: "ESCALATED", escalatedAt: expect.any(Date) }) }))
   })
 
   it("reports zero when another worker has already claimed the escalation", async () => {
