@@ -1,4 +1,5 @@
-const prisma = require("../../infrastructure/database/prisma")
+const { getPrismaClient } = require("../../infrastructure/database/prisma")
+const prisma = getPrismaClient()
 const { BadRequestError, ConflictError, ForbiddenError, NotFoundError } = require("../../common/errors/appError")
 const { evaluateCondition, validateCondition } = require("../rules/rule.service")
 const { recordAudit } = require("../audit/audit.service")
@@ -73,8 +74,6 @@ const startApproval = async ({ policyKey, subjectType, subjectId, context = {}, 
     })
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error
-    // Another concurrent transaction won the active-instance race. Return its
-    // committed instance rather than surfacing a transient duplicate error.
     instance = await prisma.approvalInstance.findFirst({ where: { policyId: policy.id, subjectType, subjectId: String(subjectId), status: "PENDING" }, include: { policy: { include: { steps: true } }, requests: true } })
     if (!instance) throw new ConflictError("Approval instance was created concurrently but could not be reloaded. Retry.")
   }
@@ -110,7 +109,7 @@ const actOnApproval = async ({ requestId, actorId, decision, comment = null }) =
     await tx.approvalRequest.createMany({ data: nextApproverIds.map((assigneeUserId) => ({ instanceId: request.instanceId, stepId: next.id, assigneeUserId })) })
     return tx.approvalInstance.update({ where: { id: request.instanceId }, data: { currentStepOrder: next.stepOrder }, include: { requests: true } })
   })
-  await recordAudit({ actorId, action: `APPROVAL_${decision}`, entityType: "ApprovalInstance", entityId: request.instanceId, before: { requestId, status: "PENDING" }, after: result })
+  await recordAudit({ actorId, action: `APPROVAL_${decision}`, entityType: "ApprovalInstance", entityId: result.id, after: result })
   return result
 }
 
