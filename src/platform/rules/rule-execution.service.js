@@ -1,5 +1,6 @@
 const crypto = require("node:crypto")
-const prisma = require("../../infrastructure/database/prisma")
+const { getPrismaClient } = require("../../infrastructure/database/prisma")
+const prisma = getPrismaClient()
 const { BadRequestError, ConflictError, NotFoundError } = require("../../common/errors/appError")
 
 const MAX_ATTEMPTS = 5
