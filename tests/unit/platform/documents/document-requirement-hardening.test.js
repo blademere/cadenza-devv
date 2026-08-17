@@ -7,7 +7,7 @@ describe("dynamic document requirement hardening", () => {
 
   it("normalizes and deduplicates file types", () => {
     const result = validateRequirementDefinition({ name: "ID", documentTypeId: "doc-1", allowedFileTypes: ["PDF", ".pdf", "image/*"], maxSizeBytes: 1024 }, fieldKeys)
-    expect(result.allowedFileTypes).toEqual(["pdf", ".pdf", "image/*"])
+    expect(result.allowedFileTypes).toEqual([".pdf", "image/*"])
   })
 
   it("rejects unsafe or unbounded file limits", () => {
