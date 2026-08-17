@@ -1,6 +1,6 @@
 const prisma = require("../../infrastructure/database/prisma")
 const { BadRequestError, ConflictError, ForbiddenError, NotFoundError } = require("../../common/errors/appError")
-const { evaluateCondition } = require("../rules/rule.service")
+const { evaluateCondition, validateCondition } = require("../rules/rule.service")
 const { recordAudit } = require("../audit/audit.service")
 
 const parsePermissionKey = (key) => {
@@ -31,9 +31,15 @@ const resolveApproverIds = async (step, db = prisma) => {
 
 const createApprovalPolicy = async ({ key, name, description = null, entityType, priority = 100, conditions = {}, steps, actorId = null }) => {
   if (!key || !name || !entityType || !Array.isArray(steps) || !steps.length) throw new BadRequestError("Approval policy requires key, name, entityType, and steps.")
-  for (const step of steps) {
+  validateCondition(conditions)
+  const orders = new Set()
+  for (const [index, step] of steps.entries()) {
     if (!step.name || !step.approverType || !step.approverValue) throw new BadRequestError("Every approval step requires an approver configuration.")
     if (!Number.isInteger(step.requiredCount) || (step.requiredCount ?? 1) < 1) throw new BadRequestError("requiredCount must be a positive integer.")
+    const stepOrder = step.stepOrder ?? index + 1
+    if (!Number.isInteger(stepOrder) || stepOrder < 1 || orders.has(stepOrder)) throw new BadRequestError("Approval stepOrder values must be unique positive integers.")
+    orders.add(stepOrder)
+    if (!["USER", "ROLE", "PERMISSION"].includes(step.approverType)) throw new BadRequestError(`Unsupported approver type '${step.approverType}'.`)
   }
   const policy = await prisma.approvalPolicy.create({ data: { key, name, description, entityType, priority, conditions, steps: { create: steps.map((step, index) => ({ stepOrder: step.stepOrder ?? index + 1, name: step.name, approverType: step.approverType, approverValue: step.approverValue, requiredCount: step.requiredCount ?? 1 })) } }, include: { steps: { orderBy: { stepOrder: "asc" } } } })
   await recordAudit({ actorId, action: "APPROVAL_POLICY_CREATED", entityType: "ApprovalPolicy", entityId: policy.id, after: policy })
@@ -46,11 +52,14 @@ const findApplicablePolicy = async ({ entityType, context = {} }) => {
 }
 
 const startApproval = async ({ policyKey, subjectType, subjectId, context = {}, actorId = null }) => {
+  if (!subjectType || subjectId == null) throw new BadRequestError("Approval subjectType and subjectId are required.")
   const policy = policyKey ? await prisma.approvalPolicy.findUnique({ where: { key: policyKey }, include: { steps: { orderBy: { stepOrder: "asc" } } } }) : await findApplicablePolicy({ entityType: subjectType, context })
   if (!policy) throw new NotFoundError("No applicable approval policy was found.")
   if (!policy.steps.length) throw new BadRequestError("Approval policy has no steps.")
 
   const instance = await prisma.$transaction(async (tx) => {
+    const existing = await tx.approvalInstance.findFirst({ where: { policyId: policy.id, subjectType, subjectId: String(subjectId), status: "PENDING" }, include: { policy: { include: { steps: true } }, requests: true } })
+    if (existing) return existing
     const firstStep = policy.steps[0]
     const approverIds = await resolveApproverIds(firstStep, tx)
     if (approverIds.length < firstStep.requiredCount) throw new ConflictError(`Approval step '${firstStep.name}' requires ${firstStep.requiredCount} eligible approver(s), but only ${approverIds.length} are available.`)
@@ -73,10 +82,14 @@ const actOnApproval = async ({ requestId, actorId, decision, comment = null }) =
   const result = await prisma.$transaction(async (tx) => {
     const updatedRequest = await tx.approvalRequest.updateMany({ where: { id: requestId, assigneeUserId: actorId, status: "PENDING" }, data: { status: decision === "APPROVE" ? "APPROVED" : "REJECTED", comment, actedByUserId: actorId, actedAt: new Date() } })
     if (updatedRequest.count !== 1) throw new ConflictError("Approval request changed concurrently. Retry.")
-    if (decision === "REJECT") return tx.approvalInstance.update({ where: { id: request.instanceId }, data: { status: "REJECTED" }, include: { requests: true } })
+    if (decision === "REJECT") {
+      await tx.approvalRequest.updateMany({ where: { instanceId: request.instanceId, status: "PENDING" }, data: { status: "CANCELLED", actedAt: new Date() } })
+      return tx.approvalInstance.update({ where: { id: request.instanceId }, data: { status: "REJECTED" }, include: { requests: true } })
+    }
     const stepRequests = await tx.approvalRequest.findMany({ where: { instanceId: request.instanceId, stepId: request.stepId } })
     const approvedCount = stepRequests.filter((item) => item.status === "APPROVED").length
     if (approvedCount < request.step.requiredCount) return tx.approvalInstance.findUnique({ where: { id: request.instanceId }, include: { requests: true } })
+    await tx.approvalRequest.updateMany({ where: { instanceId: request.instanceId, stepId: request.stepId, status: "PENDING" }, data: { status: "SKIPPED", actedAt: new Date() } })
     const steps = request.instance.policy.steps
     const currentIndex = steps.findIndex((step) => step.id === request.stepId)
     const next = steps[currentIndex + 1]
