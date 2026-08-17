@@ -6,7 +6,7 @@ const { recordAudit } = require("../audit/audit.service")
 
 const createSlaPolicy = async ({ key, name, entityType, workflowStepKey = null, durationSeconds, warningSeconds = null, escalationSeconds = null, conditions = {}, actorId = null }) => {
   if (!key || !name || !entityType || !Number.isInteger(durationSeconds) || durationSeconds <= 0) throw new BadRequestError("SLA policy requires a positive duration in seconds.")
-  if (warningSeconds != null && (!Number.isInteger(warningSeconds) || warningSeconds < 0 || warningSeconds > durationSeconds)) throw new BadRequestError("warningSeconds must be an integer between 0 and durationSeconds.")
+  if (warningSeconds != null && (!Number.isInteger(warningSeconds) || warningSeconds < 0 || warningSeconds >= durationSeconds)) throw new BadRequestError("warningSeconds must be an integer before the SLA deadline.")
   if (escalationSeconds != null && (!Number.isInteger(escalationSeconds) || escalationSeconds < 0)) throw new BadRequestError("escalationSeconds must be a non-negative integer.")
   if (escalationSeconds != null && escalationSeconds >= durationSeconds) throw new BadRequestError("escalationSeconds must be before the SLA deadline.")
   validateCondition(conditions)
@@ -52,7 +52,7 @@ const markEscalations = async ({ now = new Date() } = {}) => {
   const instances = await prisma.slaInstance.findMany({ where: { status: "RUNNING", escalatedAt: null, policy: { escalationSeconds: { not: null } } }, include: { policy: true } })
   const eligible = instances.filter((item) => new Date(item.startedAt.getTime() + item.policy.escalationSeconds * 1000) <= now)
   if (!eligible.length) return { count: 0, ids: [] }
-  const result = await prisma.slaInstance.updateMany({ where: { id: { in: eligible.map((item) => item.id) }, status: "RUNNING", escalatedAt: null }, data: { escalatedAt: now } })
+  const result = await prisma.slaInstance.updateMany({ where: { id: { in: eligible.map((item) => item.id) }, status: "RUNNING", escalatedAt: null }, data: { status: "ESCALATED", escalatedAt: now } })
   return { count: result.count, ids: eligible.map((item) => item.id) }
 }
 
