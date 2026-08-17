@@ -1,5 +1,6 @@
 const crypto = require("node:crypto")
-const prisma = require("../../infrastructure/database/prisma")
+const { getPrismaClient } = require("../../infrastructure/database/prisma")
+const prisma = getPrismaClient()
 const { BadRequestError, NotFoundError } = require("../../common/errors/appError")
 const { evaluateCondition, getPathValue } = require("../rules/rule.service")
 const { recordAudit } = require("../audit/audit.service")
