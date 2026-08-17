@@ -7,11 +7,12 @@ const mocks = vi.hoisted(() => ({
   approvalRequest: { findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn(), createMany: vi.fn() },
   user: { findFirst: vi.fn(), findMany: vi.fn() },
 }))
-vi.mock("../../../../src/infrastructure/database/prisma", () => ({ getPrismaClient: () => mocks }))
+const prismaModule = require("../../../../src/infrastructure/database/prisma")
+prismaModule.getPrismaClient = () => mocks
 vi.mock("../../../../src/platform/rules/rule.service", () => ({ evaluateCondition: vi.fn(() => true), validateCondition: vi.fn() }))
 vi.mock("../../../../src/platform/audit/audit.service", () => ({ recordAudit: vi.fn() }))
 
-const prisma = await import("../../../../src/infrastructure/database/prisma").then((module) => module.getPrismaClient())
+const prisma = mocks
 const { actOnApproval, startApproval } = await import("../../../../src/platform/approvals/approval.service.js")
 
 describe("approval hardening", () => {
