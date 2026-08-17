@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 
 const mocks = vi.hoisted(() => ({
   $transaction: vi.fn(),
-  approvalPolicy: { findUnique: vi.fn(), findMany: vi.fn() },
+  approvalPolicy: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
   approvalInstance: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
   approvalRequest: { findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn(), createMany: vi.fn() },
   user: { findFirst: vi.fn(), findMany: vi.fn() },
@@ -13,7 +13,7 @@ const auditModule = require("../../../../src/platform/audit/audit.service")
 auditModule.recordAudit = vi.fn()
 
 const prisma = mocks
-const { actOnApproval, startApproval } = await import("../../../../src/platform/approvals/approval.service.js")
+const { actOnApproval, startApproval, createApprovalPolicy } = await import("../../../../src/platform/approvals/approval.service.js")
 
 describe("approval hardening", () => {
   beforeEach(() => {
@@ -22,6 +22,12 @@ describe("approval hardening", () => {
       else for (const mock of Object.values(value)) mock.mockReset()
     }
     auditModule.recordAudit.mockReset()
+  })
+
+  it("defaults requiredCount to one when it is omitted", async () => {
+    prisma.approvalPolicy.create.mockResolvedValue({ id: "p1", key: "policy" })
+    await createApprovalPolicy({ key: "policy", name: "Policy", entityType: "Request", conditions: { field: "tier", operator: "equals", value: "gold" }, steps: [{ name: "Review", approverType: "USER", approverValue: "7" }] })
+    expect(prisma.approvalPolicy.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ steps: { create: [{ stepOrder: 1, name: "Review", approverType: "USER", approverValue: "7", requiredCount: 1 }] } }) }))
   })
 
   it("returns the existing pending instance instead of creating another one", async () => {
