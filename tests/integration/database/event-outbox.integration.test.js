@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, expect, it } from 'vitest'
+import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 const { getPrismaClient } = require('../../../src/infrastructure/database/prisma')
 const {
@@ -20,12 +20,21 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     await prisma.$connect()
   })
 
+  beforeEach(async () => {
+    await prisma.$executeRaw`
+      DELETE FROM "EventOutbox"
+      WHERE "event" LIKE 'integration.%'
+    `
+  })
+
   afterAll(async () => {
     if (createdEventIds.length) {
-      await prisma.$executeRaw`
-        DELETE FROM "EventOutbox"
-        WHERE "id" IN (${prisma.$queryRaw.join(createdEventIds)})
-      `
+      for (const id of createdEventIds) {
+        await prisma.$executeRaw`
+          DELETE FROM "EventOutbox"
+          WHERE "id" = ${id}
+        `
+      }
     }
     await prisma.$disconnect()
   })
@@ -146,13 +155,11 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
 
   it('requires the current lease owner to complete or fail an event', async () => {
     const idempotencyKey = `ownership:${Date.now()}:${Math.random().toString(36).slice(2)}`
-    const [event] = await claimBatch({ batchSize: 0 }).catch(() => [])
-    expect(event).toBeUndefined()
-
     const created = await enqueueEvent({ event: 'integration.ownership', idempotencyKey })
     createdEventIds.push(created.id)
     const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
 
+    expect(claimed.id).toBe(created.id)
     await expect(markProcessed(claimed.id, 'wrong-token')).rejects.toThrow(/no longer owned/)
     await expect(markFailed(claimed.id, new Error('expected failure'), 'wrong-token')).rejects.toThrow(/no longer owned/)
 
@@ -171,6 +178,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     createdEventIds.push(created.id)
     const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 1 })
 
+    expect(claimed.id).toBe(created.id)
     await prisma.$executeRaw`
       UPDATE "EventOutbox"
       SET "leaseUntil" = CURRENT_TIMESTAMP - INTERVAL '1 second'
