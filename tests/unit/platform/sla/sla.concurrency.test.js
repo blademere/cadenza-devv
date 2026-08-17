@@ -4,11 +4,11 @@ const mocks = vi.hoisted(() => ({
   slaPolicy: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
   slaInstance: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
 }))
-vi.mock("../../../../src/infrastructure/database/prisma", () => mocks)
+vi.mock("../../../../src/infrastructure/database/prisma", () => ({ getPrismaClient: () => mocks }))
 vi.mock("../../../../src/platform/rules/rule.service", () => ({ evaluateCondition: vi.fn(() => true), validateCondition: vi.fn() }))
 vi.mock("../../../../src/platform/audit/audit.service", () => ({ recordAudit: vi.fn() }))
 
-const prisma = await import("../../../../src/infrastructure/database/prisma")
+const prisma = await import("../../../../src/infrastructure/database/prisma").then((module) => module.getPrismaClient())
 const { completeSla, markDueSlas, markEscalations } = await import("../../../../src/platform/sla/sla.service.js")
 
 describe("SLA hardening", () => {
