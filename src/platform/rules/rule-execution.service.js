@@ -44,8 +44,11 @@ const markFailed = async (executionId, error) => {
     SET
       "status" = CASE WHEN "attempts" < ${MAX_ATTEMPTS} THEN 'PENDING' ELSE 'DEAD_LETTER' END,
       "nextAttemptAt" = CASE
-        WHEN "attempts" < ${MAX_ATTEMPTS} THEN CURRENT_TIMESTAMP + (${RETRY_DELAYS_MS[0]} * POWER(5, GREATEST("attempts" - 1, 0))) * INTERVAL '1 millisecond'
-        ELSE NULL
+        WHEN "attempts" >= ${MAX_ATTEMPTS} THEN NULL
+        WHEN "attempts" = 1 THEN CURRENT_TIMESTAMP + INTERVAL '1 second'
+        WHEN "attempts" = 2 THEN CURRENT_TIMESTAMP + INTERVAL '5 seconds'
+        WHEN "attempts" = 3 THEN CURRENT_TIMESTAMP + INTERVAL '30 seconds'
+        ELSE CURRENT_TIMESTAMP + INTERVAL '120 seconds'
       END,
       "lastError" = ${String(error).slice(0, 4000)},
       "updatedAt" = CURRENT_TIMESTAMP
