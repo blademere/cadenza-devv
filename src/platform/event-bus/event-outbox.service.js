@@ -5,6 +5,7 @@ const MAX_EVENT_DEPTH = 10
 const MAX_ATTEMPTS = 10
 
 const enqueueEvent = async ({
+  db = prisma,
   event,
   entityType = null,
   entityId = null,
@@ -32,7 +33,7 @@ const enqueueEvent = async ({
     occurredAt: new Date().toISOString(),
   }
 
-  const rows = await prisma.$queryRaw`
+  const rows = await db.$queryRaw`
     INSERT INTO "EventOutbox" (
       "id", "event", "entityType", "entityId", "actorId", "payload",
       "correlationId", "causationId", "depth", "availableAt", "idempotencyKey", "updatedAt"
