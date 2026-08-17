@@ -6,9 +6,7 @@ const MAX_ATTEMPTS = 5
 const RETRY_DELAYS_MS = [1000, 5000, 30000, 120000]
 
 const makeExecutionKey = ({ ruleId, actionIndex, event, entityType = null, entityId = null, correlationId }) => {
-  if (!ruleId || !Number.isInteger(actionIndex) || actionIndex < 0 || !event || !correlationId) {
-    throw new BadRequestError("ruleId, actionIndex, event, and correlationId are required.")
-  }
+  if (!ruleId || !Number.isInteger(actionIndex) || actionIndex < 0 || !event || !correlationId) throw new BadRequestError("ruleId, actionIndex, event, and correlationId are required.")
   return crypto.createHash("sha256").update(JSON.stringify({ ruleId, actionIndex, event, entityType, entityId: entityId == null ? null : String(entityId), correlationId })).digest("hex")
 }
 
@@ -18,17 +16,15 @@ const claimAction = async ({ ruleId, actionIndex, event, entityType = null, enti
   const result = await prisma.$queryRaw`
     INSERT INTO "BusinessRuleActionExecution"
       ("id", "executionKey", "ruleId", "actionIndex", "event", "entityType", "entityId", "correlationId", "causationId", "status", "attempts", "startedAt", "createdAt", "updatedAt")
-    VALUES
-      (${id}, ${executionKey}, ${ruleId}, ${actionIndex}, ${event}, ${entityType}, ${entityId == null ? null : String(entityId)}, ${correlationId}, ${causationId}, 'RUNNING', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    ON CONFLICT ("executionKey") DO UPDATE SET
-      "updatedAt" = CURRENT_TIMESTAMP
+    VALUES (${id}, ${executionKey}, ${ruleId}, ${actionIndex}, ${event}, ${entityType}, ${entityId == null ? null : String(entityId)}, ${correlationId}, ${causationId}, 'RUNNING', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ON CONFLICT ("executionKey") DO UPDATE SET "updatedAt" = CURRENT_TIMESTAMP
     RETURNING *
   `
   const execution = result[0]
   if (!execution) throw new ConflictError("Business rule action execution was already claimed by another worker.")
-  if (execution.status === "SUCCEEDED") return { claimed: false, execution }
-  if (execution.status === "RUNNING" && execution.attempts > 1) return { claimed: false, execution }
-  return { claimed: execution.id === id, execution }
+  if (execution.status === "SUCCEEDED" || execution.status === "DEAD_LETTER") return { claimed: false, execution }
+  if (execution.status === "RUNNING") return { claimed: execution.id === id && execution.attempts === 1, execution }
+  return { claimed: false, execution }
 }
 
 const markSucceeded = async (executionId) => {
@@ -44,19 +40,20 @@ const markSucceeded = async (executionId) => {
 
 const markFailed = async (executionId, error) => {
   const result = await prisma.$queryRaw`
-    SELECT * FROM "BusinessRuleActionExecution" WHERE "id" = ${executionId} FOR UPDATE
-  `
-  const execution = result[0]
-  if (!execution) throw new NotFoundError(`Rule action execution '${executionId}' was not found.`)
-  const nextAttempt = execution.attempts < MAX_ATTEMPTS ? new Date(Date.now() + RETRY_DELAYS_MS[Math.min(execution.attempts - 1, RETRY_DELAYS_MS.length - 1)]) : null
-  const status = nextAttempt ? "PENDING" : "DEAD_LETTER"
-  const updated = await prisma.$queryRaw`
     UPDATE "BusinessRuleActionExecution"
-    SET "status" = ${status}, "nextAttemptAt" = ${nextAttempt}, "lastError" = ${String(error).slice(0, 4000)}, "updatedAt" = CURRENT_TIMESTAMP
-    WHERE "id" = ${executionId}
+    SET
+      "status" = CASE WHEN "attempts" < ${MAX_ATTEMPTS} THEN 'PENDING' ELSE 'DEAD_LETTER' END,
+      "nextAttemptAt" = CASE
+        WHEN "attempts" < ${MAX_ATTEMPTS} THEN CURRENT_TIMESTAMP + (${RETRY_DELAYS_MS[0]} * POWER(5, GREATEST("attempts" - 1, 0))) * INTERVAL '1 millisecond'
+        ELSE NULL
+      END,
+      "lastError" = ${String(error).slice(0, 4000)},
+      "updatedAt" = CURRENT_TIMESTAMP
+    WHERE "id" = ${executionId} AND "status" = 'RUNNING'
     RETURNING *
   `
-  return updated[0]
+  if (!result[0]) throw new NotFoundError(`Rule action execution '${executionId}' is not running.`)
+  return result[0]
 }
 
 const getDueActions = async (limit = 50) => prisma.$queryRaw`
