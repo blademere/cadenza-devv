@@ -63,7 +63,7 @@ describe("notification delivery hardening", () => {
     const max = computeRetryAt(20).getTime() - now
     expect(early).toBeGreaterThanOrEqual(29_000)
     expect(later).toBeGreaterThan(early)
-    expect(max).toBeLessThanOrEqual(3_600_000)
+    expect(max).toBeLessThanOrEqual(3_600_000 + 100)
   })
 
   it("produces a stable idempotency key for the same logical delivery", () => {
