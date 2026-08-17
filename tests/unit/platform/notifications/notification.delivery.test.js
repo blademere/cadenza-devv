@@ -6,14 +6,14 @@ const mocks = vi.hoisted(() => ({
   notificationTemplate: { findUnique: vi.fn(), create: vi.fn() },
   user: { findMany: vi.fn() },
 }))
-vi.mock("../../../../src/infrastructure/database/prisma", () => mocks)
+vi.mock("../../../../src/infrastructure/database/prisma", () => ({ getPrismaClient: () => mocks }))
 vi.mock("../../../../src/platform/rules/rule.service", () => ({
   evaluateCondition: vi.fn(() => true),
   getPathValue: vi.fn((obj, key) => key?.split(".").reduce((v, k) => v?.[k], obj)),
 }))
 vi.mock("../../../../src/platform/audit/audit.service", () => ({ recordAudit: vi.fn() }))
 
-const prisma = await import("../../../../src/infrastructure/database/prisma")
+const prisma = await import("../../../../src/infrastructure/database/prisma").then((module) => module.getPrismaClient())
 const { claimDelivery, markDeliveryFailed, markDeliverySent, computeRetryAt, stableIdempotencyKey, MAX_ATTEMPTS } = await import("../../../../src/platform/notifications/notification.service.js")
 
 describe("notification delivery hardening", () => {
