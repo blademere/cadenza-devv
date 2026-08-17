@@ -1,3 +1,4 @@
+const crypto = require("node:crypto")
 const prisma = require("../../infrastructure/database/prisma")
 const { BadRequestError, NotFoundError } = require("../../common/errors/appError")
 const { evaluateCondition, getPathValue } = require("../rules/rule.service")
@@ -5,6 +6,7 @@ const { recordAudit } = require("../audit/audit.service")
 
 const render = (template, context) => String(template || "").replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, path) => { const value = getPathValue(context, path.trim()); return value == null ? "" : String(value) })
 const parsePermission = (key) => { const index = key?.indexOf("."); if (!key || index <= 0 || index === key.length - 1) throw new BadRequestError(`Invalid permission key '${key}'.`); return { resource: key.slice(0, index), action: key.slice(index + 1) } }
+const stableIdempotencyKey = ({ correlationId, event, ruleId, recipient, templateId }) => crypto.createHash("sha256").update(JSON.stringify([correlationId || null, event, ruleId, String(recipient), templateId])).digest("hex")
 
 const createNotificationTemplate = async ({ key, name, channel, subject = null, body, actorId = null }) => {
   if (!key || !name || !channel || !body) throw new BadRequestError("Notification template requires key, name, channel, and body.")
@@ -43,10 +45,18 @@ const queueNotifications = async ({ event, entityType = null, context = {} }) =>
   const deliveries = []
   for (const rule of rules) {
     if (!evaluateCondition(rule.conditions, context)) continue
-    const recipients = await resolveRecipients(rule, context)
-    for (const recipient of recipients) deliveries.push(await prisma.notificationDelivery.create({ data: { ruleId: rule.id, templateId: rule.templateId, recipient, channel: rule.template.channel, status: "QUEUED", payload: { subject: render(rule.template.subject, context), body: render(rule.template.body, context), context } } }))
+    const recipients = [...new Set(await resolveRecipients(rule, context).then((items) => items.filter(Boolean).map(String)))]
+    for (const recipient of recipients) {
+      const idempotencyKey = stableIdempotencyKey({ correlationId: context.correlationId, event, ruleId: rule.id, recipient, templateId: rule.templateId })
+      const delivery = await prisma.notificationDelivery.upsert({
+        where: { idempotencyKey },
+        create: { idempotencyKey, ruleId: rule.id, templateId: rule.templateId, recipient, channel: rule.template.channel, status: "QUEUED", payload: { subject: render(rule.template.subject, context), body: render(rule.template.body, context), context } },
+        update: {},
+      })
+      deliveries.push(delivery)
+    }
   }
   return deliveries
 }
 
-module.exports = { render, createNotificationTemplate, createNotificationRule, queueNotifications, resolveRecipients }
+module.exports = { render, createNotificationTemplate, createNotificationRule, queueNotifications, resolveRecipients, stableIdempotencyKey }
