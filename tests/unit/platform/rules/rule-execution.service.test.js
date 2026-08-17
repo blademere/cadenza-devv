@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 const mocks = vi.hoisted(() => ({ queryRaw: vi.fn() }))
 vi.mock("../../../../src/infrastructure/database/prisma", () => ({ $queryRaw: mocks.queryRaw }))
 
-const { makeExecutionKey, claimAction, markSucceeded, markFailed, getDueActions, MAX_ATTEMPTS } = require("../../../../src/platform/rules/rule-execution.service")
+const { makeExecutionKey, claimAction, markSucceeded, markFailed, getDueActions, MAX_ATTEMPTS } = await import("../../../../src/platform/rules/rule-execution.service.js")
 
 describe("rule execution idempotency", () => {
   beforeEach(() => mocks.queryRaw.mockReset())
