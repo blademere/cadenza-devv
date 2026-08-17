@@ -8,7 +8,7 @@ const createSlaPolicy = async ({ key, name, entityType, workflowStepKey = null, 
   if (!key || !name || !entityType || !Number.isInteger(durationSeconds) || durationSeconds <= 0) throw new BadRequestError("SLA policy requires a positive duration in seconds.")
   if (warningSeconds != null && (!Number.isInteger(warningSeconds) || warningSeconds < 0 || warningSeconds > durationSeconds)) throw new BadRequestError("warningSeconds must be an integer between 0 and durationSeconds.")
   if (escalationSeconds != null && (!Number.isInteger(escalationSeconds) || escalationSeconds < 0)) throw new BadRequestError("escalationSeconds must be a non-negative integer.")
-  if (escalationSeconds != null && escalationSeconds > durationSeconds) throw new BadRequestError("escalationSeconds cannot exceed durationSeconds.")
+  if (escalationSeconds != null && escalationSeconds >= durationSeconds) throw new BadRequestError("escalationSeconds must be before the SLA deadline.")
   validateCondition(conditions)
   const policy = await prisma.slaPolicy.create({ data: { key, name, entityType, workflowStepKey, durationSeconds, warningSeconds, escalationSeconds, conditions } })
   await recordAudit({ actorId, action: "SLA_POLICY_CREATED", entityType: "SlaPolicy", entityId: policy.id, after: policy })
