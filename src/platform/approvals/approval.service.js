@@ -51,22 +51,33 @@ const findApplicablePolicy = async ({ entityType, context = {} }) => {
   return policies.find((policy) => evaluateCondition(policy.conditions, context)) || null
 }
 
+const isUniqueConstraintError = (error) => error?.code === "P2002"
+
 const startApproval = async ({ policyKey, subjectType, subjectId, context = {}, actorId = null }) => {
   if (!subjectType || subjectId == null) throw new BadRequestError("Approval subjectType and subjectId are required.")
   const policy = policyKey ? await prisma.approvalPolicy.findUnique({ where: { key: policyKey }, include: { steps: { orderBy: { stepOrder: "asc" } } } }) : await findApplicablePolicy({ entityType: subjectType, context })
   if (!policy) throw new NotFoundError("No applicable approval policy was found.")
   if (!policy.steps.length) throw new BadRequestError("Approval policy has no steps.")
 
-  const instance = await prisma.$transaction(async (tx) => {
-    const existing = await tx.approvalInstance.findFirst({ where: { policyId: policy.id, subjectType, subjectId: String(subjectId), status: "PENDING" }, include: { policy: { include: { steps: true } }, requests: true } })
-    if (existing) return existing
-    const firstStep = policy.steps[0]
-    const approverIds = await resolveApproverIds(firstStep, tx)
-    if (approverIds.length < firstStep.requiredCount) throw new ConflictError(`Approval step '${firstStep.name}' requires ${firstStep.requiredCount} eligible approver(s), but only ${approverIds.length} are available.`)
-    const created = await tx.approvalInstance.create({ data: { policyId: policy.id, subjectType, subjectId: String(subjectId), currentStepOrder: firstStep.stepOrder } })
-    await tx.approvalRequest.createMany({ data: approverIds.map((assigneeUserId) => ({ instanceId: created.id, stepId: firstStep.id, assigneeUserId })) })
-    return tx.approvalInstance.findUnique({ where: { id: created.id }, include: { policy: { include: { steps: true } }, requests: true } })
-  })
+  let instance
+  try {
+    instance = await prisma.$transaction(async (tx) => {
+      const existing = await tx.approvalInstance.findFirst({ where: { policyId: policy.id, subjectType, subjectId: String(subjectId), status: "PENDING" }, include: { policy: { include: { steps: true } }, requests: true } })
+      if (existing) return existing
+      const firstStep = policy.steps[0]
+      const approverIds = await resolveApproverIds(firstStep, tx)
+      if (approverIds.length < firstStep.requiredCount) throw new ConflictError(`Approval step '${firstStep.name}' requires ${firstStep.requiredCount} eligible approver(s), but only ${approverIds.length} are available.`)
+      const created = await tx.approvalInstance.create({ data: { policyId: policy.id, subjectType, subjectId: String(subjectId), currentStepOrder: firstStep.stepOrder } })
+      await tx.approvalRequest.createMany({ data: approverIds.map((assigneeUserId) => ({ instanceId: created.id, stepId: firstStep.id, assigneeUserId })) })
+      return tx.approvalInstance.findUnique({ where: { id: created.id }, include: { policy: { include: { steps: true } }, requests: true } })
+    })
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error
+    // Another concurrent transaction won the active-instance race. Return its
+    // committed instance rather than surfacing a transient duplicate error.
+    instance = await prisma.approvalInstance.findFirst({ where: { policyId: policy.id, subjectType, subjectId: String(subjectId), status: "PENDING" }, include: { policy: { include: { steps: true } }, requests: true } })
+    if (!instance) throw new ConflictError("Approval instance was created concurrently but could not be reloaded. Retry.")
+  }
   await recordAudit({ actorId, action: "APPROVAL_STARTED", entityType: "ApprovalInstance", entityId: instance.id, after: instance })
   return instance
 }
