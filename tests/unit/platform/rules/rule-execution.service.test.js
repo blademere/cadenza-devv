@@ -35,10 +35,10 @@ describe("rule execution idempotency", () => {
   })
 
   it("moves failed executions to retry or dead-letter", async () => {
-    mocks.queryRaw.mockResolvedValueOnce([{ id: "x", attempts: 1 }])
+    mocks.queryRaw.mockResolvedValueOnce([{ id: "x", attempts: 1, status: "PENDING" }])
     expect((await markFailed("x", "temporary")).status).toBe("PENDING")
 
-    mocks.queryRaw.mockResolvedValueOnce([{ id: "y", attempts: MAX_ATTEMPTS }])
+    mocks.queryRaw.mockResolvedValueOnce([{ id: "y", attempts: MAX_ATTEMPTS, status: "DEAD_LETTER" }])
     expect((await markFailed("y", "permanent")).status).toBe("DEAD_LETTER")
   })
 
