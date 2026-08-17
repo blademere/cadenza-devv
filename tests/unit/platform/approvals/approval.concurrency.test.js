@@ -1,12 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 
-vi.mock("../../../../src/infrastructure/database/prisma", () => ({
+const mocks = vi.hoisted(() => ({
   $transaction: vi.fn(),
   approvalPolicy: { findUnique: vi.fn(), findMany: vi.fn() },
   approvalInstance: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
   approvalRequest: { findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn(), createMany: vi.fn() },
   user: { findFirst: vi.fn(), findMany: vi.fn() },
 }))
+vi.mock("../../../../src/infrastructure/database/prisma", () => mocks)
 vi.mock("../../../../src/platform/rules/rule.service", () => ({ evaluateCondition: vi.fn(() => true), validateCondition: vi.fn() }))
 vi.mock("../../../../src/platform/audit/audit.service", () => ({ recordAudit: vi.fn() }))
 
@@ -14,16 +15,17 @@ const prisma = require("../../../../src/infrastructure/database/prisma")
 const { actOnApproval, startApproval } = require("../../../../src/platform/approvals/approval.service")
 
 describe("approval hardening", () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    for (const [key, value] of Object.entries(mocks)) {
+      if (typeof value === "function") value.mockReset()
+      else for (const mock of Object.values(value)) mock.mockReset()
+    }
+  })
 
   it("returns the existing pending instance instead of creating another one", async () => {
     const existing = { id: "a1", policyId: "p1", subjectType: "Request", subjectId: "42", status: "PENDING", policy: { steps: [] }, requests: [] }
     prisma.approvalPolicy.findUnique.mockResolvedValue({ id: "p1", key: "policy", steps: [{ id: "s1", stepOrder: 1, name: "Review", approverType: "USER", approverValue: "7", requiredCount: 1 }] })
-    prisma.$transaction.mockImplementation(async (callback) => callback({
-      approvalInstance: { findFirst: vi.fn().mockResolvedValue(existing), create: vi.fn(), findUnique: vi.fn() },
-      approvalRequest: { createMany: vi.fn() },
-      user: { findFirst: vi.fn().mockResolvedValue({ id: 7 }) },
-    }))
+    prisma.$transaction.mockImplementation(async (callback) => callback({ approvalInstance: { findFirst: vi.fn().mockResolvedValue(existing), create: vi.fn(), findUnique: vi.fn() }, approvalRequest: { createMany: vi.fn() }, user: { findFirst: vi.fn().mockResolvedValue({ id: 7 }) } }))
     const result = await startApproval({ policyKey: "policy", subjectType: "Request", subjectId: 42 })
     expect(result.id).toBe("a1")
     expect(result.status).toBe("PENDING")
