@@ -17,14 +17,21 @@ const claimAction = async ({ ruleId, actionIndex, event, entityType = null, enti
     INSERT INTO "BusinessRuleActionExecution"
       ("id", "executionKey", "ruleId", "actionIndex", "event", "entityType", "entityId", "correlationId", "causationId", "status", "attempts", "startedAt", "createdAt", "updatedAt")
     VALUES (${id}, ${executionKey}, ${ruleId}, ${actionIndex}, ${event}, ${entityType}, ${entityId == null ? null : String(entityId)}, ${correlationId}, ${causationId}, 'RUNNING', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    ON CONFLICT ("executionKey") DO UPDATE SET "updatedAt" = CURRENT_TIMESTAMP
+    ON CONFLICT ("executionKey") DO UPDATE SET
+      "status" = 'RUNNING',
+      "attempts" = "BusinessRuleActionExecution"."attempts" + 1,
+      "startedAt" = CURRENT_TIMESTAMP,
+      "nextAttemptAt" = NULL,
+      "updatedAt" = CURRENT_TIMESTAMP
+    WHERE "BusinessRuleActionExecution"."status" = 'PENDING'
+      AND ("BusinessRuleActionExecution"."nextAttemptAt" IS NULL OR "BusinessRuleActionExecution"."nextAttemptAt" <= CURRENT_TIMESTAMP)
+      AND "BusinessRuleActionExecution"."attempts" < ${MAX_ATTEMPTS}
     RETURNING *
   `
-  const execution = result[0]
-  if (!execution) throw new ConflictError("Business rule action execution was already claimed by another worker.")
-  if (execution.status === "SUCCEEDED" || execution.status === "DEAD_LETTER") return { claimed: false, execution }
-  if (execution.status === "RUNNING") return { claimed: execution.id === id && execution.attempts === 1, execution }
-  return { claimed: false, execution }
+  if (result[0]) return { claimed: true, execution: result[0] }
+  const existing = await prisma.$queryRaw`SELECT * FROM "BusinessRuleActionExecution" WHERE "executionKey" = ${executionKey}`
+  if (!existing[0]) throw new ConflictError("Business rule action execution could not be claimed.")
+  return { claimed: false, execution: existing[0] }
 }
 
 const markSucceeded = async (executionId) => {
