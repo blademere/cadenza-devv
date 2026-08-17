@@ -1,4 +1,4 @@
-const { describe, expect, it, vi } = require("vitest")
+import { describe, expect, it, vi } from "vitest"
 
 vi.mock("../../../../src/infrastructure/database/prisma", () => ({ businessRule: { findMany: vi.fn(), create: vi.fn() } }))
 vi.mock("../../../../src/platform/audit/audit.service", () => ({ recordAudit: vi.fn() }))
