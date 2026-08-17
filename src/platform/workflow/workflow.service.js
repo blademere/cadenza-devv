@@ -15,28 +15,72 @@ const {
 } = require("./workflow.repository")
 const { WORKFLOW_ACTIONS, WORKFLOW_STATUS } = require("./workflow.constants")
 
-const assertWorkflowDefinition = ({ steps = [], transitions = [] }) => {
-  if (!Array.isArray(steps) || steps.length === 0) throw new BadRequestError("A workflow version requires at least one step.")
-  const initialSteps = steps.filter((step) => step.isInitial)
-  if (initialSteps.length !== 1) throw new BadRequestError("A workflow version must have exactly one initial step.")
-  const keys = new Set()
-  for (const step of steps) {
-    if (!step.key || !step.name) throw new BadRequestError("Every workflow step requires a key and name.")
-    if (keys.has(step.key)) throw new ConflictError(`Duplicate workflow step key: ${step.key}.`)
-    keys.add(step.key)
-  }
-  const stepKeys = new Set(steps.map((step) => step.key))
-  for (const transition of transitions) {
-    if (!transition.key || !transition.name) throw new BadRequestError("Every workflow transition requires a key and name.")
-    if (!stepKeys.has(transition.fromStepKey) || !stepKeys.has(transition.toStepKey)) throw new BadRequestError(`Transition ${transition.key} references an unknown workflow step.`)
-  }
-}
-
 const parsePermissionKey = (permissionKey) => {
   if (!permissionKey) return null
   const separator = permissionKey.indexOf(".")
   if (separator <= 0 || separator === permissionKey.length - 1) throw new BadRequestError(`Invalid workflow permission key '${permissionKey}'.`)
   return { resource: permissionKey.slice(0, separator), action: permissionKey.slice(separator + 1) }
+}
+
+const assertWorkflowDefinition = ({ steps = [], transitions = [] }) => {
+  if (!Array.isArray(steps) || steps.length === 0) throw new BadRequestError("A workflow version requires at least one step.")
+  if (!Array.isArray(transitions)) throw new BadRequestError("Workflow transitions must be an array.")
+
+  const initialSteps = steps.filter((step) => step && step.isInitial)
+  const finalSteps = steps.filter((step) => step && step.isFinal)
+  if (initialSteps.length !== 1) throw new BadRequestError("A workflow version must have exactly one initial step.")
+  if (finalSteps.length === 0) throw new BadRequestError("A workflow version requires at least one final step.")
+
+  const keys = new Set()
+  for (const step of steps) {
+    if (!step || !step.key || !step.name) throw new BadRequestError("Every workflow step requires a key and name.")
+    if (keys.has(step.key)) throw new ConflictError(`Duplicate workflow step key: ${step.key}.`)
+    keys.add(step.key)
+  }
+
+  const stepKeys = new Set(steps.map((step) => step.key))
+  const transitionKeys = new Set()
+  const outgoing = new Map(steps.map((step) => [step.key, 0]))
+  const adjacency = new Map(steps.map((step) => [step.key, []]))
+
+  for (const transition of transitions) {
+    if (!transition || !transition.key || !transition.name) throw new BadRequestError("Every workflow transition requires a key and name.")
+    if (transitionKeys.has(transition.key)) throw new ConflictError(`Duplicate workflow transition key: ${transition.key}.`)
+    transitionKeys.add(transition.key)
+
+    if (!stepKeys.has(transition.fromStepKey) || !stepKeys.has(transition.toStepKey)) {
+      throw new BadRequestError(`Transition ${transition.key} references an unknown workflow step.`)
+    }
+
+    if (transition.permissionKey) parsePermissionKey(transition.permissionKey)
+
+    const fromStep = steps.find((step) => step.key === transition.fromStepKey)
+    if (fromStep.isFinal) throw new BadRequestError(`Final workflow step '${fromStep.key}' cannot have outgoing transitions.`)
+
+    outgoing.set(fromStep.key, outgoing.get(fromStep.key) + 1)
+    adjacency.get(fromStep.key).push(transition.toStepKey)
+  }
+
+  for (const step of steps) {
+    if (!step.isFinal && outgoing.get(step.key) === 0) {
+      throw new BadRequestError(`Non-final workflow step '${step.key}' must have at least one outgoing transition.`)
+    }
+  }
+
+  const reachable = new Set([initialSteps[0].key])
+  const queue = [initialSteps[0].key]
+  while (queue.length) {
+    const current = queue.shift()
+    for (const next of adjacency.get(current)) {
+      if (!reachable.has(next)) {
+        reachable.add(next)
+        queue.push(next)
+      }
+    }
+  }
+
+  const unreachable = steps.find((step) => !reachable.has(step.key))
+  if (unreachable) throw new BadRequestError(`Workflow step '${unreachable.key}' is unreachable from the initial step.`)
 }
 
 const assertTransitionPermission = async ({ transition, actorId }) => {
@@ -109,4 +153,4 @@ const getWorkflowInstance = async (instanceId) => {
   return instance
 }
 
-module.exports = { createWorkflow, startWorkflow, transitionWorkflow, getWorkflowInstance, assertTransitionPermission }
+module.exports = { createWorkflow, startWorkflow, transitionWorkflow, getWorkflowInstance, assertTransitionPermission, assertWorkflowDefinition }
