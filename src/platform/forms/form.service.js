@@ -1,18 +1,13 @@
 const prisma = require("../../infrastructure/database/prisma")
 const { BadRequestError, ConflictError, NotFoundError } = require("../../common/errors/appError")
 const { recordAudit } = require("../audit/audit.service")
+const { publish } = require("../event-bus/event-bus")
 const { FORM_STATUS, FIELD_TYPES, VALIDATION_OPERATORS } = require("./form.constants")
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value)
 const getPathValue = (values, key) => key ? key.split(".").reduce((current, part) => current?.[part], values) : undefined
-const isSafeRegexPattern = (pattern) => {
-  const source = String(pattern)
-  return source.length <= 256 && !/\(\?[:=!<]/.test(source) && !/\\\d/.test(source) && !/\([^)]*[+*][^)]*\)[+*]/.test(source)
-}
-const compileRegex = (pattern) => {
-  if (!isSafeRegexPattern(pattern)) return null
-  try { return new RegExp(String(pattern)) } catch { return null }
-}
+const isSafeRegexPattern = (pattern) => { const source = String(pattern); return source.length <= 256 && !/\(\?[:=!<]/.test(source) && !/\\\d/.test(source) && !/\([^)]*[+*][^)]*\)[+*]/.test(source) }
+const compileRegex = (pattern) => { if (!isSafeRegexPattern(pattern)) return null; try { return new RegExp(String(pattern)) } catch { return null } }
 
 const compare = (actual, operator, expected) => {
   switch (operator) {
@@ -26,10 +21,7 @@ const compare = (actual, operator, expected) => {
     case "max": return typeof actual === "number" && actual <= Number(expected)
     case "min_length": return actual != null && actual.length >= Number(expected)
     case "max_length": return actual != null && actual.length <= Number(expected)
-    case "regex": {
-      const regex = compileRegex(expected)
-      return typeof actual === "string" && regex ? regex.test(actual) : false
-    }
+    case "regex": { const regex = compileRegex(expected); return typeof actual === "string" && regex ? regex.test(actual) : false }
     default: return false
   }
 }
@@ -60,10 +52,7 @@ const validateFieldValue = (field, value, values) => {
     case "integer": if (!Number.isInteger(value)) errors.push({ field: field.key, code: "TYPE", message: `${field.label} must be an integer.` }); break
     case "boolean": if (typeof value !== "boolean") errors.push({ field: field.key, code: "TYPE", message: `${field.label} must be boolean.` }); break
     case "select": if (!field.options.some((option) => option.value === String(value))) errors.push({ field: field.key, code: "OPTION", message: `${field.label} contains an invalid option.` }); break
-    case "multiselect":
-      if (!Array.isArray(value)) errors.push({ field: field.key, code: "TYPE", message: `${field.label} must be an array.` })
-      else { const allowed = new Set(field.options.map((option) => option.value)); if (value.some((item) => !allowed.has(String(item)))) errors.push({ field: field.key, code: "OPTION", message: `${field.label} contains an invalid option.` }) }
-      break
+    case "multiselect": if (!Array.isArray(value)) errors.push({ field: field.key, code: "TYPE", message: `${field.label} must be an array.` }); else { const allowed = new Set(field.options.map((option) => option.value)); if (value.some((item) => !allowed.has(String(item)))) errors.push({ field: field.key, code: "OPTION", message: `${field.label} contains an invalid option.` }) }; break
     case "date": case "datetime": if (typeof value !== "string" || Number.isNaN(Date.parse(value))) errors.push({ field: field.key, code: "DATE", message: `${field.label} must be a valid date.` }); break
     default: errors.push({ field: field.key, code: "FIELD_TYPE", message: `Unsupported field type '${field.type}'.` })
   }
@@ -84,17 +73,11 @@ const validateDefinition = ({ sections = [], fields = [] }) => {
     if (keys.has(field.key)) throw new ConflictError(`Duplicate form field key: ${field.key}.`)
     keys.add(field.key)
     if (field.validation !== undefined && !Array.isArray(field.validation)) throw new BadRequestError(`Validation for '${field.key}' must be an array.`)
-    for (const rule of field.validation || []) {
-      if (!rule.operator || !VALIDATION_OPERATORS.includes(rule.operator)) throw new BadRequestError(`Invalid validation rule on '${field.key}'.`)
-      if (rule.operator === "regex" && !compileRegex(rule.value)) throw new BadRequestError(`Unsafe or invalid regex validation on '${field.key}'.`)
-    }
+    for (const rule of field.validation || []) { if (!rule.operator || !VALIDATION_OPERATORS.includes(rule.operator)) throw new BadRequestError(`Invalid validation rule on '${field.key}'.`); if (rule.operator === "regex" && !compileRegex(rule.value)) throw new BadRequestError(`Unsafe or invalid regex validation on '${field.key}'.`) }
   }
   const sectionKeys = new Set()
   for (const section of sections) { if (!section.key || !section.title) throw new BadRequestError("Every form section requires a key and title."); if (sectionKeys.has(section.key)) throw new ConflictError(`Duplicate form section key: ${section.key}.`); sectionKeys.add(section.key) }
-  for (const field of fields) {
-    if (field.sectionKey && !sectionKeys.has(field.sectionKey)) throw new BadRequestError(`Field '${field.key}' references an unknown section.`)
-    if (["select", "multiselect"].includes(field.type) && (!Array.isArray(field.options) || field.options.length === 0)) throw new BadRequestError(`Field '${field.key}' requires options.`)
-  }
+  for (const field of fields) { if (field.sectionKey && !sectionKeys.has(field.sectionKey)) throw new BadRequestError(`Field '${field.key}' references an unknown section.`); if (["select", "multiselect"].includes(field.type) && (!Array.isArray(field.options) || field.options.length === 0)) throw new BadRequestError(`Field '${field.key}' requires options.`) }
 }
 
 const includeDefinition = { versions: { include: { sections: { orderBy: { sortOrder: "asc" } }, fields: { include: { options: { orderBy: { sortOrder: "asc" } } }, orderBy: { sortOrder: "asc" } }, documentRequirements: { include: { documentType: true }, orderBy: { sortOrder: "asc" } } }, orderBy: { version: "desc" } } }
@@ -102,10 +85,7 @@ const includeDefinition = { versions: { include: { sections: { orderBy: { sortOr
 const createDefinitionRecords = async (tx, versionId, sections, fields) => {
   const sectionByKey = new Map()
   for (const [index, section] of sections.entries()) { const created = await tx.formSection.create({ data: { formVersionId: versionId, key: section.key, title: section.title, description: section.description || null, sortOrder: section.sortOrder ?? index, visibility: section.visibility || undefined } }); sectionByKey.set(section.key, created) }
-  for (const [index, field] of fields.entries()) {
-    const created = await tx.formField.create({ data: { formVersionId: versionId, sectionId: field.sectionKey ? sectionByKey.get(field.sectionKey).id : null, key: field.key, label: field.label, description: field.description || null, type: field.type, sortOrder: field.sortOrder ?? index, required: Boolean(field.required), defaultValue: field.defaultValue ?? undefined, validation: field.validation || undefined, visibility: field.visibility || undefined, config: field.config || undefined } })
-    if (field.options?.length) await tx.formOption.createMany({ data: field.options.map((option, optionIndex) => ({ fieldId: created.id, value: String(option.value), label: option.label, sortOrder: option.sortOrder ?? optionIndex, metadata: option.metadata || undefined })) })
-  }
+  for (const [index, field] of fields.entries()) { const created = await tx.formField.create({ data: { formVersionId: versionId, sectionId: field.sectionKey ? sectionByKey.get(field.sectionKey).id : null, key: field.key, label: field.label, description: field.description || null, type: field.type, sortOrder: field.sortOrder ?? index, required: Boolean(field.required), defaultValue: field.defaultValue ?? undefined, validation: field.validation || undefined, visibility: field.visibility || undefined, config: field.config || undefined } }); if (field.options?.length) await tx.formOption.createMany({ data: field.options.map((option, optionIndex) => ({ fieldId: created.id, value: String(option.value), label: option.label, sortOrder: option.sortOrder ?? optionIndex, metadata: option.metadata || undefined })) }) }
 }
 
 const createForm = async ({ key, name, description = null, entityType = null, sections = [], fields, actorId = null }) => {
@@ -130,13 +110,7 @@ const createFormVersion = async ({ formKey, sections = [], fields, actorId = nul
 const publishFormVersion = async ({ formKey, version, actorId = null }) => {
   const form = await prisma.form.findUnique({ where: { key: formKey } })
   if (!form) throw new NotFoundError(`Form '${formKey}' was not found.`)
-  const published = await prisma.$transaction(async (tx) => {
-    const target = await tx.formVersion.findUnique({ where: { formId_version: { formId: form.id, version } } })
-    if (!target) throw new NotFoundError(`Form version ${version} was not found.`)
-    if (target.status !== FORM_STATUS.DRAFT) throw new ConflictError("Only draft form versions can be published.")
-    await tx.formVersion.updateMany({ where: { formId: form.id, status: FORM_STATUS.PUBLISHED }, data: { status: FORM_STATUS.ARCHIVED } })
-    return tx.formVersion.update({ where: { id: target.id }, data: { status: FORM_STATUS.PUBLISHED }, include: { sections: true, fields: { include: { options: true } } } })
-  })
+  const published = await prisma.$transaction(async (tx) => { const target = await tx.formVersion.findUnique({ where: { formId_version: { formId: form.id, version } } }); if (!target) throw new NotFoundError(`Form version ${version} was not found.`); if (target.status !== FORM_STATUS.DRAFT) throw new ConflictError("Only draft form versions can be published."); await tx.formVersion.updateMany({ where: { formId: form.id, status: FORM_STATUS.PUBLISHED }, data: { status: FORM_STATUS.ARCHIVED } }); return tx.formVersion.update({ where: { id: target.id }, data: { status: FORM_STATUS.PUBLISHED }, include: { sections: true, fields: { include: { options: true } } } }) })
   await recordAudit({ actorId, action: "FORM_VERSION_PUBLISHED", entityType: "FormVersion", entityId: published.id, after: published })
   return published
 }
@@ -162,7 +136,12 @@ const validateFormValues = async ({ formKey, version, values }) => {
 const submitForm = async ({ formKey, version, values, subjectType = null, subjectId = null, submittedByUserId = null }) => {
   const result = await validateFormValues({ formKey, version, values })
   if (!result.valid) throw new BadRequestError("Form validation failed.", result.errors)
-  const submission = await prisma.formSubmission.create({ data: { formVersionId: result.formVersionId, subjectType, subjectId: subjectId == null ? null : String(subjectId), submittedByUserId, status: "SUBMITTED", values, submittedAt: new Date() } })
+  const normalizedSubjectId = subjectId == null ? null : String(subjectId)
+  const submission = await prisma.$transaction(async (tx) => {
+    const created = await tx.formSubmission.create({ data: { formVersionId: result.formVersionId, subjectType, subjectId: normalizedSubjectId, submittedByUserId, status: "SUBMITTED", values, submittedAt: new Date() } })
+    await publish({ db: tx, event: "form.submitted", entityType: subjectType || "FormSubmission", entityId: normalizedSubjectId || created.id, actorId: submittedByUserId, context: { formSubmissionId: created.id, formVersionId: result.formVersionId, formKey }, idempotencyKey: `form-submission:${created.id}` })
+    return created
+  })
   await recordAudit({ actorId: submittedByUserId, action: "FORM_SUBMITTED", entityType: "FormSubmission", entityId: submission.id, after: submission })
   return submission
 }
