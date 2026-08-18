@@ -10,7 +10,7 @@ const prisma = getPrismaClient()
 const modules = [
   ['users', 'Users'], ['applications', 'Applications'], ['documents', 'Documents'],
   ['inspections', 'Inspections'], ['reports', 'Reports'], ['appointments', 'Appointments'],
-  ['notifications', 'Notifications'],
+  ['notifications', 'Notifications'], ['audit_logs', 'Audit Logs'],
 ]
 
 const permissions = [
@@ -22,6 +22,7 @@ const permissions = [
   ['appointments', 'read'], ['appointments', 'create'], ['appointments', 'update'], ['appointments', 'cancel'],
   ['appointments', 'check_in'], ['appointments', 'no_show'], ['appointments', 'manage'],
   ['notifications', 'read'], ['notifications', 'manage'],
+  ['audit_logs', 'read'],
 ]
 
 async function seed() {
