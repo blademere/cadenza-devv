@@ -30,6 +30,7 @@ const envSchema = z.object({
   COOKIE_SAME_SITE: z.enum(['strict', 'lax', 'none']).default('lax'),
   COOKIE_DOMAIN: optionalEnvString,
   COOKIE_REFRESH_MAX_AGE_MS: z.coerce.number().int().positive().default(7 * 24 * 60 * 60 * 1000),
+  METRICS_TOKEN: optionalEnvString,
 
   // OAuth providers are optional. Empty strings mean the provider is disabled.
   OAUTH_GOOGLE_CLIENT_ID: optionalEnvString,
@@ -86,6 +87,14 @@ if (data.NODE_ENV === 'production' && !data.COOKIE_SECURE) {
 
 if (data.NODE_ENV === 'production' && data.CORS_ORIGIN === '*') {
   throw new Error("CORS_ORIGIN must not be '*' in production.")
+}
+
+if (data.NODE_ENV === 'production' && !data.METRICS_TOKEN) {
+  throw new Error('METRICS_TOKEN is required in production.')
+}
+
+if (data.METRICS_TOKEN && data.METRICS_TOKEN.length < 32) {
+  throw new Error('METRICS_TOKEN must be at least 32 characters.')
 }
 
 const refreshTokenLifetimeMs = parseDurationMs(data.JWT_REFRESH_EXPIRES_IN)
