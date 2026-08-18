@@ -6,6 +6,7 @@ const {
 const { prisma } = require('../../infrastructure/database/prisma')
 
 const MAX_CONDITION_DEPTH = 8
+const MAX_FILE_SIZE_BYTES = 1024 * 1024 * 1024
 
 const assertCondition = (condition, fieldKeys = null, depth = 0) => {
   if (condition == null || condition === '') return true
@@ -19,7 +20,7 @@ const assertCondition = (condition, fieldKeys = null, depth = 0) => {
       throw new BadRequestError('Document requirement condition field is invalid.')
     if (fieldKeys && !fieldKeys.has(condition.field))
       throw new BadRequestError(
-        `Referenced form field '${condition.field}' does not exist.`
+        `Referenced form field '${condition.field}' does not exist.`,
       )
     if (typeof condition.operator !== 'string' || !condition.operator.trim())
       throw new BadRequestError('Document requirement condition operator is required.')
@@ -64,7 +65,9 @@ const validateRequirementDefinition = (
     throw new BadRequestError('At least one allowed file type is required.')
   if (
     maxSizeBytes != null &&
-    (!Number.isSafeInteger(Number(maxSizeBytes)) || Number(maxSizeBytes) <= 0)
+    (!Number.isSafeInteger(Number(maxSizeBytes)) ||
+      Number(maxSizeBytes) <= 0 ||
+      Number(maxSizeBytes) > MAX_FILE_SIZE_BYTES)
   )
     throw new BadRequestError('Maximum file size is invalid.')
   assertCondition(condition, fieldKeys)
@@ -72,14 +75,16 @@ const validateRequirementDefinition = (
     throw new BadRequestError(
       `Referenced form field '${fieldKey}' does not exist.`,
     )
-  const types = [...new Set(
-    allowedFileTypes
-      .map((item) => {
-        const normalized = String(item).trim().toLowerCase()
-        return normalized === 'pdf' ? '.pdf' : normalized
-      })
-      .filter(Boolean),
-  )]
+  const types = [
+    ...new Set(
+      allowedFileTypes
+        .map((item) => {
+          const normalized = String(item).trim().toLowerCase()
+          return normalized === 'pdf' ? '.pdf' : normalized
+        })
+        .filter(Boolean),
+    ),
+  ]
   if (!types.length)
     throw new BadRequestError('At least one allowed file type is required.')
   const allowedSources = ['CLIENT', 'STAFF', 'SYSTEM', 'EXTERNAL']
