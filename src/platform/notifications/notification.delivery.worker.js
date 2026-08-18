@@ -1,6 +1,5 @@
 const { registerJobWorker } = require('../jobs/job.worker')
 const { JOB_NAMES, JOB_QUEUES } = require('../jobs/job.constants')
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
 const {
   claimDelivery,
   markDeliverySent,
@@ -9,7 +8,6 @@ const {
 const { getNotificationTransport } = require('./notification.transport')
 
 async function processNotificationDelivery(job) {
-  const prisma = getPrismaClient()
   const { deliveryId } = job.data || {}
   if (!deliveryId) throw new Error('deliveryId is required')
 
