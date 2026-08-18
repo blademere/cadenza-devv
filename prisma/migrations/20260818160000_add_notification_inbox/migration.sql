@@ -27,8 +27,24 @@ CREATE INDEX "Notification_userId_createdAt_idx" ON "Notification"("userId", "cr
 CREATE UNIQUE INDEX "NotificationPreference_userId_channel_key" ON "NotificationPreference"("userId", "channel");
 CREATE INDEX "NotificationPreference_userId_enabled_idx" ON "NotificationPreference"("userId", "enabled");
 
+ALTER TABLE "NotificationDelivery" DROP CONSTRAINT IF EXISTS "NotificationDelivery_ruleId_fkey";
+ALTER TABLE "NotificationDelivery" DROP CONSTRAINT IF EXISTS "NotificationDelivery_templateId_fkey";
+ALTER TABLE "NotificationDelivery" ALTER COLUMN "ruleId" DROP NOT NULL;
+ALTER TABLE "NotificationDelivery" ALTER COLUMN "templateId" DROP NOT NULL;
+ALTER TABLE "NotificationDelivery" ADD COLUMN "notificationId" TEXT;
+CREATE INDEX "NotificationDelivery_notificationId_channel_idx" ON "NotificationDelivery"("notificationId", "channel");
+
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey"
   FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "NotificationPreference" ADD CONSTRAINT "NotificationPreference_userId_fkey"
   FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "NotificationDelivery" ADD CONSTRAINT "NotificationDelivery_ruleId_fkey"
+  FOREIGN KEY ("ruleId") REFERENCES "NotificationRule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "NotificationDelivery" ADD CONSTRAINT "NotificationDelivery_templateId_fkey"
+  FOREIGN KEY ("templateId") REFERENCES "NotificationTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "NotificationDelivery" ADD CONSTRAINT "NotificationDelivery_notificationId_fkey"
+  FOREIGN KEY ("notificationId") REFERENCES "Notification"("id") ON DELETE CASCADE ON UPDATE CASCADE;
