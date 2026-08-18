@@ -25,7 +25,13 @@ let allowedCount = 0;
 const getAdvisoryIds = (advisory) => {
   const via = Array.isArray(advisory?.via) ? advisory.via : [];
   return via.flatMap((entry) => {
+    if (typeof entry === 'string') {
+      const match = entry.match(/GHSA-[a-z0-9-]+/i);
+      return match ? [match[0].toUpperCase()] : [];
+    }
+
     if (typeof entry !== 'object' || !entry) return [];
+
     const ids = [];
     if (typeof entry.url === 'string') {
       const match = entry.url.match(/GHSA-[a-z0-9-]+/i);
@@ -47,7 +53,7 @@ const hasAllowedAdvisory = (name, seen = new Set()) => {
     return true;
   }
 
-  const via = Array.isArray(advisory?.via) ? advisory.via : [];
+  const via = Array.isArray(advisory.via) ? advisory.via : [];
   return via.some((entry) => typeof entry === 'string' && hasAllowedAdvisory(entry, seen));
 };
 
