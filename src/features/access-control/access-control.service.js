@@ -20,7 +20,7 @@ const loadUserPermissions = async (userId) => {
   }
 
   const permissions = context.permissions.map((permission) =>
-    getPermissionKey(permission.resource, permission.action)
+    getPermissionKey(permission.resource, permission.action),
   )
 
   try {
@@ -64,8 +64,24 @@ const can = async ({ userId, resource, action }) => {
   return hasPermission(userId, resource, action)
 }
 
-const canAny = async ({ userId, resource, action }) => {
-  return can({ userId, resource, action })
+/**
+ * Returns true when the user has at least one of the supplied actions.
+ * A scalar action is accepted for backward compatibility and behaves like can().
+ */
+const canAny = async ({ userId, resource, action, actions }) => {
+  const candidateActions = Array.isArray(actions)
+    ? actions
+    : action !== undefined
+      ? [action]
+      : []
+
+  if (candidateActions.length === 0) {
+    return false
+  }
+
+  return candidateActions.some((candidateAction) =>
+    hasPermission(userId, resource, candidateAction),
+  )
 }
 
 const canOwn = async ({ userId, resource, action, resourceOwnerId }) => {
