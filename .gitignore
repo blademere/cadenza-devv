@@ -1,10 +1,6 @@
 # Dependencies
 node_modules/
 
-# Local tooling / agent state
-.openclaude/
-.openclaude.json
-
 # Environment variables
 .env
 .env.local

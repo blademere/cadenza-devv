@@ -4,9 +4,7 @@ RUN apk add --no-cache \
     git \
     bash \
     postgresql-client
-
-RUN npm install -g @gitlawb/openclaude@latest
-
+    
 WORKDIR /workspace
 
 COPY package.json package-lock.json ./
