@@ -7,6 +7,8 @@ const {
 } = require('../../common/errors/appError')
 const { evaluateCondition, getPathValue } = require('../rules/rule.service')
 const { recordAudit } = require('../audit/audit.service')
+const { enqueueJob } = require('../jobs/job.service')
+const { JOB_NAMES, JOB_QUEUES } = require('../jobs/job.constants')
 
 const CHANNELS = Object.freeze(['EMAIL', 'SMS', 'PUSH', 'IN_APP', 'WEBHOOK'])
 const RECIPIENT_TYPES = Object.freeze([
@@ -327,6 +329,15 @@ const queueNotifications = async ({
         },
         update: {},
       })
+
+      if (delivery.status === DELIVERY_STATUS.QUEUED) {
+        await enqueueJob({
+          queue: JOB_QUEUES.NOTIFICATIONS,
+          name: JOB_NAMES.NOTIFICATION_DELIVERY,
+          data: { deliveryId: delivery.id },
+          jobId: `notification-delivery-${delivery.id}`,
+        })
+      }
       deliveries.push(delivery)
     }
   }
