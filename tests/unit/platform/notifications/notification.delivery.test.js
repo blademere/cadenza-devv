@@ -121,13 +121,11 @@ describe('notification delivery hardening', () => {
     })
 
     expect(deliveries).toHaveLength(1)
-    expect(enqueueJob).toHaveBeenCalledWith(
-      'notifications',
-      'notification.delivery',
-      { deliveryId: 'd1' },
-      expect.objectContaining({
-        jobId: 'notification-delivery-d1',
-      })
-    )
+    expect(enqueueJob).toHaveBeenCalledWith({
+      queue: 'notifications',
+      name: 'notification.delivery',
+      data: { deliveryId: 'd1' },
+      jobId: 'notification-delivery-d1',
+    })
   })
 })
