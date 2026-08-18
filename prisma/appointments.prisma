@@ -62,6 +62,7 @@ model Appointment {
   cancelledAt DateTime?
   checkedInAt DateTime?
   completedAt DateTime?
+  noShowAt DateTime?
   appointmentType AppointmentType @relation(fields: [appointmentTypeId], references: [id], onDelete: Restrict)
   slot AppointmentSlot @relation(fields: [slotId], references: [id], onDelete: Restrict)
   createdAt DateTime @default(now())
