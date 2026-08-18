@@ -1,30 +1,44 @@
-const { registerJobWorker } = require("../jobs/job.worker")
-const { JOB_NAMES, JOB_QUEUES } = require("../jobs/job.constants")
-const { getPrismaClient } = require("../../infrastructure/database/prisma")
+const { registerJobWorker } = require('../jobs/job.worker')
+const { JOB_NAMES, JOB_QUEUES } = require('../jobs/job.constants')
+const notificationService = require('./notification.service')
+const notificationTransport = require('./notification.transport')
 
-async function processNotificationDelivery(job) {
-  const prisma = getPrismaClient()
-  const { deliveryId } = job.data
-  if (!deliveryId) throw new Error("deliveryId is required")
+async function processNotificationDelivery(job, dependencies = {}) {
+  const { claimDelivery, markDeliverySent, markDeliveryFailed } = {
+    ...notificationService,
+    ...dependencies,
+  }
+  const getNotificationTransport =
+    dependencies.getNotificationTransport || notificationTransport.getNotificationTransport
 
-  const delivery = await prisma.notificationDelivery.findUnique({
-    where: { id: deliveryId },
-  })
+  const { deliveryId } = job.data || {}
+  if (!deliveryId) throw new Error('deliveryId is required')
 
-  if (!delivery || delivery.status === "SENT") return
+  const result = await claimDelivery({ id: deliveryId })
+  if (!result.claimed) return result.delivery
 
-  await prisma.notificationDelivery.update({
-    where: { id: deliveryId },
-    data: {
-      status: "PROCESSING",
-      attempts: { increment: 1 },
-      lastAttemptAt: new Date(),
-    },
-  })
+  const delivery = result.delivery
+  const transport = getNotificationTransport(delivery.channel)
 
-  // Transport adapters are intentionally application-configurable.
-  // A transport should be registered before this worker is enabled in production.
-  throw new Error(`No transport registered for notification channel: ${delivery.channel}`)
+  if (!transport) {
+    const error = new Error(
+      `No transport registered for notification channel: ${delivery.channel}`
+    )
+    await markDeliveryFailed(delivery.id, error)
+    throw error
+  }
+
+  try {
+    await transport.send({
+      delivery,
+      recipient: delivery.recipient,
+      payload: delivery.payload,
+    })
+    return await markDeliverySent(delivery.id)
+  } catch (error) {
+    await markDeliveryFailed(delivery.id, error)
+    throw error
+  }
 }
 
 function createNotificationDeliveryWorker(options = {}) {

@@ -1,16 +1,14 @@
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { enqueueBullMqJob } = vi.hoisted(() => ({
-  enqueueBullMqJob: vi.fn(),
-}))
-
-vi.mock("../../../../src/infrastructure/queue/bullmq", () => ({
-  enqueueJob: enqueueBullMqJob,
-}))
-
-const { enqueueJob } = await import("../../../../src/platform/jobs/job.service.js")
+const bullmq = require("../../../../src/infrastructure/queue/bullmq")
+const enqueueBullMqJob = vi.spyOn(bullmq, "enqueueJob")
+const { enqueueJob } = require("../../../../src/platform/jobs/job.service.js")
 
 describe("job service", () => {
+  beforeEach(() => {
+    enqueueBullMqJob.mockReset()
+  })
+
   it("enqueues a job with stable defaults", async () => {
     enqueueBullMqJob.mockResolvedValue({ id: "job-1" })
 
