@@ -1,6 +1,7 @@
 const { randomUUID } = require("node:crypto")
-const prisma = require("../../infrastructure/database/prisma")
+const { getPrismaClient } = require("../../infrastructure/database/prisma")
 
+const prisma = getPrismaClient()
 const MAX_EVENT_DEPTH = 10
 const MAX_ATTEMPTS = 10
 const DEFAULT_LEASE_SECONDS = 300
