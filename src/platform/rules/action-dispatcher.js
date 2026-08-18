@@ -6,7 +6,7 @@ const { queueNotifications } = require("../notifications/notification.service")
 const { queueEvent } = require("../integrations/webhook.service")
 const { claimAction, markSucceeded, markFailed } = require("./rule-execution.service")
 
-const executeAction = async ({ action, context = {}, actorId = null, ruleId, actionIndex, causationId = null }) => {
+const executeAction = async ({ action, context = {}, actorId = null }) => {
   switch (action.type) {
     case "TRANSITION_WORKFLOW":
       return transitionWorkflow({ instanceId: action.workflowInstanceId || context.workflowInstanceId, transitionKey: action.transitionKey, actorId, metadata: { ruleAction: action } })
@@ -29,7 +29,7 @@ const dispatchAction = async ({ action, context = {}, actorId = null, ruleId, ac
   const claim = await claimAction({ ruleId, actionIndex, event: context.event, entityType: context.entityType, entityId: context.entityId, correlationId: context.correlationId, causationId })
   if (!claim.claimed) return { skipped: true, execution: claim.execution }
   try {
-    const result = await executeAction({ action, context, actorId, ruleId, actionIndex, causationId })
+    const result = await executeAction({ action, context, actorId })
     const execution = await markSucceeded(claim.execution.id)
     return { skipped: false, result, execution }
   } catch (error) {
