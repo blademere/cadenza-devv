@@ -1,0 +1,22 @@
+const NOTIFICATION_MODULE = "notifications"
+
+const NOTIFICATION_ACTIONS = Object.freeze({
+  READ: "read",
+  MANAGE: "manage",
+})
+
+const NOTIFICATION_CHANNELS = Object.freeze({
+  IN_APP: "IN_APP",
+  EMAIL: "EMAIL",
+  SMS: "SMS",
+  WEBHOOK: "WEBHOOK",
+})
+
+const NOTIFICATION_CHANNEL_LIST = Object.freeze(Object.values(NOTIFICATION_CHANNELS))
+
+module.exports = {
+  NOTIFICATION_MODULE,
+  NOTIFICATION_ACTIONS,
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_CHANNEL_LIST,
+}
