@@ -4,13 +4,19 @@ const mocks = vi.hoisted(() => ({
   queues: [],
   workers: [],
   events: [],
-  redis: {
-    isOpen: true,
-  },
+  redis: { isOpen: true },
 }))
 
-vi.mock('redis', () => ({
-  createClient: vi.fn(() => mocks.redis),
+vi.mock('../../../src/infrastructure/cache/redis.js', () => ({
+  connectRedis: vi.fn(async () => mocks.redis),
+  getRedisClient: vi.fn(() => mocks.redis),
+}))
+
+vi.mock('../../../src/config/index.js', () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+  },
 }))
 
 vi.mock('bullmq', () => ({
