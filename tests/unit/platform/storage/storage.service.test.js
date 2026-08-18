@@ -1,4 +1,4 @@
-const { describe, expect, it, vi } = require("vitest")
+const { describe, expect, it, vi } = await import("vitest")
 const { createStorageService } = require("../../../../src/platform/storage/storage.service")
 
 describe("storage service", () => {
