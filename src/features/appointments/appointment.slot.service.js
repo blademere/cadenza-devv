@@ -49,16 +49,16 @@ const toDateAtMinutes = (date, minutes, timeZone) => {
   return candidate
 }
 
-const generateSlots = async ({ appointmentTypeId, from, to, scheduleId }) => {
+const generateSlots = async ({ appointmentTypeId, from, to, scheduleId, db = prisma }) => {
   if (!(from instanceof Date) || Number.isNaN(from.getTime()) || !(to instanceof Date) || Number.isNaN(to.getTime())) {
     throw new BadRequestError("from and to must be valid dates.")
   }
   if (from >= to) throw new BadRequestError("from must be earlier than to.")
 
-  const type = await prisma.appointmentType.findUnique({ where: { id: appointmentTypeId } })
+  const type = await db.appointmentType.findUnique({ where: { id: appointmentTypeId } })
   if (!type) throw new NotFoundError("Appointment type not found.")
 
-  const schedules = await prisma.availabilitySchedule.findMany({
+  const schedules = await db.availabilitySchedule.findMany({
     where: { appointmentTypeId, isActive: true, ...(scheduleId ? { id: scheduleId } : {}) },
     orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
   })
@@ -88,7 +88,7 @@ const generateSlots = async ({ appointmentTypeId, from, to, scheduleId }) => {
     }
   }
 
-  return prisma.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
     const created = []
     for (const data of pending) {
       const existing = await tx.appointmentSlot.findUnique({
