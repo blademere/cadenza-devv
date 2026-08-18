@@ -94,10 +94,15 @@ describe('BullMQ infrastructure', () => {
     instance.add.mockResolvedValue({ id: 'job-1' })
 
     await expect(
-      queue.enqueueJob('test-events', 'platform-event', { event: 'created' }, {
-        jobId: 'event-1',
-        attempts: 3,
-      }),
+      queue.enqueueJob(
+        'test-events',
+        'platform-event',
+        { event: 'created' },
+        {
+          jobId: 'event-1',
+          attempts: 3,
+        },
+      ),
     ).resolves.toEqual({ id: 'job-1' })
 
     expect(instance.add).toHaveBeenCalledWith(
