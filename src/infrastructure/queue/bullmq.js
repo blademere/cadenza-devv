@@ -1,27 +1,43 @@
 const { Queue, QueueEvents, Worker } = require('bullmq')
-const { connectRedis, getRedisClient } = require('../cache/redis')
+const { env } = require('../../config')
 const { logger } = require('../../config')
 
 const queues = new Map()
 const workers = new Set()
 const queueEvents = new Set()
 
-const getConnection = () => getRedisClient()
+const createConnectionOptions = () => {
+  const url = new URL(env.REDIS_URL)
+  const options = {
+    host: url.hostname,
+    port: Number(url.port || 6379),
+  }
+
+  if (url.username) options.username = decodeURIComponent(url.username)
+  if (url.password) options.password = decodeURIComponent(url.password)
+  if (url.protocol === 'rediss:') options.tls = {}
+
+  return options
+}
 
 const getQueue = async (queueName) => {
   if (!queueName) throw new Error('queueName is required')
-  await connectRedis()
+
   if (!queues.has(queueName)) {
-    queues.set(queueName, new Queue(queueName, {
-      connection: getConnection(),
-      defaultJobOptions: {
-        attempts: 5,
-        backoff: { type: 'exponential', delay: 1000 },
-        removeOnComplete: { age: 86400, count: 1000 },
-        removeOnFail: false,
-      },
-    }))
+    queues.set(
+      queueName,
+      new Queue(queueName, {
+        connection: createConnectionOptions(),
+        defaultJobOptions: {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 1000 },
+          removeOnComplete: { age: 86400, count: 1000 },
+          removeOnFail: false,
+        },
+      }),
+    )
   }
+
   return queues.get(queueName)
 }
 
@@ -34,22 +50,37 @@ const registerWorker = async (queueName, processor, options = {}) => {
   if (!queueName || typeof processor !== 'function') {
     throw new TypeError('queueName and processor are required')
   }
-  await connectRedis()
+
   const worker = new Worker(queueName, processor, {
-    connection: getConnection(),
+    connection: createConnectionOptions(),
     concurrency: options.concurrency || 10,
     ...options,
   })
-  worker.on('completed', (job) => logger.info({ queue: queueName, jobId: job.id }, 'BullMQ job completed'))
-  worker.on('failed', (job, error) => logger.error({ queue: queueName, jobId: job?.id, err: error }, 'BullMQ job failed'))
-  worker.on('error', (error) => logger.error({ queue: queueName, err: error }, 'BullMQ worker error'))
+
+  worker.on('completed', (job) => {
+    logger.info(
+      { queue: queueName, jobId: job.id },
+      'BullMQ job completed',
+    )
+  })
+  worker.on('failed', (job, error) => {
+    logger.error(
+      { queue: queueName, jobId: job?.id, err: error },
+      'BullMQ job failed',
+    )
+  })
+  worker.on('error', (error) => {
+    logger.error({ queue: queueName, err: error }, 'BullMQ worker error')
+  })
+
   workers.add(worker)
   return worker
 }
 
 const getQueueEvents = async (queueName) => {
-  await connectRedis()
-  const events = new QueueEvents(queueName, { connection: getConnection() })
+  const events = new QueueEvents(queueName, {
+    connection: createConnectionOptions(),
+  })
   queueEvents.add(events)
   return events
 }
