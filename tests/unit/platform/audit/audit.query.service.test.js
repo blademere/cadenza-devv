@@ -39,14 +39,16 @@ describe('audit query service', () => {
     expect(result.pagination).toMatchObject({ page: 2, limit: 10, total: 1, pages: 1 })
   })
 
-  it('forces chronological ordering for entity timelines', async () => {
-    const listAuditLogsMock = vi.fn()
-    const db = { auditLog: {} }
+  it('returns an entity timeline in chronological order', async () => {
+    const findMany = vi.fn().mockResolvedValue([])
+    const count = vi.fn().mockResolvedValue(0)
+    const db = { auditLog: { findMany, count } }
 
-    const original = require('../../../../src/platform/audit/audit.query.service').listAuditLogs
-    expect(original).toBe(listAuditLogs)
-    expect(typeof getEntityTimeline).toBe('function')
-    expect(listAuditLogsMock).not.toHaveBeenCalled()
-    expect(db).toBeDefined()
+    await getEntityTimeline({ entityType: 'Appointment', entityId: '42' }, db)
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { entityType: 'Appointment', entityId: '42' },
+      orderBy: { createdAt: 'asc' },
+    }))
   })
 })
