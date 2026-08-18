@@ -1,34 +1,25 @@
 const { Queue, QueueEvents, Worker } = require('bullmq')
-const { env, logger } = require('../../config')
+const { connectRedis, getRedisClient } = require('../cache/redis')
+const { logger } = require('../../config')
 
 const queues = new Map()
 const workers = new Set()
 const queueEvents = new Set()
 
-const createConnectionOptions = () => {
-  const url = new URL(env.REDIS_URL)
-  const options = {
-    host: url.hostname,
-    port: Number(url.port || 6379),
-    maxRetriesPerRequest: null,
-  }
-
-  if (url.username) options.username = decodeURIComponent(url.username)
-  if (url.password) options.password = decodeURIComponent(url.password)
-  if (url.pathname && url.pathname !== '/') options.db = Number(url.pathname.slice(1))
-  if (url.protocol === 'rediss:') options.tls = {}
-
-  return options
+const getConnection = async () => {
+  await connectRedis()
+  return getRedisClient()
 }
 
 const getQueue = async (queueName) => {
   if (!queueName) throw new Error('queueName is required')
 
   if (!queues.has(queueName)) {
+    const connection = await getConnection()
     queues.set(
       queueName,
       new Queue(queueName, {
-        connection: createConnectionOptions(),
+        connection,
         defaultJobOptions: {
           attempts: 5,
           backoff: { type: 'exponential', delay: 1000 },
@@ -66,8 +57,9 @@ const registerWorker = async (queueName, processor, options = {}) => {
     throw new TypeError('queueName and processor are required')
   }
 
+  const connection = await getConnection()
   const worker = new Worker(queueName, processor, {
-    connection: createConnectionOptions(),
+    connection,
     concurrency: options.concurrency || 10,
     ...options,
   })
@@ -93,9 +85,8 @@ const registerWorker = async (queueName, processor, options = {}) => {
 }
 
 const getQueueEvents = async (queueName) => {
-  const events = new QueueEvents(queueName, {
-    connection: createConnectionOptions(),
-  })
+  const connection = await getConnection()
+  const events = new QueueEvents(queueName, { connection })
   queueEvents.add(events)
   return events
 }
