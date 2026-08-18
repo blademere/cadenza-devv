@@ -13,12 +13,12 @@ const accessControl = vi.hoisted(() => ({
 const mapper = vi.hoisted(() => ({ toUserResponse: vi.fn((user) => user) }))
 
 vi.mock('bcrypt', () => ({ default: bcrypt, hash: bcrypt.hash }))
-vi.mock('../../src/features/users/user.repository', () => users)
-vi.mock('../../src/features/auth/auth.repository', () => auth)
-vi.mock('../../src/features/access-control/access-control.repository', () => accessControl)
-vi.mock('../../src/features/users/user.mapper', () => mapper)
+vi.mock('../../../src/features/users/user.repository', () => users)
+vi.mock('../../../src/features/auth/auth.repository', () => auth)
+vi.mock('../../../src/features/access-control/access-control.repository', () => accessControl)
+vi.mock('../../../src/features/users/user.mapper', () => mapper)
 
-const { registerUser } = await import('../../src/features/users/user.service.js')
+const { registerUser } = await import('../../../src/features/users/user.service.js')
 
 beforeEach(() => {
   vi.clearAllMocks()
