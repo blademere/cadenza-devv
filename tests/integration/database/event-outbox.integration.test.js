@@ -183,6 +183,45 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     expect(stored[0]).toMatchObject({ status: 'RETRY', lastError: 'expected failure', lockToken: null })
   })
 
+  it('retries a failed event and allows a later claim to complete it', async () => {
+    const idempotencyKey = `retry:${Date.now()}:${Math.random().toString(36).slice(2)}`
+    const created = await enqueueEvent({ event: 'integration.retry', idempotencyKey })
+    createdEventIds.push(created.id)
+
+    const [firstClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
+    expect(firstClaim.id).toBe(created.id)
+    expect(firstClaim.attempts).toBe(1)
+
+    await markFailed(firstClaim.id, new Error('transient integration failure'), firstClaim.lockToken)
+
+    await prisma.$executeRaw`
+      UPDATE "EventOutbox"
+      SET "availableAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${created.id}
+    `
+
+    const [secondClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
+    expect(secondClaim.id).toBe(created.id)
+    expect(secondClaim.attempts).toBe(2)
+    expect(secondClaim.lockToken).not.toBe(firstClaim.lockToken)
+
+    await markProcessed(secondClaim.id, secondClaim.lockToken)
+
+    const stored = await prisma.$queryRaw`
+      SELECT "status", "attempts", "lastError", "lockToken", "leaseUntil", "processedAt"
+      FROM "EventOutbox"
+      WHERE "id" = ${created.id}
+    `
+    expect(stored[0]).toMatchObject({
+      status: 'PROCESSED',
+      attempts: 2,
+      lastError: null,
+      lockToken: null,
+      leaseUntil: null,
+    })
+    expect(stored[0].processedAt).not.toBeNull()
+  })
+
   it('recovers stale processing leases for retry', async () => {
     const idempotencyKey = `stale:${Date.now()}:${Math.random().toString(36).slice(2)}`
     const created = await enqueueEvent({ event: 'integration.stale', idempotencyKey })
