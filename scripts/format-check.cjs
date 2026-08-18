@@ -1,9 +1,23 @@
 const { execFileSync } = require("node:child_process")
 const { existsSync } = require("node:fs")
 
-const diffRange = process.env.GITHUB_BASE_REF
-  ? `origin/${process.env.GITHUB_BASE_REF}...HEAD`
-  : `${process.env.GITHUB_EVENT_BEFORE || "HEAD^"}...HEAD`
+let diffRange
+
+try {
+  if (process.env.GITHUB_BASE_REF) {
+    execFileSync("git", ["fetch", "origin", process.env.GITHUB_BASE_REF, "--depth=1"], {
+      stdio: "inherit",
+    })
+    diffRange = `origin/${process.env.GITHUB_BASE_REF}...HEAD`
+  } else if (process.env.GITHUB_EVENT_BEFORE && process.env.GITHUB_EVENT_BEFORE !== "0000000000000000000000000000000000000000") {
+    diffRange = `${process.env.GITHUB_EVENT_BEFORE}...HEAD`
+  } else {
+    diffRange = "HEAD^...HEAD"
+  }
+} catch (error) {
+  console.error("Unable to prepare the git diff range:", error.message)
+  process.exit(1)
+}
 
 let files
 try {
