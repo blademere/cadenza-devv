@@ -1,5 +1,4 @@
 const { successResponse } = require("../../common/responses/apiResponse")
-const { BadRequestError } = require("../../common/errors/appError")
 const service = require("./document.service")
 
 const normalize = (document) => ({
