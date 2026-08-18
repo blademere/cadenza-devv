@@ -28,10 +28,10 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --ignore-scripts
 
       - name: Audit high-severity vulnerabilities
-        run: npm audit --audit-level=high
+        run: node scripts/audit-security.cjs
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
