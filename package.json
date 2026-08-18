@@ -77,7 +77,7 @@
     "prisma@7.9.1": true,
     "@prisma/engines@7.9.1": true,
     "bcrypt@6.0.0": true,
-    "msgpackr-extract@3.0.0": true,
+    "msgpackr-extract@3.0.4": true,
     "@scarf/scarf@1.4.0": true
   }
 }
