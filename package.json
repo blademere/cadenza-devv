@@ -21,7 +21,9 @@
     "test:coverage": "prisma generate && vitest run --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy"
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "db:backup": "node scripts/db-backup.cjs",
+    "db:restore": "node scripts/db-restore.cjs"
   },
   "keywords": [],
   "author": "",
