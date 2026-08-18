@@ -10,8 +10,11 @@ const MAX_FILE_SIZE_BYTES = 1024 * 1024 * 1024
 
 const assertCondition = (condition, fieldKeys = null, depth = 0) => {
   if (condition == null || condition === '') return true
-  if (depth > MAX_CONDITION_DEPTH)
-    throw new BadRequestError('Document requirement condition is too deeply nested.')
+  if (depth > MAX_CONDITION_DEPTH) {
+    throw new BadRequestError(
+      'Document requirement condition is too deeply nested.',
+    )
+  }
   if (typeof condition !== 'object' || Array.isArray(condition))
     throw new BadRequestError('Document requirement condition must be an object.')
 
@@ -34,8 +37,12 @@ const assertCondition = (condition, fieldKeys = null, depth = 0) => {
   for (const key of ['all', 'any']) {
     if (Object.prototype.hasOwnProperty.call(condition, key)) {
       if (!Array.isArray(condition[key]) || condition[key].length === 0)
-        throw new BadRequestError(`Document requirement '${key}' conditions cannot be empty.`)
-      for (const child of condition[key]) assertCondition(child, fieldKeys, depth + 1)
+        throw new BadRequestError(
+          `Document requirement '${key}' conditions cannot be empty.`,
+        )
+      for (const child of condition[key]) {
+        assertCondition(child, fieldKeys, depth + 1)
+      }
       return true
     }
   }
