@@ -1,31 +1,31 @@
-const prisma = require("../../infrastructure/database/prisma")
+const prisma = require('../../infrastructure/database/prisma')
 
 const SENSITIVE_KEYS = new Set([
-  "password",
-  "passwordhash",
-  "currentpassword",
-  "newpassword",
-  "accesstoken",
-  "refreshtoken",
-  "token",
-  "authorization",
-  "cookie",
-  "set-cookie",
-  "clientsecret",
-  "secret",
-  "apikey",
+  'password',
+  'passwordhash',
+  'currentpassword',
+  'newpassword',
+  'accesstoken',
+  'refreshtoken',
+  'token',
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'clientsecret',
+  'secret',
+  'apikey',
 ])
 
 const sanitizeJson = (value) => {
   if (value === undefined || value === null) return value
   if (Array.isArray(value)) return value.map(sanitizeJson)
-  if (typeof value !== "object") return value
+  if (typeof value !== 'object') return value
 
   return Object.fromEntries(
     Object.entries(value).map(([key, entry]) => [
       key,
-      SENSITIVE_KEYS.has(key.toLowerCase()) ? "[REDACTED]" : sanitizeJson(entry),
-    ])
+      SENSITIVE_KEYS.has(key.toLowerCase()) ? '[REDACTED]' : sanitizeJson(entry),
+    ]),
   )
 }
 
@@ -42,7 +42,7 @@ const recordAudit = async ({
   db = prisma,
 }) => {
   if (!action || !entityType || !entityId) {
-    throw new TypeError("Audit action, entityType, and entityId are required.")
+    throw new TypeError('Audit action, entityType, and entityId are required.')
   }
 
   return db.auditLog.create({

@@ -16,8 +16,10 @@ if (!process.env.DATABASE_URL) {
 const absolute = path.resolve(output)
 fs.mkdirSync(path.dirname(absolute), { recursive: true })
 
-execFileSync('pg_dump', ['--dbname', process.env.DATABASE_URL, '--format=custom', '--file', absolute], {
-  stdio: 'inherit',
-})
+execFileSync(
+  'pg_dump',
+  ['--dbname', process.env.DATABASE_URL, '--format=custom', '--file', absolute],
+  { stdio: 'inherit' },
+)
 
 console.log(`PostgreSQL backup written to ${absolute}`)
