@@ -7,6 +7,7 @@ model Notification {
   data Json?
   readAt DateTime?
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([userId, readAt, createdAt])
