@@ -17,9 +17,7 @@ const deliveryIdempotencyKey = ({ notificationId, channel, recipient }) =>
   crypto.createHash("sha256").update(JSON.stringify([notificationId, channel, recipient])).digest("hex")
 
 const sendNotification = async ({ userId, type, title, message, data = null, channels }) => {
-  if (!userId || !type || !title || !message) {
-    throw new BadRequestError("userId, type, title, and message are required.")
-  }
+  if (!userId || !type || !title || !message) throw new BadRequestError("userId, type, title, and message are required.")
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -27,16 +25,18 @@ const sendNotification = async ({ userId, type, title, message, data = null, cha
   })
   if (!user || !user.isActive) throw new NotFoundError("Notification recipient not found.")
 
-  const requestedChannels = normalizeChannels(channels)
+  const preferences = new Map(
+    user.notificationPreferences.filter((preference) => preference.enabled).map((preference) => [preference.channel, preference])
+  )
+  const requestedChannels = channels?.length
+    ? normalizeChannels(channels)
+    : normalizeChannels([NOTIFICATION_CHANNELS.IN_APP, ...preferences.keys()])
+
   const notification = await prisma.notification.create({
     data: { userId, type, title, message, data },
   })
 
-  const preferences = new Map(
-    user.notificationPreferences.filter((preference) => preference.enabled).map((preference) => [preference.channel, preference])
-  )
   const deliveries = []
-
   for (const channel of requestedChannels) {
     if (channel === NOTIFICATION_CHANNELS.IN_APP) continue
 
