@@ -1,16 +1,13 @@
 const fs = require("node:fs/promises")
 const path = require("node:path")
 const crypto = require("node:crypto")
+const { normalizeStorageKey } = require("../../platform/storage/storage.key")
 
 function createLocalStorageAdapter({ root }) {
   if (!root) throw new Error("Storage root is required")
 
   function resolveKey(key) {
-    const normalized = String(key).replace(/\\/g, "/")
-    if (!normalized || normalized.startsWith("/") || normalized.includes("..")) {
-      throw new Error("Invalid storage key")
-    }
-    return path.join(root, normalized)
+    return path.join(root, normalizeStorageKey(key))
   }
 
   async function put({ key, body, contentType, metadata = {} }) {
@@ -43,6 +40,7 @@ function createLocalStorageAdapter({ root }) {
   }
 
   async function getSignedUrl({ key }) {
+    normalizeStorageKey(key)
     return `local://${encodeURIComponent(key)}?token=${crypto.randomBytes(16).toString("hex")}`
   }
 
