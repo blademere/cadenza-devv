@@ -83,6 +83,7 @@ async function main() {
       env = replaceEnvValue(env, 'APP_SLUG', appSlug)
       env = replaceEnvValue(env, 'PORT', port)
       env = replaceEnvValue(env, 'DATABASE_URL', `postgresql://user:password@localhost:5432/${dbName}?schema=public`)
+      env = replaceEnvValue(env, 'DEV_DATABASE_NAME', dbName)
       env = replaceEnvValue(env, 'JWT_ACCESS_SECRET', randomSecret())
       env = replaceEnvValue(env, 'JWT_REFRESH_SECRET', randomSecret())
       env = replaceEnvValue(env, 'METRICS_TOKEN', randomSecret())
