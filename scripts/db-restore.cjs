@@ -4,7 +4,9 @@ const path = require('node:path')
 
 const input = process.argv[2]
 if (!input) {
-  console.error('Usage: ALLOW_DESTRUCTIVE_RESTORE=true npm run db:restore -- <backup.sql.gz>')
+  console.error(
+    'Usage: ALLOW_DESTRUCTIVE_RESTORE=true npm run db:restore -- <backup.sql.gz>',
+  )
   process.exit(1)
 }
 
@@ -24,12 +26,10 @@ if (!fs.existsSync(absolute)) {
   process.exit(1)
 }
 
-execFileSync('pg_restore', [
-  '--clean',
-  '--if-exists',
-  '--dbname',
-  process.env.DATABASE_URL,
-  absolute,
-], { stdio: 'inherit' })
+execFileSync(
+  'pg_restore',
+  ['--clean', '--if-exists', '--dbname', process.env.DATABASE_URL, absolute],
+  { stdio: 'inherit' },
+)
 
 console.log(`PostgreSQL restore completed from ${absolute}`)
