@@ -2,18 +2,18 @@ const prisma = require("../../infrastructure/database/prisma")
 
 const SENSITIVE_KEYS = new Set([
   "password",
-  "passwordHash",
-  "currentPassword",
-  "newPassword",
-  "accessToken",
-  "refreshToken",
+  "passwordhash",
+  "currentpassword",
+  "newpassword",
+  "accesstoken",
+  "refreshtoken",
   "token",
   "authorization",
   "cookie",
   "set-cookie",
-  "clientSecret",
+  "clientsecret",
   "secret",
-  "apiKey",
+  "apikey",
 ])
 
 const sanitizeJson = (value) => {
