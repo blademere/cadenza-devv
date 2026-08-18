@@ -135,53 +135,12 @@ scripts/                # Database and project utilities
 
 Environment variables are documented through the application's configuration layer and example development environment files. Do not commit production secrets.
 
-## Development
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Generate the Prisma client:
-
-```bash
-npm run prisma:generate
-```
-
-Run the API in development:
-
-```bash
-npm run dev
-```
-
-Run linting and formatting checks:
-
-```bash
-npm run lint
-npm run format:check
-```
-
-Run tests:
-
-```bash
-npm run test:unit
-npm run test:integration
-npm run test:all
-```
-
-Database migrations:
-
-```bash
-npm run prisma:migrate
-npm run prisma:migrate:deploy
-```
-
 ## Starting a new personal project
 
 This repository is intended to be used as my personal backend foundation. After creating a new repository from this GitHub template, run the initializer once from the project root:
 
 ```bash
+npm install
 npm run init
 ```
 
@@ -198,20 +157,53 @@ The initializer then:
 
 - Updates `package.json` with the new package name and project description.
 - Creates `.env` from `.env.example`.
+- Sets `APP_NAME` and `APP_SLUG`.
 - Sets the selected port and PostgreSQL database name.
 - Generates fresh development JWT access, refresh, and metrics secrets.
+- Validates the package name, database name, and port.
 - Refuses to overwrite an existing `.env` file.
 
-After initialization:
+Then initialize the database:
 
 ```bash
-npm install
-npm run prisma:generate
-npm run prisma:migrate
+npm run db:setup
+```
+
+`db:setup` generates the Prisma client, applies development migrations, and seeds the foundation roles and permissions. It creates the optional development admin only when both `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` are configured in `.env`.
+
+Finally:
+
+```bash
 npm run dev
 ```
 
 `.env` is ignored by Git. Keep `.env.example` as the safe configuration template and never commit production secrets.
+
+## Development
+
+Run linting and formatting checks:
+
+```bash
+npm run lint
+npm run format:check
+```
+
+Run tests:
+
+```bash
+npm run test:unit
+npm run test:integration
+npm run test:all
+```
+
+Database commands:
+
+```bash
+npm run db:setup
+npm run db:seed
+npm run prisma:migrate
+npm run prisma:migrate:deploy
+```
 
 ## API documentation
 
