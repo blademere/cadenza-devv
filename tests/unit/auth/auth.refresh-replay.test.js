@@ -1,28 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const repository = vi.hoisted(() => ({
-  findUserByEmail: vi.fn(),
-  hashRefreshToken: vi.fn(),
-  createRefreshTokenRecord: vi.fn(),
-  findRefreshToken: vi.fn(),
-  revokeRefreshToken: vi.fn(),
-  revokeAllRefreshTokensForUser: vi.fn(),
-  rotateRefreshToken: vi.fn(),
-}))
+const repository = require('../../../src/features/auth/auth.repository.js')
+const tokens = require('../../../src/features/auth/auth.tokens.js')
 
-const tokens = vi.hoisted(() => ({
-  createAccessToken: vi.fn(),
-  createRefreshToken: vi.fn(),
-  verifyRefreshToken: vi.fn(),
-}))
-
-vi.mock('../../../src/features/auth/auth.repository.js', () => repository)
-vi.mock('../../../src/features/auth/auth.tokens.js', () => tokens)
-vi.mock('../../../src/config/index.js', () => ({
-  env: {
-    JWT_REFRESH_EXPIRES_IN: '7d',
-  },
-}))
+vi.spyOn(repository, 'findUserByEmail')
+vi.spyOn(repository, 'hashRefreshToken')
+vi.spyOn(repository, 'createRefreshTokenRecord')
+vi.spyOn(repository, 'findRefreshToken')
+vi.spyOn(repository, 'revokeRefreshToken')
+vi.spyOn(repository, 'revokeAllRefreshTokensForUser')
+vi.spyOn(repository, 'rotateRefreshToken')
+vi.spyOn(tokens, 'createAccessToken')
+vi.spyOn(tokens, 'createRefreshToken')
+vi.spyOn(tokens, 'verifyRefreshToken')
 
 const { UnauthorizedError } = require('../../../src/common/errors/appError')
 const { refreshAccessToken } = await import('../../../src/features/auth/auth.service.js')
