@@ -12,8 +12,8 @@ const cache = vi.hoisted(() => ({
   invalidateUserPermissionCache: vi.fn(),
 }))
 
-vi.mock('../../src/features/access-control/access-control.repository', () => repository)
-vi.mock('../../src/features/access-control/access-control.cache', () => cache)
+vi.mock('../../src/features/access-control/access-control.repository.js', () => repository)
+vi.mock('../../src/features/access-control/access-control.cache.js', () => cache)
 
 const {
   hasPermission,
