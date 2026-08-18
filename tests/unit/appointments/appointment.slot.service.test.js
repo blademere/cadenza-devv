@@ -1,4 +1,4 @@
-const { describe, expect, it, vi } = require("vitest")
+import { describe, expect, it, vi } from "vitest"
 
 const prisma = vi.hoisted(() => ({
   appointmentType: { findUnique: vi.fn() },
@@ -6,11 +6,11 @@ const prisma = vi.hoisted(() => ({
   $transaction: vi.fn(),
 }))
 
-vi.mock("../../../src/infrastructure/database/prisma", () => ({
+vi.mock("../../../src/infrastructure/database/prisma.js", () => ({
   getPrismaClient: () => prisma,
 }))
 
-const { generateSlots } = require("../../../src/features/appointments/appointment.slot.service")
+const { generateSlots } = await import("../../../src/features/appointments/appointment.slot.service.js")
 
 describe("appointment slot generation", () => {
   it("generates slots from an Asia/Manila weekly schedule", async () => {
