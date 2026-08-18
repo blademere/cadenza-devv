@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const bcrypt = { hash: vi.fn() }
-const users = {
+const bcrypt = vi.hoisted(() => ({ hash: vi.fn() }))
+const users = vi.hoisted(() => ({
   findAllUsers: vi.fn(),
   createUser: vi.fn(),
-}
-const auth = { findUserByEmail: vi.fn() }
-const accessControl = {
+}))
+const auth = vi.hoisted(() => ({ findUserByEmail: vi.fn() }))
+const accessControl = vi.hoisted(() => ({
   findRoleById: vi.fn(),
   getUserAuthorizationContext: vi.fn(),
-}
-const mapper = { toUserResponse: vi.fn((user) => user) }
+}))
+const mapper = vi.hoisted(() => ({ toUserResponse: vi.fn((user) => user) }))
 
-vi.mock('bcrypt', () => ({ default: bcrypt, ...bcrypt }))
+vi.mock('bcrypt', () => ({ default: bcrypt, hash: bcrypt.hash }))
 vi.mock('../../src/features/users/user.repository', () => users)
 vi.mock('../../src/features/auth/auth.repository', () => auth)
 vi.mock('../../src/features/access-control/access-control.repository', () => accessControl)
@@ -40,7 +40,7 @@ describe('user role assignment', () => {
       id: 2,
       name: 'administrator',
       permissions: [
-        { permission: { action: 'users', module: { key: 'applications' } } },
+        { permission: { action: 'approve', module: { key: 'applications' } } },
       ],
     })
 
