@@ -1,9 +1,16 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, beforeAll } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   queues: [],
   workers: [],
   events: [],
+  redis: {
+    isOpen: true,
+  },
+}))
+
+vi.mock('redis', () => ({
+  createClient: vi.fn(() => mocks.redis),
 }))
 
 vi.mock('bullmq', () => ({
@@ -12,6 +19,8 @@ vi.mock('bullmq', () => ({
       this.name = name
       this.options = options
       this.add = vi.fn()
+      this.getFailed = vi.fn()
+      this.getJob = vi.fn()
       this.close = vi.fn().mockResolvedValue(undefined)
       mocks.queues.push(this)
     }
@@ -37,7 +46,11 @@ vi.mock('bullmq', () => ({
   },
 }))
 
-const queue = require('../../../src/infrastructure/queue/bullmq')
+let queue
+
+beforeAll(async () => {
+  queue = await import('../../../src/infrastructure/queue/bullmq.js')
+})
 
 describe('BullMQ infrastructure', () => {
   beforeEach(async () => {
