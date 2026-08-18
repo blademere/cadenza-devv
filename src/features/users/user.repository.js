@@ -2,21 +2,32 @@ const { getPrismaClient } = require("../../infrastructure/database/prisma")
 
 const prisma = getPrismaClient()
 
-const findAllUsers = async ({ skip, take }) => {
+const findAllUsers = async ({ skip, take, filters = {}, orderBy }) => {
+  const where = {}
+
+  if (filters.email) {
+    where.email = {
+      contains: filters.email,
+      mode: "insensitive",
+    }
+  }
+
+  if (filters.isActive !== undefined) {
+    where.isActive = filters.isActive === "true"
+  }
+
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       skip,
       take,
-      orderBy: {
-        createdAt: "desc",
-      },
+      where,
+      orderBy,
       select: {
         id: true,
         email: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
-
         role: {
           select: {
             id: true,
@@ -26,8 +37,7 @@ const findAllUsers = async ({ skip, take }) => {
         },
       },
     }),
-
-    prisma.user.count(),
+    prisma.user.count({ where }),
   ])
 
   return {
@@ -43,13 +53,11 @@ const createUser = async ({ email, roleId, passwordHash }) => {
       passwordHash,
       roleId,
     },
-
     select: {
       id: true,
       email: true,
       isActive: true,
       createdAt: true,
-
       role: {
         select: {
           id: true,

@@ -1,13 +1,16 @@
 const bcrypt = require('bcrypt')
 
 const { ConflictError, ForbiddenError, NotFoundError } = require('../../common/errors/appError')
+const {
+  normalizePagination,
+  createPaginationMeta,
+  createOrderBy,
+  pickFilters,
+} = require('../../common/pagination/pagination')
 
 const { findAllUsers, createUser } = require('./user.repository')
-
 const { toUserResponse } = require('./user.mapper')
-
 const { findUserByEmail } = require('../auth/auth.repository')
-
 const {
   findRoleById,
   getUserAuthorizationContext,
@@ -30,25 +33,29 @@ const canAssignRole = (requesterPermissions, targetRole) => {
   })
 }
 
-const listUsers = async ({ page, limit }) => {
-  const skip = (page - 1) * limit
+const listUsers = async (query = {}) => {
+  const pagination = normalizePagination(query)
+  const orderBy = createOrderBy(
+    query,
+    ['createdAt', 'updatedAt', 'email', 'isActive'],
+    'createdAt',
+  )
+  const filters = pickFilters(query, ['email', 'isActive'])
 
   const { users, total } = await findAllUsers({
-    skip,
-    take: limit,
+    skip: pagination.skip,
+    take: pagination.take,
+    filters,
+    orderBy,
   })
 
-  const data = users.map(toUserResponse)
-
   return {
-    data,
-
-    pagination: {
-      page,
-      limit,
+    data: users.map(toUserResponse),
+    pagination: createPaginationMeta({
+      page: pagination.page,
+      limit: pagination.limit,
       total,
-      pages: Math.ceil(total / limit),
-    },
+    }),
   }
 }
 
