@@ -1,7 +1,10 @@
-const prisma = require("../infrastructure/database/prisma")
+const { getPrismaClient, disconnectPrisma } = require("../infrastructure/database/prisma")
 const { markDueSlas, markEscalations } = require("./sla/sla.service")
 const { processEvent } = require("./event-bus/event-bus")
 const { enqueueEvent, claimBatch, markProcessed, markFailed, recoverStale } = require("./event-bus/event-outbox.service")
+const { logger } = require("../config")
+
+const prisma = getPrismaClient()
 
 const runPlatformMaintenance = async ({ now = new Date(), batchSize = 100 } = {}) => {
   const [due, escalated] = await Promise.all([
@@ -66,23 +69,33 @@ const runWorkerCycle = async (options = {}) => {
 
 const startWorker = async ({ intervalMs = 5000, batchSize = 50 } = {}) => {
   let stopping = false
-  const shutdown = () => { stopping = true }
+
+  const shutdown = () => {
+    stopping = true
+    logger.info("Platform worker shutdown requested")
+  }
+
   process.once("SIGTERM", shutdown)
   process.once("SIGINT", shutdown)
 
-  while (!stopping) {
-    try {
-      await runWorkerCycle({ batchSize })
-    } catch (error) {
-      console.error("Platform worker cycle failed:", error)
+  try {
+    while (!stopping) {
+      try {
+        await runWorkerCycle({ batchSize })
+      } catch (error) {
+        logger.error({ err: error }, "Platform worker cycle failed")
+      }
+      if (!stopping) await new Promise((resolve) => setTimeout(resolve, intervalMs))
     }
-    if (!stopping) await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  } finally {
+    await disconnectPrisma()
+    logger.info("Platform worker stopped")
   }
 }
 
 if (require.main === module) {
   startWorker().catch((error) => {
-    console.error(error)
+    logger.error({ err: error }, "Platform worker stopped unexpectedly")
     process.exitCode = 1
   })
 }
