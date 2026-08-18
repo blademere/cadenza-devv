@@ -4,20 +4,14 @@ const { z } = require('zod')
 dotenv.config()
 
 const emptyToUndefined = (value) => (value === '' ? undefined : value)
-
-const optionalEnvString = z.preprocess(
-  emptyToUndefined,
-  z.string().optional(),
-)
-
-const optionalEnvUrl = z.preprocess(
-  emptyToUndefined,
-  z.url().optional(),
-)
+const optionalEnvString = z.preprocess(emptyToUndefined, z.string().optional())
+const optionalEnvUrl = z.preprocess(emptyToUndefined, z.url().optional())
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(3000),
+  APP_NAME: z.string().min(1).default('Express App'),
+  APP_SLUG: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'APP_SLUG must contain only lowercase letters, numbers, and hyphens.').default('express-app'),
+  PORT: z.coerce.number().int().positive().max(65535).default(3000),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required.'),
   REDIS_URL: z.url().default('redis://localhost:6379'),
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters.'),
@@ -31,28 +25,22 @@ const envSchema = z.object({
   COOKIE_DOMAIN: optionalEnvString,
   COOKIE_REFRESH_MAX_AGE_MS: z.coerce.number().int().positive().default(7 * 24 * 60 * 60 * 1000),
   METRICS_TOKEN: optionalEnvString,
-
-  // OAuth providers are optional. Empty strings mean the provider is disabled.
+  SEED_ADMIN_EMAIL: z.email().optional(),
+  SEED_ADMIN_PASSWORD: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_ID: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_SECRET: optionalEnvString,
   OAUTH_GOOGLE_CALLBACK_URL: optionalEnvUrl,
-
   OAUTH_GITHUB_CLIENT_ID: optionalEnvString,
   OAUTH_GITHUB_CLIENT_SECRET: optionalEnvString,
   OAUTH_GITHUB_CALLBACK_URL: optionalEnvUrl,
-
   OAUTH_DEFAULT_ROLE_NAME: z.string().min(1).default('client'),
   OAUTH_FRONTEND_SUCCESS_URL: z.url().default('http://localhost:5173/auth/callback/success'),
   OAUTH_FRONTEND_FAILURE_URL: z.url().default('http://localhost:5173/auth/callback/failure'),
 })
 
 const parsed = envSchema.safeParse(process.env)
-
 if (!parsed.success) {
-  const details = parsed.error.issues
-    .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-    .join('; ')
-
+  const details = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')
   throw new Error(`Invalid environment configuration. ${details}`)
 }
 
@@ -60,90 +48,34 @@ const data = parsed.data
 
 const parseDurationMs = (value) => {
   const match = value.match(/^(\d+)(ms|s|m|h|d)$/)
-
-  if (!match) {
-    throw new Error(`${value} must use ms, s, m, h, or d format.`)
-  }
-
+  if (!match) throw new Error(`${value} must use ms, s, m, h, or d format.`)
   const amount = Number(match[1])
-  const multipliers = {
-    ms: 1,
-    s: 1000,
-    m: 60 * 1000,
-    h: 60 * 60 * 1000,
-    d: 24 * 60 * 60 * 1000,
-  }
-
+  const multipliers = { ms: 1, s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 }
   return amount * multipliers[match[2]]
 }
 
-if (data.COOKIE_SAME_SITE === 'none' && !data.COOKIE_SECURE) {
-  throw new Error("COOKIE_SECURE must be true when COOKIE_SAME_SITE is 'none'.")
-}
-
-if (data.NODE_ENV === 'production' && !data.COOKIE_SECURE) {
-  throw new Error('COOKIE_SECURE must be true in production.')
-}
-
-if (data.NODE_ENV === 'production' && data.CORS_ORIGIN === '*') {
-  throw new Error("CORS_ORIGIN must not be '*' in production.")
-}
-
-if (data.NODE_ENV === 'production' && !data.METRICS_TOKEN) {
-  throw new Error('METRICS_TOKEN is required in production.')
-}
-
-if (data.METRICS_TOKEN && data.METRICS_TOKEN.length < 32) {
-  throw new Error('METRICS_TOKEN must be at least 32 characters.')
-}
+if (data.COOKIE_SAME_SITE === 'none' && !data.COOKIE_SECURE) throw new Error("COOKIE_SECURE must be true when COOKIE_SAME_SITE is 'none'.")
+if (data.NODE_ENV === 'production' && !data.COOKIE_SECURE) throw new Error('COOKIE_SECURE must be true in production.')
+if (data.NODE_ENV === 'production' && data.CORS_ORIGIN === '*') throw new Error("CORS_ORIGIN must not be '*' in production.")
+if (data.NODE_ENV === 'production' && !data.METRICS_TOKEN) throw new Error('METRICS_TOKEN is required in production.')
+if (data.METRICS_TOKEN && data.METRICS_TOKEN.length < 32) throw new Error('METRICS_TOKEN must be at least 32 characters.')
+if (data.SEED_ADMIN_PASSWORD && data.SEED_ADMIN_PASSWORD.length < 12) throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters when configured.')
+if ((data.SEED_ADMIN_EMAIL && !data.SEED_ADMIN_PASSWORD) || (!data.SEED_ADMIN_EMAIL && data.SEED_ADMIN_PASSWORD)) throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be configured together.')
 
 const refreshTokenLifetimeMs = parseDurationMs(data.JWT_REFRESH_EXPIRES_IN)
+if (data.COOKIE_REFRESH_MAX_AGE_MS !== refreshTokenLifetimeMs) throw new Error('COOKIE_REFRESH_MAX_AGE_MS must exactly match JWT_REFRESH_EXPIRES_IN.')
 
-if (data.COOKIE_REFRESH_MAX_AGE_MS !== refreshTokenLifetimeMs) {
-  throw new Error(
-    'COOKIE_REFRESH_MAX_AGE_MS must exactly match JWT_REFRESH_EXPIRES_IN.',
-  )
+const hasGoogleCredentials = Boolean(data.OAUTH_GOOGLE_CLIENT_ID || data.OAUTH_GOOGLE_CLIENT_SECRET)
+if (hasGoogleCredentials && (!data.OAUTH_GOOGLE_CLIENT_ID || !data.OAUTH_GOOGLE_CLIENT_SECRET || !data.OAUTH_GOOGLE_CALLBACK_URL)) {
+  throw new Error('Google OAuth requires OAUTH_GOOGLE_CLIENT_ID, OAUTH_GOOGLE_CLIENT_SECRET, and OAUTH_GOOGLE_CALLBACK_URL.')
 }
 
-// A provider is enabled only when its client credentials are configured.
-// A callback URL alone is allowed in development templates and does not
-// make the provider partially configured.
-const hasGoogleCredentials = Boolean(
-  data.OAUTH_GOOGLE_CLIENT_ID || data.OAUTH_GOOGLE_CLIENT_SECRET,
-)
-
-if (
-  hasGoogleCredentials &&
-  (!data.OAUTH_GOOGLE_CLIENT_ID ||
-    !data.OAUTH_GOOGLE_CLIENT_SECRET ||
-    !data.OAUTH_GOOGLE_CALLBACK_URL)
-) {
-  throw new Error(
-    'Google OAuth requires OAUTH_GOOGLE_CLIENT_ID, OAUTH_GOOGLE_CLIENT_SECRET, and OAUTH_GOOGLE_CALLBACK_URL.',
-  )
+const hasGithubCredentials = Boolean(data.OAUTH_GITHUB_CLIENT_ID || data.OAUTH_GITHUB_CLIENT_SECRET)
+if (hasGithubCredentials && (!data.OAUTH_GITHUB_CLIENT_ID || !data.OAUTH_GITHUB_CLIENT_SECRET || !data.OAUTH_GITHUB_CALLBACK_URL)) {
+  throw new Error('GitHub OAuth requires OAUTH_GITHUB_CLIENT_ID, OAUTH_GITHUB_CLIENT_SECRET, and OAUTH_GITHUB_CALLBACK_URL.')
 }
 
-const hasGithubCredentials = Boolean(
-  data.OAUTH_GITHUB_CLIENT_ID || data.OAUTH_GITHUB_CLIENT_SECRET,
-)
-
-if (
-  hasGithubCredentials &&
-  (!data.OAUTH_GITHUB_CLIENT_ID ||
-    !data.OAUTH_GITHUB_CLIENT_SECRET ||
-    !data.OAUTH_GITHUB_CALLBACK_URL)
-) {
-  throw new Error(
-    'GitHub OAuth requires OAUTH_GITHUB_CLIENT_ID, OAUTH_GITHUB_CLIENT_SECRET, and OAUTH_GITHUB_CALLBACK_URL.',
-  )
-}
-
-if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_SUCCESS_URL.startsWith('http://')) {
-  throw new Error('OAUTH_FRONTEND_SUCCESS_URL must use HTTPS in production.')
-}
-
-if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_FAILURE_URL.startsWith('http://')) {
-  throw new Error('OAUTH_FRONTEND_FAILURE_URL must use HTTPS in production.')
-}
+if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_SUCCESS_URL.startsWith('http://')) throw new Error('OAUTH_FRONTEND_SUCCESS_URL must use HTTPS in production.')
+if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_FAILURE_URL.startsWith('http://')) throw new Error('OAUTH_FRONTEND_FAILURE_URL must use HTTPS in production.')
 
 module.exports = Object.freeze(data)
