@@ -88,8 +88,8 @@ jobs:
       - name: Run coverage gate
         run: npm run test:coverage
 
-      - name: Dependency vulnerability audit
-        run: npm audit --audit-level=high
+      - name: Dependency vulnerability scanning
+        run: npm run audit:security
 
   docker:
     name: Build production Docker image
