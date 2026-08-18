@@ -11,20 +11,35 @@ function normalizeJobId(jobId) {
   return normalized || undefined
 }
 
-async function enqueueJob({ queue, name, data, jobId, delay = 0, attempts = DEFAULT_ATTEMPTS, backoffDelay = DEFAULT_BACKOFF_DELAY }) {
-  if (!queue || !name) throw new Error('queue and name are required')
-  if (!SUPPORTED_QUEUES.has(queue)) throw new Error(`Unknown job queue: ${queue}`)
+function createJobService({ enqueue = enqueueBullMqJob } = {}) {
+  async function enqueueJob({
+    queue,
+    name,
+    data,
+    jobId,
+    delay = 0,
+    attempts = DEFAULT_ATTEMPTS,
+    backoffDelay = DEFAULT_BACKOFF_DELAY,
+  }) {
+    if (!queue || !name) throw new Error('queue and name are required')
+    if (!SUPPORTED_QUEUES.has(queue)) throw new Error(`Unknown job queue: ${queue}`)
 
-  return enqueueBullMqJob(queue, name, data, {
-    jobId: normalizeJobId(jobId),
-    delay,
-    attempts,
-    backoff: { type: 'exponential', delay: backoffDelay },
-    removeOnComplete: { age: 86400, count: 1000 },
-    removeOnFail: { age: 604800, count: 5000 },
-  })
+    return enqueue(queue, name, data, {
+      jobId: normalizeJobId(jobId),
+      delay,
+      attempts,
+      backoff: { type: 'exponential', delay: backoffDelay },
+      removeOnComplete: { age: 86400, count: 1000 },
+      removeOnFail: { age: 604800, count: 5000 },
+    })
+  }
+
+  return { enqueueJob }
 }
 
+const { enqueueJob } = createJobService()
+
 module.exports = {
+  createJobService,
   enqueueJob,
 }
