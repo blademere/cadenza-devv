@@ -12,7 +12,10 @@ const listUsersController = async (req, res) => {
 };
 
 const createUserController = async (req, res) => {
-  const user = await registerUser(req.validated.body);
+  const user = await registerUser({
+    requesterId: req.user.id,
+    ...req.validated.body,
+  });
   return successResponse(res, "User created successfully.", user, 201);
 };
 
