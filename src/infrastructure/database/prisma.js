@@ -7,7 +7,12 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is required to initialize Prisma")
 }
 
-const adapter = new PrismaPg({ connectionString })
+const adapter = new PrismaPg({
+  connectionString,
+  max: Number(process.env.DB_POOL_MAX || 10),
+  connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT_MS || 5000),
+  idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 10000),
+})
 
 const prismaClient = new PrismaClient({
   adapter,
@@ -17,10 +22,10 @@ const prismaClient = new PrismaClient({
       : ["warn", "error"],
 })
 
-const getPrismaClient = () => {
-  return prismaClient
-}
+const getPrismaClient = () => prismaClient
+const disconnectPrisma = async () => prismaClient.$disconnect()
 
 module.exports = {
   getPrismaClient,
+  disconnectPrisma,
 }

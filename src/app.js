@@ -11,6 +11,8 @@ const YAML = require("yamljs")
 const {
   prometheusMiddleware,
   metricsHandler,
+  recordDependencyHealth,
+  recordDependencyLatency,
 } = require("./infrastructure/monitoring/prometheus")
 
 const { getPrismaClient } = require("./infrastructure/database/prisma")
@@ -18,18 +20,21 @@ const { connectRedis } = require("./infrastructure/cache/redis")
 
 const {
   rateLimiter,
+  requestId,
   notFound,
   errorHandler,
 } = require("./common/middleware")
 
 const { env, requestLogger } = require("./config")
 const apiRoutes = require("./routes")
+const { withTimeout } = require("./common/utils/withTimeout")
 
 const app = express()
 
 const openApiSpec = YAML.load("docs/openapi.yaml")
 
 app.set("trust proxy", 1)
+app.use(requestId)
 app.use(cookieParser())
 app.use(requestLogger)
 app.use(helmet())
@@ -92,19 +97,27 @@ app.get("/health/ready", async (_req, res) => {
 
   try {
     const prisma = getPrismaClient()
-    await prisma.$queryRaw`SELECT 1`
+    const startedAt = process.hrtime.bigint()
+    await withTimeout(prisma.$queryRaw`SELECT 1`, 2000, "Database readiness check timed out")
+    recordDependencyLatency("database", Number(process.hrtime.bigint() - startedAt) / 1_000_000_000)
+    recordDependencyHealth("database", true)
     checks.database = "ok"
   } catch (error) {
     ready = false
+    recordDependencyHealth("database", false)
     checks.database = "error"
   }
 
   try {
-    const redis = await connectRedis()
-    await redis.ping()
+    const startedAt = process.hrtime.bigint()
+    const redis = await withTimeout(connectRedis(), 2000, "Redis connection timed out")
+    await withTimeout(redis.ping(), 2000, "Redis readiness check timed out")
+    recordDependencyLatency("redis", Number(process.hrtime.bigint() - startedAt) / 1_000_000_000)
+    recordDependencyHealth("redis", true)
     checks.redis = "ok"
   } catch (error) {
     ready = false
+    recordDependencyHealth("redis", false)
     checks.redis = "error"
   }
 
@@ -115,7 +128,6 @@ app.get("/health/ready", async (_req, res) => {
   })
 })
 
-// Keep the legacy health endpoint as a lightweight liveness check.
 app.get("/health", (_req, res) => {
   res.status(200).json({
     success: true,
