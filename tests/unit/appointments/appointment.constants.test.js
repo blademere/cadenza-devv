@@ -1,5 +1,9 @@
-const { describe, expect, it } = require("vitest")
-const { APPOINTMENT_ACTIONS, APPOINTMENT_STATUS, SLOT_STATUS } = require("../../../src/features/appointments/appointment.constants")
+import { describe, expect, it } from "vitest"
+import {
+  APPOINTMENT_ACTIONS,
+  APPOINTMENT_STATUS,
+  SLOT_STATUS,
+} from "../../../src/features/appointments/appointment.constants.js"
 
 describe("appointment constants", () => {
   it("exposes the complete appointment lifecycle", () => {
