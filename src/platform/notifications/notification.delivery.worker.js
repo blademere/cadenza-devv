@@ -1,13 +1,16 @@
 const { registerJobWorker } = require('../jobs/job.worker')
 const { JOB_NAMES, JOB_QUEUES } = require('../jobs/job.constants')
-const {
-  claimDelivery,
-  markDeliverySent,
-  markDeliveryFailed,
-} = require('./notification.service')
-const { getNotificationTransport } = require('./notification.transport')
+const notificationService = require('./notification.service')
+const notificationTransport = require('./notification.transport')
 
-async function processNotificationDelivery(job) {
+async function processNotificationDelivery(job, dependencies = {}) {
+  const { claimDelivery, markDeliverySent, markDeliveryFailed } = {
+    ...notificationService,
+    ...dependencies,
+  }
+  const getNotificationTransport =
+    dependencies.getNotificationTransport || notificationTransport.getNotificationTransport
+
   const { deliveryId } = job.data || {}
   if (!deliveryId) throw new Error('deliveryId is required')
 
