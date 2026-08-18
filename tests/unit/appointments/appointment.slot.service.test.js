@@ -6,7 +6,7 @@ const prisma = vi.hoisted(() => ({
   $transaction: vi.fn(),
 }))
 
-vi.mock("../../../src/infrastructure/database/prisma.js", () => ({
+vi.mock("../../../src/infrastructure/database/prisma", () => ({
   getPrismaClient: () => prisma,
 }))
 
