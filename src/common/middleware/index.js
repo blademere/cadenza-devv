@@ -6,6 +6,7 @@ const validate = require('./validate')
 const errorHandler = require('./errorHandler')
 const notFound = require('./notFound')
 const rateLimiter = require('./rateLimiter')
+const requestId = require('./requestId')
 const {
   loginRateLimiter,
   refreshRateLimiter,
@@ -22,6 +23,7 @@ module.exports = {
   errorHandler,
   notFound,
   rateLimiter,
+  requestId,
   loginRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
