@@ -1,0 +1,34 @@
+model DocumentType {
+  id String @id @default(uuid())
+  key String @unique
+  name String
+  description String?
+  isActive Boolean @default(true)
+  requirements DocumentRequirement[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentRequirement {
+  id String @id @default(uuid())
+  documentTypeId String
+  formVersionId String?
+  workflowVersionId String?
+  fieldKey String?
+  name String
+  description String?
+  required Boolean @default(true)
+  allowedFileTypes String[]
+  maxSizeBytes BigInt?
+  condition Json?
+  source String @default("CLIENT")
+  sortOrder Int @default(0)
+  documentType DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
+  formVersion FormVersion? @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  workflowVersion WorkflowVersion? @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([documentTypeId])
+  @@index([formVersionId, sortOrder])
+  @@index([workflowVersionId, sortOrder])
+}

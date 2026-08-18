@@ -1,0 +1,35 @@
+model SlaPolicy {
+  id String @id @default(uuid())
+  key String @unique
+  name String
+  entityType String
+  workflowStepKey String?
+  durationSeconds Int
+  warningSeconds Int?
+  escalationSeconds Int?
+  active Boolean @default(true)
+  conditions Json
+  instances SlaInstance[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([entityType, active])
+}
+
+model SlaInstance {
+  id String @id @default(uuid())
+  policyId String
+  subjectType String
+  subjectId String
+  status String @default("RUNNING")
+  startedAt DateTime @default(now())
+  warningAt DateTime?
+  dueAt DateTime
+  escalatedAt DateTime?
+  completedAt DateTime?
+  policy SlaPolicy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([subjectType, subjectId, status])
+  @@index([status, dueAt])
+  @@index([status, warningAt])
+}
