@@ -79,9 +79,13 @@ const canAny = async ({ userId, resource, action, actions }) => {
     return false
   }
 
-  return candidateActions.some((candidateAction) =>
-    hasPermission(userId, resource, candidateAction),
-  )
+  for (const candidateAction of candidateActions) {
+    if (await hasPermission(userId, resource, candidateAction)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 const canOwn = async ({ userId, resource, action, resourceOwnerId }) => {
