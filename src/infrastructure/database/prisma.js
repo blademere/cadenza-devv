@@ -17,10 +17,10 @@ const prismaClient = new PrismaClient({
       : ["warn", "error"],
 })
 
-const getPrismaClient = () => {
-  return prismaClient
-}
+const getPrismaClient = () => prismaClient
+const disconnectPrisma = async () => prismaClient.$disconnect()
 
 module.exports = {
   getPrismaClient,
+  disconnectPrisma,
 }
