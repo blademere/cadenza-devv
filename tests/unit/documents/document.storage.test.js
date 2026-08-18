@@ -4,9 +4,9 @@ import os from "node:os"
 import path from "node:path"
 
 const storageRoot = await fs.mkdtemp(path.join(os.tmpdir(), "express-document-storage-"))
-process.env.DOCUMENT_STORAGE_DIR = storageRoot
-
-const storage = await import("../../../src/infrastructure/storage/local.js")
+const { createLocalStorageAdapter } = await import("../../../src/infrastructure/storage/local.storage.js")
+const { createStorageKey } = await import("../../../src/platform/storage/storage.key.js")
+const storage = createLocalStorageAdapter({ root: storageRoot })
 
 afterEach(async () => {
   await fs.rm(storageRoot, { recursive: true, force: true })
@@ -15,18 +15,18 @@ afterEach(async () => {
 
 describe("local document storage", () => {
   it("writes and reads binary content using a generated storage key", async () => {
-    const key = storage.createStorageKey("permit.pdf")
+    const key = createStorageKey("permit.pdf")
     const content = Buffer.from("document-content")
 
-    await storage.putObject({ key, buffer: content })
-    await expect(storage.getObject(key)).resolves.toEqual(content)
+    await storage.put({ key, body: content, contentType: "application/pdf" })
+    await expect(storage.get({ key })).resolves.toEqual({ key, body: content })
   })
 
   it("deletes stored content", async () => {
-    const key = storage.createStorageKey("photo.jpg")
-    await storage.putObject({ key, buffer: Buffer.from("image") })
+    const key = createStorageKey("photo.jpg")
+    await storage.put({ key, body: Buffer.from("image"), contentType: "image/jpeg" })
 
-    await storage.deleteObject(key)
-    await expect(storage.getObject(key)).rejects.toThrow()
+    await storage.delete({ key })
+    await expect(storage.get({ key })).rejects.toThrow()
   })
 })
