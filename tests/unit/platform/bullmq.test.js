@@ -1,26 +1,13 @@
-import { describe, expect, it, vi, beforeEach, beforeAll } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { createBullMqInfrastructure } from '../../../src/infrastructure/queue/bullmq.js'
 
-const mocks = vi.hoisted(() => ({
-  queues: [],
-  workers: [],
-  events: [],
-  redis: { isOpen: true },
-}))
+const createMocks = () => {
+  const queues = []
+  const workers = []
+  const events = []
+  const redis = { isOpen: true }
 
-vi.mock('../../../src/infrastructure/cache/redis.js', () => ({
-  connectRedis: vi.fn(async () => mocks.redis),
-  getRedisClient: vi.fn(() => mocks.redis),
-}))
-
-vi.mock('../../../src/config/index.js', () => ({
-  logger: {
-    info: vi.fn(),
-    error: vi.fn(),
-  },
-}))
-
-vi.mock('bullmq', () => ({
-  Queue: class MockQueue {
+  class MockQueue {
     constructor(name, options) {
       this.name = name
       this.options = options
@@ -28,44 +15,69 @@ vi.mock('bullmq', () => ({
       this.getFailed = vi.fn()
       this.getJob = vi.fn()
       this.close = vi.fn().mockResolvedValue(undefined)
-      mocks.queues.push(this)
+      queues.push(this)
     }
-  },
-  Worker: class MockWorker {
+  }
+
+  class MockWorker {
     constructor(name, processor, options) {
       this.name = name
       this.processor = processor
       this.options = options
       this.handlers = new Map()
       this.close = vi.fn().mockResolvedValue(undefined)
-      this.on = vi.fn((event, handler) => this.handlers.set(event, handler))
-      mocks.workers.push(this)
+      this.on = vi.fn((event, handler) => {
+        this.handlers.set(event, handler)
+        return this
+      })
+      workers.push(this)
     }
-  },
-  QueueEvents: class MockQueueEvents {
+  }
+
+  class MockQueueEvents {
     constructor(name, options) {
       this.name = name
       this.options = options
       this.close = vi.fn().mockResolvedValue(undefined)
-      mocks.events.push(this)
+      events.push(this)
     }
-  },
-}))
+  }
 
+  const logger = {
+    info: vi.fn(),
+    error: vi.fn(),
+  }
+
+  return {
+    queues,
+    workers,
+    events,
+    redis,
+    Queue: MockQueue,
+    Worker: MockWorker,
+    QueueEvents: MockQueueEvents,
+    connectRedis: vi.fn(async () => redis),
+    getRedisClient: vi.fn(() => redis),
+    logger,
+  }
+}
+
+let mocks
 let queue
 
-beforeAll(async () => {
-  queue = await import('../../../src/infrastructure/queue/bullmq.js')
+beforeEach(() => {
+  mocks = createMocks()
+  queue = createBullMqInfrastructure({
+    Queue: mocks.Queue,
+    Worker: mocks.Worker,
+    QueueEvents: mocks.QueueEvents,
+    connectRedis: mocks.connectRedis,
+    getRedisClient: mocks.getRedisClient,
+    logger: mocks.logger,
+  })
 })
 
 describe('BullMQ infrastructure', () => {
-  beforeEach(async () => {
-    await queue.closeQueues()
-    mocks.queues.length = 0
-    mocks.workers.length = 0
-    mocks.events.length = 0
-  })
-
   it('creates a queue with production retry and retention defaults', async () => {
     const instance = await queue.getQueue('test-events')
 
