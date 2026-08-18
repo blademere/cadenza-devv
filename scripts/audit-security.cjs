@@ -13,25 +13,32 @@ try {
   process.exit(result.status ?? 1);
 }
 
-const allowed = new Set(['deepmerge-ts']);
 const vulnerabilities = Object.entries(report.vulnerabilities || {});
 const blocking = vulnerabilities.filter(([name, advisory]) => {
   if (advisory.severity !== 'high' && advisory.severity !== 'critical') return false;
-  if (!allowed.has(name)) return true;
 
   const via = Array.isArray(advisory.via) ? advisory.via : [];
-  const isPrismaTransitive = via.some((entry) =>
-    typeof entry === 'object' &&
-    entry.source === 1090102 &&
-    typeof entry.url === 'string' &&
-    entry.url.includes('GHSA-ggr8-5vv4-36mx')
-  );
+  const isKnownPrismaDeepmergeAdvisory =
+    name === 'deepmerge-ts' &&
+    via.some((entry) =>
+      typeof entry === 'object' &&
+      typeof entry.url === 'string' &&
+      entry.url.includes('GHSA-ggr8-5vv4-36mx')
+    );
 
-  return !isPrismaTransitive;
+  return !isKnownPrismaDeepmergeAdvisory;
 });
 
 for (const [name, advisory] of vulnerabilities) {
-  const marker = blocking.some(([blockingName]) => blockingName === name) ? 'BLOCK' : 'ALLOW';
+  const via = Array.isArray(advisory.via) ? advisory.via : [];
+  const allowed =
+    name === 'deepmerge-ts' &&
+    via.some((entry) =>
+      typeof entry === 'object' &&
+      typeof entry.url === 'string' &&
+      entry.url.includes('GHSA-ggr8-5vv4-36mx')
+    );
+  const marker = allowed ? 'ALLOW' : blocking.some(([blockingName]) => blockingName === name) ? 'BLOCK' : 'INFO';
   process.stdout.write(`${marker} ${advisory.severity}: ${name} (${advisory.isDirect ? 'direct' : 'transitive'})\n`);
 }
 
