@@ -1,4 +1,5 @@
 const { rateLimit } = require('express-rate-limit')
+const RedisRateLimitStore = require('./redisRateLimitStore')
 
 const authRateLimitHandler = (_req, res) => {
   return res.status(429).json({
@@ -7,37 +8,36 @@ const authRateLimitHandler = (_req, res) => {
   })
 }
 
-const loginRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+const createAuthLimiter = ({ prefix, limit, skipSuccessfulRequests = false }) =>
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    skipSuccessfulRequests,
+    handler: authRateLimitHandler,
+    store: new RedisRateLimitStore(prefix),
+  })
+
+const loginRateLimiter = createAuthLimiter({
+  prefix: 'auth-login-rate-limit',
   limit: 5,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
   skipSuccessfulRequests: true,
-  handler: authRateLimitHandler,
 })
 
-const refreshRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+const refreshRateLimiter = createAuthLimiter({
+  prefix: 'auth-refresh-rate-limit',
   limit: 30,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  handler: authRateLimitHandler,
 })
 
-const logoutRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+const logoutRateLimiter = createAuthLimiter({
+  prefix: 'auth-logout-rate-limit',
   limit: 30,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  handler: authRateLimitHandler,
 })
 
-const oauthRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+const oauthRateLimiter = createAuthLimiter({
+  prefix: 'auth-oauth-rate-limit',
   limit: 20,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  handler: authRateLimitHandler,
 })
 
 module.exports = {
