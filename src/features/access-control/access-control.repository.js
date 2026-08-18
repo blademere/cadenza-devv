@@ -62,6 +62,20 @@ const findRoleById = async (roleId) => {
       id: true,
       name: true,
       description: true,
+      permissions: {
+        select: {
+          permission: {
+            select: {
+              action: true,
+              module: {
+                select: {
+                  key: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
   })
 }
