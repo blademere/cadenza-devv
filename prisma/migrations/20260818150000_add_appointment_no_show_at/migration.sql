@@ -1,2 +1,0 @@
-ALTER TABLE "Appointment"
-ADD COLUMN "noShowAt" TIMESTAMP(3);
