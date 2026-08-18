@@ -23,6 +23,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "node scripts/db-seed.cjs",
+    "db:setup": "npm run prisma:generate && npm run prisma:migrate && npm run db:seed",
     "db:backup": "node scripts/db-backup.cjs",
     "db:restore": "node scripts/db-restore.cjs"
   },
