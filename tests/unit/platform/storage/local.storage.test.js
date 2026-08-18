@@ -2,7 +2,7 @@ const { describe, expect, it } = require("vitest")
 const fs = require("node:fs/promises")
 const os = require("node:os")
 const path = require("node:path")
-const { createLocalStorageAdapter } = require("../../../src/infrastructure/storage/local.storage")
+const { createLocalStorageAdapter } = require("../../../../src/infrastructure/storage/local.storage")
 
 describe("local storage adapter", () => {
   it("stores, reads, copies, inspects, and deletes objects", async () => {
