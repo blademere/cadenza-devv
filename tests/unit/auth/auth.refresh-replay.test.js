@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const repository = {
+const repository = vi.hoisted(() => ({
   findUserByEmail: vi.fn(),
   hashRefreshToken: vi.fn(),
   createRefreshTokenRecord: vi.fn(),
@@ -8,13 +8,13 @@ const repository = {
   revokeRefreshToken: vi.fn(),
   revokeAllRefreshTokensForUser: vi.fn(),
   rotateRefreshToken: vi.fn(),
-}
+}))
 
-const tokens = {
+const tokens = vi.hoisted(() => ({
   createAccessToken: vi.fn(),
   createRefreshToken: vi.fn(),
   verifyRefreshToken: vi.fn(),
-}
+}))
 
 vi.mock('../../../src/features/auth/auth.repository', () => repository)
 vi.mock('../../../src/features/auth/auth.tokens', () => tokens)
