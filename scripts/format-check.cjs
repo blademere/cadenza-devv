@@ -1,5 +1,21 @@
 const { execFileSync } = require("node:child_process")
 const { existsSync } = require("node:fs")
+const path = require("node:path")
+
+const PRETTIER_EXTENSIONS = new Set([
+  ".cjs",
+  ".css",
+  ".html",
+  ".js",
+  ".json",
+  ".jsx",
+  ".md",
+  ".mjs",
+  ".ts",
+  ".tsx",
+  ".yaml",
+  ".yml",
+])
 
 let diffRange
 
@@ -34,13 +50,14 @@ try {
     .split(/\r?\n/)
     .map((file) => file.trim())
     .filter((file) => file && existsSync(file))
+    .filter((file) => PRETTIER_EXTENSIONS.has(path.extname(file).toLowerCase()))
 } catch (error) {
   console.error(`Unable to determine changed files for ${diffRange}:`, error.message)
   process.exit(1)
 }
 
 if (files.length === 0) {
-  console.log("No changed files to format-check.")
+  console.log("No changed Prettier-supported files to format-check.")
   process.exit(0)
 }
 
