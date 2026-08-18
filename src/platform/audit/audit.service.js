@@ -1,8 +1,32 @@
 const prisma = require("../../infrastructure/database/prisma")
 
+const SENSITIVE_KEYS = new Set([
+  "password",
+  "passwordHash",
+  "currentPassword",
+  "newPassword",
+  "accessToken",
+  "refreshToken",
+  "token",
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "clientSecret",
+  "secret",
+  "apiKey",
+])
+
 const sanitizeJson = (value) => {
-  if (value === undefined) return undefined
-  return value === null ? null : JSON.parse(JSON.stringify(value))
+  if (value === undefined || value === null) return value
+  if (Array.isArray(value)) return value.map(sanitizeJson)
+  if (typeof value !== "object") return value
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [
+      key,
+      SENSITIVE_KEYS.has(key.toLowerCase()) ? "[REDACTED]" : sanitizeJson(entry),
+    ])
+  )
 }
 
 const recordAudit = async ({
@@ -38,4 +62,5 @@ const recordAudit = async ({
 
 module.exports = {
   recordAudit,
+  sanitizeJson,
 }
