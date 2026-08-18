@@ -39,11 +39,11 @@ Recommended deployment sequence:
 Create encrypted, off-host PostgreSQL backups using the deployment platform's secret-managed `DATABASE_URL` and object storage. The repository provides a safe local/CI wrapper:
 
 ```bash
-npm run db:backup -- ./backups/express-app.sql.gz
-npm run db:restore -- ./backups/express-app.sql.gz
+npm run db:backup -- ./backups/express-app.dump
+npm run db:restore -- ./backups/express-app.dump
 ```
 
-Restore is intentionally destructive and requires `ALLOW_DESTRUCTIVE_RESTORE=true`. Restore drills should be performed at least quarterly and must verify application startup and critical queries afterward.
+The backup uses PostgreSQL's custom archive format, so it should not be treated as a plain SQL file. Restore is intentionally destructive and requires `ALLOW_DESTRUCTIVE_RESTORE=true`. Restore drills should be performed at least quarterly and must verify application startup and critical queries afterward.
 
 Minimum production policy:
 
@@ -86,7 +86,7 @@ Administrative mutations must call `recordAudit` with:
 - before/after state where safe;
 - request metadata such as IP/user-agent where appropriate.
 
-Never put passwords, access tokens, refresh tokens, client secrets, or other credentials in `before`, `after`, or `metadata`.
+Never put passwords, access tokens, refresh tokens, client secrets, or other credentials in `before`, `after`, or `metadata`. The audit service now recursively redacts common credential fields before persistence.
 
 Audit records are append-oriented operational evidence. Retention and access must be controlled separately from normal application logs.
 
