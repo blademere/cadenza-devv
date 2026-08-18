@@ -11,6 +11,9 @@ permissions:
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app
+      NODE_ENV: test
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -30,9 +33,8 @@ jobs:
           path = Path("prisma/schema.prisma")
           text = path.read_text()
           old = '  url      = env("DATABASE_URL")\n'
-          if old not in text:
-              raise SystemExit("Expected Prisma 6 datasource URL line was not found")
-          path.write_text(text.replace(old, "", 1))
+          if old in text:
+              path.write_text(text.replace(old, "", 1))
           PY
           npm install
 
@@ -46,7 +48,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add prisma/schema.prisma package-lock.json
+          git add prisma/schema.prisma package.json package-lock.json
           git diff --cached --quiet && exit 0
           git commit -m "refactor(prisma): complete Prisma 7 migration"
           git push
