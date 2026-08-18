@@ -13,10 +13,10 @@ const accessControl = vi.hoisted(() => ({
 const mapper = vi.hoisted(() => ({ toUserResponse: vi.fn((user) => user) }))
 
 vi.mock('bcrypt', () => ({ default: bcrypt, hash: bcrypt.hash }))
-vi.mock('../../../src/features/users/user.repository', () => users)
-vi.mock('../../../src/features/auth/auth.repository', () => auth)
-vi.mock('../../../src/features/access-control/access-control.repository', () => accessControl)
-vi.mock('../../../src/features/users/user.mapper', () => mapper)
+vi.mock('../../../src/features/users/user.repository.js', () => users)
+vi.mock('../../../src/features/auth/auth.repository.js', () => auth)
+vi.mock('../../../src/features/access-control/access-control.repository.js', () => accessControl)
+vi.mock('../../../src/features/users/user.mapper.js', () => mapper)
 
 const { registerUser } = await import('../../../src/features/users/user.service.js')
 
