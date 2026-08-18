@@ -105,7 +105,12 @@ describe('Auth/Access Control integration', () => {
       resource: 'users',
       action: 'read',
     })
-    expect(listUsers).toHaveBeenCalledWith({ page: 1, limit: 20 })
+    expect(listUsers).toHaveBeenCalledWith({
+      page: 1,
+      limit: 20,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    })
   })
 
   it('enforces the create permission independently from the read permission', async () => {
