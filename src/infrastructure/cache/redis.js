@@ -7,6 +7,9 @@ const getRedisClient = () => {
   if (!redisClient) {
     redisClient = createClient({
       url: env.REDIS_URL,
+      socket: {
+        connectTimeout: 5000,
+      },
     })
 
     redisClient.on("error", (error) => {
