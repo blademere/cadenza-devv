@@ -6,6 +6,7 @@ const APPOINTMENT_ACTIONS = Object.freeze({
   UPDATE: "update",
   CANCEL: "cancel",
   CHECK_IN: "check_in",
+  NO_SHOW: "no_show",
   MANAGE: "manage",
 })
 
