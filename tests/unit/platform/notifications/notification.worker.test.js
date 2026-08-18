@@ -7,12 +7,12 @@ const mocks = vi.hoisted(() => ({
   getNotificationTransport: vi.fn(),
 }))
 
-vi.mock("../../../../src/platform/notifications/notification.service.js", () => ({
+vi.mock("../../../../src/platform/notifications/notification.service", () => ({
   claimDelivery: mocks.claimDelivery,
   markDeliverySent: mocks.markDeliverySent,
   markDeliveryFailed: mocks.markDeliveryFailed,
 }))
-vi.mock("../../../../src/platform/notifications/notification.transport.js", () => ({
+vi.mock("../../../../src/platform/notifications/notification.transport", () => ({
   getNotificationTransport: mocks.getNotificationTransport,
 }))
 
