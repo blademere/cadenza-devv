@@ -5,6 +5,7 @@ model DocumentType {
   description String?
   isActive Boolean @default(true)
   requirements DocumentRequirement[]
+  documents Document[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
