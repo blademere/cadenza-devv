@@ -7,6 +7,9 @@
     "start": "node src/server.js",
     "start:worker": "node src/platform/platform-worker.js",
     "dev": "nodemon --legacy-watch src/server.js",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "node scripts/format-check.cjs",
     "test": "prisma generate && vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --dir tests/unit",
@@ -18,7 +21,9 @@
     "test:coverage": "prisma generate && vitest run --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy"
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "db:backup": "node scripts/db-backup.cjs",
+    "db:restore": "node scripts/db-restore.cjs"
   },
   "keywords": [],
   "author": "",

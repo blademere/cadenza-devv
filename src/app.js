@@ -1,39 +1,39 @@
-const express = require("express")
-const cookieParser = require("cookie-parser")
-const helmet = require("helmet")
-const cors = require("cors")
-const hpp = require("hpp")
-const compression = require("compression")
-const crypto = require("crypto")
-const swaggerUi = require("swagger-ui-express")
-const YAML = require("yamljs")
+const express = require('express')
+const cookieParser = require('cookie-parser')
+const helmet = require('helmet')
+const cors = require('cors')
+const hpp = require('hpp')
+const compression = require('compression')
+const crypto = require('crypto')
+const swaggerUi = require('swagger-ui-express')
+const YAML = require('yamljs')
 
 const {
   prometheusMiddleware,
   metricsHandler,
   recordDependencyHealth,
   recordDependencyLatency,
-} = require("./infrastructure/monitoring/prometheus")
+} = require('./infrastructure/monitoring/prometheus')
 
-const { getPrismaClient } = require("./infrastructure/database/prisma")
-const { connectRedis } = require("./infrastructure/cache/redis")
+const { getPrismaClient } = require('./infrastructure/database/prisma')
+const { connectRedis } = require('./infrastructure/cache/redis')
 
 const {
   rateLimiter,
   requestId,
   notFound,
   errorHandler,
-} = require("./common/middleware")
+} = require('./common/middleware')
 
-const { env, requestLogger } = require("./config")
-const apiRoutes = require("./routes")
-const { withTimeout } = require("./common/utils/withTimeout")
+const { env, requestLogger } = require('./config')
+const apiRoutes = require('./routes')
+const { withTimeout } = require('./common/utils/withTimeout')
 
 const app = express()
 
-const openApiSpec = YAML.load("docs/openapi.yaml")
+const openApiSpec = YAML.load('docs/openapi.yaml')
 
-app.set("trust proxy", 1)
+app.set('trust proxy', 1)
 app.use(requestId)
 app.use(cookieParser())
 app.use(requestLogger)
@@ -41,14 +41,14 @@ app.use(helmet())
 
 app.use(
   cors({
-    origin: env.CORS_ORIGIN === "*" ? true : env.CORS_ORIGIN,
+    origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN,
     credentials: true,
-  }),
+  })
 )
 
 app.use(hpp())
 app.use(compression())
-app.use(express.json({ limit: "1mb" }))
+app.use(express.json({ limit: '1mb' }))
 app.use(prometheusMiddleware)
 
 const metricsTokenMatches = (providedToken) => {
@@ -65,18 +65,18 @@ const metricsTokenMatches = (providedToken) => {
   )
 }
 
-app.get("/metrics", (req, res, next) => {
-  if (env.NODE_ENV !== "production" && !env.METRICS_TOKEN) {
+app.get('/metrics', (req, res, next) => {
+  if (env.NODE_ENV !== 'production' && !env.METRICS_TOKEN) {
     return metricsHandler(req, res, next)
   }
 
-  const authorization = req.get("authorization") || ""
-  const [scheme, token] = authorization.split(" ")
+  const authorization = req.get('authorization') || ''
+  const [scheme, token] = authorization.split(' ')
 
-  if (scheme !== "Bearer" || !metricsTokenMatches(token)) {
+  if (scheme !== 'Bearer' || !metricsTokenMatches(token)) {
     return res.status(401).json({
       success: false,
-      message: "Unauthorized.",
+      message: 'Unauthorized.',
       errors: [],
     })
   }
@@ -84,54 +84,68 @@ app.get("/metrics", (req, res, next) => {
   return metricsHandler(req, res, next)
 })
 
-app.get("/health/live", (_req, res) => {
+app.get('/health/live', (_req, res) => {
   res.status(200).json({
     success: true,
-    status: "ok",
+    status: 'ok',
   })
 })
 
-app.get("/health/ready", async (_req, res) => {
+app.get('/health/ready', async (_req, res) => {
   const checks = {}
   let ready = true
 
   try {
     const prisma = getPrismaClient()
     const startedAt = process.hrtime.bigint()
-    await withTimeout(prisma.$queryRaw`SELECT 1`, 2000, "Database readiness check timed out")
-    recordDependencyLatency("database", Number(process.hrtime.bigint() - startedAt) / 1_000_000_000)
-    recordDependencyHealth("database", true)
-    checks.database = "ok"
-  } catch (error) {
+    await withTimeout(
+      prisma.$queryRaw`SELECT 1`,
+      2000,
+      'Database readiness check timed out'
+    )
+    recordDependencyLatency(
+      'database',
+      Number(process.hrtime.bigint() - startedAt) / 1_000_000_000
+    )
+    recordDependencyHealth('database', true)
+    checks.database = 'ok'
+  } catch {
     ready = false
-    recordDependencyHealth("database", false)
-    checks.database = "error"
+    recordDependencyHealth('database', false)
+    checks.database = 'error'
   }
 
   try {
     const startedAt = process.hrtime.bigint()
-    const redis = await withTimeout(connectRedis(), 2000, "Redis connection timed out")
-    await withTimeout(redis.ping(), 2000, "Redis readiness check timed out")
-    recordDependencyLatency("redis", Number(process.hrtime.bigint() - startedAt) / 1_000_000_000)
-    recordDependencyHealth("redis", true)
-    checks.redis = "ok"
-  } catch (error) {
+    const redis = await withTimeout(
+      connectRedis(),
+      2000,
+      'Redis connection timed out'
+    )
+    await withTimeout(redis.ping(), 2000, 'Redis readiness check timed out')
+    recordDependencyLatency(
+      'redis',
+      Number(process.hrtime.bigint() - startedAt) / 1_000_000_000
+    )
+    recordDependencyHealth('redis', true)
+    checks.redis = 'ok'
+  } catch {
     ready = false
-    recordDependencyHealth("redis", false)
-    checks.redis = "error"
+    recordDependencyHealth('redis', false)
+    checks.redis = 'error'
   }
 
   return res.status(ready ? 200 : 503).json({
     success: ready,
-    status: ready ? "ok" : "not_ready",
+    status: ready ? 'ok' : 'not_ready',
     checks,
   })
 })
 
-app.get("/health", (_req, res) => {
+app.get('/health', (_req, res) => {
   res.status(200).json({
     success: true,
-    message: "Service is healthy.",
+    message: 'Service is healthy.',
     data: {
       uptime: process.uptime(),
     },
@@ -140,15 +154,11 @@ app.get("/health", (_req, res) => {
 
 app.use(rateLimiter)
 
-if (env.NODE_ENV !== "production") {
-  app.use(
-    "/docs",
-    swaggerUi.serve,
-    swaggerUi.setup(openApiSpec),
-  )
+if (env.NODE_ENV !== 'production') {
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec))
 }
 
-app.use("/api/v1", apiRoutes)
+app.use('/api/v1', apiRoutes)
 app.use(notFound)
 app.use(errorHandler)
 

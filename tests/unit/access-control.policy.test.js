@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 const {
   ownershipPolicy,
   anyPolicy,
@@ -28,7 +28,7 @@ describe('access-control policies', () => {
         policy,
         user: { id: 10 },
         resource: { ownerId: 10 },
-      })
+      }),
     ).resolves.toBe(true)
   })
 })

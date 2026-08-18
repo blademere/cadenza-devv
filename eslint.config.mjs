@@ -17,4 +17,18 @@ export default defineConfig([
       sourceType: 'commonjs',
     },
   },
+  {
+    files: ['tests/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      sourceType: 'module',
+    },
+  },
+  {
+    rules: {
+      'no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', caughtErrors: 'none' },
+      ],
+    },
+  },
 ])
