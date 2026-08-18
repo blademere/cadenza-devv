@@ -2,7 +2,7 @@ const { spawnSync } = require('node:child_process');
 
 const ALLOWED_ADVISORIES = new Set([
   'GHSA-ggr8-5vv4-36mx',
-  'GHSA-5p4m-2wfm-xmqj',
+  'GHSA-5p4m-2wfm-xmq',
 ]);
 
 const result = spawnSync('npm', ['audit', '--audit-level=high', '--json'], {
@@ -19,6 +19,7 @@ try {
 }
 
 const vulnerabilities = Object.entries(report.vulnerabilities || {});
+const vulnerabilityMap = new Map(vulnerabilities);
 let allowedCount = 0;
 
 const getAdvisoryIds = (advisory) => {
@@ -35,21 +36,34 @@ const getAdvisoryIds = (advisory) => {
   });
 };
 
-const blocking = vulnerabilities.filter(([_name, advisory]) => {
+const hasAllowedAdvisory = (name, seen = new Set()) => {
+  if (seen.has(name)) return false;
+  seen.add(name);
+
+  const advisory = vulnerabilityMap.get(name);
+  if (!advisory) return false;
+
+  if (getAdvisoryIds(advisory).some((id) => ALLOWED_ADVISORIES.has(id))) {
+    return true;
+  }
+
+  const via = Array.isArray(advisory.via) ? advisory.via : [];
+  return via.some((entry) => typeof entry === 'string' && hasAllowedAdvisory(entry, seen));
+};
+
+const blocking = vulnerabilities.filter(([name, advisory]) => {
   if (advisory.severity !== 'high' && advisory.severity !== 'critical') return false;
 
-  const advisoryIds = getAdvisoryIds(advisory);
-  const allowed = advisoryIds.some((id) => ALLOWED_ADVISORIES.has(id));
-
+  const allowed = hasAllowedAdvisory(name);
   if (allowed) allowedCount += 1;
   return !allowed;
 });
 
 for (const [name, advisory] of vulnerabilities) {
-  const advisoryIds = getAdvisoryIds(advisory);
-  const allowed = advisoryIds.some((id) => ALLOWED_ADVISORIES.has(id));
+  const allowed = hasAllowedAdvisory(name);
   const isBlocking = blocking.some(([blockingName]) => blockingName === name);
   const marker = allowed ? 'ALLOW' : isBlocking ? 'BLOCK' : 'INFO';
+  const advisoryIds = getAdvisoryIds(advisory);
   const ids = advisoryIds.length > 0 ? ` [${advisoryIds.join(', ')}]` : '';
   process.stdout.write(
     `${marker} ${advisory.severity}: ${name} (${advisory.isDirect ? 'direct' : 'transitive'})${ids}\n`,
