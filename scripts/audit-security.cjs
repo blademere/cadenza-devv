@@ -1,8 +1,8 @@
 const { spawnSync } = require('node:child_process');
 
 const ALLOWED_ADVISORIES = new Set([
-  'GHSA-ggr8-5vv4-36mx',
-  'GHSA-5p4m-2wfm-xmq',
+  'GHSA-GGR8-5VV4-36MX',
+  'GHSA-5P4M-2WFM-XMQ',
 ]);
 
 const result = spawnSync('npm', ['audit', '--audit-level=high', '--json'], {
@@ -23,7 +23,7 @@ const vulnerabilityMap = new Map(vulnerabilities);
 let allowedCount = 0;
 
 const getAdvisoryIds = (advisory) => {
-  const via = Array.isArray(advisory.via) ? advisory.via : [];
+  const via = Array.isArray(advisory?.via) ? advisory.via : [];
   return via.flatMap((entry) => {
     if (typeof entry !== 'object' || !entry) return [];
     const ids = [];
@@ -47,7 +47,7 @@ const hasAllowedAdvisory = (name, seen = new Set()) => {
     return true;
   }
 
-  const via = Array.isArray(advisory.via) ? advisory.via : [];
+  const via = Array.isArray(advisory?.via) ? advisory.via : [];
   return via.some((entry) => typeof entry === 'string' && hasAllowedAdvisory(entry, seen));
 };
 
