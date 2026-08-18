@@ -36,6 +36,8 @@ const envSchema = z.object({
   OAUTH_DEFAULT_ROLE_NAME: z.string().min(1).default('client'),
   OAUTH_FRONTEND_SUCCESS_URL: z.url().default('http://localhost:5173/auth/callback/success'),
   OAUTH_FRONTEND_FAILURE_URL: z.url().default('http://localhost:5173/auth/callback/failure'),
+  STORAGE_PROVIDER: z.enum(['local']).default('local'),
+  STORAGE_LOCAL_ROOT: z.string().min(1).default('./storage'),
 })
 
 const parsed = envSchema.safeParse(process.env)
