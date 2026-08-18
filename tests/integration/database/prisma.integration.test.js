@@ -1,5 +1,6 @@
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 
+const { randomUUID } = require('node:crypto')
 const { getPrismaClient } = require('../../../src/infrastructure/database/prisma')
 const {
   getUserPermissions,
@@ -150,6 +151,7 @@ describeIfEnabled('Prisma/PostgreSQL integration', () => {
     const tokenHash = `integration-refresh-${Date.now()}-${Math.random().toString(36).slice(2)}`
     const token = await prisma.refreshToken.create({
       data: {
+        id: randomUUID(),
         tokenHash,
         userId,
         expiresAt: new Date(Date.now() + 60_000),
@@ -170,6 +172,7 @@ describeIfEnabled('Prisma/PostgreSQL integration', () => {
     const userId = createdUserIds[0]
     const original = await prisma.refreshToken.create({
       data: {
+        id: randomUUID(),
         tokenHash: `integration-rotate-old-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         userId,
         expiresAt: new Date(Date.now() + 60_000),
@@ -177,6 +180,7 @@ describeIfEnabled('Prisma/PostgreSQL integration', () => {
     })
     const replacement = await prisma.refreshToken.create({
       data: {
+        id: randomUUID(),
         tokenHash: `integration-rotate-new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         userId,
         expiresAt: new Date(Date.now() + 60_000),
