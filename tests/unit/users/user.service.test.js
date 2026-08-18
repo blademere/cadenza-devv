@@ -1,22 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const bcrypt = vi.hoisted(() => ({ hash: vi.fn() }))
-const users = vi.hoisted(() => ({
-  findAllUsers: vi.fn(),
-  createUser: vi.fn(),
-}))
-const auth = vi.hoisted(() => ({ findUserByEmail: vi.fn() }))
-const accessControl = vi.hoisted(() => ({
-  findRoleById: vi.fn(),
-  getUserAuthorizationContext: vi.fn(),
-}))
-const mapper = vi.hoisted(() => ({ toUserResponse: vi.fn((user) => user) }))
+const bcrypt = require('bcrypt')
+const users = require('../../../src/features/users/user.repository.js')
+const auth = require('../../../src/features/auth/auth.repository.js')
+const accessControl = require('../../../src/features/access-control/access-control.repository.js')
+const mapper = require('../../../src/features/users/user.mapper.js')
 
-vi.mock('bcrypt', () => ({ default: bcrypt, hash: bcrypt.hash }))
-vi.mock('../../../src/features/users/user.repository.js', () => users)
-vi.mock('../../../src/features/auth/auth.repository.js', () => auth)
-vi.mock('../../../src/features/access-control/access-control.repository.js', () => accessControl)
-vi.mock('../../../src/features/users/user.mapper.js', () => mapper)
+vi.spyOn(bcrypt, 'hash')
+vi.spyOn(users, 'findAllUsers')
+vi.spyOn(users, 'createUser')
+vi.spyOn(auth, 'findUserByEmail')
+vi.spyOn(accessControl, 'findRoleById')
+vi.spyOn(accessControl, 'getUserAuthorizationContext')
+vi.spyOn(mapper, 'toUserResponse')
 
 const { registerUser } = await import('../../../src/features/users/user.service.js')
 
@@ -25,6 +21,7 @@ beforeEach(() => {
   bcrypt.hash.mockResolvedValue('hashed-password')
   auth.findUserByEmail.mockResolvedValue(null)
   users.createUser.mockResolvedValue({ id: 100, email: 'new@example.com', roleId: 2 })
+  mapper.toUserResponse.mockImplementation((user) => user)
 })
 
 describe('user role assignment', () => {
