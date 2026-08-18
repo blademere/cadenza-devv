@@ -5,13 +5,41 @@ const {
 } = require('../../common/errors/appError')
 const { prisma } = require('../../infrastructure/database/prisma')
 
-const assertCondition = (condition) => {
+const MAX_CONDITION_DEPTH = 8
+
+const assertCondition = (condition, fieldKeys = null, depth = 0) => {
   if (condition == null || condition === '') return true
+  if (depth > MAX_CONDITION_DEPTH)
+    throw new BadRequestError('Document requirement condition is too deeply nested.')
   if (typeof condition !== 'object' || Array.isArray(condition))
-    throw new BadRequestError(
-      'Document requirement condition must be an object.'
-    )
-  return true
+    throw new BadRequestError('Document requirement condition must be an object.')
+
+  if (Object.prototype.hasOwnProperty.call(condition, 'field')) {
+    if (typeof condition.field !== 'string' || !condition.field.trim())
+      throw new BadRequestError('Document requirement condition field is invalid.')
+    if (fieldKeys && !fieldKeys.has(condition.field))
+      throw new BadRequestError(
+        `Referenced form field '${condition.field}' does not exist.`
+      )
+    if (typeof condition.operator !== 'string' || !condition.operator.trim())
+      throw new BadRequestError('Document requirement condition operator is required.')
+    return true
+  }
+
+  if (Object.prototype.hasOwnProperty.call(condition, 'not')) {
+    return assertCondition(condition.not, fieldKeys, depth + 1)
+  }
+
+  for (const key of ['all', 'any']) {
+    if (Object.prototype.hasOwnProperty.call(condition, key)) {
+      if (!Array.isArray(condition[key]) || condition[key].length === 0)
+        throw new BadRequestError(`Document requirement '${key}' conditions cannot be empty.`)
+      for (const child of condition[key]) assertCondition(child, fieldKeys, depth + 1)
+      return true
+    }
+  }
+
+  throw new BadRequestError('Document requirement condition is invalid.')
 }
 
 const validateRequirementDefinition = (
@@ -26,11 +54,11 @@ const validateRequirementDefinition = (
     fieldKey = null,
     sortOrder = 0,
   },
-  fieldKeys = null
+  fieldKeys = null,
 ) => {
   if (typeof name !== 'string' || !name.trim())
     throw new BadRequestError('Document requirement name is required.')
-  if (!Number.isInteger(documentTypeId) || documentTypeId <= 0)
+  if (typeof documentTypeId !== 'string' || !documentTypeId.trim())
     throw new BadRequestError('Document type is invalid.')
   if (!Array.isArray(allowedFileTypes) || allowedFileTypes.length === 0)
     throw new BadRequestError('At least one allowed file type is required.')
@@ -39,20 +67,25 @@ const validateRequirementDefinition = (
     (!Number.isSafeInteger(Number(maxSizeBytes)) || Number(maxSizeBytes) <= 0)
   )
     throw new BadRequestError('Maximum file size is invalid.')
-  assertCondition(condition)
+  assertCondition(condition, fieldKeys)
   if (fieldKey != null && fieldKeys && !fieldKeys.has(fieldKey))
     throw new BadRequestError(
-      `Referenced form field '${fieldKey}' does not exist.`
+      `Referenced form field '${fieldKey}' does not exist.`,
     )
-  const types = allowedFileTypes
-    .map((item) => String(item).trim().toLowerCase())
-    .filter(Boolean)
+  const types = [...new Set(
+    allowedFileTypes
+      .map((item) => {
+        const normalized = String(item).trim().toLowerCase()
+        return normalized === 'pdf' ? '.pdf' : normalized
+      })
+      .filter(Boolean),
+  )]
   if (!types.length)
     throw new BadRequestError('At least one allowed file type is required.')
   const allowedSources = ['CLIENT', 'STAFF', 'SYSTEM', 'EXTERNAL']
   if (!allowedSources.includes(source))
     throw new BadRequestError(
-      `Unsupported document requirement source '${source}'.`
+      `Unsupported document requirement source '${source}'.`,
     )
   return {
     name: name.trim(),
@@ -93,14 +126,20 @@ const getParentVersion = async ({
     include: { steps: { select: { key: true } } },
   })
   if (!version) throw new NotFoundError('Workflow version was not found.')
-  return { kind: 'workflow', version, fieldKeys: null }
+  return {
+    kind: 'workflow',
+    version,
+    fieldKeys: new Set(version.steps.map((step) => step.key)),
+  }
 }
+
 const assertDraft = (version) => {
   if (version.status !== 'DRAFT')
     throw new ConflictError(
-      'Published or archived configurations are immutable.'
+      'Published or archived configurations are immutable.',
     )
 }
+
 const createRequirement = async ({
   formVersionId = null,
   workflowVersionId = null,
@@ -113,6 +152,7 @@ const createRequirement = async ({
     data: { ...data, formVersionId, workflowVersionId },
   })
 }
+
 const updateRequirement = async ({ id, ...input }) => {
   const existing = await prisma.documentRequirement.findUnique({
     where: { id },
@@ -125,10 +165,11 @@ const updateRequirement = async ({ id, ...input }) => {
   assertDraft(parent.version)
   const data = validateRequirementDefinition(
     { ...existing, ...input },
-    parent.fieldKeys
+    parent.fieldKeys,
   )
   return prisma.documentRequirement.update({ where: { id }, data })
 }
+
 const deleteRequirement = async ({ id }) => {
   const existing = await prisma.documentRequirement.findUnique({
     where: { id },
@@ -141,6 +182,7 @@ const deleteRequirement = async ({ id }) => {
   assertDraft(parent.version)
   return prisma.documentRequirement.delete({ where: { id } })
 }
+
 const validateUploadedFile = ({
   requirement,
   mimeType,
@@ -163,18 +205,19 @@ const validateUploadedFile = ({
       ? (extension.startsWith('.') ? extension : `.${extension}`).toLowerCase()
       : ''
   const allowed = requirement.allowedFileTypes.map((item) =>
-    String(item).toLowerCase()
+    String(item).toLowerCase(),
   )
   const accepted = allowed.some(
     (type) =>
       type === normalizedMime ||
       type === normalizedExtension ||
-      (type.endsWith('/*') && normalizedMime.startsWith(type.slice(0, -1)))
+      (type.endsWith('/*') && normalizedMime.startsWith(type.slice(0, -1))),
   )
   if (!accepted)
     throw new BadRequestError('File type is not allowed for this requirement.')
   return true
 }
+
 module.exports = {
   validateRequirementDefinition,
   assertCondition,
