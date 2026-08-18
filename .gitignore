@@ -12,6 +12,9 @@ node_modules/
 dist/
 build/
 
+# Runtime document storage
+storage/documents/
+
 # Logs
 logs/
 *.log

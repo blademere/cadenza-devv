@@ -13,6 +13,7 @@ model User {
   formSubmissions FormSubmission[] @relation("FormSubmissionSubmittedBy")
   approvalRequests ApprovalRequest[] @relation("ApprovalRequestAssignee")
   approvalActions ApprovalRequest[] @relation("ApprovalRequestActor")
+  documents Document[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([roleId])
