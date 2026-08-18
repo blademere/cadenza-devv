@@ -102,7 +102,7 @@ app.get("/health/ready", async (_req, res) => {
     recordDependencyLatency("database", Number(process.hrtime.bigint() - startedAt) / 1_000_000_000)
     recordDependencyHealth("database", true)
     checks.database = "ok"
-  } catch (error) {
+  } catch {
     ready = false
     recordDependencyHealth("database", false)
     checks.database = "error"
@@ -115,7 +115,7 @@ app.get("/health/ready", async (_req, res) => {
     recordDependencyLatency("redis", Number(process.hrtime.bigint() - startedAt) / 1_000_000_000)
     recordDependencyHealth("redis", true)
     checks.redis = "ok"
-  } catch (error) {
+  } catch {
     ready = false
     recordDependencyHealth("redis", false)
     checks.redis = "error"

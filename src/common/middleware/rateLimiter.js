@@ -28,7 +28,7 @@ const rateLimiter = async (req, res, next) => {
     }
 
     return next()
-  } catch (error) {
+  } catch {
     if (env.NODE_ENV !== "production") {
       return next()
     }

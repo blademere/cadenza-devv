@@ -53,7 +53,7 @@ const processOutbox = async ({ batchSize = 50, leaseSeconds } = {}) => {
       try {
         await markFailed(item.id, error, item.lockToken)
       } catch (ownershipError) {
-        error = new Error(`${error?.message || error}; outbox ownership was lost: ${ownershipError.message}`)
+        logger.error({ err: ownershipError, originalError: error, eventId: item.id }, "Failed to mark outbox event after processing error")
       }
       failed += 1
     }

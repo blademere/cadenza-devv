@@ -1,0 +1,194 @@
+name: CI / Production Readiness
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      staging:
+        description: Run the ephemeral staging smoke environment
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  quality:
+    name: Lint, format, tests, coverage, audit
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: express_app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d express_app_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app_test
+      REDIS_URL: redis://localhost:6379
+      PRISMA_GENERATE_SKIP_AUTOINSTALL: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Formatting check
+        run: npm run format:check
+
+      - name: Prisma validation
+        run: npx prisma validate --schema=prisma/schema.prisma
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=prisma/schema.prisma
+
+      - name: Apply database migrations
+        run: npx prisma migrate deploy --schema=prisma/schema.prisma
+
+      - name: Run tests
+        run: npm test
+
+      - name: Install coverage provider
+        run: npm install --no-save --ignore-scripts @vitest/coverage-v8@4.1.10
+
+      - name: Run coverage gate
+        run: npm run test:coverage
+
+      - name: Dependency vulnerability audit
+        run: npm audit --audit-level=high
+
+  docker:
+    name: Build production Docker image
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: express-app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  staging:
+    name: Ephemeral staging smoke test
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'workflow_dispatch' && inputs.staging
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: express_app_staging
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d express_app_staging"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build staging image
+        run: docker build -t express-app:staging .
+
+      - name: Start staging container
+        run: |
+          docker run -d --name express-app-staging --network host \
+            -e NODE_ENV=production \
+            -e PORT=3000 \
+            -e DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/express_app_staging \
+            -e REDIS_URL=redis://127.0.0.1:6379 \
+            -e CORS_ORIGIN=https://staging.example.invalid \
+            -e JWT_ACCESS_SECRET=staging-access-secret-012345678901234567890123 \
+            -e JWT_REFRESH_SECRET=staging-refresh-secret-012345678901234567890123 \
+            -e METRICS_TOKEN=staging-metrics-token-012345678901234567890123 \
+            -e COOKIE_SECURE=true \
+            -e COOKIE_SAME_SITE=lax \
+            -e COOKIE_REFRESH_MAX_AGE_MS=604800000 \
+            express-app:staging
+
+      - name: Wait for liveness
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/health/live; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs express-app-staging
+          exit 1
+
+      - name: Verify production docs are disabled
+        run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/docs)" = "404"
+
+      - name: Verify metrics authentication
+        run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/metrics)" = "401"
+
+      - name: Cleanup staging container
+        if: always()
+        run: |
+          docker logs express-app-staging || true
+          docker rm -f express-app-staging || true
