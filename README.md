@@ -2,6 +2,8 @@
 
 A CommonJS Express 5 API with PostgreSQL/Prisma, Redis-backed infrastructure, authentication, OAuth, and permission-based access control.
 
+> **Personal foundation:** This repository is maintained as a reusable backend foundation for my own projects. It intentionally keeps strong opinions about the stack and infrastructure instead of trying to be a generic Express boilerplate for everyone.
+
 > **Current scope:** This README describes the functionality that is implemented in the repository today. It intentionally does not describe the broader platform architecture or future modules that are not currently exposed through the application routes.
 
 ## Implemented features
@@ -174,6 +176,42 @@ Database migrations:
 npm run prisma:migrate
 npm run prisma:migrate:deploy
 ```
+
+## Starting a new personal project
+
+This repository is intended to be used as my personal backend foundation. After creating a new repository from this GitHub template, run the initializer once from the project root:
+
+```bash
+npm run init
+```
+
+It asks for:
+
+```text
+Project name: Building Permit System
+Package name: building-permit-system
+Database name: building_permit
+Port: 3000
+```
+
+The initializer then:
+
+- Updates `package.json` with the new package name and project description.
+- Creates `.env` from `.env.example`.
+- Sets the selected port and PostgreSQL database name.
+- Generates fresh development JWT access, refresh, and metrics secrets.
+- Refuses to overwrite an existing `.env` file.
+
+After initialization:
+
+```bash
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run dev
+```
+
+`.env` is ignored by Git. Keep `.env.example` as the safe configuration template and never commit production secrets.
 
 ## API documentation
 
