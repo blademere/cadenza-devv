@@ -136,6 +136,7 @@ describe('Auth/Access Control integration', () => {
       action: 'create',
     })
     expect(registerUser).toHaveBeenCalledWith({
+      requesterId: 42,
       email: 'new@example.com',
       roleId: 2,
       password: 'password123',

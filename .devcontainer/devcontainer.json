@@ -16,7 +16,8 @@
         "hbenl.vscode-test-explorer",
         "zhucy.project-tree",
         "SyedAbdullah.context-merger",
-        "postman.postman-for-vscode"
+        "postman.postman-for-vscode",
+        "vitest.explorer"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
