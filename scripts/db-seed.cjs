@@ -13,6 +13,7 @@ const modules = [
   ['documents', 'Documents'],
   ['inspections', 'Inspections'],
   ['reports', 'Reports'],
+  ['appointments', 'Appointments'],
 ]
 
 const permissions = [
@@ -22,6 +23,8 @@ const permissions = [
   ['documents', 'read'], ['documents', 'upload'], ['documents', 'delete'],
   ['inspections', 'read'], ['inspections', 'create'], ['inspections', 'update'],
   ['reports', 'read'],
+  ['appointments', 'read'], ['appointments', 'create'], ['appointments', 'update'],
+  ['appointments', 'cancel'], ['appointments', 'check_in'], ['appointments', 'manage'],
 ]
 
 async function seed() {
