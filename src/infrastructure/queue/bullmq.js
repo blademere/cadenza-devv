@@ -34,7 +34,7 @@ const createBullMqInfrastructure = ({
             removeOnComplete: { age: 86400, count: 1000 },
             removeOnFail: false,
           },
-        }),
+        })
       )
     }
 
@@ -75,19 +75,19 @@ const createBullMqInfrastructure = ({
     worker.on('completed', (job) => {
       loggerInstance.info(
         { queue: queueName, jobId: job.id },
-        'BullMQ job completed',
+        'BullMQ job completed'
       )
     })
     worker.on('failed', (job, error) => {
       loggerInstance.error(
         { queue: queueName, jobId: job?.id, err: error },
-        'BullMQ job failed',
+        'BullMQ job failed'
       )
     })
     worker.on('error', (error) => {
       loggerInstance.error(
         { queue: queueName, err: error },
-        'BullMQ worker error',
+        'BullMQ worker error'
       )
     })
 

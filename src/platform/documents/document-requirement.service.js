@@ -12,21 +12,27 @@ const assertCondition = (condition, fieldKeys = null, depth = 0) => {
   if (condition == null || condition === '') return true
   if (depth > MAX_CONDITION_DEPTH) {
     throw new BadRequestError(
-      'Document requirement condition is too deeply nested.',
+      'Document requirement condition is too deeply nested.'
     )
   }
   if (typeof condition !== 'object' || Array.isArray(condition))
-    throw new BadRequestError('Document requirement condition must be an object.')
+    throw new BadRequestError(
+      'Document requirement condition must be an object.'
+    )
 
   if (Object.prototype.hasOwnProperty.call(condition, 'field')) {
     if (typeof condition.field !== 'string' || !condition.field.trim())
-      throw new BadRequestError('Document requirement condition field is invalid.')
+      throw new BadRequestError(
+        'Document requirement condition field is invalid.'
+      )
     if (fieldKeys && !fieldKeys.has(condition.field))
       throw new BadRequestError(
-        `Referenced form field '${condition.field}' does not exist.`,
+        `Referenced form field '${condition.field}' does not exist.`
       )
     if (typeof condition.operator !== 'string' || !condition.operator.trim())
-      throw new BadRequestError('Document requirement condition operator is required.')
+      throw new BadRequestError(
+        'Document requirement condition operator is required.'
+      )
     return true
   }
 
@@ -38,7 +44,7 @@ const assertCondition = (condition, fieldKeys = null, depth = 0) => {
     if (Object.prototype.hasOwnProperty.call(condition, key)) {
       if (!Array.isArray(condition[key]) || condition[key].length === 0)
         throw new BadRequestError(
-          `Document requirement '${key}' conditions cannot be empty.`,
+          `Document requirement '${key}' conditions cannot be empty.`
         )
       for (const child of condition[key]) {
         assertCondition(child, fieldKeys, depth + 1)
@@ -62,7 +68,7 @@ const validateRequirementDefinition = (
     fieldKey = null,
     sortOrder = 0,
   },
-  fieldKeys = null,
+  fieldKeys = null
 ) => {
   if (typeof name !== 'string' || !name.trim())
     throw new BadRequestError('Document requirement name is required.')
@@ -80,7 +86,7 @@ const validateRequirementDefinition = (
   assertCondition(condition, fieldKeys)
   if (fieldKey != null && fieldKeys && !fieldKeys.has(fieldKey))
     throw new BadRequestError(
-      `Referenced form field '${fieldKey}' does not exist.`,
+      `Referenced form field '${fieldKey}' does not exist.`
     )
   const types = [
     ...new Set(
@@ -89,7 +95,7 @@ const validateRequirementDefinition = (
           const normalized = String(item).trim().toLowerCase()
           return normalized === 'pdf' ? '.pdf' : normalized
         })
-        .filter(Boolean),
+        .filter(Boolean)
     ),
   ]
   if (!types.length)
@@ -97,7 +103,7 @@ const validateRequirementDefinition = (
   const allowedSources = ['CLIENT', 'STAFF', 'SYSTEM', 'EXTERNAL']
   if (!allowedSources.includes(source))
     throw new BadRequestError(
-      `Unsupported document requirement source '${source}'.`,
+      `Unsupported document requirement source '${source}'.`
     )
   return {
     name: name.trim(),
@@ -148,7 +154,7 @@ const getParentVersion = async ({
 const assertDraft = (version) => {
   if (version.status !== 'DRAFT')
     throw new ConflictError(
-      'Published or archived configurations are immutable.',
+      'Published or archived configurations are immutable.'
     )
 }
 
@@ -177,7 +183,7 @@ const updateRequirement = async ({ id, ...input }) => {
   assertDraft(parent.version)
   const data = validateRequirementDefinition(
     { ...existing, ...input },
-    parent.fieldKeys,
+    parent.fieldKeys
   )
   return prisma.documentRequirement.update({ where: { id }, data })
 }
@@ -217,13 +223,13 @@ const validateUploadedFile = ({
       ? (extension.startsWith('.') ? extension : `.${extension}`).toLowerCase()
       : ''
   const allowed = requirement.allowedFileTypes.map((item) =>
-    String(item).toLowerCase(),
+    String(item).toLowerCase()
   )
   const accepted = allowed.some(
     (type) =>
       type === normalizedMime ||
       type === normalizedExtension ||
-      (type.endsWith('/*') && normalizedMime.startsWith(type.slice(0, -1))),
+      (type.endsWith('/*') && normalizedMime.startsWith(type.slice(0, -1)))
   )
   if (!accepted)
     throw new BadRequestError('File type is not allowed for this requirement.')

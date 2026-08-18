@@ -1,5 +1,5 @@
-const Sentry = require("@sentry/node")
-const { env } = require("../../config")
+const Sentry = require('@sentry/node')
+const { env } = require('../../config')
 
 let initialized = false
 
@@ -34,7 +34,7 @@ const captureException = (error, context = {}) => {
     }
 
     if (context.request) {
-      scope.setContext("request", context.request)
+      scope.setContext('request', context.request)
     }
 
     Sentry.captureException(error)

@@ -1,5 +1,5 @@
-const { createClient } = require("redis")
-const { env, logger } = require("../../config")
+const { createClient } = require('redis')
+const { env, logger } = require('../../config')
 
 let redisClient
 
@@ -12,8 +12,8 @@ const getRedisClient = () => {
       },
     })
 
-    redisClient.on("error", (error) => {
-      logger.error({ err: error }, "Redis client error")
+    redisClient.on('error', (error) => {
+      logger.error({ err: error }, 'Redis client error')
     })
   }
 

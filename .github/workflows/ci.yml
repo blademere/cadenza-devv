@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   quality:
-    name: Lint, tests, coverage, audit
+    name: Lint, tests, coverage
     runs-on: ubuntu-latest
 
     services:

@@ -24,8 +24,10 @@ const sanitizeJson = (value) => {
   return Object.fromEntries(
     Object.entries(value).map(([key, entry]) => [
       key,
-      SENSITIVE_KEYS.has(key.toLowerCase()) ? '[REDACTED]' : sanitizeJson(entry),
-    ]),
+      SENSITIVE_KEYS.has(key.toLowerCase())
+        ? '[REDACTED]'
+        : sanitizeJson(entry),
+    ])
   )
 }
 

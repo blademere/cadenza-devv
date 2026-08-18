@@ -1,5 +1,5 @@
-const { randomUUID } = require("node:crypto")
-const { getPrismaClient } = require("../../infrastructure/database/prisma")
+const { randomUUID } = require('node:crypto')
+const { getPrismaClient } = require('../../infrastructure/database/prisma')
 
 const prisma = getPrismaClient()
 const MAX_EVENT_DEPTH = 10
@@ -19,9 +19,18 @@ const enqueueEvent = async ({
   idempotencyKey = null,
   availableAt = new Date(),
 }) => {
-  if (!event) throw new Error("event is required")
-  if (depth > MAX_EVENT_DEPTH) throw new Error(`Maximum event depth of ${MAX_EVENT_DEPTH} exceeded.`)
-  if (idempotencyKey !== null && (typeof idempotencyKey !== "string" || idempotencyKey.length === 0 || idempotencyKey.length > 512)) throw new Error("idempotencyKey must be a non-empty string of at most 512 characters.")
+  if (!event) throw new Error('event is required')
+  if (depth > MAX_EVENT_DEPTH)
+    throw new Error(`Maximum event depth of ${MAX_EVENT_DEPTH} exceeded.`)
+  if (
+    idempotencyKey !== null &&
+    (typeof idempotencyKey !== 'string' ||
+      idempotencyKey.length === 0 ||
+      idempotencyKey.length > 512)
+  )
+    throw new Error(
+      'idempotencyKey must be a non-empty string of at most 512 characters.'
+    )
 
   const id = randomUUID()
   const payload = {
@@ -52,9 +61,19 @@ const enqueueEvent = async ({
   return rows[0]
 }
 
-const claimBatch = async ({ batchSize = 50, now = new Date(), leaseSeconds = DEFAULT_LEASE_SECONDS } = {}) => {
-  if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 1000) throw new Error("batchSize must be an integer between 1 and 1000.")
-  if (!Number.isInteger(leaseSeconds) || leaseSeconds < 1 || leaseSeconds > 86400) throw new Error("leaseSeconds must be an integer between 1 and 86400.")
+const claimBatch = async ({
+  batchSize = 50,
+  now = new Date(),
+  leaseSeconds = DEFAULT_LEASE_SECONDS,
+} = {}) => {
+  if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 1000)
+    throw new Error('batchSize must be an integer between 1 and 1000.')
+  if (
+    !Number.isInteger(leaseSeconds) ||
+    leaseSeconds < 1 ||
+    leaseSeconds > 86400
+  )
+    throw new Error('leaseSeconds must be an integer between 1 and 86400.')
 
   const rows = await prisma.$queryRaw`
     WITH candidates AS (
@@ -83,17 +102,20 @@ const claimBatch = async ({ batchSize = 50, now = new Date(), leaseSeconds = DEF
 }
 
 const markProcessed = async (id, lockToken) => {
-  if (!lockToken) throw new Error("lockToken is required to complete an outbox event.")
+  if (!lockToken)
+    throw new Error('lockToken is required to complete an outbox event.')
   const result = await prisma.$executeRaw`
     UPDATE "EventOutbox"
     SET "status" = 'PROCESSED', "processedAt" = CURRENT_TIMESTAMP, "lockedAt" = NULL, "leaseUntil" = NULL, "lockToken" = NULL, "lastError" = NULL, "updatedAt" = CURRENT_TIMESTAMP
     WHERE "id" = ${id} AND "status" = 'PROCESSING' AND "lockToken" = ${lockToken}
   `
-  if (result !== 1) throw new Error("Outbox event was no longer owned by this worker.")
+  if (result !== 1)
+    throw new Error('Outbox event was no longer owned by this worker.')
 }
 
 const markFailed = async (id, error, lockToken) => {
-  if (!lockToken) throw new Error("lockToken is required to fail an outbox event.")
+  if (!lockToken)
+    throw new Error('lockToken is required to fail an outbox event.')
   const safeError = String(error?.message || error).slice(0, 4000)
   const result = await prisma.$executeRaw`
     UPDATE "EventOutbox"
@@ -107,11 +129,19 @@ const markFailed = async (id, error, lockToken) => {
       "updatedAt" = CURRENT_TIMESTAMP
     WHERE "id" = ${id} AND "status" = 'PROCESSING' AND "lockToken" = ${lockToken}
   `
-  if (result !== 1) throw new Error("Outbox event was no longer owned by this worker.")
+  if (result !== 1)
+    throw new Error('Outbox event was no longer owned by this worker.')
 }
 
-const recoverStale = async ({ timeoutSeconds = DEFAULT_LEASE_SECONDS } = {}) => {
-  if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 1 || timeoutSeconds > 86400) throw new Error("timeoutSeconds must be an integer between 1 and 86400.")
+const recoverStale = async ({
+  timeoutSeconds = DEFAULT_LEASE_SECONDS,
+} = {}) => {
+  if (
+    !Number.isInteger(timeoutSeconds) ||
+    timeoutSeconds < 1 ||
+    timeoutSeconds > 86400
+  )
+    throw new Error('timeoutSeconds must be an integer between 1 and 86400.')
   return prisma.$executeRaw`
     UPDATE "EventOutbox"
     SET "status" = 'RETRY', "lockedAt" = NULL, "leaseUntil" = NULL, "lockToken" = NULL, "availableAt" = CURRENT_TIMESTAMP, "lastError" = COALESCE("lastError", 'Recovered stale event lease'), "updatedAt" = CURRENT_TIMESTAMP
