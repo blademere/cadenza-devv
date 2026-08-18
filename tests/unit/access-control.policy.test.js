@@ -28,7 +28,7 @@ describe('access-control policies', () => {
         policy,
         user: { id: 10 },
         resource: { ownerId: 10 },
-      })
+      }),
     ).resolves.toBe(true)
   })
 })

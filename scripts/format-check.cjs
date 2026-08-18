@@ -4,15 +4,20 @@ const { existsSync } = require("node:fs")
 let diffRange
 
 try {
-  if (process.env.GITHUB_BASE_REF) {
+  if (process.env.GITHUB_BASE_SHA) {
+    execFileSync("git", ["fetch", "origin", process.env.GITHUB_BASE_SHA, "--depth=1"], {
+      stdio: "inherit",
+    })
+    diffRange = `${process.env.GITHUB_BASE_SHA}..HEAD`
+  } else if (process.env.GITHUB_BASE_REF) {
     execFileSync("git", ["fetch", "origin", process.env.GITHUB_BASE_REF, "--depth=1"], {
       stdio: "inherit",
     })
-    diffRange = `origin/${process.env.GITHUB_BASE_REF}...HEAD`
+    diffRange = `origin/${process.env.GITHUB_BASE_REF}..HEAD`
   } else if (process.env.GITHUB_EVENT_BEFORE && process.env.GITHUB_EVENT_BEFORE !== "0000000000000000000000000000000000000000") {
-    diffRange = `${process.env.GITHUB_EVENT_BEFORE}...HEAD`
+    diffRange = `${process.env.GITHUB_EVENT_BEFORE}..HEAD`
   } else {
-    diffRange = "HEAD^...HEAD"
+    diffRange = "HEAD^..HEAD"
   }
 } catch (error) {
   console.error("Unable to prepare the git diff range:", error.message)

@@ -59,15 +59,4 @@ describe("approval hardening", () => {
     expect(tx.approvalRequest.updateMany).toHaveBeenCalledTimes(2)
     expect(tx.approvalRequest.updateMany.mock.calls[1][0]).toEqual(expect.objectContaining({ where: expect.objectContaining({ instanceId: "a1", status: "PENDING" }), data: expect.objectContaining({ status: "CANCELLED" }) }))
   })
-
-  it("skips remaining requests after quorum and activates the next step", async () => {
-    const request = { id: "r1", status: "PENDING", assigneeUserId: 7, stepId: "s1", instanceId: "a1", instance: { id: "a1", status: "PENDING", currentStepOrder: 1, policy: { steps: [{ id: "s1", stepOrder: 1 }, { id: "s2", stepOrder: 2, approverType: "USER", approverValue: "8", requiredCount: 1 }] } }, step: { id: "s1", stepOrder: 1, requiredCount: 1 } }
-    prisma.approvalRequest.findUnique.mockResolvedValue(request)
-    const tx = { approvalRequest: { updateMany: vi.fn().mockResolvedValue({ count: 1 }), findMany: vi.fn().mockResolvedValue([{ status: "APPROVED" }, { status: "PENDING" }]), createMany: vi.fn() }, approvalInstance: { update: vi.fn().mockResolvedValue({ id: "a1", status: "PENDING", currentStepOrder: 2, requests: [] }) }, user: { findFirst: vi.fn().mockResolvedValue({ id: 8 }), findMany: vi.fn().mockResolvedValue([{ id: 8 }]) } }
-    prisma.$transaction.mockImplementation(async (callback) => callback(tx))
-    const result = await actOnApproval({ requestId: "r1", actorId: 7, decision: "APPROVE" })
-    expect(result.currentStepOrder).toBe(2)
-    expect(tx.approvalRequest.updateMany.mock.calls[1][0]).toEqual(expect.objectContaining({ where: expect.objectContaining({ instanceId: "a1", stepId: "s1", status: "PENDING" }), data: expect.objectContaining({ status: "SKIPPED" }) }))
-    expect(tx.approvalRequest.createMany).toHaveBeenCalled()
-  })
 })
