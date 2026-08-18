@@ -85,7 +85,10 @@ const createBullMqInfrastructure = ({
       )
     })
     worker.on('error', (error) => {
-      loggerInstance.error({ queue: queueName, err: error }, 'BullMQ worker error')
+      loggerInstance.error(
+        { queue: queueName, err: error },
+        'BullMQ worker error',
+      )
     })
 
     workers.add(worker)
