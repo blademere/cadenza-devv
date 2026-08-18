@@ -4,6 +4,7 @@ const helmet = require("helmet")
 const cors = require("cors")
 const hpp = require("hpp")
 const compression = require("compression")
+const crypto = require("crypto")
 const swaggerUi = require("swagger-ui-express")
 const YAML = require("yamljs")
 
@@ -11,6 +12,9 @@ const {
   prometheusMiddleware,
   metricsHandler,
 } = require("./infrastructure/monitoring/prometheus")
+
+const { getPrismaClient } = require("./infrastructure/database/prisma")
+const { connectRedis } = require("./infrastructure/cache/redis")
 
 const {
   rateLimiter,
@@ -40,10 +44,78 @@ app.use(
 app.use(hpp())
 app.use(compression())
 app.use(express.json({ limit: "1mb" }))
-app.use(rateLimiter)
 app.use(prometheusMiddleware)
-app.get("/metrics", metricsHandler)
 
+const metricsTokenMatches = (providedToken) => {
+  if (!env.METRICS_TOKEN || !providedToken) {
+    return false
+  }
+
+  const expected = Buffer.from(env.METRICS_TOKEN)
+  const provided = Buffer.from(providedToken)
+
+  return (
+    expected.length === provided.length &&
+    crypto.timingSafeEqual(expected, provided)
+  )
+}
+
+app.get("/metrics", (req, res, next) => {
+  if (env.NODE_ENV !== "production" && !env.METRICS_TOKEN) {
+    return metricsHandler(req, res, next)
+  }
+
+  const authorization = req.get("authorization") || ""
+  const [scheme, token] = authorization.split(" ")
+
+  if (scheme !== "Bearer" || !metricsTokenMatches(token)) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized.",
+      errors: [],
+    })
+  }
+
+  return metricsHandler(req, res, next)
+})
+
+app.get("/health/live", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    status: "ok",
+  })
+})
+
+app.get("/health/ready", async (_req, res) => {
+  const checks = {}
+  let ready = true
+
+  try {
+    const prisma = getPrismaClient()
+    await prisma.$queryRaw`SELECT 1`
+    checks.database = "ok"
+  } catch (error) {
+    ready = false
+    checks.database = "error"
+  }
+
+  try {
+    const redis = await connectRedis()
+    await redis.ping()
+    checks.redis = "ok"
+  } catch (error) {
+    ready = false
+    checks.redis = "error"
+  }
+
+  return res.status(ready ? 200 : 503).json({
+    success: ready,
+    status: ready ? "ok" : "not_ready",
+    checks,
+  })
+})
+
+// Keep the legacy health endpoint as a lightweight liveness check.
 app.get("/health", (_req, res) => {
   res.status(200).json({
     success: true,
@@ -54,11 +126,15 @@ app.get("/health", (_req, res) => {
   })
 })
 
-app.use(
-  "/docs",
-  swaggerUi.serve,
-  swaggerUi.setup(openApiSpec),
-)
+app.use(rateLimiter)
+
+if (env.NODE_ENV !== "production") {
+  app.use(
+    "/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(openApiSpec),
+  )
+}
 
 app.use("/api/v1", apiRoutes)
 app.use(notFound)
