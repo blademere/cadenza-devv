@@ -15,7 +15,9 @@ RUN npm ci && npm cache clean --force
 
 COPY . .
 
-RUN npx prisma generate
+# Prisma requires DATABASE_URL while loading prisma.config.ts.
+# Generate the client after the container starts, when the Compose
+# service environment (including DATABASE_URL) is available.
 
 EXPOSE 3000
 
