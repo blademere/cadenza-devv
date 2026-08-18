@@ -14,6 +14,8 @@ model User {
   approvalRequests ApprovalRequest[] @relation("ApprovalRequestAssignee")
   approvalActions ApprovalRequest[] @relation("ApprovalRequestActor")
   documents Document[]
+  notifications Notification[]
+  notificationPreferences NotificationPreference[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([roleId])
@@ -47,6 +49,7 @@ model Module {
   name String
   description String?
   permissions Permission[]
+  roles RolePermission[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
