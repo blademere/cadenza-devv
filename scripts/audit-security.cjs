@@ -35,7 +35,7 @@ const getAdvisoryIds = (advisory) => {
   });
 };
 
-const blocking = vulnerabilities.filter(([name, advisory]) => {
+const blocking = vulnerabilities.filter(([_name, advisory]) => {
   if (advisory.severity !== 'high' && advisory.severity !== 'critical') return false;
 
   const advisoryIds = getAdvisoryIds(advisory);
