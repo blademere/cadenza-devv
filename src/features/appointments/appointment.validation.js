@@ -3,9 +3,7 @@ const { z } = require("zod")
 const dateTime = z.coerce.date()
 
 const listTypesValidator = async (req) => ({
-  query: z.object({
-    active: z.coerce.boolean().optional(),
-  }).parse(req.query || {}),
+  query: z.object({ active: z.coerce.boolean().optional() }).parse(req.query || {}),
 })
 
 const createTypeValidator = async (req) => ({
@@ -40,6 +38,15 @@ const createSlotValidator = async (req) => ({
   }).parse(req.body || {}),
 })
 
+const generateSlotsValidator = async (req) => ({
+  body: z.object({
+    appointmentTypeId: z.string().uuid(),
+    scheduleId: z.string().uuid().optional(),
+    from: dateTime,
+    to: dateTime,
+  }).parse(req.body || {}),
+})
+
 const listSlotsValidator = async (req) => ({
   query: z.object({
     appointmentTypeId: z.string().uuid().optional(),
@@ -67,6 +74,7 @@ module.exports = {
   createTypeValidator,
   createScheduleValidator,
   createSlotValidator,
+  generateSlotsValidator,
   listSlotsValidator,
   createAppointmentValidator,
   appointmentIdValidator,
