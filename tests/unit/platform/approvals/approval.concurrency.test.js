@@ -17,7 +17,7 @@ const { actOnApproval, startApproval, createApprovalPolicy } = await import("../
 
 describe("approval hardening", () => {
   beforeEach(() => {
-    for (const [key, value] of Object.entries(mocks)) {
+    for (const value of Object.values(mocks)) {
       if (typeof value === "function") value.mockReset()
       else for (const mock of Object.values(value)) mock.mockReset()
     }
