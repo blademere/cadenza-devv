@@ -23,7 +23,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:backup": "node scripts/db-backup.cjs",
-    "db:restore": "node scripts/db-restore.cjs"
+    "db:restore": "node scripts/db-restore.cjs",
+    "audit:security": "node scripts/audit-security.cjs"
   },
   "keywords": [],
   "author": "",
