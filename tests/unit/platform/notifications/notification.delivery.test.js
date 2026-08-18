@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   notificationRule: { findMany: vi.fn() },
   notificationTemplate: { findUnique: vi.fn(), create: vi.fn() },
   user: { findMany: vi.fn() },
+  enqueueJob: vi.fn(),
 }))
 const prismaModule = require("../../../../src/infrastructure/database/prisma")
 prismaModule.getPrismaClient = () => mocks
@@ -13,13 +14,25 @@ vi.mock("../../../../src/platform/rules/rule.service", () => ({
   getPathValue: vi.fn((obj, key) => key?.split(".").reduce((v, k) => v?.[k], obj)),
 }))
 vi.mock("../../../../src/platform/audit/audit.service", () => ({ recordAudit: vi.fn() }))
+vi.mock("../../../../src/platform/jobs/job.service", () => ({ enqueueJob: mocks.enqueueJob }))
 
 const prisma = mocks
-const { claimDelivery, markDeliveryFailed, markDeliverySent, computeRetryAt, stableIdempotencyKey, MAX_ATTEMPTS } = await import("../../../../src/platform/notifications/notification.service.js")
+const {
+  claimDelivery,
+  markDeliveryFailed,
+  markDeliverySent,
+  computeRetryAt,
+  stableIdempotencyKey,
+  queueNotifications,
+  MAX_ATTEMPTS,
+} = await import("../../../../src/platform/notifications/notification.service.js")
 
 describe("notification delivery hardening", () => {
   beforeEach(() => {
-    for (const group of Object.values(mocks)) for (const mock of Object.values(group)) mock.mockReset()
+    for (const group of Object.values(mocks)) {
+      if (typeof group?.mockReset === "function") group.mockReset()
+      else for (const mock of Object.values(group)) mock.mockReset()
+    }
   })
 
   it("claims a queued delivery with optimistic concurrency protection", async () => {
@@ -76,5 +89,40 @@ describe("notification delivery hardening", () => {
     prisma.notificationDelivery.update.mockResolvedValue({ id: "d1", status: "SENT" })
     await markDeliverySent("d1")
     expect(prisma.notificationDelivery.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "d1", status: "PROCESSING" }, data: expect.objectContaining({ status: "SENT" }) }))
+  })
+
+  it("enqueues a BullMQ job for each queued delivery", async () => {
+    prisma.notificationRule.findMany.mockResolvedValue([
+      {
+        id: "r1",
+        templateId: "t1",
+        conditions: {},
+        recipientType: "STATIC",
+        recipientValue: "user@example.com",
+        template: {
+          active: true,
+          channel: "EMAIL",
+          subject: "Hello {{name}}",
+          body: "Welcome {{name}}",
+        },
+      },
+    ])
+    prisma.notificationDelivery.upsert.mockResolvedValue({
+      id: "d1",
+      status: "QUEUED",
+    })
+
+    const deliveries = await queueNotifications({
+      event: "USER_CREATED",
+      context: { name: "Dree" },
+    })
+
+    expect(deliveries).toHaveLength(1)
+    expect(mocks.enqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      queue: "notifications",
+      name: "notification.delivery",
+      data: { deliveryId: "d1" },
+      jobId: "notification-delivery-d1",
+    }))
   })
 })
