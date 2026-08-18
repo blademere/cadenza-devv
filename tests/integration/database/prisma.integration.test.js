@@ -18,7 +18,6 @@ describeIfEnabled('Prisma/PostgreSQL integration', () => {
   let module
   const createdUserIds = []
   const createdPermissionIds = []
-  const createdRolePermissionIds = []
   const createdRoleIds = []
   const createdModuleIds = []
   const createdRefreshTokenIds = []
@@ -49,13 +48,12 @@ describeIfEnabled('Prisma/PostgreSQL integration', () => {
     })
     createdPermissionIds.push(...permissions.map((permission) => permission.id))
 
-    const rolePermissions = await prisma.rolePermission.createManyAndReturn({
+    await prisma.rolePermission.createMany({
       data: permissions.map((permission) => ({
         roleId: role.id,
         permissionId: permission.id,
       })),
     })
-    createdRolePermissionIds.push(...rolePermissions.map((item) => item.id))
 
     const user = await prisma.user.create({
       data: {
@@ -76,18 +74,13 @@ describeIfEnabled('Prisma/PostgreSQL integration', () => {
     if (createdUserIds.length) {
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } })
     }
-    if (createdRolePermissionIds.length) {
-      await prisma.rolePermission.deleteMany({
-        where: { id: { in: createdRolePermissionIds } },
-      })
+    if (createdRoleIds.length) {
+      await prisma.role.deleteMany({ where: { id: { in: createdRoleIds } } })
     }
     if (createdPermissionIds.length) {
       await prisma.permission.deleteMany({
         where: { id: { in: createdPermissionIds } },
       })
-    }
-    if (createdRoleIds.length) {
-      await prisma.role.deleteMany({ where: { id: { in: createdRoleIds } } })
     }
     if (createdModuleIds.length) {
       await prisma.module.deleteMany({ where: { id: { in: createdModuleIds } } })
