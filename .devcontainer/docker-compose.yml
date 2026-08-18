@@ -10,24 +10,27 @@ services:
 
     environment:
       NODE_ENV: development
-      PORT: 3000
-      CORS_ORIGIN: http://localhost:5173
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: express_app
+      APP_NAME: ${APP_NAME:-Express App}
+      APP_SLUG: ${APP_SLUG:-express-app}
+      PORT: ${PORT:-3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      POSTGRES_USER: ${DEV_POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${DEV_POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${DEV_DATABASE_NAME:-express_app}
       POSTGRES_PORT: 5432
-      DATABASE_URL: postgresql://user:password@db:5432/express_app?schema=public
+      DATABASE_URL: postgresql://${DEV_POSTGRES_USER:-user}:${DEV_POSTGRES_PASSWORD:-password}@db:5432/${DEV_DATABASE_NAME:-express_app}?schema=public
       REDIS_PORT: 6379
       REDIS_URL: redis://redis:6379
-      JWT_ACCESS_SECRET: super-secret-access-token-key-min-32-chars-long
-      JWT_REFRESH_SECRET: super-secret-refresh-token-key-min-32-chars-long
-      JWT_ACCESS_EXPIRES_IN: 15m
-      JWT_REFRESH_EXPIRES_IN: 7d
-      OAUTH_STATE_SECRET: super-secret-oauth-state-key-min-32-chars-long
-      COOKIE_SECURE: 'false'
-      COOKIE_SAME_SITE: lax
-      COOKIE_DOMAIN: ''
-      COOKIE_REFRESH_MAX_AGE_MS: 604800000
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-super-secret-access-token-key-min-32-chars-long}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-super-secret-refresh-token-key-min-32-chars-long}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET:-super-secret-oauth-state-key-min-32-chars-long}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      COOKIE_REFRESH_MAX_AGE_MS: ${COOKIE_REFRESH_MAX_AGE_MS:-604800000}
+      METRICS_TOKEN: ${METRICS_TOKEN:-dev-metrics-token}
 
     depends_on:
       db:
@@ -36,7 +39,7 @@ services:
         condition: service_healthy
 
     ports:
-      - '3000:3000'
+      - '${PORT:-3000}:${PORT:-3000}'
 
     command: sleep infinity
 
@@ -44,9 +47,9 @@ services:
     image: postgres:18-alpine
 
     environment:
-      POSTGRES_DB: express_app
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${DEV_DATABASE_NAME:-express_app}
+      POSTGRES_USER: ${DEV_POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${DEV_POSTGRES_PASSWORD:-password}
 
     ports:
       - '5432:5432'
@@ -55,7 +58,7 @@ services:
       - postgres_data:/var/lib/postgresql
 
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U user -d express_app']
+      test: ['CMD-SHELL', 'pg_isready -U ${DEV_POSTGRES_USER:-user} -d ${DEV_DATABASE_NAME:-express_app}']
       interval: 10s
       timeout: 5s
       retries: 5
