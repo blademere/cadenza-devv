@@ -26,6 +26,7 @@
   "type": "commonjs",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1105.0",
+    "@prisma/adapter-pg": "^7.9.1",
     "@sentry/node": "^10.70.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^6.0.9",
@@ -41,6 +42,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
     "nodemailer": "^9.0.4",
+    "pg": "^8.22.0",
     "pino": "^10.3.0",
     "pino-http": "^11.0.0",
     "pino-pretty": "^13.1.3",
