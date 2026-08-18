@@ -1,6 +1,5 @@
 const { Queue, QueueEvents, Worker } = require('bullmq')
-const { env } = require('../../config')
-const { logger } = require('../../config')
+const { env, logger } = require('../../config')
 
 const queues = new Map()
 const workers = new Set()
@@ -11,10 +10,12 @@ const createConnectionOptions = () => {
   const options = {
     host: url.hostname,
     port: Number(url.port || 6379),
+    maxRetriesPerRequest: null,
   }
 
   if (url.username) options.username = decodeURIComponent(url.username)
   if (url.password) options.password = decodeURIComponent(url.password)
+  if (url.pathname && url.pathname !== '/') options.db = Number(url.pathname.slice(1))
   if (url.protocol === 'rediss:') options.tls = {}
 
   return options
@@ -44,6 +45,20 @@ const getQueue = async (queueName) => {
 const enqueueJob = async (queueName, name, payload, options = {}) => {
   const queue = await getQueue(queueName)
   return queue.add(name, payload, options)
+}
+
+const getFailedJobs = async (queueName, start = 0, end = 99) => {
+  const queue = await getQueue(queueName)
+  return queue.getFailed(start, end)
+}
+
+const retryFailedJob = async (queueName, jobId) => {
+  if (!jobId) throw new Error('jobId is required')
+  const queue = await getQueue(queueName)
+  const job = await queue.getJob(jobId)
+  if (!job) throw new Error(`BullMQ job ${jobId} was not found.`)
+  await job.retry('failed')
+  return job
 }
 
 const registerWorker = async (queueName, processor, options = {}) => {
@@ -97,6 +112,8 @@ const closeQueues = async () => {
 module.exports = {
   enqueueJob,
   getQueue,
+  getFailedJobs,
+  retryFailedJob,
   getQueueEvents,
   registerWorker,
   closeQueues,
