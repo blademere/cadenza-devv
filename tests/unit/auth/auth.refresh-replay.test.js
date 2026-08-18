@@ -16,9 +16,9 @@ const tokens = vi.hoisted(() => ({
   verifyRefreshToken: vi.fn(),
 }))
 
-vi.mock('../../../src/features/auth/auth.repository', () => repository)
-vi.mock('../../../src/features/auth/auth.tokens', () => tokens)
-vi.mock('../../../src/config', () => ({
+vi.mock('../../../src/features/auth/auth.repository.js', () => repository)
+vi.mock('../../../src/features/auth/auth.tokens.js', () => tokens)
+vi.mock('../../../src/config/index.js', () => ({
   env: {
     JWT_REFRESH_EXPIRES_IN: '7d',
   },
