@@ -96,7 +96,7 @@ describe("notification delivery hardening", () => {
       {
         id: "r1",
         templateId: "t1",
-        conditions: {},
+        conditions: null,
         recipientType: "STATIC",
         recipientValue: "user@example.com",
         template: {
