@@ -1,14 +1,10 @@
 import { describe, expect, it, vi } from "vitest"
 
-const prisma = vi.hoisted(() => ({
+const prisma = {
   appointmentType: { findUnique: vi.fn() },
   availabilitySchedule: { findMany: vi.fn() },
   $transaction: vi.fn(),
-}))
-
-vi.mock("../../../src/infrastructure/database/prisma", () => ({
-  getPrismaClient: () => prisma,
-}))
+}
 
 const { generateSlots } = await import("../../../src/features/appointments/appointment.slot.service.js")
 
@@ -42,6 +38,7 @@ describe("appointment slot generation", () => {
       appointmentTypeId: "type-1",
       from: new Date("2026-08-18T00:00:00.000Z"),
       to: new Date("2026-08-19T00:00:00.000Z"),
+      db: prisma,
     })
 
     expect(result).toHaveLength(2)
@@ -56,6 +53,7 @@ describe("appointment slot generation", () => {
       appointmentTypeId: "type-1",
       from: new Date("2026-08-19T00:00:00.000Z"),
       to: new Date("2026-08-18T00:00:00.000Z"),
+      db: prisma,
     })).rejects.toThrow("from must be earlier than to")
   })
 })
