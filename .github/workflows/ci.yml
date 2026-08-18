@@ -2,9 +2,6 @@ name: CI / Production Readiness
 
 on:
   pull_request:
-    branches:
-      - main
-      - develop
   push:
     branches:
       - main
