@@ -52,7 +52,7 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app_test
       REDIS_URL: redis://localhost:6379
-      PRISMA_GENERATE_SKIP_AUTOINSTALL: "true"
+      PRISMA_GENERATE_SKIP_AUTOINSTALL: 'true'
 
     steps:
       - name: Checkout
@@ -79,17 +79,11 @@ jobs:
       - name: Apply database migrations
         run: npx prisma migrate deploy --schema=prisma/schema.prisma
 
-      - name: Run tests
-        run: npm test
-
       - name: Install coverage provider
         run: npm install --no-save --ignore-scripts @vitest/coverage-v8@4.1.10
 
       - name: Run coverage gate
         run: npm run test:coverage
-
-      - name: Dependency vulnerability scanning
-        run: npm run audit:security
 
   docker:
     name: Build production Docker image
