@@ -5,7 +5,6 @@ const mocks = vi.hoisted(() => ({
   notificationRule: { findMany: vi.fn() },
   notificationTemplate: { findUnique: vi.fn(), create: vi.fn() },
   user: { findMany: vi.fn() },
-  enqueueBullMqJob: vi.fn(),
 }))
 const prismaModule = require('../../../../src/infrastructure/database/prisma')
 prismaModule.getPrismaClient = () => mocks
@@ -14,7 +13,9 @@ vi.mock('../../../../src/platform/rules/rule.service', () => ({
   getPathValue: vi.fn((obj, key) => key?.split('.').reduce((v, k) => v?.[k], obj)),
 }))
 vi.mock('../../../../src/platform/audit/audit.service', () => ({ recordAudit: vi.fn() }))
-vi.mock('../../../../src/infrastructure/queue/bullmq', () => ({ enqueueJob: mocks.enqueueBullMqJob }))
+
+const jobService = require('../../../../src/platform/jobs/job.service')
+const enqueueJob = vi.spyOn(jobService, 'enqueueJob')
 
 const prisma = mocks
 const {
@@ -33,6 +34,7 @@ describe('notification delivery hardening', () => {
       if (typeof group?.mockReset === 'function') group.mockReset()
       else for (const mock of Object.values(group)) mock.mockReset()
     }
+    enqueueJob.mockReset()
   })
 
   it('claims a queued delivery with optimistic concurrency protection', async () => {
@@ -111,6 +113,7 @@ describe('notification delivery hardening', () => {
       id: 'd1',
       status: 'QUEUED',
     })
+    enqueueJob.mockResolvedValue({ id: 'job-1' })
 
     const deliveries = await queueNotifications({
       event: 'USER_CREATED',
@@ -118,7 +121,7 @@ describe('notification delivery hardening', () => {
     })
 
     expect(deliveries).toHaveLength(1)
-    expect(mocks.enqueueBullMqJob).toHaveBeenCalledWith(
+    expect(enqueueJob).toHaveBeenCalledWith(
       'notifications',
       'notification.delivery',
       { deliveryId: 'd1' },
