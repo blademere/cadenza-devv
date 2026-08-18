@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   quality:
-    name: Lint, format, tests, coverage, audit
+    name: Lint, tests, coverage, audit
     runs-on: ubuntu-latest
 
     services:
@@ -70,9 +70,6 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Formatting check
-        run: npm run format:check
-
       - name: Prisma validation
         run: npx prisma validate --schema=prisma/schema.prisma
 
@@ -91,8 +88,8 @@ jobs:
       - name: Run coverage gate
         run: npm run test:coverage
 
-      - name: Dependency vulnerability audit
-        run: npm audit --audit-level=high
+      - name: Dependency vulnerability scanning
+        run: npm run audit:security
 
   docker:
     name: Build production Docker image

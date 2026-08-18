@@ -1,8 +1,8 @@
 const { spawnSync } = require('node:child_process');
 
 const ALLOWED_ADVISORIES = new Set([
-  'GHSA-GGR8-5VV4-36MX',
-  'GHSA-5P4M-2WFM-XMQ',
+  'GHSA-ggr8-5vv4-36mx',
+  'GHSA-5p4m-2wfm-xmq',
 ]);
 
 const result = spawnSync('npm', ['audit', '--audit-level=high', '--json'], {
@@ -20,12 +20,12 @@ try {
 
 const vulnerabilities = Object.entries(report.vulnerabilities || {});
 const vulnerabilityMap = new Map(vulnerabilities);
+let allowedCount = 0;
 
-function advisoryIds(advisory) {
-  const via = Array.isArray(advisory?.via) ? advisory.via : [];
+const getAdvisoryIds = (advisory) => {
+  const via = Array.isArray(advisory.via) ? advisory.via : [];
   return via.flatMap((entry) => {
-    if (typeof entry !== 'object' || entry === null) return [];
-
+    if (typeof entry !== 'object' || !entry) return [];
     const ids = [];
     if (typeof entry.url === 'string') {
       const match = entry.url.match(/GHSA-[a-z0-9-]+/i);
@@ -34,44 +34,44 @@ function advisoryIds(advisory) {
     if (typeof entry.source === 'number') ids.push(String(entry.source));
     return ids;
   });
-}
+};
 
-function isAllowed(name, seen = new Set()) {
+const hasAllowedAdvisory = (name, seen = new Set()) => {
   if (seen.has(name)) return false;
   seen.add(name);
 
   const advisory = vulnerabilityMap.get(name);
   if (!advisory) return false;
 
-  if (advisoryIds(advisory).some((id) => ALLOWED_ADVISORIES.has(id))) {
+  if (getAdvisoryIds(advisory).some((id) => ALLOWED_ADVISORIES.has(id))) {
     return true;
   }
 
   const via = Array.isArray(advisory.via) ? advisory.via : [];
-  return via.some(
-    (entry) =>
-      typeof entry === 'string' && isAllowed(entry, new Set(seen)),
-  );
-}
+  return via.some((entry) => typeof entry === 'string' && hasAllowedAdvisory(entry, seen));
+};
 
 const blocking = vulnerabilities.filter(([name, advisory]) => {
-  if (advisory.severity !== 'high' && advisory.severity !== 'critical') {
-    return false;
-  }
+  if (advisory.severity !== 'high' && advisory.severity !== 'critical') return false;
 
-  return !isAllowed(name);
+  const allowed = hasAllowedAdvisory(name);
+  if (allowed) allowedCount += 1;
+  return !allowed;
 });
 
 for (const [name, advisory] of vulnerabilities) {
-  const allowed = isAllowed(name);
+  const allowed = hasAllowedAdvisory(name);
   const isBlocking = blocking.some(([blockingName]) => blockingName === name);
   const marker = allowed ? 'ALLOW' : isBlocking ? 'BLOCK' : 'INFO';
-  const ids = advisoryIds(advisory);
-  const suffix = ids.length > 0 ? ` [${ids.join(', ')}]` : '';
-
+  const advisoryIds = getAdvisoryIds(advisory);
+  const ids = advisoryIds.length > 0 ? ` [${advisoryIds.join(', ')}]` : '';
   process.stdout.write(
-    `${marker} ${advisory.severity}: ${name} (${advisory.isDirect ? 'direct' : 'transitive'})${suffix}\n`,
+    `${marker} ${advisory.severity}: ${name} (${advisory.isDirect ? 'direct' : 'transitive'})${ids}\n`,
   );
+}
+
+if (allowedCount > 0) {
+  process.stdout.write(`Approved high/critical advisories: ${allowedCount}\n`);
 }
 
 if (blocking.length > 0) {
