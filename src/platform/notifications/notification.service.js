@@ -7,7 +7,7 @@ const {
 } = require('../../common/errors/appError')
 const { evaluateCondition, getPathValue } = require('../rules/rule.service')
 const { recordAudit } = require('../audit/audit.service')
-const { enqueueJob } = require('../jobs/job.service')
+const { enqueueJob: defaultEnqueueJob } = require('../jobs/job.service')
 const { JOB_NAMES, JOB_QUEUES } = require('../jobs/job.constants')
 const { NOTIFICATION_CHANNEL_LIST, NOTIFICATION_CHANNELS } = require('./notification.constants')
 
@@ -79,7 +79,7 @@ const createNotificationRule = async ({ key, name, event, entityType = null, con
   return rule
 }
 
-const resolveRecipients = async (rule, context) => {
+const resolveRecipients = async (rule, context, db = prisma) => {
   if (!RECIPIENT_TYPES.includes(rule.recipientType)) throw new BadRequestError(`Unsupported notification recipient type '${rule.recipientType}'.`)
   if (rule.recipientType === 'STATIC') return rule.recipientValue ? [String(rule.recipientValue).trim()] : []
   if (rule.recipientType === 'FIELD') {
@@ -91,11 +91,11 @@ const resolveRecipients = async (rule, context) => {
     return value == null ? [] : [String(value)]
   }
   if (rule.recipientType === 'ROLE') {
-    const users = await prisma.user.findMany({ where: { isActive: true, role: { name: rule.recipientValue } }, select: { email: true } })
+    const users = await db.user.findMany({ where: { isActive: true, role: { name: rule.recipientValue } }, select: { email: true } })
     return users.map((user) => user.email).filter(Boolean)
   }
   const { resource, action } = parsePermission(rule.recipientValue)
-  const users = await prisma.user.findMany({ where: { isActive: true, role: { permissions: { some: { permission: { action, module: { key: resource } } } } } }, select: { email: true } })
+  const users = await db.user.findMany({ where: { isActive: true, role: { permissions: { some: { permission: { action, module: { key: resource } } } } } }, select: { email: true } })
   return users.map((user) => user.email).filter(Boolean)
 }
 
@@ -148,7 +148,7 @@ const markDeliveryFailed = async (id, error) => {
   return prisma.notificationDelivery.update({ where: { id }, data: { status: terminal ? DELIVERY_STATUS.DEAD : DELIVERY_STATUS.FAILED, failedAt: new Date(), error: sanitizeError(error), attempts: attempt, nextAttemptAt: terminal ? null : computeRetryAt(attempt) } })
 }
 
-const queueNotifications = async ({ event, entityType = null, context = {}, db = getPrismaClient() }) => {
+const queueNotifications = async ({ event, entityType = null, context = {}, db = getPrismaClient(), enqueue = defaultEnqueueJob }) => {
   if (!event) throw new BadRequestError('Notification event is required.')
   const rules = await db.notificationRule.findMany({
     where: { event, active: true, ...(entityType ? { OR: [{ entityType }, { entityType: null }] } : {}) },
@@ -161,7 +161,7 @@ const queueNotifications = async ({ event, entityType = null, context = {}, db =
     const channel = validateTemplateChannel(rule.template)
     const subject = render(rule.template.subject, context)
     const body = render(rule.template.body, context)
-    const recipients = [...new Set((await resolveRecipients(rule, context)).map((item) => String(item).trim()).filter(Boolean))]
+    const recipients = [...new Set((await resolveRecipients(rule, context, db)).map((item) => String(item).trim()).filter(Boolean))]
     for (const originalRecipient of recipients) {
       const preferred = await resolvePreferredDelivery({ channel, recipient: originalRecipient, db })
       if (!preferred.enabled) continue
@@ -195,7 +195,7 @@ const queueNotifications = async ({ event, entityType = null, context = {}, db =
         })
       })
       if (channel !== NOTIFICATION_CHANNELS.IN_APP && delivery.status === DELIVERY_STATUS.QUEUED) {
-        await enqueueJob({ queue: JOB_QUEUES.NOTIFICATIONS, name: JOB_NAMES.NOTIFICATION_DELIVERY, data: { deliveryId: delivery.id }, jobId: `notification-delivery-${delivery.id}` })
+        await enqueue({ queue: JOB_QUEUES.NOTIFICATIONS, name: JOB_NAMES.NOTIFICATION_DELIVERY, data: { deliveryId: delivery.id }, jobId: `notification-delivery-${delivery.id}` })
       }
       deliveries.push(delivery)
     }
