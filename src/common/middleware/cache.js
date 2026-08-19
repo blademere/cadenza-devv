@@ -1,5 +1,5 @@
 const { createHash } = require('node:crypto')
-const { connectRedis } = require('../../infrastructure/cache/redis')
+const { connectRedis: defaultConnectRedis } = require('../../infrastructure/cache/redis')
 
 const DEFAULT_TTL_SECONDS = 60
 const MAX_TTL_SECONDS = 24 * 60 * 60
@@ -43,81 +43,88 @@ const replay = (res, entry) => {
   return res.status(entry.statusCode).send(entry.body)
 }
 
-const invalidateCache = async (key) => {
-  const redis = await connectRedis()
-  return redis.del(getCacheRedisKey(key))
-}
+const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
+  const invalidate = async (key) => {
+    const redis = await connectRedis()
+    return redis.del(getCacheRedisKey(key))
+  }
 
-const cache = (options = {}) => {
-  const ttlSeconds = normalizeTtl(
-    options.ttlSeconds ?? process.env.API_CACHE_TTL_SECONDS ?? DEFAULT_TTL_SECONDS,
-  )
-  const methods = normalizeMethods(options.methods)
-  const keyFactory = options.key || defaultKey
-  const cacheableStatusCodes = new Set(
-    options.cacheableStatusCodes || DEFAULT_CACHEABLE_STATUS_CODES,
-  )
-  const varyByUser = options.varyByUser === true
+  const cache = (options = {}) => {
+    const ttlSeconds = normalizeTtl(
+      options.ttlSeconds ?? process.env.API_CACHE_TTL_SECONDS ?? DEFAULT_TTL_SECONDS,
+    )
+    const methods = normalizeMethods(options.methods)
+    const keyFactory = options.key || defaultKey
+    const cacheableStatusCodes = new Set(
+      options.cacheableStatusCodes || DEFAULT_CACHEABLE_STATUS_CODES,
+    )
+    const varyByUser = options.varyByUser === true
 
-  if (typeof keyFactory !== 'function') throw new TypeError('Cache key must be a function.')
+    if (typeof keyFactory !== 'function') throw new TypeError('Cache key must be a function.')
 
-  return async (req, res, next) => {
-    if (!methods.has(req.method)) return next()
-    if (options.skip && (await options.skip(req))) return next()
+    return async (req, res, next) => {
+      if (!methods.has(req.method)) return next()
+      if (options.skip && (await options.skip(req))) return next()
 
-    try {
-      let key = keyFactory(req)
-      if (key && typeof key.then === 'function') key = await key
-      if (varyByUser) key = `${key}:user:${req.user?.id ?? 'anonymous'}`
+      try {
+        let key = keyFactory(req)
+        if (key && typeof key.then === 'function') key = await key
+        if (varyByUser) key = `${key}:user:${req.user?.id ?? 'anonymous'}`
 
-      const redisKey = getCacheRedisKey(key)
-      const redis = await connectRedis()
-      const cached = parseEntry(await redis.get(redisKey))
-      if (cached) return replay(res, cached)
+        const redisKey = getCacheRedisKey(key)
+        const redis = await connectRedis()
+        const cached = parseEntry(await redis.get(redisKey))
+        if (cached) return replay(res, cached)
 
-      const originalSend = res.send.bind(res)
-      const originalJson = res.json.bind(res)
-      let responseBody
-      let responseCaptured = false
+        const originalSend = res.send.bind(res)
+        const originalJson = res.json.bind(res)
+        let responseBody
+        let responseCaptured = false
 
-      res.send = (body) => {
-        responseBody = body
-        responseCaptured = true
-        return originalSend(body)
-      }
-      res.json = (body) => {
-        responseBody = body
-        responseCaptured = true
-        return originalJson(body)
-      }
+        res.send = (body) => {
+          responseBody = body
+          responseCaptured = true
+          return originalSend(body)
+        }
+        res.json = (body) => {
+          responseBody = body
+          responseCaptured = true
+          return originalJson(body)
+        }
 
-      res.once('finish', () => {
-        if (!responseCaptured || !cacheableStatusCodes.has(res.statusCode)) return
-        const entry = JSON.stringify({
-          statusCode: res.statusCode,
-          contentType: res.get('Content-Type') || null,
-          body: responseBody,
+        res.once('finish', () => {
+          if (!responseCaptured || !cacheableStatusCodes.has(res.statusCode)) return
+          const entry = JSON.stringify({
+            statusCode: res.statusCode,
+            contentType: res.get('Content-Type') || null,
+            body: responseBody,
+          })
+          redis.set(redisKey, entry, { EX: ttlSeconds }).catch(() => undefined)
         })
-        redis.set(redisKey, entry, { EX: ttlSeconds }).catch(() => undefined)
-      })
 
-      res.set('X-Cache', 'MISS')
-      req.cache = { key: redisKey, ttlSeconds }
-      return next()
-    } catch (error) {
-      // Cache failures must not take otherwise healthy application requests down.
-      req.cacheError = error
-      return next()
+        res.set('X-Cache', 'MISS')
+        req.cache = { key: redisKey, ttlSeconds }
+        return next()
+      } catch (error) {
+        // Cache failures must not take otherwise healthy application requests down.
+        req.cacheError = error
+        return next()
+      }
     }
   }
+
+  cache.hashKey = hashKey
+  cache.defaultKey = defaultKey
+  cache.getCacheRedisKey = getCacheRedisKey
+  cache.invalidate = invalidate
+  cache.parseEntry = parseEntry
+  cache.DEFAULT_TTL_SECONDS = DEFAULT_TTL_SECONDS
+  cache.MAX_TTL_SECONDS = MAX_TTL_SECONDS
+
+  return cache
 }
 
-cache.hashKey = hashKey
-cache.defaultKey = defaultKey
-cache.getCacheRedisKey = getCacheRedisKey
-cache.invalidate = invalidateCache
-cache.parseEntry = parseEntry
-cache.DEFAULT_TTL_SECONDS = DEFAULT_TTL_SECONDS
-cache.MAX_TTL_SECONDS = MAX_TTL_SECONDS
+const cache = createCache()
+cache.createCache = createCache
 
 module.exports = cache
