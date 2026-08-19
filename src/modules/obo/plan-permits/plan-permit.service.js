@@ -18,6 +18,7 @@ const getClientPerson = async (userId) => {
 }
 
 const getClientNotificationContext = async (personId, db = prisma) => {
+  if (!db?.person?.findUnique) return { clientUserId: null, clientEmail: null }
   const person = await db.person.findUnique({ where: { id: personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
   return { clientUserId: person?.userId || null, clientEmail: person?.user?.email || person?.email || null }
 }
