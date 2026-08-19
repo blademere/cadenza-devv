@@ -1,6 +1,6 @@
 # Application Architecture
 
-This document describes the architecture the repository is converging on. It is intentionally separate from the README: the README documents observable application behavior, while this document defines the boundaries that new code must respect.
+This document describes the architecture the repository currently follows. It is intentionally separate from the README: the README documents observable application behavior, while this document defines the boundaries that new code must respect.
 
 ## Goals
 
@@ -46,6 +46,7 @@ src/modules/
 └── obo/
     ├── permit-types/
     ├── professionals/
+    ├── applications/
     ├── receiving/
     └── inspections/
 ```
@@ -58,7 +59,7 @@ Do not create module placeholders merely to reserve future names. A module shoul
 
 ### `src/features/` — shared business capabilities
 
-Features are reusable business primitives that can support multiple modules without being tied to one product domain.
+Features are reusable business capabilities that can support multiple modules without being tied to one product domain.
 
 Current foundations include:
 
@@ -72,6 +73,14 @@ tasks/
 
 Existing reusable application features also include authentication, users, appointments, documents, notifications, and audit.
 
+#### Appointments are a feature, not the generic scheduler
+
+`features/appointments` owns appointment business behavior: appointment types, availability schedules, slot generation, capacity, booking, and appointment lifecycle actions such as cancellation, check-in, no-show, and completion.
+
+The slot generator is intentionally retained because appointment scheduling is a real business capability required by the current application direction. For the future OBO domain, this capability will support physical hardcopy submission appointments. It should not be treated as the OBO permit application itself or as an inspection workflow.
+
+`platform/scheduler`, by contrast, is a generic background-job scheduling mechanism. It is not the source of appointment slots and should remain deferred until a real cross-domain scheduling use case exists.
+
 Feature services contain business behavior for that shared capability. Database access belongs in feature repositories rather than being scattered through services.
 
 A feature should not know that an OBO permit, rental agreement, enrollment, or another domain exists.
@@ -83,19 +92,16 @@ Platform code provides generic mechanisms used by features and modules.
 Examples include:
 
 - authorization
-- approvals
 - workflow
 - forms
 - custom fields
 - rules
 - event bus
-- jobs and scheduling
-- notifications infrastructure
+- jobs
+- generic scheduler primitives
+- notification infrastructure
 - document/storage abstractions
-- dashboards
-- integrations
-- configuration
-- search and caching infrastructure
+- approvals, SLA, dashboards, integrations, configuration, and search as deferred reusable capabilities
 
 Platform services should be provider-neutral and domain-neutral. They expose mechanisms, not application-specific business decisions.
 
@@ -108,7 +114,7 @@ Infrastructure contains concrete technology integrations such as:
 - PostgreSQL/Prisma
 - Redis
 - BullMQ
-- email providers
+- Resend email provider
 - OAuth providers
 - object storage
 - monitoring
@@ -222,9 +228,32 @@ modules/obo/
         └── platform engines
 ```
 
-The OBO module may define permit-specific concepts such as permit types, scopes of work, professional registration, inspection decisions, and application rules.
+The OBO module may define permit-specific concepts such as permit types, scopes of work, professional registration, inspection decisions, submission appointments, and application rules.
 
 The shared layers must remain unaware that those concepts exist.
+
+### OBO appointments
+
+The current appointment feature is intentionally generic and reusable. Once OBO is implemented, its business API should own the relationship between a permit application and a physical hardcopy submission appointment.
+
+The intended concept is:
+
+```text
+PermitApplication
+      │
+      └── SubmissionAppointment
+              ├── date/time
+              ├── slot/capacity
+              └── status
+```
+
+The current temporary public route `/api/v1/appointments` should eventually be replaced by an OBO-owned route such as:
+
+```text
+/api/v1/obo/applications/:applicationId/submission-appointments
+```
+
+That route belongs to the OBO module even though it can reuse the shared appointment feature underneath. Inspection scheduling is a separate concern and should not be conflated with submission appointments.
 
 Professional signing is intentionally outside the application workflow. Physical signing of hardcopy documents is a business/offline process and should not be modeled as an application signing feature unless requirements change.
 
@@ -250,11 +279,73 @@ Module/service action
 
 The platform supplies mechanisms for these concerns. The module or feature decides when and why they are used.
 
-Business events that describe a persisted state change should be queued in the same database transaction as that change. The platform worker is responsible for generic outbox delivery, rule evaluation, notifications, and stale lease recovery; it must not contain domain-specific maintenance logic.
+### Storage boundary
 
-Deferred capabilities such as SLA, approvals, and webhooks are not implicit event-bus side effects. They remain reusable platform mechanisms until a real feature or module explicitly integrates them.
+Document features must not select infrastructure storage providers directly. The intended boundary is:
 
-See [platform-integration.md](platform-integration.md) for the canonical integration pattern.
+```text
+features/documents
+       ↓
+platform/storage
+       ↓
+infrastructure/storage
+```
+
+The platform storage service owns the provider-neutral contract. Provider registration is performed by the application composition root, which keeps local/S3/other provider selection out of the document feature.
+
+### Email boundary
+
+Resend is the active email provider. Application code should use the infrastructure email boundary rather than importing the Resend client directly:
+
+```text
+application
+     ↓
+infrastructure/email/index.js
+     ↓
+infrastructure/email/resend.js
+     ↓
+Resend
+```
+
+Provider-specific details remain isolated from features and modules.
+
+The old Nodemailer provider implementation is no longer part of the active email architecture.
+
+The platform worker is responsible for generic outbox delivery, rule evaluation, notifications, and stale lease recovery; it must not contain domain-specific maintenance logic.
+
+Deferred capabilities such as SLA, approvals, dashboards, integrations, configuration, search, and generic scheduling are not implicit event-bus side effects. They remain reusable mechanisms until a real feature or module explicitly integrates them.
+
+## Public API boundaries
+
+`src/routes/index.js` is an API composition root, not a registry of every feature in the repository.
+
+Currently mounted application APIs are:
+
+```text
+/api/v1/auth
+/api/v1/users
+/api/v1/appointments
+```
+
+Generic document, notification, and audit-log routers remain implemented features but are intentionally not mounted as public API roots. A future domain module should expose domain-owned endpoints and compose those capabilities internally when required.
+
+For OBO, the desired direction is:
+
+```text
+/api/v1/obo/permit-types
+/api/v1/obo/applications
+/api/v1/obo/professionals
+/api/v1/obo/receiving
+/api/v1/obo/inspections
+```
+
+with submission appointments owned by the application domain, for example:
+
+```text
+/api/v1/obo/applications/:applicationId/submission-appointments
+```
+
+This avoids exposing reusable capability CRUD as if it were the application's business model.
 
 ## Roadmap
 
@@ -263,6 +354,11 @@ See [platform-integration.md](platform-integration.md) for the canonical integra
 Completed:
 
 - authorization moved to `platform/authorization`
+- authentication middleware moved to `features/auth`
+- common middleware exports contain only cross-cutting middleware and auth rate limiters
+- redundant `business-automation.js` and `extensibility.js` aggregators removed
+- redundant `config/swagger.js` removed while OpenAPI/Swagger support remains active
+- duplicate Vitest configuration consolidated into `vitest.config.mjs`
 - dependency direction established
 - existing features preserved
 - no new parallel architectural layers
@@ -287,9 +383,11 @@ In progress:
 - establish transactional event publication from shared repositories
 - keep event processing and workers domain-neutral
 - integrate workflow/rules, appointments, documents, notifications, jobs, and scheduler through explicit feature/module usage rather than hidden platform coupling
+- documents now consume storage through the platform storage boundary
+- Resend is the active email provider behind the infrastructure email boundary
+- appointment slot generation remains enabled because it is a required business capability
+- generic document/notification/audit public roots are intentionally not mounted
 - establish consistent module integration patterns
-
-Current Phase 3 implementation provides the transactional case event pattern and a domain-neutral event worker. Remaining feature integrations can follow this pattern as concrete reuse requirements arise.
 
 ### Phase 4 — domain modules
 
@@ -299,7 +397,7 @@ Later:
 - start with the domain that has a real business requirement
 - avoid placeholder modules
 
-For the OBO application, permit-specific functionality belongs under `modules/obo/` and should reuse the shared foundations rather than redefining them.
+For the OBO application, permit-specific functionality belongs under `modules/obo/` and should reuse the shared foundations and appointment capability rather than redefining them.
 
 ## Architectural anti-patterns
 
@@ -324,6 +422,10 @@ Also avoid:
 - creating generic abstractions before a real reuse case exists
 - coupling shared features to one application's terminology
 - creating future-domain placeholders with no implementation
+- exposing every reusable feature as a public API root
+- making document features select infrastructure storage providers directly
+- importing provider-specific email clients into application features
+- treating the generic scheduler as the appointment slot engine
 
 ## Definition of done for a new module
 
