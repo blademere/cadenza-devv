@@ -9,11 +9,9 @@ const spies = {
   createCaseRequirement: vi.spyOn(repository, 'createCaseRequirement'),
   findCaseRequirement: vi.spyOn(repository, 'findCaseRequirement'),
   findCase: vi.spyOn(repository, 'findCase'),
-  listCaseRequirements: vi.spyOn(repository, 'listCaseRequirements'),
-  updateCaseRequirement: vi.spyOn(repository, 'updateCaseRequirement'),
 }
 
-const { createRequirementDefinition, attachToCase, updateStatus } =
+const { createRequirementDefinition, attachToCase } =
   await import('../../../src/features/requirements/requirements.service.js')
 
 afterEach(() => vi.clearAllMocks())
