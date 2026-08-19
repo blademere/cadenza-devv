@@ -66,6 +66,28 @@ const getMine = async ({ id, userId }) => {
 
 const listMine = async ({ userId }) => repository.listByClient((await getClientPerson(userId)).id)
 
+const updateDraft = async ({ id, userId, professionalId, formVersionId, formValues }) => {
+  const application = await getMine({ id, userId })
+  if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be updated.')
+
+  const selectedProfessionalId = professionalId || application.professionalId
+  const professional = await repository.findProfessional(selectedProfessionalId)
+  if (!professional) throw new NotFoundError('Professional registration not found.')
+  if (professional.status !== 'VERIFIED') throw new ConflictError('The selected professional is not verified.')
+
+  const resolvedForm = await resolveAndValidateForm({
+    permitType: application.permitType,
+    formVersionId: formVersionId || application.formVersionId,
+    formValues,
+  })
+
+  return repository.update(id, {
+    professionalId: selectedProfessionalId,
+    formVersionId: resolvedForm.formVersionId,
+    formValues,
+  })
+}
+
 const submit = async ({ id, userId }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be submitted.')
@@ -91,4 +113,4 @@ const bookSubmissionAppointment = async ({ id, userId, appointmentTypeId, slotId
   })
 }
 
-module.exports = { createApplication, getMine, listMine, submit, bookSubmissionAppointment }
+module.exports = { createApplication, getMine, listMine, updateDraft, submit, bookSubmissionAppointment }
