@@ -4,7 +4,7 @@ A CommonJS Express 5 API with PostgreSQL/Prisma, Redis-backed infrastructure, au
 
 > **Personal foundation:** This repository is maintained as a reusable backend foundation for my own projects. It intentionally keeps strong opinions about the stack and infrastructure instead of trying to be a generic Express boilerplate for everyone.
 
-> **Current scope:** This README describes the functionality that is implemented in the repository today. It intentionally does not describe the broader platform architecture or future modules that are not currently exposed through the application routes.
+> **Architecture:** The repository is being evolved toward a layered application-platform architecture. See [`docs/architecture.md`](docs/architecture.md) for the dependency rules, shared business foundations, module strategy, and roadmap.
 
 ## Implemented features
 
@@ -28,6 +28,8 @@ A CommonJS Express 5 API with PostgreSQL/Prisma, Redis-backed infrastructure, au
 - User-role assignment is restricted so a requester cannot assign permissions they do not possess.
 - Permission caching/invalidation is backed by Redis infrastructure.
 
+Authorization is a reusable platform capability under `src/platform/authorization`, while authentication remains a feature under `src/features/auth`.
+
 ### Users
 
 The currently exposed user API supports:
@@ -38,6 +40,18 @@ The currently exposed user API supports:
 - Role-aware authorization for user read/create operations.
 
 The application does **not** currently expose a complete user-management CRUD surface; update/delete and other planned user operations should not be considered implemented features.
+
+### Shared business foundations
+
+Phase 2 established small, reusable business primitives under `src/features/`:
+
+- `people` — real-world person identity/contact data.
+- `cases` — generic case types, case records, and status history.
+- `participants` — person-to-case role assignments.
+- `requirements` — reusable requirement definitions and case requirements.
+- `tasks` — generic work items, optionally associated with a case.
+
+These are intentionally domain-neutral. They do not contain permit-specific behavior.
 
 ### API and security infrastructure
 
@@ -65,7 +79,7 @@ The application does **not** currently expose a complete user-management CRUD su
 
 - PostgreSQL accessed through Prisma.
 - Redis integration for caching and related infrastructure.
-- Database migrations managed with Prisma.
+- Database migrations managed through Prisma.
 - Email integrations for Nodemailer and Resend are present.
 - AWS S3 and Cloudinary storage integrations are present.
 - BullMQ queue infrastructure and worker entrypoint are present.
@@ -100,38 +114,88 @@ Operational endpoints:
 - `GET /metrics`
 - `GET /docs` (non-production)
 
+The shared Phase 2 foundations are currently reusable services rather than a public CRUD API. Domain modules will expose application-specific endpoints when they are implemented.
+
 ## Project structure
 
 ```text
 src/
-├─ common/             # Middleware, validation, errors, responses, utilities
-├─ config/             # Environment, logging, Swagger configuration
-├─ features/
-│  ├─ auth/            # Password auth, JWT/refresh tokens, OAuth
-│  ├─ access-control/  # Permission and authorization services
-│  └─ users/           # User API and user services
-├─ infrastructure/
-│  ├─ cache/           # Redis
-│  ├─ database/        # Prisma/PostgreSQL
-│  ├─ email/           # Email providers
-│  ├─ monitoring/      # Metrics/logging/observability
-│  ├─ oauth/            # OAuth provider integrations
-│  ├─ queue/            # BullMQ
-│  └─ storage/          # S3/Cloudinary
-├─ routes/              # API route mounting
-└─ server.js            # Application entrypoint
+├─ common/                 # Cross-cutting HTTP/middleware/error/utility helpers
+├─ config/                 # Environment, logging, Swagger, and application configuration
+├─ features/               # Shared business/application capabilities
+│  ├─ appointments/        # Generic appointment foundation
+│  ├─ audit/               # Audit feature
+│  ├─ auth/                # Password auth, JWT/refresh tokens, OAuth
+│  ├─ cases/               # Generic case foundation
+│  ├─ documents/           # Document feature
+│  ├─ notifications/       # Notification feature
+│  ├─ participants/        # Case/person participation
+│  ├─ people/              # Real-world person identity
+│  ├─ requirements/        # Reusable case requirements
+│  ├─ tasks/               # Generic work items
+│  └─ users/                # User API and user services
+├─ platform/               # Reusable engines/mechanisms
+│  ├─ authorization/       # Generic authorization engine
+│  ├─ approvals/           # Approval mechanisms
+│  ├─ forms/               # Dynamic form mechanisms
+│  ├─ custom-fields/       # Configurable metadata fields
+│  ├─ event-bus/           # Generic domain event dispatching
+│  ├─ jobs/                # Background job primitives
+│  ├─ notifications/       # Notification infrastructure
+│  ├─ rules/               # Generic rule evaluation
+│  ├─ scheduler/           # Scheduling primitives
+│  ├─ search/              # Provider-neutral search abstraction
+│  └─ ...                  # Other reusable platform engines
+├─ infrastructure/         # Concrete technical adapters/providers
+│  ├─ cache/               # Redis
+│  ├─ database/            # Prisma/PostgreSQL
+│  ├─ email/               # Email providers
+│  ├─ monitoring/          # Metrics/logging/observability
+│  ├─ oauth/               # OAuth provider integrations
+│  ├─ queue/               # BullMQ
+│  └─ storage/             # Object storage providers
+├─ routes/                 # API route mounting/composition
+└─ server.js               # Application entrypoint
 
-prisma/                 # Schema and migrations
-docs/                   # OpenAPI specifications
-tests/                  # Unit and integration tests
-scripts/                # Database and project utilities
+src/modules/               # Future domain modules; added only when a real domain is implemented
+
+prisma/                    # Schema and migrations
+docs/                      # Architecture, API, and platform documentation
+tests/                     # Unit and integration tests
+scripts/                   # Database and project utilities
 ```
+
+### Dependency direction
+
+The intended dependency direction is:
+
+```text
+modules → features → platform → infrastructure
+```
+
+The important boundary rules are:
+
+- `platform` must not import `modules`.
+- Shared `features` must not import `modules`.
+- Domain-specific behavior belongs in `modules`, not `platform`.
+- Services should access persistence through repositories rather than querying Prisma directly.
+- Do not introduce parallel layers such as `domains/`, `core/`, `application/`, or `adapters/`.
+
+See [`docs/architecture.md`](docs/architecture.md) for the complete rules.
+
+## Dynamic data and domain modeling
+
+The platform supports dynamic forms and custom fields, but dynamic data is not a replacement for core relational modeling.
+
+Use normal columns and relations for concepts such as identity, case relationships, participants, workflow state, permit type, and professional registration. Use dynamic fields/forms for genuinely variable attributes and configuration-driven fields.
+
+This allows a future permit application module to have strongly modeled application relationships while still supporting different permit forms and variable fields.
 
 ## Requirements
 
 - Node.js
 - PostgreSQL
-- Redis for the Redis-backed functionality and readiness checks
+- Redis for Redis-backed functionality and readiness checks
 
 Environment variables are documented through the application's configuration layer and example development environment files. Do not commit production secrets.
 
@@ -209,8 +273,19 @@ npm run prisma:migrate:deploy
 
 The OpenAPI specifications are stored under `docs/`. In non-production environments, Swagger UI is served at `/docs`.
 
+## Development roadmap
+
+The repository is intentionally being evolved incrementally:
+
+1. **Architecture cleanup** — establish dependency boundaries and move reusable authorization into `platform`.
+2. **Shared business foundations** — people, cases, participants, requirements, and tasks. **Completed.**
+3. **Platform integration** — connect shared business actions to audit, events, workflow/rules, appointments, documents, notifications, jobs, and scheduler without putting domain rules into `platform`.
+4. **Domain modules** — implement real application domains only when required. The eventual OBO/permit system belongs under `src/modules/obo/` and should reuse the shared foundations.
+
+Do not create placeholder modules merely to reserve future domain names.
+
 ## Current scope vs. planned architecture
 
-The repository contains infrastructure and directory boundaries intended to support a larger platform, but those boundaries are not themselves product features. Modules, integrations, queues, storage providers, or domain concepts should only be treated as implemented functionality when they are wired into the current application behavior.
+Infrastructure and architectural boundaries are not themselves product features. A module, integration, queue, storage provider, or domain concept should only be described as implemented when it is actually wired into application behavior and covered by tests.
 
-When this README is updated, prefer documenting observable API behavior and tested capabilities over planned architecture, placeholder directories, or dependency presence.
+When this README is updated, prefer documenting observable API behavior and tested capabilities. Keep architectural intent and dependency rules in [`docs/architecture.md`](docs/architecture.md).
