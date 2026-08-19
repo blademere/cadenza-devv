@@ -6,6 +6,5 @@ const get = async (req, res) => successResponse(res, 'Permit application retriev
 const list = async (req, res) => successResponse(res, 'Permit applications retrieved successfully.', await service.listMine({ userId: req.user.id }))
 const update = async (req, res) => successResponse(res, 'Permit application updated successfully.', await service.updateDraft({ id: req.validated.params.id, userId: req.user.id, ...req.validated.body }))
 const submit = async (req, res) => successResponse(res, 'Permit application marked ready for submission.', await service.submit({ id: req.validated.params.id, userId: req.user.id }))
-const bookAppointment = async (req, res) => successResponse(res, 'Hardcopy submission appointment booked successfully.', await service.bookSubmissionAppointment({ id: req.validated.params.id, userId: req.user.id, ...req.validated.body }), 201)
 
-module.exports = { create, get, list, update, submit, bookAppointment }
+module.exports = { create, get, list, update, submit }
