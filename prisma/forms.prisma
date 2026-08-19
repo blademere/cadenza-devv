@@ -1,13 +1,14 @@
 model Form {
-  id          String        @id @default(uuid())
-  key         String        @unique
-  name        String
-  description String?
-  entityType  String?
-  isActive    Boolean       @default(true)
-  versions    FormVersion[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id             String          @id @default(uuid())
+  key            String          @unique
+  name           String
+  description    String?
+  entityType     String?
+  isActive       Boolean         @default(true)
+  versions       FormVersion[]
+  oboPermitTypes OboPermitType[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model FormVersion {
