@@ -8,18 +8,18 @@ const prisma = getPrismaClient()
 const WORKFLOW_KEY = 'obo_plan_permit'
 const SUBJECT_TYPE = 'OboPermitApplication'
 const STATUS = Object.freeze({
-  DRAFT: 'DRAFT',
-  READY_FOR_SUBMISSION: 'READY_FOR_SUBMISSION',
-  SUBMISSION_SCHEDULED: 'SUBMISSION_SCHEDULED',
-  RECEIVING: 'RECEIVING',
-  DECLINED: 'DECLINED',
-  FOR_INSPECTION: 'FOR_INSPECTION',
+  DRAFT: 'DRAFT', READY_FOR_SUBMISSION: 'READY_FOR_SUBMISSION', SUBMISSION_SCHEDULED: 'SUBMISSION_SCHEDULED', RECEIVING: 'RECEIVING', DECLINED: 'DECLINED', FOR_INSPECTION: 'FOR_INSPECTION',
 })
 
 const getClientPerson = async (userId) => {
   const person = await repository.findPersonByUserId(userId)
   if (!person) throw new ConflictError('The authenticated user does not have a person profile.')
   return person
+}
+
+const getClientNotificationContext = async (personId, db = prisma) => {
+  const person = await db.person.findUnique({ where: { id: personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
+  return { clientUserId: person?.userId || null, clientEmail: person?.user?.email || person?.email || null }
 }
 
 const getWorkflowState = async (application) => {
@@ -63,7 +63,8 @@ const createApplication = async ({ userId, permitTypeId, professionalId, formVer
     const created = await repository.create({ clientPersonId: person.id, permitTypeId, professionalId, formVersionId: resolvedForm.formVersionId, formValues, userId }, tx)
     if (!created) throw new NotFoundError('Active permit type not found.')
     if (created.notFound === 'professional') throw new NotFoundError('Professional registration not found.')
-    const workflow = await workflowService.startWorkflow({ workflowKey: WORKFLOW_KEY, subjectType: SUBJECT_TYPE, subjectId: created.id, actorId: userId, metadata: { source: 'obo-plan-permit.create' }, db: tx })
+    const notificationContext = await getClientNotificationContext(person.id, tx)
+    const workflow = await workflowService.startWorkflow({ workflowKey: WORKFLOW_KEY, subjectType: SUBJECT_TYPE, subjectId: created.id, actorId: userId, metadata: { source: 'obo-plan-permit.create', referenceNumber: created.referenceNumber, permitTypeName: permitType.name, ...notificationContext }, db: tx })
     return repository.update(created.id, { workflowInstanceId: workflow.id }, tx)
   })
   return withWorkflowState(application)
@@ -95,7 +96,8 @@ const updateDraft = async ({ id, userId, professionalId, formVersionId, formValu
 const submit = async ({ id, userId }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be submitted.')
-  await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey: 'SUBMIT_FOR_SUBMISSION', actorId: userId, metadata: { source: 'obo-plan-permit.submit' } })
+  const notificationContext = await getClientNotificationContext(application.clientPersonId)
+  await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey: 'SUBMIT_FOR_SUBMISSION', actorId: userId, metadata: { source: 'obo-plan-permit.submit', referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext } })
   return withWorkflowState(await repository.findById(id))
 }
 
