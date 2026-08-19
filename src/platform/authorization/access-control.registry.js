@@ -21,10 +21,10 @@ const defineModule = (key, name, actions, description) => ({
   actions: Object.freeze([...actions]),
 })
 
-// Backend-owned capability catalog. The database stores the actual module,
-// permission, and role assignments. This catalog only declares capabilities
-// that the application knows how to enforce.
+// Bootstrap catalog only. Authorization checks are resolved from PostgreSQL.
+// Administrators can add modules, permissions, and role assignments at runtime.
 const ACCESS_CONTROL_MODULE_DEFINITIONS = Object.freeze([
+  defineModule('authorization', 'Authorization', ['manage'], 'Manage modules, permissions, and role assignments.'),
   defineModule('users', 'Users', ['read', 'create', 'update', 'delete']),
   defineModule('applications', 'Applications', ['read', 'create', 'update', 'delete', 'review', 'receive', 'approve', 'reject']),
   defineModule('professionals', 'Professionals', ['read', 'create', 'review', 'update']),
