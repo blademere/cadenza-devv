@@ -11,7 +11,7 @@ const {
   hasCachedPermission,
   cacheUserPermissions,
   invalidateUserPermissionCache,
-} = require('../../../src/features/access-control/access-control.cache')
+} = require('../../../src/platform/authorization/access-control.cache')
 const runIntegrationTests = process.env.RUN_REDIS_INTEGRATION_TESTS === 'true'
 const describeIfEnabled = runIntegrationTests ? describe : describe.skip
 
@@ -54,9 +54,7 @@ describeIfEnabled('Redis integration', () => {
     expect(await hasCachedPermission(userId, 'users', 'read')).toBe(true)
     expect(await hasCachedPermission(userId, 'users', 'create')).toBe(true)
     expect(await hasCachedPermission(userId, 'users', 'delete')).toBe(false)
-    expect(await redis.sMembers(key)).toEqual(
-      expect.arrayContaining(permissions)
-    )
+    expect(await redis.sMembers(key)).toEqual(expect.arrayContaining(permissions))
     expect(await redis.ttl(key)).toBeGreaterThan(0)
     expect(await redis.ttl(key)).toBeLessThanOrEqual(PERMISSION_CACHE_TTL)
   })

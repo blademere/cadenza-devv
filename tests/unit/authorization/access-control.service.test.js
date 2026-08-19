@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const repository = require('../../src/features/access-control/access-control.repository.js')
-const cache = require('../../src/features/access-control/access-control.cache.js')
+const repository = require('../../../src/platform/authorization/access-control.repository.js')
+const cache = require('../../../src/platform/authorization/access-control.cache.js')
 
 vi.spyOn(repository, 'getUserAuthorizationContext')
 vi.spyOn(repository, 'findRoleById')
@@ -15,7 +15,7 @@ const {
   canAny,
   canOwn,
   clearRolePermissionCache,
-} = await import('../../src/features/access-control/access-control.service.js')
+} = await import('../../../src/platform/authorization/access-control.service.js')
 
 beforeEach(() => {
   vi.clearAllMocks()

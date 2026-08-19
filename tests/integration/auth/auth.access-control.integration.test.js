@@ -18,7 +18,7 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
-const accessControlService = require('../../../src/features/access-control/access-control.service')
+const accessControlService = require('../../../src/platform/authorization/access-control.service')
 const userService = require('../../../src/features/users/user.service')
 const { createAccessToken } = require('../../../src/features/auth/auth.tokens')
 const can = vi.spyOn(accessControlService, 'can')

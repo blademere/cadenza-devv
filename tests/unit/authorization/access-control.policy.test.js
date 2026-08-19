@@ -3,7 +3,7 @@ const {
   ownershipPolicy,
   anyPolicy,
   evaluatePolicy,
-} = require('../../src/features/access-control/access-control.policy')
+} = require('../../../src/platform/authorization/access-control.policy')
 
 describe('access-control policies', () => {
   it('allows ownership when user owns the resource', () => {

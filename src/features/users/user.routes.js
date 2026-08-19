@@ -16,7 +16,7 @@ const { createUserValidator, listUsersValidator } = require("./user.validation")
 const {
   ACCESS_CONTROL_MODULES,
   ACCESS_CONTROL_ACTIONS,
-} = require("../access-control/access-control.constants")
+} = require("../../platform/authorization/access-control.constants")
 
 const userRouter = express.Router()
 

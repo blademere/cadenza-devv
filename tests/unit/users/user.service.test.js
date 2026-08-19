@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const bcrypt = require('bcrypt')
 const users = require('../../../src/features/users/user.repository.js')
 const auth = require('../../../src/features/auth/auth.repository.js')
-const accessControl = require('../../../src/features/access-control/access-control.repository.js')
+const accessControl = require('../../../src/platform/authorization/access-control.repository.js')
 const mapper = require('../../../src/features/users/user.mapper.js')
 
 vi.spyOn(bcrypt, 'hash')
