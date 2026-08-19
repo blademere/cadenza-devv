@@ -95,7 +95,7 @@ describe('notification delivery hardening', () => {
       {
         id: 'r2',
         templateId: 't2',
-        conditions: {},
+        conditions: null,
         recipientType: 'FIELD',
         recipientValue: 'clientUserId',
         template: {
@@ -149,7 +149,7 @@ describe('notification delivery hardening', () => {
       {
         id: 'r3',
         templateId: 't3',
-        conditions: {},
+        conditions: null,
         recipientType: 'FIELD',
         recipientValue: 'clientUserId',
         template: {
