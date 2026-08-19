@@ -1,16 +1,17 @@
 model BusinessRule {
-  id String @id @default(uuid())
-  key String @unique
-  name String
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
   description String?
-  event String
-  entityType String?
-  priority Int @default(100)
-  active Boolean @default(true)
-  conditions Json
-  actions Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  event       String
+  entityType  String?
+  priority    Int      @default(100)
+  active      Boolean  @default(true)
+  conditions  Json
+  actions     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@index([event, active, priority])
   @@index([entityType, event])
 }

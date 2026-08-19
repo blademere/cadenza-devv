@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
+import crypto from 'node:crypto'
 
 process.env.NODE_ENV = 'test'
 process.env.DATABASE_URL =
@@ -128,11 +129,14 @@ describe('Auth/Access Control integration', () => {
       resource: 'users',
       action: 'read',
     })
+
+    const idempotencyKey = `auth-access-control-create-user-${crypto.randomUUID()}`
     const allowedResponse = await request(app)
       .post('/api/v1/users')
       .set('Authorization', `Bearer ${token}`)
-      .set('Idempotency-Key', 'auth-access-control-create-user')
+      .set('Idempotency-Key', idempotencyKey)
       .send({ email: 'new@example.com', roleId: 2, password: 'password123' })
+
     expect(allowedResponse.status).toBe(201)
     expect(allowedResponse.body.success).toBe(true)
     expect(allowedResponse.body.data).toMatchObject({

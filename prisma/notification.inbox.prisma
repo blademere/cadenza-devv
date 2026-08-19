@@ -1,28 +1,30 @@
 model Notification {
-  id String @id @default(uuid())
-  userId Int
-  type String
-  title String
-  message String
-  data Json?
-  readAt DateTime?
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String                 @id @default(uuid())
+  userId     Int
+  type       String
+  title      String
+  message    String
+  data       Json?
+  readAt     DateTime?
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   deliveries NotificationDelivery[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+
   @@index([userId, readAt, createdAt])
   @@index([userId, createdAt])
 }
 
 model NotificationPreference {
-  id String @id @default(uuid())
-  userId Int
-  channel String
+  id          String   @id @default(uuid())
+  userId      Int
+  channel     String
   destination String?
-  enabled Boolean @default(true)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  enabled     Boolean  @default(true)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@unique([userId, channel])
   @@index([userId, enabled])
 }

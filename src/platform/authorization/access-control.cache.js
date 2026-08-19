@@ -1,7 +1,14 @@
 const { connectRedis } = require("../../infrastructure/cache/redis")
-const { getPermissionKey } = require("./access-control.constants")
 
 const PERMISSION_CACHE_TTL = 1800
+
+const getPermissionKey = (resource, action) => {
+  if (!resource || !action) {
+    throw new Error("Permission resource and action are required")
+  }
+
+  return `${resource}:${action}`
+}
 
 const getPermissionCacheKey = (userId) => {
   return `access-control:user:${userId}:permissions`

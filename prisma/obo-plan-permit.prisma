@@ -1,0 +1,102 @@
+model OboPermitType {
+  id           String                 @id @default(uuid())
+  key          String                 @unique
+  name         String
+  description  String?
+  formId       String?
+  isActive     Boolean                @default(true)
+  applications OboPermitApplication[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@index([isActive])
+}
+
+model OboProfessional {
+  id                 String @id @default(uuid())
+  personId           String @unique
+  userId             Int?   @unique
+  registrationNumber String @unique
+
+  status                String                                @default("PENDING_VERIFICATION")
+  verifiedByUserId      Int?
+  verifiedAt            DateTime?
+  verificationReason    String?
+  person                Person                                @relation(fields: [personId], references: [id], onDelete: Restrict)
+  user                  User?                                 @relation("OboProfessionalUser", fields: [userId], references: [id], onDelete: SetNull)
+  verifiedBy            User?                                 @relation("OboProfessionalVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  applications          OboPermitApplication[]
+  verificationDecisions OboProfessionalVerificationDecision[]
+  createdAt             DateTime                              @default(now())
+  updatedAt             DateTime                              @updatedAt
+
+  @@index([status])
+}
+
+model OboPermitApplication {
+  id                    String                    @id @default(uuid())
+  referenceNumber       String                    @unique
+  caseId                String                    @unique
+  permitTypeId          String
+  clientPersonId        String
+  professionalId        String
+  formVersionId         String?
+  formValues            Json
+  status                String                    @default("DRAFT")
+  submittedAt           DateTime?
+  declinedAt            DateTime?
+  declineReason         String?
+  acceptedAt            DateTime?
+  acceptedByUserId      Int?
+  caseRecord            CaseRecord                @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  permitType            OboPermitType             @relation(fields: [permitTypeId], references: [id], onDelete: Restrict)
+  clientPerson          Person                    @relation("OboApplicationClient", fields: [clientPersonId], references: [id], onDelete: Restrict)
+  professional          OboProfessional           @relation(fields: [professionalId], references: [id], onDelete: Restrict)
+  formVersion           FormVersion?              @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
+  acceptedBy            User?                     @relation("OboApplicationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+  submissionAppointment OboSubmissionAppointment?
+  decisions             OboReceivingDecision[]
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@index([clientPersonId, createdAt])
+  @@index([professionalId, createdAt])
+  @@index([status, createdAt])
+  @@index([permitTypeId, status])
+}
+
+model OboSubmissionAppointment {
+  id            String               @id @default(uuid())
+  applicationId String               @unique
+  appointmentId String               @unique
+  application   OboPermitApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+model OboReceivingDecision {
+  id              String               @id @default(uuid())
+  applicationId   String
+  decision        String
+  reason          String?
+  decidedByUserId Int
+  decidedAt       DateTime             @default(now())
+  application     OboPermitApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  decidedBy       User                 @relation("OboReceivingDecisionUser", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, decidedAt])
+  @@index([decision, decidedAt])
+}
+
+model OboProfessionalVerificationDecision {
+  id              String          @id @default(uuid())
+  professionalId  String
+  decision        String
+  reason          String?
+  decidedByUserId Int
+  decidedAt       DateTime        @default(now())
+  professional    OboProfessional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  decidedBy       User            @relation("OboProfessionalVerificationDecisionUser", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([professionalId, decidedAt])
+}

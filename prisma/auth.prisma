@@ -1,96 +1,106 @@
 model User {
-  id Int @id @default(autoincrement())
-  email String @unique
-  passwordHash String?
-  isActive Boolean @default(true)
-  authVersion Int @default(0)
-  roleId Int
-  role Role @relation(fields: [roleId], references: [id])
-  oauthAccounts OAuthAccount[]
-  refreshTokens RefreshToken[]
-  workflowInstancesStarted WorkflowInstance[] @relation("WorkflowInstanceStartedBy")
-  workflowHistoryActions WorkflowHistory[] @relation("WorkflowHistoryActor")
-  auditLogs AuditLog[] @relation("AuditLogActor")
-  formSubmissions FormSubmission[] @relation("FormSubmissionSubmittedBy")
-  approvalRequests ApprovalRequest[] @relation("ApprovalRequestAssignee")
-  approvalActions ApprovalRequest[] @relation("ApprovalRequestActor")
-  documents Document[]
-  notifications Notification[]
-  notificationPreferences NotificationPreference[]
-  person Person?
-  casesCreated CaseRecord[] @relation("CaseCreatedBy")
-  caseStatusChanges CaseStatusHistory[] @relation("CaseStatusChangedBy")
-  assignedTasks Task[] @relation("TaskAssignee")
-  tasksCreated Task[] @relation("TaskCreatedBy")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                                   Int                                   @id @default(autoincrement())
+  email                                String                                @unique
+  passwordHash                         String?
+  isActive                             Boolean                               @default(true)
+  authVersion                          Int                                   @default(0)
+  roleId                               Int
+  role                                 Role                                  @relation(fields: [roleId], references: [id])
+  oauthAccounts                        OAuthAccount[]
+  refreshTokens                        RefreshToken[]
+  workflowInstancesStarted             WorkflowInstance[]                    @relation("WorkflowInstanceStartedBy")
+  workflowHistoryActions               WorkflowHistory[]                     @relation("WorkflowHistoryActor")
+  auditLogs                            AuditLog[]                            @relation("AuditLogActor")
+  formSubmissions                      FormSubmission[]                      @relation("FormSubmissionSubmittedBy")
+  approvalRequests                     ApprovalRequest[]                     @relation("ApprovalRequestAssignee")
+  approvalActions                      ApprovalRequest[]                     @relation("ApprovalRequestActor")
+  documents                            Document[]
+  notifications                        Notification[]
+  notificationPreferences              NotificationPreference[]
+  person                               Person?
+  casesCreated                         CaseRecord[]                          @relation("CaseCreatedBy")
+  caseStatusChanges                    CaseStatusHistory[]                   @relation("CaseStatusChangedBy")
+  assignedTasks                        Task[]                                @relation("TaskAssignee")
+  tasksCreated                         Task[]                                @relation("TaskCreatedBy")
+  oboProfessional                      OboProfessional?                      @relation("OboProfessionalUser")
+  oboProfessionalsVerified             OboProfessional[]                     @relation("OboProfessionalVerifiedBy")
+  oboApplicationsAccepted              OboPermitApplication[]                @relation("OboApplicationAcceptedBy")
+  oboReceivingDecisions                OboReceivingDecision[]                @relation("OboReceivingDecisionUser")
+  oboProfessionalVerificationDecisions OboProfessionalVerificationDecision[] @relation("OboProfessionalVerificationDecisionUser")
+  createdAt                            DateTime                              @default(now())
+  updatedAt                            DateTime                              @updatedAt
+
   @@index([roleId])
 }
 
 model OAuthAccount {
-  id String @id @default(uuid())
-  provider String
+  id                String   @id @default(uuid())
+  provider          String
   providerAccountId String
-  userId Int
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId            Int
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
 
 model Role {
-  id Int @id @default(autoincrement())
-  name String @unique
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
   description String?
-  users User[]
+  users       User[]
   permissions RolePermission[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model Module {
-  id Int @id @default(autoincrement())
-  key String @unique
-  name String
+  id          Int          @id @default(autoincrement())
+  key         String       @unique
+  name        String
   description String?
   permissions Permission[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model Permission {
-  id Int @id @default(autoincrement())
-  moduleId Int
-  action String
-  module Module @relation(fields: [moduleId], references: [id])
-  roles RolePermission[]
-  createdAt DateTime @default(now())
+  id        Int              @id @default(autoincrement())
+  moduleId  Int
+  action    String
+  module    Module           @relation(fields: [moduleId], references: [id])
+  roles     RolePermission[]
+  createdAt DateTime         @default(now())
+
   @@unique([moduleId, action])
   @@index([moduleId])
 }
 
 model RolePermission {
-  roleId Int
+  roleId       Int
   permissionId Int
-  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
   @@id([roleId, permissionId])
   @@index([permissionId])
 }
 
 model RefreshToken {
-  id String @id
-  tokenHash String @unique
-  userId Int
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  revokedAt DateTime?
-  replacedByTokenId String? @unique
-  replacedByToken RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
-  replacesToken RefreshToken? @relation("RefreshTokenReplacement")
-  createdAt DateTime @default(now())
+  id                String        @id
+  tokenHash         String        @unique
+  userId            Int
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  replacedByTokenId String?       @unique
+  replacedByToken   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
+  replacesToken     RefreshToken? @relation("RefreshTokenReplacement")
+  createdAt         DateTime      @default(now())
+
   @@index([userId])
   @@index([expiresAt])
   @@index([revokedAt])
