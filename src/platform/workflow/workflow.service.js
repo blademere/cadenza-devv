@@ -18,7 +18,7 @@ const { WORKFLOW_ACTIONS, WORKFLOW_STATUS } = require("./workflow.constants")
 
 const parsePermissionKey = (permissionKey) => {
   if (!permissionKey) return null
-  const separator = permissionKey.indexOf(".")
+  const separator = permissionKey.indexOf(":")
   if (separator <= 0 || separator === permissionKey.length - 1) throw new BadRequestError(`Invalid workflow permission key '${permissionKey}'.`)
   return { resource: permissionKey.slice(0, separator), action: permissionKey.slice(separator + 1) }
 }
