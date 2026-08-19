@@ -52,6 +52,74 @@ const rolePermissions = {
 const permissionKeys = [...new Set(Object.values(rolePermissions).flat())]
 const moduleName = (key) => key.split(/[_-]+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 
+const OBO_WORKFLOW = {
+  key: 'obo_plan_permit',
+  name: 'OBO Plan Permit Application',
+  description: 'Lifecycle workflow for an OBO plan permit application.',
+  steps: [
+    { key: 'DRAFT', name: 'Draft', isInitial: true, isFinal: false, sortOrder: 0 },
+    { key: 'READY_FOR_SUBMISSION', name: 'Ready for Submission', isInitial: false, isFinal: false, sortOrder: 1 },
+    { key: 'SUBMISSION_SCHEDULED', name: 'Submission Scheduled', isInitial: false, isFinal: false, sortOrder: 2 },
+    { key: 'RECEIVING', name: 'Receiving', isInitial: false, isFinal: false, sortOrder: 3 },
+    { key: 'DECLINED', name: 'Declined', isInitial: false, isFinal: true, sortOrder: 4 },
+    { key: 'FOR_INSPECTION', name: 'For Inspection', isInitial: false, isFinal: true, sortOrder: 5 },
+  ],
+  transitions: [
+    { key: 'SUBMIT_FOR_SUBMISSION', name: 'Submit for Submission', fromStepKey: 'DRAFT', toStepKey: 'READY_FOR_SUBMISSION', permissionKey: 'obo_plan_permits:submit' },
+    { key: 'SCHEDULE_SUBMISSION', name: 'Schedule Hardcopy Submission', fromStepKey: 'READY_FOR_SUBMISSION', toStepKey: 'SUBMISSION_SCHEDULED', permissionKey: 'obo_plan_permits:schedule_submission' },
+    { key: 'RECEIVE_HARDCOPY', name: 'Receive Hardcopy', fromStepKey: 'SUBMISSION_SCHEDULED', toStepKey: 'RECEIVING', permissionKey: 'obo_plan_permits:receive' },
+    { key: 'DECLINE', name: 'Decline Application', fromStepKey: 'RECEIVING', toStepKey: 'DECLINED', permissionKey: 'obo_plan_permits:receive' },
+    { key: 'ACCEPT_FOR_INSPECTION', name: 'Accept for Inspection', fromStepKey: 'RECEIVING', toStepKey: 'FOR_INSPECTION', permissionKey: 'obo_plan_permits:receive' },
+  ],
+}
+
+async function seedOboWorkflow() {
+  const workflow = await prisma.workflow.upsert({
+    where: { key: OBO_WORKFLOW.key },
+    update: { name: OBO_WORKFLOW.name, description: OBO_WORKFLOW.description, isActive: true },
+    create: { key: OBO_WORKFLOW.key, name: OBO_WORKFLOW.name, description: OBO_WORKFLOW.description },
+  })
+
+  const version = await prisma.workflowVersion.upsert({
+    where: { workflowId_version: { workflowId: workflow.id, version: 1 } },
+    update: { status: 'PUBLISHED' },
+    create: {
+      workflowId: workflow.id,
+      version: 1,
+      status: 'PUBLISHED',
+      steps: { create: OBO_WORKFLOW.steps },
+    },
+    include: { steps: true },
+  })
+
+  const steps = await prisma.workflowStep.findMany({ where: { workflowVersionId: version.id } })
+  const stepByKey = new Map(steps.map((step) => [step.key, step]))
+  for (const transition of OBO_WORKFLOW.transitions) {
+    const fromStep = stepByKey.get(transition.fromStepKey)
+    const toStep = stepByKey.get(transition.toStepKey)
+    if (!fromStep || !toStep) throw new Error(`OBO workflow transition '${transition.key}' references an unknown step.`)
+    await prisma.workflowTransition.upsert({
+      where: { workflowVersionId_key: { workflowVersionId: version.id, key: transition.key } },
+      update: {
+        fromStepId: fromStep.id,
+        toStepId: toStep.id,
+        name: transition.name,
+        description: transition.description || null,
+        permissionKey: transition.permissionKey || null,
+      },
+      create: {
+        workflowVersionId: version.id,
+        fromStepId: fromStep.id,
+        toStepId: toStep.id,
+        key: transition.key,
+        name: transition.name,
+        description: transition.description || null,
+        permissionKey: transition.permissionKey || null,
+      },
+    })
+  }
+}
+
 async function seed() {
   const moduleRecords = new Map()
   const permissionRecords = new Map()
@@ -145,6 +213,8 @@ async function seed() {
     },
   })
 
+  await seedOboWorkflow()
+
   const adminEmail = process.env.SEED_ADMIN_EMAIL
   const adminPassword = process.env.SEED_ADMIN_PASSWORD
   if (adminEmail && adminPassword) {
@@ -159,7 +229,7 @@ async function seed() {
     console.log('No development admin configured; set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD to create one.')
   }
 
-  console.log(`Seeded ${moduleRecords.size} modules, ${permissionRecords.size} permissions, OBO plan permit type, appointment type, and application roles.`)
+  console.log(`Seeded ${moduleRecords.size} modules, ${permissionRecords.size} permissions, OBO plan permit type, appointment type, workflow, and application roles.`)
 }
 
 seed()
