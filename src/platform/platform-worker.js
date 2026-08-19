@@ -1,11 +1,6 @@
-const {
-  getPrismaClient,
-  disconnectPrisma,
-} = require('../infrastructure/database/prisma')
-const { markDueSlas, markEscalations } = require('./sla/sla.service')
+const { disconnectPrisma } = require('../infrastructure/database/prisma')
 const { processEvent } = require('./event-bus/event-bus')
 const {
-  enqueueEvent,
   claimBatch,
   markProcessed,
   markFailed,
@@ -18,48 +13,13 @@ const {
 } = require('../infrastructure/queue/bullmq')
 const { logger } = require('../config')
 
-const prisma = getPrismaClient()
 const EVENT_QUEUE = 'platform-events'
 
 const runPlatformMaintenance = async ({
-  now = new Date(),
-  batchSize = 100,
+  staleLeaseSeconds,
 } = {}) => {
-  const [due, escalated] = await Promise.all([
-    markDueSlas({ now }),
-    markEscalations({ now }),
-    recoverStale(),
-  ])
-
-  const events = []
-  for (const id of due?.ids || []) events.push({ event: 'sla.breached', id })
-  for (const id of escalated?.ids || []) {
-    events.push({ event: 'sla.escalated', id })
-  }
-
-  for (const item of events.slice(0, batchSize)) {
-    const instance = await prisma.slaInstance.findUnique({
-      where: { id: item.id },
-    })
-    if (!instance) continue
-
-    const context = {
-      slaInstanceId: instance.id,
-      subjectType: instance.subjectType,
-      subjectId: instance.subjectId,
-      event: item.event,
-    }
-
-    await enqueueEvent({
-      event: item.event,
-      entityType: instance.subjectType,
-      entityId: instance.subjectId,
-      context,
-      idempotencyKey: `sla:${instance.id}:${item.event}`,
-    })
-  }
-
-  return { due: due?.count || 0, escalated: escalated?.count || 0 }
+  const recovered = await recoverStale({ timeoutSeconds: staleLeaseSeconds })
+  return { recovered }
 }
 
 const publishOutbox = async ({ batchSize = 50, leaseSeconds } = {}) => {
