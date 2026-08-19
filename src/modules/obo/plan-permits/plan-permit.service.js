@@ -100,13 +100,13 @@ const updateDraft = async ({ id, userId, professionalId, formVersionId, formValu
 const submit = async ({ id, userId }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be submitted.')
-  const workflow = await transitionWorkflow({
+  await transitionWorkflow({
     instanceId: application.workflowInstanceId,
     transitionKey: 'SUBMIT_FOR_SUBMISSION',
     actorId: userId,
     metadata: { source: 'obo-plan-permit.submit' },
   })
-  return withWorkflowState(await repository.update(id, {})).then((result) => ({ ...result, status: workflow.currentStep.key }))
+  return withWorkflowState(await repository.findById(id))
 }
 
 const bookSubmissionAppointment = async ({ id, userId, appointmentTypeId, slotId, notes }) => {
@@ -117,13 +117,13 @@ const bookSubmissionAppointment = async ({ id, userId, appointmentTypeId, slotId
   await prisma.$transaction(async (tx) => {
     await repository.createSubmissionAppointment({ applicationId: id, appointmentId: appointment.id }, tx)
   })
-  const workflow = await transitionWorkflow({
+  await transitionWorkflow({
     instanceId: application.workflowInstanceId,
     transitionKey: 'SCHEDULE_SUBMISSION',
     actorId: userId,
     metadata: { source: 'obo-plan-permit.schedule_submission', appointmentId: appointment.id },
   })
-  return { ...await repository.update(id, {}), status: workflow.currentStep.key, workflowInstanceId: workflow.id }
+  return withWorkflowState(await repository.findById(id))
 }
 
 module.exports = { STATUS, WORKFLOW_KEY, SUBJECT_TYPE, createApplication, getMine, listMine, updateDraft, submit, bookSubmissionAppointment, getWorkflowState, withWorkflowState }
