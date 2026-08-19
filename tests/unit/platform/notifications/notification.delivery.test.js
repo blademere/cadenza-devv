@@ -10,10 +10,6 @@ const prisma = {
 
 const enqueueJob = vi.fn()
 
-vi.mock('../../../../src/platform/jobs/job.service', () => ({
-  enqueueJob,
-}))
-
 const { queueNotifications } = await import(
   '../../../../src/platform/notifications/notification.service'
 )
@@ -57,6 +53,7 @@ describe('notification delivery hardening', () => {
         referenceNumber: 'BP-1',
       },
       db: prisma,
+      enqueue: enqueueJob,
     })
 
     expect(prisma.notificationRule.findMany).toHaveBeenCalledWith(
@@ -126,6 +123,7 @@ describe('notification delivery hardening', () => {
       event: 'workflow.transitioned',
       context: { clientUserId: 42, referenceNumber: 'BP-2' },
       db: prisma,
+      enqueue: enqueueJob,
     })
 
     expect(prisma.user.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 42 } }))
@@ -175,6 +173,7 @@ describe('notification delivery hardening', () => {
       event: 'workflow.transitioned',
       context: { clientUserId: 42, referenceNumber: 'BP-3' },
       db: prisma,
+      enqueue: enqueueJob,
     })
 
     expect(prisma.notificationDelivery.upsert).not.toHaveBeenCalled()
