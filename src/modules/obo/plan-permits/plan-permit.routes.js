@@ -19,6 +19,7 @@ const applicationResource = (action) => authorizeResource({
 router.post('/', authenticate, authorize('applications', 'create'), requireIdempotency, validate(validation.createApplicationValidator), asyncHandler(controller.create))
 router.get('/mine', authenticate, authorize('applications', 'read'), asyncHandler(controller.list))
 router.get('/:id', authenticate, applicationResource('read'), validate(validation.applicationParamsValidator), asyncHandler(controller.get))
+router.patch('/:id', authenticate, applicationResource('update'), requireIdempotency, validate(validation.updateApplicationValidator), asyncHandler(controller.update))
 router.post('/:id/submit', authenticate, applicationResource('create'), requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.submit))
 router.post('/:id/submission-appointment', authenticate, applicationResource('create'), requireIdempotency, validate(validation.submissionAppointmentValidator), asyncHandler(controller.bookAppointment))
 
