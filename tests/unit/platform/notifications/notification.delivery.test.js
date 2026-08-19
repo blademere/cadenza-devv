@@ -9,15 +9,9 @@ const prisma = {
 
 const enqueueJob = vi.fn()
 
-vi.mock('../../../../src/infrastructure/database/prisma', () => ({
-  getPrismaClient: () => prisma,
-}))
-
 vi.mock('../../../../src/platform/jobs/job.service', () => ({
   enqueueJob,
 }))
-
-vi.resetModules()
 
 const { queueNotifications } = await import(
   '../../../../src/platform/notifications/notification.service'
@@ -62,6 +56,7 @@ describe('notification delivery hardening', () => {
         clientUserId: 42,
         referenceNumber: 'BP-1',
       },
+      db: prisma,
     })
 
     expect(prisma.notificationRule.findMany).toHaveBeenCalledWith(
