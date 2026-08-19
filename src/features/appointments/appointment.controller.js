@@ -1,11 +1,12 @@
 const { successResponse } = require('../../common/responses/apiResponse')
 const service = require('./appointment.service')
 const { generateSlots } = require('./appointment.slot.service')
+
 const listTypesController = async (req, res) => successResponse(res, 'Appointment types retrieved successfully.', await service.listAppointmentTypes(req.validated.query))
-const createTypeController = async (req, res) => successResponse(res, 'Appointment type created successfully.', await service.createAppointmentType(req.validated.body), 201)
-const createScheduleController = async (req, res) => successResponse(res, 'Availability schedule created successfully.', await service.createAvailabilitySchedule(req.validated.body), 201)
-const createSlotController = async (req, res) => successResponse(res, 'Appointment slot created successfully.', await service.createAppointmentSlot(req.validated.body), 201)
-const generateSlotsController = async (req, res) => successResponse(res, 'Appointment slots generated successfully.', await generateSlots(req.validated.body), 201)
+const createTypeController = async (req, res) => successResponse(res, 'Appointment type created successfully.', await service.createAppointmentType({ actorId: req.user.id, data: req.validated.body }), 201)
+const createScheduleController = async (req, res) => successResponse(res, 'Availability schedule created successfully.', await service.createAvailabilitySchedule({ actorId: req.user.id, data: req.validated.body }), 201)
+const createSlotController = async (req, res) => successResponse(res, 'Appointment slot created successfully.', await service.createAppointmentSlot({ actorId: req.user.id, data: req.validated.body }), 201)
+const generateSlotsController = async (req, res) => successResponse(res, 'Appointment slots generated successfully.', await generateSlots({ ...req.validated.body, actorId: req.user.id }), 201)
 const listSlotsController = async (req, res) => successResponse(res, 'Appointment slots retrieved successfully.', await service.listAppointmentSlots(req.validated.query))
 const createAppointmentController = async (req, res) => successResponse(res, 'Appointment booked successfully.', await service.bookAppointment({ userId: req.user.id, ...req.validated.body }), 201)
 const listMyAppointmentsController = async (req, res) => successResponse(res, 'Appointments retrieved successfully.', await service.listMyAppointments({ userId: req.user.id }))
@@ -14,4 +15,5 @@ const cancelAppointmentController = async (req, res) => successResponse(res, 'Ap
 const checkInAppointmentController = async (req, res) => successResponse(res, 'Appointment checked in successfully.', await service.checkInAppointment({ id: req.validated.params.id, actorId: req.user.id }))
 const completeAppointmentController = async (req, res) => successResponse(res, 'Appointment completed successfully.', await service.completeAppointment({ id: req.validated.params.id, actorId: req.user.id }))
 const noShowAppointmentController = async (req, res) => successResponse(res, 'Appointment marked as no-show successfully.', await service.markNoShow({ id: req.validated.params.id, actorId: req.user.id }))
+
 module.exports = { listTypesController, createTypeController, createScheduleController, createSlotController, generateSlotsController, listSlotsController, createAppointmentController, listMyAppointmentsController, getMyAppointmentController, cancelAppointmentController, checkInAppointmentController, completeAppointmentController, noShowAppointmentController }

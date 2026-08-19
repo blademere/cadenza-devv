@@ -131,6 +131,7 @@ describe('Auth/Access Control integration', () => {
     const allowedResponse = await request(app)
       .post('/api/v1/users')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'auth-access-control-create-user')
       .send({ email: 'new@example.com', roleId: 2, password: 'password123' })
     expect(allowedResponse.status).toBe(201)
     expect(allowedResponse.body.success).toBe(true)

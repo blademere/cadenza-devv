@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
 
+vi.mock("../../../src/platform/audit/audit.service.js", () => ({
+  recordAudit: vi.fn().mockResolvedValue({ id: "audit-1" }),
+}))
+
 const prisma = {
   appointmentType: { findUnique: vi.fn() },
   availabilitySchedule: { findMany: vi.fn() },
@@ -31,6 +35,9 @@ describe("appointment slot generation", () => {
           created.push(data)
           return { id: `slot-${created.length}`, ...data }
         }),
+      },
+      auditLog: {
+        create: vi.fn().mockResolvedValue({ id: "audit-1" }),
       },
     }))
 
