@@ -1,0 +1,21 @@
+model Task {
+  id String @id @default(uuid())
+  caseId String?
+  title String
+  description String?
+  status String @default("OPEN")
+  priority String @default("NORMAL")
+  assigneeUserId Int?
+  createdByUserId Int?
+  dueAt DateTime?
+  completedAt DateTime?
+  metadata Json?
+  caseRecord CaseRecord? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  assigneeUser User? @relation("TaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  createdByUser User? @relation("TaskCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([caseId, status])
+  @@index([assigneeUserId, status])
+  @@index([status, dueAt])
+}
