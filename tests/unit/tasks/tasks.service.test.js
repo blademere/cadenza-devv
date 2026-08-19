@@ -7,11 +7,10 @@ const spies = {
   createTask: vi.spyOn(repository, 'createTask'),
   findTaskById: vi.spyOn(repository, 'findTaskById'),
   findCase: vi.spyOn(repository, 'findCase'),
-  listTasks: vi.spyOn(repository, 'listTasks'),
   updateTask: vi.spyOn(repository, 'updateTask'),
 }
 
-const { create, getById, update } = await import('../../../src/features/tasks/tasks.service.js')
+const { create, update } = await import('../../../src/features/tasks/tasks.service.js')
 
 afterEach(() => vi.clearAllMocks())
 
