@@ -16,32 +16,23 @@ module-specific business decision
 
 The platform provides mechanisms; modules decide when and why those mechanisms apply.
 
-## Custom fields
+## Dynamic form fields
 
-Custom fields are metadata definitions scoped by entity type. Values are stored separately from the domain entity so genuinely variable or organization-specific attributes do not require schema changes.
+Dynamic/custom fields are part of the Forms platform. There is no separate `platform/custom-fields` subsystem.
 
-```js
-await customFields.defineField({
-  entityType: 'PermitApplication',
-  key: 'risk_category',
-  label: 'Risk Category',
-  type: 'select',
-  config: { options: ['LOW', 'MEDIUM', 'HIGH'] },
-})
-
-await customFields.setValue({
-  entityType: 'PermitApplication',
-  entityId: application.id,
-  key: 'risk_category',
-  value: 'HIGH',
-})
+```text
+Form
+ └── FormVersion
+      ├── FormSection
+      └── FormField
+           └── FormOption
 ```
 
-Supported types are `text`, `number`, `integer`, `boolean`, `date`, `datetime`, `select`, `multiselect`, and `json`.
+A module defines the form it needs and the Forms platform handles field definition, validation, conditional visibility, options, versioning, and submissions. Field values for an application are stored with the submission/application and are interpreted against the exact `FormVersion` used.
 
-Do **not** use custom fields for core relational data such as applicant identity, case relationships, participant roles, permit type, workflow state, or professional registration. Those remain normal domain columns and relations.
+Use dynamic fields for genuinely variable or organization-specific attributes. Do not use them for core relational data such as applicant identity, case relationships, participant roles, permit type, workflow state, or professional registration. Those remain normal domain columns and relations.
 
-Dynamic forms and custom fields complement the strongly modeled shared features; they do not replace them.
+For OBO permit applications, `OboPermitType.formId` points to the generic platform `Form`. A permit-specific field such as `risk_category`, `occupancy`, `estimated_cost`, or equipment capacity is a normal `FormField` in that form version.
 
 ## Dashboards — deferred
 
@@ -77,12 +68,12 @@ Keep the event dispatcher generic and keep each consumer isolated. Permit-specif
 
 ## Extensibility status
 
-The repository no longer uses a `platform/extensibility.js` aggregator. Consumers should import the specific capability they need rather than depending on an artificial extensibility facade.
+The repository no longer uses a `platform/extensibility.js` aggregator or a separate custom-field capability. Consumers should import the specific capability they need rather than depending on an artificial extensibility facade.
 
 Current status:
 
 ```text
-custom-fields   retained / reusable
+forms           retained / reusable
 rules/events    retained / reusable
 dashboards       deferred
 integrations    deferred
