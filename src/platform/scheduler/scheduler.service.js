@@ -1,4 +1,4 @@
-const { getQueue, enqueueJob, getQueue: getBullQueue } = require('../../infrastructure/queue/bullmq')
+const { getQueue, enqueueJob } = require('../../infrastructure/queue/bullmq')
 const {
   SCHEDULER_TYPES,
   DEFAULT_SCHEDULER_QUEUE,
@@ -44,7 +44,7 @@ const validateCron = (pattern) => {
 }
 
 const createSchedulerService = ({
-  queueProvider = { getQueue: getBullQueue, enqueueJob },
+  queueProvider = { getQueue, enqueueJob },
 } = {}) => {
   const scheduleEvery = async ({
     schedulerId,
