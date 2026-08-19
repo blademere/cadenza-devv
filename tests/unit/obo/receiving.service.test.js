@@ -6,6 +6,10 @@ vi.mock('../../../src/platform/workflow/workflow.service', () => ({
 
 const repository = require('../../../src/modules/obo/receiving/receiving.repository')
 const workflowService = require('../../../src/platform/workflow/workflow.service')
+const prismaModule = require('../../../src/infrastructure/database/prisma')
+
+const transaction = vi.fn(async (callback) => callback({}))
+vi.spyOn(prismaModule, 'getPrismaClient').mockReturnValue({ $transaction: transaction })
 
 const spies = {
   findApplication: vi.spyOn(repository, 'findApplication'),
@@ -20,7 +24,7 @@ afterEach(() => vi.clearAllMocks())
 beforeEach(() => {
   spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'SUBMISSION_SCHEDULED' } })
   workflowService.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
-}
+})
 
 const service = require('../../../src/modules/obo/receiving/receiving.service')
 
@@ -41,19 +45,11 @@ describe('OBO receiving service', () => {
 
   it('receives valid hardcopy submissions through the workflow engine', async () => {
     spies.findApplication.mockResolvedValue(scheduled)
-    spies.findSubmissionAppointment.mockResolvedValue({
-      status: 'SCHEDULED',
-      slot: { startsAt: new Date(Date.now() - 60_000) },
-    })
+    spies.findSubmissionAppointment.mockResolvedValue({ status: 'SCHEDULED', slot: { startsAt: new Date(Date.now() - 60_000) } })
     spies.updateApplication.mockResolvedValue({ id: 'application-1' })
 
-    await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' }))
-      .resolves.toMatchObject({ id: 'application-1' })
-    expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({
-      instanceId: 'workflow-1',
-      transitionKey: 'RECEIVE_HARDCOPY',
-      actorId: 'officer-1',
-    }))
+    await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).resolves.toMatchObject({ id: 'application-1' })
+    expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ instanceId: 'workflow-1', transitionKey: 'RECEIVE_HARDCOPY', actorId: 'officer-1' }))
     expect(spies.updateApplication).toHaveBeenCalledWith('application-1', expect.objectContaining({ submittedAt: expect.any(Date) }))
   })
 
@@ -91,8 +87,7 @@ describe('OBO receiving service', () => {
     spies.updateApplication.mockResolvedValue({ id: 'application-1' })
     spies.addDecision.mockResolvedValue({ id: 'decision-1' })
 
-    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'ACCEPTED' }))
-      .resolves.toMatchObject({ status: 'FOR_INSPECTION' })
+    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'ACCEPTED' })).resolves.toMatchObject({ status: 'FOR_INSPECTION' })
     expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'ACCEPT_FOR_INSPECTION' }))
     expect(spies.addDecision).toHaveBeenCalledWith(expect.objectContaining({ decision: 'ACCEPTED', decidedByUserId: 'officer-1' }), expect.any(Object))
   })
@@ -100,14 +95,12 @@ describe('OBO receiving service', () => {
   it('declines a received application only with a reason', async () => {
     spies.findApplication.mockResolvedValue(scheduled)
     spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
-    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED' }))
-      .rejects.toThrow('reason is required')
+    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED' })).rejects.toThrow('reason is required')
 
     workflowService.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DECLINED' } })
     spies.updateApplication.mockResolvedValue({ id: 'application-1' })
     spies.addDecision.mockResolvedValue({ id: 'decision-1' })
-    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED', reason: 'Missing hardcopy requirements' }))
-      .resolves.toMatchObject({ status: 'DECLINED' })
+    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED', reason: 'Missing hardcopy requirements' })).resolves.toMatchObject({ status: 'DECLINED' })
     expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'DECLINE' }))
   })
 
@@ -117,7 +110,6 @@ describe('OBO receiving service', () => {
 
     spies.findApplication.mockResolvedValue(scheduled)
     spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'SUBMISSION_SCHEDULED' } })
-    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'ACCEPTED' }))
-      .rejects.toThrow('must be received')
+    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'ACCEPTED' })).rejects.toThrow('must be received')
   })
 })
