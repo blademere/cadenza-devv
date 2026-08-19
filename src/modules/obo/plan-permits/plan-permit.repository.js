@@ -9,6 +9,7 @@ const findPermitType = (id, db = prisma) => db.oboPermitType.findFirst({ where: 
 const findProfessional = (id, db = prisma) => db.oboProfessional.findUnique({ where: { id } })
 const findFormById = (id, db = prisma) => db.form.findUnique({ where: { id } })
 const findFormVersionById = (id, db = prisma) => db.formVersion.findUnique({ where: { id }, include: { form: true } })
+const findWorkflowInstance = (id, db = prisma) => db.workflowInstance.findUnique({ where: { id }, include: { currentStep: true } })
 const findById = (id, db = prisma) => db.oboPermitApplication.findUnique({
   where: { id },
   include: { permitType: true, professional: true, formVersion: true, submissionAppointment: true, decisions: { orderBy: { decidedAt: 'desc' } } },
@@ -54,6 +55,7 @@ module.exports = {
   findProfessional,
   findFormById,
   findFormVersionById,
+  findWorkflowInstance,
   findById,
   findOwnedByClient,
   listByClient,
