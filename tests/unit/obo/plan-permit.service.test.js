@@ -5,7 +5,9 @@ const formService = require('../../../src/platform/forms/form.service')
 const workflowService = require('../../../src/platform/workflow/workflow.service')
 const prismaModule = require('../../../src/infrastructure/database/prisma')
 
-const transaction = vi.fn(async (callback) => callback({}))
+const transaction = vi.fn(async (callback) => callback({
+  person: { findUnique: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'client@example.com', user: { email: 'client@example.com' } }) },
+}))
 vi.spyOn(prismaModule, 'getPrismaClient').mockReturnValue({ $transaction: transaction })
 
 const spies = {
@@ -35,7 +37,7 @@ beforeEach(() => {
 
 const service = require('../../../src/modules/obo/plan-permits/plan-permit.service')
 
-const person = { id: 'person-1' }
+const person = { id: 'person-1', userId: 'user-1', email: 'client@example.com' }
 const permitType = { id: 'permit-1', name: 'Building Permit', isActive: true, formId: null }
 const professional = { id: 'professional-1', status: 'VERIFIED' }
 
@@ -51,7 +53,6 @@ describe('OBO plan permit service', () => {
     spies.create.mockResolvedValue({ id: 'application-1', status: 'DRAFT' })
     spies.update.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1' })
     spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
-
     await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', professionalId: 'professional-1', formValues: {} })).resolves.toMatchObject({ id: 'application-1', status: 'DRAFT', workflowInstanceId: 'workflow-1' })
     expect(spies.startWorkflow).toHaveBeenCalledWith(expect.objectContaining({ workflowKey: 'obo_plan_permit', subjectType: 'OboPermitApplication', subjectId: 'application-1' }))
   })
@@ -87,13 +88,10 @@ describe('OBO plan permit service', () => {
 
   it('submits a draft through the platform workflow transition', async () => {
     spies.findPersonByUserId.mockResolvedValue(person)
-    spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', permitType })
+    spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', referenceNumber: 'BP-1', permitType })
     spies.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1' })
-    spies.findWorkflowInstance
-      .mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
-      .mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
+    spies.findWorkflowInstance.mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'DRAFT' } }).mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
     spies.transitionWorkflow.mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
-
     await expect(service.submit({ id: 'application-1', userId: 'user-1' })).resolves.toMatchObject({ status: 'READY_FOR_SUBMISSION' })
     expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'SUBMIT_FOR_SUBMISSION' }))
   })
