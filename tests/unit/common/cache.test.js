@@ -6,12 +6,8 @@ const redis = {
   del: vi.fn(),
 }
 
-vi.mock('../../../src/infrastructure/cache/redis', () => ({
-  connectRedis: vi.fn(async () => redis),
-}))
-
-const cache = require('../../../src/common/middleware/cache')
-const { connectRedis } = require('../../../src/infrastructure/cache/redis')
+const connectRedis = vi.fn(async () => redis)
+const cache = require('../../../src/common/middleware/cache').createCache({ connectRedis })
 
 describe('generic API cache middleware', () => {
   beforeEach(() => {
@@ -19,6 +15,7 @@ describe('generic API cache middleware', () => {
     redis.get.mockResolvedValue(null)
     redis.set.mockResolvedValue('OK')
     redis.del.mockResolvedValue(1)
+    connectRedis.mockResolvedValue(redis)
   })
 
   it('uses a caller-provided cache key and defaults to GET/HEAD', async () => {
