@@ -1,16 +1,16 @@
-const toIso = (value) => (value instanceof Date ? value.toISOString() : value)
-
 const mapAppointmentType = (type) => {
   if (!type) return null
 
   return {
     id: type.id,
+    key: type.key,
     name: type.name,
     description: type.description ?? null,
-    durationMinutes: type.durationMinutes,
-    active: type.active,
-    createdAt: toIso(type.createdAt),
-    updatedAt: toIso(type.updatedAt),
+    defaultDurationMinutes: type.defaultDurationMinutes,
+    defaultCapacity: type.defaultCapacity,
+    isActive: type.isActive,
+    createdAt: type.createdAt,
+    updatedAt: type.updatedAt,
   }
 }
 
@@ -26,13 +26,12 @@ const mapAppointment = (appointment) => {
     status: appointment.status,
     metadata: appointment.metadata ?? null,
     notes: appointment.notes ?? null,
-    scheduledAt: toIso(appointment.scheduledAt),
-    checkedInAt: toIso(appointment.checkedInAt),
-    completedAt: toIso(appointment.completedAt),
-    noShowAt: toIso(appointment.noShowAt),
-    cancelledAt: toIso(appointment.cancelledAt),
-    createdAt: toIso(appointment.createdAt),
-    updatedAt: toIso(appointment.updatedAt),
+    cancelledAt: appointment.cancelledAt ?? null,
+    checkedInAt: appointment.checkedInAt ?? null,
+    completedAt: appointment.completedAt ?? null,
+    noShowAt: appointment.noShowAt ?? null,
+    createdAt: appointment.createdAt,
+    updatedAt: appointment.updatedAt,
   }
 }
 
@@ -43,14 +42,13 @@ const mapAppointmentSlot = (slot) => {
     id: slot.id,
     appointmentTypeId: slot.appointmentTypeId,
     scheduleId: slot.scheduleId ?? null,
-    startsAt: toIso(slot.startsAt),
-    endsAt: toIso(slot.endsAt),
+    startsAt: slot.startsAt,
+    endsAt: slot.endsAt,
     capacity: slot.capacity,
     bookedCount: slot.bookedCount,
     status: slot.status,
-    timezone: slot.timezone,
-    createdAt: toIso(slot.createdAt),
-    updatedAt: toIso(slot.updatedAt),
+    createdAt: slot.createdAt,
+    updatedAt: slot.updatedAt,
   }
 }
 
@@ -63,12 +61,12 @@ const mapAvailabilitySchedule = (schedule) => {
     dayOfWeek: schedule.dayOfWeek,
     startTime: schedule.startTime,
     endTime: schedule.endTime,
+    timezone: schedule.timezone,
     slotDurationMinutes: schedule.slotDurationMinutes,
     capacity: schedule.capacity,
-    timezone: schedule.timezone,
-    active: schedule.active,
-    createdAt: toIso(schedule.createdAt),
-    updatedAt: toIso(schedule.updatedAt),
+    isActive: schedule.isActive,
+    createdAt: schedule.createdAt,
+    updatedAt: schedule.updatedAt,
   }
 }
 
