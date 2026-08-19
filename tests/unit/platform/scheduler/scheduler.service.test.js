@@ -9,7 +9,7 @@ const createQueue = () => ({
 describe('scheduler service', () => {
   it('schedules recurring jobs by interval', async () => {
     const queue = createQueue()
-    const scheduler = require('../../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
+    const scheduler = require('../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
       queueProvider: { getQueue: vi.fn(async () => queue) },
     })
 
@@ -28,7 +28,7 @@ describe('scheduler service', () => {
 
   it('schedules recurring jobs from cron expressions', async () => {
     const queue = createQueue()
-    const scheduler = require('../../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
+    const scheduler = require('../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
       queueProvider: { getQueue: vi.fn(async () => queue) },
     })
 
@@ -43,7 +43,7 @@ describe('scheduler service', () => {
 
   it('schedules one-time delayed jobs through the queue provider', async () => {
     const enqueueJob = vi.fn(async (...args) => args)
-    const scheduler = require('../../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
+    const scheduler = require('../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
       queueProvider: {
         getQueue: vi.fn(),
         enqueueJob,
@@ -67,7 +67,7 @@ describe('scheduler service', () => {
   })
 
   it('rejects invalid intervals', async () => {
-    const scheduler = require('../../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
+    const scheduler = require('../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
       queueProvider: { getQueue: vi.fn() },
     })
 
@@ -77,7 +77,7 @@ describe('scheduler service', () => {
   })
 
   it('rejects invalid cron expressions', async () => {
-    const scheduler = require('../../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
+    const scheduler = require('../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
       queueProvider: { getQueue: vi.fn() },
     })
 
@@ -88,7 +88,7 @@ describe('scheduler service', () => {
 
   it('removes an existing schedule', async () => {
     const queue = createQueue()
-    const scheduler = require('../../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
+    const scheduler = require('../../../../src/platform/scheduler/scheduler.service').createSchedulerService({
       queueProvider: { getQueue: vi.fn(async () => queue) },
     })
 
