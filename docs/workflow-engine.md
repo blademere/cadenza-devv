@@ -1,6 +1,6 @@
 # Workflow Engine
 
-The workflow engine is a reusable platform service. Domain features should describe a workflow instead of hard-coding status transitions in controllers and services.
+The workflow engine is a reusable platform service. Domain modules define the business meaning of a workflow; the platform owns versioning, transition mechanics, concurrency protection, and history.
 
 ## Model
 
@@ -15,16 +15,16 @@ WorkflowInstance
   └── WorkflowHistory[]
 ```
 
-A workflow instance stores `subjectType` and `subjectId`, so the engine can be reused by permits, applications, requests, inspections, or other business entities without a foreign key to a specific domain table.
+A workflow instance stores `subjectType` and `subjectId`, allowing the engine to support cases, applications, requests, inspections, or other business entities without a foreign key to a specific domain table.
 
 ## Creating a workflow
 
-```js
-const { createWorkflow } = require("../src/platform/workflow")
+The platform accepts domain-neutral configuration. A future module may supply a key such as `building-permit`, but that key is module configuration rather than platform business logic.
 
+```js
 await createWorkflow({
-  key: "building-permit",
-  name: "Building Permit",
+  key: "application-review",
+  name: "Application Review",
   steps: [
     { key: "draft", name: "Draft", isInitial: true },
     { key: "review", name: "Review" },
@@ -53,12 +53,14 @@ await createWorkflow({
 
 ```js
 const instance = await startWorkflow({
-  workflowKey: "building-permit",
-  subjectType: "PermitApplication",
+  workflowKey: "application-review",
+  subjectType: "Application",
   subjectId: application.id,
   actorId: user.id,
 })
 ```
+
+A future OBO module can use `subjectType: "PermitApplication"`; the platform must remain unaware of the permit domain.
 
 ## Transitioning
 
@@ -75,41 +77,20 @@ Transitions are checked against the instance's current step. The update also use
 
 ## Versioning
 
-Existing applications continue using the workflow version they started with. New versions are created as drafts:
+Existing instances continue using the workflow version with which they started. New versions are created as drafts and published explicitly.
 
-```js
-const { createWorkflowVersion, publishWorkflowVersion } = require("../src/platform/workflow")
-
-await createWorkflowVersion({
-  workflowKey: "building-permit",
-  steps: [...],
-  transitions: [...],
-  actorId: user.id,
-})
-
-await publishWorkflowVersion({
-  workflowKey: "building-permit",
-  version: 2,
-  actorId: user.id,
-})
-```
-
-Publishing archives the previously published version. Existing workflow instances remain attached to their original version.
+Publishing archives the previously published version. Existing workflow instances remain attached to their original version. Published workflow versions are immutable.
 
 ## Audit
 
-Workflow creation, instance creation, transitions, completion, and version changes are written to `AuditLog`. Other platform features can reuse:
-
-```js
-const { recordAudit } = require("../src/platform/audit/audit.service")
-```
-
-The audit record supports actor, action, entity, before/after snapshots, metadata, IP address, and user agent.
+Workflow creation, instance creation, transitions, completion, and version changes should be recorded through the reusable audit capability. The workflow engine should not introduce domain-specific audit semantics.
 
 ## Design rules
 
-- Do not put permit-specific logic in the workflow engine.
+- Do not put permit-specific, rental-specific, enrollment-specific, or other module-specific logic in the workflow engine.
 - Do not execute arbitrary JavaScript from workflow configuration.
-- Use `permissionKey` as a declarative hook for access-control integration.
-- Keep business rules and conditions separate from transition mechanics; they will be added as the validation/rules platform is implemented.
-- Never mutate a published workflow version. Create a new version instead.
+- Use `permissionKey` as a declarative access-control hook.
+- Keep business rules and conditions separate from transition mechanics.
+- Use guarded updates for lifecycle transitions that must be concurrency-safe.
+- Never mutate a published workflow version; create a new version instead.
+- Keep persistence behind the platform's repository boundary.
