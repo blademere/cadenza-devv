@@ -6,7 +6,7 @@ const {
   NotFoundError,
 } = require("../../common/errors/appError")
 const { recordAudit } = require("../audit/audit.service")
-const { can } = require("../../features/access-control/access-control.service")
+const { can } = require("../authorization/access-control.service")
 const { publish } = require("../event-bus/event-bus")
 const {
   findWorkflowByKey,
