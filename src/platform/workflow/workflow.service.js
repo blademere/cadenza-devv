@@ -1,4 +1,5 @@
-const prisma = require("../../infrastructure/database/prisma")
+const { getPrismaClient } = require("../../infrastructure/database/prisma")
+const prisma = getPrismaClient()
 const {
   BadRequestError,
   ConflictError,
@@ -48,24 +49,16 @@ const assertWorkflowDefinition = ({ steps = [], transitions = [] }) => {
     if (!transition || !transition.key || !transition.name) throw new BadRequestError("Every workflow transition requires a key and name.")
     if (transitionKeys.has(transition.key)) throw new ConflictError(`Duplicate workflow transition key: ${transition.key}.`)
     transitionKeys.add(transition.key)
-
-    if (!stepKeys.has(transition.fromStepKey) || !stepKeys.has(transition.toStepKey)) {
-      throw new BadRequestError(`Transition ${transition.key} references an unknown workflow step.`)
-    }
-
+    if (!stepKeys.has(transition.fromStepKey) || !stepKeys.has(transition.toStepKey)) throw new BadRequestError(`Transition ${transition.key} references an unknown workflow step.`)
     if (transition.permissionKey) parsePermissionKey(transition.permissionKey)
-
     const fromStep = steps.find((step) => step.key === transition.fromStepKey)
     if (fromStep.isFinal) throw new BadRequestError(`Final workflow step '${fromStep.key}' cannot have outgoing transitions.`)
-
     outgoing.set(fromStep.key, outgoing.get(fromStep.key) + 1)
     adjacency.get(fromStep.key).push(transition.toStepKey)
   }
 
   for (const step of steps) {
-    if (!step.isFinal && outgoing.get(step.key) === 0) {
-      throw new BadRequestError(`Non-final workflow step '${step.key}' must have at least one outgoing transition.`)
-    }
+    if (!step.isFinal && outgoing.get(step.key) === 0) throw new BadRequestError(`Non-final workflow step '${step.key}' must have at least one outgoing transition.`)
   }
 
   const reachable = new Set([initialSteps[0].key])
@@ -79,7 +72,6 @@ const assertWorkflowDefinition = ({ steps = [], transitions = [] }) => {
       }
     }
   }
-
   const unreachable = steps.find((step) => !reachable.has(step.key))
   if (unreachable) throw new BadRequestError(`Workflow step '${unreachable.key}' is unreachable from the initial step.`)
 }
@@ -124,15 +116,7 @@ const startWorkflow = async ({ workflowKey, subjectType, subjectId, actorId = nu
   const createInstance = async (tx) => {
     const created = await tx.workflowInstance.create({ data: { workflowVersionId: version.id, currentStepId: initialStep.id, subjectType, subjectId: normalizedSubjectId, startedByUserId: actorId } })
     await tx.workflowHistory.create({ data: { instanceId: created.id, toStepId: initialStep.id, actorId, metadata: metadata || undefined } })
-    await publish({
-      db: tx,
-      event: "workflow.started",
-      entityType: subjectType,
-      entityId: normalizedSubjectId,
-      actorId,
-      context: { workflowKey, workflowInstanceId: created.id, workflowStepKey: initialStep.key, metadata: metadata || {} },
-      idempotencyKey: `workflow:${created.id}:started`,
-    })
+    await publish({ db: tx, event: "workflow.started", entityType: subjectType, entityId: normalizedSubjectId, actorId, context: { workflowKey, workflowInstanceId: created.id, workflowStepKey: initialStep.key, metadata: metadata || {} }, idempotencyKey: `workflow:${created.id}:started` })
     return created
   }
 
@@ -153,37 +137,13 @@ const transitionWorkflow = async ({ instanceId, transitionKey, actorId = null, m
     const result = await tx.workflowInstance.updateMany({ where: { id: instanceId, currentStepId: instance.currentStepId, completedAt: null }, data: { currentStepId: transition.toStepId, completedAt: transition.toStep.isFinal ? new Date() : null } })
     if (result.count !== 1) throw new ConflictError("Workflow instance changed concurrently. Retry the transition.")
     await tx.workflowHistory.create({ data: { instanceId, fromStepId: instance.currentStepId, toStepId: transition.toStepId, transitionId: transition.id, actorId, metadata: metadata || undefined } })
-    await publish({
-      db: tx,
-      event: transition.toStep.isFinal ? "workflow.completed" : "workflow.transitioned",
-      entityType: instance.subjectType,
-      entityId: instance.subjectId,
-      actorId,
-      context: {
-        workflowInstanceId: instanceId,
-        workflowStepKey: transition.toStep.key,
-        previousWorkflowStepKey: instance.currentStep.key,
-        transitionKey,
-        transitionId: transition.id,
-        metadata: metadata || {},
-      },
-      idempotencyKey: `workflow:${instanceId}:transition:${transition.id}:${transition.toStepId}`,
-    })
+    await publish({ db: tx, event: transition.toStep.isFinal ? "workflow.completed" : "workflow.transitioned", entityType: instance.subjectType, entityId: instance.subjectId, actorId, context: { workflowInstanceId: instanceId, workflowStepKey: transition.toStep.key, previousWorkflowStepKey: instance.currentStep.key, transitionKey, transitionId: transition.id, metadata: metadata || {} }, idempotencyKey: `workflow:${instanceId}:transition:${transition.id}:${transition.toStepId}` })
     return tx.workflowInstance.findUnique({ where: { id: instanceId }, include: { currentStep: true } })
   }
 
   const updated = db === prisma ? await prisma.$transaction(executeTransition) : await executeTransition(db)
   const action = transition.toStep.isFinal ? WORKFLOW_ACTIONS.COMPLETED : WORKFLOW_ACTIONS.TRANSITIONED
-  await recordAudit({
-    actorId,
-    action,
-    entityType: "WorkflowInstance",
-    entityId: instanceId,
-    before: { currentStepId: instance.currentStepId, currentStep: instance.currentStep.key },
-    after: { currentStepId: updated.currentStepId, currentStep: updated.currentStep.key },
-    metadata: { transitionKey, transitionId: transition.id, ...metadata },
-    db: db === prisma ? undefined : db,
-  })
+  await recordAudit({ actorId, action, entityType: "WorkflowInstance", entityId: instanceId, before: { currentStepId: instance.currentStepId, currentStep: instance.currentStep.key }, after: { currentStepId: updated.currentStepId, currentStep: updated.currentStep.key }, metadata: { transitionKey, transitionId: transition.id, ...metadata }, db: db === prisma ? undefined : db })
   return updated
 }
 
