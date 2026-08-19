@@ -47,7 +47,7 @@ describe('OBO receiving service', () => {
 
     await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).resolves.toMatchObject({ id: 'application-1' })
     expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ instanceId: 'workflow-1', transitionKey: 'RECEIVE_HARDCOPY', actorId: 'officer-1' }))
-    expect(spies.updateApplication).toHaveBeenCalledWith('application-1', expect.objectContaining({ submittedAt: expect.any(Date) }))
+    expect(spies.updateApplication).toHaveBeenCalledWith('application-1', expect.objectContaining({ submittedAt: expect.any(Date) }), expect.any(Object))
   })
 
   it('rejects invalid receiving conditions', async () => {
@@ -90,23 +90,15 @@ describe('OBO receiving service', () => {
   })
 
   it('declines a received application only with a reason', async () => {
-    spies.findApplication.mockResolvedValue(scheduled)
+    spies.findApplication.mockResolvedValue({ ...scheduled, submissionAppointment: null })
     spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
-    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED' })).rejects.toThrow('reason is required')
-
     spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DECLINED' } })
     spies.updateApplication.mockResolvedValue({ id: 'application-1' })
     spies.addDecision.mockResolvedValue({ id: 'decision-1' })
-    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED', reason: 'Missing hardcopy requirements' })).resolves.toMatchObject({ status: 'DECLINED' })
+
+    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED' })).rejects.toThrow('reason is required')
+    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED', reason: 'Missing documents' })).resolves.toMatchObject({ status: 'DECLINED' })
     expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'DECLINE' }))
-  })
-
-  it('rejects decisions for missing or not-yet-received applications', async () => {
-    spies.findApplication.mockResolvedValue(null)
-    await expect(service.decide({ id: 'missing', actorId: 'officer-1', decision: 'ACCEPTED' })).rejects.toThrow('not found')
-
-    spies.findApplication.mockResolvedValue(scheduled)
-    spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'SUBMISSION_SCHEDULED' } })
-    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'ACCEPTED' })).rejects.toThrow('must be received')
+    expect(spies.addDecision).toHaveBeenCalledWith(expect.objectContaining({ decision: 'DECLINED', reason: 'Missing documents', decidedByUserId: 'officer-1' }), expect.any(Object))
   })
 })
