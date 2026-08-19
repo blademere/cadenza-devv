@@ -14,6 +14,7 @@ const getWorkflowState = async (application) => {
 }
 
 const getNotificationContext = async (clientPersonId, db = prisma) => {
+  if (!db?.person?.findUnique) return { clientUserId: null, clientEmail: null }
   const person = await db.person.findUnique({ where: { id: clientPersonId }, select: { userId: true, email: true, user: { select: { email: true } } } })
   return { clientUserId: person?.userId || null, clientEmail: person?.user?.email || person?.email || null }
 }
