@@ -8,6 +8,7 @@ const notFound = require('./notFound')
 const rateLimiter = require('./rateLimiter')
 const requestId = require('./requestId')
 const idempotency = require('./idempotency')
+const cache = require('./cache')
 const {
   loginRateLimiter,
   refreshRateLimiter,
@@ -26,6 +27,7 @@ module.exports = {
   rateLimiter,
   requestId,
   idempotency,
+  cache,
   loginRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
