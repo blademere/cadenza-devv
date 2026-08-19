@@ -697,6 +697,12 @@ paths:
           $ref: '#/components/responses/ValidationError'
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
