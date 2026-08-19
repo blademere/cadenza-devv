@@ -62,7 +62,7 @@ if (data.COOKIE_SAME_SITE === 'none' && !data.COOKIE_SECURE) throw new Error("CO
 if (data.NODE_ENV === 'production' && !data.COOKIE_SECURE) throw new Error('COOKIE_SECURE must be true in production.')
 if (data.NODE_ENV === 'production' && data.CORS_ORIGIN === '*') throw new Error("CORS_ORIGIN must not be '*' in production.")
 if (data.NODE_ENV === 'production' && !data.METRICS_TOKEN) throw new Error('METRICS_TOKEN is required in production.')
-if (data.METRICS_TOKEN && data.METRICS_TOKEN.length < 32) throw new Error('METRICS_TOKEN must be at least 32 characters')
+if (data.METRICS_TOKEN && data.METRICS_TOKEN.length < 32) throw new Error('METRICS_TOKEN must be at least 32 characters.')
 if (data.SEED_ADMIN_PASSWORD && data.SEED_ADMIN_PASSWORD.length < 12) throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters when configured.')
 if ((data.SEED_ADMIN_EMAIL && !data.SEED_ADMIN_PASSWORD) || (!data.SEED_ADMIN_EMAIL && data.SEED_ADMIN_PASSWORD)) throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be configured together.')
 
