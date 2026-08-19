@@ -265,436 +265,436 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-    /appointments/types:
-    get:
-      tags:
-        - Appointments
-      summary: List appointment types
-      operationId: listAppointmentTypes
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: active
-          in: query
-          required: false
-          description: Filter appointment types by active status.
-          schema:
-            type: boolean
-      responses:
-        '200':
-          description: Appointment types retrieved successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-
-    post:
-      tags:
-        - Appointments
-      summary: Create an appointment type
-      operationId: createAppointmentType
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
+  /appointments/types:
+  get:
+    tags:
+      - Appointments
+    summary: List appointment types
+    operationId: listAppointmentTypes
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: active
+        in: query
+        required: false
+        description: Filter appointment types by active status.
+        schema:
+          type: boolean
+    responses:
+      '200':
+        description: Appointment types retrieved successfully.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAppointmentTypeRequest'
-      responses:
-        '201':
-          description: Appointment type created successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+              $ref: '#/components/schemas/ApiResponse'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '422':
+        $ref: '#/components/responses/ValidationError'
 
-  /appointments/schedules:
-    post:
-      tags:
-        - Appointments
-      summary: Create an appointment schedule
-      operationId: createAppointmentSchedule
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
+  post:
+    tags:
+      - Appointments
+    summary: Create an appointment type
+    operationId: createAppointmentType
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CreateAppointmentTypeRequest'
+    responses:
+      '201':
+        description: Appointment type created successfully.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAppointmentScheduleRequest'
-      responses:
-        '201':
-          description: Appointment schedule created successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+              $ref: '#/components/schemas/ApiResponse'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '409':
+        $ref: '#/components/responses/Conflict'
+      '422':
+        $ref: '#/components/responses/ValidationError'
 
-  /appointments/slots:
-    get:
-      tags:
-        - Appointments
-      summary: List appointment slots
-      operationId: listAppointmentSlots
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: appointmentTypeId
-          in: query
-          required: false
+/appointments/schedules:
+  post:
+    tags:
+      - Appointments
+    summary: Create an appointment schedule
+    operationId: createAppointmentSchedule
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
           schema:
-            type: string
-            format: uuid
-
-        - name: from
-          in: query
-          required: false
-          description: Start of the requested slot range.
-          schema:
-            type: string
-            format: date-time
-
-        - name: to
-          in: query
-          required: false
-          description: End of the requested slot range. Must be after `from`.
-          schema:
-            type: string
-            format: date-time
-
-        - name: status
-          in: query
-          required: false
-          schema:
-            type: string
-            maxLength: 30
-
-      responses:
-        '200':
-          description: Appointment slots retrieved successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-
-    post:
-      tags:
-        - Appointments
-      summary: Create an appointment slot
-      operationId: createAppointmentSlot
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
+            $ref: '#/components/schemas/CreateAppointmentScheduleRequest'
+    responses:
+      '201':
+        description: Appointment schedule created successfully.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAppointmentSlotRequest'
-      responses:
-        '201':
-          description: Appointment slot created successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+              $ref: '#/components/schemas/ApiResponse'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '409':
+        $ref: '#/components/responses/Conflict'
+      '422':
+        $ref: '#/components/responses/ValidationError'
 
-  /appointments/slots/generate:
-    post:
-      tags:
-        - Appointments
-      summary: Generate appointment slots
-      operationId: generateAppointmentSlots
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
+/appointments/slots:
+  get:
+    tags:
+      - Appointments
+    summary: List appointment slots
+    operationId: listAppointmentSlots
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: appointmentTypeId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+
+      - name: from
+        in: query
+        required: false
+        description: Start of the requested slot range.
+        schema:
+          type: string
+          format: date-time
+
+      - name: to
+        in: query
+        required: false
+        description: End of the requested slot range. Must be after `from`.
+        schema:
+          type: string
+          format: date-time
+
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 30
+
+    responses:
+      '200':
+        description: Appointment slots retrieved successfully.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GenerateAppointmentSlotsRequest'
-      responses:
-        '201':
-          description: Appointment slots generated successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+              $ref: '#/components/schemas/ApiResponse'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '422':
+        $ref: '#/components/responses/ValidationError'
 
-  /appointments/mine:
-    get:
-      tags:
-        - Appointments
-      summary: List the authenticated user's appointments
-      operationId: listMyAppointments
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: User appointments retrieved successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /appointments:
-    post:
-      tags:
-        - Appointments
-      summary: Create an appointment
-      operationId: createAppointment
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
+  post:
+    tags:
+      - Appointments
+    summary: Create an appointment slot
+    operationId: createAppointmentSlot
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CreateAppointmentSlotRequest'
+    responses:
+      '201':
+        description: Appointment slot created successfully.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAppointmentRequest'
-      responses:
-        '201':
-          description: Appointment created successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          description: Appointment could not be created because the slot is unavailable, the request is duplicated, or another integrity constraint was violated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+              $ref: '#/components/schemas/ApiResponse'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '409':
+        $ref: '#/components/responses/Conflict'
+      '422':
+        $ref: '#/components/responses/ValidationError'
 
-  /appointments/{id}:
-    get:
-      tags:
-        - Appointments
-      summary: Get an appointment
-      description: |
-        Returns an appointment only when the authenticated caller has the
-        required appointment permission and satisfies the appointment
-        resource-access policy.
-      operationId: getAppointment
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/AppointmentId'
-      responses:
-        '200':
-          description: Appointment retrieved successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+/appointments/slots/generate:
+  post:
+    tags:
+      - Appointments
+    summary: Generate appointment slots
+    operationId: generateAppointmentSlots
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GenerateAppointmentSlotsRequest'
+    responses:
+      '201':
+        description: Appointment slots generated successfully.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiResponse'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '409':
+        $ref: '#/components/responses/Conflict'
+      '422':
+        $ref: '#/components/responses/ValidationError'
 
-  /appointments/{id}/cancel:
-    post:
-      tags:
-        - Appointments
-      summary: Cancel an appointment
-      description: |
-        Cancels an appointment after authentication, RBAC authorization,
-        resource-level authorization, and business-state validation.
-      operationId: cancelAppointment
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/AppointmentId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      responses:
-        '200':
-          description: Appointment cancelled successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+/appointments/mine:
+  get:
+    tags:
+      - Appointments
+    summary: List the authenticated user's appointments
+    operationId: listMyAppointments
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: User appointments retrieved successfully.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiResponse'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
 
-  /appointments/{id}/check-in:
-    post:
-      tags:
-        - Appointments
-      summary: Check in an appointment
-      operationId: checkInAppointment
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/AppointmentId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      responses:
-        '200':
-          description: Appointment checked in successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+/appointments:
+  post:
+    tags:
+      - Appointments
+    summary: Create an appointment
+    operationId: createAppointment
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CreateAppointmentRequest'
+    responses:
+      '201':
+        description: Appointment created successfully.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiResponse'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '409':
+        description: Appointment could not be created because the slot is unavailable, the request is duplicated, or another integrity constraint was violated.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiResponse'
+      '422':
+        $ref: '#/components/responses/ValidationError'
 
-  /appointments/{id}/no-show:
-    post:
-      tags:
-        - Appointments
-      summary: Mark an appointment as no-show
-      operationId: markAppointmentNoShow
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/AppointmentId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      responses:
-        '200':
-          description: Appointment marked as no-show.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+/appointments/{id}:
+  get:
+    tags:
+      - Appointments
+    summary: Get an appointment
+    description: |
+      Returns an appointment only when the authenticated caller has the
+      required appointment permission and satisfies the appointment
+      resource-access policy.
+    operationId: getAppointment
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/AppointmentId'
+    responses:
+      '200':
+        description: Appointment retrieved successfully.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiResponse'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '404':
+        $ref: '#/components/responses/NotFound'
+      '422':
+        $ref: '#/components/responses/ValidationError'
 
-  /appointments/{id}/complete:
-    post:
-      tags:
-        - Appointments
-      summary: Complete an appointment
-      operationId: completeAppointment
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/AppointmentId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      responses:
-        '200':
-          description: Appointment completed successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+/appointments/{id}/cancel:
+  post:
+    tags:
+      - Appointments
+    summary: Cancel an appointment
+    description: |
+      Cancels an appointment after authentication, RBAC authorization,
+      resource-level authorization, and business-state validation.
+    operationId: cancelAppointment
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/AppointmentId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+    responses:
+      '200':
+        description: Appointment cancelled successfully.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiResponse'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '404':
+        $ref: '#/components/responses/NotFound'
+      '409':
+        $ref: '#/components/responses/Conflict'
+      '422':
+        $ref: '#/components/responses/ValidationError'
+
+/appointments/{id}/check-in:
+  post:
+    tags:
+      - Appointments
+    summary: Check in an appointment
+    operationId: checkInAppointment
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/AppointmentId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+    responses:
+      '200':
+        description: Appointment checked in successfully.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiResponse'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '404':
+        $ref: '#/components/responses/NotFound'
+      '409':
+        $ref: '#/components/responses/Conflict'
+      '422':
+        $ref: '#/components/responses/ValidationError'
+
+/appointments/{id}/no-show:
+  post:
+    tags:
+      - Appointments
+    summary: Mark an appointment as no-show
+    operationId: markAppointmentNoShow
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/AppointmentId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+    responses:
+      '200':
+        description: Appointment marked as no-show.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiResponse'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '404':
+        $ref: '#/components/responses/NotFound'
+      '409':
+        $ref: '#/components/responses/Conflict'
+      '422':
+        $ref: '#/components/responses/ValidationError'
+
+/appointments/{id}/complete:
+  post:
+    tags:
+      - Appointments
+    summary: Complete an appointment
+    operationId: completeAppointment
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '#/components/parameters/AppointmentId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+    responses:
+      '200':
+        description: Appointment completed successfully.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiResponse'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+      '401':
+        $ref: '#/components/responses/Unauthorized'
+      '403':
+        $ref: '#/components/responses/Forbidden'
+      '404':
+        $ref: '#/components/responses/NotFound'
+      '409':
+        $ref: '#/components/responses/Conflict'
+      '422':
+        $ref: '#/components/responses/ValidationError'
 
 components:
   securitySchemes:
