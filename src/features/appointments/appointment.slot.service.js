@@ -1,6 +1,7 @@
 const { getPrismaClient } = require('../../infrastructure/database/prisma')
 const { BadRequestError, NotFoundError } = require('../../common/errors/appError')
 const repository = require('./appointment.repository')
+const { recordAudit } = require('../../platform/audit/audit.service')
 const prisma = getPrismaClient()
 const WEEKDAYS = Object.freeze({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 })
 const parseTime = (value) => { const [hours, minutes] = value.split(':').map(Number); return hours * 60 + minutes }
@@ -22,7 +23,7 @@ const toDateAtMinutes = (date, minutes, timeZone) => {
   return candidate
 }
 
-const generateSlots = async ({ appointmentTypeId, from, to, scheduleId, db = prisma }) => {
+const generateSlots = async ({ appointmentTypeId, from, to, scheduleId, actorId, db = prisma }) => {
   if (!(from instanceof Date) || Number.isNaN(from.getTime()) || !(to instanceof Date) || Number.isNaN(to.getTime())) throw new BadRequestError('from and to must be valid dates.')
   if (from >= to) throw new BadRequestError('from must be earlier than to.')
   if (!(await repository.findAppointmentType(appointmentTypeId, db))) throw new NotFoundError('Appointment type not found.')
@@ -48,7 +49,13 @@ const generateSlots = async ({ appointmentTypeId, from, to, scheduleId, db = pri
     const created = []
     for (const data of pending) {
       if (!(await repository.findSlotByStart({ appointmentTypeId: data.appointmentTypeId, startsAt: data.startsAt }, tx))) {
-        try { created.push(await repository.createAppointmentSlot(data, tx)) } catch (error) { if (error.code !== 'P2002') throw error }
+        try {
+          const slot = await repository.createAppointmentSlot(data, tx)
+          created.push(slot)
+          await recordAudit({ actorId, action: 'APPOINTMENT_SLOT_CREATED', entityType: 'AppointmentSlot', entityId: slot.id, before: null, after: slot, db: tx })
+        } catch (error) {
+          if (error.code !== 'P2002') throw error
+        }
       }
     }
     return created
