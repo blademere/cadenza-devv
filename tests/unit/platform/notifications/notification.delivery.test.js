@@ -20,7 +20,7 @@ const { queueNotifications } = await import(
 describe('notification delivery hardening', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('creates an idempotent in-app notification for event-driven recipients', async () => {
+  it('creates an idempotent in-app notification for event-driven recipients without queueing transport work', async () => {
     prisma.notificationRule.findMany.mockResolvedValue([
       {
         id: 'r1',
@@ -44,10 +44,9 @@ describe('notification delivery hardening', () => {
     prisma.notification.upsert.mockResolvedValue({ id: 'n1' })
     prisma.notificationDelivery.upsert.mockResolvedValue({
       id: 'd1',
-      status: 'QUEUED',
+      status: 'SENT',
       notificationId: 'n1',
     })
-    enqueueJob.mockResolvedValue({ id: 'job-1' })
 
     const deliveries = await queueNotifications({
       event: 'workflow.transitioned',
@@ -80,14 +79,13 @@ describe('notification delivery hardening', () => {
         create: expect.objectContaining({
           notificationId: 'n1',
           channel: 'IN_APP',
+          status: 'SENT',
         }),
       })
     )
     expect(deliveries).toEqual([
-      { id: 'd1', status: 'QUEUED', notificationId: 'n1' },
+      { id: 'd1', status: 'SENT', notificationId: 'n1' },
     ])
-    expect(enqueueJob).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { deliveryId: 'd1' } })
-    )
+    expect(enqueueJob).not.toHaveBeenCalled()
   })
 })
