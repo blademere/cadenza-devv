@@ -46,10 +46,14 @@ jobs:
             app=true; database=true; openapi=true; docker=true; workflow=true; security=true; docs_only=false
           else
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-              base="${{ github.event.pull_request.base.sha }}"; head="${{ github.event.pull_request.head.sha }}"
+              base="${{ github.event.pull_request.base.sha }}"
+              head="${{ github.event.pull_request.head.sha }}"
             else
-              base="${{ github.event.before }}"; head="${{ github.sha }}"
-              if [[ "$base" == "0000000000000000000000000000000000000000" ]]; then base="$(git rev-list --max-parents=1 "$head" | tail -n 1)"; fi
+              base="${{ github.event.before }}"
+              head="${{ github.sha }}"
+              if [[ "$base" == "0000000000000000000000000000000000000000" ]]; then
+                base="$(git rev-list --max-parents=1 "$head" | tail -n 1)"
+              fi
             fi
             mapfile -t files < <(git diff --name-only "$base" "$head")
             app=false; database=false; openapi=false; docker=false; workflow=false; security=false
@@ -75,7 +79,10 @@ jobs:
             done
             docs_only=true
             for file in "${files[@]}"; do
-              case "$file" in docs/**|README.md|*.md) ;; *) docs_only=false; break ;; esac
+              case "$file" in
+                docs/**|README.md|*.md) ;;
+                *) docs_only=false; break ;;
+              esac
             done
           fi
           printf 'app=%s\ndatabase=%s\nopenapi=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\n' \
@@ -217,7 +224,8 @@ jobs:
     name: Docker
     needs: [changes, quality, database]
     if: >-
-      always() && needs.changes.outputs.docker == 'true' &&
+      always() &&
+      needs.changes.outputs.docker == 'true' &&
       (needs.quality.result == 'success' || needs.quality.result == 'skipped') &&
       (needs.database.result == 'success' || needs.database.result == 'skipped')
     runs-on: ubuntu-latest
@@ -246,7 +254,7 @@ jobs:
   codeql:
     name: CodeQL
     needs: changes
-    if: ${{ needs.changes.outputs.security == 'true' && github.event_name == 'pull_request' }}
+    if: needs.changes.outputs.security == 'true' && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -345,8 +353,11 @@ jobs:
             -e COOKIE_REFRESH_MAX_AGE_MS=604800000 express-app:staging
       - name: Wait for liveness
         run: |
-          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:3000/health/live && exit 0 || sleep 2; done
-          docker logs express-app-staging; exit 1
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:3000/health/live && exit 0 || sleep 2
+          done
+          docker logs express-app-staging
+          exit 1
       - name: Verify production docs are disabled
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/docs)" = "404"
       - name: Verify metrics authentication
