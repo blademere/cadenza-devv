@@ -118,7 +118,7 @@ jobs:
   quality:
     name: Quality
     needs: changes
-    if: always()
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -150,49 +150,35 @@ jobs:
       PRISMA_GENERATE_SKIP_AUTOINSTALL: 'true'
     steps:
       - name: Checkout
-        if: needs.changes.outputs.app == 'true'
         uses: actions/checkout@v7
       - name: Setup Node.js
-        if: needs.changes.outputs.app == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - name: Install dependencies
-        if: needs.changes.outputs.app == 'true'
         run: npm ci
       - name: Dependency vulnerability audit
-        if: needs.changes.outputs.app == 'true'
         run: npm audit --omit=dev --audit-level=high
       - name: Lint
-        if: needs.changes.outputs.app == 'true'
         run: npm run lint
       - name: Architecture enforcement
-        if: needs.changes.outputs.app == 'true'
         run: npm run validate:architecture
       - name: Migration hygiene
-        if: needs.changes.outputs.app == 'true'
         run: npm run validate:migrations
       - name: Prisma validation
-        if: needs.changes.outputs.app == 'true'
         run: npx prisma validate --schema=prisma/schema.prisma
       - name: Generate Prisma Client
-        if: needs.changes.outputs.app == 'true'
         run: npx prisma generate --schema=prisma/schema.prisma
       - name: Apply database migrations
-        if: needs.changes.outputs.app == 'true'
         run: npx prisma migrate deploy --schema=prisma/schema.prisma
       - name: Run test suite
-        if: needs.changes.outputs.app == 'true'
         run: npm test
-      - name: No application checks required
-        if: needs.changes.outputs.app != 'true'
-        run: echo "No application changes detected; quality checks skipped."
 
   database:
     name: Database
     needs: changes
-    if: always()
+    if: needs.changes.outputs.database == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -213,57 +199,40 @@ jobs:
       NODE_ENV: test
     steps:
       - name: Checkout
-        if: needs.changes.outputs.database == 'true'
         uses: actions/checkout@v7
       - name: Setup Node.js
-        if: needs.changes.outputs.database == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - name: Install dependencies
-        if: needs.changes.outputs.database == 'true'
         run: npm ci
       - name: Validate migration history
-        if: needs.changes.outputs.database == 'true'
         run: npm run validate:migrations
       - name: Validate Prisma schema
-        if: needs.changes.outputs.database == 'true'
         run: npx prisma validate --schema=prisma/schema.prisma
       - name: Generate Prisma Client
-        if: needs.changes.outputs.database == 'true'
         run: npx prisma generate --schema=prisma/schema.prisma
       - name: Apply all migrations to a clean database
-        if: needs.changes.outputs.database == 'true'
         run: npx prisma migrate deploy --schema=prisma/schema.prisma
-      - name: No database checks required
-        if: needs.changes.outputs.database != 'true'
-        run: echo "No database changes detected; database checks skipped."
 
   openapi:
     name: OpenAPI
     needs: changes
-    if: always()
+    if: needs.changes.outputs.openapi == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        if: needs.changes.outputs.openapi == 'true'
         uses: actions/checkout@v7
       - name: Setup Node.js
-        if: needs.changes.outputs.openapi == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - name: Install dependencies
-        if: needs.changes.outputs.openapi == 'true'
         run: npm ci
       - name: Validate OpenAPI
-        if: needs.changes.outputs.openapi == 'true'
         run: node scripts/validate-openapi.cjs
-      - name: No OpenAPI checks required
-        if: needs.changes.outputs.openapi != 'true'
-        run: echo "No OpenAPI-related changes detected; OpenAPI validation skipped."
 
   docker:
     name: Docker
@@ -271,8 +240,10 @@ jobs:
     if: >-
       always() &&
       needs.changes.outputs.docker == 'true' &&
-      needs.quality.result == 'success' &&
-      needs.database.result == 'success'
+      needs.quality.result != 'failure' &&
+      needs.quality.result != 'cancelled' &&
+      needs.database.result != 'failure' &&
+      needs.database.result != 'cancelled'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -288,6 +259,48 @@ jobs:
           tags: express-app:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  workflow-validation:
+    name: Workflow validation
+    needs: changes
+    if: needs.changes.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Validate workflow YAML
+        run: |
+          ruby -e 'require "yaml"; Dir[".github/workflows/*.{yml,yaml}"].each { |f| YAML.load_file(f); puts "valid: #{f}" }'
+
+  required:
+    name: Required
+    needs: [quality, database, openapi, docker, workflow-validation]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate required CI jobs
+        env:
+          QUALITY: ${{ needs.quality.result }}
+          DATABASE: ${{ needs.database.result }}
+          OPENAPI: ${{ needs.openapi.result }}
+          DOCKER: ${{ needs.docker.result }}
+          WORKFLOW: ${{ needs.workflow-validation.result }}
+        run: |
+          set -euo pipefail
+          echo "quality=$QUALITY"
+          echo "database=$DATABASE"
+          echo "openapi=$OPENAPI"
+          echo "docker=$DOCKER"
+          echo "workflow=$WORKFLOW"
+
+          for result in "$QUALITY" "$DATABASE" "$OPENAPI" "$DOCKER" "$WORKFLOW"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "A required CI job failed or was cancelled."
+              exit 1
+            fi
+          done
+
+          echo "All applicable CI jobs passed or were skipped."
 
   staging:
     name: Staging
