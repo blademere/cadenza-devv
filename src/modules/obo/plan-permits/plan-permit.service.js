@@ -1,7 +1,7 @@
 const { ConflictError, NotFoundError } = require('../../../common/errors/appError')
 const appointmentService = require('../../../features/appointments/appointment.service')
 const formService = require('../../../platform/forms/form.service')
-const { startWorkflow, transitionWorkflow } = require('../../../platform/workflow/workflow.service')
+const workflowService = require('../../../platform/workflow/workflow.service')
 const { getPrismaClient } = require('../../../infrastructure/database/prisma')
 const repository = require('./plan-permit.repository')
 
@@ -63,7 +63,7 @@ const createApplication = async ({ userId, permitTypeId, professionalId, formVer
   if (!application) throw new NotFoundError('Active permit type not found.')
   if (application.notFound === 'professional') throw new NotFoundError('Professional registration not found.')
 
-  const workflow = await startWorkflow({
+  const workflow = await workflowService.startWorkflow({
     workflowKey: WORKFLOW_KEY,
     subjectType: SUBJECT_TYPE,
     subjectId: application.id,
@@ -100,7 +100,7 @@ const updateDraft = async ({ id, userId, professionalId, formVersionId, formValu
 const submit = async ({ id, userId }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be submitted.')
-  await transitionWorkflow({
+  await workflowService.transitionWorkflow({
     instanceId: application.workflowInstanceId,
     transitionKey: 'SUBMIT_FOR_SUBMISSION',
     actorId: userId,
@@ -117,7 +117,7 @@ const bookSubmissionAppointment = async ({ id, userId, appointmentTypeId, slotId
   await prisma.$transaction(async (tx) => {
     await repository.createSubmissionAppointment({ applicationId: id, appointmentId: appointment.id }, tx)
   })
-  await transitionWorkflow({
+  await workflowService.transitionWorkflow({
     instanceId: application.workflowInstanceId,
     transitionKey: 'SCHEDULE_SUBMISSION',
     actorId: userId,
