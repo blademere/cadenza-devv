@@ -83,17 +83,13 @@ describe('OBO receiving service', () => {
 
   it('declines a received application only with a reason', async () => {
     spies.findApplication.mockResolvedValue({ id: 'application-1', status: 'RECEIVING' })
-    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED', reason: ' Missing hardcopy requirements ' }))
-      .resolves.toBeDefined()
-      .catch(() => undefined)
+    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED' }))
+      .rejects.toThrow('reason is required')
 
     spies.updateApplication.mockResolvedValue({ id: 'application-1', status: 'DECLINED' })
     spies.addDecision.mockResolvedValue({ id: 'decision-1' })
     await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED', reason: 'Missing hardcopy requirements' }))
       .resolves.toMatchObject({ status: 'DECLINED' })
-
-    await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED' }))
-      .rejects.toThrow('reason is required')
   })
 
   it('rejects decisions for missing or not-yet-received applications', async () => {
