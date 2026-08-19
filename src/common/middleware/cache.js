@@ -4,7 +4,7 @@ const { connectRedis: defaultConnectRedis } = require('../../infrastructure/cach
 const DEFAULT_TTL_SECONDS = 60
 const MAX_TTL_SECONDS = 24 * 60 * 60
 const DEFAULT_METHODS = ['GET', 'HEAD']
-const DEFAULT_CACHEABLE_STATUS_CODES = new Set([200, 203, 206, 300, 301, 404])
+const DEFAULT_CACHEABLE_STATUS_CODES = new Set([200, 203, 204, 206, 300, 301, 404])
 
 const normalizeTtl = (value) => {
   const ttl = Number(value)
@@ -43,12 +43,12 @@ const replay = (res, entry) => {
   return res.status(entry.statusCode).send(entry.body)
 }
 
-const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
-  const invalidate = async (key) => {
-    const redis = await connectRedis()
-    return redis.del(getCacheRedisKey(key))
-  }
+const invalidateCache = async (key, { connectRedis = defaultConnectRedis } = {}) => {
+  const redis = await connectRedis()
+  return redis.del(getCacheRedisKey(key))
+}
 
+const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
   const cache = (options = {}) => {
     const ttlSeconds = normalizeTtl(
       options.ttlSeconds ?? process.env.API_CACHE_TTL_SECONDS ?? DEFAULT_TTL_SECONDS,
@@ -69,6 +69,7 @@ const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
       try {
         let key = keyFactory(req)
         if (key && typeof key.then === 'function') key = await key
+        key = normalizeKey(key)
         if (varyByUser) key = `${key}:user:${req.user?.id ?? 'anonymous'}`
 
         const redisKey = getCacheRedisKey(key)
@@ -106,7 +107,6 @@ const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
         req.cache = { key: redisKey, ttlSeconds }
         return next()
       } catch (error) {
-        // Cache failures must not take otherwise healthy application requests down.
         req.cacheError = error
         return next()
       }
@@ -116,10 +116,10 @@ const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
   cache.hashKey = hashKey
   cache.defaultKey = defaultKey
   cache.getCacheRedisKey = getCacheRedisKey
-  cache.invalidate = invalidate
   cache.parseEntry = parseEntry
   cache.DEFAULT_TTL_SECONDS = DEFAULT_TTL_SECONDS
   cache.MAX_TTL_SECONDS = MAX_TTL_SECONDS
+  cache.invalidate = (key) => invalidateCache(key, { connectRedis })
 
   return cache
 }
