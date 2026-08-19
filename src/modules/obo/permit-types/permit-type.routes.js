@@ -5,6 +5,6 @@ const authorize = require('../../../platform/authorization/authorize')
 const controller = require('./permit-type.controller')
 
 const router = express.Router()
-router.get('/', authenticate, authorize('applications', 'read'), asyncHandler(controller.list))
+router.get('/', authenticate, authorize('obo_plan_permits', 'read'), asyncHandler(controller.list))
 
 module.exports = router
