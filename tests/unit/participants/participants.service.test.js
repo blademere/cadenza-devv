@@ -5,14 +5,12 @@ const require = createRequire(import.meta.url)
 const repository = require('../../../src/features/participants/participants.repository')
 const spies = {
   addParticipant: vi.spyOn(repository, 'addParticipant'),
-  listParticipants: vi.spyOn(repository, 'listParticipants'),
   findParticipant: vi.spyOn(repository, 'findParticipant'),
   findCase: vi.spyOn(repository, 'findCase'),
   findPerson: vi.spyOn(repository, 'findPerson'),
-  removeParticipant: vi.spyOn(repository, 'removeParticipant'),
 }
 
-const { add, list, remove } = await import('../../../src/features/participants/participants.service.js')
+const { add } = await import('../../../src/features/participants/participants.service.js')
 
 afterEach(() => vi.clearAllMocks())
 
