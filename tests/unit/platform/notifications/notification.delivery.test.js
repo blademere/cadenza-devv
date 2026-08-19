@@ -17,6 +17,8 @@ vi.mock('../../../../src/platform/jobs/job.service', () => ({
   enqueueJob,
 }))
 
+vi.resetModules()
+
 const { queueNotifications } = await import(
   '../../../../src/platform/notifications/notification.service'
 )
