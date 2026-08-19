@@ -1,9 +1,7 @@
 const { ConflictError, NotFoundError } = require('../../../common/errors/appError')
 const workflowService = require('../../../platform/workflow/workflow.service')
-const { getPrismaClient } = require('../../../infrastructure/database/prisma')
 const repository = require('./receiving.repository')
 
-const prisma = getPrismaClient()
 const STATUS = Object.freeze({ SUBMISSION_SCHEDULED: 'SUBMISSION_SCHEDULED', RECEIVING: 'RECEIVING', DECLINED: 'DECLINED', FOR_INSPECTION: 'FOR_INSPECTION' })
 
 const getWorkflowState = async (application) => {
@@ -13,9 +11,8 @@ const getWorkflowState = async (application) => {
   return workflow
 }
 
-const getNotificationContext = async (clientPersonId, db = prisma) => {
-  if (!db?.person?.findUnique) return { clientUserId: null, clientEmail: null }
-  const person = await db.person.findUnique({ where: { id: clientPersonId }, select: { userId: true, email: true, user: { select: { email: true } } } })
+const getNotificationContext = async (clientPersonId, db) => {
+  const person = await repository.findPersonNotificationContext(clientPersonId, db)
   return { clientUserId: person?.userId || null, clientEmail: person?.user?.email || person?.email || null }
 }
 
@@ -34,7 +31,7 @@ const receiveHardcopy = async ({ id, actorId }) => {
   if (application.professional.status !== 'VERIFIED') throw new ConflictError('The associated professional is not verified.')
 
   const submittedAt = application.submittedAt || new Date()
-  await prisma.$transaction(async (tx) => {
+  await repository.withTransaction(async (tx) => {
     const notificationContext = await getNotificationContext(application.clientPersonId, tx)
     await workflowService.transitionWorkflow({
       instanceId: application.workflowInstanceId,
@@ -59,7 +56,7 @@ const decide = async ({ id, actorId, decision, reason }) => {
 
   const accepted = decision === 'ACCEPTED'
   const transitionKey = accepted ? 'ACCEPT_FOR_INSPECTION' : 'DECLINE'
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await repository.withTransaction(async (tx) => {
     const notificationContext = await getNotificationContext(application.clientPersonId, tx)
     const nextWorkflow = await workflowService.transitionWorkflow({
       instanceId: application.workflowInstanceId,
