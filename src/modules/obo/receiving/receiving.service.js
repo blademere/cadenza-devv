@@ -1,5 +1,5 @@
 const { ConflictError, NotFoundError } = require('../../../common/errors/appError')
-const { transitionWorkflow } = require('../../../platform/workflow/workflow.service')
+const workflowService = require('../../../platform/workflow/workflow.service')
 const { getPrismaClient } = require('../../../infrastructure/database/prisma')
 const repository = require('./receiving.repository')
 
@@ -27,7 +27,7 @@ const receiveHardcopy = async ({ id, actorId }) => {
   if (appointment.slot.startsAt > new Date()) throw new ConflictError('The hardcopy submission appointment has not started yet.')
   if (application.professional.status !== 'VERIFIED') throw new ConflictError('The associated professional is not verified.')
 
-  await transitionWorkflow({
+  await workflowService.transitionWorkflow({
     instanceId: application.workflowInstanceId,
     transitionKey: 'RECEIVE_HARDCOPY',
     actorId,
@@ -47,7 +47,7 @@ const decide = async ({ id, actorId, decision, reason }) => {
 
   const accepted = decision === 'ACCEPTED'
   const transitionKey = accepted ? 'ACCEPT_FOR_INSPECTION' : 'DECLINE'
-  const nextWorkflow = await transitionWorkflow({
+  const nextWorkflow = await workflowService.transitionWorkflow({
     instanceId: application.workflowInstanceId,
     transitionKey,
     actorId,
