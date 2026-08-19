@@ -1,0 +1,16 @@
+const SCHEDULER_TYPES = Object.freeze({
+  EVERY: 'every',
+  CRON: 'cron',
+  DELAY: 'delay',
+})
+
+const DEFAULT_SCHEDULER_QUEUE = 'platform'
+const MAX_SCHEDULER_ID_LENGTH = 200
+const MAX_JOB_NAME_LENGTH = 200
+
+module.exports = {
+  SCHEDULER_TYPES,
+  DEFAULT_SCHEDULER_QUEUE,
+  MAX_SCHEDULER_ID_LENGTH,
+  MAX_JOB_NAME_LENGTH,
+}
