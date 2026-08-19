@@ -1,5 +1,6 @@
 const crypto = require('crypto')
 const { getPrismaClient } = require('../../infrastructure/database/prisma')
+const { deleteExpiredRefreshTokens } = require('../../infrastructure/maintenance/auth-token')
 const prisma = getPrismaClient()
 const userInclude = { role: { select: { id: true, name: true, description: true } } }
 const findUserByEmail = async (email) => prisma.user.findUnique({ where: { email }, include: userInclude })
@@ -47,5 +48,4 @@ const rotateRefreshToken = async ({ currentTokenId, newTokenId, newTokenHash, us
   const consumed = await tx.refreshToken.updateMany({ where: { id: currentTokenId, userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date(), replacedByTokenId: newTokenId } })
   return consumed.count === 1 ? { success: true } : { success: false }
 })
-const deleteExpiredRefreshTokens = async () => prisma.refreshToken.deleteMany({ where: { expiresAt: { lt: new Date() } } })
 module.exports = { findUserByEmail, findUserById, findUserAuthState, bumpUserAuthVersion, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, deleteExpiredRefreshTokens }

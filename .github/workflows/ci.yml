@@ -63,6 +63,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Lint
         run: npm run lint
+      - name: Architecture enforcement
+        run: npm run validate:architecture
       - name: Prisma validation
         run: npx prisma validate --schema=prisma/schema.prisma
       - name: Generate Prisma Client

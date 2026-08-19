@@ -16,6 +16,9 @@ const normalizeChannels = (channels) => {
 const deliveryIdempotencyKey = ({ notificationId, channel, recipient }) =>
   crypto.createHash("sha256").update(JSON.stringify([notificationId, channel, recipient])).digest("hex")
 
+const getNotificationForUser = async ({ id, userId }) =>
+  prisma.notification.findFirst({ where: { id: Number(id), userId: Number(userId) } })
+
 const sendNotification = async ({ userId, type, title, message, data = null, channels }) => {
   if (!userId || !type || !title || !message) throw new BadRequestError("userId, type, title, and message are required.")
 
@@ -91,6 +94,7 @@ const listNotificationPreferences = async ({ userId }) =>
   prisma.notificationPreference.findMany({ where: { userId }, orderBy: { channel: "asc" } })
 
 module.exports = {
+  getNotificationForUser,
   sendNotification,
   listNotifications,
   markNotificationRead,

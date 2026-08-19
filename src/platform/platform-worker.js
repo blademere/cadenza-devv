@@ -1,8 +1,8 @@
 const { disconnectPrisma } = require('../infrastructure/database/prisma')
+const { deleteExpiredRefreshTokens } = require('../infrastructure/maintenance/auth-token')
 const { processEvent } = require('./event-bus/event-bus')
 const { claimBatch, markProcessed, markFailed, recoverStale } = require('./event-bus/event-outbox.service')
 const { enqueueJob, registerWorker, closeQueues } = require('../infrastructure/queue/bullmq')
-const { deleteExpiredRefreshTokens } = require('../features/auth/auth.repository')
 const { logger } = require('../config')
 
 const EVENT_QUEUE = 'platform-events'

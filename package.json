@@ -11,6 +11,7 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "node scripts/format-check.cjs",
+    "validate:architecture": "node scripts/validate-architecture.cjs",
     "test": "prisma generate && vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --dir tests/unit",
