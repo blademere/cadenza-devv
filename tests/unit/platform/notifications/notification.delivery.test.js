@@ -1,8 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-const prismaModule = require('../../../../src/infrastructure/database/prisma')
-const { queueNotifications } = require('../../../../src/platform/notifications/notification.service')
-
 const prisma = {
   notificationRule: { findMany: vi.fn() },
   notification: { upsert: vi.fn() },
@@ -10,7 +7,11 @@ const prisma = {
   $transaction: vi.fn(async (callback) => callback(prisma)),
 }
 
-vi.spyOn(prismaModule, 'getPrismaClient').mockReturnValue(prisma)
+vi.mock('../../../../src/infrastructure/database/prisma', () => ({
+  getPrismaClient: () => prisma,
+}))
+
+const { queueNotifications } = require('../../../../src/platform/notifications/notification.service')
 
 const enqueueJob = vi.fn()
 vi.mock('../../../../src/platform/jobs/job.service', () => ({ enqueueJob }))
