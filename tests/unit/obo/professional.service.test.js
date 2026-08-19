@@ -9,6 +9,7 @@ vi.spyOn(prismaModule, 'getPrismaClient').mockReturnValue({ $transaction: transa
 const spies = {
   findPersonByUserId: vi.spyOn(repository, 'findPersonByUserId'),
   findByPersonId: vi.spyOn(repository, 'findByPersonId'),
+  findPersonById: vi.spyOn(repository, 'findPersonById'),
   create: vi.spyOn(repository, 'create'),
   listPending: vi.spyOn(repository, 'listPending'),
   listVerified: vi.spyOn(repository, 'listVerified'),
@@ -47,12 +48,14 @@ describe('OBO professional service', () => {
   })
 
   it('records an accepted verification decision transactionally', async () => {
-    spies.findById.mockResolvedValue({ id: 'professional-1', status: 'PENDING_VERIFICATION' })
+    spies.findById.mockResolvedValue({ id: 'professional-1', personId: 'person-1', status: 'PENDING_VERIFICATION' })
     spies.update.mockResolvedValue({ id: 'professional-1', status: 'VERIFIED' })
     spies.addDecision.mockResolvedValue({ id: 'decision-1' })
+    spies.findPersonById.mockResolvedValue({ userId: 'professional-user-1', email: 'professional@example.com' })
     await expect(service.decideVerification({ id: 'professional-1', actorId: 'officer-1', decision: 'ACCEPTED' })).resolves.toMatchObject({ status: 'VERIFIED' })
     expect(spies.update).toHaveBeenCalledWith('professional-1', expect.objectContaining({ status: 'VERIFIED', verifiedByUserId: 'officer-1' }), expect.any(Object))
     expect(spies.addDecision).toHaveBeenCalled()
+    expect(spies.findPersonById).toHaveBeenCalledWith('person-1', expect.any(Object))
   })
 
   it('rejects unknown or already-decided professionals', async () => {
