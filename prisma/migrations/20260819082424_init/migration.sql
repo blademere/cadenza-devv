@@ -1606,3 +1606,6 @@ ALTER TABLE "WorkflowHistory" ADD CONSTRAINT "WorkflowHistory_transitionId_fkey"
 
 -- AddForeignKey
 ALTER TABLE "WorkflowHistory" ADD CONSTRAINT "WorkflowHistory_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- Prevent concurrent workers from creating multiple active approval instances
+-- for the same policy + subject. Historical completed/rejected instances remain allowed.
+CREATE UNIQUE INDEX "ApprovalInstance_active_subject_unique" ON "ApprovalInstance" ("policyId", "subjectType", "subjectId")WHERE "status" = 'PENDING';
