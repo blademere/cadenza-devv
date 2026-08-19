@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../src/features/people/people.repository', () => ({
   createPerson: vi.fn(async (data) => ({ id: 'person-1', ...data })),
-  findPersonById: vi.fn(async () => ({ id: 'person-1', firstName: 'A', lastName: 'B' })),
+  findPersonById: vi.fn(async (id) =>
+    id === 'person-1' ? { id: 'person-1', firstName: 'A', lastName: 'B' } : null,
+  ),
   listPeople: vi.fn(async () => []),
   countPeople: vi.fn(async () => 0),
   updatePerson: vi.fn(async (id, data) => ({ id, ...data })),
@@ -22,7 +24,9 @@ describe('people service', () => {
       firstName: 'Jane',
       lastName: 'Doe',
     })
+
     await expect(update('person-1', { firstName: ' Jane ' })).resolves.toMatchObject({
+      id: 'person-1',
       firstName: 'Jane',
     })
   })
