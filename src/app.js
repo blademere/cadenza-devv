@@ -17,6 +17,7 @@ const {
 
 const { getPrismaClient } = require('./infrastructure/database/prisma')
 const { connectRedis } = require('./infrastructure/cache/redis')
+require('./infrastructure/storage')
 
 const {
   rateLimiter,
