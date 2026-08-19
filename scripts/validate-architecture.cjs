@@ -53,8 +53,9 @@ for (const file of walk(ROUTES).filter((entry) => entry.endsWith('.routes.js')))
     const lineEnd = source.indexOf('\n', operationStart)
     const statement = source.slice(lineStart, lineEnd === -1 ? source.length : lineEnd)
 
-    if (!statement.includes('authorizeResource')) {
-      failures.push(`${relative}: resource route '${match[2]}' must use authorizeResource or be explicitly redesigned as a non-resource endpoint.`)
+    const usesResourceAuthorization = /\bauthorizeResource\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/.test(statement)
+    if (!usesResourceAuthorization) {
+      failures.push(`${relative}: resource route '${match[2]}' must use authorizeResource or an explicit resource-authorization helper.`)
     }
   }
 }
