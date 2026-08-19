@@ -22,6 +22,8 @@ const findSubmissionAppointment = (appointmentId, db = prisma) => db.appointment
   include: { slot: true },
 })
 
+const findPersonNotificationContext = (personId, db = prisma) => db.person.findUnique({ where: { id: personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
+
 const listApplications = async (status, db = prisma) => {
   const applications = await db.oboPermitApplication.findMany({
     where: { workflowInstanceId: { not: null } },
@@ -53,12 +55,15 @@ const updateApplication = (id, data, db = prisma) => db.oboPermitApplication.upd
 })
 
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
+const withTransaction = (callback) => prisma.$transaction(callback)
 
 module.exports = {
   findApplication,
   findWorkflowInstance,
   findSubmissionAppointment,
+  findPersonNotificationContext,
   listApplications,
   updateApplication,
   addDecision,
+  withTransaction,
 }
