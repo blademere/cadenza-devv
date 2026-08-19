@@ -1,30 +1,15 @@
 const { getPrismaClient } = require('../../infrastructure/database/prisma')
 const { BadRequestError, NotFoundError } = require('../../common/errors/appError')
 const { sendNotification: sendPlatformNotification } = require('../../platform/notifications/notification.send.service')
-const { NOTIFICATION_CHANNEL_LIST, NOTIFICATION_CHANNELS } = require('./notification.constants')
+const { NOTIFICATION_CHANNEL_LIST, NOTIFICATION_CHANNELS } = require('../../platform/notifications/notification.constants')
 
 const prisma = getPrismaClient()
-
-const normalizeChannels = (channels) => {
-  const values = channels?.length ? channels : [NOTIFICATION_CHANNELS.IN_APP]
-  const normalized = [...new Set(values.map((channel) => String(channel).trim().toUpperCase()))]
-  const invalid = normalized.filter((channel) => !NOTIFICATION_CHANNEL_LIST.includes(channel))
-  if (invalid.length) throw new BadRequestError(`Unsupported notification channel '${invalid[0]}'.`)
-  return normalized
-}
 
 const getNotificationForUser = async ({ id, userId }) =>
   prisma.notification.findFirst({ where: { id: Number(id), userId: Number(userId) } })
 
 const sendNotification = async ({ userId, type, title, message, data = null, channels }) =>
-  sendPlatformNotification({
-    userId,
-    type,
-    title,
-    message,
-    data,
-    channels: channels?.length ? normalizeChannels(channels) : undefined,
-  })
+  sendPlatformNotification({ userId, type, title, message, data, channels })
 
 const listNotifications = async ({ userId, unreadOnly = false, page = 1, limit = 20 }) => {
   const where = { userId, ...(unreadOnly ? { readAt: null } : {}) }
@@ -63,5 +48,4 @@ module.exports = {
   markNotificationRead,
   setNotificationPreference,
   listNotificationPreferences,
-  normalizeChannels,
 }
