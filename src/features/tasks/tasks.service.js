@@ -1,13 +1,11 @@
 const { BadRequestError, NotFoundError } = require('../../common/errors/appError')
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
-const { createTask, findTaskById, listTasks, updateTask } = require('./tasks.repository')
-
-const prisma = getPrismaClient()
+const { createTask, findTaskById, findCase, listTasks, updateTask } = require('./tasks.repository')
+const { TASK_STATUS } = require('./tasks.constants')
 
 const create = async (data) => {
   if (!data.title?.trim()) throw new BadRequestError('title is required.')
   if (data.caseId) {
-    const caseRecord = await prisma.caseRecord.findUnique({ where: { id: data.caseId }, select: { id: true } })
+    const caseRecord = await findCase(data.caseId)
     if (!caseRecord) throw new NotFoundError('Case not found.')
   }
   return createTask({ ...data, title: data.title.trim() })
@@ -33,10 +31,10 @@ const update = async (id, data) => {
     next.title = next.title.trim()
     if (!next.title) throw new BadRequestError('title cannot be empty.')
   }
-  if (next.status === 'DONE' && next.completedAt === undefined) {
+  if (next.status === TASK_STATUS.DONE && next.completedAt === undefined) {
     next.completedAt = new Date()
   }
-  if (next.status && next.status !== 'DONE' && next.completedAt === undefined) {
+  if (next.status && next.status !== TASK_STATUS.DONE && next.completedAt === undefined) {
     next.completedAt = null
   }
   return updateTask(id, next)

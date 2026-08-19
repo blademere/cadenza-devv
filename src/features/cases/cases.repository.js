@@ -5,10 +5,12 @@ const prisma = getPrismaClient()
 const createCaseType = (data) => prisma.caseType.create({ data })
 const createCase = (data) => prisma.caseRecord.create({ data })
 
-const findCaseById = (id) =>
+const findCaseById = (id, options = {}) =>
   prisma.caseRecord.findUnique({
     where: { id },
-    include: { caseType: true, participants: true, requirements: true, tasks: true },
+    ...(options.includeDetails === false
+      ? { select: { id: true, caseTypeId: true, status: true, caseNumber: true, title: true } }
+      : { include: { caseType: true, participants: true, requirements: true, tasks: true } }),
   })
 
 const findCaseTypeById = (id) => prisma.caseType.findUnique({ where: { id } })
@@ -26,15 +28,16 @@ const countCases = (where) => prisma.caseRecord.count({ where })
 
 const transitionCase = (id, fromStatus, toStatus, changedByUserId, reason, metadata) =>
   prisma.$transaction(async (tx) => {
-    const current = await tx.caseRecord.findUnique({ where: { id } })
-    if (!current) return null
-    const updated = await tx.caseRecord.update({
-      where: { id },
+    const updated = await tx.caseRecord.updateMany({
+      where: { id, status: fromStatus },
       data: {
         status: toStatus,
         closedAt: toStatus === 'CLOSED' ? new Date() : null,
       },
     })
+
+    if (updated.count !== 1) return null
+
     await tx.caseStatusHistory.create({
       data: {
         caseId: id,
@@ -45,7 +48,8 @@ const transitionCase = (id, fromStatus, toStatus, changedByUserId, reason, metad
         metadata,
       },
     })
-    return updated
+
+    return tx.caseRecord.findUnique({ where: { id } })
   })
 
 module.exports = {

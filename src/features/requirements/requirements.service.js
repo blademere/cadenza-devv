@@ -1,15 +1,13 @@
 const { BadRequestError, ConflictError, NotFoundError } = require('../../common/errors/appError')
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
 const {
   createDefinition,
   findDefinitionById,
   createCaseRequirement,
   findCaseRequirement,
+  findCase,
   listCaseRequirements,
   updateCaseRequirement,
 } = require('./requirements.repository')
-
-const prisma = getPrismaClient()
 
 const createRequirementDefinition = async (data) => {
   if (!data.key?.trim() || !data.name?.trim()) {
@@ -20,7 +18,7 @@ const createRequirementDefinition = async (data) => {
 
 const attachToCase = async ({ caseId, requirementId, dueAt, metadata }) => {
   const [caseRecord, requirement] = await Promise.all([
-    prisma.caseRecord.findUnique({ where: { id: caseId }, select: { id: true } }),
+    findCase(caseId),
     findDefinitionById(requirementId),
   ])
   if (!caseRecord) throw new NotFoundError('Case not found.')
@@ -31,7 +29,7 @@ const attachToCase = async ({ caseId, requirementId, dueAt, metadata }) => {
 }
 
 const listForCase = async (caseId) => {
-  const caseRecord = await prisma.caseRecord.findUnique({ where: { id: caseId }, select: { id: true } })
+  const caseRecord = await findCase(caseId)
   if (!caseRecord) throw new NotFoundError('Case not found.')
   return listCaseRequirements(caseId)
 }

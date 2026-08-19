@@ -1,4 +1,4 @@
-const { BadRequestError, NotFoundError } = require('../../common/errors/appError')
+const { BadRequestError, ConflictError, NotFoundError } = require('../../common/errors/appError')
 const {
   normalizePagination,
   createPaginationMeta,
@@ -12,6 +12,7 @@ const {
   countCases,
   transitionCase,
 } = require('./cases.repository')
+const { CASE_STATUS } = require('./cases.constants')
 
 const createType = async (data) => {
   if (!data.key?.trim() || !data.name?.trim()) {
@@ -25,18 +26,23 @@ const createType = async (data) => {
 }
 
 const createRecord = async (data) => {
-  if (!data.caseNumber || !data.caseTypeId || !data.title?.trim()) {
+  if (!data.caseNumber?.trim() || !data.caseTypeId || !data.title?.trim()) {
     throw new BadRequestError('caseNumber, caseTypeId, and title are required.')
   }
   const caseType = await findCaseTypeById(data.caseTypeId)
   if (!caseType || !caseType.isActive) {
     throw new NotFoundError('Active case type not found.')
   }
-  return createCase({ ...data, title: data.title.trim() })
+  return createCase({
+    ...data,
+    caseNumber: data.caseNumber.trim(),
+    title: data.title.trim(),
+    status: data.status?.trim() || CASE_STATUS.DRAFT,
+  })
 }
 
-const getById = async (id) => {
-  const record = await findCaseById(id)
+const getById = async (id, options = {}) => {
+  const record = await findCaseById(id, options)
   if (!record) throw new NotFoundError('Case not found.')
   return record
 }
@@ -63,19 +69,20 @@ const list = async (query = {}) => {
 
 const transition = async ({ id, toStatus, changedByUserId, reason, metadata }) => {
   if (!toStatus?.trim()) throw new BadRequestError('toStatus is required.')
-  const current = await getById(id)
-  if (current.status === toStatus) {
+  const current = await getById(id, { includeDetails: false })
+  const normalizedStatus = toStatus.trim()
+  if (current.status === normalizedStatus) {
     throw new BadRequestError('Case is already in the requested status.')
   }
   const updated = await transitionCase(
     id,
     current.status,
-    toStatus.trim(),
+    normalizedStatus,
     changedByUserId,
     reason,
     metadata,
   )
-  if (!updated) throw new NotFoundError('Case not found.')
+  if (!updated) throw new ConflictError('Case status changed before this transition could be completed.')
   return updated
 }
 

@@ -9,6 +9,7 @@ const findCaseRequirement = (caseId, requirementId) =>
   prisma.caseRequirement.findUnique({
     where: { caseId_requirementId: { caseId, requirementId } },
   })
+const findCase = (id) => prisma.caseRecord.findUnique({ where: { id }, select: { id: true } })
 const listCaseRequirements = (caseId) =>
   prisma.caseRequirement.findMany({
     where: { caseId },
@@ -23,6 +24,7 @@ module.exports = {
   findDefinitionById,
   createCaseRequirement,
   findCaseRequirement,
+  findCase,
   listCaseRequirements,
   updateCaseRequirement,
 }
