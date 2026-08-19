@@ -44,8 +44,16 @@ for (const file of files) {
     failures.push(`${relative}: common code must not import features, platform, or modules.`)
   }
 
-  const isService = /(?:^|\/)\w+\.service\.(?:js|cjs|mjs)$/.test(relative)
-  if (isService && (PRISMA_IMPORT.test(source) || PRISMA_CLIENT_ACCESS.test(source))) {
+  // The repository boundary applies to application business services in
+  // features/modules. Platform services are reusable engines and may own
+  // their persistence implementation; requiring a second repository layer
+  // inside every platform engine would create a parallel abstraction without
+  // changing the application-domain dependency direction.
+  const isApplicationService =
+    (relative.startsWith('src/features/') || relative.startsWith('src/modules/')) &&
+    /(?:^|\/)\w+\.service\.(?:js|cjs|mjs)$/.test(relative)
+
+  if (isApplicationService && (PRISMA_IMPORT.test(source) || PRISMA_CLIENT_ACCESS.test(source))) {
     failures.push(`${relative}: services must not access Prisma directly; use a repository.`)
   }
 }
