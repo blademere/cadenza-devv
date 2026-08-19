@@ -8,7 +8,7 @@ vi.mock('../../../src/platform/workflow/workflow.service', () => ({
 const repository = require('../../../src/modules/obo/plan-permits/plan-permit.repository')
 const appointmentService = require('../../../src/features/appointments/appointment.service')
 const formService = require('../../../src/platform/forms/form.service')
-const workflowService = require('../../../src/platform/workflow/workflow.service')
+const workflowService = await import('../../../src/platform/workflow/workflow.service')
 const prismaModule = require('../../../src/infrastructure/database/prisma')
 
 const transaction = vi.fn(async (callback) => callback({}))
