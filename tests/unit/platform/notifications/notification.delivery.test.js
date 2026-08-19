@@ -23,7 +23,10 @@ describe('notification delivery hardening', () => {
       {
         id: 'r1',
         templateId: 't1',
-        conditions: null,
+        conditions: {
+          field: 'clientUserId',
+          operator: 'is_not_empty',
+        },
         recipientType: 'FIELD',
         recipientValue: 'clientUserId',
         template: {
