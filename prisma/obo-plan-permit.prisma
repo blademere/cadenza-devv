@@ -53,6 +53,7 @@ model OboPermitApplication {
   clientPerson          Person                    @relation("OboApplicationClient", fields: [clientPersonId], references: [id], onDelete: Restrict)
   professional          OboProfessional           @relation(fields: [professionalId], references: [id], onDelete: Restrict)
   formVersion           FormVersion?              @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
+  workflowInstance      WorkflowInstance?         @relation(fields: [workflowInstanceId], references: [id], onDelete: Restrict)
   acceptedBy            User?                     @relation("OboApplicationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
   submissionAppointment OboSubmissionAppointment?
   decisions             OboReceivingDecision[]
@@ -95,6 +96,7 @@ model OboProfessionalVerificationDecision {
   decidedByUserId Int
   decidedAt       DateTime        @default(now())
   professional    OboProfessional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  decidedBy       User             @relation("OboProfessionalVerificationDecisionUser", fields: [professionalId], references: [id], onDelete: Cascade)
   decidedBy       User             @relation("OboProfessionalVerificationDecisionUser", fields: [decidedByUserId], references: [id], onDelete: Restrict)
 
   @@index([professionalId, decidedAt])
