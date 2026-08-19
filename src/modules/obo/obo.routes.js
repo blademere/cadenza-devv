@@ -11,11 +11,14 @@ const applicationsRead = authorize(ACCESS_CONTROL_MODULES.APPLICATIONS, ACCESS_C
 const applicationsCreate = authorize(ACCESS_CONTROL_MODULES.APPLICATIONS, ACCESS_CONTROL_ACTIONS.CREATE)
 const applicationsReview = authorize(ACCESS_CONTROL_MODULES.APPLICATIONS, ACCESS_CONTROL_ACTIONS.REVIEW)
 const applicationsReceive = authorize(ACCESS_CONTROL_MODULES.APPLICATIONS, ACCESS_CONTROL_ACTIONS.RECEIVE)
+const professionalsRead = authorize(ACCESS_CONTROL_MODULES.PROFESSIONALS, ACCESS_CONTROL_ACTIONS.READ)
+const professionalsCreate = authorize(ACCESS_CONTROL_MODULES.PROFESSIONALS, ACCESS_CONTROL_ACTIONS.CREATE)
+const professionalsReview = authorize(ACCESS_CONTROL_MODULES.PROFESSIONALS, ACCESS_CONTROL_ACTIONS.REVIEW)
 
 router.get('/permit-types', authenticate, applicationsRead, asyncHandler(controller.listPermitTypes))
-router.post('/professionals', authenticate, applicationsReview, requireIdempotency, validate(validation.createProfessionalValidator), asyncHandler(controller.createProfessional))
-router.get('/receiving/professionals', authenticate, applicationsReview, asyncHandler(controller.listPendingProfessionals))
-router.post('/professionals/:id/verification', authenticate, applicationsReview, requireIdempotency, validate(validation.verifyProfessionalValidator), asyncHandler(controller.verifyProfessional))
+router.post('/professionals', authenticate, professionalsCreate, requireIdempotency, validate(validation.createProfessionalValidator), asyncHandler(controller.createProfessional))
+router.get('/receiving/professionals', authenticate, professionalsReview, asyncHandler(controller.listPendingProfessionals))
+router.post('/professionals/:id/verification', authenticate, professionalsReview, requireIdempotency, validate(validation.verifyProfessionalValidator), asyncHandler(controller.verifyProfessional))
 router.post('/applications', authenticate, applicationsCreate, requireIdempotency, validate(validation.createApplicationValidator), asyncHandler(controller.createApplication))
 router.get('/applications/mine', authenticate, applicationsRead, asyncHandler(controller.listMine))
 router.get('/applications/:id', authenticate, applicationsRead, validate(validation.applicationValidator), asyncHandler(controller.getApplication))
@@ -23,4 +26,5 @@ router.post('/applications/:id/submit', authenticate, applicationsCreate, requir
 router.post('/applications/:id/submission-appointment', authenticate, applicationsCreate, requireIdempotency, validate(validation.submissionAppointmentValidator), asyncHandler(controller.bookSubmissionAppointment))
 router.get('/receiving/applications', authenticate, applicationsReceive, validate(validation.receivingListValidator), asyncHandler(controller.listReceivingApplications))
 router.post('/receiving/applications/:id/decision', authenticate, applicationsReceive, requireIdempotency, validate(validation.receivingDecisionValidator), asyncHandler(controller.receiveApplication))
+
 module.exports = router
