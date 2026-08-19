@@ -8,6 +8,7 @@ const createAccessToken = (user) => {
   return jwt.sign(
     {
       type: 'access',
+      authVersion: Number(user.authVersion ?? 0),
     },
     env.JWT_ACCESS_SECRET,
     {
@@ -24,6 +25,7 @@ const createRefreshToken = (user, tokenId) => {
     {
       type: 'refresh',
       tokenId,
+      authVersion: Number(user.authVersion ?? 0),
     },
     env.JWT_REFRESH_SECRET,
     {

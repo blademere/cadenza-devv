@@ -19,18 +19,21 @@ process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
 const accessControlService = require('../../../src/platform/authorization/access-control.service')
+const authRepository = require('../../../src/features/auth/auth.repository')
 const userService = require('../../../src/features/users/user.service')
 const { createAccessToken } = require('../../../src/features/auth/auth.tokens')
 const can = vi.spyOn(accessControlService, 'can')
+const findUserAuthState = vi.spyOn(authRepository, 'findUserAuthState')
 const listUsers = vi.spyOn(userService, 'listUsers')
 const registerUser = vi.spyOn(userService, 'registerUser')
 const app = require('../../../src/app')
 
 describe('Auth/Access Control integration', () => {
-  const user = { id: 42 }
+  const user = { id: 42, authVersion: 0 }
 
   beforeEach(() => {
     vi.clearAllMocks()
+    findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
     listUsers.mockResolvedValue({
       data: [
         {
