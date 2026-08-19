@@ -116,6 +116,8 @@ const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
   cache.hashKey = hashKey
   cache.defaultKey = defaultKey
   cache.getCacheRedisKey = getCacheRedisKey
+  cache.normalizeKey = normalizeKey
+  cache.normalizeTtl = normalizeTtl
   cache.parseEntry = parseEntry
   cache.DEFAULT_TTL_SECONDS = DEFAULT_TTL_SECONDS
   cache.MAX_TTL_SECONDS = MAX_TTL_SECONDS
