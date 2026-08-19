@@ -7,10 +7,10 @@ const {
 } = require('./auth.controller')
 
 const { loginValidator } = require('./auth.validation')
+const authenticate = require('./authenticate')
 
 const {
   asyncHandler,
-  authenticate,
   loginRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
