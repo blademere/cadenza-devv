@@ -65,6 +65,8 @@ jobs:
         run: npm run lint
       - name: Architecture enforcement
         run: npm run validate:architecture
+      - name: Migration hygiene
+        run: npm run validate:migrations
       - name: Prisma validation
         run: npx prisma validate --schema=prisma/schema.prisma
       - name: Generate Prisma Client
@@ -85,7 +87,7 @@ jobs:
         uses: actions/checkout@v7
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build production image
+      - name: Build production Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
