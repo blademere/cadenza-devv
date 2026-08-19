@@ -5,15 +5,17 @@ This directory contains the repository's architecture, platform-engineering, ope
 ## Start here
 
 1. **[Application Architecture](architecture.md)** — authoritative dependency direction, layer responsibilities, Phase 2 foundations, module strategy, and roadmap.
-2. **[OpenAPI](openapi.yaml)** — current public HTTP API contract. It describes the routes actually exposed by the application, not future domain APIs.
-3. **[Platform Extensibility](platform-extensibility.md)** — rules for keeping reusable platform mechanisms domain-neutral.
-4. **[Production Operations](production-operations.md)** — deployment, migration, backup, queue, Redis, audit, and rollback guidance.
+2. **[Platform Integration](platform-integration.md)** — Phase 3 integration pattern for transactional events, workers, rules, audit, and notifications.
+3. **[OpenAPI](openapi.yaml)** — current public HTTP API contract. It describes the routes actually exposed by the application, not future domain APIs.
+4. **[Platform Extensibility](platform-extensibility.md)** — rules for keeping reusable platform mechanisms domain-neutral.
+5. **[Production Operations](production-operations.md)** — deployment, migration, backup, queue, Redis, audit, and rollback guidance.
 
 ## Architecture and business-platform documentation
 
 | Document | Purpose | Architectural role |
 | --- | --- | --- |
 | [architecture.md](architecture.md) | Application boundaries and roadmap | Source of truth |
+| [platform-integration.md](platform-integration.md) | Shared business to platform integration | Phase 3 pattern |
 | [dynamic-forms.md](dynamic-forms.md) | Configuration-driven forms and validation | Platform capability |
 | [workflow-engine.md](workflow-engine.md) | Generic workflow/versioning | Platform capability |
 | [business-automation.md](business-automation.md) | Rules, approvals, notifications, SLA | Platform capability |
@@ -94,7 +96,7 @@ The repository currently follows:
 
 - **Phase 1 — Architecture cleanup:** completed.
 - **Phase 2 — Shared business foundations:** completed and hardened.
-- **Phase 3 — Platform integration:** next; integrate existing engines with shared business actions without coupling platform code to a domain.
+- **Phase 3 — Platform integration:** **in progress**; connect shared business actions to audit/event infrastructure and establish the domain-neutral worker/event pattern.
 - **Phase 4 — Domain modules:** later; implement real application domains only when there is a concrete business requirement.
 
 The eventual OBO/permit system belongs under `src/modules/obo/`. Do not create placeholder domain modules merely to reserve future names.
