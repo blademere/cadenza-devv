@@ -1,6 +1,7 @@
 const {
   ACCESS_CONTROL_MODULES,
   ACCESS_CONTROL_ACTIONS,
+  ACCESS_CONTROL_MODULE_DEFINITIONS,
   getPermissionKey,
 } = require('./access-control.registry')
 
@@ -9,20 +10,18 @@ const ACCESS_CONTROL_POSSESSION = Object.freeze({
   ANY: 'any',
 })
 
-// Keep this compatibility export for callers that use named permission keys.
-// The database-backed permission catalog is maintained by the registry/seed
-// and authorization checks resolve against PostgreSQL rather than this list.
+// Compatibility aliases for code that wants stable symbolic permission names.
+// The catalog itself is maintained by the registry and database seed, so adding
+// a module/action does not require manually maintaining this object.
 const ACCESS_CONTROL_PERMISSION_KEYS = Object.freeze(
-  new Proxy({}, {
-    get(_target, property) {
-      if (typeof property !== 'string') return undefined
-      const separator = property.lastIndexOf('_')
-      if (separator <= 0) return undefined
-      const resource = property.slice(0, separator).toLowerCase()
-      const action = property.slice(separator + 1).toLowerCase()
-      return getPermissionKey(resource, action)
-    },
-  }),
+  Object.fromEntries(
+    ACCESS_CONTROL_MODULE_DEFINITIONS.flatMap((module) =>
+      module.actions.map((action) => [
+        `${module.key}_${action}`.toUpperCase(),
+        getPermissionKey(module.key, action),
+      ]),
+    ),
+  ),
 )
 
 module.exports = {
