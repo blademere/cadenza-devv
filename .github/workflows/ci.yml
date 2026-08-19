@@ -1,25 +1,122 @@
-name: CI / Production Readiness
+name: CI
 
 on:
   pull_request:
+    branches: [main, develop]
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       staging:
         description: Run the ephemeral staging smoke environment
         required: false
-        default: true
+        default: false
         type: boolean
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Detect affected areas
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      database: ${{ steps.filter.outputs.database }}
+      openapi: ${{ steps.filter.outputs.openapi }}
+      docker: ${{ steps.filter.outputs.docker }}
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Classify changes
+        id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+            echo "database=true" >> "$GITHUB_OUTPUT"
+            echo "openapi=true" >> "$GITHUB_OUTPUT"
+            echo "docker=true" >> "$GITHUB_OUTPUT"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+            if [[ "$base" == "0000000000000000000000000000000000000000" ]]; then
+              base="$(git rev-list --max-parents=1 "$head" | tail -n 1)"
+            fi
+          fi
+
+          mapfile -t files < <(git diff --name-only "$base" "$head")
+          printf 'Changed files:\n%s\n' "${files[*]:-none}"
+
+          app=false
+          database=false
+          openapi=false
+          docker=false
+
+          for file in "${files[@]}"; do
+            case "$file" in
+              src/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|prisma.config.ts|.env.example|.github/workflows/**)
+                app=true
+                ;;
+            esac
+
+            case "$file" in
+              prisma/**|prisma.config.ts|scripts/validate-migrations.cjs)
+                database=true
+                ;;
+            esac
+
+            case "$file" in
+              src/**|docs/auth.yaml|scripts/validate-openapi.cjs)
+                openapi=true
+                ;;
+            esac
+
+            case "$file" in
+              src/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts)
+                docker=true
+                ;;
+            esac
+          done
+
+          docs_only=true
+          for file in "${files[@]}"; do
+            case "$file" in
+              docs/**|README.md|*.md)
+                ;;
+              *)
+                docs_only=false
+                break
+                ;;
+            esac
+          done
+
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "database=$database" >> "$GITHUB_OUTPUT"
+          echo "openapi=$openapi" >> "$GITHUB_OUTPUT"
+          echo "docker=$docker" >> "$GITHUB_OUTPUT"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
   quality:
-    name: Lint, tests, coverage
+    name: Lint, architecture, tests
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -73,15 +170,77 @@ jobs:
         run: npx prisma generate --schema=prisma/schema.prisma
       - name: Apply database migrations
         run: npx prisma migrate deploy --schema=prisma/schema.prisma
-      - name: Install coverage provider
-        run: npm install --no-save --ignore-scripts @vitest/coverage-v8@4.1.10
-      - name: Run coverage gate
-        run: npm run test:coverage
+      - name: Run test suite
+        run: npm test
+
+  database:
+    name: Database validation
+    needs: changes
+    if: needs.changes.outputs.database == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: express_app_migrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d express_app_migrations"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app_migrations
+      NODE_ENV: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate migration history
+        run: npm run validate:migrations
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema=prisma/schema.prisma
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=prisma/schema.prisma
+      - name: Apply all migrations to a clean database
+        run: npx prisma migrate deploy --schema=prisma/schema.prisma
+
+  openapi:
+    name: OpenAPI validation
+    needs: changes
+    if: needs.changes.outputs.openapi == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate OpenAPI
+        run: node scripts/validate-openapi.cjs
 
   docker:
     name: Build production Docker image
+    needs: [changes, quality, database]
+    if: >-
+      always() &&
+      needs.changes.outputs.docker == 'true' &&
+      needs.quality.result != 'failure' &&
+      needs.database.result != 'failure'
     runs-on: ubuntu-latest
-    needs: quality
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -99,9 +258,9 @@ jobs:
 
   staging:
     name: Ephemeral staging smoke test
-    runs-on: ubuntu-latest
     needs: docker
-    if: github.event_name == 'workflow_dispatch' && inputs.staging
+    if: github.event_name == 'workflow_dispatch' && inputs.staging && needs.docker.result == 'success'
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:16
