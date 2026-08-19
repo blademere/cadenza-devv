@@ -1,10 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  notification: { upsert: vi.fn() },
   notificationDelivery: { findUnique: vi.fn(), updateMany: vi.fn(), update: vi.fn(), upsert: vi.fn() },
   notificationRule: { findMany: vi.fn() },
   notificationTemplate: { findUnique: vi.fn(), create: vi.fn() },
   user: { findMany: vi.fn() },
+  $transaction: vi.fn(async (callback) => callback(mocks)),
 }))
 const prismaModule = require('../../../../src/infrastructure/database/prisma')
 prismaModule.getPrismaClient = () => mocks
@@ -30,7 +32,8 @@ const {
 
 describe('notification delivery hardening', () => {
   beforeEach(() => {
-    for (const group of Object.values(mocks)) {
+    for (const [name, group] of Object.entries(mocks)) {
+      if (name === '$transaction') continue
       if (typeof group?.mockReset === 'function') group.mockReset()
       else for (const mock of Object.values(group)) mock.mockReset()
     }
@@ -127,5 +130,43 @@ describe('notification delivery hardening', () => {
       data: { deliveryId: 'd1' },
       jobId: 'notification-delivery-d1',
     })
+  })
+
+  it('creates an idempotent in-app notification for event-driven recipients', async () => {
+    prisma.notificationRule.findMany.mockResolvedValue([
+      {
+        id: 'r1',
+        templateId: 't1',
+        conditions: {},
+        recipientType: 'FIELD',
+        recipientValue: 'clientUserId',
+        template: {
+          id: 't1',
+          name: 'Application Ready',
+          active: true,
+          channel: 'IN_APP',
+          subject: null,
+          body: 'Application {{referenceNumber}} is ready.',
+        },
+      },
+    ])
+    prisma.notification.upsert.mockResolvedValue({ id: 'n1' })
+    prisma.notificationDelivery.upsert.mockResolvedValue({ id: 'd1', status: 'QUEUED', notificationId: 'n1' })
+    enqueueJob.mockResolvedValue({ id: 'job-1' })
+
+    const deliveries = await queueNotifications({
+      event: 'workflow.transitioned',
+      context: { correlationId: 'c1', clientUserId: 42, referenceNumber: 'BP-1' },
+    })
+
+    expect(prisma.notification.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { idempotencyKey: expect.stringContaining(':in-app') },
+      create: expect.objectContaining({ userId: 42, type: 'workflow.transitioned', message: 'Application BP-1 is ready.', idempotencyKey: expect.stringContaining(':in-app') }),
+    }))
+    expect(prisma.notificationDelivery.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ notificationId: 'n1', channel: 'IN_APP' }),
+    }))
+    expect(deliveries).toEqual([{ id: 'd1', status: 'QUEUED', notificationId: 'n1' }])
+    expect(enqueueJob).toHaveBeenCalledWith(expect.objectContaining({ data: { deliveryId: 'd1' } }))
   })
 })
