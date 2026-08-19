@@ -9,8 +9,8 @@ const { evaluateCondition, getPathValue } = require('../rules/rule.service')
 const { recordAudit } = require('../audit/audit.service')
 const { enqueueJob } = require('../jobs/job.service')
 const { JOB_NAMES, JOB_QUEUES } = require('../jobs/job.constants')
+const { NOTIFICATION_CHANNEL_LIST } = require('./notification.constants')
 
-const CHANNELS = Object.freeze(['EMAIL', 'SMS', 'PUSH', 'IN_APP', 'WEBHOOK'])
 const RECIPIENT_TYPES = Object.freeze([
   'STATIC',
   'FIELD',
@@ -33,12 +33,14 @@ const render = (template, context) =>
     const value = getPathValue(context, path.trim())
     return value == null ? '' : String(value)
   })
+
 const parsePermission = (key) => {
   const index = key?.indexOf('.')
   if (!key || index <= 0 || index === key.length - 1)
     throw new BadRequestError(`Invalid permission key '${key}'.`)
   return { resource: key.slice(0, index), action: key.slice(index + 1) }
 }
+
 const stableIdempotencyKey = ({
   correlationId,
   event,
@@ -58,14 +60,16 @@ const stableIdempotencyKey = ({
       ])
     )
     .digest('hex')
+
 const normalizeChannel = (channel) => {
   const value = String(channel || '')
     .trim()
     .toUpperCase()
-  if (!CHANNELS.includes(value))
+  if (!NOTIFICATION_CHANNEL_LIST.includes(value))
     throw new BadRequestError(`Unsupported notification channel '${channel}'.`)
   return value
 }
+
 const validateTemplateChannel = ({ channel, subject, body }) => {
   const normalized = normalizeChannel(channel)
   if (!String(body || '').trim())
@@ -100,6 +104,7 @@ const createNotificationTemplate = async ({
   })
   return template
 }
+
 const createNotificationRule = async ({
   key,
   name,
@@ -178,7 +183,7 @@ const resolveRecipients = async (rule, context) => {
         : [String(value)]
   }
   if (rule.recipientType === 'USER') {
-    const value = context.user?.email || context.user?.id
+    const value = context.user?.id || context.user?.email
     return value == null ? [] : [String(value)]
   }
   if (rule.recipientType === 'ROLE') {
@@ -202,15 +207,18 @@ const resolveRecipients = async (rule, context) => {
   })
   return users.map((user) => user.email).filter(Boolean)
 }
+
 const computeRetryAt = (attempt) =>
   new Date(
     Date.now() + Math.min(3600, 2 ** Math.max(0, attempt - 1) * 30) * 1000
   )
+
 const sanitizeError = (error) =>
   String(error?.message || error || 'Notification delivery failed').slice(
     0,
     MAX_ERROR_LENGTH
   )
+
 const claimDelivery = async ({ id, now = new Date() }) => {
   const delivery = await prisma.notificationDelivery.findUnique({
     where: { id },
@@ -243,6 +251,7 @@ const claimDelivery = async ({ id, now = new Date() }) => {
     delivery: await prisma.notificationDelivery.findUnique({ where: { id } }),
   }
 }
+
 const markDeliverySent = async (id) =>
   prisma.notificationDelivery.update({
     where: { id, status: DELIVERY_STATUS.PROCESSING },
@@ -253,6 +262,7 @@ const markDeliverySent = async (id) =>
       error: null,
     },
   })
+
 const markDeliveryFailed = async (id, error) => {
   const delivery = await prisma.notificationDelivery.findUnique({
     where: { id },
@@ -297,6 +307,8 @@ const queueNotifications = async ({
   for (const rule of rules) {
     if (!evaluateCondition(rule.conditions, context)) continue
     const channel = validateTemplateChannel(rule.template)
+    const subject = render(rule.template.subject, context)
+    const body = render(rule.template.body, context)
     const recipients = [
       ...new Set(
         (await resolveRecipients(rule, context))
@@ -312,22 +324,44 @@ const queueNotifications = async ({
         recipient,
         templateId: rule.templateId,
       })
-      const delivery = await prisma.notificationDelivery.upsert({
-        where: { idempotencyKey },
-        create: {
-          idempotencyKey,
-          ruleId: rule.id,
-          templateId: rule.templateId,
-          recipient,
-          channel,
-          status: DELIVERY_STATUS.QUEUED,
-          payload: {
-            subject: render(rule.template.subject, context),
-            body: render(rule.template.body, context),
-            context,
+
+      const delivery = await prisma.$transaction(async (tx) => {
+        let notificationId = null
+        if (channel === 'IN_APP') {
+          const userId = Number(recipient)
+          if (!Number.isInteger(userId) || userId <= 0)
+            throw new BadRequestError(
+              `In-app notification recipient '${recipient}' is not a valid user id.`
+            )
+          const notification = await tx.notification.upsert({
+            where: { idempotencyKey: `${idempotencyKey}:in-app` },
+            create: {
+              userId,
+              type: event,
+              title: subject || rule.template.name,
+              message: body,
+              data: context,
+              idempotencyKey: `${idempotencyKey}:in-app`,
+            },
+            update: {},
+          })
+          notificationId = notification.id
+        }
+
+        return tx.notificationDelivery.upsert({
+          where: { idempotencyKey },
+          create: {
+            idempotencyKey,
+            ruleId: rule.id,
+            templateId: rule.templateId,
+            notificationId,
+            recipient,
+            channel,
+            status: DELIVERY_STATUS.QUEUED,
+            payload: { subject, body, context },
           },
-        },
-        update: {},
+          update: notificationId ? { notificationId } : {},
+        })
       })
 
       if (delivery.status === DELIVERY_STATUS.QUEUED) {
@@ -355,6 +389,7 @@ module.exports = {
   markDeliverySent,
   markDeliveryFailed,
   validateTemplateChannel,
+  normalizeChannel,
   computeRetryAt,
   DELIVERY_STATUS,
   MAX_ATTEMPTS,
