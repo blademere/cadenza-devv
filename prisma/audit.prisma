@@ -1,16 +1,17 @@
 model AuditLog {
-  id String @id @default(uuid())
-  actorId Int?
-  action String
+  id         String   @id @default(uuid())
+  actorId    Int?
+  action     String
   entityType String
-  entityId String
-  before Json?
-  after Json?
-  metadata Json?
-  ipAddress String?
-  userAgent String?
-  actor User? @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
+  entityId   String
+  before     Json?
+  after      Json?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  actor      User?    @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
   @@index([entityType, entityId, createdAt])
   @@index([actorId, createdAt])
   @@index([action, createdAt])

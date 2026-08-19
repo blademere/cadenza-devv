@@ -1,103 +1,108 @@
 model Workflow {
-  id String @id @default(uuid())
-  key String @unique
-  name String
+  id          String            @id @default(uuid())
+  key         String            @unique
+  name        String
   description String?
-  isActive Boolean @default(true)
-  versions WorkflowVersion[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive    Boolean           @default(true)
+  versions    WorkflowVersion[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 }
 
 model WorkflowVersion {
-  id String @id @default(uuid())
-  workflowId String
-  version Int
-  status String @default("DRAFT")
-  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  steps WorkflowStep[]
-  transitions WorkflowTransition[]
-  instances WorkflowInstance[]
+  id               String                @id @default(uuid())
+  workflowId       String
+  version          Int
+  status           String                @default("DRAFT")
+  workflow         Workflow              @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  steps            WorkflowStep[]
+  transitions      WorkflowTransition[]
+  instances        WorkflowInstance[]
   formRequirements DocumentRequirement[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
   @@unique([workflowId, version])
   @@index([workflowId, status])
 }
 
 model WorkflowStep {
-  id String @id @default(uuid())
-  workflowVersionId String
-  key String
-  name String
-  description String?
-  sortOrder Int @default(0)
-  isInitial Boolean @default(false)
-  isFinal Boolean @default(false)
-  workflowVersion WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  id                  String               @id @default(uuid())
+  workflowVersionId   String
+  key                 String
+  name                String
+  description         String?
+  sortOrder           Int                  @default(0)
+  isInitial           Boolean              @default(false)
+  isFinal             Boolean              @default(false)
+  workflowVersion     WorkflowVersion      @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
   outgoingTransitions WorkflowTransition[] @relation("WorkflowTransitionFrom")
   incomingTransitions WorkflowTransition[] @relation("WorkflowTransitionTo")
-  currentInstances WorkflowInstance[]
-  historyFrom WorkflowHistory[] @relation("WorkflowHistoryFrom")
-  historyTo WorkflowHistory[] @relation("WorkflowHistoryTo")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  currentInstances    WorkflowInstance[]
+  historyFrom         WorkflowHistory[]    @relation("WorkflowHistoryFrom")
+  historyTo           WorkflowHistory[]    @relation("WorkflowHistoryTo")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
   @@unique([workflowVersionId, key])
   @@index([workflowVersionId, sortOrder])
 }
 
 model WorkflowTransition {
-  id String @id @default(uuid())
+  id                String            @id @default(uuid())
   workflowVersionId String
-  fromStepId String
-  toStepId String
-  key String
-  name String
-  description String?
-  permissionKey String?
-  workflowVersion WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
-  fromStep WorkflowStep @relation("WorkflowTransitionFrom", fields: [fromStepId], references: [id], onDelete: Cascade)
-  toStep WorkflowStep @relation("WorkflowTransitionTo", fields: [toStepId], references: [id], onDelete: Cascade)
-  history WorkflowHistory[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  fromStepId        String
+  toStepId          String
+  key               String
+  name              String
+  description       String?
+  permissionKey     String?
+  workflowVersion   WorkflowVersion   @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  fromStep          WorkflowStep      @relation("WorkflowTransitionFrom", fields: [fromStepId], references: [id], onDelete: Cascade)
+  toStep            WorkflowStep      @relation("WorkflowTransitionTo", fields: [toStepId], references: [id], onDelete: Cascade)
+  history           WorkflowHistory[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
   @@unique([workflowVersionId, key])
   @@index([fromStepId])
   @@index([toStepId])
 }
 
 model WorkflowInstance {
-  id String @id @default(uuid())
+  id                String            @id @default(uuid())
   workflowVersionId String
-  currentStepId String
-  subjectType String
-  subjectId String
-  startedByUserId Int?
-  startedAt DateTime @default(now())
-  completedAt DateTime?
-  workflowVersion WorkflowVersion @relation(fields: [workflowVersionId], references: [id])
-  currentStep WorkflowStep @relation(fields: [currentStepId], references: [id])
-  startedBy User? @relation("WorkflowInstanceStartedBy", fields: [startedByUserId], references: [id], onDelete: SetNull)
-  history WorkflowHistory[]
+  currentStepId     String
+  subjectType       String
+  subjectId         String
+  startedByUserId   Int?
+  startedAt         DateTime          @default(now())
+  completedAt       DateTime?
+  workflowVersion   WorkflowVersion   @relation(fields: [workflowVersionId], references: [id])
+  currentStep       WorkflowStep      @relation(fields: [currentStepId], references: [id])
+  startedBy         User?             @relation("WorkflowInstanceStartedBy", fields: [startedByUserId], references: [id], onDelete: SetNull)
+  history           WorkflowHistory[]
+
   @@index([subjectType, subjectId])
   @@index([workflowVersionId])
   @@index([currentStepId])
 }
 
 model WorkflowHistory {
-  id String @id @default(uuid())
-  instanceId String
-  fromStepId String?
-  toStepId String
+  id           String              @id @default(uuid())
+  instanceId   String
+  fromStepId   String?
+  toStepId     String
   transitionId String?
-  actorId Int?
-  metadata Json?
-  createdAt DateTime @default(now())
-  instance WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  fromStep WorkflowStep? @relation("WorkflowHistoryFrom", fields: [fromStepId], references: [id], onDelete: SetNull)
-  toStep WorkflowStep @relation("WorkflowHistoryTo", fields: [toStepId], references: [id], onDelete: Restrict)
-  transition WorkflowTransition? @relation(fields: [transitionId], references: [id], onDelete: SetNull)
-  actor User? @relation("WorkflowHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorId      Int?
+  metadata     Json?
+  createdAt    DateTime            @default(now())
+  instance     WorkflowInstance    @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  fromStep     WorkflowStep?       @relation("WorkflowHistoryFrom", fields: [fromStepId], references: [id], onDelete: SetNull)
+  toStep       WorkflowStep        @relation("WorkflowHistoryTo", fields: [toStepId], references: [id], onDelete: Restrict)
+  transition   WorkflowTransition? @relation(fields: [transitionId], references: [id], onDelete: SetNull)
+  actor        User?               @relation("WorkflowHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+
   @@index([instanceId, createdAt])
   @@index([actorId])
 }
