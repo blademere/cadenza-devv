@@ -1,19 +1,34 @@
 import { describe, expect, it } from 'vitest'
-const { validateValue } = require('../../src/platform/custom-fields/custom-field.service')
+const { validateFieldValue } = require('../../src/platform/forms/form.service')
 const { signPayload } = require('../../src/platform/integrations/webhook.service')
 
-describe('custom fields', () => {
+describe('dynamic form fields', () => {
   it('validates required and typed values', () => {
-    const definition = { label: 'Estimated Cost', type: 'number', required: true }
-    expect(validateValue(definition, undefined)).toBe('Estimated Cost is required.')
-    expect(validateValue(definition, '100')).toBe('Estimated Cost must be a number.')
-    expect(validateValue(definition, 100)).toBeNull()
+    const field = { key: 'estimatedCost', label: 'Estimated Cost', type: 'number', required: true, options: [] }
+    expect(validateFieldValue(field, undefined, {})).toEqual([
+      { field: 'estimatedCost', code: 'REQUIRED', message: 'Estimated Cost is required.' },
+    ])
+    expect(validateFieldValue(field, '100', {})).toEqual([
+      { field: 'estimatedCost', code: 'TYPE', message: 'Estimated Cost must be a number.' },
+    ])
+    expect(validateFieldValue(field, 100, {})).toEqual([])
   })
 
   it('validates configured select options', () => {
-    const definition = { label: 'Occupancy', type: 'select', required: true, config: { options: ['RESIDENTIAL', { value: 'COMMERCIAL' }] } }
-    expect(validateValue(definition, 'RESIDENTIAL')).toBeNull()
-    expect(validateValue(definition, 'UNKNOWN')).toBe('Occupancy contains an invalid option.')
+    const field = {
+      key: 'occupancy',
+      label: 'Occupancy',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'RESIDENTIAL', label: 'Residential' },
+        { value: 'COMMERCIAL', label: 'Commercial' },
+      ],
+    }
+    expect(validateFieldValue(field, 'RESIDENTIAL', {})).toEqual([])
+    expect(validateFieldValue(field, 'UNKNOWN', {})).toEqual([
+      { field: 'occupancy', code: 'OPTION', message: 'Occupancy contains an invalid option.' },
+    ])
   })
 })
 
