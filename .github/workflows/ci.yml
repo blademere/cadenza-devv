@@ -87,18 +87,30 @@ jobs:
           fi
           printf 'app=%s\ndatabase=%s\nopenapi=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\n' \
             "$app" "$database" "$openapi" "$docker" "$workflow" "$security" "$docs_only" >> "$GITHUB_OUTPUT"
+
+      - name: Write CI classification summary
+        if: always()
+        env:
+          APP: ${{ steps.filter.outputs.app }}
+          DATABASE: ${{ steps.filter.outputs.database }}
+          OPENAPI: ${{ steps.filter.outputs.openapi }}
+          DOCKER: ${{ steps.filter.outputs.docker }}
+          WORKFLOW: ${{ steps.filter.outputs.workflow }}
+          SECURITY: ${{ steps.filter.outputs.security }}
+          DOCS_ONLY: ${{ steps.filter.outputs.docs_only }}
+        run: |
           {
             echo '## CI classification'
             echo
             echo '| Area | Required |'
             echo '|---|---|'
-            echo "| Application | $app |"
-            echo "| Database | $database |"
-            echo "| OpenAPI | $openapi |"
-            echo "| Docker | $docker |"
-            echo "| Workflow | $workflow |"
-            echo "| Security analysis | $security |"
-            echo "| Documentation only | $docs_only |"
+            echo "| Application | ${APP:-false} |"
+            echo "| Database | ${DATABASE:-false} |"
+            echo "| OpenAPI | ${OPENAPI:-false} |"
+            echo "| Docker | ${DOCKER:-false} |"
+            echo "| Workflow | ${WORKFLOW:-false} |"
+            echo "| Security analysis | ${SECURITY:-false} |"
+            echo "| Documentation only | ${DOCS_ONLY:-false} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   quality:
