@@ -1,11 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const workflowMocks = vi.hoisted(() => ({
-  transitionWorkflow: vi.fn(),
-}))
-
-vi.mock('../../../src/platform/workflow/workflow.service', () => workflowMocks)
-
 const repository = require('../../../src/modules/obo/receiving/receiving.repository')
 const workflowService = require('../../../src/platform/workflow/workflow.service')
 const prismaModule = require('../../../src/infrastructure/database/prisma')
@@ -20,12 +14,13 @@ const spies = {
   listApplications: vi.spyOn(repository, 'listApplications'),
   updateApplication: vi.spyOn(repository, 'updateApplication'),
   addDecision: vi.spyOn(repository, 'addDecision'),
+  transitionWorkflow: vi.spyOn(workflowService, 'transitionWorkflow'),
 }
 
 afterEach(() => vi.clearAllMocks())
 beforeEach(() => {
   spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'SUBMISSION_SCHEDULED' } })
-  workflowMocks.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
+  spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
 })
 
 const service = require('../../../src/modules/obo/receiving/receiving.service')
@@ -51,7 +46,7 @@ describe('OBO receiving service', () => {
     spies.updateApplication.mockResolvedValue({ id: 'application-1' })
 
     await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).resolves.toMatchObject({ id: 'application-1' })
-    expect(workflowMocks.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ instanceId: 'workflow-1', transitionKey: 'RECEIVE_HARDCOPY', actorId: 'officer-1' }))
+    expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ instanceId: 'workflow-1', transitionKey: 'RECEIVE_HARDCOPY', actorId: 'officer-1' }))
     expect(spies.updateApplication).toHaveBeenCalledWith('application-1', expect.objectContaining({ submittedAt: expect.any(Date) }))
   })
 
@@ -85,12 +80,12 @@ describe('OBO receiving service', () => {
   it('accepts a received application and moves it to inspection', async () => {
     spies.findApplication.mockResolvedValue({ ...scheduled, submissionAppointment: null })
     spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
-    workflowMocks.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'FOR_INSPECTION' } })
+    spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'FOR_INSPECTION' } })
     spies.updateApplication.mockResolvedValue({ id: 'application-1' })
     spies.addDecision.mockResolvedValue({ id: 'decision-1' })
 
     await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'ACCEPTED' })).resolves.toMatchObject({ status: 'FOR_INSPECTION' })
-    expect(workflowMocks.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'ACCEPT_FOR_INSPECTION' }))
+    expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'ACCEPT_FOR_INSPECTION' }))
     expect(spies.addDecision).toHaveBeenCalledWith(expect.objectContaining({ decision: 'ACCEPTED', decidedByUserId: 'officer-1' }), expect.any(Object))
   })
 
@@ -99,11 +94,11 @@ describe('OBO receiving service', () => {
     spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
     await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED' })).rejects.toThrow('reason is required')
 
-    workflowMocks.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DECLINED' } })
+    spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DECLINED' } })
     spies.updateApplication.mockResolvedValue({ id: 'application-1' })
     spies.addDecision.mockResolvedValue({ id: 'decision-1' })
     await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED', reason: 'Missing hardcopy requirements' })).resolves.toMatchObject({ status: 'DECLINED' })
-    expect(workflowMocks.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'DECLINE' }))
+    expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'DECLINE' }))
   })
 
   it('rejects decisions for missing or not-yet-received applications', async () => {
