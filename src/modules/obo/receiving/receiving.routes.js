@@ -10,9 +10,9 @@ const validation = require('./receiving.validation')
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-receiving', required: true })
 
-router.get('/applications', authenticate, authorize('applications', 'receive'), validate(validation.listValidator), asyncHandler(controller.list))
+router.get('/applications', authenticate, authorize('obo_plan_permits', 'receive'), validate(validation.listValidator), asyncHandler(controller.list))
 router.post('/applications/:id/decision', authenticate, authorizeResource({
-  resource: 'applications',
+  resource: 'obo_plan_permits',
   action: 'receive',
   loadResource: repository.findApplication,
   getResourceId: (req) => req.params.id,
