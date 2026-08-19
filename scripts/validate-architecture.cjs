@@ -7,6 +7,7 @@ const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+features\//
 const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform)\//
 const MUTATION = /router\.(post|put|patch|delete)\s*\(/g
 const RESOURCE_ROUTE = /router\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
+const IDEMPOTENCY_MIDDLEWARE = /\b(?:requireIdempotency|idempotency(?:Middleware)?)\b/
 
 const walk = (directory) => {
   if (!fs.existsSync(directory)) return []
@@ -44,7 +45,7 @@ for (const file of walk(ROUTES).filter((entry) => entry.endsWith('.routes.js')))
     const context = source.slice(Math.max(0, operationStart - 400), lineEnd === -1 ? source.length : lineEnd)
     const explicitlyExempt = /idempotency\s*:\s*exempt/i.test(context)
 
-    if (!statement.includes('idempotency') && !explicitlyExempt) {
+    if (!IDEMPOTENCY_MIDDLEWARE.test(statement) && !explicitlyExempt) {
       failures.push(`${relative}: ${match[1].toUpperCase()} mutation must use shared idempotency middleware or an explicit 'idempotency: exempt' comment with justification.`)
     }
   }
