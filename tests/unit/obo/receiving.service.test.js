@@ -5,7 +5,7 @@ vi.mock('../../../src/platform/workflow/workflow.service', () => ({
 }))
 
 const repository = require('../../../src/modules/obo/receiving/receiving.repository')
-const workflowService = require('../../../src/platform/workflow/workflow.service')
+const workflowService = await import('../../../src/platform/workflow/workflow.service')
 const prismaModule = require('../../../src/infrastructure/database/prisma')
 
 const transaction = vi.fn(async (callback) => callback({}))
