@@ -1,5 +1,6 @@
 const { ConflictError, NotFoundError } = require('../../../common/errors/appError')
 const appointmentService = require('../../../features/appointments/appointment.service')
+const formService = require('../../../platform/forms/form.service')
 const { getPrismaClient } = require('../../../infrastructure/database/prisma')
 const repository = require('./plan-permit.repository')
 
@@ -16,15 +17,44 @@ const getClientPerson = async (userId) => {
   return person
 }
 
+const resolveAndValidateForm = async ({ permitType, formVersionId, formValues }) => {
+  if (!permitType.formId) return { formVersionId: formVersionId || null }
+
+  const form = await repository.findFormById(permitType.formId)
+  if (!form || !form.isActive) throw new ConflictError('The permit type is linked to an inactive form.')
+
+  if (formVersionId) {
+    const version = await repository.findFormVersionById(formVersionId)
+    if (!version || version.formId !== form.id || version.status !== 'PUBLISHED') {
+      throw new ConflictError('The selected form version is not the published version for this permit type.')
+    }
+    const validation = await formService.validateFormValues({ formKey: form.key, version: version.version, values: formValues })
+    if (!validation.valid) throw new ConflictError('Permit form validation failed.')
+    return { formVersionId: version.id }
+  }
+
+  const validation = await formService.validateFormValues({ formKey: form.key, values: formValues })
+  if (!validation.valid) throw new ConflictError('Permit form validation failed.')
+  return { formVersionId: validation.formVersionId }
+}
+
 const createApplication = async ({ userId, permitTypeId, professionalId, formVersionId, formValues }) => {
   const person = await getClientPerson(userId)
+  const permitType = await repository.findPermitType(permitTypeId)
+  if (!permitType) throw new NotFoundError('Active permit type not found.')
   const professional = await repository.findProfessional(professionalId)
   if (!professional) throw new NotFoundError('Professional registration not found.')
   if (professional.status !== 'VERIFIED') throw new ConflictError('The selected professional is not verified.')
-  const result = await repository.create({ clientPersonId: person.id, permitTypeId, professionalId, formVersionId, formValues, userId })
-  if (!result) throw new NotFoundError('Active permit type not found.')
-  if (result.notFound === 'professional') throw new NotFoundError('Professional registration not found.')
-  return result
+
+  const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
+  return repository.create({
+    clientPersonId: person.id,
+    permitTypeId,
+    professionalId,
+    formVersionId: resolvedForm.formVersionId,
+    formValues,
+    userId,
+  })
 }
 
 const getMine = async ({ id, userId }) => {
