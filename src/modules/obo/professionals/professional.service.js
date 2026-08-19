@@ -1,9 +1,6 @@
 const { BadRequestError, ConflictError, NotFoundError } = require('../../../common/errors/appError')
-const { getPrismaClient } = require('../../../infrastructure/database/prisma')
 const { publish } = require('../../../platform/event-bus/event-bus')
 const repository = require('./professional.repository')
-
-const prisma = getPrismaClient()
 
 const applyForVerification = async ({ userId, registrationNumber }) => {
   if (!registrationNumber?.trim()) throw new BadRequestError('registrationNumber is required.')
@@ -23,10 +20,11 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   if (professional.status !== 'PENDING_VERIFICATION') throw new ConflictError('Professional is not awaiting verification.')
 
   const accepted = decision === 'ACCEPTED'
-  return prisma.$transaction(async (tx) => {
-    const updated = await repository.update(id, { status: accepted ? 'VERIFIED' : 'DECLINED', verifiedByUserId: actorId, verifiedAt: new Date(), verificationReason: reason?.trim() || null }, tx)
-    await repository.addDecision({ professionalId: id, decision, reason: reason?.trim() || null, decidedByUserId: actorId }, tx)
-    const person = await tx?.person?.findUnique?.({ where: { id: professional.personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
+  const cleanReason = reason?.trim() || null
+  return repository.withTransaction(async (tx) => {
+    const updated = await repository.update(id, { status: accepted ? 'VERIFIED' : 'DECLINED', verifiedByUserId: actorId, verifiedAt: new Date(), verificationReason: cleanReason }, tx)
+    await repository.addDecision({ professionalId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
+    const person = await repository.findPersonById(professional.personId, tx)
     await publish({
       db: tx,
       event: 'obo.professional.verification.decided',
@@ -38,7 +36,7 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
         professionalEmail: person?.user?.email || person?.email || null,
         registrationNumber: professional.registrationNumber,
         decision,
-        reason: reason?.trim() || null,
+        reason: cleanReason,
         status: updated.status,
       },
       idempotencyKey: `obo:professional:${id}:verification:${updated.verifiedAt?.toISOString() || Date.now()}`,
