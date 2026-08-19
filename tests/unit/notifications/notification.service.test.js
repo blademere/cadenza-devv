@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-const { normalizeChannels } = await import("../../../src/features/notifications/notification.service.js")
+const { normalizeChannels } = await import("../../../src/platform/notifications/notification.send.service.js")
 
-describe("notification service", () => {
+describe("platform notification sending", () => {
   it("defaults to in-app delivery", () => {
     expect(normalizeChannels()).toEqual(["IN_APP"])
   })
@@ -11,7 +11,11 @@ describe("notification service", () => {
     expect(normalizeChannels(["email", "EMAIL", "sms"])).toEqual(["EMAIL", "SMS"])
   })
 
+  it("accepts supported platform channels", () => {
+    expect(normalizeChannels(["push", "webhook"])).toEqual(["PUSH", "WEBHOOK"])
+  })
+
   it("rejects unsupported channels", () => {
-    expect(() => normalizeChannels(["PUSH"])).toThrow("Unsupported notification channel 'PUSH'.")
+    expect(() => normalizeChannels(["FAX"])).toThrow("Unsupported notification channel 'FAX'.")
   })
 })
