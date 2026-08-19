@@ -123,11 +123,8 @@ const markDeliveryFailed = async (id, error) => {
   return prisma.notificationDelivery.update({ where: { id }, data: { status: terminal ? DELIVERY_STATUS.DEAD : DELIVERY_STATUS.FAILED, failedAt: new Date(), error: sanitizeError(error), attempts: attempt, nextAttemptAt: terminal ? null : computeRetryAt(attempt) } })
 }
 
-const queueNotifications = async ({ event, entityType = null, context = {} }) => {
+const queueNotifications = async ({ event, entityType = null, context = {}, db = getPrismaClient() }) => {
   if (!event) throw new BadRequestError('Notification event is required.')
-  // Resolve the client at invocation time so event-driven processing uses the active
-  // application database client (and remains independently testable).
-  const db = getPrismaClient()
   const rules = await db.notificationRule.findMany({
     where: { event, active: true, ...(entityType ? { OR: [{ entityType }, { entityType: null }] } : {}) },
     include: { template: true },
