@@ -1,6 +1,6 @@
 # Platform Extensibility
 
-This document describes reusable platform mechanisms that can support future application modules. It does not define a specific business domain.
+This document describes reusable platform mechanisms that can support future application modules. These capabilities remain available in the repository, but dashboards and integrations/webhooks are currently deferred and are not public application APIs.
 
 The architectural rule is:
 
@@ -43,27 +43,19 @@ Do **not** use custom fields for core relational data such as applicant identity
 
 Dynamic forms and custom fields complement the strongly modeled shared features; they do not replace them.
 
-## Dashboards
+## Dashboards — deferred
 
-A dashboard is a configuration object containing ordered widgets. A widget has a type and JSON configuration, allowing the frontend to render known widget types without hardcoding dashboard composition in the backend.
+Dashboard configuration remains a reusable capability but is not a current product API. A dashboard is a configuration object containing ordered widgets. A widget has a type and JSON configuration, allowing a frontend to render known widget types without hardcoding dashboard composition in the backend.
 
-Widgets can declare a `permissionKey`. The backend can filter a dashboard with `getDashboardForPermissions()` before returning it to the client.
+The platform stores configuration only; it does not execute arbitrary SQL from widget configuration. Query execution should be implemented by a controlled server-side widget registry when a real dashboard consumer exists.
 
-The platform stores configuration only; it does not execute arbitrary SQL from widget configuration. Query execution should be implemented by a controlled server-side widget registry.
-
-## Integrations and webhooks
+## Integrations and webhooks — deferred
 
 Integrations describe external systems without storing raw secrets in the database. `secretRef` is an identifier for a secret in the application's secret manager/environment.
 
-Webhook endpoints subscribe to named domain events. `queueEvent()` creates durable delivery records. A worker can later read `getDueDeliveries()`, perform the HTTP request, and call `markSent()` or `markFailed()`.
+Webhook endpoints can subscribe to named domain events. Durable delivery records and HMAC-SHA256 payload signing remain reusable mechanisms for a future integration consumer.
 
-Payloads can be signed using HMAC-SHA256:
-
-```js
-const signature = signPayload({ payload, secret })
-```
-
-The secret must come from a secure runtime secret store, not from the webhook endpoint row.
+These capabilities are intentionally deferred because the current application has no concrete OBO integration requirement.
 
 ## Event architecture
 
@@ -83,6 +75,20 @@ Domain/module action
 
 Keep the event dispatcher generic and keep each consumer isolated. Permit-specific, rental-specific, enrollment-specific, or other domain behavior must remain in the corresponding module.
 
+## Extensibility status
+
+The repository no longer uses a `platform/extensibility.js` aggregator. Consumers should import the specific capability they need rather than depending on an artificial extensibility facade.
+
+Current status:
+
+```text
+custom-fields   retained / reusable
+rules/events    retained / reusable
+dashboards       deferred
+integrations    deferred
+webhooks        deferred
+```
+
 ## Extensibility rules
 
 1. Keep platform APIs domain-neutral.
@@ -91,3 +97,4 @@ Keep the event dispatcher generic and keep each consumer isolated. Permit-specif
 4. Keep provider-specific behavior behind infrastructure/platform adapters.
 5. Prefer small composable mechanisms over large generic frameworks.
 6. Preserve the dependency direction documented in [`architecture.md`](architecture.md).
+7. Do not expose a reusable capability as a public API root unless there is a concrete application consumer.
