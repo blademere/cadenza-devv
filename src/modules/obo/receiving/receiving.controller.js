@@ -10,7 +10,7 @@ const list = async (req, res) => successResponse(
 const receive = async (req, res) => successResponse(
   res,
   'Permit application hardcopy received successfully.',
-  await service.receiveHardcopy({ id: req.validated.params.id }),
+  await service.receiveHardcopy({ id: req.validated.params.id, actorId: req.user.id }),
 )
 
 const decide = async (req, res) => successResponse(

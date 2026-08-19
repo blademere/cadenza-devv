@@ -9,8 +9,8 @@ const validSteps = [
 ]
 
 const validTransitions = [
-  { key: "TO_REVIEW", name: "To review", fromStepKey: "START", toStepKey: "REVIEW", permissionKey: "application.review" },
-  { key: "APPROVE", name: "Approve", fromStepKey: "REVIEW", toStepKey: "DONE", permissionKey: "application.approve" },
+  { key: "TO_REVIEW", name: "To review", fromStepKey: "START", toStepKey: "REVIEW", permissionKey: "applications:review" },
+  { key: "APPROVE", name: "Approve", fromStepKey: "REVIEW", toStepKey: "DONE", permissionKey: "applications:approve" },
 ]
 
 describe("workflow definition hardening", () => {
@@ -45,6 +45,10 @@ describe("workflow definition hardening", () => {
   it("rejects unreachable steps", () => {
     const steps = [...validSteps, { key: "ORPHAN", name: "Orphan", isInitial: false, isFinal: true }]
     expect(() => assertWorkflowDefinition({ steps, transitions: validTransitions })).toThrow()
+  })
+
+  it("accepts the platform-standard resource:action permission format", () => {
+    expect(() => assertWorkflowDefinition({ steps: validSteps, transitions: validTransitions })).not.toThrow()
   })
 
   it("rejects malformed transition permissions", () => {
