@@ -22,20 +22,29 @@ const findSubmissionAppointment = (appointmentId, db = prisma) => db.appointment
   include: { slot: true },
 })
 
-const listApplications = (status, db = prisma) => db.oboPermitApplication.findMany({
-  where: { workflowInstanceId: { not: null } },
-  include: { permitType: true, professional: true, submissionAppointment: true },
-  orderBy: { createdAt: 'asc' },
-}).then(async (applications) => {
+const listApplications = async (status, db = prisma) => {
+  const applications = await db.oboPermitApplication.findMany({
+    where: { workflowInstanceId: { not: null } },
+    include: { permitType: true, professional: true, submissionAppointment: true },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  const workflowIds = applications.map((application) => application.workflowInstanceId).filter(Boolean)
   const instances = await db.workflowInstance.findMany({
-    where: { id: { in: applications.map((application) => application.workflowInstanceId).filter(Boolean) } },
+    where: { id: { in: workflowIds } },
     include: { currentStep: true },
   })
   const stateById = new Map(instances.map((instance) => [instance.id, instance.currentStep.key]))
+
   return applications
-    .map((application) => ({ ...application, status: stateById.get(application.workflowInstanceId) || application.status }))
+    .map((application) => {
+      const workflowStatus = stateById.get(application.workflowInstanceId)
+      if (!workflowStatus) return null
+      return { ...application, status: workflowStatus }
+    })
+    .filter(Boolean)
     .filter((application) => application.status === (status || 'SUBMISSION_SCHEDULED'))
-})
+}
 
 const updateApplication = (id, data, db = prisma) => db.oboPermitApplication.update({
   where: { id },

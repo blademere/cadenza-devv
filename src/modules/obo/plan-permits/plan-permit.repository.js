@@ -35,7 +35,7 @@ const create = async ({ clientPersonId, permitTypeId, professionalId, formVersio
   })
   const referenceNumber = reference()
   const caseRecord = await db.caseRecord.create({
-    data: { caseNumber: referenceNumber, caseTypeId: caseType.id, title: `${permitType.name} Application`, status: 'DRAFT', createdByUserId: userId },
+    data: { caseNumber: referenceNumber, caseTypeId: caseType.id, title: `${permitType.name} Application`, status: 'OPEN', createdByUserId: userId },
   })
   return db.oboPermitApplication.create({
     data: { referenceNumber, caseId: caseRecord.id, clientPersonId, permitTypeId, professionalId, formVersionId, formValues },

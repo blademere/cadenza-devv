@@ -43,7 +43,6 @@ model OboPermitApplication {
   formVersionId         String?
   workflowInstanceId    String?                   @unique
   formValues            Json
-  status                String                    @default("DRAFT")
   submittedAt           DateTime?
   declinedAt            DateTime?
   declineReason         String?
@@ -62,8 +61,7 @@ model OboPermitApplication {
 
   @@index([clientPersonId, createdAt])
   @@index([professionalId, createdAt])
-  @@index([status, createdAt])
-  @@index([permitTypeId, status])
+  @@index([permitTypeId])
 }
 
 model OboSubmissionAppointment {
@@ -97,7 +95,7 @@ model OboProfessionalVerificationDecision {
   decidedByUserId Int
   decidedAt       DateTime        @default(now())
   professional    OboProfessional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  decidedBy       User            @relation("OboProfessionalVerificationDecisionUser", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+  decidedBy       User             @relation("OboProfessionalVerificationDecisionUser", fields: [decidedByUserId], references: [id], onDelete: Restrict)
 
   @@index([professionalId, decidedAt])
 }
