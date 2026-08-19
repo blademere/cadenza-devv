@@ -1,122 +1,40 @@
-const {
-  getUserAuthorizationContext,
-  findRoleById,
-  findUserIdsByRoleId,
-} = require('./access-control.repository')
-
-const {
-  hasCachedPermission,
-  cacheUserPermissions,
-  invalidateUserPermissionCache,
-} = require('./access-control.cache')
-
+const { getUserAuthorizationContext, findRoleById, findUserIdsByRoleId } = require('./access-control.repository')
+const { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } = require('./access-control.cache')
 const { getPermissionKey } = require('./access-control.constants')
+const AUTHORIZATION_CACHE_ENABLED = process.env.AUTHORIZATION_CACHE_ENABLED === 'true'
 
 const loadUserPermissions = async (userId) => {
   const context = await getUserAuthorizationContext(userId)
-
-  if (!context) {
-    return { role: null, permissions: [] }
+  if (!context) return { role: null, permissions: [] }
+  const permissions = context.permissions.map((permission) => getPermissionKey(permission.resource, permission.action))
+  if (AUTHORIZATION_CACHE_ENABLED) {
+    try { await cacheUserPermissions(userId, permissions) } catch { /* PostgreSQL remains source of truth. */ }
   }
-
-  const permissions = context.permissions.map((permission) =>
-    getPermissionKey(permission.resource, permission.action),
-  )
-
-  try {
-    await cacheUserPermissions(userId, permissions)
-  } catch {
-    // Redis is an optimization. PostgreSQL remains the source of truth.
-  }
-
-  return {
-    role: context.role,
-    permissions,
-  }
+  return { role: context.role, permissions }
 }
 
 const hasPermission = async (userId, resource, action) => {
-  try {
-    const cachedPermission = await hasCachedPermission(userId, resource, action)
-
-    if (cachedPermission !== null) {
-      return cachedPermission
-    }
-  } catch {
-    // Ignore Redis errors and fall back to PostgreSQL.
+  if (AUTHORIZATION_CACHE_ENABLED) {
+    try {
+      const cachedPermission = await hasCachedPermission(userId, resource, action)
+      if (cachedPermission !== null) return cachedPermission
+    } catch { /* Fall through to PostgreSQL. */ }
   }
-
   const { permissions } = await loadUserPermissions(userId)
   return permissions.includes(getPermissionKey(resource, action))
 }
-
 const getAuthorizationContext = async (userId) => {
   const context = await loadUserPermissions(userId)
-
-  return {
-    userId: Number(userId),
-    role: context.role,
-    permissions: new Set(context.permissions),
-  }
+  return { userId: Number(userId), role: context.role, permissions: new Set(context.permissions) }
 }
-
-const can = async ({ userId, resource, action }) => {
-  return hasPermission(userId, resource, action)
-}
-
-/**
- * Returns true when the user has at least one of the supplied actions.
- * A scalar action is accepted for backward compatibility and behaves like can().
- */
+const can = async ({ userId, resource, action }) => hasPermission(userId, resource, action)
 const canAny = async ({ userId, resource, action, actions }) => {
-  const candidateActions = Array.isArray(actions)
-    ? actions
-    : action !== undefined
-      ? [action]
-      : []
-
-  if (candidateActions.length === 0) {
-    return false
-  }
-
-  for (const candidateAction of candidateActions) {
-    if (await hasPermission(userId, resource, candidateAction)) {
-      return true
-    }
-  }
-
+  const candidateActions = Array.isArray(actions) ? actions : action !== undefined ? [action] : []
+  if (candidateActions.length === 0) return false
+  for (const candidateAction of candidateActions) if (await hasPermission(userId, resource, candidateAction)) return true
   return false
 }
-
-const canOwn = async ({ userId, resource, action, resourceOwnerId }) => {
-  if (Number(userId) !== Number(resourceOwnerId)) {
-    return false
-  }
-
-  return can({ userId, resource, action })
-}
-
-const clearUserPermissionCache = async (userId) => {
-  try {
-    await invalidateUserPermissionCache(userId)
-  } catch {
-    // Cache invalidation failure should not break the primary operation.
-  }
-}
-
-const clearRolePermissionCache = async (roleId) => {
-  const userIds = await findUserIdsByRoleId(roleId)
-
-  await Promise.all(userIds.map((userId) => clearUserPermissionCache(userId)))
-}
-
-module.exports = {
-  hasPermission,
-  getAuthorizationContext,
-  can,
-  canAny,
-  canOwn,
-  clearUserPermissionCache,
-  clearRolePermissionCache,
-  findRoleById,
-}
+const canOwn = async ({ userId, resource, action, resourceOwnerId }) => Number(userId) === Number(resourceOwnerId) && can({ userId, resource, action })
+const clearUserPermissionCache = async (userId) => { try { await invalidateUserPermissionCache(userId) } catch { /* Cache invalidation is best effort. */ } }
+const clearRolePermissionCache = async (roleId) => { if (!AUTHORIZATION_CACHE_ENABLED) return; const userIds = await findUserIdsByRoleId(roleId); await Promise.all(userIds.map((userId) => clearUserPermissionCache(userId))) }
+module.exports = { hasPermission, getAuthorizationContext, can, canAny, canOwn, clearUserPermissionCache, clearRolePermissionCache, findRoleById }
