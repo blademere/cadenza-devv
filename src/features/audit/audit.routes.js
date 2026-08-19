@@ -1,6 +1,6 @@
 const express = require('express')
 const { asyncHandler, authenticate, authorize, validate } = require('../../common/middleware')
-const { ACCESS_CONTROL_MODULES, ACCESS_CONTROL_ACTIONS } = require('../access-control/access-control.constants')
+const { ACCESS_CONTROL_MODULES, ACCESS_CONTROL_ACTIONS } = require('../../platform/authorization/access-control.constants')
 const { listAuditLogsController, timelineController } = require('./audit.controller')
 const { listAuditLogsValidator, timelineValidator } = require('./audit.validation')
 
