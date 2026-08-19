@@ -1,10 +1,8 @@
 const { ConflictError, NotFoundError } = require('../../../common/errors/appError')
 const formService = require('../../../platform/forms/form.service')
 const workflowService = require('../../../platform/workflow/workflow.service')
-const { getPrismaClient } = require('../../../infrastructure/database/prisma')
 const repository = require('./plan-permit.repository')
 
-const prisma = getPrismaClient()
 const WORKFLOW_KEY = 'obo_plan_permit'
 const SUBJECT_TYPE = 'OboPermitApplication'
 const STATUS = Object.freeze({
@@ -17,9 +15,8 @@ const getClientPerson = async (userId) => {
   return person
 }
 
-const getClientNotificationContext = async (personId, db = prisma) => {
-  if (!db?.person?.findUnique) return { clientUserId: null, clientEmail: null }
-  const person = await db.person.findUnique({ where: { id: personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
+const getClientNotificationContext = async (personId, db) => {
+  const person = await repository.findPersonNotificationContext(personId, db)
   return { clientUserId: person?.userId || null, clientEmail: person?.user?.email || person?.email || null }
 }
 
@@ -60,7 +57,7 @@ const createApplication = async ({ userId, permitTypeId, professionalId, formVer
   if (professional.status !== 'VERIFIED') throw new ConflictError('The selected professional is not verified.')
   const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
 
-  const application = await prisma.$transaction(async (tx) => {
+  const application = await repository.withTransaction(async (tx) => {
     const created = await repository.create({ clientPersonId: person.id, permitTypeId, professionalId, formVersionId: resolvedForm.formVersionId, formValues, userId }, tx)
     if (!created) throw new NotFoundError('Active permit type not found.')
     if (created.notFound === 'professional') throw new NotFoundError('Professional registration not found.')
