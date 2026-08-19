@@ -19,6 +19,11 @@ const authorizeOwnedAppointment = (action) => authorizeResource({
   policy: ownershipPolicy,
   getOwnerId: (appointment) => appointment.userId,
 })
+const authorizeAppointmentResource = (action) => authorizeResource({
+  resource: APPOINTMENT_MODULE,
+  action,
+  loadResource: loadAppointment,
+})
 
 router.get('/types', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.READ), validate(listTypesValidator), asyncHandler(controller.listTypesController))
 router.post('/types', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.MANAGE), requireIdempotency, validate(createTypeValidator), asyncHandler(controller.createTypeController))
@@ -30,8 +35,8 @@ router.get('/mine', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTI
 router.post('/', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.CREATE), requireIdempotency, validate(createAppointmentValidator), asyncHandler(controller.createAppointmentController))
 router.get('/:id', authenticate, authorizeOwnedAppointment(APPOINTMENT_ACTIONS.READ), validate(appointmentIdValidator), asyncHandler(controller.getMyAppointmentController))
 router.post('/:id/cancel', authenticate, authorizeOwnedAppointment(APPOINTMENT_ACTIONS.CANCEL), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.cancelAppointmentController))
-router.post('/:id/check-in', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.CHECK_IN), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.checkInAppointmentController))
-router.post('/:id/no-show', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.NO_SHOW), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.noShowAppointmentController))
-router.post('/:id/complete', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.MANAGE), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.completeAppointmentController))
+router.post('/:id/check-in', authenticate, authorizeAppointmentResource(APPOINTMENT_ACTIONS.CHECK_IN), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.checkInAppointmentController))
+router.post('/:id/no-show', authenticate, authorizeAppointmentResource(APPOINTMENT_ACTIONS.NO_SHOW), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.noShowAppointmentController))
+router.post('/:id/complete', authenticate, authorizeAppointmentResource(APPOINTMENT_ACTIONS.MANAGE), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.completeAppointmentController))
 
 module.exports = router
