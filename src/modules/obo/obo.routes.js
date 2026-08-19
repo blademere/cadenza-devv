@@ -8,7 +8,7 @@ const router = express.Router()
 
 router.use('/permit-types', permitTypeRoutes)
 router.use('/professionals', professionalRoutes)
-router.use('/plan-permits', planPermitRoutes)
+router.use('/applications', planPermitRoutes)
 router.use('/receiving', receivingRoutes)
 
 module.exports = router
