@@ -3,6 +3,7 @@ const { getPrismaClient } = require('../../../infrastructure/database/prisma')
 const prisma = getPrismaClient()
 
 const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where: { userId } })
+const findPersonById = (id, db = prisma) => db.person.findUnique({ where: { id, }, select: { userId: true, email: true, user: { select: { email: true } } } })
 const findById = (id, db = prisma) => db.oboProfessional.findUnique({ where: { id } })
 const findByPersonId = (personId, db = prisma) => db.oboProfessional.findUnique({ where: { personId } })
 const create = (data, db = prisma) => db.oboProfessional.create({ data })
@@ -28,6 +29,7 @@ const withTransaction = (callback) => prisma.$transaction(callback)
 
 module.exports = {
   findPersonByUserId,
+  findPersonById,
   findById,
   findByPersonId,
   create,
