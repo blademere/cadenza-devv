@@ -24,6 +24,7 @@ const listVerified = (db = prisma) => db.oboProfessional.findMany({
 })
 const update = (id, data, db = prisma) => db.oboProfessional.update({ where: { id }, data })
 const addDecision = (data, db = prisma) => db.oboProfessionalVerificationDecision.create({ data })
+const withTransaction = (callback) => prisma.$transaction(callback)
 
 module.exports = {
   findPersonByUserId,
@@ -34,4 +35,5 @@ module.exports = {
   listVerified,
   update,
   addDecision,
+  withTransaction,
 }
