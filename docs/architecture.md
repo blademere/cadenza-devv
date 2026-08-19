@@ -230,7 +230,7 @@ Professional signing is intentionally outside the application workflow. Physical
 
 ## Platform integration strategy
 
-Phase 3 should connect the shared foundations to existing platform capabilities without moving domain logic into the platform.
+Phase 3 connects the shared foundations to existing platform capabilities without moving domain logic into the platform.
 
 Typical flow:
 
@@ -239,15 +239,22 @@ Module/service action
       │
       ├── shared feature operation
       │
+      ├── transactional event outbox
+      │
       ├── audit event
-      ├── domain event
+      │
       ├── notification
-      ├── task/job
-      ├── appointment
+      │
       └── workflow/rule evaluation
 ```
 
-The platform supplies mechanisms for these concerns. The module decides when and why they are used.
+The platform supplies mechanisms for these concerns. The module or feature decides when and why they are used.
+
+Business events that describe a persisted state change should be queued in the same database transaction as that change. The platform worker is responsible for generic outbox delivery, rule evaluation, notifications, and stale lease recovery; it must not contain domain-specific maintenance logic.
+
+Deferred capabilities such as SLA, approvals, and webhooks are not implicit event-bus side effects. They remain reusable platform mechanisms until a real feature or module explicitly integrates them.
+
+See [platform-integration.md](platform-integration.md) for the canonical integration pattern.
 
 ## Roadmap
 
@@ -274,12 +281,15 @@ Completed:
 
 ### Phase 3 — platform integration
 
-Next:
+In progress:
 
 - connect shared business actions to audit/event infrastructure
-- integrate workflow/rules where appropriate
-- integrate appointments, documents, notifications, jobs, and scheduler without coupling platform code to a domain
+- establish transactional event publication from shared repositories
+- keep event processing and workers domain-neutral
+- integrate workflow/rules, appointments, documents, notifications, jobs, and scheduler through explicit feature/module usage rather than hidden platform coupling
 - establish consistent module integration patterns
+
+Current Phase 3 implementation provides the transactional case event pattern and a domain-neutral event worker. Remaining feature integrations can follow this pattern as concrete reuse requirements arise.
 
 ### Phase 4 — domain modules
 
