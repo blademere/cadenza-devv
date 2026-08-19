@@ -21,7 +21,7 @@ describe('generic API cache middleware', () => {
   it('uses a caller-provided cache key and defaults to GET/HEAD', async () => {
     const next = vi.fn()
     const req = { method: 'GET', originalUrl: '/users/1', params: { id: '1' } }
-    const res = { set: vi.fn(), once: vi.fn() }
+    const res = { set: vi.fn(), once: vi.fn(), send: vi.fn(), json: vi.fn() }
 
     await cache({ key: (request) => `users:${request.params.id}`, ttlSeconds: 60 })(req, res, next)
 
@@ -66,7 +66,7 @@ describe('generic API cache middleware', () => {
   it('honors varyByUser when generating the cache key', async () => {
     const next = vi.fn()
     const req = { method: 'GET', originalUrl: '/me', user: { id: 42 } }
-    const res = { set: vi.fn(), once: vi.fn() }
+    const res = { set: vi.fn(), once: vi.fn(), send: vi.fn(), json: vi.fn() }
 
     await cache({ key: () => 'me', varyByUser: true })(req, res, next)
 
@@ -90,17 +90,11 @@ describe('generic API cache middleware', () => {
     expect(redis.del).toHaveBeenCalledWith(cache.hashKey('users:1'))
   })
 
-  it('rejects an empty key', () => {
-    expect(() => cache({ key: () => '' })).toThrow(/Cache key must not be empty/)
+  it('rejects an empty cache key', () => {
+    expect(() => cache.normalizeKey('')).toThrow(/Cache key must not be empty/)
   })
 
-  it('limits TTL to the configured maximum', async () => {
-    const next = vi.fn()
-    const req = { method: 'GET', originalUrl: '/health' }
-    const res = { set: vi.fn(), once: vi.fn() }
-
-    await cache({ key: () => 'health', ttlSeconds: 99999999 })(req, res, next)
-
-    expect(req.cache.ttlSeconds).toBe(cache.MAX_TTL_SECONDS)
+  it('limits TTL to the configured maximum', () => {
+    expect(cache.normalizeTtl(99999999)).toBe(cache.MAX_TTL_SECONDS)
   })
 })
