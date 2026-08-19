@@ -27,7 +27,7 @@ model OboProfessional {
   verifiedBy            User?                                 @relation("OboProfessionalVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
   applications          OboPermitApplication[]
   verificationDecisions OboProfessionalVerificationDecision[]
-  createdAt             DateTime                              @default(now())
+  createdAt             DateTime                              @default(uuid())
   updatedAt             DateTime                              @updatedAt
 
   @@index([status])
@@ -96,7 +96,6 @@ model OboProfessionalVerificationDecision {
   decidedByUserId Int
   decidedAt       DateTime        @default(now())
   professional    OboProfessional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  decidedBy       User             @relation("OboProfessionalVerificationDecisionUser", fields: [professionalId], references: [id], onDelete: Cascade)
   decidedBy       User             @relation("OboProfessionalVerificationDecisionUser", fields: [decidedByUserId], references: [id], onDelete: Restrict)
 
   @@index([professionalId, decidedAt])
