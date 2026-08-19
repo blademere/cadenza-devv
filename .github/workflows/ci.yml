@@ -43,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            app=true; database=true; openapi=true; docker=true; workflow=true; security=true; docs_only=false
+            app=true; database=true; openapi=true; docker=true; workflow=true; security=false; docs_only=false
           else
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               base="${{ github.event.pull_request.base.sha }}"
@@ -70,9 +70,11 @@ jobs:
               case "$file" in
                 src/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
               esac
-              case "$file" in
-                src/**) security=true ;;
-              esac
+              if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+                case "$file" in
+                  src/**) security=true ;;
+                esac
+              fi
               case "$file" in
                 .github/workflows/**|.github/dependabot.yml) workflow=true ;;
               esac
@@ -250,7 +252,7 @@ jobs:
   codeql:
     name: CodeQL
     needs: changes
-    if: "${{ needs.changes.outputs.security == 'true' && github.event_name == 'pull_request' }}"
+    if: "${{ needs.changes.outputs.security == 'true' }}"
     runs-on: ubuntu-latest
     permissions:
       actions: read
