@@ -3,7 +3,6 @@
 require('dotenv').config()
 const bcrypt = require('bcrypt')
 const { getPrismaClient, disconnectPrisma } = require('../src/infrastructure/database/prisma')
-
 const prisma = getPrismaClient()
 
 const rolePermissions = {
@@ -12,7 +11,6 @@ const rolePermissions = {
   receiving_officer: ['applications:read','applications:review','applications:receive','applications:approve','applications:reject','professionals:read','professionals:review','appointments:read','appointments:check_in','appointments:manage','obo_plan_permits:read','obo_plan_permits:receive','obo_professionals:read','obo_professionals:review'],
   admin: ['authorization:manage'],
 }
-
 const permissionKeys = [...new Set(Object.values(rolePermissions).flat())]
 const moduleName = (key) => key.split(/[_-]+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 
@@ -38,8 +36,7 @@ const OBO_WORKFLOW = {
 async function seedOboWorkflow() {
   const workflow = await prisma.workflow.upsert({ where: { key: OBO_WORKFLOW.key }, update: { name: OBO_WORKFLOW.name, description: OBO_WORKFLOW.description, isActive: true }, create: { key: OBO_WORKFLOW.key, name: OBO_WORKFLOW.name, description: OBO_WORKFLOW.description } })
   const version = await prisma.workflowVersion.upsert({ where: { workflowId_version: { workflowId: workflow.id, version: 1 } }, update: { status: 'PUBLISHED' }, create: { workflowId: workflow.id, version: 1, status: 'PUBLISHED', steps: { create: OBO_WORKFLOW.steps } }, include: { steps: true } })
-  const steps = await prisma.workflowStep.findMany({ where: { workflowVersionId: version.id } })
-  const stepByKey = new Map(steps.map((step) => [step.key, step]))
+  const steps = await prisma.workflowStep.findMany({ where: { workflowVersionId: version.id } }); const stepByKey = new Map(steps.map((step) => [step.key, step]))
   for (const transition of OBO_WORKFLOW.transitions) {
     const fromStep = stepByKey.get(transition.fromStepKey); const toStep = stepByKey.get(transition.toStepKey)
     if (!fromStep || !toStep) throw new Error(`OBO workflow transition '${transition.key}' references an unknown step.`)
@@ -57,22 +54,20 @@ async function seedOboNotifications() {
   ]
   for (const [status, label, body] of statuses) {
     const keyBase = `obo.application.${status.toLowerCase()}`
+    const event = status === 'DECLINED' || status === 'FOR_INSPECTION' ? 'workflow.completed' : 'workflow.transitioned'
+    const conditions = { all: [{ field: 'workflowKey', operator: 'equals', value: 'obo_plan_permit' }, { field: 'workflowStepKey', operator: 'equals', value: status }] }
     for (const channel of ['IN_APP', 'EMAIL']) {
       const templateKey = `${keyBase}.${channel.toLowerCase()}`
       const template = await prisma.notificationTemplate.upsert({ where: { key: templateKey }, update: { name: `OBO Application ${label} (${channel})`, channel, subject: channel === 'EMAIL' ? `OBO Application — ${label}` : null, body, active: true }, create: { key: templateKey, name: `OBO Application ${label} (${channel})`, channel, subject: channel === 'EMAIL' ? `OBO Application — ${label}` : null, body, active: true } })
-      await prisma.notificationRule.upsert({ where: { key: `${keyBase}.${channel.toLowerCase()}.rule` }, update: { name: `OBO Application ${label} (${channel})`, event: status === 'DECLINED' || status === 'FOR_INSPECTION' ? 'workflow.completed' : 'workflow.transitioned', entityType: 'OboPermitApplication', active: true, priority: 50, conditions: { workflowKey: 'obo_plan_permit', workflowStepKey: status }, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'metadata.clientEmail' : 'metadata.clientUserId' }, create: { key: `${keyBase}.${channel.toLowerCase()}.rule`, name: `OBO Application ${label} (${channel})`, event: status === 'DECLINED' || status === 'FOR_INSPECTION' ? 'workflow.completed' : 'workflow.transitioned', entityType: 'OboPermitApplication', priority: 50, conditions: { workflowKey: 'obo_plan_permit', workflowStepKey: status }, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'metadata.clientEmail' : 'metadata.clientUserId' } })
+      await prisma.notificationRule.upsert({ where: { key: `${keyBase}.${channel.toLowerCase()}.rule` }, update: { name: `OBO Application ${label} (${channel})`, event, entityType: 'OboPermitApplication', active: true, priority: 50, conditions, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'metadata.clientEmail' : 'metadata.clientUserId' }, create: { key: `${keyBase}.${channel.toLowerCase()}.rule`, name: `OBO Application ${label} (${channel})`, event, entityType: 'OboPermitApplication', priority: 50, conditions, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'metadata.clientEmail' : 'metadata.clientUserId' } })
     }
   }
-
-  const professionalTemplates = [
-    ['ACCEPTED', 'Professional Verification Approved', 'Your professional registration {{context.registrationNumber}} has been verified.', 'Your professional verification has been approved.'],
-    ['DECLINED', 'Professional Verification Declined', 'Your professional registration {{context.registrationNumber}} was not verified. Reason: {{context.reason}}', 'Your professional verification was declined.'],
-  ]
-  for (const [decision, label, body, subject] of professionalTemplates) {
+  for (const [decision, label, body, subject] of [['ACCEPTED', 'Professional Verification Approved', 'Your professional registration {{context.registrationNumber}} has been verified.', 'Your professional verification has been approved.'], ['DECLINED', 'Professional Verification Declined', 'Your professional registration {{context.registrationNumber}} was not verified. Reason: {{context.reason}}', 'Your professional verification was declined.']]) {
+    const conditions = { field: 'decision', operator: 'equals', value: decision }
     for (const channel of ['IN_APP', 'EMAIL']) {
       const templateKey = `obo.professional.verification.${decision.toLowerCase()}.${channel.toLowerCase()}`
       const template = await prisma.notificationTemplate.upsert({ where: { key: templateKey }, update: { name: `${label} (${channel})`, channel, subject: channel === 'EMAIL' ? subject : null, body, active: true }, create: { key: templateKey, name: `${label} (${channel})`, channel, subject: channel === 'EMAIL' ? subject : null, body, active: true } })
-      await prisma.notificationRule.upsert({ where: { key: `${templateKey}.rule` }, update: { name: `${label} (${channel})`, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', active: true, priority: 50, conditions: { decision }, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'professionalEmail' : 'professionalUserId' }, create: { key: `${templateKey}.rule`, name: `${label} (${channel})`, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', priority: 50, conditions: { decision }, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'professionalEmail' : 'professionalUserId' } })
+      await prisma.notificationRule.upsert({ where: { key: `${templateKey}.rule` }, update: { name: `${label} (${channel})`, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', active: true, priority: 50, conditions, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'professionalEmail' : 'professionalUserId' }, create: { key: `${templateKey}.rule`, name: `${label} (${channel})`, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', priority: 50, conditions, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'professionalEmail' : 'professionalUserId' } })
     }
   }
 }
@@ -96,11 +91,9 @@ async function seed() {
   for (const permission of permissionRecords.values()) await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles.admin.id, permissionId: permission.id } }, update: {}, create: { roleId: roles.admin.id, permissionId: permission.id } })
   await prisma.oboPermitType.upsert({ where: { key: 'building-plan-permit' }, update: { name: 'Building Plan Permit', isActive: true }, create: { key: 'building-plan-permit', name: 'Building Plan Permit', description: 'Plan permit application for building construction and related work.' } })
   await prisma.appointmentType.upsert({ where: { key: 'obo-hardcopy-submission' }, update: { name: 'OBO Hardcopy Submission', isActive: true }, create: { key: 'obo-hardcopy-submission', name: 'OBO Hardcopy Submission', description: 'Physical hardcopy submission appointment for an OBO permit application.', defaultDurationMinutes: 30, defaultCapacity: 1 } })
-  await seedOboWorkflow()
-  await seedOboNotifications()
+  await seedOboWorkflow(); await seedOboNotifications()
   const adminEmail = process.env.SEED_ADMIN_EMAIL; const adminPassword = process.env.SEED_ADMIN_PASSWORD
   if (adminEmail && adminPassword) { const passwordHash = await bcrypt.hash(adminPassword, 12); await prisma.user.upsert({ where: { email: adminEmail }, update: { roleId: roles.admin.id, isActive: true }, create: { email: adminEmail, passwordHash, roleId: roles.admin.id, isActive: true } }); console.log(`Development admin ensured: ${adminEmail}`) } else console.log('No development admin configured; set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD to create one.')
   console.log(`Seeded ${moduleRecords.size} modules, ${permissionRecords.size} permissions, OBO plan permit type, appointment type, workflow, notification templates/rules, and application roles.`)
 }
-
 seed().catch((error) => { console.error(`Database seed failed: ${error.message}`); process.exitCode = 1 }).finally(async () => { await disconnectPrisma() })
