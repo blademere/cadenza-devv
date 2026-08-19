@@ -1,9 +1,30 @@
 const { getPrismaClient } = require('../../infrastructure/database/prisma')
+const { publish } = require('../../platform/event-bus/event-bus')
 
 const prisma = getPrismaClient()
 
 const createCaseType = (data) => prisma.caseType.create({ data })
-const createCase = (data) => prisma.caseRecord.create({ data })
+
+const createCase = (data) =>
+  prisma.$transaction(async (tx) => {
+    const record = await tx.caseRecord.create({ data })
+
+    await publish({
+      db: tx,
+      event: 'case.created',
+      entityType: 'Case',
+      entityId: record.id,
+      actorId: data.createdByUserId || null,
+      context: {
+        caseTypeId: record.caseTypeId,
+        caseNumber: record.caseNumber,
+        status: record.status,
+      },
+      idempotencyKey: `case:${record.id}:created`,
+    })
+
+    return record
+  })
 
 const findCaseById = (id, options = {}) =>
   prisma.caseRecord.findUnique({
@@ -38,7 +59,7 @@ const transitionCase = (id, fromStatus, toStatus, changedByUserId, reason, metad
 
     if (updated.count !== 1) return null
 
-    await tx.caseStatusHistory.create({
+    const history = await tx.caseStatusHistory.create({
       data: {
         caseId: id,
         fromStatus,
@@ -47,6 +68,22 @@ const transitionCase = (id, fromStatus, toStatus, changedByUserId, reason, metad
         reason,
         metadata,
       },
+    })
+
+    await publish({
+      db: tx,
+      event: 'case.transitioned',
+      entityType: 'Case',
+      entityId: id,
+      actorId: changedByUserId || null,
+      context: {
+        fromStatus,
+        toStatus,
+        reason: reason || null,
+        metadata: metadata || {},
+        historyId: history.id,
+      },
+      idempotencyKey: `case:${id}:transition:${history.id}`,
     })
 
     return tx.caseRecord.findUnique({ where: { id } })
