@@ -13,6 +13,12 @@ const getWorkflowState = async (application) => {
   return workflow
 }
 
+const getNotificationContext = async (clientPersonId, db = prisma) => {
+  if (!db?.person?.findUnique) return { clientUserId: null, clientEmail: null }
+  const person = await db.person.findUnique({ where: { id: clientPersonId }, select: { userId: true, email: true, user: { select: { email: true } } } })
+  return { clientUserId: person?.userId || null, clientEmail: person?.user?.email || person?.email || null }
+}
+
 const listApplications = ({ status }) => repository.listApplications(status)
 
 const receiveHardcopy = async ({ id, actorId }) => {
@@ -29,11 +35,12 @@ const receiveHardcopy = async ({ id, actorId }) => {
 
   const submittedAt = application.submittedAt || new Date()
   await prisma.$transaction(async (tx) => {
+    const notificationContext = await getNotificationContext(application.clientPersonId, tx)
     await workflowService.transitionWorkflow({
       instanceId: application.workflowInstanceId,
       transitionKey: 'RECEIVE_HARDCOPY',
       actorId,
-      metadata: { source: 'obo-receiving.receive', appointmentId: appointment.id },
+      metadata: { source: 'obo-receiving.receive', appointmentId: appointment.id, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext },
       db: tx,
     })
     await repository.updateApplication(id, { submittedAt }, tx)
@@ -53,20 +60,16 @@ const decide = async ({ id, actorId, decision, reason }) => {
   const accepted = decision === 'ACCEPTED'
   const transitionKey = accepted ? 'ACCEPT_FOR_INSPECTION' : 'DECLINE'
   const result = await prisma.$transaction(async (tx) => {
+    const notificationContext = await getNotificationContext(application.clientPersonId, tx)
     const nextWorkflow = await workflowService.transitionWorkflow({
       instanceId: application.workflowInstanceId,
       transitionKey,
       actorId,
-      metadata: { source: 'obo-receiving.decide', decision, reason: cleanReason },
+      metadata: { source: 'obo-receiving.decide', decision, reason: cleanReason, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext },
       db: tx,
     })
 
-    const updated = await repository.updateApplication(id, {
-      acceptedAt: accepted ? new Date() : null,
-      acceptedByUserId: accepted ? actorId : null,
-      declinedAt: accepted ? null : new Date(),
-      declineReason: accepted ? null : cleanReason,
-    }, tx)
+    const updated = await repository.updateApplication(id, { acceptedAt: accepted ? new Date() : null, acceptedByUserId: accepted ? actorId : null, declinedAt: accepted ? null : new Date(), declineReason: accepted ? null : cleanReason }, tx)
     await repository.addDecision({ applicationId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
     return { ...updated, status: nextWorkflow.currentStep.key, workflowInstanceId: nextWorkflow.id }
   })
