@@ -23,9 +23,7 @@ const rolePermissions = {
 
 async function seed() {
   const moduleRecords = new Map()
-  for (const [key, name] of modules) {
-    moduleRecords.set(key, await prisma.module.upsert({ where: { key }, update: { name }, create: { key, name } }))
-  }
+  for (const [key, name] of modules) moduleRecords.set(key, await prisma.module.upsert({ where: { key }, update: { name }, create: { key, name } }))
   const permissionRecords = new Map()
   for (const [moduleKey, action] of permissions) {
     const module = moduleRecords.get(moduleKey)
@@ -38,15 +36,15 @@ async function seed() {
     receiving_officer: await prisma.role.upsert({ where: { name: 'receiving_officer' }, update: { description: 'Receiving officer who verifies professionals and receives permit applications.' }, create: { name: 'receiving_officer', description: 'Receiving officer who verifies professionals and receives permit applications.' } }),
     admin: await prisma.role.upsert({ where: { name: 'admin' }, update: { description: 'Development administrator with all foundation permissions.' }, create: { name: 'admin', description: 'Development administrator with all foundation permissions.' } }),
   }
-  for (const [roleName, keys] of Object.entries(rolePermissions)) {
-    for (const key of keys) {
-      const permission = permissionRecords.get(key)
-      if (permission) await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles[roleName].id, permissionId: permission.id } }, update: {}, create: { roleId: roles[roleName].id, permissionId: permission.id } })
-    }
+  for (const [roleName, keys] of Object.entries(rolePermissions)) for (const key of keys) {
+    const permission = permissionRecords.get(key)
+    if (permission) await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles[roleName].id, permissionId: permission.id } }, update: {}, create: { roleId: roles[roleName].id, permissionId: permission.id } })
   }
-  for (const permission of permissionRecords.values()) {
-    await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles.admin.id, permissionId: permission.id } }, update: {}, create: { roleId: roles.admin.id, permissionId: permission.id } })
-  }
+  for (const permission of permissionRecords.values()) await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles.admin.id, permissionId: permission.id } }, update: {}, create: { roleId: roles.admin.id, permissionId: permission.id } })
+
+  await prisma.oboPermitType.upsert({ where: { key: 'building-plan-permit' }, update: { name: 'Building Plan Permit', isActive: true }, create: { key: 'building-plan-permit', name: 'Building Plan Permit', description: 'Plan permit application for building construction and related work.' } })
+  await prisma.appointmentType.upsert({ where: { key: 'obo-hardcopy-submission' }, update: { name: 'OBO Hardcopy Submission', isActive: true }, create: { key: 'obo-hardcopy-submission', name: 'OBO Hardcopy Submission', description: 'Physical hardcopy submission appointment for an OBO permit application.', defaultDurationMinutes: 30, defaultCapacity: 1 } })
+
   const adminEmail = process.env.SEED_ADMIN_EMAIL
   const adminPassword = process.env.SEED_ADMIN_PASSWORD
   if (adminEmail && adminPassword) {
@@ -54,7 +52,7 @@ async function seed() {
     await prisma.user.upsert({ where: { email: adminEmail }, update: { roleId: roles.admin.id, isActive: true }, create: { email: adminEmail, passwordHash, roleId: roles.admin.id, isActive: true } })
     console.log(`Development admin ensured: ${adminEmail}`)
   } else console.log('No development admin configured; set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD to create one.')
-  console.log(`Seeded ${modules.length} modules, ${permissionRecords.size} permissions, and client/professional/receiving_officer/admin roles.`)
+  console.log(`Seeded ${modules.length} modules, ${permissionRecords.size} permissions, OBO plan permit type, appointment type, and application roles.`)
 }
 
 seed().catch((error) => { console.error(`Database seed failed: ${error.message}`); process.exitCode = 1 }).finally(async () => { await disconnectPrisma() })
