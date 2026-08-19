@@ -4,7 +4,7 @@ const { connectRedis } = require('../../infrastructure/cache/redis')
 const DEFAULT_TTL_SECONDS = 60
 const MAX_TTL_SECONDS = 24 * 60 * 60
 const DEFAULT_METHODS = ['GET', 'HEAD']
-const DEFAULT_CACHEABLE_STATUS_CODES = new Set([200, 203, 204, 206, 300, 301, 404])
+const DEFAULT_CACHEABLE_STATUS_CODES = new Set([200, 203, 206, 300, 301, 404])
 
 const normalizeTtl = (value) => {
   const ttl = Number(value)
@@ -26,6 +26,7 @@ const normalizeKey = (value) => {
 
 const hashKey = (key) => `api-cache:${createHash('sha256').update(key).digest('hex')}`
 const defaultKey = (req) => `${req.method}:${req.originalUrl}`
+const getCacheRedisKey = (key) => hashKey(normalizeKey(key))
 
 const parseEntry = (value) => {
   if (!value) return null
@@ -40,6 +41,11 @@ const replay = (res, entry) => {
   if (entry.contentType) res.set('Content-Type', entry.contentType)
   res.set('X-Cache', 'HIT')
   return res.status(entry.statusCode).send(entry.body)
+}
+
+const invalidateCache = async (key) => {
+  const redis = await connectRedis()
+  return redis.del(getCacheRedisKey(key))
 }
 
 const cache = (options = {}) => {
@@ -64,7 +70,7 @@ const cache = (options = {}) => {
       if (key && typeof key.then === 'function') key = await key
       if (varyByUser) key = `${key}:user:${req.user?.id ?? 'anonymous'}`
 
-      const redisKey = hashKey(normalizeKey(key))
+      const redisKey = getCacheRedisKey(key)
       const redis = await connectRedis()
       const cached = parseEntry(await redis.get(redisKey))
       if (cached) return replay(res, cached)
@@ -99,13 +105,17 @@ const cache = (options = {}) => {
       req.cache = { key: redisKey, ttlSeconds }
       return next()
     } catch (error) {
-      return next(error)
+      // Cache failures must not take otherwise healthy application requests down.
+      req.cacheError = error
+      return next()
     }
   }
 }
 
 cache.hashKey = hashKey
 cache.defaultKey = defaultKey
+cache.getCacheRedisKey = getCacheRedisKey
+cache.invalidate = invalidateCache
 cache.parseEntry = parseEntry
 cache.DEFAULT_TTL_SECONDS = DEFAULT_TTL_SECONDS
 cache.MAX_TTL_SECONDS = MAX_TTL_SECONDS
