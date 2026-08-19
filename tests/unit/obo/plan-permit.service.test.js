@@ -20,7 +20,10 @@ const spies = {
 
 vi.spyOn(appointmentService, 'bookAppointment')
 vi.spyOn(formService, 'validateFormValues')
-const transaction = vi.fn(async (callback) => callback({}))
+const transaction = vi.fn(async (callback) => callback({
+  oboSubmissionAppointment: { create: vi.fn().mockResolvedValue({ id: 'submission-appointment-1' }) },
+  oboPermitApplication: { update: vi.fn().mockResolvedValue({ id: 'application-1', status: 'SUBMISSION_SCHEDULED' }) },
+}))
 vi.spyOn(prismaModule, 'getPrismaClient').mockReturnValue({ $transaction: transaction })
 
 const service = require('../../../src/modules/obo/plan-permits/plan-permit.service')
