@@ -27,14 +27,19 @@ const receiveHardcopy = async ({ id, actorId }) => {
   if (appointment.slot.startsAt > new Date()) throw new ConflictError('The hardcopy submission appointment has not started yet.')
   if (application.professional.status !== 'VERIFIED') throw new ConflictError('The associated professional is not verified.')
 
-  await workflowService.transitionWorkflow({
-    instanceId: application.workflowInstanceId,
-    transitionKey: 'RECEIVE_HARDCOPY',
-    actorId,
-    metadata: { source: 'obo-receiving.receive', appointmentId: appointment.id },
+  const submittedAt = application.submittedAt || new Date()
+  await prisma.$transaction(async (tx) => {
+    await workflowService.transitionWorkflow({
+      instanceId: application.workflowInstanceId,
+      transitionKey: 'RECEIVE_HARDCOPY',
+      actorId,
+      metadata: { source: 'obo-receiving.receive', appointmentId: appointment.id },
+      db: tx,
+    })
+    await repository.updateApplication(id, { submittedAt }, tx)
   })
 
-  return repository.updateApplication(id, { submittedAt: application.submittedAt || new Date() })
+  return repository.findApplication(id)
 }
 
 const decide = async ({ id, actorId, decision, reason }) => {
@@ -47,14 +52,15 @@ const decide = async ({ id, actorId, decision, reason }) => {
 
   const accepted = decision === 'ACCEPTED'
   const transitionKey = accepted ? 'ACCEPT_FOR_INSPECTION' : 'DECLINE'
-  const nextWorkflow = await workflowService.transitionWorkflow({
-    instanceId: application.workflowInstanceId,
-    transitionKey,
-    actorId,
-    metadata: { source: 'obo-receiving.decide', decision, reason: cleanReason },
-  })
+  const result = await prisma.$transaction(async (tx) => {
+    const nextWorkflow = await workflowService.transitionWorkflow({
+      instanceId: application.workflowInstanceId,
+      transitionKey,
+      actorId,
+      metadata: { source: 'obo-receiving.decide', decision, reason: cleanReason },
+      db: tx,
+    })
 
-  return prisma.$transaction(async (tx) => {
     const updated = await repository.updateApplication(id, {
       acceptedAt: accepted ? new Date() : null,
       acceptedByUserId: accepted ? actorId : null,
@@ -64,6 +70,8 @@ const decide = async ({ id, actorId, decision, reason }) => {
     await repository.addDecision({ applicationId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
     return { ...updated, status: nextWorkflow.currentStep.key, workflowInstanceId: nextWorkflow.id }
   })
+
+  return result
 }
 
 module.exports = { STATUS, listApplications, receiveHardcopy, decide, getWorkflowState }
