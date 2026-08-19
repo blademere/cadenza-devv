@@ -2,6 +2,7 @@ const { getPrismaClient } = require('../../infrastructure/database/prisma')
 
 const prisma = getPrismaClient()
 
+const createCaseType = (data) => prisma.caseType.create({ data })
 const createCase = (data) => prisma.caseRecord.create({ data })
 
 const findCaseById = (id) =>
@@ -48,6 +49,7 @@ const transitionCase = (id, fromStatus, toStatus, changedByUserId, reason, metad
   })
 
 module.exports = {
+  createCaseType,
   createCase,
   findCaseById,
   findCaseTypeById,
