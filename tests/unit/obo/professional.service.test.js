@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const repository = require('../../../src/modules/obo/professionals/professional.repository')
 const prismaModule = require('../../../src/infrastructure/database/prisma')
+const eventBus = require('../../../src/platform/event-bus/event-bus')
 
 const transaction = vi.fn(async (callback) => callback({ $queryRaw: vi.fn().mockResolvedValue([{ id: 'event-1', status: 'PENDING', attempts: 0, payload: {} }]) }))
 vi.spyOn(prismaModule, 'getPrismaClient').mockReturnValue({ $transaction: transaction })
+vi.spyOn(eventBus, 'publish').mockResolvedValue({ id: 'event-1' })
 
 const spies = {
   findPersonByUserId: vi.spyOn(repository, 'findPersonByUserId'),
@@ -56,6 +58,7 @@ describe('OBO professional service', () => {
     expect(spies.update).toHaveBeenCalledWith('professional-1', expect.objectContaining({ status: 'VERIFIED', verifiedByUserId: 'officer-1' }), expect.any(Object))
     expect(spies.addDecision).toHaveBeenCalled()
     expect(spies.findPersonById).toHaveBeenCalledWith('person-1', expect.any(Object))
+    expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ db: expect.any(Object), event: 'obo.professional.verification.decided' }))
   })
 
   it('rejects unknown or already-decided professionals', async () => {
