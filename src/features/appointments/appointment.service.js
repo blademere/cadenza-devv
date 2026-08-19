@@ -1,221 +1,74 @@
 const crypto = require('node:crypto')
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
-const {
-  ConflictError,
-  NotFoundError,
-  BadRequestError,
-} = require('../../common/errors/appError')
+const { ConflictError, NotFoundError, BadRequestError } = require('../../common/errors/appError')
 const { APPOINTMENT_STATUS, SLOT_STATUS } = require('./appointment.constants')
+const repository = require('./appointment.repository')
+const { getPrismaClient } = require('../../infrastructure/database/prisma')
 
 const prisma = getPrismaClient()
-const createReferenceNumber = () =>
-  `APT-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
+const createReferenceNumber = () => `APT-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 
-const listAppointmentTypes = async ({ active }) =>
-  prisma.appointmentType.findMany({
-    where: active === undefined ? undefined : { isActive: active },
-    orderBy: { name: 'asc' },
-  })
-const createAppointmentType = async (data) =>
-  prisma.appointmentType.create({ data })
+const listAppointmentTypes = ({ active }) => repository.listAppointmentTypes({ active })
+const createAppointmentType = (data) => repository.createAppointmentType(data)
 
 const createAvailabilitySchedule = async (data) => {
-  const type = await prisma.appointmentType.findUnique({
-    where: { id: data.appointmentTypeId },
-  })
+  const type = await repository.findAppointmentType(data.appointmentTypeId)
   if (!type) throw new NotFoundError('Appointment type not found.')
-  if (data.startTime >= data.endTime)
-    throw new BadRequestError(
-      'Schedule startTime must be earlier than endTime.'
-    )
-  return prisma.availabilitySchedule.create({ data })
+  if (data.startTime >= data.endTime) throw new BadRequestError('Schedule startTime must be earlier than endTime.')
+  if (data.slotDurationMinutes <= 0 || data.capacity <= 0) throw new BadRequestError('Schedule duration and capacity must be positive.')
+  if (data.dayOfWeek < 0 || data.dayOfWeek > 6) throw new BadRequestError('Schedule dayOfWeek must be between 0 and 6.')
+  return repository.createAvailabilitySchedule(data)
 }
 
 const createAppointmentSlot = async (data) => {
-  const type = await prisma.appointmentType.findUnique({
-    where: { id: data.appointmentTypeId },
-  })
+  const type = await repository.findAppointmentType(data.appointmentTypeId)
   if (!type) throw new NotFoundError('Appointment type not found.')
-  if (data.endsAt <= data.startsAt)
-    throw new BadRequestError('Slot endsAt must be later than startsAt.')
-  if (data.scheduleId) {
-    const schedule = await prisma.availabilitySchedule.findFirst({
-      where: { id: data.scheduleId, appointmentTypeId: data.appointmentTypeId },
-    })
-    if (!schedule)
-      throw new BadRequestError(
-        'Schedule does not belong to the appointment type.'
-      )
-  }
-  return prisma.appointmentSlot.create({ data })
+  if (data.endsAt <= data.startsAt) throw new BadRequestError('Slot endsAt must be later than startsAt.')
+  if (data.capacity <= 0) throw new BadRequestError('Slot capacity must be positive.')
+  if (data.scheduleId && !(await repository.findSchedule({ id: data.scheduleId, appointmentTypeId: data.appointmentTypeId }))) throw new BadRequestError('Schedule does not belong to the appointment type.')
+  return repository.createAppointmentSlot(data)
 }
 
-const listAppointmentSlots = async ({ appointmentTypeId, from, to, status }) =>
-  prisma.appointmentSlot.findMany({
-    where: {
-      ...(appointmentTypeId ? { appointmentTypeId } : {}),
-      ...(status ? { status } : { status: SLOT_STATUS.OPEN }),
-      ...(from || to
-        ? {
-            startsAt: {
-              ...(from ? { gte: from } : {}),
-              ...(to ? { lt: to } : {}),
-            },
-          }
-        : {}),
-    },
-    orderBy: { startsAt: 'asc' },
-  })
+const listAppointmentSlots = ({ appointmentTypeId, from, to, status }) => repository.listAppointmentSlots({ appointmentTypeId, from, to, status })
 
-const bookAppointment = async ({
-  userId,
-  appointmentTypeId,
-  slotId,
-  metadata,
-  notes,
-}) =>
-  prisma.$transaction(async (tx) => {
-    const slot = await tx.appointmentSlot.findUnique({ where: { id: slotId } })
-    if (!slot) throw new NotFoundError('Appointment slot not found.')
-    if (slot.appointmentTypeId !== appointmentTypeId)
-      throw new BadRequestError('Slot does not belong to the appointment type.')
-    if (slot.startsAt <= new Date())
-      throw new ConflictError('Appointment slot is no longer bookable.')
-    const existing = await tx.appointment.findFirst({
-      where: {
-        slotId,
-        userId,
-        status: {
-          in: [
-            APPOINTMENT_STATUS.PENDING,
-            APPOINTMENT_STATUS.CONFIRMED,
-            APPOINTMENT_STATUS.CHECKED_IN,
-          ],
-        },
-      },
-      select: { id: true },
-    })
-    if (existing)
-      throw new ConflictError(
-        'You already have an active appointment for this slot.'
-      )
-    const claimed = await tx.appointmentSlot.updateMany({
-      where: {
-        id: slotId,
-        status: SLOT_STATUS.OPEN,
-        bookedCount: { lt: slot.capacity },
-      },
-      data: { bookedCount: { increment: 1 }, updatedAt: new Date() },
-    })
-    if (claimed.count !== 1)
-      throw new ConflictError('Appointment slot is full or closed.')
-    return tx.appointment.create({
-      data: {
-        referenceNumber: createReferenceNumber(),
-        appointmentTypeId,
-        slotId,
-        userId,
-        status: APPOINTMENT_STATUS.CONFIRMED,
-        metadata,
-        notes,
-      },
-      include: { appointmentType: true, slot: true },
-    })
-  })
+const bookAppointment = async ({ userId, appointmentTypeId, slotId, metadata, notes }) => prisma.$transaction(async (tx) => {
+  const slot = await repository.findSlot(slotId, tx)
+  if (!slot) throw new NotFoundError('Appointment slot not found.')
+  if (slot.appointmentTypeId !== appointmentTypeId) throw new BadRequestError('Slot does not belong to the appointment type.')
+  if (slot.startsAt <= new Date()) throw new ConflictError('Appointment slot is no longer bookable.')
+  const existing = await repository.findActiveUserAppointmentForSlot({ slotId, userId, statuses: [APPOINTMENT_STATUS.PENDING, APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.CHECKED_IN] }, tx)
+  if (existing) throw new ConflictError('You already have an active appointment for this slot.')
+  const claimed = await repository.claimSlot({ slotId, capacity: slot.capacity }, tx)
+  if (claimed.count !== 1) throw new ConflictError('Appointment slot is full or closed.')
+  return repository.createAppointment({ referenceNumber: createReferenceNumber(), appointmentTypeId, slotId, userId, status: APPOINTMENT_STATUS.CONFIRMED, metadata, notes }, tx)
+})
 
 const getMyAppointment = async ({ id, userId }) => {
-  const appointment = await prisma.appointment.findFirst({
-    where: { id, userId },
-    include: { appointmentType: true, slot: true },
-  })
+  const appointment = await repository.findUserAppointment({ id, userId })
   if (!appointment) throw new NotFoundError('Appointment not found.')
   return appointment
 }
-const listMyAppointments = async ({ userId }) =>
-  prisma.appointment.findMany({
-    where: { userId },
-    include: { appointmentType: true, slot: true },
-    orderBy: { createdAt: 'desc' },
-  })
+const listMyAppointments = ({ userId }) => repository.listUserAppointments(userId)
 
-const cancelAppointment = async ({ id, userId }) =>
-  prisma.$transaction(async (tx) => {
-    const appointment = await tx.appointment.findFirst({
-      where: { id, userId },
-    })
-    if (!appointment) throw new NotFoundError('Appointment not found.')
-    if (
-      ![APPOINTMENT_STATUS.PENDING, APPOINTMENT_STATUS.CONFIRMED].includes(
-        appointment.status
-      )
-    )
-      throw new ConflictError(
-        'Only pending or confirmed appointments can be cancelled.'
-      )
-    const updated = await tx.appointment.update({
-      where: { id },
-      data: { status: APPOINTMENT_STATUS.CANCELLED, cancelledAt: new Date() },
-      include: { appointmentType: true, slot: true },
-    })
-    await tx.appointmentSlot.updateMany({
-      where: { id: appointment.slotId, bookedCount: { gt: 0 } },
-      data: { bookedCount: { decrement: 1 }, updatedAt: new Date() },
-    })
-    return updated
-  })
-
-const updateAppointmentStatus = async ({
-  id,
-  fromStatus,
-  status,
-  timestampField,
-}) => {
-  const appointment = await prisma.appointment.findUnique({ where: { id } })
+const cancelAppointment = async ({ id, userId }) => prisma.$transaction(async (tx) => {
+  const appointment = await repository.findUserAppointment({ id, userId }, tx)
   if (!appointment) throw new NotFoundError('Appointment not found.')
-  if (appointment.status !== fromStatus)
-    throw new ConflictError(
-      `Only ${fromStatus.toLowerCase().replaceAll('_', ' ')} appointments can be changed to ${status.toLowerCase().replaceAll('_', ' ')}.`
-    )
-  return prisma.appointment.update({
-    where: { id },
-    data: { status, [timestampField]: new Date() },
-    include: { appointmentType: true, slot: true },
-  })
-}
+  if (![APPOINTMENT_STATUS.PENDING, APPOINTMENT_STATUS.CONFIRMED].includes(appointment.status)) throw new ConflictError('Only pending or confirmed appointments can be cancelled.')
+  const updated = await repository.cancelAppointmentRecord(id, tx)
+  await repository.releaseSlot(appointment.slotId, tx)
+  return updated
+})
 
-const checkInAppointment = async ({ id }) =>
-  updateAppointmentStatus({
-    id,
-    fromStatus: APPOINTMENT_STATUS.CONFIRMED,
-    status: APPOINTMENT_STATUS.CHECKED_IN,
-    timestampField: 'checkedInAt',
-  })
-const completeAppointment = async ({ id }) =>
-  updateAppointmentStatus({
-    id,
-    fromStatus: APPOINTMENT_STATUS.CHECKED_IN,
-    status: APPOINTMENT_STATUS.COMPLETED,
-    timestampField: 'completedAt',
-  })
-const markNoShow = async ({ id }) =>
-  updateAppointmentStatus({
-    id,
-    fromStatus: APPOINTMENT_STATUS.CONFIRMED,
-    status: APPOINTMENT_STATUS.NO_SHOW,
-    timestampField: 'noShowAt',
-  })
-
-module.exports = {
-  listAppointmentTypes,
-  createAppointmentType,
-  createAvailabilitySchedule,
-  createAppointmentSlot,
-  listAppointmentSlots,
-  bookAppointment,
-  getMyAppointment,
-  listMyAppointments,
-  cancelAppointment,
-  checkInAppointment,
-  completeAppointment,
-  markNoShow,
+const updateAppointmentStatus = async ({ id, fromStatus, status, timestampField }) => {
+  const updated = await repository.transitionAppointment({ id, fromStatus, status, timestampField })
+  if (updated.count !== 1) {
+    const appointment = await repository.findAppointment(id)
+    if (!appointment) throw new NotFoundError('Appointment not found.')
+    throw new ConflictError(`Only ${fromStatus.toLowerCase().replaceAll('_', ' ')} appointments can be changed to ${status.toLowerCase().replaceAll('_', ' ')}.`)
+  }
+  return repository.getAppointmentWithRelations(id)
 }
+const checkInAppointment = ({ id }) => updateAppointmentStatus({ id, fromStatus: APPOINTMENT_STATUS.CONFIRMED, status: APPOINTMENT_STATUS.CHECKED_IN, timestampField: 'checkedInAt' })
+const completeAppointment = ({ id }) => updateAppointmentStatus({ id, fromStatus: APPOINTMENT_STATUS.CHECKED_IN, status: APPOINTMENT_STATUS.COMPLETED, timestampField: 'completedAt' })
+const markNoShow = ({ id }) => updateAppointmentStatus({ id, fromStatus: APPOINTMENT_STATUS.CONFIRMED, status: APPOINTMENT_STATUS.NO_SHOW, timestampField: 'noShowAt' })
+
+module.exports = { listAppointmentTypes, createAppointmentType, createAvailabilitySchedule, createAppointmentSlot, listAppointmentSlots, bookAppointment, getMyAppointment, listMyAppointments, cancelAppointment, checkInAppointment, completeAppointment, markNoShow }
