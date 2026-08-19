@@ -39,6 +39,6 @@
       }
     }
   },
-  "forwardPorts": [3000, 5432, 6379, 8080, 9090],
+  "forwardPorts": [3000, 3001, 5432, 6379, 8080, 9090],
   "postCreateCommand": "npm install && npx prisma generate"
 }
