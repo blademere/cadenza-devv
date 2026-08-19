@@ -7,4 +7,10 @@ const list = async (_req, res) => successResponse(
   await service.listPermitTypes(),
 )
 
-module.exports = { list }
+const getForm = async (req, res) => successResponse(
+  res,
+  'Permit type form retrieved successfully.',
+  await service.getPermitTypeForm(req.params.permitTypeId),
+)
+
+module.exports = { list, getForm }
