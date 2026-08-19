@@ -23,6 +23,7 @@ beforeEach(() => {
     type: 'refresh',
     sub: '42',
     tokenId: 'old-token-id',
+    authVersion: 0,
   })
 })
 
@@ -32,7 +33,7 @@ describe('refresh token replay protection', () => {
       id: 'old-token-id',
       userId: 42,
       revokedAt: new Date(),
-      user: { id: 42, isActive: true },
+      user: { id: 42, isActive: true, authVersion: 0 },
     })
 
     await expect(refreshAccessToken({ refreshToken: 'replayed-token' })).rejects.toBeInstanceOf(UnauthorizedError)
@@ -47,7 +48,7 @@ describe('refresh token replay protection', () => {
       userId: 42,
       revokedAt: null,
       expiresAt: new Date(Date.now() + 60_000),
-      user: { id: 42, isActive: true },
+      user: { id: 42, isActive: true, authVersion: 0 },
     })
     tokens.createRefreshToken.mockReturnValue('new-refresh-token')
     tokens.createAccessToken.mockReturnValue('access-token')
