@@ -85,6 +85,7 @@ model OboReceivingDecision {
   decidedBy       User                 @relation("OboReceivingDecisionUser", fields: [decidedByUserId], references: [id], onDelete: Restrict)
 
   @@index([applicationId, decidedAt])
+  @@index([decision, decidedAt])
 }
 
 model OboProfessionalVerificationDecision {
