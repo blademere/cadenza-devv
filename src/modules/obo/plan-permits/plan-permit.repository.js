@@ -7,22 +7,19 @@ const reference = () => `OBO-${new Date().toISOString().slice(0, 10).replaceAll(
 const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where: { userId } })
 const findPermitType = (id, db = prisma) => db.oboPermitType.findFirst({ where: { id, isActive: true } })
 const findProfessional = (id, db = prisma) => db.oboProfessional.findUnique({ where: { id } })
+const findFormById = (id, db = prisma) => db.form.findUnique({ where: { id } })
+const findFormVersionById = (id, db = prisma) => db.formVersion.findUnique({ where: { id }, include: { form: true } })
 const findById = (id, db = prisma) => db.oboPermitApplication.findUnique({
   where: { id },
-  include: {
-    permitType: true,
-    professional: true,
-    submissionAppointment: true,
-    decisions: { orderBy: { decidedAt: 'desc' } },
-  },
+  include: { permitType: true, professional: true, formVersion: true, submissionAppointment: true, decisions: { orderBy: { decidedAt: 'desc' } } },
 })
 const findOwnedByClient = (id, personId, db = prisma) => db.oboPermitApplication.findFirst({
   where: { id, clientPersonId: personId },
-  include: { permitType: true, professional: true, submissionAppointment: true, decisions: { orderBy: { decidedAt: 'desc' } } },
+  include: { permitType: true, professional: true, formVersion: true, submissionAppointment: true, decisions: { orderBy: { decidedAt: 'desc' } } },
 })
 const listByClient = (personId, db = prisma) => db.oboPermitApplication.findMany({
   where: { clientPersonId: personId },
-  include: { permitType: true, professional: true, submissionAppointment: true },
+  include: { permitType: true, professional: true, formVersion: true, submissionAppointment: true },
   orderBy: { createdAt: 'desc' },
 })
 const create = async ({ clientPersonId, permitTypeId, professionalId, formVersionId, formValues, userId }, db = prisma) => {
@@ -41,12 +38,12 @@ const create = async ({ clientPersonId, permitTypeId, professionalId, formVersio
   })
   return db.oboPermitApplication.create({
     data: { referenceNumber, caseId: caseRecord.id, clientPersonId, permitTypeId, professionalId, formVersionId, formValues },
-    include: { permitType: true, professional: true },
+    include: { permitType: true, professional: true, formVersion: true },
   })
 }
 const update = (id, data, db = prisma) => db.oboPermitApplication.update({
   where: { id }, data,
-  include: { permitType: true, professional: true, submissionAppointment: true },
+  include: { permitType: true, professional: true, formVersion: true, submissionAppointment: true },
 })
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
 const createSubmissionAppointment = (data, db = prisma) => db.oboSubmissionAppointment.create({ data })
@@ -55,6 +52,8 @@ module.exports = {
   findPersonByUserId,
   findPermitType,
   findProfessional,
+  findFormById,
+  findFormVersionById,
   findById,
   findOwnedByClient,
   listByClient,
