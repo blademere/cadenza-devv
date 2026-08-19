@@ -4,10 +4,11 @@ function assertAdapter(adapter) {
   }
 }
 
-function createStorageService(adapter) {
+function createStorageService(adapter, { provider = "unknown" } = {}) {
   assertAdapter(adapter)
 
   return {
+    provider,
     put(input) {
       return adapter.put(input)
     },
