@@ -1,15 +1,14 @@
 const crypto = require('node:crypto')
 const { getPrismaClient } = require('../../infrastructure/database/prisma')
 const { BadRequestError, NotFoundError } = require('../../common/errors/appError')
+const { NOTIFICATION_CHANNEL_LIST, NOTIFICATION_CHANNELS } = require('./notification.constants')
 
 const prisma = getPrismaClient()
 
-const CHANNELS = Object.freeze(['EMAIL', 'SMS', 'PUSH', 'IN_APP', 'WEBHOOK'])
-
 const normalizeChannels = (channels) => {
-  const values = channels?.length ? channels : ['IN_APP']
+  const values = channels?.length ? channels : [NOTIFICATION_CHANNELS.IN_APP]
   const normalized = [...new Set(values.map((channel) => String(channel).trim().toUpperCase()))]
-  const invalid = normalized.filter((channel) => !CHANNELS.includes(channel))
+  const invalid = normalized.filter((channel) => !NOTIFICATION_CHANNEL_LIST.includes(channel))
   if (invalid.length) {
     throw new BadRequestError(`Unsupported notification channel '${invalid[0]}'.`)
   }
@@ -42,7 +41,7 @@ const sendNotification = async ({ userId, type, title, message, data = null, cha
   )
   const requestedChannels = channels?.length
     ? normalizeChannels(channels)
-    : normalizeChannels(['IN_APP', ...preferences.keys()])
+    : normalizeChannels([NOTIFICATION_CHANNELS.IN_APP, ...preferences.keys()])
 
   const notification = await prisma.notification.create({
     data: { userId, type, title, message, data },
@@ -50,10 +49,10 @@ const sendNotification = async ({ userId, type, title, message, data = null, cha
 
   const deliveries = []
   for (const channel of requestedChannels) {
-    if (channel === 'IN_APP') continue
+    if (channel === NOTIFICATION_CHANNELS.IN_APP) continue
 
     const preference = preferences.get(channel)
-    const recipient = preference?.destination || (channel === 'EMAIL' ? user.email : null)
+    const recipient = preference?.destination || (channel === NOTIFICATION_CHANNELS.EMAIL ? user.email : null)
     if (!recipient) continue
 
     const delivery = await prisma.notificationDelivery.create({
