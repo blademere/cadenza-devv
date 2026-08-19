@@ -90,25 +90,30 @@ const handleOAuthCallback = (provider) => async (req, res) => {
   const loginState = req.cookies?.[OAUTH_STATE_COOKIE]
   const linkState = req.cookies?.[OAUTH_LINK_STATE_COOKIE]
 
-  let cookieMatches = false
+  const cookieMatchesLogin = loginState && safeEqual(loginState, state)
+  const cookieMatchesLink = linkState && safeEqual(linkState, state)
 
-  if (loginState && safeEqual(loginState, state)) {
-    cookieMatches = true
-  }
-
-  if (linkState && safeEqual(linkState, state)) {
-    cookieMatches = true
-  }
-
-  if (!cookieMatches) {
+  if (!cookieMatchesLogin && !cookieMatchesLink) {
     clearOAuthStateCookie(res)
     clearOAuthLinkStateCookie(res)
     return redirectFailure(res, 'invalid_oauth_state')
   }
 
-  const stateData = await consumeOAuthState(state)
+  const stateData = await consumeOAuthState(state, undefined, provider)
 
-  if (!stateData || stateData.provider !== provider) {
+  if (!stateData) {
+    clearOAuthStateCookie(res)
+    clearOAuthLinkStateCookie(res)
+    return redirectFailure(res, 'invalid_oauth_state')
+  }
+
+  if (stateData.flow === 'login' && !cookieMatchesLogin) {
+    clearOAuthStateCookie(res)
+    clearOAuthLinkStateCookie(res)
+    return redirectFailure(res, 'invalid_oauth_state')
+  }
+
+  if (stateData.flow === 'link' && !cookieMatchesLink) {
     clearOAuthStateCookie(res)
     clearOAuthLinkStateCookie(res)
     return redirectFailure(res, 'invalid_oauth_state')
