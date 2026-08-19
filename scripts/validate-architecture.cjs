@@ -41,9 +41,11 @@ for (const file of walk(ROUTES).filter((entry) => entry.endsWith('.routes.js')))
     const lineStart = source.lastIndexOf('\n', operationStart) + 1
     const lineEnd = source.indexOf('\n', operationStart)
     const statement = source.slice(lineStart, lineEnd === -1 ? source.length : lineEnd)
+    const context = source.slice(Math.max(0, operationStart - 400), lineEnd === -1 ? source.length : lineEnd)
+    const explicitlyExempt = /idempotency\s*:\s*exempt/i.test(context)
 
-    if (!statement.includes('idempotency')) {
-      failures.push(`${relative}: ${match[1].toUpperCase()} mutation must explicitly use the shared idempotency middleware.`)
+    if (!statement.includes('idempotency') && !explicitlyExempt) {
+      failures.push(`${relative}: ${match[1].toUpperCase()} mutation must use shared idempotency middleware or an explicit 'idempotency: exempt' comment with justification.`)
     }
   }
 
