@@ -1,31 +1,47 @@
 # Platform Extensibility
 
-Phase 4 adds configuration-driven custom attributes, dashboards, integrations, and webhooks.
+This document describes reusable platform mechanisms that can support future application modules. It does not define a specific business domain.
+
+The architectural rule is:
+
+```text
+module-specific business decision
+            ↓
+       feature/service
+            ↓
+       platform engine
+            ↓
+ infrastructure/provider
+```
+
+The platform provides mechanisms; modules decide when and why those mechanisms apply.
 
 ## Custom fields
 
-Custom fields are metadata definitions scoped by entity type. Values are stored separately from the domain entity so permit-specific or organization-specific attributes do not require schema changes.
+Custom fields are metadata definitions scoped by entity type. Values are stored separately from the domain entity so genuinely variable or organization-specific attributes do not require schema changes.
 
 ```js
 await customFields.defineField({
-  entityType: "PermitApplication",
-  key: "risk_category",
-  label: "Risk Category",
-  type: "select",
-  config: { options: ["LOW", "MEDIUM", "HIGH"] },
+  entityType: 'PermitApplication',
+  key: 'risk_category',
+  label: 'Risk Category',
+  type: 'select',
+  config: { options: ['LOW', 'MEDIUM', 'HIGH'] },
 })
 
 await customFields.setValue({
-  entityType: "PermitApplication",
+  entityType: 'PermitApplication',
   entityId: application.id,
-  key: "risk_category",
-  value: "HIGH",
+  key: 'risk_category',
+  value: 'HIGH',
 })
 ```
 
 Supported types are `text`, `number`, `integer`, `boolean`, `date`, `datetime`, `select`, `multiselect`, and `json`.
 
-Do not use custom fields for core relational data such as applicant identity, permit type, workflow state, or professional registration. Those remain normal domain columns and relations.
+Do **not** use custom fields for core relational data such as applicant identity, case relationships, participant roles, permit type, workflow state, or professional registration. Those remain normal domain columns and relations.
+
+Dynamic forms and custom fields complement the strongly modeled shared features; they do not replace them.
 
 ## Dashboards
 
@@ -51,15 +67,27 @@ The secret must come from a secure runtime secret store, not from the webhook en
 
 ## Event architecture
 
-The next integration step is to connect domain events to:
+The intended integration is:
 
 ```text
-Domain event
-   ├── Business rules
-   ├── Notifications
-   ├── SLA
-   ├── Webhooks
-   └── Audit
+Domain/module action
+        │
+        ▼
+   Domain event
+        ├── Business rules
+        ├── Notifications
+        ├── SLA / scheduled work
+        ├── Webhooks
+        └── Audit
 ```
 
-Keep the event dispatcher generic and keep each consumer isolated. This prevents permit-specific behavior from leaking into the platform engines.
+Keep the event dispatcher generic and keep each consumer isolated. Permit-specific, rental-specific, enrollment-specific, or other domain behavior must remain in the corresponding module.
+
+## Extensibility rules
+
+1. Keep platform APIs domain-neutral.
+2. Do not add a platform abstraction for a single module unless the abstraction has a real reuse case.
+3. Do not move module business rules into platform services just because several handlers use the same mechanism.
+4. Keep provider-specific behavior behind infrastructure/platform adapters.
+5. Prefer small composable mechanisms over large generic frameworks.
+6. Preserve the dependency direction documented in [`architecture.md`](architecture.md).
