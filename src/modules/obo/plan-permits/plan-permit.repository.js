@@ -5,6 +5,7 @@ const prisma = getPrismaClient()
 const reference = () => `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 
 const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where: { userId } })
+const findPersonNotificationContext = (personId, db = prisma) => db.person.findUnique({ where: { id: personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
 const findPermitType = (id, db = prisma) => db.oboPermitType.findFirst({ where: { id, isActive: true } })
 const findProfessional = (id, db = prisma) => db.oboProfessional.findUnique({ where: { id } })
 const findFormById = (id, db = prisma) => db.form.findUnique({ where: { id } })
@@ -43,14 +44,17 @@ const create = async ({ clientPersonId, permitTypeId, professionalId, formVersio
   })
 }
 const update = (id, data, db = prisma) => db.oboPermitApplication.update({
-  where: { id }, data,
+  where: { id },
+  data,
   include: { permitType: true, professional: true, formVersion: true, submissionAppointment: true },
 })
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
 const createSubmissionAppointment = (data, db = prisma) => db.oboSubmissionAppointment.create({ data })
+const withTransaction = (callback) => prisma.$transaction(callback)
 
 module.exports = {
   findPersonByUserId,
+  findPersonNotificationContext,
   findPermitType,
   findProfessional,
   findFormById,
@@ -63,4 +67,5 @@ module.exports = {
   update,
   addDecision,
   createSubmissionAppointment,
+  withTransaction,
 }
