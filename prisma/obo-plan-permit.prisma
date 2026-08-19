@@ -41,6 +41,7 @@ model OboPermitApplication {
   clientPersonId        String
   professionalId        String
   formVersionId         String?
+  workflowInstanceId    String?                   @unique
   formValues            Json
   status                String                    @default("DRAFT")
   submittedAt           DateTime?
