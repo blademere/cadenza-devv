@@ -11,6 +11,17 @@ const listPending = (db = prisma) => db.oboProfessional.findMany({
   include: { person: true },
   orderBy: { createdAt: 'asc' },
 })
+const listVerified = (db = prisma) => db.oboProfessional.findMany({
+  where: { status: 'VERIFIED', person: { isActive: true } },
+  select: {
+    id: true,
+    registrationNumber: true,
+    status: true,
+    verifiedAt: true,
+    person: { select: { id: true, firstName: true, middleName: true, lastName: true, suffix: true } },
+  },
+  orderBy: [{ person: { lastName: 'asc' } }, { person: { firstName: 'asc' } }],
+})
 const update = (id, data, db = prisma) => db.oboProfessional.update({ where: { id }, data })
 const addDecision = (data, db = prisma) => db.oboProfessionalVerificationDecision.create({ data })
 
@@ -20,6 +31,7 @@ module.exports = {
   findByPersonId,
   create,
   listPending,
+  listVerified,
   update,
   addDecision,
 }
