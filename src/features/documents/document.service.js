@@ -1,12 +1,12 @@
 const crypto = require("crypto")
 const { getPrismaClient } = require("../../infrastructure/database/prisma")
 const { NotFoundError, BadRequestError } = require("../../common/errors/appError")
-const storage = require("../../infrastructure/storage")
-const env = require("../../config/env")
+const { getStorageService } = require("../../platform/storage/storage.registry")
 const { createStorageKey, sanitizeFileName } = require("../../platform/storage/storage.key")
 const { DEFAULT_MAX_FILE_SIZE_BYTES } = require("./document.constants")
 
 const prisma = getPrismaClient()
+const storage = getStorageService()
 
 const uploadDocument = async ({ userId, fileName, mimeType, buffer, documentTypeId }) => {
   if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
@@ -44,7 +44,7 @@ const uploadDocument = async ({ userId, fileName, mimeType, buffer, documentType
         ownerId: userId,
         originalName,
         storageKey,
-        storageProvider: env.STORAGE_PROVIDER,
+        storageProvider: storage.provider,
         mimeType: mimeType || "application/octet-stream",
         sizeBytes: BigInt(buffer.length),
         checksumSha256,
