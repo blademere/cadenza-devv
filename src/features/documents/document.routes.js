@@ -3,7 +3,7 @@ const { asyncHandler, validate } = require("../../common/middleware")
 const authenticate = require("../auth/authenticate")
 const authorize = require("../../platform/authorization/authorize")
 const { DOCUMENT_MODULE, DOCUMENT_ACTIONS, DEFAULT_MAX_FILE_SIZE_BYTES } = require("./document.constants")
-const { documentIdValidator } = require("./document.validation")
+const { documentIdValidator, documentUploadValidator } = require("./document.validation")
 const controller = require("./document.controller")
 
 const router = express.Router()
@@ -13,6 +13,7 @@ router.post(
   authenticate,
   authorize(DOCUMENT_MODULE, DOCUMENT_ACTIONS.UPLOAD),
   express.raw({ type: "*/*", limit: DEFAULT_MAX_FILE_SIZE_BYTES }),
+  validate(documentUploadValidator),
   asyncHandler(controller.uploadDocumentController)
 )
 router.get(
