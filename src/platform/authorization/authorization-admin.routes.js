@@ -2,7 +2,6 @@ const express = require('express')
 const { asyncHandler, validate } = require('../../common/middleware')
 const authenticate = require('../../features/auth/authenticate.secure')
 const authorize = require('./authorize')
-const { ACCESS_CONTROL_MODULES, ACCESS_CONTROL_ACTIONS } = require('./access-control.constants')
 const {
   listModulesController,
   createModuleController,
@@ -17,7 +16,7 @@ const {
 } = require('./authorization-admin.validation')
 
 const router = express.Router()
-const manageAuthorization = authorize(ACCESS_CONTROL_MODULES.AUTHORIZATION, ACCESS_CONTROL_ACTIONS.MANAGE)
+const manageAuthorization = authorize('authorization', 'manage')
 
 router.get('/modules', authenticate, manageAuthorization, asyncHandler(listModulesController))
 router.post('/modules', authenticate, manageAuthorization, validate(createModuleValidator), asyncHandler(createModuleController))
