@@ -17,6 +17,8 @@ const rolePermissions = {
     'obo_plan_permits:read',
     'obo_plan_permits:create',
     'obo_plan_permits:update',
+    'obo_plan_permits:submit',
+    'obo_plan_permits:schedule_submission',
     'obo_professionals:read',
   ],
   professional: [
@@ -44,17 +46,11 @@ const rolePermissions = {
     'obo_professionals:read',
     'obo_professionals:review',
   ],
-  admin: [
-    'authorization:manage',
-  ],
+  admin: ['authorization:manage'],
 }
 
 const permissionKeys = [...new Set(Object.values(rolePermissions).flat())]
-
-const moduleName = (key) => key
-  .split(/[_-]+/)
-  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-  .join(' ')
+const moduleName = (key) => key.split(/[_-]+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 
 async function seed() {
   const moduleRecords = new Map()
