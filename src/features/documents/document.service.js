@@ -6,9 +6,11 @@ const { createStorageKey, sanitizeFileName } = require("../../platform/storage/s
 const { DEFAULT_MAX_FILE_SIZE_BYTES } = require("./document.constants")
 
 const prisma = getPrismaClient()
-const storage = getStorageService()
+const getStorage = () => getStorageService()
 
 const uploadDocument = async ({ userId, fileName, mimeType, buffer, documentTypeId }) => {
+  const storage = getStorage()
+
   if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
     throw new BadRequestError("The uploaded file is empty.")
   }
@@ -79,12 +81,14 @@ const getOwnedDocument = async ({ userId, id }) => {
 }
 
 const deleteDocument = async ({ userId, id }) => {
+  const storage = getStorage()
   const document = await getOwnedDocument({ userId, id })
   await storage.delete({ key: document.storageKey })
   return prisma.document.update({ where: { id }, data: { deletedAt: new Date() } })
 }
 
 const readDocument = async ({ userId, id }) => {
+  const storage = getStorage()
   const document = await getOwnedDocument({ userId, id })
   const { body } = await storage.get({ key: document.storageKey })
   return { document, buffer: body }
