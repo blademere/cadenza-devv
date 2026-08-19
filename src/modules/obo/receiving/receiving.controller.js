@@ -7,14 +7,16 @@ const list = async (req, res) => successResponse(
   await service.listApplications(req.validated.query),
 )
 
+const receive = async (req, res) => successResponse(
+  res,
+  'Permit application hardcopy received successfully.',
+  await service.receiveHardcopy({ id: req.validated.params.id }),
+)
+
 const decide = async (req, res) => successResponse(
   res,
   `Permit application ${req.validated.body.decision.toLowerCase()} successfully.`,
-  await service.decide({
-    id: req.validated.params.id,
-    actorId: req.user.id,
-    ...req.validated.body,
-  }),
+  await service.decide({ id: req.validated.params.id, actorId: req.user.id, ...req.validated.body }),
 )
 
-module.exports = { list, decide }
+module.exports = { list, receive, decide }
