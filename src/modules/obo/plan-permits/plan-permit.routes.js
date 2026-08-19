@@ -20,7 +20,7 @@ router.post('/', authenticate, authorize('obo_plan_permits', 'create'), requireI
 router.get('/mine', authenticate, authorize('obo_plan_permits', 'read'), asyncHandler(controller.list))
 router.get('/:id', authenticate, applicationResource('read'), validate(validation.applicationParamsValidator), asyncHandler(controller.get))
 router.patch('/:id', authenticate, applicationResource('update'), requireIdempotency, validate(validation.updateApplicationValidator), asyncHandler(controller.update))
-router.post('/:id/submit', authenticate, applicationResource('create'), requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.submit))
-router.post('/:id/submission-appointment', authenticate, applicationResource('create'), requireIdempotency, validate(validation.submissionAppointmentValidator), asyncHandler(controller.bookAppointment))
+router.post('/:id/submit', authenticate, applicationResource('submit'), requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.submit))
+router.post('/:id/submission-appointment', authenticate, applicationResource('schedule_submission'), requireIdempotency, validate(validation.submissionAppointmentValidator), asyncHandler(controller.bookAppointment))
 
 module.exports = router
