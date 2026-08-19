@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 const redis = {
   get: vi.fn(),
   set: vi.fn(),
+  del: vi.fn(),
 }
 
 vi.mock('../../../src/infrastructure/cache/redis', () => ({
@@ -17,15 +18,13 @@ describe('generic API cache middleware', () => {
     vi.clearAllMocks()
     redis.get.mockResolvedValue(null)
     redis.set.mockResolvedValue('OK')
+    redis.del.mockResolvedValue(1)
   })
 
   it('uses a caller-provided cache key and defaults to GET/HEAD', async () => {
     const next = vi.fn()
     const req = { method: 'GET', originalUrl: '/users/1', params: { id: '1' } }
-    const res = {
-      set: vi.fn(),
-      once: vi.fn(),
-    }
+    const res = { set: vi.fn(), once: vi.fn() }
 
     await cache({ key: (request) => `users:${request.params.id}`, ttlSeconds: 60 })(req, res, next)
 
@@ -76,6 +75,22 @@ describe('generic API cache middleware', () => {
 
     const requestedKey = redis.get.mock.calls[0][0]
     expect(requestedKey).toBe(cache.hashKey('me:user:42'))
+  })
+
+  it('fails open when Redis is unavailable', async () => {
+    connectRedis.mockRejectedValueOnce(new Error('Redis unavailable'))
+    const next = vi.fn()
+    const req = { method: 'GET', originalUrl: '/health' }
+
+    await cache({ key: () => 'health' })(req, {}, next)
+
+    expect(next).toHaveBeenCalledOnce()
+    expect(req.cacheError).toBeInstanceOf(Error)
+  })
+
+  it('invalidates a cache key', async () => {
+    await cache.invalidate('users:1')
+    expect(redis.del).toHaveBeenCalledWith(cache.hashKey('users:1'))
   })
 
   it('rejects an empty key', () => {
