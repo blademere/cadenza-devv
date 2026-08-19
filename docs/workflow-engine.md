@@ -62,6 +62,43 @@ const instance = await startWorkflow({
 
 A future OBO module can use `subjectType: "PermitApplication"`; the platform must remain unaware of the permit domain.
 
+## Transaction-aware operations
+
+Domain services that need to atomically combine workflow persistence with their own database writes can supply an existing Prisma transaction client through `db`:
+
+```js
+await prisma.$transaction(async (tx) => {
+  const workflow = await startWorkflow({
+    workflowKey: "application-review",
+    subjectType: "Application",
+    subjectId: application.id,
+    actorId: user.id,
+    db: tx,
+  })
+
+  await repository.update(application.id, {
+    workflowInstanceId: workflow.id,
+  }, tx)
+})
+```
+
+Likewise, transitions support the same transaction boundary:
+
+```js
+await prisma.$transaction(async (tx) => {
+  const workflow = await transitionWorkflow({
+    instanceId: application.workflowInstanceId,
+    transitionKey: "approve",
+    actorId: user.id,
+    db: tx,
+  })
+
+  await repository.recordApproval(application.id, user.id, tx)
+})
+```
+
+When `db` is omitted, the workflow service owns its own transaction as before. When `db` is supplied, the caller owns the transaction and the workflow history, event publication, audit record, and domain writes can commit or roll back together.
+
 ## Transitioning
 
 ```js
@@ -92,5 +129,6 @@ Workflow creation, instance creation, transitions, completion, and version chang
 - Use `permissionKey` as a declarative access-control hook.
 - Keep business rules and conditions separate from transition mechanics.
 - Use guarded updates for lifecycle transitions that must be concurrency-safe.
+- When a domain operation combines workflow and domain writes, prefer a caller-owned `db` transaction.
 - Never mutate a published workflow version; create a new version instead.
 - Keep persistence behind the platform's repository boundary.
