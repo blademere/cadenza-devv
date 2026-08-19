@@ -3,8 +3,12 @@ const path = require('node:path')
 
 const ROOT = path.resolve(__dirname, '..', 'src')
 const ROUTES = path.join(ROOT, 'features')
-const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+features\//
-const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform)\//
+const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:features|modules)\//
+const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+modules\//
+const FORBIDDEN_INFRASTRUCTURE_IMPORT = /(?:\.\.\/)+modules\//
+const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform|modules)\//
+const PRISMA_IMPORT = /(?:\.\.\/)+infrastructure\/database\/prisma(?:['"/]|$)/
+const PRISMA_CLIENT_ACCESS = /\b(?:getPrismaClient|PrismaClient)\s*\(/
 const MUTATION = /router\.(post|put|patch|delete)\s*\(/g
 const RESOURCE_ROUTE = /router\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
 const IDEMPOTENCY_MIDDLEWARE = /\b(?:requireIdempotency|idempotency(?:Middleware)?)\b/
@@ -22,14 +26,27 @@ const failures = []
 
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8')
-  const relative = path.relative(process.cwd(), file)
+  const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
 
   if (relative.startsWith('src/platform/') && FORBIDDEN_PLATFORM_IMPORT.test(source)) {
-    failures.push(`${relative}: platform code must not import features/modules.`)
+    failures.push(`${relative}: platform code must not import features or modules.`)
+  }
+
+  if (relative.startsWith('src/features/') && FORBIDDEN_FEATURE_IMPORT.test(source)) {
+    failures.push(`${relative}: shared features must not import modules.`)
+  }
+
+  if (relative.startsWith('src/infrastructure/') && FORBIDDEN_INFRASTRUCTURE_IMPORT.test(source)) {
+    failures.push(`${relative}: infrastructure must not import modules.`)
   }
 
   if (relative.startsWith('src/common/') && FORBIDDEN_COMMON_IMPORT.test(source)) {
-    failures.push(`${relative}: common code must not import features/platform.`)
+    failures.push(`${relative}: common code must not import features, platform, or modules.`)
+  }
+
+  const isService = /(?:^|\/)\w+\.service\.(?:js|cjs|mjs)$/.test(relative)
+  if (isService && (PRISMA_IMPORT.test(source) || PRISMA_CLIENT_ACCESS.test(source))) {
+    failures.push(`${relative}: services must not access Prisma directly; use a repository.`)
   }
 }
 
