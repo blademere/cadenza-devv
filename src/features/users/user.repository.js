@@ -46,8 +46,8 @@ const findAllUsers = async ({ skip, take, filters = {}, orderBy }) => {
   }
 }
 
-const createUser = async ({ email, roleId, passwordHash }) => {
-  return prisma.user.create({
+const createUser = async ({ email, roleId, passwordHash }, db = prisma) => {
+  return db.user.create({
     data: {
       email,
       passwordHash,
