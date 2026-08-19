@@ -104,7 +104,7 @@ jobs:
   quality:
     name: Quality
     needs: changes
-    if: needs.changes.outputs.app == 'true'
+    if: "${{ needs.changes.outputs.app == 'true' }}"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -150,7 +150,7 @@ jobs:
       - name: Generate coverage
         run: npm run test:coverage
       - name: Publish coverage summary
-        if: always()
+        if: "${{ always() }}"
         run: |
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('fs');
@@ -177,7 +177,7 @@ jobs:
   database:
     name: Database
     needs: changes
-    if: needs.changes.outputs.database == 'true'
+    if: "${{ needs.changes.outputs.database == 'true' }}"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -209,7 +209,7 @@ jobs:
   openapi:
     name: OpenAPI
     needs: changes
-    if: needs.changes.outputs.openapi == 'true'
+    if: "${{ needs.changes.outputs.openapi == 'true' }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -223,11 +223,7 @@ jobs:
   docker:
     name: Docker
     needs: [changes, quality, database]
-    if: >-
-      always() &&
-      needs.changes.outputs.docker == 'true' &&
-      (needs.quality.result == 'success' || needs.quality.result == 'skipped') &&
-      (needs.database.result == 'success' || needs.database.result == 'skipped')
+    if: "${{ always() && needs.changes.outputs.docker == 'true' && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.database.result == 'success' || needs.database.result == 'skipped') }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -244,7 +240,7 @@ jobs:
   workflow-validation:
     name: Workflow validation
     needs: changes
-    if: needs.changes.outputs.workflow == 'true'
+    if: "${{ needs.changes.outputs.workflow == 'true' }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -254,7 +250,7 @@ jobs:
   codeql:
     name: CodeQL
     needs: changes
-    if: needs.changes.outputs.security == 'true' && github.event_name == 'pull_request'
+    if: "${{ needs.changes.outputs.security == 'true' && github.event_name == 'pull_request' }}"
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -273,7 +269,7 @@ jobs:
   required:
     name: Required
     needs: [changes, quality, database, openapi, docker, workflow-validation, codeql]
-    if: always()
+    if: "${{ always() }}"
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate applicable checks
@@ -315,7 +311,7 @@ jobs:
   staging:
     name: Staging
     needs: docker
-    if: github.event_name == 'workflow_dispatch' && inputs.staging && needs.docker.result == 'success'
+    if: "${{ github.event_name == 'workflow_dispatch' && inputs.staging && needs.docker.result == 'success' }}"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -363,7 +359,7 @@ jobs:
       - name: Verify metrics authentication
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/metrics)" = "401"
       - name: Cleanup staging container
-        if: always()
+        if: "${{ always() }}"
         run: |
           docker logs express-app-staging || true
           docker rm -f express-app-staging || true
