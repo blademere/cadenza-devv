@@ -49,6 +49,18 @@ jobs:
             echo "docker=true" >> "$GITHUB_OUTPUT"
             echo "workflow=true" >> "$GITHUB_OUTPUT"
             echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            {
+              echo '## CI classification'
+              echo
+              echo '| Area | Required |'
+              echo '|---|---|'
+              echo '| Application | true |'
+              echo '| Database | true |'
+              echo '| OpenAPI | true |'
+              echo '| Docker | true |'
+              echo '| Workflow | true |'
+              echo '| Documentation only | false |'
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
