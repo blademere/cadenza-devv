@@ -3,20 +3,18 @@ const { ConflictError, NotFoundError, BadRequestError } = require('../../common/
 const { APPOINTMENT_STATUS } = require('./appointment.constants')
 const repository = require('./appointment.repository')
 const { recordAudit } = require('../../platform/audit/audit.service')
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
-const prisma = getPrismaClient()
 
 const createReferenceNumber = () => `APT-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 
 const listAppointmentTypes = ({ active }) => repository.listAppointmentTypes({ active })
 
-const createAppointmentType = async ({ actorId, data }) => prisma.$transaction(async (tx) => {
+const createAppointmentType = async ({ actorId, data }) => repository.withTransaction(async (tx) => {
   const created = await repository.createAppointmentType(data, tx)
   await recordAudit({ actorId, action: 'APPOINTMENT_TYPE_CREATED', entityType: 'AppointmentType', entityId: created.id, before: null, after: created, db: tx })
   return created
 })
 
-const createAvailabilitySchedule = async ({ actorId, data }) => prisma.$transaction(async (tx) => {
+const createAvailabilitySchedule = async ({ actorId, data }) => repository.withTransaction(async (tx) => {
   const type = await repository.findAppointmentType(data.appointmentTypeId, tx)
   if (!type) throw new NotFoundError('Appointment type not found.')
   if (data.startTime >= data.endTime) throw new BadRequestError('Schedule startTime must be earlier than endTime.')
@@ -27,7 +25,7 @@ const createAvailabilitySchedule = async ({ actorId, data }) => prisma.$transact
   return created
 })
 
-const createAppointmentSlot = async ({ actorId, data }) => prisma.$transaction(async (tx) => {
+const createAppointmentSlot = async ({ actorId, data }) => repository.withTransaction(async (tx) => {
   const type = await repository.findAppointmentType(data.appointmentTypeId, tx)
   if (!type) throw new NotFoundError('Appointment type not found.')
   if (data.endsAt <= data.startsAt) throw new BadRequestError('Slot endsAt must be later than startsAt.')
@@ -54,7 +52,7 @@ const bookAppointment = async ({ userId, appointmentTypeId, slotId, metadata, no
     await recordAudit({ actorId: userId, action: 'APPOINTMENT_CREATED', entityType: 'Appointment', entityId: created.id, before: null, after: created, db: tx })
     return created
   }
-  return db ? execute(db) : prisma.$transaction(execute)
+  return db ? execute(db) : repository.withTransaction(execute)
 }
 
 const getMyAppointment = async ({ id, userId }) => {
@@ -65,7 +63,7 @@ const getMyAppointment = async ({ id, userId }) => {
 
 const listMyAppointments = ({ userId }) => repository.listUserAppointments(userId)
 
-const cancelAppointment = async ({ id, userId }) => prisma.$transaction(async (tx) => {
+const cancelAppointment = async ({ id, userId }) => repository.withTransaction(async (tx) => {
   const appointment = await repository.findUserAppointment({ id, userId }, tx)
   if (!appointment) throw new NotFoundError('Appointment not found.')
   if (![APPOINTMENT_STATUS.PENDING, APPOINTMENT_STATUS.CONFIRMED].includes(appointment.status)) throw new ConflictError('Only pending or confirmed appointments can be cancelled.')
@@ -75,7 +73,7 @@ const cancelAppointment = async ({ id, userId }) => prisma.$transaction(async (t
   return updated
 })
 
-const updateAppointmentStatus = async ({ id, actorId, fromStatus, status, timestampField }) => prisma.$transaction(async (tx) => {
+const updateAppointmentStatus = async ({ id, actorId, fromStatus, status, timestampField }) => repository.withTransaction(async (tx) => {
   const before = await repository.findAppointment(id, tx)
   if (!before) throw new NotFoundError('Appointment not found.')
   const updated = await repository.transitionAppointment({ id, fromStatus, status, timestampField }, tx)

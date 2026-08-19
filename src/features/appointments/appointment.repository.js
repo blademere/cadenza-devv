@@ -1,5 +1,6 @@
 const { getPrismaClient } = require('../../infrastructure/database/prisma')
 const prisma = getPrismaClient()
+const withTransaction = (callback) => prisma.$transaction(callback)
 const findAppointmentType = (id, db = prisma) => db.appointmentType.findUnique({ where: { id } })
 const listAppointmentTypes = ({ active }, db = prisma) => db.appointmentType.findMany({ where: active === undefined ? undefined : { isActive: active }, orderBy: { name: 'asc' } })
 const createAppointmentType = (data, db = prisma) => db.appointmentType.create({ data })
@@ -20,4 +21,4 @@ const cancelAppointmentRecord = (id, db) => db.appointment.update({ where: { id 
 const releaseSlot = (slotId, db) => db.appointmentSlot.updateMany({ where: { id: slotId, bookedCount: { gt: 0 } }, data: { bookedCount: { decrement: 1 } } })
 const transitionAppointment = ({ id, fromStatus, status, timestampField }, db = prisma) => db.appointment.updateMany({ where: { id, status: fromStatus }, data: { status, [timestampField]: new Date() } })
 const getAppointmentWithRelations = (id, db = prisma) => db.appointment.findUnique({ where: { id }, include: { appointmentType: true, slot: true } })
-module.exports = { findAppointmentType, listAppointmentTypes, createAppointmentType, findSchedule, listActiveSchedules, createAvailabilitySchedule, createAppointmentSlot, findSlotByStart, listAppointmentSlots, findSlot, findActiveUserAppointmentForSlot, claimSlot, createAppointment, findUserAppointment, findAppointment, listUserAppointments, cancelAppointmentRecord, releaseSlot, transitionAppointment, getAppointmentWithRelations }
+module.exports = { withTransaction, findAppointmentType, listAppointmentTypes, createAppointmentType, findSchedule, listActiveSchedules, createAvailabilitySchedule, createAppointmentSlot, findSlotByStart, listAppointmentSlots, findSlot, findActiveUserAppointmentForSlot, claimSlot, createAppointment, findUserAppointment, findAppointment, listUserAppointments, cancelAppointmentRecord, releaseSlot, transitionAppointment, getAppointmentWithRelations }
