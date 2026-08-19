@@ -6,19 +6,20 @@ const { getPrismaClient, disconnectPrisma } = require('../src/infrastructure/dat
 const prisma = getPrismaClient()
 
 const modules = [
-  ['users', 'Users'], ['applications', 'Applications'], ['documents', 'Documents'], ['inspections', 'Inspections'], ['reports', 'Reports'], ['appointments', 'Appointments'], ['notifications', 'Notifications'], ['audit_logs', 'Audit Logs'],
+  ['users', 'Users'], ['applications', 'Applications'], ['professionals', 'Professionals'], ['documents', 'Documents'], ['inspections', 'Inspections'], ['reports', 'Reports'], ['appointments', 'Appointments'], ['notifications', 'Notifications'], ['audit_logs', 'Audit Logs'],
 ]
 const permissions = [
   ['users', 'read'], ['users', 'create'], ['users', 'update'], ['users', 'delete'],
   ['applications', 'read'], ['applications', 'create'], ['applications', 'update'], ['applications', 'delete'], ['applications', 'review'], ['applications', 'receive'], ['applications', 'approve'], ['applications', 'reject'],
+  ['professionals', 'read'], ['professionals', 'create'], ['professionals', 'review'], ['professionals', 'update'],
   ['documents', 'read'], ['documents', 'upload'], ['documents', 'delete'], ['inspections', 'read'], ['inspections', 'create'], ['inspections', 'update'], ['reports', 'read'],
   ['appointments', 'read'], ['appointments', 'create'], ['appointments', 'update'], ['appointments', 'cancel'], ['appointments', 'check_in'], ['appointments', 'no_show'], ['appointments', 'manage'],
   ['notifications', 'read'], ['notifications', 'manage'], ['audit_logs', 'read'],
 ]
 const rolePermissions = {
   client: ['applications:read', 'applications:create', 'applications:update', 'appointments:read', 'appointments:create', 'appointments:cancel'],
-  professional: ['applications:read', 'applications:create', 'applications:update', 'applications:review'],
-  receiving_officer: ['applications:read', 'applications:review', 'applications:receive', 'applications:approve', 'applications:reject', 'appointments:read', 'appointments:check_in', 'appointments:manage'],
+  professional: ['applications:read', 'applications:create', 'applications:update', 'professionals:create', 'professionals:read'],
+  receiving_officer: ['applications:read', 'applications:review', 'applications:receive', 'applications:approve', 'applications:reject', 'professionals:read', 'professionals:review', 'appointments:read', 'appointments:check_in', 'appointments:manage'],
 }
 
 async function seed() {
@@ -41,10 +42,8 @@ async function seed() {
     if (permission) await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles[roleName].id, permissionId: permission.id } }, update: {}, create: { roleId: roles[roleName].id, permissionId: permission.id } })
   }
   for (const permission of permissionRecords.values()) await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles.admin.id, permissionId: permission.id } }, update: {}, create: { roleId: roles.admin.id, permissionId: permission.id } })
-
   await prisma.oboPermitType.upsert({ where: { key: 'building-plan-permit' }, update: { name: 'Building Plan Permit', isActive: true }, create: { key: 'building-plan-permit', name: 'Building Plan Permit', description: 'Plan permit application for building construction and related work.' } })
   await prisma.appointmentType.upsert({ where: { key: 'obo-hardcopy-submission' }, update: { name: 'OBO Hardcopy Submission', isActive: true }, create: { key: 'obo-hardcopy-submission', name: 'OBO Hardcopy Submission', description: 'Physical hardcopy submission appointment for an OBO permit application.', defaultDurationMinutes: 30, defaultCapacity: 1 } })
-
   const adminEmail = process.env.SEED_ADMIN_EMAIL
   const adminPassword = process.env.SEED_ADMIN_PASSWORD
   if (adminEmail && adminPassword) {
@@ -54,5 +53,4 @@ async function seed() {
   } else console.log('No development admin configured; set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD to create one.')
   console.log(`Seeded ${modules.length} modules, ${permissionRecords.size} permissions, OBO plan permit type, appointment type, and application roles.`)
 }
-
 seed().catch((error) => { console.error(`Database seed failed: ${error.message}`); process.exitCode = 1 }).finally(async () => { await disconnectPrisma() })
