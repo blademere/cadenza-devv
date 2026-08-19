@@ -1,5 +1,7 @@
 const express = require("express")
-const { asyncHandler, authenticate, authorize, validate } = require("../../common/middleware")
+const { asyncHandler, validate } = require("../../common/middleware")
+const authenticate = require("../auth/authenticate")
+const authorize = require("../../platform/authorization/authorize")
 const { DOCUMENT_MODULE, DOCUMENT_ACTIONS, DEFAULT_MAX_FILE_SIZE_BYTES } = require("./document.constants")
 const { documentIdValidator } = require("./document.validation")
 const controller = require("./document.controller")

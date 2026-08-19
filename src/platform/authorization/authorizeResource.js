@@ -1,6 +1,6 @@
-const { ForbiddenError, NotFoundError } = require("../errors/appError")
-const accessControlService = require("../../platform/authorization/access-control.service")
-const { assertPolicy } = require("../../platform/authorization/access-control.policy")
+const { ForbiddenError, NotFoundError } = require("../../common/errors/appError")
+const accessControlService = require("./access-control.service")
+const { assertPolicy } = require("./access-control.policy")
 
 const authorizeResource = ({
   resource,

@@ -1,10 +1,7 @@
 const express = require('express')
-const {
-  asyncHandler,
-  authenticate,
-  authorize,
-  validate,
-} = require('../../common/middleware')
+const { asyncHandler, validate } = require('../../common/middleware')
+const authenticate = require('../auth/authenticate')
+const authorize = require('../../platform/authorization/authorize')
 const {
   APPOINTMENT_MODULE,
   APPOINTMENT_ACTIONS,

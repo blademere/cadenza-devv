@@ -1,5 +1,7 @@
 const express = require("express")
-const { asyncHandler, authenticate, authorize, validate } = require("../../common/middleware")
+const { asyncHandler, validate } = require("../../common/middleware")
+const authenticate = require("../auth/authenticate")
+const authorize = require("../../platform/authorization/authorize")
 const { NOTIFICATION_MODULE, NOTIFICATION_ACTIONS } = require("./notification.constants")
 const validation = require("./notification.validation")
 const controller = require("./notification.controller")

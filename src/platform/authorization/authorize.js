@@ -1,5 +1,5 @@
-const { ForbiddenError } = require("../errors/appError")
-const accessControlService = require("../../platform/authorization/access-control.service")
+const { ForbiddenError } = require("../../common/errors/appError")
+const accessControlService = require("./access-control.service")
 
 const authorize = (resource, action) => {
   return async (req, _res, next) => {
