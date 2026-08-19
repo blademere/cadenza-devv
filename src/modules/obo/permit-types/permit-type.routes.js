@@ -6,5 +6,6 @@ const controller = require('./permit-type.controller')
 
 const router = express.Router()
 router.get('/', authenticate, authorize('obo_plan_permits', 'read'), asyncHandler(controller.list))
+router.get('/:permitTypeId/form', authenticate, authorize('obo_plan_permits', 'read'), asyncHandler(controller.getForm))
 
 module.exports = router
