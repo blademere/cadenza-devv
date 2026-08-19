@@ -32,6 +32,9 @@ describe("appointment slot generation", () => {
           return { id: `slot-${created.length}`, ...data }
         }),
       },
+      auditLog: {
+        create: vi.fn().mockResolvedValue({ id: "audit-1" }),
+      },
     }))
 
     const result = await generateSlots({
