@@ -9,7 +9,7 @@ const { evaluateCondition, getPathValue } = require('../rules/rule.service')
 const { recordAudit } = require('../audit/audit.service')
 const { enqueueJob } = require('../jobs/job.service')
 const { JOB_NAMES, JOB_QUEUES } = require('../jobs/job.constants')
-const { NOTIFICATION_CHANNEL_LIST } = require('./notification.constants')
+const { NOTIFICATION_CHANNEL_LIST, NOTIFICATION_CHANNELS } = require('./notification.constants')
 
 const RECIPIENT_TYPES = Object.freeze([
   'STATIC',
@@ -99,6 +99,31 @@ const resolveRecipients = async (rule, context) => {
   return users.map((user) => user.email).filter(Boolean)
 }
 
+const resolvePreferredDelivery = async ({ channel, recipient, db }) => {
+  const normalizedChannel = normalizeChannel(channel)
+  if (normalizedChannel === NOTIFICATION_CHANNELS.IN_APP) {
+    return { channel: normalizedChannel, recipient: String(recipient), enabled: true }
+  }
+
+  const numericUserId = Number(recipient)
+  if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
+    return { channel: normalizedChannel, recipient: String(recipient), enabled: true }
+  }
+
+  const user = await db.user.findUnique({
+    where: { id: numericUserId },
+    select: { id: true, email: true, isActive: true, notificationPreferences: true },
+  })
+  if (!user || !user.isActive) return { channel: normalizedChannel, recipient: String(recipient), enabled: false }
+
+  const preference = user.notificationPreferences.find((item) => item.channel === normalizedChannel)
+  if (!preference?.enabled) return { channel: normalizedChannel, recipient: String(recipient), enabled: false }
+
+  const destination = preference.destination || (normalizedChannel === NOTIFICATION_CHANNELS.EMAIL ? user.email : null)
+  if (!destination) return { channel: normalizedChannel, recipient: String(recipient), enabled: false }
+  return { channel: normalizedChannel, recipient: destination, enabled: true }
+}
+
 const computeRetryAt = (attempt) => new Date(Date.now() + Math.min(3600, 2 ** Math.max(0, attempt - 1) * 30) * 1000)
 const sanitizeError = (error) => String(error?.message || error || 'Notification delivery failed').slice(0, MAX_ERROR_LENGTH)
 
@@ -137,13 +162,16 @@ const queueNotifications = async ({ event, entityType = null, context = {}, db =
     const subject = render(rule.template.subject, context)
     const body = render(rule.template.body, context)
     const recipients = [...new Set((await resolveRecipients(rule, context)).map((item) => String(item).trim()).filter(Boolean))]
-    for (const recipient of recipients) {
+    for (const originalRecipient of recipients) {
+      const preferred = await resolvePreferredDelivery({ channel, recipient: originalRecipient, db })
+      if (!preferred.enabled) continue
+      const recipient = preferred.recipient
       const idempotencyKey = stableIdempotencyKey({ correlationId: context.correlationId, event, ruleId: rule.id, recipient, templateId: rule.templateId })
       const delivery = await db.$transaction(async (tx) => {
         let notificationId = null
-        if (channel === 'IN_APP') {
-          const userId = Number(recipient)
-          if (!Number.isInteger(userId) || userId <= 0) throw new BadRequestError(`In-app notification recipient '${recipient}' is not a valid user id.`)
+        if (channel === NOTIFICATION_CHANNELS.IN_APP) {
+          const userId = Number(originalRecipient)
+          if (!Number.isInteger(userId) || userId <= 0) throw new BadRequestError(`In-app notification recipient '${originalRecipient}' is not a valid user id.`)
           const notification = await tx.notification.upsert({
             where: { idempotencyKey: `${idempotencyKey}:in-app` },
             create: { userId, type: event, title: subject || rule.template.name, message: body, data: context, idempotencyKey: `${idempotencyKey}:in-app` },
@@ -160,13 +188,13 @@ const queueNotifications = async ({ event, entityType = null, context = {}, db =
             notificationId,
             recipient,
             channel,
-            status: channel === 'IN_APP' ? DELIVERY_STATUS.SENT : DELIVERY_STATUS.QUEUED,
+            status: channel === NOTIFICATION_CHANNELS.IN_APP ? DELIVERY_STATUS.SENT : DELIVERY_STATUS.QUEUED,
             payload: { subject, body, context },
           },
           update: notificationId ? { notificationId } : {},
         })
       })
-      if (channel !== 'IN_APP' && delivery.status === DELIVERY_STATUS.QUEUED) {
+      if (channel !== NOTIFICATION_CHANNELS.IN_APP && delivery.status === DELIVERY_STATUS.QUEUED) {
         await enqueueJob({ queue: JOB_QUEUES.NOTIFICATIONS, name: JOB_NAMES.NOTIFICATION_DELIVERY, data: { deliveryId: delivery.id }, jobId: `notification-delivery-${delivery.id}` })
       }
       deliveries.push(delivery)
@@ -175,4 +203,4 @@ const queueNotifications = async ({ event, entityType = null, context = {}, db =
   return deliveries
 }
 
-module.exports = { render, createNotificationTemplate, createNotificationRule, queueNotifications, resolveRecipients, stableIdempotencyKey, claimDelivery, markDeliverySent, markDeliveryFailed, validateTemplateChannel, normalizeChannel, computeRetryAt, DELIVERY_STATUS, MAX_ATTEMPTS }
+module.exports = { render, createNotificationTemplate, createNotificationRule, queueNotifications, resolveRecipients, resolvePreferredDelivery, stableIdempotencyKey, claimDelivery, markDeliverySent, markDeliveryFailed, validateTemplateChannel, normalizeChannel, computeRetryAt, DELIVERY_STATUS, MAX_ATTEMPTS }
