@@ -26,7 +26,7 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   return prisma.$transaction(async (tx) => {
     const updated = await repository.update(id, { status: accepted ? 'VERIFIED' : 'DECLINED', verifiedByUserId: actorId, verifiedAt: new Date(), verificationReason: reason?.trim() || null }, tx)
     await repository.addDecision({ professionalId: id, decision, reason: reason?.trim() || null, decidedByUserId: actorId }, tx)
-    const person = await tx.person.findUnique({ where: { id: professional.personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
+    const person = await tx?.person?.findUnique?.({ where: { id: professional.personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
     await publish({
       db: tx,
       event: 'obo.professional.verification.decided',
