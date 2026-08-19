@@ -80,17 +80,19 @@ jobs:
           fi
           printf 'app=%s\ndatabase=%s\nopenapi=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\n' \
             "$app" "$database" "$openapi" "$docker" "$workflow" "$security" "$docs_only" >> "$GITHUB_OUTPUT"
-          echo '## CI classification' >> "$GITHUB_STEP_SUMMARY"
-          echo >> "$GITHUB_STEP_SUMMARY"
-          echo '| Area | Required |' >> "$GITHUB_STEP_SUMMARY"
-          echo '|---|---|' >> "$GITHUB_STEP_SUMMARY"
-          echo "| Application | $app |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Database | $database |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| OpenAPI | $openapi |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Docker | $docker |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Workflow | $workflow |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Security analysis | $security |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Documentation only | $docs_only |" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo '## CI classification'
+            echo
+            echo '| Area | Required |'
+            echo '|---|---|'
+            echo "| Application | $app |"
+            echo "| Database | $database |"
+            echo "| OpenAPI | $openapi |"
+            echo "| Docker | $docker |"
+            echo "| Workflow | $workflow |"
+            echo "| Security analysis | $security |"
+            echo "| Documentation only | $docs_only |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   quality:
     name: Quality
@@ -100,14 +102,19 @@ jobs:
     services:
       postgres:
         image: postgres:16
-        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: express_app_test }
-        ports: ['5432:5432']
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: express_app_test
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d express_app_test"
           --health-interval 10s --health-timeout 5s --health-retries 5
       redis:
         image: redis:7
-        ports: ['6379:6379']
+        ports:
+          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s --health-timeout 5s --health-retries 5
@@ -119,7 +126,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
-        with: { node-version: 22, cache: npm }
+        with:
+          node-version: 22
+          cache: npm
       - run: npm ci
       - name: Dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
@@ -131,25 +140,32 @@ jobs:
       - run: npx prisma generate --schema=prisma/schema.prisma
       - run: npx prisma migrate deploy --schema=prisma/schema.prisma
       - run: npm test
-      - name: Install coverage provider
-        run: npm install --no-save --no-package-lock @vitest/coverage-v8@4.1.10
       - name: Generate coverage
         run: npm run test:coverage
       - name: Publish coverage summary
         if: always()
         run: |
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
-          const fs = require('fs')
-          const file = 'coverage/coverage-summary.json'
-          if (!fs.existsSync(file)) { console.log('## Test coverage\n\nCoverage summary was not generated.'); process.exit(0) }
-          const t = JSON.parse(fs.readFileSync(file, 'utf8')).total
-          console.log('## Test coverage\n')
-          console.log('| Metric | Covered | Total | Percentage |')
-          console.log('|---|---:|---:|---:|')
-          for (const [name, value] of Object.entries(t)) console.log(`| ${name} | ${value.covered ?? '-'} | ${value.total ?? '-'} | ${value.pct ?? '-'}% |`)
+          const fs = require('fs');
+          const file = 'coverage/coverage-summary.json';
+          console.log('## Test coverage\n');
+          if (!fs.existsSync(file)) {
+            console.log('Coverage summary was not generated.');
+            process.exit(0);
+          }
+          const total = JSON.parse(fs.readFileSync(file, 'utf8')).total;
+          console.log('| Metric | Covered | Total | Percentage |');
+          console.log('|---|---:|---:|---:|');
+          for (const [name, value] of Object.entries(total)) {
+            console.log(`| ${name} | ${value.covered ?? '-'} | ${value.total ?? '-'} | ${value.pct ?? '-'}% |`);
+          }
           NODE
       - uses: actions/upload-artifact@v7
-        with: { name: vitest-coverage, path: coverage/, if-no-files-found: error, retention-days: 14 }
+        with:
+          name: vitest-coverage
+          path: coverage/
+          if-no-files-found: error
+          retention-days: 14
 
   database:
     name: Database
@@ -159,8 +175,12 @@ jobs:
     services:
       postgres:
         image: postgres:16
-        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: express_app_migrations }
-        ports: ['5432:5432']
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: express_app_migrations
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d express_app_migrations"
           --health-interval 5s --health-timeout 5s --health-retries 10
@@ -170,7 +190,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
-        with: { node-version: 22, cache: npm }
+        with:
+          node-version: 22
+          cache: npm
       - run: npm ci
       - run: npm run validate:migrations
       - run: npx prisma validate --schema=prisma/schema.prisma
@@ -185,7 +207,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
-        with: { node-version: 22, cache: npm }
+        with:
+          node-version: 22
+          cache: npm
       - run: npm ci
       - run: node scripts/validate-openapi.cjs
 
@@ -222,7 +246,7 @@ jobs:
   codeql:
     name: CodeQL
     needs: changes
-    if: needs.changes.outputs.security == 'true' && github.event_name == 'pull_request'
+    if: ${{ needs.changes.outputs.security == 'true' && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -231,9 +255,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v4
-        with: { languages: javascript-typescript, queries: security-extended }
+        with:
+          languages: javascript-typescript
+          queries: security-extended
       - uses: github/codeql-action/analyze@v4
-        with: { category: /language:javascript-typescript }
+        with:
+          category: '/language:javascript-typescript'
 
   required:
     name: Required
@@ -285,14 +312,19 @@ jobs:
     services:
       postgres:
         image: postgres:16
-        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: express_app_staging }
-        ports: ['5432:5432']
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: express_app_staging
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d express_app_staging"
           --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
         image: redis:7
-        ports: ['6379:6379']
+        ports:
+          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 10
@@ -321,4 +353,6 @@ jobs:
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/metrics)" = "401"
       - name: Cleanup staging container
         if: always()
-        run: docker logs express-app-staging || true; docker rm -f express-app-staging || true
+        run: |
+          docker logs express-app-staging || true
+          docker rm -f express-app-staging || true
