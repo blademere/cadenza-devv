@@ -113,14 +113,15 @@ const createWorkflow = async ({ key, name, description = null, steps, transition
   return workflow
 }
 
-const startWorkflow = async ({ workflowKey, subjectType, subjectId, actorId = null, metadata }) => {
+const startWorkflow = async ({ workflowKey, subjectType, subjectId, actorId = null, metadata, db = prisma }) => {
   if (!subjectType || subjectId === undefined || subjectId === null) throw new BadRequestError("subjectType and subjectId are required.")
-  const version = await findPublishedVersion(workflowKey)
+  const version = await findPublishedVersion(workflowKey, db)
   if (!version) throw new NotFoundError(`Published workflow '${workflowKey}' was not found.`)
   const initialStep = version.steps.find((step) => step.isInitial)
   if (!initialStep) throw new BadRequestError("The published workflow has no initial step.")
   const normalizedSubjectId = String(subjectId)
-  const instance = await prisma.$transaction(async (tx) => {
+
+  const createInstance = async (tx) => {
     const created = await tx.workflowInstance.create({ data: { workflowVersionId: version.id, currentStepId: initialStep.id, subjectType, subjectId: normalizedSubjectId, startedByUserId: actorId } })
     await tx.workflowHistory.create({ data: { instanceId: created.id, toStepId: initialStep.id, actorId, metadata: metadata || undefined } })
     await publish({
@@ -133,20 +134,22 @@ const startWorkflow = async ({ workflowKey, subjectType, subjectId, actorId = nu
       idempotencyKey: `workflow:${created.id}:started`,
     })
     return created
-  })
-  await recordAudit({ actorId, action: WORKFLOW_ACTIONS.STARTED, entityType: "WorkflowInstance", entityId: instance.id, after: instance, metadata: { workflowKey, subjectType, subjectId: normalizedSubjectId } })
-  return findInstance(instance.id)
+  }
+
+  const instance = db === prisma ? await prisma.$transaction(createInstance) : await createInstance(db)
+  await recordAudit({ actorId, action: WORKFLOW_ACTIONS.STARTED, entityType: "WorkflowInstance", entityId: instance.id, after: instance, metadata: { workflowKey, subjectType, subjectId: normalizedSubjectId }, db: db === prisma ? undefined : db })
+  return db === prisma ? findInstance(instance.id) : instance
 }
 
-const transitionWorkflow = async ({ instanceId, transitionKey, actorId = null, metadata }) => {
-  const instance = await findInstance(instanceId)
+const transitionWorkflow = async ({ instanceId, transitionKey, actorId = null, metadata, db = prisma }) => {
+  const instance = await findInstance(instanceId, db)
   if (!instance) throw new NotFoundError("Workflow instance not found.")
   if (instance.completedAt) throw new ConflictError("Workflow instance is already completed.")
-  const transition = await prisma.workflowTransition.findFirst({ where: { workflowVersionId: instance.workflowVersionId, fromStepId: instance.currentStepId, key: transitionKey }, include: { toStep: true } })
+  const transition = await db.workflowTransition.findFirst({ where: { workflowVersionId: instance.workflowVersionId, fromStepId: instance.currentStepId, key: transitionKey }, include: { toStep: true } })
   if (!transition) throw new BadRequestError(`Transition '${transitionKey}' is not available from step '${instance.currentStep.key}'.`)
   await assertTransitionPermission({ transition, actorId })
 
-  const updated = await prisma.$transaction(async (tx) => {
+  const executeTransition = async (tx) => {
     const result = await tx.workflowInstance.updateMany({ where: { id: instanceId, currentStepId: instance.currentStepId, completedAt: null }, data: { currentStepId: transition.toStepId, completedAt: transition.toStep.isFinal ? new Date() : null } })
     if (result.count !== 1) throw new ConflictError("Workflow instance changed concurrently. Retry the transition.")
     await tx.workflowHistory.create({ data: { instanceId, fromStepId: instance.currentStepId, toStepId: transition.toStepId, transitionId: transition.id, actorId, metadata: metadata || undefined } })
@@ -167,10 +170,20 @@ const transitionWorkflow = async ({ instanceId, transitionKey, actorId = null, m
       idempotencyKey: `workflow:${instanceId}:transition:${transition.id}:${transition.toStepId}`,
     })
     return tx.workflowInstance.findUnique({ where: { id: instanceId }, include: { currentStep: true } })
-  })
+  }
 
+  const updated = db === prisma ? await prisma.$transaction(executeTransition) : await executeTransition(db)
   const action = transition.toStep.isFinal ? WORKFLOW_ACTIONS.COMPLETED : WORKFLOW_ACTIONS.TRANSITIONED
-  await recordAudit({ actorId, action, entityType: "WorkflowInstance", entityId: instanceId, before: { currentStepId: instance.currentStepId, currentStep: instance.currentStep.key }, after: { currentStepId: updated.currentStepId, currentStep: updated.currentStep.key }, metadata: { transitionKey, transitionId: transition.id, ...metadata } })
+  await recordAudit({
+    actorId,
+    action,
+    entityType: "WorkflowInstance",
+    entityId: instanceId,
+    before: { currentStepId: instance.currentStepId, currentStep: instance.currentStep.key },
+    after: { currentStepId: updated.currentStepId, currentStep: updated.currentStep.key },
+    metadata: { transitionKey, transitionId: transition.id, ...metadata },
+    db: db === prisma ? undefined : db,
+  })
   return updated
 }
 
