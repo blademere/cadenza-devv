@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "format:check": "node scripts/format-check.cjs",
     "validate:architecture": "node scripts/validate-architecture.cjs",
+    "validate:migrations": "node scripts/validate-migrations.cjs",
     "test": "prisma generate && vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --dir tests/unit",
@@ -44,7 +45,6 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1",
     "express-rate-limit": "^8.6.2",
     "helmet": "^8.3.0",
     "hpp": "^0.2.3",
@@ -70,8 +70,8 @@
     "lint-staged": "^17.3.0",
     "nodemon": "^3.1.14",
     "prettier": "^3.9.6",
-    "prisma": "^7.9.1",
     "supertest": "^7.2.2",
+    "prisma": "^7.9.1",
     "vitest": "^4.1.10"
   },
   "overrides": {
@@ -82,7 +82,7 @@
     "prisma@7.9.1": true,
     "@prisma/engines@7.9.1": true,
     "bcrypt@6.0.0": true,
-    "msgpackr-extract@3.0.4": true,
+    "msgpackr-extract@3.0.0": true,
     "@scarf/scarf@1.4.0": true
   }
 }
