@@ -27,7 +27,7 @@ model OboProfessional {
   verifiedBy            User?                                 @relation("OboProfessionalVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
   applications          OboPermitApplication[]
   verificationDecisions OboProfessionalVerificationDecision[]
-  createdAt             DateTime                              @default(uuid())
+  createdAt             DateTime                              @default(now())
   updatedAt             DateTime                              @updatedAt
 
   @@index([status])
