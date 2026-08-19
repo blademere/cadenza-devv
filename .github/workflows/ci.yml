@@ -30,6 +30,7 @@ jobs:
       openapi: ${{ steps.filter.outputs.openapi }}
       docker: ${{ steps.filter.outputs.docker }}
       workflow: ${{ steps.filter.outputs.workflow }}
+      docs_only: ${{ steps.filter.outputs.docs_only }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -47,6 +48,7 @@ jobs:
             echo "openapi=true" >> "$GITHUB_OUTPUT"
             echo "docker=true" >> "$GITHUB_OUTPUT"
             echo "workflow=true" >> "$GITHUB_OUTPUT"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -76,28 +78,36 @@ jobs:
                 app=true
                 ;;
             esac
-
             case "$file" in
               prisma/**|prisma.config.ts|scripts/validate-migrations.cjs)
                 database=true
                 ;;
             esac
-
             case "$file" in
               src/**|docs/auth.yaml|scripts/validate-openapi.cjs)
                 openapi=true
                 ;;
             esac
-
             case "$file" in
               src/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts)
                 docker=true
                 ;;
             esac
-
             case "$file" in
-              .github/workflows/**)
+              .github/workflows/**|.github/dependabot.yml)
                 workflow=true
+                ;;
+            esac
+          done
+
+          docs_only=true
+          for file in "${files[@]}"; do
+            case "$file" in
+              docs/**|README.md|*.md)
+                ;;
+              *)
+                docs_only=false
+                break
                 ;;
             esac
           done
@@ -107,13 +117,20 @@ jobs:
           echo "openapi=$openapi" >> "$GITHUB_OUTPUT"
           echo "docker=$docker" >> "$GITHUB_OUTPUT"
           echo "workflow=$workflow" >> "$GITHUB_OUTPUT"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
 
-          echo "Detected areas:"
-          echo "  app=$app"
-          echo "  database=$database"
-          echo "  openapi=$openapi"
-          echo "  docker=$docker"
-          echo "  workflow=$workflow"
+          {
+            echo '## CI classification'
+            echo
+            echo '| Area | Required |'
+            echo '|---|---|'
+            echo "| Application | $app |"
+            echo "| Database | $database |"
+            echo "| OpenAPI | $openapi |"
+            echo "| Docker | $docker |"
+            echo "| Workflow | $workflow |"
+            echo "| Documentation only | $docs_only |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   quality:
     name: Quality
@@ -162,6 +179,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Lint
         run: npm run lint
+      - name: Formatting check
+        run: npm run format:check
       - name: Architecture enforcement
         run: npm run validate:architecture
       - name: Migration hygiene
@@ -174,6 +193,17 @@ jobs:
         run: npx prisma migrate deploy --schema=prisma/schema.prisma
       - name: Run test suite
         run: npm test
+      - name: Install coverage provider
+        run: npm install --no-save --no-package-lock @vitest/coverage-v8@4.1.10
+      - name: Generate coverage report
+        run: npm run test:coverage
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: vitest-coverage
+          path: coverage/
+          if-no-files-found: error
+          retention-days: 14
 
   database:
     name: Database
@@ -272,9 +302,31 @@ jobs:
         run: |
           ruby -e 'require "yaml"; Dir[".github/workflows/*.{yml,yaml}"].each { |f| YAML.load_file(f); puts "valid: #{f}" }'
 
+  codeql:
+    name: CodeQL
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript
+
   required:
     name: Required
-    needs: [quality, database, openapi, docker, workflow-validation]
+    needs: [quality, database, openapi, docker, workflow-validation, codeql]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -285,15 +337,18 @@ jobs:
           OPENAPI: ${{ needs.openapi.result }}
           DOCKER: ${{ needs.docker.result }}
           WORKFLOW: ${{ needs.workflow-validation.result }}
+          CODEQL: ${{ needs.codeql.result }}
         run: |
           set -euo pipefail
-          echo "quality=$QUALITY"
-          echo "database=$DATABASE"
-          echo "openapi=$OPENAPI"
-          echo "docker=$DOCKER"
-          echo "workflow=$WORKFLOW"
+          printf '%s\n' \
+            "quality=$QUALITY" \
+            "database=$DATABASE" \
+            "openapi=$OPENAPI" \
+            "docker=$DOCKER" \
+            "workflow=$WORKFLOW" \
+            "codeql=$CODEQL"
 
-          for result in "$QUALITY" "$DATABASE" "$OPENAPI" "$DOCKER" "$WORKFLOW"; do
+          for result in "$QUALITY" "$DATABASE" "$OPENAPI" "$DOCKER" "$WORKFLOW" "$CODEQL"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               echo "A required CI job failed or was cancelled."
               exit 1
