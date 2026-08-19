@@ -153,11 +153,22 @@ const queueNotifications = async ({ event, entityType = null, context = {}, db =
         }
         return tx.notificationDelivery.upsert({
           where: { idempotencyKey },
-          create: { idempotencyKey, ruleId: rule.id, templateId: rule.templateId, notificationId, recipient, channel, status: DELIVERY_STATUS.QUEUED, payload: { subject, body, context } },
+          create: {
+            idempotencyKey,
+            ruleId: rule.id,
+            templateId: rule.templateId,
+            notificationId,
+            recipient,
+            channel,
+            status: channel === 'IN_APP' ? DELIVERY_STATUS.SENT : DELIVERY_STATUS.QUEUED,
+            payload: { subject, body, context },
+          },
           update: notificationId ? { notificationId } : {},
         })
       })
-      if (delivery.status === DELIVERY_STATUS.QUEUED) await enqueueJob({ queue: JOB_QUEUES.NOTIFICATIONS, name: JOB_NAMES.NOTIFICATION_DELIVERY, data: { deliveryId: delivery.id }, jobId: `notification-delivery-${delivery.id}` })
+      if (channel !== 'IN_APP' && delivery.status === DELIVERY_STATUS.QUEUED) {
+        await enqueueJob({ queue: JOB_QUEUES.NOTIFICATIONS, name: JOB_NAMES.NOTIFICATION_DELIVERY, data: { deliveryId: delivery.id }, jobId: `notification-delivery-${delivery.id}` })
+      }
       deliveries.push(delivery)
     }
   }
