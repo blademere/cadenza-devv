@@ -9,9 +9,7 @@ const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo', required: true })
 const applicationsRead = authorize(ACCESS_CONTROL_MODULES.APPLICATIONS, ACCESS_CONTROL_ACTIONS.READ)
 const applicationsCreate = authorize(ACCESS_CONTROL_MODULES.APPLICATIONS, ACCESS_CONTROL_ACTIONS.CREATE)
-const applicationsReview = authorize(ACCESS_CONTROL_MODULES.APPLICATIONS, ACCESS_CONTROL_ACTIONS.REVIEW)
 const applicationsReceive = authorize(ACCESS_CONTROL_MODULES.APPLICATIONS, ACCESS_CONTROL_ACTIONS.RECEIVE)
-const professionalsRead = authorize(ACCESS_CONTROL_MODULES.PROFESSIONALS, ACCESS_CONTROL_ACTIONS.READ)
 const professionalsCreate = authorize(ACCESS_CONTROL_MODULES.PROFESSIONALS, ACCESS_CONTROL_ACTIONS.CREATE)
 const professionalsReview = authorize(ACCESS_CONTROL_MODULES.PROFESSIONALS, ACCESS_CONTROL_ACTIONS.REVIEW)
 
@@ -26,5 +24,4 @@ router.post('/applications/:id/submit', authenticate, applicationsCreate, requir
 router.post('/applications/:id/submission-appointment', authenticate, applicationsCreate, requireIdempotency, validate(validation.submissionAppointmentValidator), asyncHandler(controller.bookSubmissionAppointment))
 router.get('/receiving/applications', authenticate, applicationsReceive, validate(validation.receivingListValidator), asyncHandler(controller.listReceivingApplications))
 router.post('/receiving/applications/:id/decision', authenticate, applicationsReceive, requireIdempotency, validate(validation.receivingDecisionValidator), asyncHandler(controller.receiveApplication))
-
 module.exports = router
