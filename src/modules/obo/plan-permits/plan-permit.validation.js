@@ -11,6 +11,15 @@ const createApplicationValidator = async (req) => ({
   }).parse(req.body || {}),
 })
 
+const updateApplicationValidator = async (req) => ({
+  params: applicationParams,
+  body: z.object({
+    professionalId: uuid.optional(),
+    formVersionId: uuid.optional(),
+    formValues: z.record(z.string(), z.unknown()),
+  }).parse(req.body || {}),
+})
+
 const applicationParamsValidator = async (req) => ({ params: applicationParams })
 
 const submissionAppointmentValidator = async (req) => ({
@@ -24,6 +33,7 @@ const submissionAppointmentValidator = async (req) => ({
 
 module.exports = {
   createApplicationValidator,
+  updateApplicationValidator,
   applicationParamsValidator,
   submissionAppointmentValidator,
 }
