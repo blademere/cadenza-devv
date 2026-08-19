@@ -4,6 +4,7 @@ const {
   createPaginationMeta,
 } = require('../../common/pagination/pagination')
 const {
+  createCaseType,
   createCase,
   findCaseById,
   findCaseTypeById,
@@ -12,7 +13,18 @@ const {
   transitionCase,
 } = require('./cases.repository')
 
-const create = async (data) => {
+const createType = async (data) => {
+  if (!data.key?.trim() || !data.name?.trim()) {
+    throw new BadRequestError('key and name are required.')
+  }
+  return createCaseType({
+    ...data,
+    key: data.key.trim(),
+    name: data.name.trim(),
+  })
+}
+
+const createRecord = async (data) => {
   if (!data.caseNumber || !data.caseTypeId || !data.title?.trim()) {
     throw new BadRequestError('caseNumber, caseTypeId, and title are required.')
   }
@@ -67,4 +79,10 @@ const transition = async ({ id, toStatus, changedByUserId, reason, metadata }) =
   return updated
 }
 
-module.exports = { create, getById, list, transition }
+module.exports = {
+  createType,
+  createRecord,
+  getById,
+  list,
+  transition,
+}
