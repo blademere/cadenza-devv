@@ -3,10 +3,6 @@
 require('dotenv').config()
 const bcrypt = require('bcrypt')
 const { getPrismaClient, disconnectPrisma } = require('../src/infrastructure/database/prisma')
-const {
-  ACCESS_CONTROL_MODULE_DEFINITIONS,
-  getPermissionDefinitions,
-} = require('../src/platform/authorization/access-control.registry')
 
 const prisma = getPrismaClient()
 
@@ -38,48 +34,62 @@ const rolePermissions = {
     'appointments:check_in',
     'appointments:manage',
   ],
+  admin: [
+    'authorization:manage',
+  ],
 }
+
+const permissionKeys = [
+  ...new Set(Object.values(rolePermissions).flat()),
+]
+
+const moduleName = (key) => key
+  .split(/[_-]+/)
+  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+  .join(' ')
 
 async function seed() {
   const moduleRecords = new Map()
-
-  for (const definition of ACCESS_CONTROL_MODULE_DEFINITIONS) {
-    moduleRecords.set(
-      definition.key,
-      await prisma.module.upsert({
-        where: { key: definition.key },
-        update: {
-          name: definition.name,
-          description: definition.description,
-        },
-        create: {
-          key: definition.key,
-          name: definition.name,
-          description: definition.description,
-        },
-      }),
-    )
-  }
-
   const permissionRecords = new Map()
 
-  for (const definition of getPermissionDefinitions()) {
-    const module = moduleRecords.get(definition.moduleKey)
+  for (const permissionKey of permissionKeys) {
+    const separatorIndex = permissionKey.indexOf(':')
+    const moduleKey = permissionKey.slice(0, separatorIndex)
+    const action = permissionKey.slice(separatorIndex + 1)
+
+    if (!moduleKey || !action) {
+      throw new Error(`Invalid permission key: ${permissionKey}`)
+    }
+
+    let module = moduleRecords.get(moduleKey)
+
+    if (!module) {
+      module = await prisma.module.upsert({
+        where: { key: moduleKey },
+        update: {},
+        create: {
+          key: moduleKey,
+          name: moduleName(moduleKey),
+        },
+      })
+      moduleRecords.set(moduleKey, module)
+    }
+
     const permission = await prisma.permission.upsert({
       where: {
         moduleId_action: {
           moduleId: module.id,
-          action: definition.action,
+          action,
         },
       },
       update: {},
       create: {
         moduleId: module.id,
-        action: definition.action,
+        action,
       },
     })
 
-    permissionRecords.set(definition.key, permission)
+    permissionRecords.set(permissionKey, permission)
   }
 
   const roles = {
@@ -116,11 +126,11 @@ async function seed() {
     admin: await prisma.role.upsert({
       where: { name: 'admin' },
       update: {
-        description: 'Development administrator with all foundation permissions.',
+        description: 'Development administrator with authorization administration access.',
       },
       create: {
         name: 'admin',
-        description: 'Development administrator with all foundation permissions.',
+        description: 'Development administrator with authorization administration access.',
       },
     }),
   }
@@ -216,7 +226,7 @@ async function seed() {
   }
 
   console.log(
-    `Seeded ${ACCESS_CONTROL_MODULE_DEFINITIONS.length} modules, ${permissionRecords.size} permissions, OBO plan permit type, appointment type, and application roles.`,
+    `Seeded ${moduleRecords.size} modules, ${permissionRecords.size} permissions, OBO plan permit type, appointment type, and application roles.`,
   )
 }
 
