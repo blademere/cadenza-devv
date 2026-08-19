@@ -1,10 +1,13 @@
 const { ConflictError, NotFoundError } = require('../../../common/errors/appError')
 const appointmentService = require('../../../features/appointments/appointment.service')
 const formService = require('../../../platform/forms/form.service')
+const { startWorkflow, transitionWorkflow } = require('../../../platform/workflow/workflow.service')
 const { getPrismaClient } = require('../../../infrastructure/database/prisma')
 const repository = require('./plan-permit.repository')
 
 const prisma = getPrismaClient()
+const WORKFLOW_KEY = 'obo_plan_permit'
+const SUBJECT_TYPE = 'OboPermitApplication'
 const STATUS = Object.freeze({
   DRAFT: 'DRAFT',
   READY_FOR_SUBMISSION: 'READY_FOR_SUBMISSION',
@@ -18,6 +21,18 @@ const getClientPerson = async (userId) => {
   const person = await repository.findPersonByUserId(userId)
   if (!person) throw new ConflictError('The authenticated user does not have a person profile.')
   return person
+}
+
+const getWorkflowState = async (application) => {
+  if (!application.workflowInstanceId) throw new ConflictError('Permit application is not attached to a workflow instance.')
+  const instance = await repository.findWorkflowInstance(application.workflowInstanceId)
+  if (!instance) throw new ConflictError('Permit application workflow instance was not found.')
+  return instance
+}
+
+const withWorkflowState = async (application) => {
+  const workflow = await getWorkflowState(application)
+  return { ...application, status: workflow.currentStep.key, workflowInstanceId: workflow.id }
 }
 
 const resolveAndValidateForm = async ({ permitType, formVersionId, formValues }) => {
@@ -44,16 +59,32 @@ const createApplication = async ({ userId, permitTypeId, professionalId, formVer
   if (!professional) throw new NotFoundError('Professional registration not found.')
   if (professional.status !== 'VERIFIED') throw new ConflictError('The selected professional is not verified.')
   const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
-  return repository.create({ clientPersonId: person.id, permitTypeId, professionalId, formVersionId: resolvedForm.formVersionId, formValues, userId })
+  const application = await repository.create({ clientPersonId: person.id, permitTypeId, professionalId, formVersionId: resolvedForm.formVersionId, formValues, userId })
+  if (!application) throw new NotFoundError('Active permit type not found.')
+  if (application.notFound === 'professional') throw new NotFoundError('Professional registration not found.')
+
+  const workflow = await startWorkflow({
+    workflowKey: WORKFLOW_KEY,
+    subjectType: SUBJECT_TYPE,
+    subjectId: application.id,
+    actorId: userId,
+    metadata: { source: 'obo-plan-permit.create' },
+  })
+  const updated = await repository.update(application.id, { workflowInstanceId: workflow.id })
+  return withWorkflowState(updated)
 }
 
 const getMine = async ({ id, userId }) => {
   const person = await getClientPerson(userId)
   const application = await repository.findOwnedByClient(id, person.id)
   if (!application) throw new NotFoundError('Permit application not found.')
-  return application
+  return withWorkflowState(application)
 }
-const listMine = async ({ userId }) => repository.listByClient((await getClientPerson(userId)).id)
+
+const listMine = async ({ userId }) => {
+  const applications = await repository.listByClient((await getClientPerson(userId)).id)
+  return Promise.all(applications.map(withWorkflowState))
+}
 
 const updateDraft = async ({ id, userId, professionalId, formVersionId, formValues }) => {
   const application = await getMine({ id, userId })
@@ -63,13 +94,19 @@ const updateDraft = async ({ id, userId, professionalId, formVersionId, formValu
   if (!professional) throw new NotFoundError('Professional registration not found.')
   if (professional.status !== 'VERIFIED') throw new ConflictError('The selected professional is not verified.')
   const resolvedForm = await resolveAndValidateForm({ permitType: application.permitType, formVersionId: formVersionId || application.formVersionId, formValues })
-  return repository.update(id, { professionalId: selectedProfessionalId, formVersionId: resolvedForm.formVersionId, formValues })
+  return withWorkflowState(await repository.update(id, { professionalId: selectedProfessionalId, formVersionId: resolvedForm.formVersionId, formValues }))
 }
 
 const submit = async ({ id, userId }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be submitted.')
-  return repository.update(id, { status: STATUS.READY_FOR_SUBMISSION, submittedAt: null })
+  const workflow = await transitionWorkflow({
+    instanceId: application.workflowInstanceId,
+    transitionKey: 'SUBMIT_FOR_SUBMISSION',
+    actorId: userId,
+    metadata: { source: 'obo-plan-permit.submit' },
+  })
+  return withWorkflowState(await repository.update(id, {})).then((result) => ({ ...result, status: workflow.currentStep.key }))
 }
 
 const bookSubmissionAppointment = async ({ id, userId, appointmentTypeId, slotId, notes }) => {
@@ -77,10 +114,16 @@ const bookSubmissionAppointment = async ({ id, userId, appointmentTypeId, slotId
   if (application.status !== STATUS.READY_FOR_SUBMISSION) throw new ConflictError('Application must be ready for submission before booking an appointment.')
   if (application.submissionAppointment) throw new ConflictError('A submission appointment is already assigned.')
   const appointment = await appointmentService.bookAppointment({ userId, appointmentTypeId, slotId, metadata: { applicationId: id, purpose: 'OBO_HARDCOPY_SUBMISSION' }, notes })
-  return prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     await repository.createSubmissionAppointment({ applicationId: id, appointmentId: appointment.id }, tx)
-    return repository.update(id, { status: STATUS.SUBMISSION_SCHEDULED }, tx)
   })
+  const workflow = await transitionWorkflow({
+    instanceId: application.workflowInstanceId,
+    transitionKey: 'SCHEDULE_SUBMISSION',
+    actorId: userId,
+    metadata: { source: 'obo-plan-permit.schedule_submission', appointmentId: appointment.id },
+  })
+  return { ...await repository.update(id, {}), status: workflow.currentStep.key, workflowInstanceId: workflow.id }
 }
 
-module.exports = { STATUS, createApplication, getMine, listMine, updateDraft, submit, bookSubmissionAppointment }
+module.exports = { STATUS, WORKFLOW_KEY, SUBJECT_TYPE, createApplication, getMine, listMine, updateDraft, submit, bookSubmissionAppointment, getWorkflowState, withWorkflowState }
