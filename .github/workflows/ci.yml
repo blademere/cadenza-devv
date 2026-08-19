@@ -30,6 +30,7 @@ jobs:
       openapi: ${{ steps.filter.outputs.openapi }}
       docker: ${{ steps.filter.outputs.docker }}
       workflow: ${{ steps.filter.outputs.workflow }}
+      security: ${{ steps.filter.outputs.security }}
       docs_only: ${{ steps.filter.outputs.docs_only }}
     steps:
       - name: Checkout
@@ -41,108 +42,55 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "app=true" >> "$GITHUB_OUTPUT"
-            echo "database=true" >> "$GITHUB_OUTPUT"
-            echo "openapi=true" >> "$GITHUB_OUTPUT"
-            echo "docker=true" >> "$GITHUB_OUTPUT"
-            echo "workflow=true" >> "$GITHUB_OUTPUT"
-            echo "docs_only=false" >> "$GITHUB_OUTPUT"
-            {
-              echo '## CI classification'
-              echo
-              echo '| Area | Required |'
-              echo '|---|---|'
-              echo '| Application | true |'
-              echo '| Database | true |'
-              echo '| OpenAPI | true |'
-              echo '| Docker | true |'
-              echo '| Workflow | true |'
-              echo '| Documentation only | false |'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            base="${{ github.event.pull_request.base.sha }}"
-            head="${{ github.event.pull_request.head.sha }}"
+            app=true; database=true; openapi=true; docker=true; workflow=true; security=true; docs_only=false
           else
-            base="${{ github.event.before }}"
-            head="${{ github.sha }}"
-            if [[ "$base" == "0000000000000000000000000000000000000000" ]]; then
-              base="$(git rev-list --max-parents=1 "$head" | tail -n 1)"
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              base="${{ github.event.pull_request.base.sha }}"; head="${{ github.event.pull_request.head.sha }}"
+            else
+              base="${{ github.event.before }}"; head="${{ github.sha }}"
+              if [[ "$base" == "0000000000000000000000000000000000000000" ]]; then base="$(git rev-list --max-parents=1 "$head" | tail -n 1)"; fi
             fi
+            mapfile -t files < <(git diff --name-only "$base" "$head")
+            app=false; database=false; openapi=false; docker=false; workflow=false; security=false
+            for file in "${files[@]}"; do
+              case "$file" in
+                src/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|prisma.config.ts|.env.example) app=true ;;
+              esac
+              case "$file" in
+                prisma/**|prisma.config.ts|scripts/validate-migrations.cjs) database=true ;;
+              esac
+              case "$file" in
+                docs/openapi.yaml|scripts/validate-openapi.cjs) openapi=true ;;
+              esac
+              case "$file" in
+                src/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
+              esac
+              case "$file" in
+                src/**) security=true ;;
+              esac
+              case "$file" in
+                .github/workflows/**|.github/dependabot.yml) workflow=true ;;
+              esac
+            done
+            docs_only=true
+            for file in "${files[@]}"; do
+              case "$file" in docs/**|README.md|*.md) ;; *) docs_only=false; break ;; esac
+            done
           fi
-
-          mapfile -t files < <(git diff --name-only "$base" "$head")
-          printf 'Changed files:\n%s\n' "${files[*]:-none}"
-
-          app=false
-          database=false
-          openapi=false
-          docker=false
-          workflow=false
-
-          for file in "${files[@]}"; do
-            case "$file" in
-              src/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|prisma.config.ts|.env.example)
-                app=true
-                ;;
-            esac
-            case "$file" in
-              prisma/**|prisma.config.ts|scripts/validate-migrations.cjs)
-                database=true
-                ;;
-            esac
-            case "$file" in
-              src/**|docs/auth.yaml|scripts/validate-openapi.cjs)
-                openapi=true
-                ;;
-            esac
-            case "$file" in
-              src/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts)
-                docker=true
-                ;;
-            esac
-            case "$file" in
-              .github/workflows/**|.github/dependabot.yml)
-                workflow=true
-                ;;
-            esac
-          done
-
-          docs_only=true
-          for file in "${files[@]}"; do
-            case "$file" in
-              docs/**|README.md|*.md)
-                ;;
-              *)
-                docs_only=false
-                break
-                ;;
-            esac
-          done
-
-          echo "app=$app" >> "$GITHUB_OUTPUT"
-          echo "database=$database" >> "$GITHUB_OUTPUT"
-          echo "openapi=$openapi" >> "$GITHUB_OUTPUT"
-          echo "docker=$docker" >> "$GITHUB_OUTPUT"
-          echo "workflow=$workflow" >> "$GITHUB_OUTPUT"
-          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
-
-          {
-            echo '## CI classification'
-            echo
-            echo '| Area | Required |'
-            echo '|---|---|'
-            echo "| Application | $app |"
-            echo "| Database | $database |"
-            echo "| OpenAPI | $openapi |"
-            echo "| Docker | $docker |"
-            echo "| Workflow | $workflow |"
-            echo "| Documentation only | $docs_only |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          printf 'app=%s\ndatabase=%s\nopenapi=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\n' \
+            "$app" "$database" "$openapi" "$docker" "$workflow" "$security" "$docs_only" >> "$GITHUB_OUTPUT"
+          echo '## CI classification' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo '| Area | Required |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|---|---|' >> "$GITHUB_STEP_SUMMARY"
+          echo "| Application | $app |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Database | $database |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| OpenAPI | $openapi |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Docker | $docker |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Workflow | $workflow |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Security analysis | $security |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Documentation only | $docs_only |" >> "$GITHUB_STEP_SUMMARY"
 
   quality:
     name: Quality
@@ -152,70 +100,56 @@ jobs:
     services:
       postgres:
         image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: express_app_test
-        ports:
-          - 5432:5432
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: express_app_test }
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres -d express_app_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-interval 10s --health-timeout 5s --health-retries 5
       redis:
         image: redis:7
-        ports:
-          - 6379:6379
+        ports: ['6379:6379']
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-interval 10s --health-timeout 5s --health-retries 5
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app_test
       REDIS_URL: redis://localhost:6379
       PRISMA_GENERATE_SKIP_AUTOINSTALL: 'true'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
       - name: Dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
-      - name: Lint
-        run: npm run lint
-      - name: Formatting check
-        run: npm run format:check
-      - name: Architecture enforcement
-        run: npm run validate:architecture
-      - name: Migration hygiene
-        run: npm run validate:migrations
-      - name: Prisma validation
-        run: npx prisma validate --schema=prisma/schema.prisma
-      - name: Generate Prisma Client
-        run: npx prisma generate --schema=prisma/schema.prisma
-      - name: Apply database migrations
-        run: npx prisma migrate deploy --schema=prisma/schema.prisma
-      - name: Run test suite
-        run: npm test
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run validate:architecture
+      - run: npm run validate:migrations
+      - run: npx prisma validate --schema=prisma/schema.prisma
+      - run: npx prisma generate --schema=prisma/schema.prisma
+      - run: npx prisma migrate deploy --schema=prisma/schema.prisma
+      - run: npm test
       - name: Install coverage provider
         run: npm install --no-save --no-package-lock @vitest/coverage-v8@4.1.10
-      - name: Generate coverage report
+      - name: Generate coverage
         run: npm run test:coverage
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: vitest-coverage
-          path: coverage/
-          if-no-files-found: error
-          retention-days: 14
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require('fs')
+          const file = 'coverage/coverage-summary.json'
+          if (!fs.existsSync(file)) { console.log('## Test coverage\n\nCoverage summary was not generated.'); process.exit(0) }
+          const t = JSON.parse(fs.readFileSync(file, 'utf8')).total
+          console.log('## Test coverage\n')
+          console.log('| Metric | Covered | Total | Percentage |')
+          console.log('|---|---:|---:|---:|')
+          for (const [name, value] of Object.entries(t)) console.log(`| ${name} | ${value.covered ?? '-'} | ${value.total ?? '-'} | ${value.pct ?? '-'}% |`)
+          NODE
+      - uses: actions/upload-artifact@v7
+        with: { name: vitest-coverage, path: coverage/, if-no-files-found: error, retention-days: 14 }
 
   database:
     name: Database
@@ -225,38 +159,23 @@ jobs:
     services:
       postgres:
         image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: express_app_migrations
-        ports:
-          - 5432:5432
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: express_app_migrations }
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres -d express_app_migrations"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app_migrations
       NODE_ENV: test
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Validate migration history
-        run: npm run validate:migrations
-      - name: Validate Prisma schema
-        run: npx prisma validate --schema=prisma/schema.prisma
-      - name: Generate Prisma Client
-        run: npx prisma generate --schema=prisma/schema.prisma
-      - name: Apply all migrations to a clean database
-        run: npx prisma migrate deploy --schema=prisma/schema.prisma
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run validate:migrations
+      - run: npx prisma validate --schema=prisma/schema.prisma
+      - run: npx prisma generate --schema=prisma/schema.prisma
+      - run: npx prisma migrate deploy --schema=prisma/schema.prisma
 
   openapi:
     name: OpenAPI
@@ -264,36 +183,24 @@ jobs:
     if: needs.changes.outputs.openapi == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Validate OpenAPI
-        run: node scripts/validate-openapi.cjs
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: node scripts/validate-openapi.cjs
 
   docker:
     name: Docker
     needs: [changes, quality, database]
     if: >-
-      always() &&
-      needs.changes.outputs.docker == 'true' &&
-      needs.quality.result != 'failure' &&
-      needs.quality.result != 'cancelled' &&
-      needs.database.result != 'failure' &&
-      needs.database.result != 'cancelled'
+      always() && needs.changes.outputs.docker == 'true' &&
+      (needs.quality.result == 'success' || needs.quality.result == 'skipped') &&
+      (needs.database.result == 'success' || needs.database.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build production Docker image
-        uses: docker/build-push-action@v7
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
@@ -308,42 +215,40 @@ jobs:
     if: needs.changes.outputs.workflow == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
       - name: Validate workflow YAML
-        run: |
-          ruby -e 'require "yaml"; Dir[".github/workflows/*.{yml,yaml}"].each { |f| YAML.load_file(f); puts "valid: #{f}" }'
+        run: ruby -e 'require "yaml"; Dir[".github/workflows/*.{yml,yaml}"].each { |f| YAML.load_file(f); puts "valid: #{f}" }'
 
   codeql:
     name: CodeQL
     needs: changes
-    if: needs.changes.outputs.app == 'true'
+    if: needs.changes.outputs.security == 'true' && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
       security-events: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-          queries: security-extended
-      - name: Analyze
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: /language:javascript-typescript
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v4
+        with: { languages: javascript-typescript, queries: security-extended }
+      - uses: github/codeql-action/analyze@v4
+        with: { category: /language:javascript-typescript }
 
   required:
     name: Required
-    needs: [quality, database, openapi, docker, workflow-validation, codeql]
+    needs: [changes, quality, database, openapi, docker, workflow-validation, codeql]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Evaluate required CI jobs
+      - name: Evaluate applicable checks
         env:
+          APP: ${{ needs.changes.outputs.app }}
+          DATABASE_NEEDED: ${{ needs.changes.outputs.database }}
+          OPENAPI_NEEDED: ${{ needs.changes.outputs.openapi }}
+          DOCKER_NEEDED: ${{ needs.changes.outputs.docker }}
+          WORKFLOW_NEEDED: ${{ needs.changes.outputs.workflow }}
+          SECURITY_NEEDED: ${{ needs.changes.outputs.security }}
           QUALITY: ${{ needs.quality.result }}
           DATABASE: ${{ needs.database.result }}
           OPENAPI: ${{ needs.openapi.result }}
@@ -352,22 +257,25 @@ jobs:
           CODEQL: ${{ needs.codeql.result }}
         run: |
           set -euo pipefail
-          printf '%s\n' \
-            "quality=$QUALITY" \
-            "database=$DATABASE" \
-            "openapi=$OPENAPI" \
-            "docker=$DOCKER" \
-            "workflow=$WORKFLOW" \
-            "codeql=$CODEQL"
-
-          for result in "$QUALITY" "$DATABASE" "$OPENAPI" "$DOCKER" "$WORKFLOW" "$CODEQL"; do
-            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
-              echo "A required CI job failed or was cancelled."
+          check() {
+            local name="$1" needed="$2" result="$3"
+            if [[ "$needed" == true && "$result" != success ]]; then
+              echo "$name was required but finished with: $result"
               exit 1
             fi
-          done
-
-          echo "All applicable CI jobs passed or were skipped."
+            if [[ "$needed" == false && "$result" != skipped ]]; then
+              echo "$name was not required but finished with: $result"
+              exit 1
+            fi
+            echo "$name: $result (needed=$needed)"
+          }
+          check Quality "$APP" "$QUALITY"
+          check Database "$DATABASE_NEEDED" "$DATABASE"
+          check OpenAPI "$OPENAPI_NEEDED" "$OPENAPI"
+          check Docker "$DOCKER_NEEDED" "$DOCKER"
+          check Workflow "$WORKFLOW_NEEDED" "$WORKFLOW"
+          check CodeQL "$SECURITY_NEEDED" "$CODEQL"
+          echo 'All applicable CI checks passed.'
 
   staging:
     name: Staging
@@ -377,60 +285,40 @@ jobs:
     services:
       postgres:
         image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: express_app_staging
-        ports:
-          - 5432:5432
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: express_app_staging }
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres -d express_app_staging"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+          --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
         image: redis:7
-        ports:
-          - 6379:6379
+        ports: ['6379:6379']
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Build staging image
-        run: docker build -t express-app:staging .
+      - uses: actions/checkout@v7
+      - run: docker build -t express-app:staging .
       - name: Start staging container
         run: |
           docker run -d --name express-app-staging --network host \
-            -e NODE_ENV=production \
-            -e PORT=3000 \
+            -e NODE_ENV=production -e PORT=3000 \
             -e DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/express_app_staging \
             -e REDIS_URL=redis://127.0.0.1:6379 \
             -e CORS_ORIGIN=https://staging.example.invalid \
             -e JWT_ACCESS_SECRET=staging-access-secret-012345678901234567890123 \
             -e JWT_REFRESH_SECRET=staging-refresh-secret-012345678901234567890123 \
             -e METRICS_TOKEN=staging-metrics-token-012345678901234567890123 \
-            -e COOKIE_SECURE=true \
-            -e COOKIE_SAME_SITE=lax \
-            -e COOKIE_REFRESH_MAX_AGE_MS=604800000 \
-            express-app:staging
+            -e COOKIE_SECURE=true -e COOKIE_SAME_SITE=lax \
+            -e COOKIE_REFRESH_MAX_AGE_MS=604800000 express-app:staging
       - name: Wait for liveness
         run: |
-          for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:3000/health/live; then exit 0; fi
-            sleep 2
-          done
-          docker logs express-app-staging
-          exit 1
+          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:3000/health/live && exit 0 || sleep 2; done
+          docker logs express-app-staging; exit 1
       - name: Verify production docs are disabled
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/docs)" = "404"
       - name: Verify metrics authentication
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/metrics)" = "401"
       - name: Cleanup staging container
         if: always()
-        run: |
-          docker logs express-app-staging || true
-          docker rm -f express-app-staging || true
+        run: docker logs express-app-staging || true; docker rm -f express-app-staging || true
