@@ -48,13 +48,18 @@ const resolveAndValidateForm = async ({ permitType, formVersionId, formValues })
   return { formVersionId: validation.formVersionId }
 }
 
+const assertVerifiedProfessional = (professional) => {
+  if (!professional) throw new NotFoundError('Professional registration not found.')
+  if (professional.status !== 'VERIFIED') throw new ConflictError('The selected professional is not verified.')
+  if (!professional.prcId || !professional.ptrNumber) throw new ConflictError('The selected professional has not completed PRC and PTR verification.')
+}
+
 const createApplication = async ({ userId, permitTypeId, professionalId, formVersionId, formValues }) => {
   const person = await getClientPerson(userId)
   const permitType = await repository.findPermitType(permitTypeId)
   if (!permitType) throw new NotFoundError('Active permit type not found.')
   const professional = await repository.findProfessional(professionalId)
-  if (!professional) throw new NotFoundError('Professional registration not found.')
-  if (professional.status !== 'VERIFIED') throw new ConflictError('The selected professional is not verified.')
+  assertVerifiedProfessional(professional)
   const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
 
   const application = await repository.withTransaction(async (tx) => {
@@ -85,8 +90,7 @@ const updateDraft = async ({ id, userId, professionalId, formVersionId, formValu
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be updated.')
   const selectedProfessionalId = professionalId || application.professionalId
   const professional = await repository.findProfessional(selectedProfessionalId)
-  if (!professional) throw new NotFoundError('Professional registration not found.')
-  if (professional.status !== 'VERIFIED') throw new ConflictError('The selected professional is not verified.')
+  assertVerifiedProfessional(professional)
   const resolvedForm = await resolveAndValidateForm({ permitType: application.permitType, formVersionId: formVersionId || application.formVersionId, formValues })
   return withWorkflowState(await repository.update(id, { professionalId: selectedProfessionalId, formVersionId: resolvedForm.formVersionId, formValues }))
 }
