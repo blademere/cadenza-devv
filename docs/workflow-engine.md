@@ -19,7 +19,7 @@ A workflow instance stores `subjectType` and `subjectId`, allowing the engine to
 
 ## Creating a workflow
 
-The platform accepts domain-neutral configuration. A future module may supply a key such as `building-permit`, but that key is module configuration rather than platform business logic.
+The platform accepts domain-neutral configuration. Workflow keys, steps, transitions, and permission keys are supplied by the consuming module/configuration; the platform does not interpret domain-specific meanings.
 
 ```js
 await createWorkflow({
@@ -60,44 +60,22 @@ const instance = await startWorkflow({
 })
 ```
 
-A future OBO module can use `subjectType: "PermitApplication"`; the platform must remain unaware of the permit domain.
+The platform remains unaware of the business domain represented by `subjectType` and `subjectId`.
 
-## Transaction-aware operations
+## Transaction boundary
 
-Domain services that need to atomically combine workflow persistence with their own database writes can supply an existing Prisma transaction client through `db`:
+A domain operation that must atomically combine a workflow transition with domain persistence must use the repository/application transaction boundary. Business services must not bypass that boundary by calling Prisma directly.
 
-```js
-await prisma.$transaction(async (tx) => {
-  const workflow = await startWorkflow({
-    workflowKey: "application-review",
-    subjectType: "Application",
-    subjectId: application.id,
-    actorId: user.id,
-    db: tx,
-  })
+Conceptually:
 
-  await repository.update(application.id, {
-    workflowInstanceId: workflow.id,
-  }, tx)
-})
+```text
+service
+  └── transaction boundary
+        ├── workflow repository operation
+        └── domain repository operation
 ```
 
-Likewise, transitions support the same transaction boundary:
-
-```js
-await prisma.$transaction(async (tx) => {
-  const workflow = await transitionWorkflow({
-    instanceId: application.workflowInstanceId,
-    transitionKey: "approve",
-    actorId: user.id,
-    db: tx,
-  })
-
-  await repository.recordApproval(application.id, user.id, tx)
-})
-```
-
-When `db` is omitted, the workflow service owns its own transaction as before. When `db` is supplied, the caller owns the transaction and the workflow history, event publication, audit record, and domain writes can commit or roll back together.
+The transaction must commit or roll back workflow history, event/outbox records, audit records, and domain persistence together when they form one business operation.
 
 ## Transitioning
 
@@ -124,11 +102,10 @@ Workflow creation, instance creation, transitions, completion, and version chang
 
 ## Design rules
 
-- Do not put permit-specific, rental-specific, enrollment-specific, or other module-specific logic in the workflow engine.
+- Do not put module-specific business logic in the workflow engine.
 - Do not execute arbitrary JavaScript from workflow configuration.
 - Use `permissionKey` as a declarative access-control hook.
 - Keep business rules and conditions separate from transition mechanics.
 - Use guarded updates for lifecycle transitions that must be concurrency-safe.
-- When a domain operation combines workflow and domain writes, prefer a caller-owned `db` transaction.
+- Keep persistence behind repository boundaries.
 - Never mutate a published workflow version; create a new version instead.
-- Keep persistence behind the platform's repository boundary.
