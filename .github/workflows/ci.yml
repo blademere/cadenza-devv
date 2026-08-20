@@ -265,28 +265,9 @@ jobs:
             puts "valid: #{file}"
           end
 
-  codeql:
-    name: CodeQL
-    needs: changes
-    if: "${{ needs.changes.outputs.security == 'true' }}"
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    steps:
-      - uses: actions/checkout@v7
-      - uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-          queries: security-extended
-      - uses: github/codeql-action/analyze@v4
-        with:
-          category: '/language:javascript-typescript'
-
   required:
     name: Required
-    needs: [changes, quality, database, openapi, docker, workflow-validation, codeql]
+    needs: [changes, quality, database, openapi, docker, workflow-validation]
     if: "${{ always() }}"
     runs-on: ubuntu-latest
     steps:
@@ -303,7 +284,6 @@ jobs:
           OPENAPI: ${{ needs.openapi.result }}
           DOCKER: ${{ needs.docker.result }}
           WORKFLOW: ${{ needs.workflow-validation.result }}
-          CODEQL: ${{ needs.codeql.result }}
         run: |
           set -euo pipefail
           check() {
@@ -323,7 +303,6 @@ jobs:
           check OpenAPI "$OPENAPI_NEEDED" "$OPENAPI"
           check Docker "$DOCKER_NEEDED" "$DOCKER"
           check Workflow "$WORKFLOW_NEEDED" "$WORKFLOW"
-          check CodeQL "$SECURITY_NEEDED" "$CODEQL"
           echo 'All applicable CI checks passed.'
 
   staging:

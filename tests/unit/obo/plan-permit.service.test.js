@@ -86,6 +86,28 @@ describe('OBO plan permit service', () => {
     await expect(service.updateDraft({ id: 'application-1', userId: 'user-1', formValues: {} })).rejects.toThrow('Only draft applications can be updated')
   })
 
+  it('requires a declined application when creating a replacement', async () => {
+    await arrangeClient()
+    spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-old', referenceNumber: 'OBO-OLD' })
+    spies.findWorkflowInstance.mockResolvedValueOnce({ id: 'workflow-old', currentStep: { key: 'DRAFT' } })
+    await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', professionalId: 'professional-1', formValues: {}, replacesApplicationId: 'application-1' })).rejects.toThrow('Only a declined permit application can be replaced')
+  })
+
+  it('creates a new draft linked to the declined application', async () => {
+    await arrangeClient()
+    spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-old', referenceNumber: 'OBO-OLD' })
+    spies.findWorkflowInstance
+      .mockResolvedValueOnce({ id: 'workflow-old', currentStep: { key: 'DECLINED' } })
+      .mockResolvedValueOnce({ id: 'workflow-new', currentStep: { key: 'DRAFT' } })
+    spies.create.mockResolvedValue({ id: 'application-2', status: 'DRAFT', replacesApplicationId: 'application-1' })
+    spies.update.mockResolvedValue({ id: 'application-2', workflowInstanceId: 'workflow-new', replacesApplicationId: 'application-1' })
+    spies.startWorkflow.mockResolvedValue({ id: 'workflow-new', currentStep: { key: 'DRAFT' } })
+
+    await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', professionalId: 'professional-1', formValues: { corrected: true }, replacesApplicationId: 'application-1' })).resolves.toMatchObject({ id: 'application-2', status: 'DRAFT', replacesApplicationId: 'application-1' })
+    expect(spies.create).toHaveBeenCalledWith(expect.objectContaining({ replacesApplicationId: 'application-1' }), expect.anything())
+    expect(spies.startWorkflow).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ source: 'obo-plan-permit.replace-declined', replacesReferenceNumber: 'OBO-OLD' }) }))
+  })
+
   it('submits a draft through the platform workflow transition', async () => {
     spies.findPersonByUserId.mockResolvedValue(person)
     spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', referenceNumber: 'BP-1', permitType })

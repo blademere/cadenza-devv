@@ -9,6 +9,7 @@ const createApplicationValidator = async (req) => ({
       professionalId: uuid,
       formVersionId: uuid.optional(),
       formValues: z.record(z.string(), z.unknown()),
+      replacesApplicationId: uuid.optional(),
     })
     .parse(req.body || {}),
 })

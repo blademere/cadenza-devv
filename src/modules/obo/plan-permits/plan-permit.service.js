@@ -48,21 +48,33 @@ const resolveAndValidateForm = async ({ permitType, formVersionId, formValues })
   return { formVersionId: validation.formVersionId }
 }
 
-const createApplication = async ({ userId, permitTypeId, professionalId, formVersionId, formValues }) => {
+const resolveReplacement = async ({ replacesApplicationId, personId }) => {
+  if (!replacesApplicationId) return null
+  const original = await repository.findOwnedByClient(replacesApplicationId, personId)
+  if (!original) throw new NotFoundError('The application being replaced was not found.')
+  const originalWithStatus = await withWorkflowState(original)
+  if (originalWithStatus.status !== STATUS.DECLINED) {
+    throw new ConflictError('Only a declined permit application can be replaced with a new application.')
+  }
+  return originalWithStatus
+}
+
+const createApplication = async ({ userId, permitTypeId, professionalId, formVersionId, formValues, replacesApplicationId }) => {
   const person = await getClientPerson(userId)
   const permitType = await repository.findPermitType(permitTypeId)
   if (!permitType) throw new NotFoundError('Active permit type not found.')
   const professional = await repository.findProfessional(professionalId)
   if (!professional) throw new NotFoundError('Professional registration not found.')
   if (professional.status !== 'VERIFIED') throw new ConflictError('The selected professional is not verified.')
+  const replacement = await resolveReplacement({ replacesApplicationId, personId: person.id })
   const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
 
   const application = await repository.withTransaction(async (tx) => {
-    const created = await repository.create({ clientPersonId: person.id, permitTypeId, professionalId, formVersionId: resolvedForm.formVersionId, formValues, userId }, tx)
+    const created = await repository.create({ clientPersonId: person.id, permitTypeId, professionalId, formVersionId: resolvedForm.formVersionId, formValues, userId, replacesApplicationId: replacement?.id || null }, tx)
     if (!created) throw new NotFoundError('Active permit type not found.')
     if (created.notFound === 'professional') throw new NotFoundError('Professional registration not found.')
     const notificationContext = await getClientNotificationContext(person.id, tx)
-    const workflow = await workflowService.startWorkflow({ workflowKey: WORKFLOW_KEY, subjectType: SUBJECT_TYPE, subjectId: created.id, actorId: userId, metadata: { source: 'obo-plan-permit.create', referenceNumber: created.referenceNumber, permitTypeName: permitType.name, ...notificationContext }, db: tx })
+    const workflow = await workflowService.startWorkflow({ workflowKey: WORKFLOW_KEY, subjectType: SUBJECT_TYPE, subjectId: created.id, actorId: userId, metadata: { source: replacement ? 'obo-plan-permit.replace-declined' : 'obo-plan-permit.create', referenceNumber: created.referenceNumber, permitTypeName: permitType.name, replacesReferenceNumber: replacement?.referenceNumber || null, ...notificationContext }, db: tx })
     return repository.update(created.id, { workflowInstanceId: workflow.id }, tx)
   })
   return withWorkflowState(application)
