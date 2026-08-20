@@ -6,7 +6,6 @@ const hpp = require('hpp')
 const compression = require('compression')
 const crypto = require('crypto')
 const swaggerUi = require('swagger-ui-express')
-const YAML = require('yamljs')
 
 const {
   prometheusMiddleware,
@@ -29,10 +28,11 @@ const {
 const { env, requestLogger } = require('./config')
 const apiRoutes = require('./routes')
 const { withTimeout } = require('./common/utils/withTimeout')
+const { getOpenApiSpec } = require('./infrastructure/openapi')
 
 const app = express()
 
-const openApiSpec = YAML.load('docs/openapi.yaml')
+const openApiSpec = getOpenApiSpec()
 
 app.set('trust proxy', 1)
 app.use(requestId)

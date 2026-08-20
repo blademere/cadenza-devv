@@ -65,7 +65,7 @@ jobs:
                 prisma/**|prisma.config.ts|scripts/validate-migrations.cjs) database=true ;;
               esac
               case "$file" in
-                docs/openapi.yaml|scripts/validate-openapi.cjs) openapi=true ;;
+                docs/openapi.yaml|scripts/validate-openapi.cjs|scripts/generate-openapi.cjs|src/infrastructure/openapi/**) openapi=true ;;
               esac
               case "$file" in
                 src/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
@@ -155,6 +155,7 @@ jobs:
       - run: npm run format:check
       - run: npm run validate:architecture
       - run: npm run validate:migrations
+      - run: npm run openapi:check
       - run: npx prisma validate --schema=prisma/schema.prisma
       - run: npx prisma generate --schema=prisma/schema.prisma
       - run: npx prisma migrate deploy --schema=prisma/schema.prisma
@@ -230,7 +231,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node scripts/validate-openapi.cjs
+      - run: npm run openapi:check
 
   docker:
     name: Docker

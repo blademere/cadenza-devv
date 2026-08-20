@@ -13,6 +13,8 @@
     "format:check": "node scripts/format-check.cjs",
     "validate:architecture": "node scripts/validate-architecture.cjs",
     "validate:migrations": "node scripts/validate-migrations.cjs",
+    "openapi:generate": "node scripts/generate-openapi.cjs",
+    "openapi:check": "node scripts/validate-openapi.cjs",
     "test": "prisma generate && vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --dir tests/unit",
