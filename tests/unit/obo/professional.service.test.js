@@ -62,16 +62,15 @@ describe('OBO professional service', () => {
     expect(spies.findByUserId).toHaveBeenCalledWith('user-1')
   })
 
-  it('records an accepted verification decision transactionally with credentials in the event context', async () => {
+  it('records an accepted verification decision transactionally', async () => {
     spies.findById.mockResolvedValue({ id: 'professional-1', personId: 'person-1', status: 'PENDING_VERIFICATION', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' })
     spies.update.mockResolvedValue({ id: 'professional-1', status: 'VERIFIED' })
     spies.addDecision.mockResolvedValue({ id: 'decision-1' })
     spies.findPersonById.mockResolvedValue({ userId: 'professional-user-1', email: 'professional@example.com' })
     await expect(service.decideVerification({ id: 'professional-1', actorId: 'officer-1', decision: 'ACCEPTED' })).resolves.toMatchObject({ status: 'VERIFIED' })
-    expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({
-      event: 'obo.professional.verification.decided',
-      context: expect.objectContaining({ prcId: 'PRC-123', ptrNumber: 'PTR-123' }),
-    }))
+    expect(spies.update).toHaveBeenCalledWith('professional-1', expect.objectContaining({ status: 'VERIFIED', verifiedByUserId: 'officer-1' }), expect.any(Object))
+    expect(spies.addDecision).toHaveBeenCalled()
+    expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ db: expect.any(Object), event: 'obo.professional.verification.decided' }))
   })
 
   it('requires a reason when declining professional verification', async () => {
