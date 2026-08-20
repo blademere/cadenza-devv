@@ -1,53 +1,51 @@
 # Enforcement Contracts
 
-These contracts apply to every current and future feature/module.
+These contracts describe the repository-wide rules that are enforced by tests, middleware, validators, or architectural review.
 
 ## 1. Entity deletion semantics
 
 Every persistent mutable entity must explicitly choose exactly one lifecycle strategy:
 
-- `SOFT_DELETE` — records remain queryable for audit/recovery and normal repositories must exclude deleted rows by default.
+- `SOFT_DELETE` — records remain queryable for audit/recovery and normal repositories exclude deleted rows by default.
 - `HARD_DELETE` — deletion is permanent and must be explicitly authorized and audited.
 - `IMMUTABLE` — records are never updated/deleted; corrections are represented by a new version/event/history record.
 
-A new entity must document its choice next to its Prisma model or in the owning feature's architecture documentation. Do not add a generic soft-delete abstraction to entities that do not require it.
+A new entity must document its choice next to its Prisma model or in the owning feature/module documentation. Do not add a generic soft-delete abstraction to entities that do not require it.
 
 ## 2. Audit coverage
 
-Every externally reachable state-changing operation must produce an audit record in the same transaction as the mutation whenever the mutation is transactional. The audit entry must identify the actor, action, entity type, entity id, and sanitized before/after state when applicable.
+Externally reachable state-changing operations must produce an audit record in the same transaction as the mutation whenever the mutation is transactional. Audit entries identify the actor, action, entity type, entity ID, and sanitized before/after state where applicable.
 
 Reads do not require audit records unless the owning security policy explicitly requires access logging.
 
 ## 3. Idempotency
 
-Every externally reachable `POST`, `PUT`, `PATCH`, and `DELETE` mutation must explicitly declare whether idempotency is required.
-
-For operations that create or otherwise retry a state transition, idempotency is mandatory. The route must use the shared idempotency middleware rather than implementing a local mechanism.
+Externally reachable state-changing HTTP operations must explicitly declare their idempotency behavior. Operations that create resources or retry state transitions must use the shared idempotency mechanism rather than implementing a local mechanism.
 
 An operation that is deliberately exempt must document why retries are safe without a key.
 
 ## 4. Resource authorization
 
-A route operating on a specific resource (`/:id`, `/:resourceId`, or equivalent) must perform resource-level authorization when access depends on ownership, tenant, relationship, or resource state. RBAC alone is insufficient for those operations.
+A route operating on a specific resource must perform resource-level authorization when access depends on ownership, tenant, relationship, or resource state. RBAC alone is insufficient for those operations.
 
-Use `platform/authorization/authorizeResource.js` and the shared policy mechanism. Services may retain scoped repository lookups as defense in depth.
+Use the shared authorization policy mechanism. Services may retain scoped repository lookups as defense in depth.
 
-## 5. Feature/platform boundary
+## 5. Dependency boundary
 
-Dependency direction is one-way:
+The architectural dependency direction is:
 
 ```text
-routes/modules/features
-        ↓
-     platform
-        ↓
-infrastructure/common
+modules → features → platform → infrastructure
 ```
 
-- `platform` must never import `features` or domain modules.
-- `common` must not import `features` or `platform`.
-- A feature must not duplicate a generic platform capability when the platform already owns that mechanism.
-- Domain-specific rules belong to a module/feature; reusable mechanisms belong to platform.
-- Infrastructure must not contain domain business rules.
+Supporting application code such as routes and common HTTP helpers must not be used to bypass this direction.
 
-These rules are checked by `scripts/validate-architecture.cjs` and are intended to run in CI.
+- `platform` must not import `modules`.
+- shared `features` must not import `modules`.
+- `infrastructure` must not import `modules`.
+- services must not access Prisma directly; repositories own persistence access.
+- repositories are explicitly allowed to access Prisma.
+- domain-specific rules belong in modules; reusable business capabilities belong in features; reusable mechanisms belong in platform.
+- infrastructure must not contain domain business rules.
+
+These rules are checked by `scripts/validate-architecture.cjs` and run in CI.
