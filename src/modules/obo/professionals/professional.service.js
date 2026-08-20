@@ -26,7 +26,11 @@ const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumb
   })
 }
 
-const getMine = async ({ userId }) => repository.findByUserId(userId)
+const getMine = async ({ userId }) => {
+  const professional = await repository.findByUserId(userId)
+  if (!professional) throw new NotFoundError('Professional verification record not found.')
+  return professional
+}
 const listPending = () => repository.listPending()
 const listVerified = () => repository.listVerified()
 
