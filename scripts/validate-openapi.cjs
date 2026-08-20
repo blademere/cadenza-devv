@@ -20,6 +20,7 @@ const requiredAuthPaths = [
   '/auth/refresh',
   '/auth/logout',
   '/users',
+  '/me/authorization',
 ]
 for (const route of requiredAuthPaths) {
   if (!spec.paths[route]) throw new Error(`Missing required OpenAPI path: ${route}`)
@@ -33,6 +34,12 @@ for (const [route, definition] of Object.entries(spec.paths)) {
       throw new Error(`Invalid HTTP operation '${method}' under ${route}`)
     }
   }
+}
+
+const authorizationOperation = spec.paths['/me/authorization']?.get
+const inheritsBearerSecurity = !authorizationOperation.security && Array.isArray(spec.security)
+if (!inheritsBearerSecurity && !authorizationOperation.security?.some((entry) => entry?.bearerAuth)) {
+  throw new Error('GET /me/authorization must require bearerAuth security.')
 }
 
 const missingOperations = inventory.filter((route) => {
@@ -52,5 +59,5 @@ const generatedOperations = inventory.filter((route) =>
 )
 
 console.log(
-  `OpenAPI validation passed: ${inventory.length} Express routes discovered, ${Object.keys(spec.paths).length} documented paths, ${generatedOperations.length} operations generated at runtime.`
+  `OpenAPI validation passed: ${inventory.length} Express routes discovered, ${Object.keys(spec.paths).length} documented paths, ${generatedOperations.length} operations generated at runtime.`,
 )
