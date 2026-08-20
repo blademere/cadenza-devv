@@ -62,8 +62,6 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
         professionalUserId: person?.userId || professional.userId || null,
         professionalEmail: person?.user?.email || person?.email || null,
         registrationNumber: professional.registrationNumber,
-        prcId: professional.prcId,
-        ptrNumber: professional.ptrNumber,
         decision,
         reason: cleanReason,
         status: updated.status,
