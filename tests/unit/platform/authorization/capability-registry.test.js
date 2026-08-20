@@ -1,5 +1,5 @@
 const { describe, expect, it } = require('vitest')
-const { getCapabilityRegistry } = require('../../../../../src/platform/authorization/capability-registry')
+const { getCapabilityRegistry } = require('../../../../src/platform/authorization/capability-registry')
 
 describe('capability registry', () => {
   it('defines unique capability keys and permission bindings', () => {
