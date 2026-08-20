@@ -35,6 +35,13 @@ const capabilities = Object.freeze([
     permission: 'obo_plan_permits:read',
   },
   {
+    key: 'receiving',
+    moduleKey: 'obo_plan_permits',
+    name: 'Receiving',
+    route: '/receiving',
+    permission: 'obo_plan_permits:receive',
+  },
+  {
     key: 'authorization',
     moduleKey: 'authorization',
     name: 'Authorization',
