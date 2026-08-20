@@ -20,7 +20,7 @@ router.get('/me/authorization', authenticate, asyncHandler(async (req, res) => {
 
   const navigation = getCapabilityRegistry().map((capability) => ({
     ...capability,
-    visible: activeModuleKeys.has(capability.key) && permissionSet.has(capability.permission),
+    visible: activeModuleKeys.has(capability.moduleKey) && permissionSet.has(capability.permission),
   }))
 
   return successResponse(res, 'Authorization context retrieved successfully.', {
