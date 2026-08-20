@@ -5,7 +5,6 @@ const cors = require('cors')
 const hpp = require('hpp')
 const compression = require('compression')
 const crypto = require('crypto')
-const swaggerUi = require('swagger-ui-express')
 
 const {
   prometheusMiddleware,
@@ -28,11 +27,8 @@ const {
 const { env, requestLogger } = require('./config')
 const apiRoutes = require('./routes')
 const { withTimeout } = require('./common/utils/withTimeout')
-const { getOpenApiSpec } = require('./infrastructure/openapi')
 
 const app = express()
-
-const openApiSpec = getOpenApiSpec()
 
 app.set('trust proxy', 1)
 app.use(requestId)
@@ -154,11 +150,6 @@ app.get('/health', (_req, res) => {
 })
 
 app.use(rateLimiter)
-
-if (env.NODE_ENV !== 'production') {
-  app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec))
-}
-
 app.use('/api/v1', apiRoutes)
 app.use(notFound)
 app.use(errorHandler)
