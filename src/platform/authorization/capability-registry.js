@@ -8,10 +8,10 @@ const capabilities = Object.freeze([
   },
   {
     key: 'appointments',
-    moduleKey: 'obo_submission_appointments',
+    moduleKey: 'obo_plan_permits',
     name: 'Appointments',
     route: '/appointments',
-    permission: 'obo_submission_appointments:read',
+    permission: 'obo_plan_permits:read',
   },
   {
     key: 'professionals',
@@ -29,10 +29,10 @@ const capabilities = Object.freeze([
   },
   {
     key: 'permit-types',
-    moduleKey: 'obo_permit_types',
+    moduleKey: 'obo_plan_permits',
     name: 'Permit Types',
     route: '/permit-types',
-    permission: 'obo_permit_types:read',
+    permission: 'obo_plan_permits:read',
   },
   {
     key: 'authorization',
