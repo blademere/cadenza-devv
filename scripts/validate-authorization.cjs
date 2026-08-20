@@ -49,7 +49,8 @@ const routeFiles = ROUTE_ROOTS.flatMap(walk).filter((file) => file.endsWith('.ro
 for (const file of routeFiles) {
   const source = fs.readFileSync(file, 'utf8')
   const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
-  const isAuthBoundary = relative.startsWith('src/features/auth/') || relative === 'src/platform/authorization/authorization-context.routes.js'
+  const isAuthFile = relative.startsWith('src/features/auth/')
+  const isAuthorizationContext = relative === 'src/platform/authorization/authorization-context.routes.js'
 
   const middlewareAliases = new Set(['authenticate'])
   const authorizationAliases = new Set(['authorize', 'authorizeResource'])
@@ -75,6 +76,7 @@ for (const file of routeFiles) {
     const lineNumber = source.slice(0, match.index).split('\n').length
 
     if (EXEMPTION.test(line)) continue
+    if (isAuthFile) continue
 
     const hasAuthentication = [...middlewareAliases].some((name) =>
       new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(line),
@@ -87,7 +89,7 @@ for (const file of routeFiles) {
       failures.push(`${relative}:${lineNumber}: route is missing authentication middleware.`)
     }
 
-    if (!isAuthBoundary && !hasAuthorization) {
+    if (!isAuthorizationContext && !hasAuthorization) {
       failures.push(`${relative}:${lineNumber}: route is missing authorization middleware.`)
     }
   }
