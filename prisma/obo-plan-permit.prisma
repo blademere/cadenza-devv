@@ -47,6 +47,7 @@ model OboPermitApplication {
   professionalId        String
   formVersionId         String?
   workflowInstanceId    String?                   @unique
+  replacesApplicationId String?
   formValues            Json
   submittedAt           DateTime?
   declinedAt            DateTime?
@@ -60,6 +61,8 @@ model OboPermitApplication {
   formVersion           FormVersion?              @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
   workflowInstance      WorkflowInstance?         @relation(fields: [workflowInstanceId], references: [id], onDelete: Restrict)
   acceptedBy            User?                     @relation("OboApplicationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+  replacedApplication   OboPermitApplication?     @relation("OboPermitApplicationReplacement", fields: [replacesApplicationId], references: [id], onDelete: Restrict)
+  replacementApplications OboPermitApplication[] @relation("OboPermitApplicationReplacement")
   submissionAppointment OboSubmissionAppointment?
   decisions             OboReceivingDecision[]
   createdAt             DateTime                  @default(now())
@@ -68,6 +71,7 @@ model OboPermitApplication {
   @@index([clientPersonId, createdAt])
   @@index([professionalId, createdAt])
   @@index([permitTypeId])
+  @@index([replacesApplicationId])
 }
 
 model OboSubmissionAppointment {
