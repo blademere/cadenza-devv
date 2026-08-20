@@ -1,6 +1,6 @@
 # Dynamic Forms Platform
 
-The forms platform makes business forms configuration-driven while keeping execution and validation in application code. Forms are a platform mechanism; the domain module owns the meaning of the submitted data.
+The forms platform makes business forms configuration-driven while keeping execution and validation in application code. Forms are a platform mechanism; the consuming module or feature owns the meaning of submitted data.
 
 ## Model
 
@@ -39,18 +39,7 @@ Select fields store options relationally instead of putting the option list into
 
 ## Conditional visibility
 
-Visibility rules are declarative JSON and support `all`, `any`, and `not` groups:
-
-```js
-{
-  all: [
-    { field: "scope", operator: "equals", value: "RENOVATION" },
-    { field: "occupancy", operator: "equals", value: "COMMERCIAL" }
-  ]
-}
-```
-
-A hidden field is not required and is not validated.
+Visibility rules are declarative JSON and support `all`, `any`, and `not` groups. Hidden fields are not required and are not validated.
 
 ## Validation
 
@@ -70,7 +59,7 @@ The engine validates field types, required fields, select options, built-in emai
 
 Dynamic forms should not replace strongly modeled relationships.
 
-Use normal domain columns and relations for concepts such as:
+Use normal domain columns and relations for stable concepts such as:
 
 - person identity
 - case relationships
@@ -80,6 +69,14 @@ Use normal domain columns and relations for concepts such as:
 - workflow state
 
 Use dynamic fields for genuinely variable attributes such as configurable classifications, optional measurements, or organization-specific metadata.
+
+## Form ownership
+
+The form engine is generic. Domain modules define which forms apply to their business entities.
+
+For OBO permit types, the current data model links `OboPermitType` to the generic platform `Form` through `formId`. Permit-specific fields therefore live in the form definition rather than in a separate custom-field subsystem. The migration `20260820090000_link_obo_permit_types_to_forms` establishes this relationship.
+
+A permit form can contain owner/applicant information, construction location, scope of work, occupancy classification, conditional fields, and other permit-specific values. The form engine owns field storage, validation, options, visibility, and versioning; OBO owns the meaning of the fields.
 
 ## Document requirements
 
@@ -91,23 +88,6 @@ Document requirements are reusable and can be attached to a form or workflow con
 - conditional requirements
 - document source such as `CLIENT`, `OFFICE`, `PROFESSIONAL`, or `PHYSICAL`
 
-A document requirement does **not** imply that a client must upload the document. This is important for workflows where supporting documents are submitted as physical hardcopies at an office.
+A document requirement does not imply that a client must upload the document. This supports workflows where supporting documents are submitted as physical hardcopies at an office.
 
-## Future OBO usage
-
-A future OBO module can use the same form engine for building, electrical, mechanical, plumbing, and other permit applications:
-
-```text
-modules/obo/
-       │
-       ├── permit-specific application model
-       └── platform/forms
-                ├── sections
-                ├── fields
-                ├── options
-                └── validation
-```
-
-For example, a permit form may contain owner/applicant information, construction location, scope of work, occupancy classification, and conditional fields. Those form definitions belong to the OBO module/configuration, while field storage, validation, versioning, and rendering metadata remain platform responsibilities.
-
-Physical professional signing of hardcopy documents remains an offline business process and is not modeled as a form-signing feature.
+Professional signing of hardcopy documents remains an offline business process and is not modeled as an application form-signing feature.
