@@ -18,7 +18,8 @@
         "SyedAbdullah.context-merger",
         "postman.postman-for-vscode",
         "vitest.explorer",
-        "github.vscode-github-actions"
+        "github.vscode-github-actions",
+        "shd101wyy.markdown-preview-enhanced"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
