@@ -105,7 +105,7 @@ describe('OBO plan permit service', () => {
 
     await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', professionalId: 'professional-1', formValues: { corrected: true }, replacesApplicationId: 'application-1' })).resolves.toMatchObject({ id: 'application-2', status: 'DRAFT', replacesApplicationId: 'application-1' })
     expect(spies.create).toHaveBeenCalledWith(expect.objectContaining({ replacesApplicationId: 'application-1' }), expect.anything())
-    expect(spies.startWorkflow).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ source: 'obo-plan-permit.replace-declined', replacesReferenceNumber: 'OBO-OLD' }) }), expect.anything())
+    expect(spies.startWorkflow).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ source: 'obo-plan-permit.replace-declined', replacesReferenceNumber: 'OBO-OLD' }) }))
   })
 
   it('submits a draft through the platform workflow transition', async () => {
