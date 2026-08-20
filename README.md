@@ -14,19 +14,23 @@ This README is the **formal entry point** for the repository. It describes the c
 - Shared people, cases, participants, requirements, and tasks foundations.
 - Dynamic forms and configurable custom fields for genuinely variable data.
 - Reusable document, notification, audit, workflow, event, storage, queue, and related platform capabilities.
+- OBO plan-permit domain workflows under `src/modules/obo/`.
 - PostgreSQL persistence through Prisma and Redis-backed infrastructure.
 - OpenAPI/Swagger documentation outside production.
 - Health, readiness, liveness, metrics, logging, and monitoring support.
 
 ## API
 
-Public application routes currently include:
+The API composition root currently mounts:
 
 ```text
 /api/v1/auth
 /api/v1/users
-/api/v1/appointments
+/api/v1/authorization
+/api/v1/obo
 ```
+
+Appointments and other reusable capabilities are not automatically public API roots; they are composed by application routes when required.
 
 Operational endpoints:
 
@@ -80,7 +84,7 @@ scripts/                   # Project and database utilities
 
 Forms and custom fields are part of the reusable form capability. Use relational models for stable concepts such as identity, relationships, lifecycle state, and other core entities. Use forms/custom fields for genuinely configurable attributes.
 
-Domain documentation should explain how a particular domain uses these capabilities; the reusable mechanism belongs in the platform documentation.
+OBO permit types currently associate with the generic Forms platform through `formId`; permit-specific configurable fields belong to those forms rather than to a separate custom-field subsystem. Domain documentation explains how OBO uses the forms capability.
 
 ## Development
 
@@ -131,8 +135,9 @@ Never commit production secrets. Keep `.env.example` as the configuration templa
 | [`docs/modules/`](docs/modules/) | Domain/module-specific documentation |
 | [`docs/dynamic-forms.md`](docs/dynamic-forms.md) | Reusable dynamic forms and configurable fields |
 | [`docs/event-infrastructure.md`](docs/event-infrastructure.md) | Event/outbox infrastructure |
-| [`docs/idempotency.md`](docs/idempotency.md) | Idempotency behavior |
-| [`docs/object-storage.md`](docs/object-storage.md) | Storage boundary and providers |
+| [`docs/workflow-engine.md`](docs/workflow-engine.md) | Generic workflow mechanism |
+| [`docs/enforcement-contracts.md`](docs/enforcement-contracts.md) | Enforceable repository contracts |
+| [`docs/security/security-and-api-contracts.md`](docs/security/security-and-api-contracts.md) | Security and API contracts |
 | [`docs/openapi.yaml`](docs/openapi.yaml) | Public API contract |
 
 General documentation describes current implementation and stable engineering contracts. Historical implementation phases and temporary migration plans do not belong in the README or architecture contract. Domain workflows and domain-specific requirements belong under `docs/modules/<module>/`.
