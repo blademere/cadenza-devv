@@ -2,15 +2,35 @@ const { BadRequestError, ConflictError, NotFoundError } = require('../../../comm
 const { publish } = require('../../../platform/event-bus/event-bus')
 const repository = require('./professional.repository')
 
-const applyForVerification = async ({ userId, registrationNumber }) => {
-  if (!registrationNumber?.trim()) throw new BadRequestError('registrationNumber is required.')
+const normalizeCredential = (value) => value?.trim() || ''
+
+const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumber }) => {
+  const normalizedRegistrationNumber = normalizeCredential(registrationNumber)
+  const normalizedPrcId = normalizeCredential(prcId)
+  const normalizedPtrNumber = normalizeCredential(ptrNumber)
+  if (!normalizedRegistrationNumber) throw new BadRequestError('registrationNumber is required.')
+  if (!normalizedPrcId) throw new BadRequestError('prcId is required.')
+  if (!normalizedPtrNumber) throw new BadRequestError('ptrNumber is required.')
+
   const person = await repository.findPersonByUserId(userId)
   if (!person) throw new ConflictError('The authenticated user does not have a person profile.')
   const existing = await repository.findByPersonId(person.id)
   if (existing) throw new ConflictError('A professional verification record already exists for this person.')
-  return repository.create({ personId: person.id, userId, registrationNumber: registrationNumber.trim() })
+
+  return repository.create({
+    personId: person.id,
+    userId,
+    registrationNumber: normalizedRegistrationNumber,
+    prcId: normalizedPrcId,
+    ptrNumber: normalizedPtrNumber,
+  })
 }
 
+const getMine = async ({ userId }) => {
+  const professional = await repository.findByUserId(userId)
+  if (!professional) throw new NotFoundError('Professional verification record not found.')
+  return professional
+}
 const listPending = () => repository.listPending()
 const listVerified = () => repository.listVerified()
 
@@ -21,8 +41,15 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
 
   const accepted = decision === 'ACCEPTED'
   const cleanReason = reason?.trim() || null
+  if (!accepted && !cleanReason) throw new BadRequestError('A reason is required when declining a professional verification application.')
+
   return repository.withTransaction(async (tx) => {
-    const updated = await repository.update(id, { status: accepted ? 'VERIFIED' : 'DECLINED', verifiedByUserId: actorId, verifiedAt: new Date(), verificationReason: cleanReason }, tx)
+    const updated = await repository.update(id, {
+      status: accepted ? 'VERIFIED' : 'DECLINED',
+      verifiedByUserId: actorId,
+      verifiedAt: new Date(),
+      verificationReason: cleanReason,
+    }, tx)
     await repository.addDecision({ professionalId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
     const person = await repository.findPersonById(professional.personId, tx)
     await publish({
@@ -35,6 +62,8 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
         professionalUserId: person?.userId || professional.userId || null,
         professionalEmail: person?.user?.email || person?.email || null,
         registrationNumber: professional.registrationNumber,
+        prcId: professional.prcId,
+        ptrNumber: professional.ptrNumber,
         decision,
         reason: cleanReason,
         status: updated.status,
@@ -45,4 +74,4 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   })
 }
 
-module.exports = { applyForVerification, listPending, listVerified, decideVerification }
+module.exports = { applyForVerification, getMine, listPending, listVerified, decideVerification }

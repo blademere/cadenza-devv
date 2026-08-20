@@ -3,9 +3,10 @@ const { getPrismaClient } = require('../../../infrastructure/database/prisma')
 const prisma = getPrismaClient()
 
 const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where: { userId } })
-const findPersonById = (id, db = prisma) => db.person.findUnique({ where: { id, }, select: { userId: true, email: true, user: { select: { email: true } } } })
+const findPersonById = (id, db = prisma) => db.person.findUnique({ where: { id }, select: { userId: true, email: true, user: { select: { email: true } } } })
 const findById = (id, db = prisma) => db.oboProfessional.findUnique({ where: { id } })
 const findByPersonId = (personId, db = prisma) => db.oboProfessional.findUnique({ where: { personId } })
+const findByUserId = (userId, db = prisma) => db.oboProfessional.findUnique({ where: { userId } })
 const create = (data, db = prisma) => db.oboProfessional.create({ data })
 const listPending = (db = prisma) => db.oboProfessional.findMany({
   where: { status: 'PENDING_VERIFICATION' },
@@ -17,6 +18,8 @@ const listVerified = (db = prisma) => db.oboProfessional.findMany({
   select: {
     id: true,
     registrationNumber: true,
+    prcId: true,
+    ptrNumber: true,
     status: true,
     verifiedAt: true,
     person: { select: { id: true, firstName: true, middleName: true, lastName: true, suffix: true } },
@@ -32,6 +35,7 @@ module.exports = {
   findPersonById,
   findById,
   findByPersonId,
+  findByUserId,
   create,
   listPending,
   listVerified,
