@@ -65,7 +65,7 @@ Prisma / infrastructure
 
 Services own validation, authorization decisions, orchestration, and business behavior. Repositories own persistence operations.
 
-A service should not call `getPrismaClient()`, `prisma.$transaction()`, or Prisma models directly when the operation belongs to its repository. Transactions spanning multiple repository operations should be coordinated through an appropriate application/repository boundary rather than leaking Prisma into business services.
+A service should not call `getPrismaClient()`, `prisma.$transaction()`, or Prisma models directly when the operation belongs to its repository. Transactions spanning multiple repository operations should be coordinated through an explicit transaction boundary without exposing Prisma to business services.
 
 Repositories may access Prisma because persistence is their responsibility.
 
@@ -79,7 +79,9 @@ Dynamic data must not replace strongly modeled relationships merely to avoid sch
 
 Forms provide the reusable mechanism for configuration-driven data capture. Custom fields are part of that mechanism rather than a separate application layer.
 
-The platform owns generic form behavior such as field definitions, validation metadata, field types, ordering, and configurable values. A module or feature owns the meaning of those fields in its business context.
+The platform owns generic form behavior such as field definitions, validation metadata, field types, ordering, options, visibility, submissions, and versioning. A module or feature owns the meaning of those fields in its business context.
+
+For domain-specific forms, the module associates its business entity with a platform form. The domain does not create a parallel custom-field subsystem.
 
 ## Public API boundaries
 
@@ -100,7 +102,7 @@ features/documents → platform/storage → infrastructure/storage
 Application code uses the infrastructure email boundary rather than importing a provider client directly:
 
 ```text
-application → infrastructure/email → Resend
+application → infrastructure/email → provider
 ```
 
 Provider selection and provider-specific implementation remain outside business features and modules.
