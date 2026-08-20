@@ -21,7 +21,7 @@
     "test:redis": "RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration/cache",
     "test:auth": "vitest run --dir tests/integration/auth",
     "test:all": "npm run test:unit && npm run test:integration",
-    "test:coverage": "prisma generate && npm install --no-save --package-lock=false @vitest/coverage-v8@4.1.10 && vitest run --coverage",
+    "test:coverage": "prisma generate && vitest run --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
@@ -65,6 +65,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@prisma/client": "^7.9.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.0",
     "globals": "^17.11.0",
     "husky": "^9.1.7",
