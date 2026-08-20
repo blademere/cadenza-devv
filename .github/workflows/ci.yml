@@ -234,8 +234,8 @@ jobs:
 
   docker:
     name: Docker
-    needs: [changes, quality, database]
-    if: "${{ always() && needs.changes.outputs.docker == 'true' && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.database.result == 'success' || needs.database.result == 'skipped') }}"
+    needs: [changes, quality]
+    if: "${{ always() && needs.changes.outputs.docker == 'true' && (needs.quality.result == 'success' || needs.quality.result == 'skipped') }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
