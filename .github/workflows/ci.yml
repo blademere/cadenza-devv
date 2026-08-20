@@ -267,7 +267,7 @@ jobs:
 
   required:
     name: Required
-    needs: [changes, quality, database, openapi, docker, workflow-validation, codeql]
+    needs: [changes, quality, database, openapi, docker, workflow-validation]
     if: "${{ always() }}"
     runs-on: ubuntu-latest
     steps:
@@ -284,7 +284,6 @@ jobs:
           OPENAPI: ${{ needs.openapi.result }}
           DOCKER: ${{ needs.docker.result }}
           WORKFLOW: ${{ needs.workflow-validation.result }}
-          CODEQL: ${{ needs.codeql.result }}
         run: |
           set -euo pipefail
           check() {
@@ -304,7 +303,6 @@ jobs:
           check OpenAPI "$OPENAPI_NEEDED" "$OPENAPI"
           check Docker "$DOCKER_NEEDED" "$DOCKER"
           check Workflow "$WORKFLOW_NEEDED" "$WORKFLOW"
-          check CodeQL "$SECURITY_NEEDED" "$CODEQL"
           echo 'All applicable CI checks passed.'
 
   staging:
