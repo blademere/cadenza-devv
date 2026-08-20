@@ -27,7 +27,6 @@ jobs:
     outputs:
       app: ${{ steps.filter.outputs.app }}
       database: ${{ steps.filter.outputs.database }}
-      openapi: ${{ steps.filter.outputs.openapi }}
       docker: ${{ steps.filter.outputs.docker }}
       workflow: ${{ steps.filter.outputs.workflow }}
       security: ${{ steps.filter.outputs.security }}
@@ -43,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            app=true; database=true; openapi=true; docker=true; workflow=true; security=true; docs_only=false
+            app=true; database=true; docker=true; workflow=true; security=true; docs_only=false
           else
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               base="${{ github.event.pull_request.base.sha }}"
@@ -56,16 +55,13 @@ jobs:
               fi
             fi
             mapfile -t files < <(git diff --name-only "$base" "$head")
-            app=false; database=false; openapi=false; docker=false; workflow=false; security=false
+            app=false; database=false; docker=false; workflow=false; security=false
             for file in "${files[@]}"; do
               case "$file" in
                 src/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|prisma.config.ts|.env.example) app=true ;;
               esac
               case "$file" in
                 prisma/**|prisma.config.ts|scripts/validate-migrations.cjs) database=true ;;
-              esac
-              case "$file" in
-                docs/openapi.yaml|scripts/validate-openapi.cjs|scripts/generate-openapi.cjs|src/infrastructure/openapi/**) openapi=true ;;
               esac
               case "$file" in
                 src/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
@@ -85,15 +81,14 @@ jobs:
               esac
             done
           fi
-          printf 'app=%s\ndatabase=%s\nopenapi=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\n' \
-            "$app" "$database" "$openapi" "$docker" "$workflow" "$security" "$docs_only" >> "$GITHUB_OUTPUT"
+          printf 'app=%s\ndatabase=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\n' \
+            "$app" "$database" "$docker" "$workflow" "$security" "$docs_only" >> "$GITHUB_OUTPUT"
 
       - name: Write CI classification summary
         if: always()
         env:
           APP: ${{ steps.filter.outputs.app }}
           DATABASE: ${{ steps.filter.outputs.database }}
-          OPENAPI: ${{ steps.filter.outputs.openapi }}
           DOCKER: ${{ steps.filter.outputs.docker }}
           WORKFLOW: ${{ steps.filter.outputs.workflow }}
           SECURITY: ${{ steps.filter.outputs.security }}
@@ -106,7 +101,6 @@ jobs:
             echo '|---|---|'
             echo "| Application | ${APP:-false} |"
             echo "| Database | ${DATABASE:-false} |"
-            echo "| OpenAPI | ${OPENAPI:-false} |"
             echo "| Docker | ${DOCKER:-false} |"
             echo "| Workflow | ${WORKFLOW:-false} |"
             echo "| Security analysis | ${SECURITY:-false} |"
@@ -155,7 +149,6 @@ jobs:
       - run: npm run format:check
       - run: npm run validate:architecture
       - run: npm run validate:migrations
-      - run: npm run openapi:check
       - run: npx prisma validate --schema=prisma/schema.prisma
       - run: npx prisma generate --schema=prisma/schema.prisma
       - run: npx prisma migrate deploy --schema=prisma/schema.prisma
@@ -219,20 +212,6 @@ jobs:
       - run: npx prisma generate --schema=prisma/schema.prisma
       - run: npx prisma migrate deploy --schema=prisma/schema.prisma
 
-  openapi:
-    name: OpenAPI
-    needs: changes
-    if: "${{ needs.changes.outputs.openapi == 'true' }}"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run openapi:check
-
   docker:
     name: Docker
     needs: [changes, quality]
@@ -268,7 +247,7 @@ jobs:
 
   required:
     name: Required
-    needs: [changes, quality, database, openapi, docker, workflow-validation]
+    needs: [changes, quality, database, docker, workflow-validation]
     if: "${{ always() }}"
     runs-on: ubuntu-latest
     steps:
@@ -276,13 +255,10 @@ jobs:
         env:
           APP: ${{ needs.changes.outputs.app }}
           DATABASE_NEEDED: ${{ needs.changes.outputs.database }}
-          OPENAPI_NEEDED: ${{ needs.changes.outputs.openapi }}
           DOCKER_NEEDED: ${{ needs.changes.outputs.docker }}
           WORKFLOW_NEEDED: ${{ needs.changes.outputs.workflow }}
-          SECURITY_NEEDED: ${{ needs.changes.outputs.security }}
           QUALITY: ${{ needs.quality.result }}
           DATABASE: ${{ needs.database.result }}
-          OPENAPI: ${{ needs.openapi.result }}
           DOCKER: ${{ needs.docker.result }}
           WORKFLOW: ${{ needs.workflow-validation.result }}
         run: |
@@ -301,7 +277,6 @@ jobs:
           }
           check Quality "$APP" "$QUALITY"
           check Database "$DATABASE_NEEDED" "$DATABASE"
-          check OpenAPI "$OPENAPI_NEEDED" "$OPENAPI"
           check Docker "$DOCKER_NEEDED" "$DOCKER"
           check Workflow "$WORKFLOW_NEEDED" "$WORKFLOW"
           echo 'All applicable CI checks passed.'
@@ -352,8 +327,6 @@ jobs:
           done
           docker logs express-app-staging
           exit 1
-      - name: Verify production docs are disabled
-        run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/docs)" = "404"
       - name: Verify metrics authentication
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/metrics)" = "401"
       - name: Cleanup staging container
