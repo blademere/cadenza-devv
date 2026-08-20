@@ -1,4 +1,4 @@
-const { describe, expect, it } = require('vitest')
+import { describe, expect, it } from 'vitest'
 const { buildAuthorizationContext } = require('../../../../src/platform/authorization/authorization-context.service')
 
 describe('authorization context service', () => {
