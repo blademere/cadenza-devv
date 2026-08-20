@@ -43,8 +43,6 @@ Platform workflow
 
 The OBO application stores `workflowInstanceId` as its association to the workflow instance. The workflow instance's current step is the authoritative lifecycle state.
 
-The existing `status` column is a compatibility representation and must not become a second state machine.
-
 ## Permissions
 
 Workflow transition permissions use the `resource:action` convention:
@@ -59,4 +57,4 @@ Receiving officers use `obo_plan_permits:receive` for receiving and final receiv
 
 The workflow definition is seeded by `scripts/db-seed.cjs`. Workflow version `1` is seeded idempotently.
 
-Do not create OBO-specific workflow tables or a second OBO state machine. Future lifecycle changes should be represented by a new published platform workflow version.
+Do not create OBO-specific workflow tables or a second OBO state machine. Lifecycle changes should be represented by a new published platform workflow version.
