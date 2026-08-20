@@ -26,6 +26,7 @@ const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumb
   })
 }
 
+const getMine = async ({ userId }) => repository.findByUserId(userId)
 const listPending = () => repository.listPending()
 const listVerified = () => repository.listVerified()
 
@@ -69,4 +70,4 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   })
 }
 
-module.exports = { applyForVerification, listPending, listVerified, decideVerification }
+module.exports = { applyForVerification, getMine, listPending, listVerified, decideVerification }
