@@ -24,6 +24,12 @@ const findModuleById = (id) => prisma.module.findUnique({
 
 const findModuleByKey = (key) => prisma.module.findUnique({ where: { key } })
 
+const setModuleActive = (id, isActive) => prisma.module.update({
+  where: { id },
+  data: { isActive },
+  include: { permissions: true },
+})
+
 const createPermission = (data) => prisma.permission.create({
   data,
   include: { module: true },
@@ -36,11 +42,7 @@ const listRoles = () => prisma.role.findMany({
   include: {
     permissions: {
       orderBy: { permissionId: 'asc' },
-      include: {
-        permission: {
-          include: { module: true },
-        },
-      },
+      include: { permission: { include: { module: true } } },
     },
   },
 })
@@ -70,6 +72,7 @@ module.exports = {
   createModule,
   findModuleById,
   findModuleByKey,
+  setModuleActive,
   createPermission,
   findPermissionById,
   listRoles,
