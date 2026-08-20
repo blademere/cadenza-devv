@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "format:check": "node scripts/format-check.cjs",
     "validate:architecture": "node scripts/validate-architecture.cjs",
+    "validate:authorization": "node scripts/validate-authorization.cjs",
     "validate:migrations": "node scripts/validate-migrations.cjs",
     "openapi:generate": "node scripts/generate-openapi.cjs",
     "openapi:check": "node scripts/validate-openapi.cjs",
@@ -74,7 +75,6 @@
     "lint-staged": "^17.3.0",
     "nodemon": "^3.1.14",
     "prettier": "^3.9.6",
-    "prisma": "^7.9.1",
     "supertest": "^7.2.2",
     "vitest": "^4.1.10"
   },

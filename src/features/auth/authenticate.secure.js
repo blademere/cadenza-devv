@@ -1,6 +1,6 @@
 const { UnauthorizedError } = require('../../common/errors/appError')
 const { verifyAccessToken } = require('./auth.tokens')
-const { findUserAuthState } = require('./auth.repository')
+const authRepository = require('./auth.repository')
 
 const authenticate = async (req, _res, next) => {
   const authorizationHeader = req.headers.authorization || ''
@@ -11,7 +11,7 @@ const authenticate = async (req, _res, next) => {
     if (payload.type !== 'access' || !payload.sub || !Number.isInteger(payload.authVersion) || payload.authVersion < 0) return next(new UnauthorizedError('Access token is invalid.'))
     const userId = Number(payload.sub)
     if (!Number.isInteger(userId) || userId <= 0) return next(new UnauthorizedError('Access token is invalid.'))
-    const user = await findUserAuthState(userId)
+    const user = await authRepository.findUserAuthState(userId)
     if (!user || !user.isActive || user.authVersion !== payload.authVersion) return next(new UnauthorizedError('Access token has been revoked.'))
     req.user = { id: userId }
     return next()
