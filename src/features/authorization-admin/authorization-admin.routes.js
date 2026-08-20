@@ -8,12 +8,14 @@ const {
   listModulesController,
   createModuleController,
   createPermissionController,
+  setModuleActiveController,
   listRolesController,
   replaceRolePermissionsController,
 } = require('./authorization-admin.controller')
 const {
   createModuleValidator,
   createPermissionValidator,
+  setModuleActiveValidator,
   replaceRolePermissionsValidator,
 } = require('./authorization-admin.validation')
 
@@ -38,6 +40,7 @@ const authorizeRoleResource = authorizeResource({
 router.get('/modules', authenticate, manageAuthorization, asyncHandler(listModulesController))
 router.post('/modules', authenticate, manageAuthorization, requireIdempotency, validate(createModuleValidator), asyncHandler(createModuleController))
 router.post('/modules/:moduleId/permissions', authenticate, authorizeModuleResource, requireIdempotency, validate(createPermissionValidator), asyncHandler(createPermissionController))
+router.patch('/modules/:moduleId/active', authenticate, authorizeModuleResource, requireIdempotency, validate(setModuleActiveValidator), asyncHandler(setModuleActiveController))
 router.get('/roles', authenticate, manageAuthorization, asyncHandler(listRolesController))
 router.put('/roles/:roleId/permissions', authenticate, authorizeRoleResource, requireIdempotency, validate(replaceRolePermissionsValidator), asyncHandler(replaceRolePermissionsController))
 
