@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains stable repository, architecture, platform, operations, and API documentation.
+This directory contains stable repository, architecture, platform, security, operations, and API documentation.
 
 ## Start here
 
@@ -16,10 +16,12 @@ This directory contains stable repository, architecture, platform, operations, a
 | [architecture.md](architecture.md) | Layer responsibilities, dependency direction, persistence boundaries |
 | [dynamic-forms.md](dynamic-forms.md) | Reusable forms and configurable fields |
 | [event-infrastructure.md](event-infrastructure.md) | Transactional outbox and event delivery |
+| [workflow-engine.md](workflow-engine.md) | Generic workflow/versioning mechanism |
+| [platform-integration.md](platform-integration.md) | Integration between modules/features and platform mechanisms |
+| [platform-extensibility.md](platform-extensibility.md) | Rules for extending reusable platform capabilities |
+| [business-automation.md](business-automation.md) | Rules, approvals, notifications, and SLA mechanisms |
 | [idempotency.md](idempotency.md) | Generic write-request idempotency |
 | [object-storage.md](object-storage.md) | Provider-neutral storage boundary |
-| [workflow-engine.md](workflow-engine.md) | Generic workflow/versioning mechanism |
-| [platform-integration.md](platform-integration.md) | Platform integration patterns |
 
 ## Technical and operations
 
@@ -28,7 +30,13 @@ This directory contains stable repository, architecture, platform, operations, a
 | [api-cache.md](api-cache.md) | Redis-backed HTTP response caching |
 | [scheduler.md](scheduler.md) | Generic background-job scheduling |
 | [search.md](search.md) | Provider-neutral search contract |
+| [enforcement-contracts.md](enforcement-contracts.md) | Repository-wide behavioral and architectural enforcement contracts |
 | [production-operations.md](production-operations.md) | Deployment and operational guidance |
+| [security/security-and-api-contracts.md](security/security-and-api-contracts.md) | Security, audit, authorization, idempotency, and API contracts |
+
+## API
+
+The public HTTP contract is [`openapi.yaml`](openapi.yaml). Workflow, platform, and domain internals are not public APIs unless explicitly mounted by application routes.
 
 ## Domain documentation
 
@@ -38,13 +46,12 @@ The general documentation directory must remain domain-neutral. Do not add appli
 
 ## Documentation rules
 
-Documentation should describe the current implementation and stable engineering contracts. Avoid historical phase labels and temporary migration plans in general documentation.
+Documentation describes the current implementation and stable engineering contracts. Do not use historical phase labels, temporary migration plans, or roadmap language in general documentation.
 
 Distinguish clearly between:
 
 - implemented application behavior;
 - reusable platform capability;
-- deferred capability that remains intentionally unused;
 - domain behavior documented under its module directory.
 
 Use generic concepts in shared documentation. When a domain-specific example is necessary, link to the domain documentation rather than turning the shared document into a domain specification.
