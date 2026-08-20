@@ -43,6 +43,7 @@ model OAuthAccount {
   updatedAt         DateTime @updatedAt
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Role {
