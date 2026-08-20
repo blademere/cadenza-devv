@@ -2,7 +2,7 @@
 
 The repository contains a thin generic scheduling abstraction over BullMQ. It schedules background jobs; it is **not** the appointment slot-generation engine.
 
-Appointment types, availability schedules, slot duration, capacity, slot generation, and appointment lifecycle belong to `src/features/appointments/` because those are business capabilities. The generic scheduler remains deferred until a concrete cross-domain background scheduling requirement exists.
+Appointment types, availability schedules, slot duration, capacity, slot generation, and appointment lifecycle belong to `src/features/appointments/` because those are business capabilities. The generic scheduler creates background jobs and recurring/delayed execution.
 
 ## Every interval
 
