@@ -12,8 +12,12 @@ const HTTP_METHODS = new Set([
   'trace',
 ])
 
-const ROUTES_ROOT = path.resolve(__dirname, '../../..')
-const ROOT_ROUTES_FILE = path.join(ROUTES_ROOT, 'routes', 'index.js')
+// The application mounts the API router from src/routes/index.js with
+// app.use('/api/v1', apiRoutes). The OpenAPI document expresses that prefix
+// through its `servers` URL, so inventory paths intentionally begin at the
+// API router root (for example /auth/login), not /api/v1/auth/login.
+const PROJECT_ROOT = path.resolve(__dirname, '../../..')
+const ROOT_ROUTES_FILE = path.join(PROJECT_ROOT, 'src', 'routes', 'index.js')
 
 function resolveRequire(fromFile, request) {
   if (!request.startsWith('.')) return null
@@ -27,7 +31,12 @@ function resolveRequire(fromFile, request) {
     path.join(base, 'index.cjs'),
   ]
 
-  return candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile()) || null
+  return (
+    candidates.find(
+      (candidate) =>
+        fs.existsSync(candidate) && fs.statSync(candidate).isFile()
+    ) || null
+  )
 }
 
 function normalizePath(...segments) {
@@ -48,23 +57,33 @@ function parseRouterFile(filePath) {
   const mounts = []
   const routes = []
 
-  const requirePattern = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\(\s*['"]([^'"]+)['"]\s*\)/g
+  const requirePattern =
+    /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\(\s*['"]([^'"]+)['"]\s*\)/g
+
   for (const match of source.matchAll(requirePattern)) {
     const resolved = resolveRequire(filePath, match[2])
     if (resolved) imports.set(match[1], resolved)
   }
 
-  const usePattern = /\b([A-Za-z_$][\w$]*)\.use\(\s*(?:['"]([^'"]*)['"]\s*,\s*)?([A-Za-z_$][\w$]*)/g
+  const usePattern =
+    /\b([A-Za-z_$][\w$]*)\.use\(\s*(?:['"]([^'"]*)['"]\s*,\s*)?([A-Za-z_$][\w$]*)/g
+
   for (const match of source.matchAll(usePattern)) {
     const prefix = match[2] || ''
     const child = imports.get(match[3])
     if (child) mounts.push({ prefix, file: child })
   }
 
-  const routePattern = /\b([A-Za-z_$][\w$]*)\.(get|post|put|patch|delete|options|head|trace)\(\s*['"]([^'"]*)['"]/g
+  const routePattern =
+    /\b([A-Za-z_$][\w$]*)\.(get|post|put|patch|delete|options|head|trace)\(\s*['"]([^'"]*)['"]/g
+
   for (const match of source.matchAll(routePattern)) {
     if (!HTTP_METHODS.has(match[2])) continue
-    routes.push({ method: match[2], path: match[3] || '/', file: filePath })
+    routes.push({
+      method: match[2],
+      path: match[3] || '/',
+      file: filePath,
+    })
   }
 
   return { mounts, routes }
@@ -79,11 +98,17 @@ function collectRoutes(filePath, prefix = '', visited = new Set()) {
   const routes = parsed.routes.map((route) => ({
     method: route.method,
     path: normalizePath(prefix, route.path),
-    source: path.relative(ROUTES_ROOT, route.file).replace(/\\/g, '/'),
+    source: path.relative(PROJECT_ROOT, route.file).replace(/\\/g, '/'),
   }))
 
   for (const mount of parsed.mounts) {
-    routes.push(...collectRoutes(mount.file, normalizePath(prefix, mount.prefix), visited))
+    routes.push(
+      ...collectRoutes(
+        mount.file,
+        normalizePath(prefix, mount.prefix),
+        visited
+      )
+    )
   }
 
   return routes
