@@ -1,6 +1,7 @@
 const {
   ConflictError,
   NotFoundError,
+  ValidationError,
 } = require('../../common/errors/appError')
 const repository = require('./authorization-admin.repository')
 const { clearRolePermissionCache } = require('../../platform/authorization/access-control.service')
@@ -21,6 +22,20 @@ const addPermission = async ({ moduleId, action }) => {
   if (existing) throw new ConflictError(`Permission '${action}' already exists for this module.`)
 
   return repository.createPermission({ moduleId, action })
+}
+
+const setModuleActive = async ({ moduleId, isActive }) => {
+  const module = await repository.findModuleById(moduleId)
+  if (!module) throw new NotFoundError('Module not found.')
+
+  if (module.key === 'authorization' && !isActive) {
+    throw new ValidationError('The authorization module cannot be disabled.')
+  }
+
+  const updated = await repository.setModuleActive(moduleId, isActive)
+  const affectedRoles = await repository.listRoles()
+  await Promise.all(affectedRoles.map((role) => clearRolePermissionCache(role.id)))
+  return updated
 }
 
 const listRoles = async () => repository.listRoles()
@@ -44,6 +59,7 @@ module.exports = {
   listModules,
   createModule,
   addPermission,
+  setModuleActive,
   listRoles,
   replaceRolePermissions,
 }

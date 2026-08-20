@@ -19,6 +19,14 @@ const createPermissionController = async (req, res) => {
   return successResponse(res, 'Permission created successfully.', permission, 201)
 }
 
+const setModuleActiveController = async (req, res) => {
+  const module = await service.setModuleActive({
+    moduleId: req.validated.params.moduleId,
+    isActive: req.validated.body.isActive,
+  })
+  return successResponse(res, 'Authorization module activation updated successfully.', module)
+}
+
 const listRolesController = async (_req, res) => {
   const roles = await service.listRoles()
   return successResponse(res, 'Roles and permissions retrieved successfully.', roles)
@@ -36,6 +44,7 @@ module.exports = {
   listModulesController,
   createModuleController,
   createPermissionController,
+  setModuleActiveController,
   listRolesController,
   replaceRolePermissionsController,
 }

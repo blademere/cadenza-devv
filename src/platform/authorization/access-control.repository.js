@@ -4,9 +4,7 @@ const prisma = getPrismaClient()
 
 const getUserAuthorizationContext = async (userId) => {
   const user = await prisma.user.findUnique({
-    where: {
-      id: Number(userId),
-    },
+    where: { id: Number(userId) },
     select: {
       id: true,
       isActive: true,
@@ -19,11 +17,7 @@ const getUserAuthorizationContext = async (userId) => {
               permission: {
                 select: {
                   action: true,
-                  module: {
-                    select: {
-                      key: true,
-                    },
-                  },
+                  module: { select: { key: true, isActive: true } },
                 },
               },
             },
@@ -33,17 +27,17 @@ const getUserAuthorizationContext = async (userId) => {
     },
   })
 
-  if (!user || !user.isActive) {
-    return null
-  }
+  if (!user || !user.isActive) return null
 
   return {
     userId: user.id,
     role: user.role.name,
-    permissions: user.role.permissions.map(({ permission }) => ({
-      resource: permission.module.key,
-      action: permission.action,
-    })),
+    permissions: user.role.permissions
+      .filter(({ permission }) => permission.module.isActive)
+      .map(({ permission }) => ({
+        resource: permission.module.key,
+        action: permission.action,
+      })),
   }
 }
 
@@ -52,43 +46,29 @@ const getUserPermissions = async (userId) => {
   return context?.permissions ?? []
 }
 
-const findRoleById = async (roleId) => {
-  return prisma.role.findUnique({
-    where: {
-      id: Number(roleId),
-    },
-
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      permissions: {
-        select: {
-          permission: {
-            select: {
-              action: true,
-              module: {
-                select: {
-                  key: true,
-                },
-              },
-            },
+const findRoleById = async (roleId) => prisma.role.findUnique({
+  where: { id: Number(roleId) },
+  select: {
+    id: true,
+    name: true,
+    description: true,
+    permissions: {
+      select: {
+        permission: {
+          select: {
+            action: true,
+            module: { select: { key: true, isActive: true } },
           },
         },
       },
     },
-  })
-}
+  },
+})
 
 const findUserIdsByRoleId = async (roleId) => {
   const users = await prisma.user.findMany({
-    where: {
-      roleId: Number(roleId),
-    },
-
-    select: {
-      id: true,
-    },
+    where: { roleId: Number(roleId) },
+    select: { id: true },
   })
 
   return users.map((user) => user.id)

@@ -12,21 +12,18 @@ const createModuleSchema = z.object({
 })
 
 const createPermissionSchema = z.object({
-  params: z.object({
-    moduleId: z.coerce.number().int().positive(),
-  }),
-  body: z.object({
-    action: actionSchema,
-  }),
+  params: z.object({ moduleId: z.coerce.number().int().positive() }),
+  body: z.object({ action: actionSchema }),
+})
+
+const setModuleActiveSchema = z.object({
+  params: z.object({ moduleId: z.coerce.number().int().positive() }),
+  body: z.object({ isActive: z.boolean() }),
 })
 
 const replaceRolePermissionsSchema = z.object({
-  params: z.object({
-    roleId: z.coerce.number().int().positive(),
-  }),
-  body: z.object({
-    permissionIds: z.array(z.coerce.number().int().positive()).max(500),
-  }),
+  params: z.object({ roleId: z.coerce.number().int().positive() }),
+  body: z.object({ permissionIds: z.array(z.coerce.number().int().positive()).max(500) }),
 })
 
 const validate = (schema) => async (req) => schema.parse({
@@ -37,5 +34,6 @@ const validate = (schema) => async (req) => schema.parse({
 module.exports = {
   createModuleValidator: validate(createModuleSchema),
   createPermissionValidator: validate(createPermissionSchema),
+  setModuleActiveValidator: validate(setModuleActiveSchema),
   replaceRolePermissionsValidator: validate(replaceRolePermissionsSchema),
 }
