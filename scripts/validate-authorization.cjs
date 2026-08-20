@@ -8,7 +8,7 @@ const ROUTE_ROOTS = [
   path.join(ROOT, 'modules'),
   path.join(ROOT, 'platform'),
 ]
-const METHODS = /\b[A-Za-z_$][\w$]*Router\.(get|post|put|patch|delete|options|head|trace)\s*\(/g
+const METHODS = /\b(?:router|[A-Za-z_$][\w$]*Router)\.(get|post|put|patch|delete|options|head|trace)\s*\(/g
 const AUTHENTICATE = /\bauthenticate\b/
 const AUTHORIZE = /\bauthorize(?:Resource)?\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/
 const EXEMPTION = /authorization\s*:\s*public|authorization\s*:\s*auth-boundary/i
