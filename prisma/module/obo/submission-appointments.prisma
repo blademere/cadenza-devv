@@ -1,8 +1,0 @@
-model OboSubmissionAppointment {
-  id            String               @id @default(uuid())
-  applicationId String               @unique
-  appointmentId String               @unique
-  application   OboPermitApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-}
