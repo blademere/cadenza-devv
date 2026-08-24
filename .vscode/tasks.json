@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "dev: server",
+      "label": "dev:server",
       "type": "shell",
       "command": "npm run dev:server",
       "options": {
@@ -32,7 +32,7 @@
       }
     },
     {
-      "label": "dev: web",
+      "label": "dev:web",
       "type": "shell",
       "command": "npm run dev:web",
       "options": {
@@ -61,10 +61,10 @@
       }
     },
     {
-      "label": "dev: full stack",
+      "label": "dev:full-stack",
       "dependsOn": [
-        "dev: server",
-        "dev: web"
+        "dev:server",
+        "dev:web"
       ],
       "dependsOrder": "parallel",
       "problemMatcher": [],
