@@ -15,13 +15,15 @@ authRouter.post('/login', loginRateLimiter, validate(loginValidator), asyncHandl
 authRouter.get('/me', authenticate, asyncHandler(currentUserController))
 authRouter.get('/oauth/google', oauthRateLimiter, asyncHandler(startOAuth('google')))
 authRouter.get('/oauth/google/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('google')))
-authRouter.get('/oauth/github', oauthRateLimiter, asyncHandler(startOAuth('github')))
-authRouter.get('/oauth/github/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('github')))
+authRouter.get('/oauth/facebook', oauthRateLimiter, asyncHandler(startOAuth('facebook')))
+authRouter.get('/oauth/facebook/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('facebook')))
 authRouter.get('/oauth/accounts', authenticate, asyncHandler(listOAuthAccountsController))
 authRouter.get('/oauth/link/google', oauthRateLimiter, authenticate, asyncHandler(startOAuthLink('google')))
-authRouter.get('/oauth/link/github', oauthRateLimiter, authenticate, asyncHandler(startOAuthLink('github')))
+authRouter.get('/oauth/link/facebook', oauthRateLimiter, authenticate, asyncHandler(startOAuthLink('facebook')))
 authRouter.delete('/oauth/link/:provider', authenticate, requireAuthIdempotency, asyncHandler(unlinkOAuthAccountController))
 authRouter.post('/refresh', refreshRateLimiter, csrfProtection, requireAuthIdempotency, asyncHandler(refreshAccessTokenController))
 authRouter.post('/logout', logoutRateLimiter, csrfProtection, requireAuthIdempotency, asyncHandler(logoutController))
+
+authRouter.stack
 
 module.exports = authRouter
