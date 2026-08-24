@@ -25,7 +25,6 @@
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/apps/web",
       "preLaunchTask": "dev:web",
-      "postDebugTask": "stop:web",
       "sourceMaps": true
     }
   ],
