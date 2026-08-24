@@ -11,7 +11,8 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
     "dev:server": "npm --workspace @express-app/server run dev",
-    "dev:web": "npm --workspace @express-app/web run dev",
+    "dev:web": "node scripts/dev-web.cjs start",
+    "dev:web:stop": "node scripts/dev-web.cjs stop",
     "start": "npm --workspace @express-app/server run start",
     "start:worker": "npm --workspace @express-app/server run start:worker",
     "build": "npm run build:web",
