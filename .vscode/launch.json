@@ -23,7 +23,8 @@
       "type": "pwa-chrome",
       "request": "launch",
       "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}/apps/web"
+      "webRoot": "${workspaceFolder}/apps/web",
+      "preLaunchTask": "dev:web"
     }
   ],
   "compounds": [
