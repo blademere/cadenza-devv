@@ -9,7 +9,7 @@ export const authApi = {
   },
 
   async refresh() {
-    const response = await apiClient.post(`${AUTH_PATH}/refresh`, null)
+    const response = await apiClient.post(`${AUTH_PATH}/refresh`)
     return response.data
   },
 
