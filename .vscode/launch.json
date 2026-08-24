@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Server: Express",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/server/src/server.js",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--inspect=0.0.0.0:9229"],
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal",
+      "restart": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
+      "sourceMaps": true
+    },
+    {
+      "name": "Web: React",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/apps/web",
+      "preLaunchTask": "dev:web"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack: Server + Web",
+      "configurations": [
+        "Server: Express",
+        "Web: React"
+      ],
+      "stopAll": true
+    }
+  ]
+}
