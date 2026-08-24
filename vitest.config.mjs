@@ -2,8 +2,8 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    dir: './tests',
-    setupFiles: ['./tests/setup.js'],
+    dir: './apps/server/tests',
+    setupFiles: ['./apps/server/tests/setup.js'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
@@ -16,9 +16,9 @@ export default defineConfig({
         statements: 50,
       },
       exclude: [
-        'src/server.js',
-        'src/platform/**',
-        'src/infrastructure/monitoring/**',
+        'apps/server/src/server.js',
+        'apps/server/src/platform/**',
+        'apps/server/src/infrastructure/monitoring/**',
         '**/*.config.*',
       ],
     },
