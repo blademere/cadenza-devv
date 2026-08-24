@@ -1,0 +1,5 @@
+{
+  "name": "@express-app/server",
+  "private": true,
+  "description": "Express API server application"
+}
