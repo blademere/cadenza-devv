@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { authApi } from './auth.api'
 import { apiClient } from '../../services/api/client'
 
@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [accessToken, setAccessToken] = useState(null)
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const refreshPromiseRef = useRef(null)
 
   const applySession = useCallback((session) => {
     const token = session?.accessToken ?? null
@@ -24,20 +25,29 @@ export function AuthProvider({ children }) {
   }, [applySession])
 
   const refresh = useCallback(async () => {
-    try {
-      const session = await authApi.refresh()
-      applySession(session)
-      const currentUser = await authApi.me()
-      setUser(currentUser.user)
-      return { ...session, user: currentUser.user }
-    } catch (error) {
-      if (error.status === 401 || error.status === 400) {
-        setAccessToken(null)
-        setUser(null)
-        apiClient.clearAccessToken()
+    if (refreshPromiseRef.current) return refreshPromiseRef.current
+
+    const refreshPromise = (async () => {
+      try {
+        const session = await authApi.refresh()
+        applySession(session)
+        const currentUser = await authApi.me()
+        setUser(currentUser.user)
+        return { ...session, user: currentUser.user }
+      } catch (error) {
+        if (error.status === 401 || error.status === 400) {
+          setAccessToken(null)
+          setUser(null)
+          apiClient.clearAccessToken()
+        }
+        return null
+      } finally {
+        refreshPromiseRef.current = null
       }
-      return null
-    }
+    })()
+
+    refreshPromiseRef.current = refreshPromise
+    return refreshPromise
   }, [applySession])
 
   const logout = useCallback(async () => {
