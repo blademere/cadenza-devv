@@ -19,6 +19,6 @@ export const authApi = {
   },
 
   async logout() {
-    await apiClient.post(`${AUTH_PATH}/logout`, null)
+    await apiClient.post(`${AUTH_PATH}/logout`)
   },
 }
