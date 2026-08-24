@@ -27,7 +27,9 @@ export function AuthProvider({ children }) {
     try {
       const session = await authApi.refresh()
       applySession(session)
-      return session
+      const currentUser = await authApi.me()
+      setUser(currentUser.user)
+      return { ...session, user: currentUser.user }
     } catch (error) {
       if (error.status === 401 || error.status === 400) {
         setAccessToken(null)
