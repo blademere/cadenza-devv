@@ -7,10 +7,15 @@ const oboRouter = require('../modules/obo')
 const authenticate = require('../features/auth/authenticate.secure')
 
 const router = express.Router()
+const authorizationContextProtectedRouter = express.Router()
+
+authorizationContextProtectedRouter.use(authenticate)
+authorizationContextProtectedRouter.use(authorizationContextRouter)
+
 router.use('/auth', authRouter)
 router.use('/users', userRouter)
 router.use('/authorization', authorizationAdminRouter)
-router.use('/', authenticate, authorizationContextRouter)
+router.use('/', authorizationContextProtectedRouter)
 router.use('/obo', oboRouter)
 
 module.exports = router
