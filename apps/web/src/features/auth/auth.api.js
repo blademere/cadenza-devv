@@ -3,8 +3,15 @@ import { apiClient } from '../../services/api/client'
 const AUTH_PATH = '/auth'
 
 export const authApi = {
+  async csrf() {
+    const response = await apiClient.get(`${AUTH_PATH}/csrf`)
+    apiClient.setCsrfToken(response.data.csrfToken)
+    return response.data
+  },
+
   async login(credentials) {
     const response = await apiClient.post(`${AUTH_PATH}/login`, credentials)
+    if (response.data.csrfToken) apiClient.setCsrfToken(response.data.csrfToken)
     return response.data
   },
 
