@@ -1,7 +1,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 
-const ROOT = path.resolve(__dirname, '..', 'src')
+const ROOT = path.resolve(__dirname, '..', 'apps', 'server', 'src')
 const ROUTES = path.join(ROOT, 'features')
 const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:features|modules)\//
 const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+modules\//
@@ -28,29 +28,24 @@ for (const file of files) {
   const source = fs.readFileSync(file, 'utf8')
   const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
 
-  if (relative.startsWith('src/platform/') && FORBIDDEN_PLATFORM_IMPORT.test(source)) {
+  if (relative.startsWith('apps/server/src/platform/') && FORBIDDEN_PLATFORM_IMPORT.test(source)) {
     failures.push(`${relative}: platform code must not import features or modules.`)
   }
 
-  if (relative.startsWith('src/features/') && FORBIDDEN_FEATURE_IMPORT.test(source)) {
+  if (relative.startsWith('apps/server/src/features/') && FORBIDDEN_FEATURE_IMPORT.test(source)) {
     failures.push(`${relative}: shared features must not import modules.`)
   }
 
-  if (relative.startsWith('src/infrastructure/') && FORBIDDEN_INFRASTRUCTURE_IMPORT.test(source)) {
+  if (relative.startsWith('apps/server/src/infrastructure/') && FORBIDDEN_INFRASTRUCTURE_IMPORT.test(source)) {
     failures.push(`${relative}: infrastructure must not import modules.`)
   }
 
-  if (relative.startsWith('src/common/') && FORBIDDEN_COMMON_IMPORT.test(source)) {
+  if (relative.startsWith('apps/server/src/common/') && FORBIDDEN_COMMON_IMPORT.test(source)) {
     failures.push(`${relative}: common code must not import features, platform, or modules.`)
   }
 
-  // The repository boundary applies to application business services in
-  // features/modules. Platform services are reusable engines and may own
-  // their persistence implementation; requiring a second repository layer
-  // inside every platform engine would create a parallel abstraction without
-  // changing the application-domain dependency direction.
   const isApplicationService =
-    (relative.startsWith('src/features/') || relative.startsWith('src/modules/')) &&
+    (relative.startsWith('apps/server/src/features/') || relative.startsWith('apps/server/src/modules/')) &&
     /(?:^|\/)\w+\.service\.(?:js|cjs|mjs)$/.test(relative)
 
   if (isApplicationService && (PRISMA_IMPORT.test(source) || PRISMA_CLIENT_ACCESS.test(source))) {
