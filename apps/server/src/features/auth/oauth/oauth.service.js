@@ -33,7 +33,16 @@ const fetchJson = async (url, options = {}) => {
       throw new Error('OAuth provider returned an invalid response.')
     }
     if (!response.ok) {
-      throw new Error(`OAuth provider request failed with status ${response.status}.`)
+      const providerError = data?.error
+      const providerDescription = data?.error_description
+      const detail = [providerError, providerDescription].filter(Boolean).join(': ')
+      const error = new Error(
+        `OAuth provider request failed with status ${response.status}${detail ? ` (${detail})` : '.'}`
+      )
+      error.providerStatus = response.status
+      error.providerError = typeof providerError === 'string' ? providerError : undefined
+      error.providerErrorDescription = typeof providerDescription === 'string' ? providerDescription : undefined
+      throw error
     }
     return { data, response }
   } finally {
