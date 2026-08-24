@@ -61,6 +61,20 @@
       }
     },
     {
+      "label": "stop:web",
+      "type": "shell",
+      "command": "npm run dev:web:stop",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated",
+        "close": true
+      }
+    },
+    {
       "label": "dev:full-stack",
       "dependsOn": [
         "dev:server",
