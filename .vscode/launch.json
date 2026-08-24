@@ -34,7 +34,8 @@
         "uriFormat": "%s",
         "action": "debugWithChrome",
         "webRoot": "${workspaceFolder}/apps/web"
-      }
+      },
+      "runtimeArgs": ["--inspect=0.0.0.0:9230"]
     }
   ],
   "compounds": [
