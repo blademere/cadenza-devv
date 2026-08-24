@@ -30,9 +30,10 @@ const envSchema = z.object({
   OAUTH_GOOGLE_CLIENT_ID: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_SECRET: optionalEnvString,
   OAUTH_GOOGLE_CALLBACK_URL: optionalEnvUrl,
-  OAUTH_GITHUB_CLIENT_ID: optionalEnvString,
-  OAUTH_GITHUB_CLIENT_SECRET: optionalEnvString,
-  OAUTH_GITHUB_CALLBACK_URL: optionalEnvUrl,
+  OAUTH_FACEBOOK_CLIENT_ID: optionalEnvString,
+  OAUTH_FACEBOOK_CLIENT_SECRET: optionalEnvString,
+  OAUTH_FACEBOOK_CALLBACK_URL: optionalEnvUrl,
+  OAUTH_FACEBOOK_API_VERSION: z.string().regex(/^v\d+\.\d+$/, 'OAUTH_FACEBOOK_API_VERSION must use the vMAJOR.MINOR format.').default('v24.0'),
   OAUTH_DEFAULT_ROLE_NAME: z.string().min(1).default('client'),
   OAUTH_FRONTEND_SUCCESS_URL: z.url().default('http://localhost:5173/auth/callback/success'),
   OAUTH_FRONTEND_FAILURE_URL: z.url().default('http://localhost:5173/auth/callback/failure'),
@@ -74,9 +75,9 @@ if (hasGoogleCredentials && (!data.OAUTH_GOOGLE_CLIENT_ID || !data.OAUTH_GOOGLE_
   throw new Error('Google OAuth requires OAUTH_GOOGLE_CLIENT_ID, OAUTH_GOOGLE_CLIENT_SECRET, and OAUTH_GOOGLE_CALLBACK_URL.')
 }
 
-const hasGithubCredentials = Boolean(data.OAUTH_GITHUB_CLIENT_ID || data.OAUTH_GITHUB_CLIENT_SECRET)
-if (hasGithubCredentials && (!data.OAUTH_GITHUB_CLIENT_ID || !data.OAUTH_GITHUB_CLIENT_SECRET || !data.OAUTH_GITHUB_CALLBACK_URL)) {
-  throw new Error('GitHub OAuth requires OAUTH_GITHUB_CLIENT_ID, OAUTH_GITHUB_CLIENT_SECRET, and OAUTH_GITHUB_CALLBACK_URL.')
+const hasFacebookCredentials = Boolean(data.OAUTH_FACEBOOK_CLIENT_ID || data.OAUTH_FACEBOOK_CLIENT_SECRET)
+if (hasFacebookCredentials && (!data.OAUTH_FACEBOOK_CLIENT_ID || !data.OAUTH_FACEBOOK_CLIENT_SECRET || !data.OAUTH_FACEBOOK_CALLBACK_URL)) {
+  throw new Error('Facebook OAuth requires OAUTH_FACEBOOK_CLIENT_ID, OAUTH_FACEBOOK_CLIENT_SECRET, and OAUTH_FACEBOOK_CALLBACK_URL.')
 }
 
 if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_SUCCESS_URL.startsWith('http://')) throw new Error('OAUTH_FRONTEND_SUCCESS_URL must use HTTPS in production.')
