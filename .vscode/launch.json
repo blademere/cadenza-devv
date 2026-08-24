@@ -9,7 +9,6 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "node",
       "runtimeArgs": ["--inspect=0.0.0.0:9229"],
-      "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "restart": true,
       "skipFiles": [
