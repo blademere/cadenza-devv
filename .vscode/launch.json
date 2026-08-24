@@ -12,7 +12,10 @@
       "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "restart": true,
-      "skipFiles": ["<node_internals>/**", "${workspaceFolder}/node_modules/**"],
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
       "sourceMaps": true
     },
     {
@@ -22,13 +25,11 @@
       "program": "${workspaceFolder}/node_modules/vite/bin/vite.js",
       "cwd": "${workspaceFolder}/apps/web",
       "console": "integratedTerminal",
-      "skipFiles": ["<node_internals>/**", "${workspaceFolder}/node_modules/**"],
-      "sourceMaps": true,
-      "serverReadyAction": {
-        "pattern": "^\\s*.*Local:\\s+(https?://localhost:5173/)",
-        "uriFormat": "%s",
-        "action": "openExternally"
-      }
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
+      "sourceMaps": true
     }
   ],
   "compounds": [
