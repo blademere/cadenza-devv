@@ -1,5 +1,5 @@
 const express = require('express')
-const { loginController, currentUserController, refreshAccessTokenController, logoutController } = require('./auth.controller')
+const { csrfTokenController, loginController, currentUserController, refreshAccessTokenController, logoutController } = require('./auth.controller')
 const { loginValidator } = require('./auth.validation')
 const authenticate = require('./authenticate.secure')
 const { asyncHandler, loginRateLimiter, refreshRateLimiter, logoutRateLimiter, oauthRateLimiter, idempotency } = require('../../common/middleware')
@@ -10,6 +10,8 @@ const { startOAuth, handleOAuthCallback, startOAuthLink, listOAuthAccountsContro
 const authRouter = express.Router()
 const requireAuthIdempotency = idempotency({ scope: 'auth', required: true })
 
+// CSRF token bootstrap is safe to call before authentication and is required by browser clients for state-changing auth requests.
+authRouter.get('/csrf', asyncHandler(csrfTokenController))
 // Login intentionally does not use idempotency: it creates a new authentication session.
 authRouter.post('/login', loginRateLimiter, validate(loginValidator), asyncHandler(loginController))
 authRouter.get('/me', authenticate, asyncHandler(currentUserController))
