@@ -52,8 +52,21 @@ const fetchJson = async (url, options = {}) => {
 
 const exchangeCode = async (provider, code) => {
   const config = getProviderConfig(provider)
-  const body = new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, code, redirect_uri: config.callbackUrl })
-  const { data } = await fetchJson(config.tokenUrl, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+  const body = new URLSearchParams({
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    code,
+    grant_type: 'authorization_code',
+    redirect_uri: config.callbackUrl,
+  })
+  const { data } = await fetchJson(config.tokenUrl, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  })
   if (!data?.access_token) throw new UnauthorizedError('OAuth authorization could not be completed.')
   return data.access_token
 }
