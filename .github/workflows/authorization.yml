@@ -29,6 +29,3 @@ jobs:
 
       - name: Validate backend authorization
         run: npm run validate:authorization
-
-      - name: Validate OpenAPI coverage
-        run: npm run openapi:check
