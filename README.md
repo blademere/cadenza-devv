@@ -7,7 +7,7 @@ This README is the **formal entry point** for the repository. It describes the c
 ## Current capabilities
 
 - Password authentication with JWT access and refresh-token rotation.
-- Google and GitHub OAuth, including account linking and unlinking.
+- Google and Facebook OAuth, including account linking and unlinking.
 - Permission-based authorization with Redis-backed permission caching.
 - User listing and creation APIs.
 - Shared appointment scheduling and appointment lifecycle operations.

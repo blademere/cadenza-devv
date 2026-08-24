@@ -1,6 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 let accessToken = null
+let csrfToken = null
 
 const getCookie = (name) => {
   const prefix = `${encodeURIComponent(name)}=`
@@ -27,8 +28,8 @@ const request = async (path, options = {}) => {
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
 
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-    const csrfToken = getCookie('csrfToken')
-    if (csrfToken) headers.set('x-csrf-token', csrfToken)
+    const token = csrfToken ?? getCookie('csrfToken')
+    if (token) headers.set('x-csrf-token', token)
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -63,6 +64,10 @@ export const apiClient = {
   },
   clearAccessToken() {
     accessToken = null
+    csrfToken = null
+  },
+  setCsrfToken(token) {
+    csrfToken = token ?? null
   },
   get: (path, options) => request(path, { ...options, method: 'GET' }),
   post: (path, body, options = {}) =>

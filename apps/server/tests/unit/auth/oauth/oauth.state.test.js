@@ -9,9 +9,10 @@ vi.mock('../../../../src/config', () => ({
     OAUTH_GOOGLE_CLIENT_ID: 'google-client',
     OAUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
     OAUTH_GOOGLE_CALLBACK_URL: 'http://localhost:3000/api/v1/auth/oauth/google/callback',
-    OAUTH_GITHUB_CLIENT_ID: 'github-client',
-    OAUTH_GITHUB_CLIENT_SECRET: 'github-secret',
-    OAUTH_GITHUB_CALLBACK_URL: 'http://localhost:3000/api/v1/auth/oauth/github/callback',
+    OAUTH_FACEBOOK_CLIENT_ID: 'facebook-client',
+    OAUTH_FACEBOOK_CLIENT_SECRET: 'facebook-secret',
+    OAUTH_FACEBOOK_CALLBACK_URL: 'http://localhost:3000/api/v1/auth/oauth/facebook/callback',
+    OAUTH_FACEBOOK_API_VERSION: 'v24.0',
     COOKIE_SECURE: false,
     COOKIE_SAME_SITE: 'lax',
     COOKIE_DOMAIN: '',
@@ -31,8 +32,8 @@ describe('OAuth state storage', () => {
   });
   it('stores link state with a normalized numeric user id', async () => {
     redis.set.mockResolvedValue('OK');
-    await storeOAuthState(validState, { flow: 'link', provider: 'github', userId: '42' }, 30000);
-    expect(redis.set).toHaveBeenCalledWith(expect.any(String), JSON.stringify({ flow: 'link', provider: 'github', userId: 42 }), { NX: true, EX: 30 });
+    await storeOAuthState(validState, { flow: 'link', provider: 'facebook', userId: '42' }, 30000);
+    expect(redis.set).toHaveBeenCalledWith(expect.any(String), JSON.stringify({ flow: 'link', provider: 'facebook', userId: 42 }), { NX: true, EX: 30 });
   });
   it('rejects invalid state input', async () => {
     await expect(storeOAuthState('short', { flow: 'login', provider: 'google' }, 600000)).rejects.toThrow('OAuth state must be a high-entropy string.');
@@ -40,7 +41,7 @@ describe('OAuth state storage', () => {
   });
   it('rejects invalid flow and provider metadata', async () => {
     await expect(storeOAuthState(validState, { flow: 'unknown', provider: 'google' }, 600000)).rejects.toThrow('Invalid OAuth state flow.');
-    await expect(storeOAuthState(validState, { flow: 'login', provider: 'facebook' }, 600000)).rejects.toThrow('Invalid OAuth state provider.');
+    await expect(storeOAuthState(validState, { flow: 'login', provider: 'github' }, 600000)).rejects.toThrow('Invalid OAuth state provider.');
   });
   it('requires a valid user id for link state', async () => {
     await expect(storeOAuthState(validState, { flow: 'link', provider: 'google' }, 600000)).rejects.toThrow('A valid userId is required for OAuth linking.');
@@ -58,8 +59,8 @@ describe('OAuth state consumption', () => {
     expect(redis.getDel).toHaveBeenCalledWith(expect.stringMatching(/^oauth:state:[a-f0-9]{64}$/));
   });
   it('atomically consumes a valid link state', async () => {
-    redis.getDel.mockResolvedValue(JSON.stringify({ flow: 'link', provider: 'github', userId: 42 }));
-    await expect(consumeOAuthState(validState, 'link', 'github')).resolves.toEqual({ flow: 'link', provider: 'github', userId: 42 });
+    redis.getDel.mockResolvedValue(JSON.stringify({ flow: 'link', provider: 'facebook', userId: 42 }));
+    await expect(consumeOAuthState(validState, 'link', 'facebook')).resolves.toEqual({ flow: 'link', provider: 'facebook', userId: 42 });
   });
   it('rejects a missing or expired state', async () => {
     redis.getDel.mockResolvedValue(null);
@@ -71,19 +72,19 @@ describe('OAuth state consumption', () => {
   });
   it('rejects a state used for the wrong provider', async () => {
     redis.getDel.mockResolvedValue(JSON.stringify({ flow: 'login', provider: 'google' }));
-    await expect(consumeOAuthState(validState, 'login', 'github')).resolves.toBeNull();
+    await expect(consumeOAuthState(validState, 'login', 'facebook')).resolves.toBeNull();
   });
   it('rejects malformed stored metadata', async () => {
     redis.getDel.mockResolvedValue('{not-json');
     await expect(consumeOAuthState(validState, 'login', 'google')).resolves.toBeNull();
   });
   it('rejects invalid stored link user ids', async () => {
-    redis.getDel.mockResolvedValue(JSON.stringify({ flow: 'link', provider: 'google', userId: 0 }));
-    await expect(consumeOAuthState(validState, 'link', 'google')).resolves.toBeNull();
+    redis.getDel.mockResolvedValue(JSON.stringify({ flow: 'link', provider: 'facebook', userId: 0 }));
+    await expect(consumeOAuthState(validState, 'link', 'facebook')).resolves.toBeNull();
   });
   it('rejects invalid expected flow and provider before Redis access', async () => {
     await expect(consumeOAuthState(validState, 'invalid', 'google')).rejects.toThrow('Invalid expected OAuth state flow.');
-    await expect(consumeOAuthState(validState, 'login', 'facebook')).rejects.toThrow('Invalid expected OAuth state provider.');
+    await expect(consumeOAuthState(validState, 'login', 'github')).rejects.toThrow('Invalid expected OAuth state provider.');
     expect(redis.getDel).not.toHaveBeenCalled();
   });
   it('does not consume short or invalid states', async () => {

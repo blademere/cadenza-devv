@@ -33,7 +33,16 @@ const fetchJson = async (url, options = {}) => {
       throw new Error('OAuth provider returned an invalid response.')
     }
     if (!response.ok) {
-      throw new Error(`OAuth provider request failed with status ${response.status}.`)
+      const providerError = data?.error
+      const providerDescription = data?.error_description
+      const detail = [providerError, providerDescription].filter(Boolean).join(': ')
+      const error = new Error(
+        `OAuth provider request failed with status ${response.status}${detail ? ` (${detail})` : '.'}`
+      )
+      error.providerStatus = response.status
+      error.providerError = typeof providerError === 'string' ? providerError : undefined
+      error.providerErrorDescription = typeof providerDescription === 'string' ? providerDescription : undefined
+      throw error
     }
     return { data, response }
   } finally {
@@ -43,8 +52,21 @@ const fetchJson = async (url, options = {}) => {
 
 const exchangeCode = async (provider, code) => {
   const config = getProviderConfig(provider)
-  const body = new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, code, redirect_uri: config.callbackUrl })
-  const { data } = await fetchJson(config.tokenUrl, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body })
+  const body = new URLSearchParams({
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    code,
+    grant_type: 'authorization_code',
+    redirect_uri: config.callbackUrl,
+  })
+  const { data } = await fetchJson(config.tokenUrl, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  })
   if (!data?.access_token) throw new UnauthorizedError('OAuth authorization could not be completed.')
   return data.access_token
 }
@@ -55,19 +77,30 @@ const getGoogleIdentity = async (accessToken) => {
   return { provider: 'google', providerAccountId: String(data.sub), email: data.email.toLowerCase() }
 }
 
-const getGithubIdentity = async (accessToken) => {
-  const headers = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${accessToken}`, 'X-GitHub-Api-Version': '2022-11-28' }
-  const { data: user } = await fetchJson('https://api.github.com/user', { headers })
-  if (!user?.id) throw new UnauthorizedError('GitHub account could not be identified.')
-  const { data: emails } = await fetchJson('https://api.github.com/user/emails', { headers })
-  const verifiedEmail = Array.isArray(emails) ? emails.find((item) => item.primary && item.verified) || emails.find((item) => item.verified) : null
-  if (!verifiedEmail?.email) throw new UnauthorizedError('GitHub account does not provide a verified email address.')
-  return { provider: 'github', providerAccountId: String(user.id), email: verifiedEmail.email.toLowerCase() }
+const getFacebookIdentity = async (accessToken) => {
+  const config = getProviderConfig('facebook')
+  const url = new URL(config.userInfoUrl)
+  url.searchParams.set('fields', 'id,email')
+  url.searchParams.set('access_token', accessToken)
+
+  const { data } = await fetchJson(url.toString(), {
+    headers: { Accept: 'application/json' },
+  })
+
+  if (!data?.id || !data.email) {
+    throw new UnauthorizedError('Facebook account does not provide an email address.')
+  }
+
+  return {
+    provider: 'facebook',
+    providerAccountId: String(data.id),
+    email: data.email.toLowerCase(),
+  }
 }
 
 const getProviderIdentity = async (provider, accessToken) => {
   if (provider === 'google') return getGoogleIdentity(accessToken)
-  if (provider === 'github') return getGithubIdentity(accessToken)
+  if (provider === 'facebook') return getFacebookIdentity(accessToken)
   throw new UnauthorizedError('Unsupported OAuth provider.')
 }
 

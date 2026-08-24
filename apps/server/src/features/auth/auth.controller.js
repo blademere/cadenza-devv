@@ -36,6 +36,12 @@ const toPublicUser = (user) => ({
     : null,
 })
 
+const csrfTokenController = async (_req, res) => {
+  const csrfToken = setCsrfCookie(res)
+
+  return successResponse(res, 'CSRF token issued.', { csrfToken })
+}
+
 const loginController = async (req, res) => {
   const result = await login(req.validated.body)
 
@@ -99,6 +105,7 @@ const logoutController = async (req, res) => {
 }
 
 module.exports = {
+  csrfTokenController,
   loginController,
   currentUserController,
   refreshAccessTokenController,

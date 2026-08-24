@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import { getOAuthLoginUrl } from '../features/auth/auth.api'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -30,9 +31,26 @@ export default function LoginPage() {
     }
   }
 
+  const handleOAuthLogin = (provider) => {
+    setError('')
+    window.location.assign(getOAuthLoginUrl(provider))
+  }
+
   return (
     <main>
       <h1>Sign in</h1>
+
+      <div aria-label="Social sign in options">
+        <button type="button" onClick={() => handleOAuthLogin('google')} disabled={isSubmitting || isLoading}>
+          Continue with Google
+        </button>
+        <button type="button" onClick={() => handleOAuthLogin('facebook')} disabled={isSubmitting || isLoading}>
+          Continue with Facebook
+        </button>
+      </div>
+
+      <p>or sign in with your email</p>
+
       <form onSubmit={handleSubmit} noValidate>
         <label>
           Email

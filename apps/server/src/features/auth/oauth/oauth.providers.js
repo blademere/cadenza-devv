@@ -1,6 +1,12 @@
 const crypto = require('crypto')
 const { env } = require('../../../config')
 const { connectRedis } = require('../../../infrastructure/cache/redis')
+const { getGoogleAuthUrl } = require('../../../infrastructure/oauth/google')
+const {
+  getFacebookAuthUrl,
+  getFacebookTokenUrl,
+  getFacebookUserInfoUrl,
+} = require('../../../infrastructure/oauth/facebook')
 const OAUTH_STATE_COOKIE = 'oauthState'
 const OAUTH_LINK_STATE_COOKIE = 'oauthLinkState'
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000
@@ -12,19 +18,19 @@ const providerConfig = {
     clientId: env.OAUTH_GOOGLE_CLIENT_ID,
     clientSecret: env.OAUTH_GOOGLE_CLIENT_SECRET,
     callbackUrl: env.OAUTH_GOOGLE_CALLBACK_URL,
-    authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+    authorizationUrl: getGoogleAuthUrl(),
     tokenUrl: 'https://oauth2.googleapis.com/token',
     userInfoUrl: 'https://openidconnect.googleapis.com/v1/userinfo',
     scope: ['openid', 'email', 'profile'],
   },
-  github: {
-    clientId: env.OAUTH_GITHUB_CLIENT_ID,
-    clientSecret: env.OAUTH_GITHUB_CLIENT_SECRET,
-    callbackUrl: env.OAUTH_GITHUB_CALLBACK_URL,
-    authorizationUrl: 'https://github.com/login/oauth/authorize',
-    tokenUrl: 'https://github.com/login/oauth/access_token',
-    userInfoUrl: 'https://api.github.com/user',
-    scope: ['read:user', 'user:email'],
+  facebook: {
+    clientId: env.OAUTH_FACEBOOK_CLIENT_ID,
+    clientSecret: env.OAUTH_FACEBOOK_CLIENT_SECRET,
+    callbackUrl: env.OAUTH_FACEBOOK_CALLBACK_URL,
+    authorizationUrl: getFacebookAuthUrl(env.OAUTH_FACEBOOK_API_VERSION),
+    tokenUrl: getFacebookTokenUrl(env.OAUTH_FACEBOOK_API_VERSION),
+    userInfoUrl: getFacebookUserInfoUrl(env.OAUTH_FACEBOOK_API_VERSION),
+    scope: ['email'],
   },
 }
 
@@ -54,10 +60,6 @@ const createAuthorizationUrl = (provider, state) => {
     url.searchParams.set('access_type', 'online')
     url.searchParams.set('include_granted_scopes', 'true')
     url.searchParams.set('prompt', 'select_account')
-  }
-
-  if (provider === 'github') {
-    url.searchParams.set('allow_signup', 'true')
   }
 
   return url.toString()
