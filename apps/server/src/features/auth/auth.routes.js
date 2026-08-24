@@ -24,6 +24,4 @@ authRouter.delete('/oauth/link/:provider', authenticate, requireAuthIdempotency,
 authRouter.post('/refresh', refreshRateLimiter, csrfProtection, requireAuthIdempotency, asyncHandler(refreshAccessTokenController))
 authRouter.post('/logout', logoutRateLimiter, csrfProtection, requireAuthIdempotency, asyncHandler(logoutController))
 
-authRouter.stack
-
 module.exports = authRouter
