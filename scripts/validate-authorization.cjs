@@ -1,8 +1,8 @@
 const fs = require('node:fs')
 const path = require('node:path')
-const { getCapabilityRegistry } = require('../src/platform/authorization/capability-registry')
+const { getCapabilityRegistry } = require('../apps/server/src/platform/authorization/capability-registry')
 
-const ROOT = path.resolve(__dirname, '..', 'src')
+const ROOT = path.resolve(__dirname, '..', 'apps', 'server', 'src')
 const ROUTE_ROOTS = [
   path.join(ROOT, 'features'),
   path.join(ROOT, 'modules'),
@@ -49,8 +49,8 @@ const routeFiles = ROUTE_ROOTS.flatMap(walk).filter((file) => file.endsWith('.ro
 for (const file of routeFiles) {
   const source = fs.readFileSync(file, 'utf8')
   const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
-  const isAuthFile = relative.startsWith('src/features/auth/')
-  const isAuthorizationContext = relative === 'src/platform/authorization/authorization-context.routes.js'
+  const isAuthFile = relative.startsWith('apps/server/src/features/auth/')
+  const isAuthorizationContext = relative === 'apps/server/src/platform/authorization/authorization-context.routes.js'
 
   const middlewareAliases = new Set(['authenticate'])
   const authorizationAliases = new Set(['authorize', 'authorizeResource'])
