@@ -1,7 +1,8 @@
 const { successResponse } = require('../../common/responses/apiResponse')
 const { login, refreshAccessToken, logout } = require('./auth.service')
+const { findUserById } = require('./auth.repository')
 const { setCsrfCookie } = require('../../common/middleware/csrf')
-const { UnauthorizedError } = require('../../common/errors/appError')
+const { UnauthorizedError, NotFoundError } = require('../../common/errors/appError')
 const { env } = require('../../config')
 
 const refreshCookieOptions = {
@@ -23,6 +24,18 @@ const clearRefreshCookie = (res) => {
   })
 }
 
+const toPublicUser = (user) => ({
+  id: user.id,
+  email: user.email,
+  role: user.role
+    ? {
+        id: user.role.id,
+        name: user.role.name,
+        description: user.role.description,
+      }
+    : null,
+})
+
 const loginController = async (req, res) => {
   const result = await login(req.validated.body)
 
@@ -38,9 +51,17 @@ const loginController = async (req, res) => {
       csrfToken,
       user: result.user,
     },
-
     200
   )
+}
+
+const currentUserController = async (req, res) => {
+  const user = await findUserById(req.user.id)
+  if (!user || !user.isActive) throw new UnauthorizedError('User account is unavailable.')
+
+  return successResponse(res, 'Current user retrieved.', {
+    user: toPublicUser(user),
+  })
 }
 
 const refreshAccessTokenController = async (req, res) => {
@@ -79,6 +100,7 @@ const logoutController = async (req, res) => {
 
 module.exports = {
   loginController,
+  currentUserController,
   refreshAccessTokenController,
   logoutController,
 }
