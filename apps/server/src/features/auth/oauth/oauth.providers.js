@@ -17,14 +17,14 @@ const providerConfig = {
     userInfoUrl: 'https://openidconnect.googleapis.com/v1/userinfo',
     scope: ['openid', 'email', 'profile'],
   },
-  github: {
-    clientId: env.OAUTH_GITHUB_CLIENT_ID,
-    clientSecret: env.OAUTH_GITHUB_CLIENT_SECRET,
-    callbackUrl: env.OAUTH_GITHUB_CALLBACK_URL,
-    authorizationUrl: 'https://github.com/login/oauth/authorize',
-    tokenUrl: 'https://github.com/login/oauth/access_token',
-    userInfoUrl: 'https://api.github.com/user',
-    scope: ['read:user', 'user:email'],
+  facebook: {
+    clientId: env.OAUTH_FACEBOOK_CLIENT_ID,
+    clientSecret: env.OAUTH_FACEBOOK_CLIENT_SECRET,
+    callbackUrl: env.OAUTH_FACEBOOK_CALLBACK_URL,
+    authorizationUrl: `https://www.facebook.com/${env.OAUTH_FACEBOOK_API_VERSION}/dialog/oauth`,
+    tokenUrl: `https://graph.facebook.com/${env.OAUTH_FACEBOOK_API_VERSION}/oauth/access_token`,
+    userInfoUrl: `https://graph.facebook.com/${env.OAUTH_FACEBOOK_API_VERSION}/me`,
+    scope: ['email'],
   },
 }
 
@@ -54,10 +54,6 @@ const createAuthorizationUrl = (provider, state) => {
     url.searchParams.set('access_type', 'online')
     url.searchParams.set('include_granted_scopes', 'true')
     url.searchParams.set('prompt', 'select_account')
-  }
-
-  if (provider === 'github') {
-    url.searchParams.set('allow_signup', 'true')
   }
 
   return url.toString()
