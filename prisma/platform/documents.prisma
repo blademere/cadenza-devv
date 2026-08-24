@@ -34,3 +34,25 @@ model DocumentRequirement {
   @@index([formVersionId, sortOrder])
   @@index([workflowVersionId, sortOrder])
 }
+
+model Document {
+  id              String        @id @default(uuid())
+  documentTypeId  String?
+  ownerId         Int?
+  originalName    String
+  storageKey      String        @unique
+  storageProvider String        @default("local")
+  mimeType        String
+  sizeBytes       BigInt
+  checksumSha256  String
+  documentType    DocumentType? @relation(fields: [documentTypeId], references: [id], onDelete: SetNull)
+  owner           User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  @@index([ownerId, createdAt])
+  @@index([documentTypeId])
+  @@index([deletedAt])
+  @@index([checksumSha256])
+}
