@@ -13,29 +13,29 @@ modules → features → platform → infrastructure
 - `platform` contains reusable engines and mechanisms.
 - `infrastructure` contains concrete technical providers and persistence.
 
-`common/`, `config/`, and `routes/` support the application boundary. They are not additional business-architecture layers.
+`common/`, `config/`, and `routes/` support the server application boundary. They are not additional business-architecture layers.
 
 ## Layer responsibilities
 
-### `src/modules/`
+### `apps/server/src/modules/`
 
 Modules own domain terminology, domain validation, domain workflows and policies, domain-specific persistence through repositories, and domain-owned API composition.
 
 Modules may depend on shared features and platform services. Shared layers must never import a module. Create a module only when its domain is actually implemented; do not create placeholders or duplicate shared capabilities inside a module.
 
-### `src/features/`
+### `apps/server/src/features/`
 
 Features are reusable business capabilities that can support multiple application modules. Current examples include people, cases, participants, requirements, tasks, appointments, authentication, users, documents, notifications, and audit.
 
 Features must remain domain-neutral. Appointments are a business feature: availability, slots, capacity, booking, and appointment lifecycle belong here. Generic background scheduling is a platform mechanism and is not the appointment implementation.
 
-### `src/platform/`
+### `apps/server/src/platform/`
 
 Platform provides reusable mechanisms such as authorization, workflow, forms, configurable custom fields, rules, event/outbox infrastructure, jobs, generic scheduling primitives, notification mechanisms, and storage boundaries.
 
 Platform code must be provider-neutral and domain-neutral. It provides mechanisms, not application-specific business decisions.
 
-### `src/infrastructure/`
+### `apps/server/src/infrastructure/`
 
 Infrastructure contains concrete technology integrations and persistence implementations such as PostgreSQL/Prisma, Redis, BullMQ, Resend, OAuth providers, object storage, and monitoring providers. Infrastructure must not contain application-domain business rules or import application modules.
 
@@ -85,11 +85,11 @@ For domain-specific forms, the module associates its business entity with a plat
 
 ## Public API boundaries
 
-`src/routes/index.js` is the API composition root. It should mount application-owned APIs rather than every reusable capability in the repository.
+`apps/server/src/routes/index.js` is the API composition root. It should mount application-owned APIs rather than every reusable capability in the repository.
 
 Generic feature or platform services should not automatically become public CRUD endpoints. When a module needs a shared capability, its domain-owned route should compose that capability internally.
 
-`docs/openapi.yaml` is the public API contract and should match routes actually exposed by the application.
+`apps/server/openapi/openapi.yaml` is the public API contract and should match routes actually exposed by the application.
 
 ## Storage and email boundaries
 
@@ -130,14 +130,14 @@ Appointments are a shared business feature because appointment scheduling is bus
 Domain-specific documentation is kept outside the general architecture contract:
 
 ```text
-docs/modules/
+docs/server/modules/
 ├── README.md
 └── <module>/
     ├── README.md
     └── supporting documents
 ```
 
-General documentation must not become a catalog of one application's domain workflows. Domain documentation belongs in `docs/modules/<module>/`.
+General documentation must not become a catalog of one application's domain workflows. Domain documentation belongs in `docs/server/modules/<module>/`.
 
 ## Architectural extension rules
 
@@ -149,19 +149,19 @@ When adding code:
 4. Keep persistence behind repositories.
 5. Keep shared layers independent of application modules.
 6. Add tests for the behavior and update architecture enforcement when a new enforceable boundary is introduced.
-7. Document stable architectural changes here; document domain behavior under `docs/modules/<module>/`.
+7. Document stable architectural changes here; document domain behavior under `docs/server/modules/<module>/`.
 
 ## Anti-patterns
 
 Do not introduce:
 
 ```text
-src/domains/
-src/core/
-src/application/
-src/adapters/
-src/platform/<specific-domain>/
-src/features/<specific-domain>/
+apps/server/src/domains/
+apps/server/src/core/
+apps/server/src/application/
+apps/server/src/adapters/
+apps/server/src/platform/<specific-domain>/
+apps/server/src/features/<specific-domain>/
 ```
 
 Also avoid direct Prisma access from services, domain-specific rules in platform services, shared features importing modules, infrastructure importing modules, generic JSON/custom fields for stable relationships, generic public CRUD routes for internal capabilities, provider-specific clients in business code, and placeholder domain documentation.
