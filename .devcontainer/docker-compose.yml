@@ -30,7 +30,6 @@ services:
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       COOKIE_REFRESH_MAX_AGE_MS: ${COOKIE_REFRESH_MAX_AGE_MS:-604800000}
-      METRICS_TOKEN: ${METRICS_TOKEN:-dev-metrics-token}
 
     depends_on:
       db:
