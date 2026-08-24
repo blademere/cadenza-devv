@@ -15,6 +15,7 @@ export function AuthProvider({ children }) {
     setAccessToken(token)
     apiClient.setAccessToken(token)
 
+    if (session?.csrfToken) apiClient.setCsrfToken(session.csrfToken)
     if (session?.user !== undefined) setUser(session.user)
   }, [])
 
@@ -29,6 +30,7 @@ export function AuthProvider({ children }) {
 
     const refreshPromise = (async () => {
       try {
+        await authApi.csrf()
         const session = await authApi.refresh()
         applySession(session)
         const currentUser = await authApi.me()
