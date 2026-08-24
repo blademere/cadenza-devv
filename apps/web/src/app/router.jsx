@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import App from './App'
 import HomePage from '../pages/HomePage'
 import LoginPage from '../pages/LoginPage'
+import OAuthCallbackPage from '../pages/OAuthCallbackPage'
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +16,14 @@ export const router = createBrowserRouter([
       {
         path: 'login',
         element: <LoginPage />,
+      },
+      {
+        path: 'auth/callback/success',
+        element: <OAuthCallbackPage />,
+      },
+      {
+        path: 'auth/callback/failure',
+        element: <OAuthCallbackPage mode="failure" />,
       },
       {
         path: '*',
