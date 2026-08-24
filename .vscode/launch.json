@@ -24,7 +24,9 @@
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/apps/web",
-      "preLaunchTask": "dev:web"
+      "preLaunchTask": "dev:web",
+      "restart": true,
+      "sourceMaps": true
     }
   ],
   "compounds": [
