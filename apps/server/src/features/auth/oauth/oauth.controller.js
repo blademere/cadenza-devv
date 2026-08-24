@@ -42,7 +42,7 @@ const setAuthCookies = (res, refreshToken) => {
 const redirectFailure = (res, code) => {
   const url = new URL(env.OAUTH_FRONTEND_FAILURE_URL)
   url.searchParams.set('error', code)
-  return res.redirect(url.toString())
+  return res.redirect(303, url.toString())
 }
 
 const redirectSuccess = (res, params = {}) => {
@@ -52,7 +52,7 @@ const redirectSuccess = (res, params = {}) => {
     url.searchParams.set(key, String(value))
   })
 
-  return res.redirect(url.toString())
+  return res.redirect(303, url.toString())
 }
 
 const startOAuth = (provider) => async (_req, res) => {
@@ -69,7 +69,7 @@ const startOAuth = (provider) => async (_req, res) => {
 
   setOAuthStateCookie(res, state)
 
-  return res.redirect(authorizationUrl)
+  return res.redirect(302, authorizationUrl)
 }
 
 const handleOAuthCallback = (provider) => async (req, res) => {
@@ -99,7 +99,14 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     return redirectFailure(res, 'invalid_oauth_state')
   }
 
-  const stateData = await consumeOAuthState(state, undefined, provider)
+  let stateData
+  try {
+    stateData = await consumeOAuthState(state, undefined, provider)
+  } catch {
+    clearOAuthStateCookie(res)
+    clearOAuthLinkStateCookie(res)
+    return redirectFailure(res, 'oauth_state_failed')
+  }
 
   if (!stateData) {
     clearOAuthStateCookie(res)
@@ -169,7 +176,7 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     setCsrfCookie(res)
     clearOAuthStateCookie(res)
 
-    return res.redirect(env.OAUTH_FRONTEND_SUCCESS_URL)
+    return redirectSuccess(res)
   } catch (error) {
     clearOAuthStateCookie(res)
 
@@ -203,7 +210,7 @@ const startOAuthLink = (provider) => async (req, res) => {
 
   setOAuthLinkStateCookie(res, state)
 
-  return res.redirect(authorizationUrl)
+  return res.redirect(302, authorizationUrl)
 }
 
 const listOAuthAccountsController = async (req, res) => {
