@@ -9,7 +9,6 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "node",
       "runtimeArgs": ["--inspect=0.0.0.0:9229"],
-      "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "restart": true,
       "skipFiles": [
@@ -20,20 +19,22 @@
     },
     {
       "name": "Web: React",
-      "type": "pwa-chrome",
+      "type": "node",
       "request": "launch",
-      "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}/apps/web",
-      "preLaunchTask": "dev: web"
+      "program": "${workspaceFolder}/node_modules/vite/bin/vite.js",
+      "cwd": "${workspaceFolder}/apps/web",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
+      "sourceMaps": true
     }
   ],
   "compounds": [
     {
       "name": "Full Stack: Server + Web",
-      "configurations": [
-        "Server: Express",
-        "Web: React"
-      ],
+      "configurations": ["Server: Express", "Web: React"],
       "stopAll": true
     }
   ]

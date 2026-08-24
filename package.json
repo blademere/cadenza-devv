@@ -31,11 +31,11 @@
     "test:auth": "npm --workspace @express-app/server run test:auth",
     "test:all": "npm --workspace @express-app/server run test:all",
     "test:coverage": "npm --workspace @express-app/server run test:coverage",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "prisma generate --config ./prisma.config.ts",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:seed": "node scripts/db-seed.cjs",
-    "db:setup": "npm run prisma:generate && npm run prisma:migrate && npm run db:seed",
+    "db:setup": "npm run prisma generate --config ./prisma.config.ts && npm run prisma:migrate && npm run db:seed",
     "db:backup": "node scripts/db-backup.cjs",
     "db:restore": "node scripts/db-restore.cjs"
   },
