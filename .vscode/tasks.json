@@ -47,8 +47,8 @@
         },
         "background": {
           "activeOnStart": true,
-          "beginsPattern": "^",
-          "endsPattern": ".*Local:.*"
+          "beginsPattern": "^\\s*VITE v\\S+\\s+ready in",
+          "endsPattern": "^\\s*.*Local:\\s+http://localhost:5173/"
         }
       },
       "presentation": {
