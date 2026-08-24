@@ -55,7 +55,7 @@ describe("environment configuration", () => {
     expect(`${result.stdout}\n${result.stderr}`).toContain("COOKIE_SECURE")
   })
 
-  it("fails fast when OAuth credentials are only partially configured", () => {
+  it("fails fast when Google OAuth credentials are only partially configured", () => {
     const result = runEnvModule({
       DATABASE_URL: "postgresql://user:password@localhost:5432/express_app",
       JWT_ACCESS_SECRET: "a".repeat(32),
@@ -67,5 +67,19 @@ describe("environment configuration", () => {
 
     expect(result.status).not.toBe(0)
     expect(`${result.stdout}\n${result.stderr}`).toContain("Google OAuth")
+  })
+
+  it("fails fast when Facebook OAuth credentials are only partially configured", () => {
+    const result = runEnvModule({
+      DATABASE_URL: "postgresql://user:password@localhost:5432/express_app",
+      JWT_ACCESS_SECRET: "a".repeat(32),
+      JWT_REFRESH_SECRET: "b".repeat(32),
+      OAUTH_FACEBOOK_CLIENT_ID: "client-id",
+      OAUTH_FACEBOOK_CLIENT_SECRET: "",
+      OAUTH_FACEBOOK_CALLBACK_URL: "",
+    })
+
+    expect(result.status).not.toBe(0)
+    expect(`${result.stdout}\n${result.stderr}`).toContain("Facebook OAuth")
   })
 })
