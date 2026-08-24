@@ -2,7 +2,7 @@ const { successResponse } = require('../../common/responses/apiResponse')
 const { login, refreshAccessToken, logout } = require('./auth.service')
 const { findUserById } = require('./auth.repository')
 const { setCsrfCookie } = require('../../common/middleware/csrf')
-const { UnauthorizedError, NotFoundError } = require('../../common/errors/appError')
+const { UnauthorizedError } = require('../../common/errors/appError')
 const { env } = require('../../config')
 
 const refreshCookieOptions = {
