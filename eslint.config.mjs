@@ -4,7 +4,7 @@ import { defineConfig } from 'eslint/config'
 
 export default defineConfig([
   {
-    files: ['**/*.{js,mjs,cjs}'],
+    files: ['**/*.{js,mjs,cjs,jsx}'],
     plugins: { js },
     extends: ['js/recommended'],
     languageOptions: {
@@ -18,7 +18,17 @@ export default defineConfig([
     },
   },
   {
-    files: ['tests/**/*.{js,mjs,cjs}'],
+    files: ['apps/web/**/*.{js,jsx}'],
+    languageOptions: {
+      sourceType: 'module',
+      globals: globals.browser,
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
+    },
+  },
+  {
+    files: ['apps/server/tests/**/*.{js,mjs,cjs}'],
     languageOptions: {
       sourceType: 'module',
     },
