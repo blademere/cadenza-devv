@@ -1,13 +1,13 @@
 # Documentation
 
-This directory contains stable repository, architecture, platform, security, operations, and API documentation.
+This directory contains stable server architecture, platform, security, operations, and API documentation.
 
 ## Start here
 
-- [`../README.md`](../README.md) — formal repository entry point and current application surface.
+- [`../../README.md`](../../README.md) — formal repository entry point and current application surface.
 - [`architecture.md`](architecture.md) — authoritative dependency and layer contract.
 - [`modules/`](modules/) — domain-specific documentation.
-- [`openapi.yaml`](openapi.yaml) — public HTTP API contract.
+- [`../../apps/server/openapi/openapi.yaml`](../../apps/server/openapi/openapi.yaml) — public HTTP API contract.
 
 ## Architecture and platform
 
@@ -36,13 +36,13 @@ This directory contains stable repository, architecture, platform, security, ope
 
 ## API
 
-The public HTTP contract is [`openapi.yaml`](openapi.yaml). Workflow, platform, and domain internals are not public APIs unless explicitly mounted by application routes.
+The public HTTP contract is [`../../apps/server/openapi/openapi.yaml`](../../apps/server/openapi/openapi.yaml). Workflow, platform, and domain internals are not public APIs unless explicitly mounted by application routes.
 
 ## Domain documentation
 
-Domain-specific documentation belongs under `docs/modules/<module>/`.
+Domain-specific documentation belongs under `docs/server/modules/<module>/`.
 
-The general documentation directory must remain domain-neutral. Do not add application-specific workflows, permit rules, domain state machines, or domain implementation plans to `architecture.md` or this index.
+The server documentation directory must remain focused on server architecture and engineering. Do not add application-specific workflows, permit rules, domain state machines, or domain implementation plans to `architecture.md` or this index.
 
 ## Documentation rules
 

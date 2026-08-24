@@ -58,16 +58,16 @@ jobs:
             app=false; database=false; docker=false; workflow=false; security=false
             for file in "${files[@]}"; do
               case "$file" in
-                src/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|prisma.config.ts|.env.example) app=true ;;
+                apps/server/**|apps/web/**|packages/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|prisma.config.ts|.env.example) app=true ;;
               esac
               case "$file" in
                 prisma/**|prisma.config.ts|scripts/validate-migrations.cjs) database=true ;;
               esac
               case "$file" in
-                src/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
+                apps/server/**|apps/web/**|packages/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
               esac
               case "$file" in
-                src/**) security=true ;;
+                apps/server/**) security=true ;;
               esac
               case "$file" in
                 .github/workflows/**|.github/dependabot.yml) workflow=true ;;
