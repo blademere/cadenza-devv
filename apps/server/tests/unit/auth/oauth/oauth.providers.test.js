@@ -13,9 +13,10 @@ process.env.COOKIE_SAME_SITE = 'lax';
 process.env.OAUTH_GOOGLE_CLIENT_ID = 'google-client';
 process.env.OAUTH_GOOGLE_CLIENT_SECRET = 'google-secret';
 process.env.OAUTH_GOOGLE_CALLBACK_URL = 'http://localhost:3000/api/v1/auth/oauth/google/callback';
-process.env.OAUTH_GITHUB_CLIENT_ID = 'github-client';
-process.env.OAUTH_GITHUB_CLIENT_SECRET = 'github-secret';
-process.env.OAUTH_GITHUB_CALLBACK_URL = 'http://localhost:3000/api/v1/auth/oauth/github/callback';
+process.env.OAUTH_FACEBOOK_CLIENT_ID = 'facebook-client';
+process.env.OAUTH_FACEBOOK_CLIENT_SECRET = 'facebook-secret';
+process.env.OAUTH_FACEBOOK_CALLBACK_URL = 'http://localhost:3000/api/v1/auth/oauth/facebook/callback';
+process.env.OAUTH_FACEBOOK_API_VERSION = 'v24.0';
 
 const { createState, createAuthorizationUrl, safeEqual, getProviderConfig } = require('../../../../src/features/auth/oauth/oauth.providers');
 
@@ -34,19 +35,21 @@ describe('OAuth providers', () => {
     expect(parsed.searchParams.get('redirect_uri')).toBe('http://localhost:3000/api/v1/auth/oauth/google/callback');
     expect(parsed.searchParams.get('response_type')).toBe('code');
   });
-  it('creates a GitHub authorization URL with the supplied state', () => {
-    const parsed = new URL(createAuthorizationUrl('github', 'state-456'));
-    expect(parsed.hostname).toBe('github.com');
+  it('creates a Facebook authorization URL with the supplied state', () => {
+    const parsed = new URL(createAuthorizationUrl('facebook', 'state-456'));
+    expect(parsed.hostname).toBe('www.facebook.com');
+    expect(parsed.pathname).toBe('/v24.0/dialog/oauth');
     expect(parsed.searchParams.get('state')).toBe('state-456');
-    expect(parsed.searchParams.get('client_id')).toBe('github-client');
+    expect(parsed.searchParams.get('client_id')).toBe('facebook-client');
+    expect(parsed.searchParams.get('scope')).toBe('email');
   });
   it('returns provider configuration for supported providers', () => {
     expect(getProviderConfig('google')).toMatchObject({ clientId: 'google-client', clientSecret: 'google-secret' });
-    expect(getProviderConfig('github')).toMatchObject({ clientId: 'github-client', clientSecret: 'github-secret' });
+    expect(getProviderConfig('facebook')).toMatchObject({ clientId: 'facebook-client', clientSecret: 'facebook-secret' });
   });
   it('rejects unsupported providers', () => {
-    expect(() => getProviderConfig('facebook')).toThrow();
-    expect(() => createAuthorizationUrl('facebook', 'state')).toThrow();
+    expect(() => getProviderConfig('github')).toThrow();
+    expect(() => createAuthorizationUrl('github', 'state')).toThrow();
   });
   describe('safeEqual', () => {
     it('returns true for equal values', () => expect(safeEqual('same-state', 'same-state')).toBe(true));
