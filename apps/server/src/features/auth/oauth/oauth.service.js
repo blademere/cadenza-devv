@@ -55,19 +55,30 @@ const getGoogleIdentity = async (accessToken) => {
   return { provider: 'google', providerAccountId: String(data.sub), email: data.email.toLowerCase() }
 }
 
-const getGithubIdentity = async (accessToken) => {
-  const headers = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${accessToken}`, 'X-GitHub-Api-Version': '2022-11-28' }
-  const { data: user } = await fetchJson('https://api.github.com/user', { headers })
-  if (!user?.id) throw new UnauthorizedError('GitHub account could not be identified.')
-  const { data: emails } = await fetchJson('https://api.github.com/user/emails', { headers })
-  const verifiedEmail = Array.isArray(emails) ? emails.find((item) => item.primary && item.verified) || emails.find((item) => item.verified) : null
-  if (!verifiedEmail?.email) throw new UnauthorizedError('GitHub account does not provide a verified email address.')
-  return { provider: 'github', providerAccountId: String(user.id), email: verifiedEmail.email.toLowerCase() }
+const getFacebookIdentity = async (accessToken) => {
+  const config = getProviderConfig('facebook')
+  const url = new URL(config.userInfoUrl)
+  url.searchParams.set('fields', 'id,email')
+  url.searchParams.set('access_token', accessToken)
+
+  const { data } = await fetchJson(url.toString(), {
+    headers: { Accept: 'application/json' },
+  })
+
+  if (!data?.id || !data.email) {
+    throw new UnauthorizedError('Facebook account does not provide an email address.')
+  }
+
+  return {
+    provider: 'facebook',
+    providerAccountId: String(data.id),
+    email: data.email.toLowerCase(),
+  }
 }
 
 const getProviderIdentity = async (provider, accessToken) => {
   if (provider === 'google') return getGoogleIdentity(accessToken)
-  if (provider === 'github') return getGithubIdentity(accessToken)
+  if (provider === 'facebook') return getFacebookIdentity(accessToken)
   throw new UnauthorizedError('Unsupported OAuth provider.')
 }
 
