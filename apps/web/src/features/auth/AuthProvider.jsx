@@ -63,6 +63,14 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    const isOAuthCallback = window.location.pathname === '/auth/callback/success'
+      || window.location.pathname === '/auth/callback/failure'
+
+    if (isOAuthCallback) {
+      setIsLoading(false)
+      return
+    }
+
     refresh().finally(() => setIsLoading(false))
   }, [refresh])
 
