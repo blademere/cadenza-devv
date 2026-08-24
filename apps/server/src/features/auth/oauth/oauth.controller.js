@@ -1,4 +1,4 @@
-const { env } = require('../../../config')
+const { env, logger } = require('../../../config')
 const {
   UnauthorizedError,
   ConflictError,
@@ -102,7 +102,8 @@ const handleOAuthCallback = (provider) => async (req, res) => {
   let stateData
   try {
     stateData = await consumeOAuthState(state, undefined, provider)
-  } catch {
+  } catch (error) {
+    logger.error({ err: error, provider }, 'OAuth state consumption failed')
     clearOAuthStateCookie(res)
     clearOAuthLinkStateCookie(res)
     return redirectFailure(res, 'oauth_state_failed')
@@ -146,6 +147,7 @@ const handleOAuthCallback = (provider) => async (req, res) => {
         provider: result.provider,
       })
     } catch (error) {
+      logger.error({ err: error, provider, flow: 'link' }, 'OAuth account linking failed')
       clearOAuthLinkStateCookie(res)
 
       if (error instanceof UnauthorizedError) {
@@ -178,6 +180,7 @@ const handleOAuthCallback = (provider) => async (req, res) => {
 
     return redirectSuccess(res)
   } catch (error) {
+    logger.error({ err: error, provider, flow: 'login' }, 'OAuth authentication failed')
     clearOAuthStateCookie(res)
 
     if (error instanceof UnauthorizedError) {
