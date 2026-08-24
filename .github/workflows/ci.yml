@@ -67,7 +67,7 @@ jobs:
                 apps/server/**|apps/web/**|packages/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
               esac
               case "$file" in
-                apps/server/**) security=true ;;
+                apps/server/**|apps/web/**|packages/**) security=true ;;
               esac
               case "$file" in
                 .github/workflows/**|.github/dependabot.yml) workflow=true ;;
@@ -152,8 +152,11 @@ jobs:
       - run: npx prisma validate --schema=prisma/schema.prisma
       - run: npx prisma generate --schema=prisma/schema.prisma
       - run: npx prisma migrate deploy --schema=prisma/schema.prisma
-      - run: npm test
-      - name: Generate coverage
+      - name: Test server
+        run: npm test
+      - name: Build web
+        run: npm run build:web
+      - name: Generate server coverage
         run: npm run test:coverage
       - name: Publish coverage summary
         if: "${{ always() }}"

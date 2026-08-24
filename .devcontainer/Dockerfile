@@ -4,7 +4,7 @@ RUN apk add --no-cache \
     git \
     bash \
     postgresql-client
-    
+
 WORKDIR /workspace
 
 COPY package.json package-lock.json ./
@@ -17,7 +17,7 @@ COPY . .
 # Generate the client after the container starts, when the Compose
 # service environment (including DATABASE_URL) is available.
 
-EXPOSE 3000
+EXPOSE 3000 5173
 
 # Do NOT start Express automatically.
 # Keep the development container running.
