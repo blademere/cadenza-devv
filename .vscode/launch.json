@@ -12,7 +12,10 @@
       "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "restart": true,
-      "skipFiles": ["<node_internals>/**", "${workspaceFolder}/node_modules/**"],
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
       "sourceMaps": true
     },
     {
@@ -21,8 +24,6 @@
       "request": "launch",
       "url": "http://localhost:5173/",
       "webRoot": "${workspaceFolder}/apps/web",
-      "runtimeExecutable": "google-chrome",
-      "runtimeArgs": ["--remote-debugging-port=9222"],
       "preLaunchTask": "dev:web",
       "sourceMaps": true
     }
