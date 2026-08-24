@@ -13,6 +13,11 @@ export const authApi = {
     return response.data
   },
 
+  async me() {
+    const response = await apiClient.get(`${AUTH_PATH}/me`)
+    return response.data
+  },
+
   async logout() {
     await apiClient.post(`${AUTH_PATH}/logout`, null)
   },
