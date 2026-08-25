@@ -1,0 +1,24 @@
+LoginRequest:
+  type: object
+  required: [email, password]
+  properties:
+    email:
+      type: string
+      format: email
+    password:
+      type: string
+      format: password
+
+LoginResponse:
+  type: object
+  properties:
+    accessToken:
+      type: string
+    user:
+      $ref: './users.yaml#/User'
+
+AccessTokenResponse:
+  type: object
+  properties:
+    accessToken:
+      type: string
