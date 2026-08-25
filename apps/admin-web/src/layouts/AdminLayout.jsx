@@ -14,14 +14,10 @@ function NavItem({ to, label }) {
   return <NavLink to={to} end className={({ isActive }) => `admin-nav-link ${isActive ? 'admin-nav-link-active' : ''}`}><Text size="sm">{label}</Text></NavLink>
 }
 
-export default function AdminLayout() {
+export default function AdminLayout({ children }) {
   const { user, logout } = useAuth()
   const { context, can, isLoading: authorizationLoading } = useAuthorization()
   const displayName = user?.name || user?.email?.split('@')[0] || 'Administrator'
-
-  // Authorization administration is a platform capability, not an operational
-  // module. Keep it visible whenever the signed-in user has authorization:manage,
-  // even if the capability registry/module navigation is temporarily unavailable.
   const authorizationVisible = can('authorization:manage')
   const navigation = (context?.navigation ?? []).filter((item) => item.visible && item.key !== 'authorization')
   const adminNavigation = authorizationVisible
@@ -34,6 +30,6 @@ export default function AdminLayout() {
       <VStack space="xs" className="flex-1 pt-4"><Text className="admin-section-label px-3 pb-1">Platform</Text>{adminNavigation.map((item) => <NavItem key={item.key} to={item.route} label={item.name} />)}{authorizationLoading && <Text size="xs" className="px-3 py-2 text-muted-foreground">Checking access…</Text>}{!authorizationLoading && adminNavigation.length === 0 && <Text size="xs" className="px-3 py-2 text-muted-foreground">No administrative access.</Text>}</VStack>
       <VStack space="sm"><Box className="admin-profile"><HStack className="items-center gap-3"><Avatar size="sm"><AvatarFallbackText>{displayName}</AvatarFallbackText></Avatar><VStack space="none" className="min-w-0 flex-1"><Text size="sm" bold className="truncate text-foreground">{displayName}</Text><Text size="2xs" className="truncate text-muted-foreground">{context?.role?.name ?? user?.email ?? 'Administrator'}</Text></VStack></HStack></Box><Button variant="outline" size="sm" onPress={logout}><ButtonText>Sign out</ButtonText></Button></VStack>
     </VStack></Box>
-    <VStack className="min-w-0 flex-1"><HStack className="admin-topbar min-h-[64px] items-center justify-between border-b px-5 md:px-8"><HStack className="items-center gap-3"><Box className="admin-brand-mark lg:hidden"><Text size="xs" bold className="text-white">EA</Text></Box><VStack space="none"><Heading size="md" className="text-foreground">Admin Console</Heading><Text size="2xs" className="text-muted-foreground">Platform authorization and access control</Text></VStack></HStack><HStack className="items-center gap-3"><Badge action="success" variant="outline" className="hidden sm:flex"><BadgeText>Authorized</BadgeText></Badge><Avatar size="sm"><AvatarFallbackText>{displayName}</AvatarFallbackText></Avatar></HStack></HStack><Box className="admin-mobile-nav border-b px-5 py-2 lg:hidden"><HStack className="gap-1 overflow-x-auto">{adminNavigation.map((item) => <NavItem key={item.key} to={item.route} label={item.name} />)}</HStack></Box><Box id="main-content" role="main" className="flex-1 px-5 py-6 md:px-8 md:py-8"><Outlet /></Box></VStack>
+    <VStack className="min-w-0 flex-1"><HStack className="admin-topbar min-h-[64px] items-center justify-between border-b px-5 md:px-8"><HStack className="items-center gap-3"><Box className="admin-brand-mark lg:hidden"><Text size="xs" bold className="text-white">EA</Text></Box><VStack space="none"><Heading size="md" className="text-foreground">Admin Console</Heading><Text size="2xs" className="text-muted-foreground">Platform authorization and access control</Text></VStack></HStack><HStack className="items-center gap-3"><Badge action="success" variant="outline" className="hidden sm:flex"><BadgeText>Authorized</BadgeText></Badge><Avatar size="sm"><AvatarFallbackText>{displayName}</AvatarFallbackText></Avatar></HStack></HStack><Box className="admin-mobile-nav border-b px-5 py-2 lg:hidden"><HStack className="gap-1 overflow-x-auto">{adminNavigation.map((item) => <NavItem key={item.key} to={item.route} label={item.name} />)}</HStack></Box><Box id="main-content" role="main" className="flex-1 px-5 py-6 md:px-8 md:py-8">{children ?? <Outlet />}</Box></VStack>
   </HStack></Box>
 }
