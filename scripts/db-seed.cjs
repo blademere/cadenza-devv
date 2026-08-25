@@ -70,7 +70,7 @@ async function seedOboNotifications() {
     for (const channel of ['IN_APP', 'EMAIL']) {
       const templateKey = `obo.professional.verification.${decision.toLowerCase()}.${channel.toLowerCase()}`
       const template = await prisma.notificationTemplate.upsert({ where: { key: templateKey }, update: { name: `${label} (${channel})`, channel, subject: channel === 'EMAIL' ? subject : null, body, active: true }, create: { key: templateKey, name: `${label} (${channel})`, channel, subject: channel === 'EMAIL' ? subject : null, body, active: true } })
-      await prisma.notificationRule.upsert({ where: { key: `${templateKey}.rule` }, update: { name: `${label} (${channel})`, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', active: true, priority: 50, conditions, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'professionalEmail' : 'professionalUserId' }, create: { key: `${templateKey}.rule`, name: `${label} (${channel})`, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', priority: 50, conditions, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'professionalEmail' : 'professionalUserId' } })
+      await prisma.notificationRule.upsert({ where: { key: `${templateKey}.rule` }, update: { name: `${label} (${channel})`, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', active: true, priority: 50, conditions, templateId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'professionalEmail' : 'professionalUserId' }, create: { key: `${templateKey}.rule`, name: `${label} (${channel})`, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', priority: 50, conditions, templateId: template.id, recipientId: template.id, recipientType: 'FIELD', recipientValue: channel === 'EMAIL' ? 'professionalEmail' : 'professionalUserId' } })
     }
   }
 }
@@ -81,16 +81,19 @@ async function seed() {
     const separatorIndex = permissionKey.indexOf(':'); const moduleKey = permissionKey.slice(0, separatorIndex); const action = permissionKey.slice(separatorIndex + 1)
     if (!moduleKey || !action) throw new Error(`Invalid permission key: ${permissionKey}`)
     let module = moduleRecords.get(moduleKey)
-    if (!module) { module = await prisma.module.upsert({ where: { key: moduleKey }, update: {}, create: { key: moduleKey, name: moduleName(moduleKey) } }); moduleRecords.set(moduleKey, module) }
+    if (!module) { module = await prisma.module.upsert({ where: { key: moduleKey }, update: { isActive: true }, create: { key: moduleKey, name: moduleName(moduleKey), isActive: true } }); moduleRecords.set(moduleKey, module) }
     const permission = await prisma.permission.upsert({ where: { moduleId_action: { moduleId: module.id, action } }, update: {}, create: { moduleId: module.id, action } }); permissionRecords.set(permissionKey, permission)
   }
   const roles = {
     client: await prisma.role.upsert({ where: { name: 'client' }, update: { description: 'Client who creates permit applications and schedules hardcopy submission appointments.' }, create: { name: 'client', description: 'Client who creates permit applications and schedules hardcopy submission appointments.' } }),
     professional: await prisma.role.upsert({ where: { name: 'professional' }, update: { description: 'Registered professional who applies for verification and is associated with permit applications.' }, create: { name: 'professional', description: 'Registered professional who applies for verification and is associated with permit applications.' } }),
     receiving_officer: await prisma.role.upsert({ where: { name: 'receiving_officer' }, update: { description: 'Receiving officer who verifies professionals and receives permit applications.' }, create: { name: 'receiving_officer', description: 'Receiving officer who verifies professionals and receives permit applications.' } }),
-    admin: await prisma.role.upsert({ where: { name: 'admin' }, update: { description: 'Development administrator with authorization administration access.' }, create: { name: 'admin', description: 'Development administrator with authorization administration access.' } }),
+    admin: await prisma.role.upsert({ where: { name: 'admin' }, update: { description: 'Platform administrator with full authorization administration access.' }, create: { name: 'admin', description: 'Platform administrator with full authorization administration access.' } }),
   }
   for (const [roleName, keys] of Object.entries(rolePermissions)) for (const key of keys) { const permission = permissionRecords.get(key); if (!permission) throw new Error(`Unknown permission declared for ${roleName}: ${key}`); await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles[roleName].id, permissionId: permission.id } }, update: {}, create: { roleId: roles[roleName].id, permissionId: permission.id } }) }
+  // The platform administrator must be able to administer every seeded module.
+  // Keep this separate from the role's minimum bootstrap permission so existing
+  // admin roles are repaired when new platform permissions are added.
   for (const permission of permissionRecords.values()) await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles.admin.id, permissionId: permission.id } }, update: {}, create: { roleId: roles.admin.id, permissionId: permission.id } })
   await prisma.oboPermitType.upsert({ where: { key: 'building-plan-permit' }, update: { name: 'Building Plan Permit', isActive: true }, create: { key: 'building-plan-permit', name: 'Building Plan Permit', description: 'Plan permit application for building construction and related work.' } })
   await prisma.appointmentType.upsert({ where: { key: 'obo-hardcopy-submission' }, update: { name: 'OBO Hardcopy Submission', isActive: true }, create: { key: 'obo-hardcopy-submission', name: 'OBO Hardcopy Submission', description: 'Physical hardcopy submission appointment for an OBO permit application.', defaultDurationMinutes: 30, defaultCapacity: 1 } })
