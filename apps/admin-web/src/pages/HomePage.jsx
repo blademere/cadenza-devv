@@ -1,6 +1,13 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
-import './HomePage.css'
+import { Box } from '../../components/ui/box'
+import { HStack } from '../../components/ui/hstack'
+import { VStack } from '../../components/ui/vstack'
+import { Button, ButtonText } from '../../components/ui/button'
+import { Card } from '../../components/ui/card'
+import { Badge, BadgeText } from '../../components/ui/badge'
+import { Heading } from '../../components/ui/heading'
+import { Text } from '../../components/ui/text'
 
 const highlights = [
   ['01', 'One clear starting point', 'A focused workspace that keeps the important actions easy to find.'],
@@ -10,88 +17,64 @@ const highlights = [
 
 export default function HomePage() {
   const { isAuthenticated, user, isLoading } = useAuth()
+  const destination = isAuthenticated ? '/dashboard' : '/login'
 
   return (
-    <main className="landing-page">
-      <div className="landing-shell">
-        <header className="landing-nav">
-          <Link className="brand" to="/" aria-label="Express App home">
-            <span className="brand-mark" aria-hidden="true">EA</span>
-            <span className="brand-name">Express App</span>
+    <Box className="min-h-screen bg-background px-5 md:px-10">
+      <Box className="mx-auto min-h-screen w-full max-w-6xl">
+        <HStack className="min-h-[82px] items-center justify-between border-b border-border">
+          <Link to="/" aria-label="Express App home" className="no-underline">
+            <HStack space="sm" className="items-center">
+              <Box className="h-9 w-9 items-center justify-center rounded-xl bg-primary-600"><Text size="xs" bold className="text-white">EA</Text></Box>
+              <Text size="lg" bold className="text-foreground">Express App</Text>
+            </HStack>
           </Link>
+          <HStack space="lg" className="items-center">
+            <Box className="hidden items-center gap-6 md:flex"><a href="#features" className="text-sm text-muted-foreground no-underline">Why Express App</a><a href="#experience" className="text-sm text-muted-foreground no-underline">Experience</a></Box>
+            {!isLoading && <Button as={Link} href={destination} size="sm"><ButtonText>{isAuthenticated ? 'Open dashboard' : 'Sign in'}</ButtonText></Button>}
+          </HStack>
+        </HStack>
 
-          <nav className="landing-links" aria-label="Landing page navigation">
-            <a href="#features">Why Express App</a>
-            <a href="#experience">Experience</a>
-          </nav>
+        <HStack className="items-center gap-10 py-16 md:py-24">
+          <VStack space="lg" className="flex-1">
+            <Badge size="sm" variant="outline" action="info" className="self-start"><BadgeText>● A simpler way to get things done</BadgeText></Badge>
+            <Heading size="3xl" className="max-w-3xl tracking-tight text-foreground md:text-5xl">From sign-in to workspace, <Text as="span" className="text-primary-600">everything flows.</Text></Heading>
+            <Text size="md" className="max-w-2xl leading-7 text-muted-foreground">A polished application experience with a clear public entry point, fast authentication, and a focused dashboard that puts the next action in front of you.</Text>
+            <HStack space="sm" className="items-center">
+              <Button as={Link} href={destination} size="lg"><ButtonText>{isAuthenticated ? 'Go to dashboard →' : 'Get started →'}</ButtonText></Button>
+              <Button variant="link" size="lg" onPress={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}><ButtonText>Explore the experience</ButtonText></Button>
+            </HStack>
+            {isAuthenticated && <Text size="sm" className="text-muted-foreground">Signed in as {user?.email || 'your account'}.</Text>}
+          </VStack>
 
-          {!isLoading && (
-            isAuthenticated
-              ? <Link className="nav-cta" to="/dashboard">Open dashboard</Link>
-              : <Link className="nav-cta" to="/login">Sign in</Link>
-          )}
-        </header>
+          <Card size="lg" variant="elevated" className="hidden w-[360px] bg-card p-6 lg:flex">
+            <VStack space="lg">
+              <HStack className="items-center justify-between"><Box className="h-10 w-10 items-center justify-center rounded-full bg-primary-600"><Text size="xs" bold className="text-white">EA</Text></Box><Badge action="success"><BadgeText>Active</BadgeText></Badge></HStack>
+              <VStack space="xs"><Text size="xs" bold className="tracking-widest text-muted-foreground">YOUR WORKSPACE</Text><Heading size="lg" className="text-foreground">Everything is ready.</Heading></VStack>
+              <Box className="h-2 overflow-hidden rounded-full bg-muted"><Box className="h-full w-full rounded-full bg-primary-600" /></Box>
+              <Text size="xs" className="text-muted-foreground">Secure session · 100% ready</Text>
+              <HStack space="sm"><Badge action="success"><BadgeText>✓ Authenticated</BadgeText></Badge><Badge action="info"><BadgeText>↗ Next action</BadgeText></Badge></HStack>
+            </VStack>
+          </Card>
+        </HStack>
 
-        <section className="landing-hero">
-          <div className="landing-copy">
-            <span className="landing-badge"><span /> A simpler way to get things done</span>
-            <h1>From sign-in to workspace, <em>everything flows.</em></h1>
-            <p>
-              A polished application experience with a clear public entry point, fast authentication,
-              and a focused dashboard that puts the next action in front of you.
-            </p>
-            <div className="landing-actions">
-              <Link className="button button-primary" to={isAuthenticated ? '/dashboard' : '/login'}>
-                {isAuthenticated ? 'Go to dashboard' : 'Get started'}
-                <span aria-hidden="true">→</span>
-              </Link>
-              <a className="button button-quiet" href="#features">Explore the experience</a>
-            </div>
-            {isAuthenticated && <p className="landing-session">Signed in as {user?.email || 'your account'}.</p>}
-          </div>
+        <Box id="experience" className="grid grid-cols-1 gap-4 border-y border-border py-8 md:grid-cols-3">
+          {[
+            ['Built for clarity', 'Every screen has a purpose and a next step.'],
+            ['Fast entry', 'Get from landing page to workspace without friction.'],
+            ['Responsive', 'Designed to feel intentional on every screen size.'],
+          ].map(([title, description]) => <VStack key={title} space="xs"><Text size="sm" bold className="text-foreground">{title}</Text><Text size="sm" className="text-muted-foreground">{description}</Text></VStack>)}
+        </Box>
 
-          <div className="landing-orbit" aria-hidden="true">
-            <div className="orbit-glow" />
-            <div className="orbit-card orbit-card-main">
-              <div className="orbit-card-top"><span className="mini-avatar">EA</span><span className="status-pill">Active</span></div>
-              <span className="orbit-label">Your workspace</span>
-              <strong>Everything is ready.</strong>
-              <div className="orbit-progress"><span /></div>
-              <small>Secure session · 100% ready</small>
-            </div>
-            <div className="orbit-card orbit-card-float one"><span>✓</span> Authenticated</div>
-            <div className="orbit-card orbit-card-float two"><span>↗</span> Next action</div>
-          </div>
-        </section>
+        <VStack id="features" space="xl" className="py-20 md:py-28">
+          <VStack space="sm" className="max-w-2xl"><Text size="xs" bold className="tracking-widest text-primary-600">THE FOUNDATION</Text><Heading size="2xl" className="text-foreground">A better flow, not just a new look.</Heading><Text size="md" className="leading-7 text-muted-foreground">The redesign keeps the existing authentication architecture while making the user journey much more obvious.</Text></VStack>
+          <Box className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {highlights.map(([number, title, description]) => <Card key={number} size="lg" variant="outline" className="bg-card p-6"><VStack space="md"><Text size="xs" bold className="text-primary-600">{number}</Text><Heading size="md" className="text-foreground">{title}</Heading><Text size="sm" className="leading-6 text-muted-foreground">{description}</Text></VStack></Card>)}
+          </Box>
+        </VStack>
 
-        <section className="landing-proof" id="experience">
-          <div><strong>Built for clarity</strong><span>Every screen has a purpose and a next step.</span></div>
-          <div><strong>Fast entry</strong><span>Get from landing page to workspace without friction.</span></div>
-          <div><strong>Responsive</strong><span>Designed to feel intentional on every screen size.</span></div>
-        </section>
-
-        <section className="landing-features" id="features">
-          <div className="section-heading">
-            <span className="section-kicker">THE FOUNDATION</span>
-            <h2>A better flow, not just a new look.</h2>
-            <p>The redesign keeps the existing authentication architecture while making the user journey much more obvious.</p>
-          </div>
-          <div className="feature-grid">
-            {highlights.map(([number, title, description]) => (
-              <article className="feature-card" key={number}>
-                <span className="feature-number">{number}</span>
-                <h3>{title}</h3>
-                <p>{description}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <footer className="landing-footer">
-          <Link className="brand" to="/"><span className="brand-mark">EA</span><span className="brand-name">Express App</span></Link>
-          <span>Secure. Focused. Ready.</span>
-        </footer>
-      </div>
-    </main>
+        <HStack className="min-h-[85px] items-center justify-between border-t border-border"><Link to="/" className="no-underline"><Text size="sm" bold className="text-foreground">Express App</Text></Link><Text size="xs" className="text-muted-foreground">Secure. Focused. Ready.</Text></HStack>
+      </Box>
+    </Box>
   )
 }
