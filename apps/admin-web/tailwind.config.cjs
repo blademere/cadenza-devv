@@ -6,7 +6,6 @@ module.exports = {
     './components/**/*.{html,js,jsx,ts,tsx,mdx}',
     './app/**/*.{html,js,jsx,ts,tsx,mdx}',
   ],
-  presets: [require('nativewind/preset')],
   important: 'html',
   safelist: [
     { pattern: /(bg|border|text|stroke|fill)-(foreground|card|popover|muted|destructive|border|input|ring|white|chart|sidebar|primary|secondary|typography|background|accent)(\/\d+)?$/ },
