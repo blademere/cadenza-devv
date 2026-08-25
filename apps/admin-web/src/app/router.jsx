@@ -35,8 +35,6 @@ function GuestRoute({ children }) {
   return children
 }
 
-const adminPage = (element, permission) => <AuthorizationRoute permission={permission}><AdminLayout>{element}</AdminLayout></AuthorizationRoute>
-
 export const router = createBrowserRouter([{ path: '/', element: <App />, children: [
   { index: true, element: <GuestRoute><HomePage /></GuestRoute> },
   { path: 'login', element: <GuestRoute><LoginPage /></GuestRoute> },
