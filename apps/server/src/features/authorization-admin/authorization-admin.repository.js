@@ -35,7 +35,18 @@ const createPermission = (data) => prisma.permission.create({
   include: { module: true },
 })
 
-const findPermissionById = (id) => prisma.permission.findUnique({ where: { id } })
+const findPermissionById = (id) => prisma.permission.findUnique({
+  where: { id },
+  include: { module: true },
+})
+
+const findPermissionByModuleAction = (moduleKey, action) => prisma.permission.findFirst({
+  where: {
+    action,
+    module: { key: moduleKey },
+  },
+  include: { module: true },
+})
 
 const listRoles = () => prisma.role.findMany({
   orderBy: { name: 'asc' },
@@ -48,6 +59,29 @@ const listRoles = () => prisma.role.findMany({
 })
 
 const findRoleById = (id) => prisma.role.findUnique({ where: { id } })
+
+const findRoleWithPermissions = (id) => prisma.role.findUnique({
+  where: { id },
+  include: {
+    permissions: {
+      select: { permissionId: true },
+    },
+  },
+})
+
+const findUserById = (id) => prisma.user.findUnique({
+  where: { id },
+  select: { id: true, roleId: true },
+})
+
+const countRolesWithPermission = async (permissionId, excludedRoleId) => prisma.role.count({
+  where: {
+    id: excludedRoleId ? { not: excludedRoleId } : undefined,
+    permissions: {
+      some: { permissionId },
+    },
+  },
+})
 
 const replaceRolePermissions = async (roleId, permissionIds) => prisma.$transaction(async (tx) => {
   await tx.rolePermission.deleteMany({ where: { roleId } })
@@ -75,7 +109,11 @@ module.exports = {
   setModuleActive,
   createPermission,
   findPermissionById,
+  findPermissionByModuleAction,
   listRoles,
   findRoleById,
+  findRoleWithPermissions,
+  findUserById,
+  countRolesWithPermission,
   replaceRolePermissions,
 }
