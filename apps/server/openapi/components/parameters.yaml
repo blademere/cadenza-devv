@@ -1,9 +1,21 @@
 IdempotencyKey:
   name: Idempotency-Key
   in: header
-  required: false
+  required: true
+  description: Unique key used to make a mutation idempotent.
   schema:
     type: string
+    minLength: 1
+    maxLength: 255
+
+AppointmentId:
+  name: id
+  in: path
+  required: true
+  description: Appointment UUID.
+  schema:
+    type: string
+    format: uuid
 
 OAuthCode:
   name: code
