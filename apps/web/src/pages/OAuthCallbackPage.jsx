@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import './OAuthCallbackPage.css'
 
 const ERROR_MESSAGES = {
   oauth_denied: 'OAuth sign-in was cancelled or denied.',
@@ -30,7 +31,6 @@ export default function OAuthCallbackPage({ mode = 'success' }) {
       }
 
       const session = await refresh()
-
       if (cancelled) return
 
       if (session?.accessToken) {
@@ -50,27 +50,47 @@ export default function OAuthCallbackPage({ mode = 'success' }) {
     }
   }, [mode, navigate, refresh, searchParams])
 
-  if (!error && mode === 'success') {
+  const isFailure = mode === 'failure' || Boolean(error)
+
+  if (!isFailure) {
     return (
-      <main>
-        <h1>Signing you in…</h1>
-        <p>Please wait while we finish authentication.</p>
+      <main className="oauth-callback-page" aria-live="polite">
+        <section className="oauth-callback-card" aria-labelledby="oauth-loading-title">
+          <div className="oauth-callback-mark" aria-hidden="true">EA</div>
+          <h1 id="oauth-loading-title">Signing you in…</h1>
+          <p>Please wait while we securely finish authentication.</p>
+        </section>
       </main>
     )
   }
 
   return (
-    <main>
-      <h1>{mode === 'failure' ? 'Sign-in failed' : 'Unable to sign you in'}</h1>
-      <p role="alert">{error}</p>
-      <button type="button" onClick={() => navigate('/login', { replace: true })}>
-        Back to sign in
-      </button>
-      {mode === 'success' && isAuthenticated && (
-        <button type="button" onClick={() => navigate('/', { replace: true })}>
-          Continue
-        </button>
-      )}
+    <main className="oauth-callback-page">
+      <section className="oauth-callback-card" aria-labelledby="oauth-error-title">
+        <div className="oauth-callback-mark" aria-hidden="true">EA</div>
+        <h1 id="oauth-error-title">{mode === 'failure' ? 'Sign-in failed' : 'Unable to sign you in'}</h1>
+        <p className="oauth-callback-error" role="alert">{error}</p>
+
+        <div className="oauth-callback-actions">
+          <button
+            className="oauth-callback-button"
+            type="button"
+            onClick={() => navigate('/login', { replace: true })}
+          >
+            Back to sign in
+          </button>
+
+          {mode === 'success' && isAuthenticated && (
+            <button
+              className="oauth-callback-button secondary"
+              type="button"
+              onClick={() => navigate('/', { replace: true })}
+            >
+              Continue
+            </button>
+          )}
+        </div>
+      </section>
     </main>
   )
 }
