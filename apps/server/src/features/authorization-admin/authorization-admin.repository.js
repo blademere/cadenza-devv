@@ -74,9 +74,9 @@ const findUserById = (id) => prisma.user.findUnique({
   select: { id: true, roleId: true },
 })
 
-const countRolesWithPermission = async (permissionId, excludedRoleId) => prisma.role.count({
+const countRolesWithPermission = (permissionId, excludedRoleId) => prisma.role.count({
   where: {
-    id: excludedRoleId ? { not: excludedRoleId } : undefined,
+    ...(excludedRoleId ? { id: { not: excludedRoleId } } : {}),
     permissions: {
       some: { permissionId },
     },
