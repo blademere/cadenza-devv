@@ -143,6 +143,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Validate and bundle OpenAPI
+        run: npm run openapi:build
       - name: Dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
