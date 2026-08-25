@@ -76,7 +76,7 @@ apps/
 │  │  └─ routes/              # API composition
 │  ├─ tests/                  # Unit and integration tests
 │  └─ openapi/                # Server-owned public API contract
-└─ web/                       # Future frontend application
+└─ web/                       # React/Vite frontend application
 
 prisma/                       # Prisma schema and migrations
 docs/server/                  # Server architecture and engineering documentation
@@ -111,6 +111,10 @@ npm run init
 npm run db:setup
 npm run dev
 ```
+
+`npm run dev` starts both the Express server and Vite web application. If you start the web application separately with `npm run dev:web`, the Express server must already be running on port `3000` (or the URL configured by `VITE_API_PROXY_TARGET`). The web app's Vite proxy uses `VITE_API_PROXY_TARGET` to reach the server; this must be reachable from the environment where Vite itself runs. For separate frontend/backend containers, set it to the backend service hostname, for example `http://server:3000`.
+
+The browser-facing API base remains `/api/v1` for same-origin development so authentication cookies remain associated with the browser's web origin while Vite proxies API requests to Express.
 
 Quality checks:
 
