@@ -7,7 +7,7 @@ This directory contains stable server architecture, platform, security, operatio
 - [`../../README.md`](../../README.md) — formal repository entry point and current application surface.
 - [`architecture.md`](architecture.md) — authoritative dependency and layer contract.
 - [`modules/`](modules/) — domain-specific documentation.
-- [`../../apps/server/openapi/openapi.yaml`](../../apps/server/openapi/openapi.yaml) — public HTTP API contract.
+- [`../../apps/server/openapi/openapi.yaml`](../../apps/server/openapi/openapi.yaml) — public HTTP API contract entry point.
 
 ## Architecture and platform
 
@@ -36,7 +36,11 @@ This directory contains stable server architecture, platform, security, operatio
 
 ## API
 
-The public HTTP contract is [`../../apps/server/openapi/openapi.yaml`](../../apps/server/openapi/openapi.yaml). Workflow, platform, and domain internals are not public APIs unless explicitly mounted by application routes.
+The public HTTP contract starts at [`../../apps/server/openapi/openapi.yaml`](../../apps/server/openapi/openapi.yaml) and is split into feature-oriented path and component files under `apps/server/openapi/`. Redocly validates and can bundle the contract from this root document.
+
+Swagger UI is served by the server at `/docs`, with the OpenAPI source entry point available at `/docs/openapi.yaml` and its external `$ref` documents served beneath `/docs/paths/` and `/docs/components/`.
+
+The bundled output at `apps/server/openapi/dist/openapi.yaml` is generated and is not a source-of-truth file.
 
 ## Domain documentation
 
