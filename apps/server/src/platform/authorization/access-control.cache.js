@@ -23,7 +23,12 @@ const hasCachedPermission = async (userId, resource, action) => {
     return null
   }
 
-  return Boolean(await redis.sIsMember(key, getPermissionKey(resource, action)))
+  const granted = await redis.sIsMember(key, getPermissionKey(resource, action))
+
+  // Never cache a negative authorization decision. A role permission can be
+  // granted in PostgreSQL while an older Redis set is still alive. Returning
+  // null forces the service to re-read the database and refresh the set.
+  return granted ? true : null
 }
 
 const cacheUserPermissions = async (userId, permissions) => {
