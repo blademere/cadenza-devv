@@ -23,7 +23,7 @@ const rolePermissions = {
   client: ['applications:read','applications:create','applications:update','appointments:read','appointments:create','appointments:cancel','obo_plan_permits:read','obo_plan_permits:create','obo_plan_permits:update','obo_plan_permits:submit','obo_plan_permits:schedule_submission','obo_professionals:read'],
   professional: ['applications:read','applications:create','applications:update','appointments:read','obo_plan_permits:read','obo_professionals:create','obo_professionals:read'],
   receiving_officer: ['applications:read','applications:review','applications:receive','applications:approve','applications:reject','professionals:read','professionals:review','appointments:read','appointments:check_in','appointments:manage','obo_plan_permits:read','obo_plan_permits:receive','obo_professionals:read','obo_professionals:review'],
-  admin: [],
+  admin: ['authorization:manage','users:read','users:create','users:manage'],
 }
 
 const catalogPermissionKeys = Object.entries(authorizationCatalog).flatMap(([moduleKey, actions]) => actions.map((action) => `${moduleKey}:${action}`))
