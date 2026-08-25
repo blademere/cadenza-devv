@@ -40,14 +40,46 @@ const setModuleActive = async ({ moduleId, isActive }) => {
 
 const listRoles = async () => repository.listRoles()
 
-const replaceRolePermissions = async ({ roleId, permissionIds }) => {
-  const role = await repository.findRoleById(roleId)
+const replaceRolePermissions = async ({ roleId, permissionIds, actorUserId }) => {
+  const role = await repository.findRoleWithPermissions(roleId)
   if (!role) throw new NotFoundError('Role not found.')
 
   const uniquePermissionIds = [...new Set(permissionIds)]
+  const permissions = []
   for (const permissionId of uniquePermissionIds) {
     const permission = await repository.findPermissionById(permissionId)
     if (!permission) throw new NotFoundError(`Permission ${permissionId} not found.`)
+    if (!permission.module.isActive) {
+      throw new ValidationError(`Permission '${permission.module.key}:${permission.action}' belongs to an inactive module.`)
+    }
+    permissions.push(permission)
+  }
+
+  const authorizationManagePermission = await repository.findPermissionByModuleAction('authorization', 'manage')
+  if (!authorizationManagePermission) {
+    throw new ValidationError('The canonical authorization:manage permission is not configured.')
+  }
+
+  const currentPermissionIds = new Set(role.permissions.map((permission) => permission.permissionId))
+  const currentlyManagesAuthorization = currentPermissionIds.has(authorizationManagePermission.id)
+  const willManageAuthorization = uniquePermissionIds.includes(authorizationManagePermission.id)
+
+  if (currentlyManagesAuthorization && !willManageAuthorization) {
+    const remainingManagingRoles = await repository.countRolesWithPermission(
+      authorizationManagePermission.id,
+      roleId,
+    )
+
+    if (remainingManagingRoles === 0) {
+      throw new ValidationError('Cannot remove authorization:manage from the last authorization administrator role.')
+    }
+
+    if (actorUserId !== undefined && actorUserId !== null) {
+      const actor = await repository.findUserById(Number(actorUserId))
+      if (actor?.roleId === roleId) {
+        throw new ValidationError('You cannot remove authorization:manage from your own role.')
+      }
+    }
   }
 
   const updated = await repository.replaceRolePermissions(roleId, uniquePermissionIds)
