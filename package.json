@@ -39,6 +39,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:seed": "node scripts/db-seed.cjs",
     "db:setup": "npm run prisma:generate && npm run prisma:migrate && npm run db:seed",
+    "db:setup": "npm run prisma:generate && npm run prisma:migrate && npm run db:seed",
     "db:backup": "node scripts/db-backup.cjs",
     "db:restore": "node scripts/db-restore.cjs",
     "openapi:lint": "npx --yes @redocly/cli@1.34.5 lint apps/server/openapi/openapi.yaml",
@@ -47,6 +48,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@redocly/cli": "^2.47.0",
     "concurrently": "^9.2.1",
     "eslint": "^10.8.0",
     "globals": "^17.11.0",
