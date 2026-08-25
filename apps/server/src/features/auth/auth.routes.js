@@ -1,18 +1,18 @@
 const express = require('express')
-const { csrfTokenController, loginController, currentUserController, refreshAccessTokenController, logoutController } = require('./auth.controller')
-const { loginValidator } = require('./auth.validation')
+const { csrfTokenController, registerClientController, loginController, currentUserController, refreshAccessTokenController, logoutController } = require('./auth.controller')
+const { loginValidator, clientRegistrationValidator } = require('./auth.validation')
 const authenticate = require('./authenticate.secure')
-const { asyncHandler, loginRateLimiter, refreshRateLimiter, logoutRateLimiter, oauthRateLimiter, idempotency } = require('../../common/middleware')
+const { asyncHandler, loginRateLimiter, registerRateLimiter, refreshRateLimiter, logoutRateLimiter, oauthRateLimiter, idempotency } = require('../../common/middleware')
 const validate = require('../../common/middleware/validate')
 const { csrfProtection } = require('../../common/middleware/csrf')
 const { startOAuth, handleOAuthCallback, startOAuthLink, listOAuthAccountsController, unlinkOAuthAccountController } = require('./oauth/oauth.controller')
 
 const authRouter = express.Router()
 const requireAuthIdempotency = idempotency({ scope: 'auth', required: true })
+const requireRegistrationIdempotency = idempotency({ scope: 'auth-registration', required: true })
 
-// CSRF token bootstrap is safe to call before authentication and is required by browser clients for state-changing auth requests.
 authRouter.get('/csrf', asyncHandler(csrfTokenController))
-// Login intentionally does not use idempotency: it creates a new authentication session.
+authRouter.post('/register/client', registerRateLimiter, validate(clientRegistrationValidator), requireRegistrationIdempotency, asyncHandler(registerClientController))
 authRouter.post('/login', loginRateLimiter, validate(loginValidator), asyncHandler(loginController))
 authRouter.get('/me', authenticate, asyncHandler(currentUserController))
 authRouter.get('/oauth/google', oauthRateLimiter, asyncHandler(startOAuth('google')))
