@@ -2,25 +2,28 @@ const fs = require('fs')
 const path = require('path')
 const swaggerUi = require('swagger-ui-express')
 
-const OPENAPI_PATH = path.resolve(__dirname, '../../openapi/openapi.yaml')
+const OPENAPI_PATH = path.resolve(__dirname, '../../../openapi/openapi.yaml')
 
 const registerSwagger = (app) => {
-  app.get('/api-docs/openapi.yaml', (_req, res, next) => {
+  app.get('/docs/openapi.yaml', (_req, res, next) => {
     try {
       const document = fs.readFileSync(OPENAPI_PATH, 'utf8')
-      res.type('application/yaml').set('Cache-Control', 'no-store').send(document)
+      res
+        .type('application/yaml')
+        .set('Cache-Control', 'no-store')
+        .send(document)
     } catch (error) {
       next(error)
     }
   })
 
   app.use(
-    '/api-docs',
+    '/docs',
     swaggerUi.serve,
     swaggerUi.setup(null, {
       customSiteTitle: 'Express App API Documentation',
       swaggerOptions: {
-        url: '/api-docs/openapi.yaml',
+        url: '/docs/openapi.yaml',
         persistAuthorization: true,
       },
     })
