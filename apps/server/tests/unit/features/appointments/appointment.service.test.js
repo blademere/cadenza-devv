@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repository = require('../../../../src/features/appointments/appointment.repository')
+const audit = require('../../../../src/platform/audit/audit.service')
 const { ConflictError } = require('../../../../src/common/errors/appError')
 
 vi.spyOn(repository, 'findSlot')
@@ -8,6 +9,7 @@ vi.spyOn(repository, 'findActiveUserAppointmentForSlot')
 vi.spyOn(repository, 'claimSlot')
 vi.spyOn(repository, 'createAppointment')
 vi.spyOn(repository, 'withTransaction')
+vi.spyOn(audit, 'recordAudit')
 
 const { bookAppointment } = await import('../../../../src/features/appointments/appointment.service.js')
 
@@ -15,6 +17,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   repository.withTransaction.mockImplementation((callback) => callback({}))
   repository.findActiveUserAppointmentForSlot.mockResolvedValue(null)
+  audit.recordAudit.mockResolvedValue({ id: 'audit-1' })
 })
 
 describe('appointment booking capacity and availability', () => {
@@ -39,6 +42,7 @@ describe('appointment booking capacity and availability', () => {
 
     expect(repository.claimSlot).toHaveBeenCalledWith({ slotId: 'slot-1', capacity: 2 }, expect.anything())
     expect(repository.createAppointment).toHaveBeenCalled()
+    expect(audit.recordAudit).toHaveBeenCalled()
   })
 
   it('rejects when an atomic capacity claim loses the race for the last slot', async () => {
