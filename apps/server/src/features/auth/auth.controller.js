@@ -1,5 +1,6 @@
 const { successResponse } = require('../../common/responses/apiResponse')
 const { login, refreshAccessToken, logout } = require('./auth.service')
+const { registerClient } = require('./client-registration')
 const { findUserById } = require('./auth.repository')
 const { setCsrfCookie } = require('../../common/middleware/csrf')
 const { UnauthorizedError } = require('../../common/errors/appError')
@@ -38,74 +39,46 @@ const toPublicUser = (user) => ({
 
 const csrfTokenController = async (_req, res) => {
   const csrfToken = setCsrfCookie(res)
-
   return successResponse(res, 'CSRF token issued.', { csrfToken })
+}
+
+const registerClientController = async (req, res) => {
+  const user = await registerClient(req.validated.body)
+  return successResponse(res, 'Client account created successfully.', { user }, 201)
 }
 
 const loginController = async (req, res) => {
   const result = await login(req.validated.body)
-
   res.cookie('refreshToken', result.refreshToken, refreshCookieOptions)
-
   const csrfToken = setCsrfCookie(res)
-
-  return successResponse(
-    res,
-    'Login successful.',
-    {
-      accessToken: result.accessToken,
-      csrfToken,
-      user: result.user,
-    },
-    200
-  )
+  return successResponse(res, 'Login successful.', { accessToken: result.accessToken, csrfToken, user: result.user }, 200)
 }
 
 const currentUserController = async (req, res) => {
   const user = await findUserById(req.user.id)
   if (!user || !user.isActive) throw new UnauthorizedError('User account is unavailable.')
-
-  return successResponse(res, 'Current user retrieved.', {
-    user: toPublicUser(user),
-  })
+  return successResponse(res, 'Current user retrieved.', { user: toPublicUser(user) })
 }
 
 const refreshAccessTokenController = async (req, res) => {
   const refreshToken = req.cookies?.refreshToken
-
-  if (!refreshToken) {
-    throw new UnauthorizedError('Refresh token is missing.')
-  }
-
-  const result = await refreshAccessToken({
-    refreshToken,
-  })
-
+  if (!refreshToken) throw new UnauthorizedError('Refresh token is missing.')
+  const result = await refreshAccessToken({ refreshToken })
   res.cookie('refreshToken', result.refreshToken, refreshCookieOptions)
-
-  return successResponse(res, 'Access token refreshed.', {
-    accessToken: result.accessToken,
-  })
+  return successResponse(res, 'Access token refreshed.', { accessToken: result.accessToken })
 }
 
 const logoutController = async (req, res) => {
   const refreshToken = req.cookies?.refreshToken
-  await logout({
-    refreshToken,
-  })
+  await logout({ refreshToken })
   clearRefreshCookie(res)
-  res.clearCookie('csrfToken', {
-    secure: env.COOKIE_SECURE,
-    sameSite: env.COOKIE_SAME_SITE,
-    domain: env.COOKIE_DOMAIN || undefined,
-    path: '/',
-  })
-
+  res.clearCookie('csrfToken', { secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/' })
   return successResponse(res, 'Logout successful.', null, 200)
 }
 
 module.exports = {
   csrfTokenController,
+  registerClientController,
   loginController,
   currentUserController,
   refreshAccessTokenController,
