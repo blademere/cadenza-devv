@@ -19,8 +19,7 @@
         "postman.postman-for-vscode",
         "vitest.explorer",
         "github.vscode-github-actions",
-        "shd101wyy.markdown-preview-enhanced",
-        "christian-kohler.path-intellisense"
+        "shd101wyy.markdown-preview-enhanced"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
