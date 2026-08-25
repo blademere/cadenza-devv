@@ -1,8 +1,19 @@
 const { BadRequestError, ConflictError, NotFoundError } = require('../../../common/errors/appError')
 const { publish } = require('../../../platform/event-bus/event-bus')
+const peopleService = require('../../../features/people/people.service')
 const repository = require('./professional.repository')
 
 const normalizeCredential = (value) => value?.trim() || ''
+
+const getProfile = async ({ userId }) => {
+  return peopleService.getByUserId(userId)
+}
+
+const updateProfile = async ({ userId, ...data }) => {
+  const existing = await repository.findPersonByUserId(userId)
+  if (existing) return peopleService.update(existing.id, data)
+  return peopleService.create({ ...data, userId })
+}
 
 const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumber }) => {
   const normalizedRegistrationNumber = normalizeCredential(registrationNumber)
@@ -13,7 +24,7 @@ const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumb
   if (!normalizedPtrNumber) throw new BadRequestError('ptrNumber is required.')
 
   const person = await repository.findPersonByUserId(userId)
-  if (!person) throw new ConflictError('The authenticated user does not have a person profile.')
+  if (!person) throw new ConflictError('Complete your person profile before applying for professional verification.')
   const existing = await repository.findByPersonId(person.id)
   if (existing) throw new ConflictError('A professional verification record already exists for this person.')
 
@@ -74,4 +85,4 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   })
 }
 
-module.exports = { applyForVerification, getMine, listPending, listVerified, decideVerification }
+module.exports = { getProfile, updateProfile, applyForVerification, getMine, listPending, listVerified, decideVerification }

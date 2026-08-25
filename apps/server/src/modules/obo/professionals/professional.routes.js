@@ -10,6 +10,8 @@ const validation = require('./professional.validation')
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-professionals', required: true })
 
+router.get('/profile', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getProfile))
+router.put('/profile', authenticate, authorize('obo_professionals', 'update'), requireIdempotency, validate(validation.profileValidator), asyncHandler(controller.updateProfile))
 router.post('/', authenticate, authorize('obo_professionals', 'create'), requireIdempotency, validate(validation.applyValidator), asyncHandler(controller.apply))
 router.get('/mine', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getMine))
 router.get('/verified', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.listVerified))

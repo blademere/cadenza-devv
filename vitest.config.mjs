@@ -1,9 +1,14 @@
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
+
+const repositoryRoot = dirname(fileURLToPath(import.meta.url))
+const serverTests = resolve(repositoryRoot, 'apps/server/tests')
 
 export default defineConfig({
   test: {
-    dir: './apps/server/tests',
-    setupFiles: ['./apps/server/tests/setup.js'],
+    dir: serverTests,
+    setupFiles: [resolve(serverTests, 'setup.js')],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],

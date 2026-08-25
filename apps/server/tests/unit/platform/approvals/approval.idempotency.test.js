@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const MIGRATIONS_DIR = 'prisma/migrations'
+const TEST_FILE_DIR = path.dirname(fileURLToPath(import.meta.url))
+const MIGRATIONS_DIR = path.resolve(TEST_FILE_DIR, '../../../../../../prisma/migrations')
 
 async function readMigrationSql() {
   const entries = await readdir(MIGRATIONS_DIR, {
