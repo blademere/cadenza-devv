@@ -18,14 +18,10 @@ const registerSwagger = (app) => {
     }
   })
 
-  // Serve external OpenAPI $ref targets so Swagger UI can resolve the
-  // maintainable multi-file source contract directly in development.
-  app.use('/docs/paths', (req, res, next) => {
-    const file = req.path.replace(/^\//, '')
-    if (!file || file.includes('..') || file.includes('\\')) {
-      return res.status(404).end()
-    }
-    return res.sendFile(path.join(OPENAPI_DIR, 'paths', file), (error) => {
+  // Serve the multi-file OpenAPI source tree using paths relative to
+  // /docs/openapi.yaml. This lets Swagger UI resolve external $refs.
+  app.get('/docs/paths.yaml', (_req, res, next) => {
+    res.sendFile(path.join(OPENAPI_DIR, 'paths.yaml'), (error) => {
       if (error) next(error)
     })
   })
