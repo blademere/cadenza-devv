@@ -40,10 +40,14 @@
       }
     }
   },
-  "forwardPorts": [3000, 3001, 5173, 5432, 6379, 8080, 9090],
+  "forwardPorts": [3000, 3001, 5173, 5174, 5432, 6379, 8080, 9090],
   "portsAttributes": {
     "5173": {
-      "label": "Vite",
+      "label": "Web Vite",
+      "onAutoForward": "openBrowser"
+    },
+    "5174": {
+      "label": "Admin Web Vite",
       "onAutoForward": "openBrowser"
     }
   },

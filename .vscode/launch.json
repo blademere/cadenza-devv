@@ -29,12 +29,30 @@
         "${workspaceFolder}/node_modules/**"
       ],
       "sourceMaps": true
+    },
+    {
+      "name": "Admin Web: React",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/vite/bin/vite.js",
+      "cwd": "${workspaceFolder}/apps/admin-web",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
+      "sourceMaps": true
     }
   ],
   "compounds": [
     {
       "name": "Full Stack: Server + Web",
       "configurations": ["Server: Express", "Web: React"],
+      "stopAll": true
+    },
+    {
+      "name": "Full Stack: Server + Admin Web",
+      "configurations": ["Server: Express", "Admin Web: React"],
       "stopAll": true
     }
   ]

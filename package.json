@@ -6,16 +6,19 @@
   "workspaces": [
     "apps/server",
     "apps/web",
+    "apps/admin-web",
     "packages/*"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
     "dev:server": "npm --workspace @express-app/server run dev",
     "dev:web": "npm --workspace @express-app/web run dev",
+    "dev:admin-web": "npm --workspace @express-app/admin-web run dev",
     "start": "npm --workspace @express-app/server run start",
     "start:worker": "npm --workspace @express-app/server run start:worker",
     "build": "npm run build:web",
     "build:web": "npm --workspace @express-app/web run build",
+    "build:admin-web": "npm --workspace @express-app/admin-web run build",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "node scripts/format-check.cjs",

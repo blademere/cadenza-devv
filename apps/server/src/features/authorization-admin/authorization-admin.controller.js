@@ -36,6 +36,7 @@ const replaceRolePermissionsController = async (req, res) => {
   const role = await service.replaceRolePermissions({
     roleId: req.validated.params.roleId,
     permissionIds: req.validated.body.permissionIds,
+    actorUserId: req.user.id,
   })
   return successResponse(res, 'Role permissions updated successfully.', role)
 }
