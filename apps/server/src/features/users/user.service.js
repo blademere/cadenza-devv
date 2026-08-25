@@ -8,12 +8,12 @@ const { findUserByEmail } = require('../auth/auth.repository')
 const { findRoleById, getUserAuthorizationContext } = require('../../platform/authorization/access-control.repository')
 const { clearUserPermissionCache } = require('../../platform/authorization/access-control.service')
 
-const getPermissionKey = ({ resource, action }) => `${resource}:${action}`
+const permissionKey = (permission) => `${permission.module.key}:${permission.action}`
 
 const canAssignRole = (requesterPermissions, targetRole) => {
-  const requesterPermissionSet = new Set(requesterPermissions.map(getPermissionKey))
+  const requesterPermissionSet = requesterPermissions instanceof Set ? requesterPermissions : new Set(requesterPermissions)
   return targetRole.permissions.every(({ permission }) =>
-    permission.module.isActive && requesterPermissionSet.has(getPermissionKey({ resource: permission.module.key, action: permission.action })),
+    permission.module.isActive && requesterPermissionSet.has(permissionKey(permission)),
   )
 }
 
@@ -43,18 +43,11 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
     findUserWithRole(userId),
     findRoleForAssignment(roleId),
   ])
-
   if (!requester) throw new ForbiddenError('Your account is not authorized to manage users.')
   if (!targetUser) throw new NotFoundError('User not found.')
   if (!targetRole) throw new NotFoundError('Role not found.')
-
-  if (!requester.permissions.has('authorization:manage')) {
-    throw new ForbiddenError('You do not have permission to assign user roles.')
-  }
-
-  if (!canAssignRole(requester.permissions, targetRole)) {
-    throw new ForbiddenError('You cannot assign a role containing permissions that you do not have.')
-  }
+  if (!requester.permissions.has('authorization:manage')) throw new ForbiddenError('You do not have permission to assign user roles.')
+  if (!canAssignRole(requester.permissions, targetRole)) throw new ForbiddenError('You cannot assign a role containing permissions that you do not have.')
 
   if (Number(requesterId) === Number(userId) && targetRole.id !== targetUser.roleId) {
     const retainsAuthorization = targetRole.permissions.some(({ permission }) =>
@@ -64,7 +57,6 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
   }
 
   if (targetUser.roleId === targetRole.id) return toUserResponse(targetUser)
-
   const updatedUser = await updateUserRole(userId, targetRole.id)
   await clearUserPermissionCache(userId)
   return toUserResponse(updatedUser)
