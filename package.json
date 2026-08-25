@@ -11,10 +11,10 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
-    "dev:server": "npm run openapi:bundle && npm --workspace @express-app/server run dev",
+    "dev:server": "npm --workspace @express-app/server run dev",
     "dev:web": "npm --workspace @express-app/web run dev",
     "dev:admin-web": "npm --workspace @express-app/admin-web run dev",
-    "start": "npm run openapi:bundle && npm --workspace @express-app/server run start",
+    "start": "npm --workspace @express-app/server run start",
     "start:worker": "npm --workspace @express-app/server run start:worker",
     "build": "npm run build:web",
     "build:web": "npm --workspace @express-app/web run build",
@@ -41,13 +41,12 @@
     "db:setup": "npm run prisma:generate && npm run prisma:migrate && npm run db:seed",
     "db:backup": "node scripts/db-backup.cjs",
     "db:restore": "node scripts/db-restore.cjs",
-    "openapi:lint": "redocly lint apps/server/openapi/openapi.yaml",
-    "openapi:bundle": "redocly bundle apps/server/openapi/openapi.yaml -o apps/server/openapi/dist/openapi.yaml",
+    "openapi:lint": "npx --yes @redocly/cli@1.34.5 lint apps/server/openapi/openapi.yaml",
+    "openapi:bundle": "npx --yes @redocly/cli@1.34.5 bundle apps/server/openapi/openapi.yaml -o apps/server/openapi/dist/openapi.yaml",
     "openapi:build": "npm run openapi:lint && npm run openapi:bundle"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@redocly/cli": "^1.34.5",
     "concurrently": "^9.2.1",
     "eslint": "^10.8.0",
     "globals": "^17.11.0",
