@@ -25,8 +25,6 @@ components:
   parameters:
     IdempotencyKey:
       $ref: './components/parameters.yaml#/IdempotencyKey'
-    AppointmentId:
-      $ref: './components/parameters.yaml#/AppointmentId'
     OAuthCode:
       $ref: './components/parameters.yaml#/OAuthCode'
     OAuthState:
@@ -53,6 +51,8 @@ components:
       $ref: './components/schemas/common.yaml#/ApiResponse'
     MessageResponse:
       $ref: './components/schemas/common.yaml#/MessageResponse'
+    RegisterRequest:
+      $ref: './components/schemas/auth.yaml#/RegisterRequest'
     LoginRequest:
       $ref: './components/schemas/auth.yaml#/LoginRequest'
     LoginResponse:
@@ -69,17 +69,5 @@ components:
       $ref: './components/schemas/users.yaml#/UserListResponse'
     CreateUserRequest:
       $ref: './components/schemas/users.yaml#/CreateUserRequest'
-    CreateAppointmentTypeRequest:
-      $ref: './components/schemas/appointments.yaml#/CreateAppointmentTypeRequest'
-    CreateAppointmentScheduleRequest:
-      $ref: './components/schemas/appointments.yaml#/CreateAppointmentScheduleRequest'
-    CreateAppointmentSlotRequest:
-      $ref: './components/schemas/appointments.yaml#/CreateAppointmentSlotRequest'
-    GenerateAppointmentSlotsRequest:
-      $ref: './components/schemas/appointments.yaml#/GenerateAppointmentSlotsRequest'
-    CreateAppointmentRequest:
-      $ref: './components/schemas/appointments.yaml#/CreateAppointmentRequest'
-    Appointment:
-      $ref: './components/schemas/appointments.yaml#/Appointment'
-    AppointmentResponse:
-      $ref: './components/schemas/appointments.yaml#/AppointmentResponse'
+    AssignUserRoleRequest:
+      $ref: './components/schemas/users.yaml#/AssignUserRoleRequest'
