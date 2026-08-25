@@ -21,7 +21,7 @@ paths:
 components:
   securitySchemes:
     bearerAuth:
-      $ref: './components/security.yaml#/bearerAuth'
+      $ref: './components/security.yaml'
 
   parameters:
     IdempotencyKey:
