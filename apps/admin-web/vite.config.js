@@ -1,17 +1,12 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import reactNativeWeb from 'vite-plugin-react-native-web'
 
 export default defineConfig({
   plugins: [
-    react({
+    reactNativeWeb({
       jsxImportSource: 'nativewind',
     }),
   ],
-  resolve: {
-    alias: [
-      { find: /^react-native$/, replacement: 'react-native-web' },
-    ],
-  },
   server: {
     port: 5174,
     proxy: {
