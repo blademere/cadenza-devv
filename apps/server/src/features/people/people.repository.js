@@ -6,6 +6,8 @@ const createPerson = (data) => prisma.person.create({ data })
 
 const findPersonById = (id) => prisma.person.findUnique({ where: { id } })
 
+const findPersonByUserId = (userId) => prisma.person.findUnique({ where: { userId: Number(userId) } })
+
 const listPeople = ({ skip, take, where }) =>
   prisma.person.findMany({
     where,
@@ -21,6 +23,7 @@ const updatePerson = (id, data) => prisma.person.update({ where: { id }, data })
 module.exports = {
   createPerson,
   findPersonById,
+  findPersonByUserId,
   listPeople,
   countPeople,
   updatePerson,

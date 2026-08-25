@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const repository = require('../../../src/modules/obo/plan-permits/plan-permit.repository')
-const formService = require('../../../src/platform/forms/form.service')
-const workflowService = require('../../../src/platform/workflow/workflow.service')
-const prismaModule = require('../../../src/infrastructure/database/prisma')
+const repository = require('../../../../src/modules/obo/plan-permits/plan-permit.repository')
+const formService = require('../../../../src/platform/forms/form.service')
+const workflowService = require('../../../../src/platform/workflow/workflow.service')
+const prismaModule = require('../../../../src/infrastructure/database/prisma')
 
 const transaction = vi.fn(async (callback) => callback({
   person: { findUnique: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'client@example.com', user: { email: 'client@example.com' } }) },
@@ -35,7 +35,7 @@ beforeEach(() => {
   spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
 })
 
-const service = require('../../../src/modules/obo/plan-permits/plan-permit.service')
+const service = require('../../../../src/modules/obo/plan-permits/plan-permit.service')
 
 const person = { id: 'person-1', userId: 'user-1', email: 'client@example.com' }
 const permitType = { id: 'permit-1', name: 'Building Permit', isActive: true, formId: null }

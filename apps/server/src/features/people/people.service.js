@@ -6,6 +6,7 @@ const {
 const {
   createPerson,
   findPersonById,
+  findPersonByUserId,
   listPeople,
   countPeople,
   updatePerson,
@@ -24,6 +25,12 @@ const create = async (data) => {
 
 const getById = async (id) => {
   const person = await findPersonById(id)
+  if (!person) throw new NotFoundError('Person not found.')
+  return person
+}
+
+const getByUserId = async (userId) => {
+  const person = await findPersonByUserId(userId)
   if (!person) throw new NotFoundError('Person not found.')
   return person
 }
@@ -67,4 +74,4 @@ const update = async (id, data) => {
   return updatePerson(id, next)
 }
 
-module.exports = { create, getById, list, update }
+module.exports = { create, getById, getByUserId, list, update }
