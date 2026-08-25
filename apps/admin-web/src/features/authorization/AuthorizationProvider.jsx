@@ -1,25 +1,34 @@
-import { createContext, useCallback, useContext, useMemo } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authorizationApi } from './authorization.api'
 import { useAuth } from '../auth/AuthProvider'
 
 const AuthorizationContext = createContext(null)
 const AUTHORIZATION_QUERY_KEY = ['authorization', 'context']
+const QUERY_OPTIONS = {
+  staleTime: Infinity,
+  gcTime: Infinity,
+  retry: false,
+  refetchOnMount: false,
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+}
 
 export function AuthorizationProvider({ children }) {
   const { isAuthenticated } = useAuth()
   const queryClient = useQueryClient()
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      queryClient.removeQueries({ queryKey: AUTHORIZATION_QUERY_KEY })
+    }
+  }, [isAuthenticated, queryClient])
+
   const query = useQuery({
     queryKey: AUTHORIZATION_QUERY_KEY,
     queryFn: authorizationApi.getContext,
     enabled: isAuthenticated,
-    staleTime: Infinity,
-    gcTime: Infinity,
-    retry: false,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    ...QUERY_OPTIONS,
   })
 
   const load = useCallback(async ({ force = false } = {}) => {
@@ -32,18 +41,14 @@ export function AuthorizationProvider({ children }) {
       return queryClient.fetchQuery({
         queryKey: AUTHORIZATION_QUERY_KEY,
         queryFn: authorizationApi.getContext,
-        staleTime: Infinity,
-        gcTime: Infinity,
-        retry: false,
+        ...QUERY_OPTIONS,
       })
     }
 
     return queryClient.fetchQuery({
       queryKey: AUTHORIZATION_QUERY_KEY,
       queryFn: authorizationApi.getContext,
-      staleTime: Infinity,
-      gcTime: Infinity,
-      retry: false,
+      ...QUERY_OPTIONS,
     })
   }, [isAuthenticated, queryClient])
 
