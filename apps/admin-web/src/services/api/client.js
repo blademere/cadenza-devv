@@ -84,12 +84,20 @@ export const apiClient = {
     request(path, {
       ...options,
       method: 'PUT',
+      headers: {
+        'Idempotency-Key': createIdempotencyKey(),
+        ...(options.headers ?? {}),
+      },
       body: JSON.stringify(body),
     }),
   patch: (path, body, options = {}) =>
     request(path, {
       ...options,
       method: 'PATCH',
+      headers: {
+        'Idempotency-Key': createIdempotencyKey(),
+        ...(options.headers ?? {}),
+      },
       body: JSON.stringify(body),
     }),
   delete: (path, options = {}) =>
