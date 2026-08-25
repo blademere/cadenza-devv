@@ -14,469 +14,122 @@ security:
 
 paths:
   /auth/login:
-    post:
-      operationId: login
-      tags: [Authentication]
-      summary: User login
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-      responses:
-        '200':
-          description: Login successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LoginResponse'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
+    $ref: './paths/auth.yaml#/auth/login'
   /auth/refresh:
-    post:
-      operationId: refreshAccessToken
-      tags: [Authentication]
-      summary: Refresh access token
-      security: []
-      responses:
-        '200':
-          description: Access token refreshed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AccessTokenResponse'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
+    $ref: './paths/auth.yaml#/auth/refresh'
   /auth/logout:
-    post:
-      operationId: logout
-      tags: [Authentication]
-      summary: User logout
-      security: []
-      responses:
-        '200':
-          description: Logout successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
+    $ref: './paths/auth.yaml#/auth/logout'
   /auth/oauth/google:
-    get:
-      operationId: startGoogleOAuth
-      tags: [Authentication]
-      summary: Start Google OAuth login
-      security: []
-      responses:
-        '302': { description: Redirect to Google authorization }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
+    $ref: './paths/auth.yaml#/auth/oauth/google'
   /auth/oauth/google/callback:
-    get:
-      operationId: handleGoogleOAuthCallback
-      tags: [Authentication]
-      summary: Handle Google OAuth callback
-      security: []
-      parameters:
-        - { $ref: '#/components/parameters/OAuthCode' }
-        - { $ref: '#/components/parameters/OAuthState' }
-        - { $ref: '#/components/parameters/OAuthError' }
-      responses:
-        '302': { description: Redirect to configured frontend success or failure URL }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
+    $ref: './paths/auth.yaml#/auth/oauth/google/callback'
   /auth/oauth/github:
-    get:
-      operationId: startGithubOAuth
-      tags: [Authentication]
-      summary: Start GitHub OAuth login
-      security: []
-      responses:
-        '302': { description: Redirect to GitHub authorization }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
+    $ref: './paths/auth.yaml#/auth/oauth/github'
   /auth/oauth/github/callback:
-    get:
-      operationId: handleGithubOAuthCallback
-      tags: [Authentication]
-      summary: Handle GitHub OAuth callback
-      security: []
-      parameters:
-        - { $ref: '#/components/parameters/OAuthCode' }
-        - { $ref: '#/components/parameters/OAuthState' }
-        - { $ref: '#/components/parameters/OAuthError' }
-      responses:
-        '302': { description: Redirect to configured frontend success or failure URL }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
+    $ref: './paths/auth.yaml#/auth/oauth/github/callback'
   /auth/oauth/accounts:
-    get:
-      operationId: listOAuthAccounts
-      tags: [Authentication]
-      summary: List linked OAuth accounts
-      responses:
-        '200':
-          description: Linked OAuth accounts retrieved
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OAuthAccountsResponse'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-
+    $ref: './paths/auth.yaml#/auth/oauth/accounts'
   /auth/oauth/link/google:
-    get:
-      operationId: startGoogleOAuthLink
-      tags: [Authentication]
-      summary: Start Google OAuth account linking
-      responses:
-        '302': { description: Redirect to Google authorization }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
+    $ref: './paths/auth.yaml#/auth/oauth/link/google'
   /auth/oauth/link/github:
-    get:
-      operationId: startGithubOAuthLink
-      tags: [Authentication]
-      summary: Start GitHub OAuth account linking
-      responses:
-        '302': { description: Redirect to GitHub authorization }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
+    $ref: './paths/auth.yaml#/auth/oauth/link/github'
   /auth/oauth/link/{provider}:
-    delete:
-      operationId: unlinkOAuthAccount
-      tags: [Authentication]
-      summary: Unlink an OAuth account
-      parameters:
-        - name: provider
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [google, github]
-      responses:
-        '200':
-          description: OAuth account unlinked
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '409': { $ref: '#/components/responses/Conflict' }
+    $ref: './paths/auth.yaml#/auth/oauth/link/{provider}'
 
   /users:
-    get:
-      operationId: listUsers
-      tags: [Users]
-      summary: List users
-      parameters:
-        - name: page
-          in: query
-          schema: { type: integer, minimum: 1, default: 1 }
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
-      responses:
-        '200':
-          description: Users retrieved
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserListResponse'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-    post:
-      operationId: createUser
-      tags: [Users]
-      summary: Create user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateUserRequest'
-      responses:
-        '201':
-          description: User created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserResponse'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
+    $ref: './paths/users.yaml#/users'
 
   /appointments/types:
-    get:
-      operationId: listAppointmentTypes
-      tags: [Appointments]
-      summary: List appointment types
-      parameters:
-        - name: active
-          in: query
-          schema: { type: boolean }
-      responses:
-        '200':
-          description: Appointment types retrieved successfully
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-    post:
-      operationId: createAppointmentType
-      tags: [Appointments]
-      summary: Create an appointment type
-      parameters:
-        - { $ref: '#/components/parameters/IdempotencyKey' }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CreateAppointmentTypeRequest' }
-      responses:
-        '201':
-          description: Appointment type created successfully
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-
+    $ref: './paths/appointments.yaml#/appointments/types'
   /appointments/schedules:
-    post:
-      operationId: createAppointmentSchedule
-      tags: [Appointments]
-      summary: Create an appointment schedule
-      parameters:
-        - { $ref: '#/components/parameters/IdempotencyKey' }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CreateAppointmentScheduleRequest' }
-      responses:
-        '201':
-          description: Appointment schedule created successfully
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-
+    $ref: './paths/appointments.yaml#/appointments/schedules'
   /appointments/slots:
-    get:
-      operationId: listAppointmentSlots
-      tags: [Appointments]
-      summary: List appointment slots
-      parameters:
-        - name: appointmentTypeId
-          in: query
-          schema: { type: string, format: uuid }
-        - name: from
-          in: query
-          schema: { type: string, format: date-time }
-        - name: to
-          in: query
-          schema: { type: string, format: date-time }
-        - name: status
-          in: query
-          schema: { type: string, maxLength: 30 }
-      responses:
-        '200':
-          description: Appointment slots retrieved successfully
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-    post:
-      operationId: createAppointmentSlot
-      tags: [Appointments]
-      summary: Create an appointment slot
-      parameters:
-        - { $ref: '#/components/parameters/IdempotencyKey' }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CreateAppointmentSlotRequest' }
-      responses:
-        '201':
-          description: Appointment slot created successfully
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-
+    $ref: './paths/appointments.yaml#/appointments/slots'
   /appointments/slots/generate:
-    post:
-      operationId: generateAppointmentSlots
-      tags: [Appointments]
-      summary: Generate appointment slots
-      parameters:
-        - { $ref: '#/components/parameters/IdempotencyKey' }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/GenerateAppointmentSlotsRequest' }
-      responses:
-        '201':
-          description: Appointment slots generated successfully
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-
+    $ref: './paths/appointments.yaml#/appointments/slots/generate'
   /appointments/mine:
-    get:
-      operationId: listMyAppointments
-      tags: [Appointments]
-      summary: List the authenticated user's appointments
-      responses:
-        '200':
-          description: User appointments retrieved successfully
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+    $ref: './paths/appointments.yaml#/appointments/mine'
+  /appointments:
+    $ref: './paths/appointments.yaml#/appointments'
+  /appointments/{id}:
+    $ref: './paths/appointments.yaml#/appointments/{id}'
+  /appointments/{id}/cancel:
+    $ref: './paths/appointments.yaml#/appointments/{id}/cancel'
+  /appointments/{id}/check-in:
+    $ref: './paths/appointments.yaml#/appointments/{id}/check-in'
+  /appointments/{id}/no-show:
+    $ref: './paths/appointments.yaml#/appointments/{id}/no-show'
+  /appointments/{id}/complete:
+    $ref: './paths/appointments.yaml#/appointments/{id}/complete'
 
 components:
   securitySchemes:
     bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+      $ref: './components/security.yaml#/bearerAuth'
 
   parameters:
     IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      schema: { type: string }
+      $ref: './components/parameters.yaml#/IdempotencyKey'
+    AppointmentId:
+      $ref: './components/parameters.yaml#/AppointmentId'
     OAuthCode:
-      name: code
-      in: query
-      required: false
-      schema: { type: string }
+      $ref: './components/parameters.yaml#/OAuthCode'
     OAuthState:
-      name: state
-      in: query
-      required: false
-      schema: { type: string }
+      $ref: './components/parameters.yaml#/OAuthState'
     OAuthError:
-      name: error
-      in: query
-      required: false
-      schema: { type: string }
+      $ref: './components/parameters.yaml#/OAuthError'
 
   responses:
-    BadRequest: { description: Bad request }
-    Unauthorized: { description: Authentication required }
-    Forbidden: { description: Access denied }
-    Conflict: { description: Resource conflict }
-    RateLimited: { description: Too many requests }
-    ValidationError: { description: Validation failed }
+    BadRequest:
+      $ref: './components/responses.yaml#/BadRequest'
+    Unauthorized:
+      $ref: './components/responses.yaml#/Unauthorized'
+    Forbidden:
+      $ref: './components/responses.yaml#/Forbidden'
+    NotFound:
+      $ref: './components/responses.yaml#/NotFound'
+    Conflict:
+      $ref: './components/responses.yaml#/Conflict'
+    ValidationError:
+      $ref: './components/responses.yaml#/ValidationError'
+    RateLimited:
+      $ref: './components/responses.yaml#/RateLimited'
 
   schemas:
-    MessageResponse:
-      type: object
-      properties:
-        message: { type: string }
-
     ApiResponse:
-      type: object
-      additionalProperties: true
+      $ref: './components/schemas/common.yaml#/ApiResponse'
+    MessageResponse:
+      $ref: './components/schemas/common.yaml#/MessageResponse'
 
     LoginRequest:
-      type: object
-      required: [email, password]
-      properties:
-        email: { type: string, format: email }
-        password: { type: string, format: password }
-
+      $ref: './components/schemas/auth.yaml#/LoginRequest'
     LoginResponse:
-      type: object
-      properties:
-        accessToken: { type: string }
-        user: { $ref: '#/components/schemas/User' }
-
+      $ref: './components/schemas/auth.yaml#/LoginResponse'
     AccessTokenResponse:
-      type: object
-      properties:
-        accessToken: { type: string }
+      $ref: './components/schemas/auth.yaml#/AccessTokenResponse'
+    OAuthAccountsResponse:
+      $ref: './components/schemas/auth.yaml#/OAuthAccountsResponse'
 
     User:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        email: { type: string, format: email }
-
+      $ref: './components/schemas/users.yaml#/User'
     UserResponse:
-      type: object
-      properties:
-        user: { $ref: '#/components/schemas/User' }
-
+      $ref: './components/schemas/users.yaml#/UserResponse'
     UserListResponse:
-      type: object
-      properties:
-        users:
-          type: array
-          items: { $ref: '#/components/schemas/User' }
-        page: { type: integer }
-        limit: { type: integer }
-
+      $ref: './components/schemas/users.yaml#/UserListResponse'
     CreateUserRequest:
-      type: object
-      required: [email, password]
-      properties:
-        email: { type: string, format: email }
-        password: { type: string, format: password }
-
-    OAuthAccountsResponse:
-      type: object
-      additionalProperties: true
+      $ref: './components/schemas/users.yaml#/CreateUserRequest'
 
     CreateAppointmentTypeRequest:
-      type: object
-      additionalProperties: true
-
+      $ref: './components/schemas/appointments.yaml#/CreateAppointmentTypeRequest'
     CreateAppointmentScheduleRequest:
-      type: object
-      additionalProperties: true
-
+      $ref: './components/schemas/appointments.yaml#/CreateAppointmentScheduleRequest'
     CreateAppointmentSlotRequest:
-      type: object
-      additionalProperties: true
-
+      $ref: './components/schemas/appointments.yaml#/CreateAppointmentSlotRequest'
     GenerateAppointmentSlotsRequest:
-      type: object
-      additionalProperties: true
+      $ref: './components/schemas/appointments.yaml#/GenerateAppointmentSlotsRequest'
+    CreateAppointmentRequest:
+      $ref: './components/schemas/appointments.yaml#/CreateAppointmentRequest'
+    Appointment:
+      $ref: './components/schemas/appointments.yaml#/Appointment'
+    AppointmentResponse:
+      $ref: './components/schemas/appointments.yaml#/AppointmentResponse'
