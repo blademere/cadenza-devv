@@ -26,6 +26,7 @@ const {
 
 const { env, requestLogger } = require('./config')
 const apiRoutes = require('./routes')
+const { registerSwagger } = require('./infrastructure/docs/swagger')
 const { withTimeout } = require('./common/utils/withTimeout')
 
 const app = express()
@@ -150,6 +151,8 @@ app.get('/health', (_req, res) => {
     },
   })
 })
+
+registerSwagger(app)
 
 app.use(rateLimiter)
 app.use('/api/v1', apiRoutes)
