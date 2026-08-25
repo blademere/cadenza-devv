@@ -38,6 +38,8 @@ This directory contains stable server architecture, platform, security, operatio
 
 The public HTTP contract is [`../../apps/server/openapi/openapi.yaml`](../../apps/server/openapi/openapi.yaml). Workflow, platform, and domain internals are not public APIs unless explicitly mounted by application routes.
 
+Swagger UI is served by the server at `/api-docs`, with the OpenAPI source available at `/api-docs/openapi.yaml`.
+
 ## Domain documentation
 
 Domain-specific documentation belongs under `docs/server/modules/<module>/`.
