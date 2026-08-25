@@ -4,8 +4,10 @@ import AdminLayout from '../layouts/AdminLayout'
 import HomePage from '../pages/HomePage'
 import LoginPage from '../pages/LoginPage'
 import DashboardPage from '../pages/DashboardPage'
+import AuthorizationPage from '../pages/AuthorizationPage'
 import OAuthCallbackPage from '../pages/OAuthCallbackPage'
 import { useAuth } from '../features/auth/AuthProvider'
+import { useAuthorization } from '../features/authorization/AuthorizationProvider'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -13,16 +15,28 @@ function ProtectedRoute({ children }) {
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return children
 }
+
+function AuthorizationRoute({ children }) {
+  const { isAuthenticated, isLoading } = useAuth()
+  const { can, isLoading: authorizationLoading } = useAuthorization()
+  if (isLoading || authorizationLoading) return <div className="route-loading">Checking authorization…</div>
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (!can('authorization:manage')) return <Navigate to="/dashboard" replace />
+  return children
+}
+
 function GuestRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth()
   if (isLoading) return <div className="route-loading">Loading…</div>
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
   return children
 }
+
 export const router = createBrowserRouter([{ path: '/', element: <App />, children: [
   { index: true, element: <GuestRoute><HomePage /></GuestRoute> },
   { path: 'login', element: <GuestRoute><LoginPage /></GuestRoute> },
   { path: 'dashboard', element: <ProtectedRoute><AdminLayout /></ProtectedRoute>, children: [{ index: true, element: <DashboardPage /> }] },
+  { path: 'authorization', element: <AuthorizationRoute><AdminLayout /></AuthorizationRoute>, children: [{ index: true, element: <AuthorizationPage /> }] },
   { path: 'auth/callback/success', element: <OAuthCallbackPage /> },
   { path: 'auth/callback/failure', element: <OAuthCallbackPage mode="failure" /> },
   { path: '*', element: <Navigate to="/" replace /> },
