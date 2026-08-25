@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
-import './OAuthCallbackPage.css'
+import { Box } from '../../components/ui/box'
+import { VStack } from '../../components/ui/vstack'
+import { Button, ButtonText } from '../../components/ui/button'
+import { Card } from '../../components/ui/card'
+import { Heading } from '../../components/ui/heading'
+import { Text } from '../../components/ui/text'
 
 const ERROR_MESSAGES = {
   oauth_denied: 'OAuth sign-in was cancelled or denied.',
@@ -22,16 +27,10 @@ export default function OAuthCallbackPage({ mode = 'success' }) {
   useEffect(() => {
     let cancelled = false
     const complete = async () => {
-      if (mode === 'failure') {
-        if (!cancelled) setError(ERROR_MESSAGES[searchParams.get('error')] ?? 'OAuth sign-in failed. Please try again.')
-        return
-      }
+      if (mode === 'failure') { if (!cancelled) setError(ERROR_MESSAGES[searchParams.get('error')] ?? 'OAuth sign-in failed. Please try again.'); return }
       const session = await refresh()
       if (cancelled) return
-      if (session?.accessToken) {
-        navigate('/dashboard', { replace: true })
-        return
-      }
+      if (session?.accessToken) { navigate('/dashboard', { replace: true }); return }
       setError('OAuth sign-in completed, but the application could not establish your session.')
     }
     complete().catch(() => { if (!cancelled) setError('OAuth sign-in could not be completed. Please try again.') })
@@ -39,7 +38,18 @@ export default function OAuthCallbackPage({ mode = 'success' }) {
   }, [mode, navigate, refresh, searchParams])
 
   const isFailure = mode === 'failure' || Boolean(error)
-  if (!isFailure) return <main className="oauth-callback-page" aria-live="polite"><section className="oauth-callback-card"><div className="oauth-callback-mark" aria-hidden="true">EA</div><h1>Signing you in…</h1><p>Please wait while we securely finish authentication.</p></section></main>
-
-  return <main className="oauth-callback-page"><section className="oauth-callback-card"><div className="oauth-callback-mark" aria-hidden="true">EA</div><h1>{mode === 'failure' ? 'Sign-in failed' : 'Unable to sign you in'}</h1><p className="oauth-callback-error" role="alert">{error}</p><div className="oauth-callback-actions"><button className="oauth-callback-button" type="button" onClick={() => navigate('/login', { replace: true })}>Back to sign in</button></div></section></main>
+  return (
+    <Box className="min-h-screen items-center justify-center bg-background px-5">
+      <Card size="lg" variant="elevated" className="w-full max-w-md bg-card p-8">
+        <VStack space="lg" className="items-center text-center">
+          <Box className="h-12 w-12 items-center justify-center rounded-2xl bg-primary-600"><Text size="sm" bold className="text-white">EA</Text></Box>
+          <VStack space="sm" className="items-center">
+            <Heading size="xl" className="text-center text-foreground">{isFailure ? (mode === 'failure' ? 'Sign-in failed' : 'Unable to sign you in') : 'Signing you in…'}</Heading>
+            <Text size="sm" className="text-center text-muted-foreground">{isFailure ? error : 'Please wait while we securely finish authentication.'}</Text>
+          </VStack>
+          {isFailure && <Button size="lg" onPress={() => navigate('/login', { replace: true })}><ButtonText>Back to sign in</ButtonText></Button>}
+        </VStack>
+      </Card>
+    </Box>
+  )
 }
