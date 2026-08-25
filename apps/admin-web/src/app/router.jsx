@@ -7,6 +7,8 @@ import DashboardPage from '../pages/DashboardPage'
 import AuthorizationPage from '../pages/AuthorizationPage'
 import ReceivingPage from '../pages/ReceivingPage'
 import VerificationPage from '../pages/VerificationPage'
+import ProfessionalsPage from '../pages/ProfessionalsPage'
+import PermitTypesPage from '../pages/PermitTypesPage'
 import CapabilityPage from '../pages/CapabilityPage'
 import OAuthCallbackPage from '../pages/OAuthCallbackPage'
 import { useAuth } from '../features/auth/AuthProvider'
@@ -44,8 +46,8 @@ export const router = createBrowserRouter([{ path: '/', element: <App />, childr
   { path: 'professionals/verification', element: <AuthorizationRoute permission="obo_professionals:review"><AdminLayout /></AuthorizationRoute>, children: [{ index: true, element: <VerificationPage /> }] },
   { path: 'applications', element: <AuthorizationRoute permission="obo_plan_permits:read"><AdminLayout /></AuthorizationRoute>, children: [{ index: true, element: <CapabilityPage /> }] },
   { path: 'appointments', element: <AuthorizationRoute permission="appointments:read"><AdminLayout /></AuthorizationRoute>, children: [{ index: true, element: <CapabilityPage /> }] },
-  { path: 'professionals', element: <AuthorizationRoute permission="obo_professionals:read"><AdminLayout /></AuthorizationRoute>, children: [{ index: true, element: <CapabilityPage /> }] },
-  { path: 'permit-types', element: <AuthorizationRoute permission="obo_plan_permits:read"><AdminLayout /></AuthorizationRoute>, children: [{ index: true, element: <CapabilityPage /> }] },
+  { path: 'professionals', element: <AuthorizationRoute permission="obo_professionals:read"><AdminLayout /></AuthorizationRoute>, children: [{ index: true, element: <ProfessionalsPage /> }] },
+  { path: 'permit-types', element: <AuthorizationRoute permission="obo_plan_permits:read"><AdminLayout /></AuthorizationRoute>, children: [{ index: true, element: <PermitTypesPage /> }] },
   { path: 'auth/callback/success', element: <OAuthCallbackPage /> },
   { path: 'auth/callback/failure', element: <OAuthCallbackPage mode="failure" /> },
   { path: '*', element: <Navigate to="/" replace /> },
