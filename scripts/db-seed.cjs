@@ -12,6 +12,7 @@ const prisma = getPrismaClient()
 // developer-owned capabilities; the Admin Web manages role assignments.
 const authorizationCatalog = {
   authorization: ['manage'],
+  users: ['read', 'create', 'manage'],
   applications: ['read', 'create', 'update', 'review', 'receive', 'approve', 'reject'],
   appointments: ['read', 'create', 'cancel', 'check_in', 'manage'],
   obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive'],
