@@ -1,10 +1,34 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import { Button, ButtonText } from '../../components/ui/button'
+import { Card } from '../../components/ui/card'
+import { Text } from '../../components/ui/text'
 import './DashboardPage.css'
 
 function getDisplayName(user) {
   return user?.name || user?.email?.split('@')[0] || 'there'
 }
+
+const overview = [
+  {
+    label: 'ACCOUNT STATUS',
+    value: 'Authenticated',
+    description: 'Your account is securely signed in and ready for the next action.',
+    meta: 'Active session',
+  },
+  {
+    label: 'ACCESS',
+    value: 'Secure session',
+    description: 'Authentication state is maintained by the application session flow.',
+    meta: 'Protected workspace',
+  },
+  {
+    label: 'NEXT',
+    value: 'Workspace modules',
+    description: 'Application modules, workflows, and administration tools will appear here.',
+    meta: 'Ready to expand',
+  },
+]
 
 export default function DashboardPage() {
   const { user, logout } = useAuth()
@@ -22,55 +46,60 @@ export default function DashboardPage() {
         <header className="workspace-nav">
           <Link className="brand" to="/dashboard" aria-label="Express App dashboard">
             <span className="brand-mark">EA</span>
-            <span className="brand-name">Express App</span>
+            <span className="brand-name">Express App Admin</span>
           </Link>
+
           <div className="workspace-nav-actions">
-            <span className="workspace-user">{user?.email || 'Authenticated user'}</span>
-            <button type="button" className="workspace-logout" onClick={handleLogout}>Sign out</button>
+            <Text size="sm" className="workspace-user">
+              {user?.email || 'Authenticated user'}
+            </Text>
+            <Button variant="outline" size="sm" onPress={handleLogout}>
+              <ButtonText>Sign out</ButtonText>
+            </Button>
           </div>
         </header>
 
         <section className="workspace-hero">
           <div>
-            <span className="workspace-kicker">YOUR WORKSPACE</span>
+            <span className="workspace-kicker">ADMIN WORKSPACE</span>
             <h1>Good to see you, {displayName}.</h1>
-            <p>Your session is active. Start with the overview below and keep building from here.</p>
+            <p>Manage the platform from one focused administrative workspace.</p>
           </div>
           <div className="workspace-status"><span /> All systems ready</div>
         </section>
 
         <section className="workspace-overview" aria-label="Workspace overview">
-          <article className="overview-card overview-card-primary">
-            <span className="overview-label">ACCOUNT STATUS</span>
-            <strong>Authenticated</strong>
-            <p>Your account is securely signed in and ready for the next action.</p>
-            <div className="overview-meta"><span className="meta-dot" /> Active session</div>
-          </article>
-          <article className="overview-card">
-            <span className="overview-label">ACCESS</span>
-            <strong>Secure session</strong>
-            <p>Authentication state is maintained by the application's session flow.</p>
-            <div className="overview-meta">Protected workspace</div>
-          </article>
-          <article className="overview-card">
-            <span className="overview-label">NEXT</span>
-            <strong>Workspace modules</strong>
-            <p>This area is ready for the authenticated features that come next.</p>
-            <div className="overview-meta">Ready to expand</div>
-          </article>
+          {overview.map((item) => (
+            <Card key={item.label} className="overview-card" size="default">
+              <Text size="xs" bold className="overview-label">{item.label}</Text>
+              <Text size="xl" bold className="overview-value">{item.value}</Text>
+              <Text size="sm" className="overview-description">{item.description}</Text>
+              <Text size="xs" className="overview-meta">{item.meta}</Text>
+            </Card>
+          ))}
         </section>
 
         <section className="workspace-next">
-          <div className="next-heading"><span className="workspace-kicker">WHAT'S NEXT</span><h2>A focused place to continue.</h2></div>
-          <div className="next-card">
-            <div className="next-icon">+</div>
-            <div><h3>Build your workspace</h3><p>Add application modules, activity, notifications, and personalized actions here without changing the authentication flow.</p></div>
-            <span className="next-arrow">→</span>
+          <div className="next-heading">
+            <span className="workspace-kicker">ADMINISTRATION</span>
+            <h2>Build your operational workspace.</h2>
           </div>
+          <Card className="next-card" size="default">
+            <div className="next-icon">+</div>
+            <div>
+              <Text size="lg" bold>Platform modules</Text>
+              <Text size="sm" className="next-description">
+                Add users, professionals, permits, appointments, notifications, and other administrative workflows here.
+              </Text>
+            </div>
+            <Button variant="ghost" size="icon" aria-label="Open modules">
+              <ButtonText>→</ButtonText>
+            </Button>
+          </Card>
         </section>
 
         <footer className="workspace-footer">
-          <span>© Express App</span>
+          <Text size="xs">© Express App</Text>
           <Link to="/">Back to landing page</Link>
         </footer>
       </div>
