@@ -1,12 +1,38 @@
 BadRequest:
-  description: Bad request
+  description: Bad request.
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/common.yaml#/ApiResponse'
 Unauthorized:
-  description: Authentication required
+  description: Authentication is required or the access token is invalid.
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/common.yaml#/ApiResponse'
 Forbidden:
-  description: Access denied
+  description: The authenticated user does not have the required permission or resource-level authorization.
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/common.yaml#/ApiResponse'
+NotFound:
+  description: Requested resource was not found.
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/common.yaml#/ApiResponse'
 Conflict:
-  description: Resource conflict
-RateLimited:
-  description: Too many requests
+  description: The request conflicts with the current resource state or an integrity/idempotency constraint.
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/common.yaml#/ApiResponse'
 ValidationError:
-  description: Validation failed
+  description: Request validation failed.
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/common.yaml#/ApiResponse'
+RateLimited:
+  description: Too many requests.
