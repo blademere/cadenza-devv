@@ -8,13 +8,20 @@ const { findUserByEmail } = require('../auth/auth.repository')
 const { findRoleById, getUserAuthorizationContext } = require('../../platform/authorization/access-control.repository')
 const { clearUserPermissionCache } = require('../../platform/authorization/access-control.service')
 
-const permissionKey = (permission) => `${permission.module.key}:${permission.action}`
+const permissionKey = (permission) => {
+  const resource = permission.resource ?? permission.module?.key
+  return `${resource}:${permission.action}`
+}
 
 const canAssignRole = (requesterPermissions, targetRole) => {
-  const requesterPermissionSet = requesterPermissions instanceof Set ? requesterPermissions : new Set(requesterPermissions)
-  return targetRole.permissions.every(({ permission }) =>
-    permission.module.isActive && requesterPermissionSet.has(permissionKey(permission)),
+  const requesterPermissionSet = new Set(
+    (requesterPermissions || []).map((permission) => permissionKey(permission)),
   )
+
+  return targetRole.permissions.every(({ permission }) => {
+    if (permission.module?.isActive === false) return false
+    return requesterPermissionSet.has(permissionKey(permission))
+  })
 }
 
 const listUsers = async (query = {}) => {
@@ -50,9 +57,10 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
   if (!canAssignRole(requester.permissions, targetRole)) throw new ForbiddenError('You cannot assign a role containing permissions that you do not have.')
 
   if (Number(requesterId) === Number(userId) && targetRole.id !== targetUser.roleId) {
-    const retainsAuthorization = targetRole.permissions.some(({ permission }) =>
-      permission.module.isActive && permission.module.key === 'authorization' && permission.action === 'manage',
-    )
+    const retainsAuthorization = targetRole.permissions.some(({ permission }) => {
+      const candidate = permission ?? {}
+      return candidate.module?.isActive !== false && candidate.module?.key === 'authorization' && candidate.action === 'manage'
+    })
     if (!retainsAuthorization) throw new ForbiddenError('You cannot remove your own authorization management permission.')
   }
 
