@@ -1,4 +1,0 @@
-auth:
-  $ref: './auth.yaml'
-users:
-  $ref: './users.yaml'
