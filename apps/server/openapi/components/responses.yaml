@@ -1,0 +1,12 @@
+BadRequest:
+  description: Bad request
+Unauthorized:
+  description: Authentication required
+Forbidden:
+  description: Access denied
+Conflict:
+  description: Resource conflict
+RateLimited:
+  description: Too many requests
+ValidationError:
+  description: Validation failed
