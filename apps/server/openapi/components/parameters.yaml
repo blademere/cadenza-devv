@@ -1,0 +1,27 @@
+IdempotencyKey:
+  name: Idempotency-Key
+  in: header
+  required: false
+  schema:
+    type: string
+
+OAuthCode:
+  name: code
+  in: query
+  required: false
+  schema:
+    type: string
+
+OAuthState:
+  name: state
+  in: query
+  required: false
+  schema:
+    type: string
+
+OAuthError:
+  name: error
+  in: query
+  required: false
+  schema:
+    type: string
