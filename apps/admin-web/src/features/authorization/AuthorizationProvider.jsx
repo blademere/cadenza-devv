@@ -1,122 +1,77 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authorizationApi } from './authorization.api'
 import { useAuth } from '../auth/AuthProvider'
 
 const AuthorizationContext = createContext(null)
-
-// Authorization is session-scoped. Keep the cache outside the provider so a
-// router remount, StrictMode effect replay, or route transition cannot issue
-// another request for the same authenticated browser session.
-let sessionContext = null
-let sessionRequest = null
-let sessionLoaded = false
-
-const resetSessionAuthorization = () => {
-  sessionContext = null
-  sessionRequest = null
-  sessionLoaded = false
-}
+const AUTHORIZATION_QUERY_KEY = ['authorization', 'context']
 
 export function AuthorizationProvider({ children }) {
   const { isAuthenticated } = useAuth()
-  const [context, setContext] = useState(() => sessionContext)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const mountedRef = useRef(true)
+  const queryClient = useQueryClient()
 
-  useEffect(() => () => {
-    mountedRef.current = false
-  }, [])
+  const query = useQuery({
+    queryKey: AUTHORIZATION_QUERY_KEY,
+    queryFn: authorizationApi.getContext,
+    enabled: isAuthenticated,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
 
   const load = useCallback(async ({ force = false } = {}) => {
     if (!isAuthenticated) {
-      resetSessionAuthorization()
-      if (mountedRef.current) {
-        setContext(null)
-        setError(null)
-        setIsLoading(false)
-      }
+      queryClient.removeQueries({ queryKey: AUTHORIZATION_QUERY_KEY })
       return null
     }
 
-    if (!force && sessionLoaded) {
-      if (mountedRef.current) setContext(sessionContext)
-      return sessionContext
+    if (force) {
+      return queryClient.fetchQuery({
+        queryKey: AUTHORIZATION_QUERY_KEY,
+        queryFn: authorizationApi.getContext,
+        staleTime: Infinity,
+        gcTime: Infinity,
+        retry: false,
+      })
     }
 
-    // Share the same request globally, not just within this provider instance.
-    if (sessionRequest) return sessionRequest
-
-    const request = (async () => {
-      if (mountedRef.current) {
-        setIsLoading(true)
-        setError(null)
-      }
-
-      try {
-        const nextContext = await authorizationApi.getContext()
-        sessionContext = nextContext
-        sessionLoaded = true
-
-        if (mountedRef.current) setContext(nextContext)
-        return nextContext
-      } catch (nextError) {
-        // Do not immediately retry a failed authorization check. A failed
-        // request must be explicitly retried with force rather than becoming
-        // a render/request loop.
-        sessionContext = null
-        sessionLoaded = false
-        if (mountedRef.current) {
-          setError(nextError)
-          setContext(null)
-        }
-        return null
-      } finally {
-        sessionRequest = null
-        if (mountedRef.current) setIsLoading(false)
-      }
-    })()
-
-    sessionRequest = request
-    return request
-  }, [isAuthenticated])
-
-  useEffect(() => {
-    mountedRef.current = true
-
-    if (!isAuthenticated) {
-      resetSessionAuthorization()
-      setContext(null)
-      setError(null)
-      setIsLoading(false)
-      return undefined
-    }
-
-    void load()
-    return undefined
-  }, [isAuthenticated, load])
+    return queryClient.fetchQuery({
+      queryKey: AUTHORIZATION_QUERY_KEY,
+      queryFn: authorizationApi.getContext,
+      staleTime: Infinity,
+      gcTime: Infinity,
+      retry: false,
+    })
+  }, [isAuthenticated, queryClient])
 
   const can = useCallback((permission) => {
     if (!permission) return false
-    return context?.permissions?.includes(permission) ?? false
-  }, [context])
+    return query.data?.permissions?.includes(permission) ?? false
+  }, [query.data])
 
   const isNavigationVisible = useCallback((key) => {
-    return context?.navigation?.some(
+    return query.data?.navigation?.some(
       (item) => item.key === key && item.visible,
     ) ?? false
-  }, [context])
+  }, [query.data])
 
   const value = useMemo(() => ({
-    context,
-    isLoading,
-    error,
+    context: query.data ?? null,
+    isLoading: query.isLoading,
+    error: query.error,
     load,
     can,
     isNavigationVisible,
-  }), [context, isLoading, error, load, can, isNavigationVisible])
+  }), [query.data, query.isLoading, query.error, load, can, isNavigationVisible])
 
-  return <AuthorizationContext.Provider value={value}>{children}</AuthorizationContext.Provider>
+  return (
+    <AuthorizationContext.Provider value={value}>
+      {children}
+    </AuthorizationContext.Provider>
+  )
 }
 
 export function useAuthorization() {
