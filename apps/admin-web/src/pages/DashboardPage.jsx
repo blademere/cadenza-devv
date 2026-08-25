@@ -1,42 +1,47 @@
+import { Link } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import { useAuthorization } from '../features/authorization/AuthorizationProvider'
 import { Box } from '../../components/ui/box'
 import { HStack } from '../../components/ui/hstack'
 import { VStack } from '../../components/ui/vstack'
-import { Button, ButtonText } from '../../components/ui/button'
 import { Text } from '../../components/ui/text'
 import { Heading } from '../../components/ui/heading'
 import { Badge, BadgeText } from '../../components/ui/badge'
+import { Card } from '../../components/ui/card'
 
-const stats = [
-  ['Pending applications', '24', '+12% this week'],
-  ['Appointments today', '8', '4 slots remaining'],
-  ['Verified professionals', '142', '+8 this month'],
-  ['For inspection', '17', '5 received today'],
-]
-
-const recent = [
-  ['PP-2026-00421', 'Maria Santos', 'Building Permit', 'For Inspection', 'success'],
-  ['PP-2026-00418', 'Juan Dela Cruz', 'Occupancy Permit', 'Appointment', 'info'],
-  ['PP-2026-00416', 'Ana Reyes', 'Building Permit', 'For Review', 'warning'],
-  ['PP-2026-00412', 'Pedro Garcia', 'Renovation Permit', 'Submitted', 'neutral'],
-]
-
-const statusClass = { success: 'admin-status-success', info: 'admin-status-info', warning: 'admin-status-warning', neutral: 'admin-status-neutral' }
+const labels = {
+  applications: 'Applications',
+  appointments: 'Appointments',
+  professionals: 'Professionals',
+  verification: 'Professional Verification',
+  'permit-types': 'Permit Types',
+  receiving: 'Receiving',
+  authorization: 'Authorization',
+}
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const { context, isLoading, error } = useAuthorization()
   const name = user?.name || user?.email?.split('@')[0] || 'Administrator'
+  const visible = (context?.navigation ?? []).filter((item) => item.visible)
+  const activeModules = (context?.modules ?? []).filter((module) => module.isActive !== false)
 
-  return <VStack space="xl" className="admin-page admin-content">
-    <Box className="admin-page-header"><VStack space="xs"><Text className="admin-eyebrow">Overview</Text><Heading className="admin-page-title">Good morning, {name}.</Heading><Text className="admin-page-subtitle">A concise view of today's operational work.</Text></VStack><Button size="sm" className="hidden sm:flex"><ButtonText>New application</ButtonText></Button></Box>
+  return <VStack space="lg" className="mx-auto w-full max-w-7xl">
+    <VStack space="xs"><Text size="sm" className="text-muted-foreground">Administration</Text><Heading size="xl">Welcome, {name}</Heading><Text className="text-muted-foreground">Your workspace is driven by the authorization context supplied by the server.</Text></VStack>
 
-    <Box className="admin-kpi-grid">{stats.map(([label, value, meta]) => <Box key={label} className="admin-kpi"><Text className="admin-kpi-label">{label}</Text><Text className="admin-kpi-value">{value}</Text><Text className="admin-kpi-meta">{meta}</Text></Box>)}</Box>
+    {error && <Card variant="outline" className="border-error-300 bg-error-50 p-4"><Text className="text-error-700">Authorization context could not be loaded. Navigation and protected actions will remain unavailable until access is resolved.</Text></Card>}
 
-    <Box className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <Box className="admin-panel"><Box className="admin-panel-header"><VStack space="none"><Text className="admin-panel-title">Recent applications</Text><Text className="admin-panel-subtitle">Latest permit activity</Text></VStack><Button variant="link" size="sm"><ButtonText>View all</ButtonText></Button></Box><Box className="w-full overflow-x-auto"><table className="admin-table"><thead><tr><th>Application</th><th>Applicant</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody>{recent.map(([id, applicant, type, status, tone]) => <tr key={id}><td><VStack space="none"><Text className="admin-id">{id}</Text><Text className="admin-muted">Aug 25, 2026</Text></VStack></td><td>{applicant}</td><td className="admin-muted">{type}</td><td><span className={`admin-status ${statusClass[tone]}`}>{status}</span></td><td><Button variant="link" size="sm"><ButtonText>Open</ButtonText></Button></td></tr>)}</tbody></table></Box></Box>
-      <VStack space="3"><Box className="admin-panel"><Box className="admin-panel-header"><VStack space="none"><Text className="admin-panel-title">Today's capacity</Text><Text className="admin-panel-subtitle">Appointments</Text></VStack><Text className="text-foreground" bold>8 / 12</Text></Box><VStack space="sm" className="p-4"><Box className="admin-progress"><Box className="admin-progress-value w-2/3" /></Box><Text className="admin-muted">4 appointment slots remaining</Text></VStack></Box><Box className="admin-action-panel"><Text className="admin-action-title">Professional verification</Text><Text className="admin-action-text">6 professionals are waiting for PRC and PTR document review.</Text><a className="admin-action-link" href="/dashboard">Review queue →</a></Box></VStack>
-    </Box>
+    <HStack className="flex-wrap gap-3">
+      <Card variant="outline" className="min-w-[180px] flex-1 p-5"><Text size="xs" className="text-muted-foreground">Role</Text><Heading size="lg" className="mt-1">{context?.role?.name ?? context?.role?.key ?? '—'}</Heading></Card>
+      <Card variant="outline" className="min-w-[180px] flex-1 p-5"><Text size="xs" className="text-muted-foreground">Permissions</Text><Heading size="lg" className="mt-1">{context?.permissions?.length ?? 0}</Heading></Card>
+      <Card variant="outline" className="min-w-[180px] flex-1 p-5"><Text size="xs" className="text-muted-foreground">Active modules</Text><Heading size="lg" className="mt-1">{activeModules.length}</Heading></Card>
+      <Card variant="outline" className="min-w-[180px] flex-1 p-5"><Text size="xs" className="text-muted-foreground">Visible capabilities</Text><Heading size="lg" className="mt-1">{visible.length}</Heading></Card>
+    </HStack>
 
-    <Box className="admin-card-grid"><Box className="admin-info-card"><Text className="admin-info-label">Applications</Text><Text className="admin-info-title">Manage permits</Text><Text className="admin-info-text">Review submissions and move applications through the workflow.</Text></Box><Box className="admin-info-card"><Text className="admin-info-label">Appointments</Text><Text className="admin-info-title">Control capacity</Text><Text className="admin-info-text">Configure availability and monitor daily appointment demand.</Text></Box><Box className="admin-info-card"><Text className="admin-info-label">Professionals</Text><Text className="admin-info-title">Verify credentials</Text><Text className="admin-info-text">Review PRC and PTR submissions before association with permits.</Text></Box></Box>
+    <VStack space="sm"><HStack className="items-end justify-between"><VStack space="none"><Heading size="md">Authorized workflow</Heading><Text size="sm" className="text-muted-foreground">Only capabilities granted by the server are shown.</Text></VStack>{isLoading && <Badge variant="outline"><BadgeText>Refreshing</BadgeText></Badge>}</HStack>
+      <Box className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{visible.filter((item) => item.key !== 'authorization').map((item) => <Link key={item.key} to={item.route} className="no-underline"><Card variant="outline" className="h-full p-5 transition-colors hover:bg-background-50"><VStack space="sm"><HStack className="items-center justify-between"><Heading size="sm">{labels[item.key] ?? item.name}</Heading><Badge variant="outline"><BadgeText>{item.permission}</BadgeText></Badge></HStack><Text size="sm" className="text-muted-foreground">Open the authorized workflow area.</Text></VStack></Card></Link>)}</Box>
+    </VStack>
+
+    {visible.some((item) => item.key === 'authorization') && <Link to="/authorization" className="no-underline"><Card variant="outline" className="p-5 transition-colors hover:bg-background-50"><VStack space="xs"><Text size="xs" className="text-muted-foreground">Platform security</Text><Heading size="md">Authorization administration</Heading><Text size="sm" className="text-muted-foreground">Manage modules, permissions, and role assignments.</Text></VStack></Card></Link>}
   </VStack>
 }
