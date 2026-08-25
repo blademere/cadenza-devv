@@ -4,63 +4,65 @@ info:
   title: Express App API
   version: 1.0.0
   description: Backend API documentation for the Express application.
+  license:
+    name: Proprietary
 
 servers:
-  - url: http://localhost:3000/api/v1
-    description: Development server
+  - url: /api/v1
+    description: API server
 
 security:
   - bearerAuth: []
 
 paths:
   /auth/login:
-    $ref: './paths/auth.yaml#/auth/login'
+    $ref: './paths/auth.yaml#/auth~1login'
   /auth/refresh:
-    $ref: './paths/auth.yaml#/auth/refresh'
+    $ref: './paths/auth.yaml#/auth~1refresh'
   /auth/logout:
-    $ref: './paths/auth.yaml#/auth/logout'
+    $ref: './paths/auth.yaml#/auth~1logout'
   /auth/oauth/google:
-    $ref: './paths/auth.yaml#/auth/oauth/google'
+    $ref: './paths/auth.yaml#/auth~1oauth~1google'
   /auth/oauth/google/callback:
-    $ref: './paths/auth.yaml#/auth/oauth/google/callback'
+    $ref: './paths/auth.yaml#/auth~1oauth~1google~1callback'
   /auth/oauth/github:
-    $ref: './paths/auth.yaml#/auth/oauth/github'
+    $ref: './paths/auth.yaml#/auth~1oauth~1github'
   /auth/oauth/github/callback:
-    $ref: './paths/auth.yaml#/auth/oauth/github/callback'
+    $ref: './paths/auth.yaml#/auth~1oauth~1github~1callback'
   /auth/oauth/accounts:
-    $ref: './paths/auth.yaml#/auth/oauth/accounts'
+    $ref: './paths/auth.yaml#/auth~1oauth~1accounts'
   /auth/oauth/link/google:
-    $ref: './paths/auth.yaml#/auth/oauth/link/google'
+    $ref: './paths/auth.yaml#/auth~1oauth~1link~1google'
   /auth/oauth/link/github:
-    $ref: './paths/auth.yaml#/auth/oauth/link/github'
+    $ref: './paths/auth.yaml#/auth~1oauth~1link~1github'
   /auth/oauth/link/{provider}:
-    $ref: './paths/auth.yaml#/auth/oauth/link/{provider}'
+    $ref: './paths/auth.yaml#/auth~1oauth~1link~1{provider}'
 
   /users:
     $ref: './paths/users.yaml#/users'
 
   /appointments/types:
-    $ref: './paths/appointments.yaml#/appointments/types'
+    $ref: './paths/appointments.yaml#/appointments~1types'
   /appointments/schedules:
-    $ref: './paths/appointments.yaml#/appointments/schedules'
+    $ref: './paths/appointments.yaml#/appointments~1schedules'
   /appointments/slots:
-    $ref: './paths/appointments.yaml#/appointments/slots'
+    $ref: './paths/appointments.yaml#/appointments~1slots'
   /appointments/slots/generate:
-    $ref: './paths/appointments.yaml#/appointments/slots/generate'
+    $ref: './paths/appointments.yaml#/appointments~1slots~1generate'
   /appointments/mine:
-    $ref: './paths/appointments.yaml#/appointments/mine'
+    $ref: './paths/appointments.yaml#/appointments~1mine'
   /appointments:
     $ref: './paths/appointments.yaml#/appointments'
   /appointments/{id}:
-    $ref: './paths/appointments.yaml#/appointments/{id}'
+    $ref: './paths/appointments.yaml#/appointments~1{id}'
   /appointments/{id}/cancel:
-    $ref: './paths/appointments.yaml#/appointments/{id}/cancel'
+    $ref: './paths/appointments.yaml#/appointments~1{id}~1cancel'
   /appointments/{id}/check-in:
-    $ref: './paths/appointments.yaml#/appointments/{id}/check-in'
+    $ref: './paths/appointments.yaml#/appointments~1{id}~1check-in'
   /appointments/{id}/no-show:
-    $ref: './paths/appointments.yaml#/appointments/{id}/no-show'
+    $ref: './paths/appointments.yaml#/appointments~1{id}~1no-show'
   /appointments/{id}/complete:
-    $ref: './paths/appointments.yaml#/appointments/{id}/complete'
+    $ref: './paths/appointments.yaml#/appointments~1{id}~1complete'
 
 components:
   securitySchemes:
