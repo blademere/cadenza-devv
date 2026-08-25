@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
 import { getOAuthLoginUrl } from '../features/auth/auth.api'
+import { Button, ButtonText } from '../../components/ui/button'
+import { Input, InputField } from '../../components/ui/input'
+import { Text } from '../../components/ui/text'
 import './LoginPage.css'
 
 export default function LoginPage() {
@@ -39,16 +42,16 @@ export default function LoginPage() {
         <header className="auth-nav">
           <Link className="brand" to="/" aria-label="Back to Express App home">
             <span className="brand-mark">EA</span>
-            <span className="brand-name">Express App</span>
+            <span className="brand-name">Express App Admin</span>
           </Link>
           <Link className="auth-home-link" to="/">Back to home</Link>
         </header>
 
         <section className="auth-layout" aria-label="Sign in">
           <aside className="auth-intro">
-            <span className="auth-kicker">YOUR WORKSPACE AWAITS</span>
+            <span className="auth-kicker">ADMIN WORKSPACE AWAITS</span>
             <h1>Pick up exactly where you left off.</h1>
-            <p>Sign in once and move straight into your focused workspace. Your secure session keeps the experience simple.</p>
+            <p>Sign in once and move straight into your focused administrative workspace.</p>
             <div className="auth-points">
               <div><span>✓</span><p><strong>One secure session</strong><small>Stay authenticated across your workspace.</small></p></div>
               <div><span>✓</span><p><strong>Multiple sign-in options</strong><small>Use email, Google, or Facebook.</small></p></div>
@@ -63,12 +66,12 @@ export default function LoginPage() {
             </div>
 
             <div className="oauth-stack" aria-label="Social sign in options">
-              <button className="oauth-button" type="button" onClick={() => handleOAuthLogin('google')} disabled={isBusy}>
-                <span className="oauth-icon google">G</span> Continue with Google
-              </button>
-              <button className="oauth-button" type="button" onClick={() => handleOAuthLogin('facebook')} disabled={isBusy}>
-                <span className="oauth-icon facebook">f</span> Continue with Facebook
-              </button>
+              <Button variant="outline" className="oauth-button" onPress={() => handleOAuthLogin('google')} disabled={isBusy}>
+                <ButtonText>Continue with Google</ButtonText>
+              </Button>
+              <Button variant="outline" className="oauth-button" onPress={() => handleOAuthLogin('facebook')} disabled={isBusy}>
+                <ButtonText>Continue with Facebook</ButtonText>
+              </Button>
             </div>
 
             <div className="auth-divider"><span>or use email</span></div>
@@ -76,17 +79,23 @@ export default function LoginPage() {
             <form className="auth-form" onSubmit={handleSubmit} noValidate>
               <div className="auth-field">
                 <label htmlFor="login-email">Email address</label>
-                <input id="login-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" required />
+                <Input>
+                  <InputField id="login-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" required />
+                </Input>
               </div>
               <div className="auth-field">
                 <div className="field-label-row"><label htmlFor="login-password">Password</label><span>Required</span></div>
-                <input id="login-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" placeholder="Enter your password" minLength={8} required />
+                <Input>
+                  <InputField id="login-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" placeholder="Enter your password" minLength={8} required />
+                </Input>
               </div>
-              {error && <p className="auth-error" role="alert">{error}</p>}
-              <button className="auth-submit" type="submit" disabled={isBusy}>{isSubmitting ? 'Signing you in…' : 'Sign in'} <span aria-hidden="true">→</span></button>
+              {error && <Text size="sm" className="auth-error" role="alert">{error}</Text>}
+              <Button className="auth-submit" type="submit" disabled={isBusy}>
+                <ButtonText>{isSubmitting ? 'Signing you in…' : 'Sign in →'}</ButtonText>
+              </Button>
             </form>
 
-            <p className="auth-security"><span>●</span> Your connection is protected by secure authentication.</p>
+            <Text size="xs" className="auth-security">● Your connection is protected by secure authentication.</Text>
           </div>
         </section>
 
