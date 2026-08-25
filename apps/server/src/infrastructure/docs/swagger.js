@@ -2,12 +2,15 @@ const fs = require('fs')
 const path = require('path')
 const swaggerUi = require('swagger-ui-express')
 
-const OPENAPI_PATH = path.resolve(__dirname, '../../../openapi/openapi.yaml')
+const OPENAPI_BUNDLE_PATH = path.resolve(
+  __dirname,
+  '../../../openapi/dist/openapi.yaml'
+)
 
 const registerSwagger = (app) => {
   app.get('/docs/openapi.yaml', (_req, res, next) => {
     try {
-      const document = fs.readFileSync(OPENAPI_PATH, 'utf8')
+      const document = fs.readFileSync(OPENAPI_BUNDLE_PATH, 'utf8')
       res
         .type('application/yaml')
         .set('Cache-Control', 'no-store')
