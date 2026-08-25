@@ -6,6 +6,11 @@ const userInclude = { role: { select: { id: true, name: true, description: true 
 const findUserByEmail = async (email) => prisma.user.findUnique({ where: { email }, include: userInclude })
 const findUserById = async (id) => prisma.user.findUnique({ where: { id: Number(id) }, include: userInclude })
 const findUserAuthState = async (id) => prisma.user.findUnique({ where: { id: Number(id) }, select: { id: true, isActive: true, authVersion: true } })
+const findRoleByName = async (name) => prisma.role.findUnique({ where: { name }, select: { id: true, name: true, description: true } })
+const createUser = async ({ email, roleId, passwordHash }) => prisma.user.create({
+  data: { email, passwordHash, roleId },
+  include: userInclude,
+})
 const bumpUserAuthVersion = async (userId, { revokeRefreshTokens = true, db = prisma } = {}) => {
   const execute = async (tx) => {
     const user = await tx.user.update({ where: { id: Number(userId) }, data: { authVersion: { increment: 1 } }, select: { id: true, authVersion: true } })
@@ -24,11 +29,11 @@ const createOAuthUser = async ({ email, provider, providerAccountId, roleName })
 const linkOAuthAccount = async ({ userId, provider, providerAccountId }) => {
   const existingAccount = await prisma.oAuthAccount.findUnique({ where: { provider_providerAccountId: { provider, providerAccountId } } })
   if (existingAccount) { if (existingAccount.userId === Number(userId)) return existingAccount; const error = new Error('This OAuth account is already linked to another user.'); error.code = 'OAUTH_ACCOUNT_ALREADY_LINKED'; throw error }
-  return prisma.oAuthAccount.create({ data: { userId: Number(userId), provider, providerAccountId } })
+  return prisma.oAuthAccount.create({ data: { userId: Number(userId), provider, providerAccountId })
 }
 const listOAuthAccounts = async (userId) => prisma.oAuthAccount.findMany({ where: { userId: Number(userId) }, select: { id: true, provider: true, providerAccountId: true, createdAt: true }, orderBy: { createdAt: 'asc' } })
 const unlinkOAuthAccount = async ({ userId, provider }) => prisma.$transaction(async (tx) => {
-  const user = await tx.user.findUnique({ where: { id: Number(userId) }, select: { id: true, passwordHash: true } })
+  const user = await tx.user.findUnique({ where: { id: Number(userId), }, select: { id: true, passwordHash: true } })
   if (!user) { const error = new Error('User account was not found.'); error.code = 'USER_NOT_FOUND'; throw error }
   const accounts = await tx.oAuthAccount.findMany({ where: { userId: Number(userId) }, select: { id: true, provider: true } })
   const account = accounts.find((item) => item.provider === provider)
@@ -48,4 +53,4 @@ const rotateRefreshToken = async ({ currentTokenId, newTokenId, newTokenHash, us
   const consumed = await tx.refreshToken.updateMany({ where: { id: currentTokenId, userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date(), replacedByTokenId: newTokenId } })
   return consumed.count === 1 ? { success: true } : { success: false }
 })
-module.exports = { findUserByEmail, findUserById, findUserAuthState, bumpUserAuthVersion, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, deleteExpiredRefreshTokens }
+module.exports = { findUserByEmail, findUserById, findUserAuthState, findRoleByName, createUser, bumpUserAuthVersion, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, deleteExpiredRefreshTokens }
