@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
 import { getOAuthLoginUrl } from '../features/auth/auth.api'
+import './LoginPage.css'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -15,6 +16,8 @@ export default function LoginPage() {
     navigate('/', { replace: true })
     return null
   }
+
+  const isBusy = isSubmitting || isLoading
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -37,50 +40,84 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
-      <h1>Sign in</h1>
+    <main className="login-page">
+      <section className="login-shell" aria-label="Sign in">
+        <aside className="login-brand-panel">
+          <div className="login-brand-mark" aria-hidden="true">EA</div>
 
-      <div aria-label="Social sign in options">
-        <button type="button" onClick={() => handleOAuthLogin('google')} disabled={isSubmitting || isLoading}>
-          Continue with Google
-        </button>
-        <button type="button" onClick={() => handleOAuthLogin('facebook')} disabled={isSubmitting || isLoading}>
-          Continue with Facebook
-        </button>
-      </div>
+          <div className="login-brand-copy">
+            <h1>Welcome back.</h1>
+            <p>Sign in to continue to your account and pick up where you left off.</p>
+          </div>
 
-      <p>or sign in with your email</p>
+          <div className="login-brand-footer">Express App</div>
+        </aside>
 
-      <form onSubmit={handleSubmit} noValidate>
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            autoComplete="email"
-            required
-          />
-        </label>
+        <div className="login-form-panel">
+          <header className="login-header">
+            <h2>Sign in to your account</h2>
+            <p>Choose a quick sign-in option or use your email.</p>
+          </header>
 
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            minLength={8}
-            required
-          />
-        </label>
+          <div className="login-oauth" aria-label="Social sign in options">
+            <button
+              className="login-oauth-button"
+              type="button"
+              onClick={() => handleOAuthLogin('google')}
+              disabled={isBusy}
+            >
+              <span className="login-oauth-icon google" aria-hidden="true">G</span>
+              Continue with Google
+            </button>
+            <button
+              className="login-oauth-button"
+              type="button"
+              onClick={() => handleOAuthLogin('facebook')}
+              disabled={isBusy}
+            >
+              <span className="login-oauth-icon facebook" aria-hidden="true">f</span>
+              Continue with Facebook
+            </button>
+          </div>
 
-        {error && <p role="alert">{error}</p>}
+          <div className="login-divider" role="separator"><span>or continue with email</span></div>
 
-        <button type="submit" disabled={isSubmitting || isLoading}>
-          {isSubmitting ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
+          <form className="login-form" onSubmit={handleSubmit} noValidate>
+            <div className="login-field">
+              <label htmlFor="login-email">Email address</label>
+              <input
+                id="login-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+
+            <div className="login-field">
+              <label htmlFor="login-password">Password</label>
+              <input
+                id="login-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                minLength={8}
+                required
+              />
+            </div>
+
+            {error && <p className="login-error" role="alert">{error}</p>}
+
+            <button className="login-submit" type="submit" disabled={isBusy}>
+              {isSubmitting ? 'Signing in…' : 'Sign in'}
+            </button>
+          </form>
+        </div>
+      </section>
     </main>
   )
 }

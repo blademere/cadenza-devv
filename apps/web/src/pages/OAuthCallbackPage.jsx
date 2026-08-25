@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import './OAuthCallbackPage.css'
 
 const ERROR_MESSAGES = {
   oauth_denied: 'OAuth sign-in was cancelled or denied.',
@@ -15,62 +16,30 @@ const ERROR_MESSAGES = {
 export default function OAuthCallbackPage({ mode = 'success' }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { refresh, isAuthenticated } = useAuth()
+  const { refresh } = useAuth()
   const [error, setError] = useState('')
 
   useEffect(() => {
     let cancelled = false
-
     const complete = async () => {
       if (mode === 'failure') {
-        if (!cancelled) {
-          setError(ERROR_MESSAGES[searchParams.get('error')] ?? 'OAuth sign-in failed. Please try again.')
-        }
+        if (!cancelled) setError(ERROR_MESSAGES[searchParams.get('error')] ?? 'OAuth sign-in failed. Please try again.')
         return
       }
-
       const session = await refresh()
-
       if (cancelled) return
-
       if (session?.accessToken) {
-        navigate('/', { replace: true })
+        navigate('/dashboard', { replace: true })
         return
       }
-
       setError('OAuth sign-in completed, but the application could not establish your session.')
     }
-
-    complete().catch(() => {
-      if (!cancelled) setError('OAuth sign-in could not be completed. Please try again.')
-    })
-
-    return () => {
-      cancelled = true
-    }
+    complete().catch(() => { if (!cancelled) setError('OAuth sign-in could not be completed. Please try again.') })
+    return () => { cancelled = true }
   }, [mode, navigate, refresh, searchParams])
 
-  if (!error && mode === 'success') {
-    return (
-      <main>
-        <h1>Signing you in…</h1>
-        <p>Please wait while we finish authentication.</p>
-      </main>
-    )
-  }
+  const isFailure = mode === 'failure' || Boolean(error)
+  if (!isFailure) return <main className="oauth-callback-page" aria-live="polite"><section className="oauth-callback-card"><div className="oauth-callback-mark" aria-hidden="true">EA</div><h1>Signing you in…</h1><p>Please wait while we securely finish authentication.</p></section></main>
 
-  return (
-    <main>
-      <h1>{mode === 'failure' ? 'Sign-in failed' : 'Unable to sign you in'}</h1>
-      <p role="alert">{error}</p>
-      <button type="button" onClick={() => navigate('/login', { replace: true })}>
-        Back to sign in
-      </button>
-      {mode === 'success' && isAuthenticated && (
-        <button type="button" onClick={() => navigate('/', { replace: true })}>
-          Continue
-        </button>
-      )}
-    </main>
-  )
+  return <main className="oauth-callback-page"><section className="oauth-callback-card"><div className="oauth-callback-mark" aria-hidden="true">EA</div><h1>{mode === 'failure' ? 'Sign-in failed' : 'Unable to sign you in'}</h1><p className="oauth-callback-error" role="alert">{error}</p><div className="oauth-callback-actions"><button className="oauth-callback-button" type="button" onClick={() => navigate('/login', { replace: true })}>Back to sign in</button></div></section></main>
 }
