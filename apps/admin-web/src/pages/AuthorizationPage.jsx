@@ -8,87 +8,100 @@ import { Text } from '../../components/ui/text'
 import { HStack } from '../../components/ui/hstack'
 import { VStack } from '../../components/ui/vstack'
 import { Button, ButtonText } from '../../components/ui/button'
-import { Input, InputField } from '../../components/ui/input'
 import { Badge, BadgeText } from '../../components/ui/badge'
 import { Divider } from '../../components/ui/divider'
+import { Switch } from '../../components/ui/switch'
 
 const unwrap = (value) => value?.data ?? value
+
+const permissionId = (entry) => entry.permissionId ?? entry.permission?.id ?? entry.id
 
 export default function AuthorizationPage() {
   const { context, load } = useAuthorization()
   const [modules, setModules] = useState([])
   const [roles, setRoles] = useState([])
-  const [activeView, setActiveView] = useState('modules')
-  const [busy, setBusy] = useState(false)
+  const [activeRoleId, setActiveRoleId] = useState(null)
+  const [draft, setDraft] = useState([])
+  const [savedPermissions, setSavedPermissions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [newModule, setNewModule] = useState({ key: '', name: '', description: '' })
+  const [saved, setSaved] = useState(false)
 
   const reload = useCallback(async () => {
+    setLoading(true)
     setError(null)
     try {
       const [moduleResult, roleResult] = await Promise.all([
         authorizationApi.listModules(),
         authorizationApi.listRoles(),
       ])
-      setModules(unwrap(moduleResult) ?? [])
-      setRoles(unwrap(roleResult) ?? [])
-      await load()
+      const nextModules = unwrap(moduleResult) ?? []
+      const nextRoles = unwrap(roleResult) ?? []
+      setModules(nextModules)
+      setRoles(nextRoles)
+      setActiveRoleId((current) => current ?? nextRoles[0]?.id ?? null)
+      await load({ force: true })
     } catch (nextError) {
       setError(nextError.message)
+    } finally {
+      setLoading(false)
     }
   }, [load])
 
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => { void reload() }, [reload])
 
-  const allPermissions = useMemo(() => modules.flatMap((module) =>
-    (module.permissions ?? []).map((permission) => ({ ...permission, module }))), [modules])
+  const activeRole = roles.find((role) => String(role.id) === String(activeRoleId)) ?? null
+  const allPermissions = useMemo(() => modules.flatMap((module) => (module.permissions ?? []).map((permission) => ({ ...permission, module }))), [modules])
+  const permissionMap = useMemo(() => new Map(allPermissions.map((permission) => [String(permission.id), permission])), [allPermissions])
+  const dirty = JSON.stringify([...draft].sort()) !== JSON.stringify([...savedPermissions].sort())
 
-  const toggleModule = async (module) => {
-    setBusy(true)
+  useEffect(() => {
+    if (!activeRole) {
+      setDraft([])
+      setSavedPermissions([])
+      return
+    }
+    const selected = (activeRole.permissions ?? []).map(permissionId).filter(Boolean).map(String)
+    setDraft(selected)
+    setSavedPermissions(selected)
+    setSaved(false)
     setError(null)
-    try {
-      await authorizationApi.setModuleActive(module.id, !module.isActive)
-      await reload()
-    } catch (nextError) {
-      setError(nextError.message)
-    } finally { setBusy(false) }
+  }, [activeRoleId, activeRole])
+
+  const togglePermission = (id) => {
+    const key = String(id)
+    setSaved(false)
+    setDraft((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key])
   }
 
-  const createModule = async () => {
-    setBusy(true)
+  const save = async () => {
+    if (!activeRole || !dirty) return
+    setSaving(true)
     setError(null)
+    setSaved(false)
     try {
-      await authorizationApi.createModule(newModule)
-      setNewModule({ key: '', name: '', description: '' })
-      await reload()
+      await authorizationApi.replaceRolePermissions(activeRole.id, draft)
+      const nextRoles = roles.map((role) => role.id === activeRole.id
+        ? { ...role, permissions: draft.map((id) => ({ permissionId: id, permission: permissionMap.get(String(id)) })) }
+        : role)
+      setRoles(nextRoles)
+      setSavedPermissions([...draft])
+      setSaved(true)
+      await load({ force: true })
     } catch (nextError) {
       setError(nextError.message)
-    } finally { setBusy(false) }
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const addPermission = async (module) => {
-    const action = window.prompt(`Add an action to ${module.name}`, 'read')
-    if (!action) return
-    setBusy(true)
-    setError(null)
-    try {
-      await authorizationApi.addPermission(module.id, { action: action.trim() })
-      await reload()
-    } catch (nextError) {
-      setError(nextError.message)
-    } finally { setBusy(false) }
+  const cancel = () => {
+    setDraft([...savedPermissions])
+    setSaved(false)
   }
 
-  const updateRole = async (role, permissionIds) => {
-    setBusy(true)
-    setError(null)
-    try {
-      await authorizationApi.replaceRolePermissions(role.id, permissionIds)
-      await reload()
-    } catch (nextError) {
-      setError(nextError.message)
-    } finally { setBusy(false) }
-  }
+  const groupedPermissions = useMemo(() => modules.map((module) => ({ module, permissions: allPermissions.filter((permission) => permission.module.id === module.id) })).filter((group) => group.permissions.length), [modules, allPermissions])
 
   return (
     <VStack space="lg" className="mx-auto w-full max-w-7xl">
@@ -96,66 +109,35 @@ export default function AuthorizationPage() {
         <VStack space="xs">
           <Text size="sm" className="text-muted-foreground">Platform security</Text>
           <Heading size="xl">Authorization</Heading>
-          <Text className="max-w-2xl text-muted-foreground">Manage modules, permissions, roles, and the capabilities exposed to administrators.</Text>
+          <Text className="max-w-2xl text-muted-foreground">Manage roles and the permissions assigned to them. The server remains the authority for authorization enforcement.</Text>
         </VStack>
-        <Badge variant="outline"><BadgeText>{context?.role?.name ?? context?.role?.key ?? 'Role'}</BadgeText></Badge>
+        <Badge variant="outline"><BadgeText>{context?.role?.name ?? 'Administrator'}</BadgeText></Badge>
       </HStack>
 
       {error && <Card variant="outline" className="border-error-300 bg-error-50 p-4"><Text className="text-error-700">{error}</Text></Card>}
-
-      <HStack className="gap-2 border-b border-outline-200 pb-2">
-        <Button size="sm" variant={activeView === 'modules' ? 'solid' : 'outline'} onPress={() => setActiveView('modules')}><ButtonText>Modules & permissions</ButtonText></Button>
-        <Button size="sm" variant={activeView === 'roles' ? 'solid' : 'outline'} onPress={() => setActiveView('roles')}><ButtonText>Roles</ButtonText></Button>
-      </HStack>
-
-      {activeView === 'modules' ? (
-        <VStack space="md">
-          <Card variant="outline" className="p-5">
-            <VStack space="md">
-              <VStack space="xs"><Heading size="md">Add module</Heading><Text size="sm" className="text-muted-foreground">Create a platform capability group. The server remains the authority for enforcement.</Text></VStack>
-              <HStack className="flex-wrap gap-3">
-                <Input className="min-w-[180px] flex-1"><InputField placeholder="key e.g. inspections" value={newModule.key} onChangeText={(key) => setNewModule((v) => ({ ...v, key }))} /></Input>
-                <Input className="min-w-[180px] flex-1"><InputField placeholder="Display name" value={newModule.name} onChangeText={(name) => setNewModule((v) => ({ ...v, name }))} /></Input>
-                <Input className="min-w-[240px] flex-[2]"><InputField placeholder="Description (optional)" value={newModule.description} onChangeText={(description) => setNewModule((v) => ({ ...v, description }))} /></Input>
-                <Button isDisabled={busy || !newModule.key || !newModule.name} onPress={createModule}><ButtonText>Create</ButtonText></Button>
-              </HStack>
+      {loading ? <Card variant="outline" className="p-6"><Text className="text-muted-foreground">Loading authorization…</Text></Card> : (
+        <HStack className="items-start gap-6 lg:flex-row">
+          <Card variant="outline" className="w-full p-0 lg:w-[290px] lg:shrink-0">
+            <VStack>
+              <VStack space="xs" className="px-5 py-4"><Heading size="md">Roles</Heading><Text size="sm" className="text-muted-foreground">Choose a role to manage.</Text></VStack>
+              <Divider />
+              {roles.map((role) => <Button key={role.id} variant={String(role.id) === String(activeRoleId) ? 'solid' : 'link'} className="justify-start rounded-none px-5 py-4" onPress={() => setActiveRoleId(role.id)}><HStack className="w-full items-center justify-between"><VStack space="none" className="items-start"><ButtonText>{role.name}</ButtonText><Text size="2xs" className="text-muted-foreground">{role.key ?? 'Role'}</Text></VStack><Badge variant="outline"><BadgeText>{role.permissions?.length ?? 0}</BadgeText></Badge></HStack></Button>)}
             </VStack>
           </Card>
 
-          {modules.map((module) => (
-            <Card key={module.id} variant="outline" className="p-5">
-              <HStack className="items-start justify-between gap-4">
-                <VStack space="xs" className="min-w-0 flex-1">
-                  <HStack className="items-center gap-2"><Heading size="md">{module.name}</Heading><Badge action={module.isActive ? 'success' : 'muted'} variant="outline"><BadgeText>{module.isActive ? 'Active' : 'Inactive'}</BadgeText></Badge></HStack>
-                  <Text size="sm" className="text-muted-foreground">{module.key}</Text>
-                  {module.description && <Text size="sm" className="text-muted-foreground">{module.description}</Text>}
-                </VStack>
-                <HStack className="gap-2">
-                  <Button size="sm" variant="outline" isDisabled={busy || module.key === 'authorization'} onPress={() => toggleModule(module)}><ButtonText>{module.isActive ? 'Disable' : 'Enable'}</ButtonText></Button>
-                  <Button size="sm" variant="outline" onPress={() => addPermission(module)}><ButtonText>Add permission</ButtonText></Button>
-                </HStack>
-              </HStack>
-              <Divider className="my-4" />
-              <HStack className="flex-wrap gap-2">
-                {(module.permissions ?? []).map((permission) => <Badge key={permission.id} variant="outline"><BadgeText>{module.key}:{permission.action}</BadgeText></Badge>)}
-                {!module.permissions?.length && <Text size="sm" className="text-muted-foreground">No permissions configured.</Text>}
-              </HStack>
-            </Card>
-          ))}
-        </VStack>
-      ) : (
-        <VStack space="md">
-          <Card variant="outline" className="p-5">
-            <VStack space="xs"><Heading size="md">Role permissions</Heading><Text size="sm" className="text-muted-foreground">Changes replace the role's complete permission set and clear the server-side authorization cache.</Text></VStack>
-          </Card>
-          {roles.map((role) => {
-            const selected = new Set((role.permissions ?? []).map((item) => item.permissionId ?? item.permission?.id))
-            return <Card key={role.id} variant="outline" className="p-5"><VStack space="md">
-              <HStack className="items-center justify-between"><VStack space="xs"><Heading size="md">{role.name}</Heading><Text size="sm" className="text-muted-foreground">{role.key ?? 'Role'}</Text></VStack><Badge variant="outline"><BadgeText>{selected.size} permissions</BadgeText></Badge></HStack>
-              <VStack space="sm">{allPermissions.map((permission) => <HStack key={permission.id} className="items-center justify-between rounded-lg border border-outline-100 px-3 py-2"><VStack space="none"><Text size="sm" bold>{permission.module.key}:{permission.action}</Text><Text size="2xs" className="text-muted-foreground">{permission.module.name}</Text></VStack><Button size="xs" variant={selected.has(permission.id) ? 'solid' : 'outline'} isDisabled={busy} onPress={() => { const next = new Set(selected); next.has(permission.id) ? next.delete(permission.id) : next.add(permission.id); updateRole(role, [...next]) }}><ButtonText>{selected.has(permission.id) ? 'Granted' : 'Grant'}</ButtonText></Button></HStack>)}</VStack>
-            </VStack></Card>
-          })}
-        </VStack>
+          {activeRole && <Card variant="outline" className="min-w-0 flex-1 p-0">
+            <VStack>
+              <HStack className="items-start justify-between gap-4 px-5 py-5"><VStack space="xs"><Heading size="lg">{activeRole.name}</Heading><Text size="sm" className="text-muted-foreground">Toggle permissions for this role. Changes are saved as one transaction.</Text></VStack><Badge action={dirty ? 'warning' : 'success'} variant="outline"><BadgeText>{dirty ? 'Unsaved changes' : `${draft.length} granted`}</BadgeText></Badge></HStack>
+              <Divider />
+              <VStack space="lg" className="p-5">
+                {groupedPermissions.map(({ module, permissions }) => <VStack key={module.id} space="sm"><VStack space="none"><Text size="sm" bold>{module.name}</Text><Text size="2xs" className="text-muted-foreground">{module.key}</Text></VStack><Card variant="outline" className="p-0"><VStack>{permissions.map((permission, index) => { const checked = draft.includes(String(permission.id)); return <HStack key={permission.id} className={`items-center justify-between px-4 py-3 ${index ? 'border-t border-outline-100' : ''}`}><VStack space="none" className="min-w-0"><Text size="sm" bold>{module.key}:{permission.action}</Text><Text size="2xs" className="text-muted-foreground">{permission.description ?? `Allows ${permission.action} access to ${module.name}.`}</Text></VStack><Switch value={checked} onValueChange={() => togglePermission(permission.id)} isDisabled={saving} accessibilityLabel={`Toggle ${module.key}:${permission.action}`} /></HStack>})}</VStack></Card></VStack>)}
+              </VStack>
+              <Divider />
+              <HStack className="items-center justify-between px-5 py-4"><Text size="sm" className="text-muted-foreground">{draft.length} permissions granted</Text><HStack className="gap-2"><Button variant="outline" isDisabled={!dirty || saving} onPress={cancel}><ButtonText>Cancel</ButtonText></Button><Button isDisabled={!dirty || saving} onPress={save}><ButtonText>{saving ? 'Saving…' : 'Save changes'}</ButtonText></Button></HStack></HStack>
+              {saved && <Text size="sm" className="px-5 pb-4 text-success-700">Role permissions updated successfully.</Text>}
+            </VStack>
+          </Card>}
+        </HStack>
       )}
     </VStack>
   )
