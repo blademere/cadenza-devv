@@ -13,10 +13,7 @@ export default function DashboardPage() {
             <p className="dashboard-eyebrow">Express App</p>
             <h1>Dashboard</h1>
           </div>
-          <div className="dashboard-header-actions">
-            <span className="dashboard-user">{user?.email || 'Authenticated user'}</span>
-            <button type="button" className="dashboard-signout" onClick={logout}>Sign out</button>
-          </div>
+          <span className="dashboard-user">{user?.email || 'Authenticated user'}</span>
         </header>
 
         <section className="dashboard-welcome">
@@ -25,7 +22,6 @@ export default function DashboardPage() {
             <h2>{user?.email ? `Hello, ${user.email}` : 'Your workspace is ready.'}</h2>
             <p>You're signed in successfully. This dashboard is your starting point for authenticated features.</p>
           </div>
-          <Link className="dashboard-home-link" to="/">View landing page</Link>
         </section>
 
         <section className="dashboard-grid" aria-label="Dashboard overview">
@@ -45,6 +41,11 @@ export default function DashboardPage() {
             <p>Application modules and personalized features can be added here.</p>
           </article>
         </section>
+
+        <nav className="dashboard-actions" aria-label="Dashboard actions">
+          <Link className="dashboard-home-link" to="/">Home</Link>
+          <button type="button" className="dashboard-signout" onClick={logout}>Sign out</button>
+        </nav>
       </div>
     </main>
   )
