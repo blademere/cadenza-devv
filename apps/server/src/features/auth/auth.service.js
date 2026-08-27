@@ -1,7 +1,7 @@
 const crypto = require('crypto')
 const bcrypt = require('bcrypt')
-const { UnauthorizedError } = require('../../common/errors/appError')
-const { findUserByEmail, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken } = require('./auth.repository')
+const { BadRequestError, NotFoundError, UnauthorizedError } = require('../../common/errors/appError')
+const { findUserByEmail, findUserById, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, changePassword: persistPasswordChange, listActiveSessions, revokeSession, bumpUserAuthVersion } = require('./auth.repository')
 const { createAccessToken, createRefreshToken, verifyRefreshToken } = require('./auth.tokens')
 const { env } = require('../../config')
 const getRefreshTokenExpiration = () => {
@@ -20,6 +20,26 @@ const login = async ({ email, password }) => {
   const refreshToken = createRefreshToken(user, tokenId)
   await createRefreshTokenRecord({ tokenId, token: refreshToken, userId: user.id, expiresAt: getRefreshTokenExpiration() })
   return { accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role ? { id: user.role.id, name: user.role.name, description: user.role.description } : null } }
+}
+const changePassword = async ({ userId, currentPassword, newPassword }) => {
+  if (currentPassword === newPassword) throw new BadRequestError('New password must be different from the current password.')
+  const user = await findUserById(userId)
+  if (!user || !user.isActive) throw new UnauthorizedError('User account is unavailable.')
+  if (!user.passwordHash) throw new BadRequestError('Password authentication is not configured for this account.')
+  if (!(await bcrypt.compare(currentPassword, user.passwordHash))) throw new UnauthorizedError('Current password is incorrect.')
+  const passwordHash = await bcrypt.hash(newPassword, 12)
+  await persistPasswordChange({ userId: user.id, passwordHash })
+  return { success: true }
+}
+const getSessions = async ({ userId }) => listActiveSessions(userId)
+const revokeSessionById = async ({ userId, sessionId }) => {
+  const result = await revokeSession({ userId, sessionId })
+  if (result.count !== 1) throw new NotFoundError('Session not found or already revoked.')
+  return { success: true }
+}
+const revokeAllSessions = async ({ userId }) => {
+  await bumpUserAuthVersion(userId)
+  return { success: true }
 }
 const refreshAccessToken = async ({ refreshToken }) => {
   let payload
@@ -48,4 +68,4 @@ const logout = async ({ refreshToken }) => {
   if (!storedToken || storedToken.id !== payload.tokenId || storedToken.revokedAt) return
   await revokeRefreshToken(storedToken.id)
 }
-module.exports = { login, refreshAccessToken, logout }
+module.exports = { login, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout }
