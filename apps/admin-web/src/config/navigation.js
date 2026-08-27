@@ -1,5 +1,4 @@
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
-import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined'
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
 
@@ -17,7 +16,7 @@ export const navigation = Object.freeze([
     key: 'users',
     name: 'Users',
     route: '/authorization/users',
-    permission: 'authorization:manage',
+    permission: 'users:manage',
     icon: PeopleOutlinedIcon,
   },
   {
