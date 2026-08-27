@@ -16,6 +16,17 @@ const bumpUserAuthVersion = async (userId, { revokeRefreshTokens = true, db = pr
   }
   return db === prisma ? prisma.$transaction(execute) : execute(db)
 }
+const changePassword = async ({ userId, passwordHash }) => prisma.$transaction(async (tx) => {
+  const user = await tx.user.update({ where: { id: Number(userId) }, data: { passwordHash, authVersion: { increment: 1 } }, select: { id: true, authVersion: true } })
+  await tx.refreshToken.updateMany({ where: { userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date() } })
+  return user
+})
+const listActiveSessions = async (userId) => prisma.refreshToken.findMany({
+  where: { userId: Number(userId), revokedAt: null, expiresAt: { gt: new Date() } },
+  select: { id: true, createdAt: true, expiresAt: true },
+  orderBy: { createdAt: 'desc' },
+})
+const revokeSession = async ({ userId, sessionId }) => prisma.refreshToken.updateMany({ where: { id: sessionId, userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date() } })
 const findOAuthAccount = async ({ provider, providerAccountId }) => prisma.oAuthAccount.findUnique({ where: { provider_providerAccountId: { provider, providerAccountId } }, include: { user: { include: userInclude } } })
 const createOAuthUser = async ({ email, provider, providerAccountId, roleName }) => prisma.$transaction(async (tx) => {
   const role = await tx.role.findUnique({ where: { name: roleName } })
@@ -50,4 +61,4 @@ const rotateRefreshToken = async ({ currentTokenId, newTokenId, newTokenHash, us
   const consumed = await tx.refreshToken.updateMany({ where: { id: currentTokenId, userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date(), replacedByTokenId: newTokenId } })
   return consumed.count === 1 ? { success: true } : { success: false }
 })
-module.exports = { findUserByEmail, findUserById, findUserAuthState, findRoleByName, createUser, bumpUserAuthVersion, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, deleteExpiredRefreshTokens }
+module.exports = { findUserByEmail, findUserById, findUserAuthState, findRoleByName, createUser, bumpUserAuthVersion, changePassword, listActiveSessions, revokeSession, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, deleteExpiredRefreshTokens }
