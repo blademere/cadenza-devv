@@ -136,24 +136,25 @@ const linkOAuthAccountWithCode = async ({ userId, provider, code, codeVerifier }
   if (existingAccount && existingAccount.userId === Number(userId)) return { provider: identity.provider, alreadyLinked: true }
   const existingUser = await findUserByEmail(identity.email)
   if (existingUser && existingUser.id !== Number(userId)) throw new ConflictError('The verified OAuth email belongs to another account. The provider account cannot be linked automatically.')
+  let linked
   try {
-    const linked = await linkOAuthAccountRepository({ userId, provider: identity.provider, providerAccountId: identity.providerAccountId })
-    await publish({
-      event: 'auth.oauth_link',
-      entityType: 'User',
-      entityId: Number(userId),
-      actorId: Number(userId),
-      context: {
-        user: { id: Number(userId), ...(linked?.user?.email ? { email: linked.user.email } : {}) },
-        oauth: { provider: identity.provider },
-      },
-      idempotencyKey: `auth.oauth-link:${userId}:${identity.provider}:${identity.providerAccountId}`,
-    })
+    linked = await linkOAuthAccountRepository({ userId, provider: identity.provider, providerAccountId: identity.providerAccountId })
   } catch (error) {
     if (error?.code === 'OAUTH_ACCOUNT_ALREADY_LINKED') throw new ConflictError('This OAuth account is already linked to another user.')
     if (error?.code === 'USER_NOT_FOUND' || error?.code === 'USER_INACTIVE') throw new UnauthorizedError('User account is inactive or does not exist.')
     throw error
   }
+  await publish({
+    event: 'auth.oauth_link',
+    entityType: 'User',
+    entityId: Number(userId),
+    actorId: Number(userId),
+    context: {
+      user: { id: Number(userId), ...(linked?.user?.email ? { email: linked.user.email } : {}) },
+      oauth: { provider: identity.provider },
+    },
+    idempotencyKey: `auth.oauth-link:${userId}:${identity.provider}:${identity.providerAccountId}`,
+  })
   return { provider: identity.provider, alreadyLinked: false }
 }
 
