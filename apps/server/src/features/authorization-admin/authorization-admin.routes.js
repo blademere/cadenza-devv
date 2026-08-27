@@ -34,14 +34,14 @@ const authorizeModuleResource = authorizeResource({
   resource: 'authorization',
   action: 'manage',
   loadResource: repository.findModuleById,
-  getResourceId: (req) => req.params.moduleId,
+  getResourceId: (req) => Number(req.params.moduleId),
 })
 
 const authorizeRoleResource = authorizeResource({
   resource: 'authorization',
   action: 'manage',
   loadResource: repository.findRoleById,
-  getResourceId: (req) => req.params.roleId,
+  getResourceId: (req) => Number(req.params.roleId),
 })
 
 router.get(
