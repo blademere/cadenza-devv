@@ -10,6 +10,29 @@ import TopBar from './components/TopBar'
 
 const drawerWidth = 240
 
+const getEffectiveNavigation = (context) => {
+  if (!context || !Array.isArray(context.navigation)) return []
+
+  const permissions = new Set(Array.isArray(context.permissions) ? context.permissions : [])
+  const activeModules = new Set(
+    (Array.isArray(context.modules) ? context.modules : [])
+      .filter((module) => module?.isActive !== false)
+      .map((module) => module.key),
+  )
+
+  // The server is the source of truth, but the client deliberately derives
+  // visibility from the returned permission/module state as well. This keeps
+  // navigation synchronized immediately after an administrator changes a
+  // role instead of trusting a stale `navigation[].visible` value.
+  return context.navigation.map((item) => ({
+    ...item,
+    visible:
+      item?.visible === true &&
+      activeModules.has(item?.moduleKey) &&
+      permissions.has(item?.permission),
+  }))
+}
+
 export default function AdminLayout() {
   const { user, logout } = useAuth()
   const { context, isLoading: authorizationLoading } = useAuthorization()
@@ -18,8 +41,8 @@ export default function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const navigation = useMemo(
-    () => normalizeNavigation(context?.navigation ?? []),
-    [context?.navigation],
+    () => normalizeNavigation(getEffectiveNavigation(context)),
+    [context],
   )
 
   const sidebar = (
