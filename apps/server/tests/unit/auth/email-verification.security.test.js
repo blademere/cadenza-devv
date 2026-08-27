@@ -1,22 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({
-  findUserById: vi.fn(),
-  createEmailVerificationToken: vi.fn(),
-  findEmailVerificationToken: vi.fn(),
-  invalidateEmailVerificationTokens: vi.fn(),
-  consumeEmailVerificationToken: vi.fn(),
-  publish: vi.fn(),
-}))
+const authRepository = require('../../../src/features/auth/auth.repository')
+const eventBus = require('../../../src/platform/event-bus/event-bus')
 
-vi.mock('../../../src/features/auth/auth.repository', () => ({
-  findUserById: mocks.findUserById,
-  createEmailVerificationToken: mocks.createEmailVerificationToken,
-  findEmailVerificationToken: mocks.findEmailVerificationToken,
-  invalidateEmailVerificationTokens: mocks.invalidateEmailVerificationTokens,
-  consumeEmailVerificationToken: mocks.consumeEmailVerificationToken,
-}))
-vi.mock('../../../src/platform/event-bus/event-bus', () => ({ publish: mocks.publish }))
+const mocks = {
+  findUserById: vi.spyOn(authRepository, 'findUserById'),
+  createEmailVerificationToken: vi.spyOn(authRepository, 'createEmailVerificationToken'),
+  findEmailVerificationToken: vi.spyOn(authRepository, 'findEmailVerificationToken'),
+  invalidateEmailVerificationTokens: vi.spyOn(authRepository, 'invalidateEmailVerificationTokens'),
+  consumeEmailVerificationToken: vi.spyOn(authRepository, 'consumeEmailVerificationToken'),
+  publish: vi.spyOn(eventBus, 'publish'),
+}
 
 const { issueEmailVerification, verifyEmail, encryptVerificationSecret, decryptVerificationSecret } = require('../../../src/features/auth/email-verification.service')
 
@@ -40,6 +34,7 @@ describe('email verification security', () => {
     publish.mockResolvedValue(undefined)
 
     const result = await issueEmailVerification({ userId: 7 })
+    expect(publish).toHaveBeenCalledTimes(1)
     const event = publish.mock.calls[0][0]
 
     expect(result.success).toBe(true)
