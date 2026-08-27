@@ -24,7 +24,7 @@ const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumb
   if (!normalizedPtrNumber) throw new BadRequestError('ptrNumber is required.')
 
   const person = await repository.findPersonByUserId(userId)
-  if (!person) throw new ConflictError('Complete your person profile before applying for professional verification.')
+  if (!person) throw new ConflictError('User does not have a person profile. Complete your person profile before applying for professional verification.')
   const existing = await repository.findByPersonId(person.id)
   if (existing) throw new ConflictError('A professional verification record already exists for this person.')
 
