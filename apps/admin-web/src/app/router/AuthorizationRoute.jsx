@@ -8,7 +8,17 @@ export default function AuthorizationRoute() {
   const { can, isLoading: authorizationLoading } = useAuthorization()
 
   if (isLoading || authorizationLoading) {
-    return <Stack minHeight="50vh" alignItems="center" justifyContent="center" spacing={2}><CircularProgress size={28} /><Typography color="text.secondary">Checking authorization…</Typography></Stack>
+    return (
+      <Stack
+        minHeight="50vh"
+        alignItems="center"
+        justifyContent="center"
+        spacing={2}
+      >
+        <CircularProgress size={28} />
+        <Typography color="text.secondary">Checking authorization…</Typography>
+      </Stack>
+    )
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
