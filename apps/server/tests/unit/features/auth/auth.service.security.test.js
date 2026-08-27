@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repository = require('../../../../src/features/auth/auth.repository.js')
 const bcrypt = require('bcrypt')
+const eventBus = require('../../../../src/platform/event-bus/event-bus')
 
+vi.spyOn(eventBus, 'publish').mockResolvedValue({ id: 'event-1' })
 vi.spyOn(repository, 'findUserById')
 vi.spyOn(repository, 'changePassword')
 vi.spyOn(repository, 'listActiveSessions')
@@ -15,6 +17,7 @@ const { changePassword, getSessions, revokeSessionById, revokeAllSessions } = re
 
 beforeEach(() => {
   vi.clearAllMocks()
+  eventBus.publish.mockResolvedValue({ id: 'event-1' })
 })
 
 describe('auth security lifecycle', () => {
