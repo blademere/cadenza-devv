@@ -1,9 +1,9 @@
 const { describe, expect, it, vi, beforeEach } = require('vitest')
 
-const repository = require('../../../../../src/features/auth/auth.repository')
+const repository = require('../../../../src/features/auth/auth.repository')
 const bcrypt = require('bcrypt')
 
-vi.mock('../../../../../src/features/auth/auth.repository', () => ({
+vi.mock('../../../../src/features/auth/auth.repository', () => ({
   findUserByEmail: vi.fn(),
   findUserById: vi.fn(),
   hashRefreshToken: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock('../../../../../src/features/auth/auth.repository', () => ({
 
 vi.mock('bcrypt', () => ({ compare: vi.fn(), hash: vi.fn() }))
 
-const service = require('../../../../../src/features/auth/auth.service')
+const service = require('../../../../src/features/auth/auth.service')
 
 describe('auth security lifecycle', () => {
   beforeEach(() => vi.clearAllMocks())
