@@ -4,7 +4,7 @@ import AdminLayout from '../layouts/AdminLayout'
 import HomePage from '../pages/HomePage'
 import LoginPage from '../pages/LoginPage'
 import DashboardPage from '../pages/DashboardPage'
-import AuthorizationPage from '../pages/AuthorizationPage'
+import RolesPage from '../pages/RolesPage'
 import UsersPage from '../pages/UsersPage'
 import OAuthCallbackPage from '../pages/OAuthCallbackPage'
 import ProtectedRoute from './router/ProtectedRoute'
@@ -25,7 +25,8 @@ export const router = createBrowserRouter([
           {
             element: <AuthorizationRoute />,
             children: [
-              { path: 'authorization', element: <AuthorizationPage /> },
+              { path: 'roles', element: <RolesPage /> },
+              { path: 'authorization', element: <Navigate to="/roles" replace /> },
               { path: 'authorization/users', element: <UsersPage /> },
             ],
           },
