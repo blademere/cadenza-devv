@@ -8,6 +8,7 @@ const idempotency = require('./idempotency')
 const cache = require('./cache')
 const {
   loginRateLimiter,
+  loginAccountRateLimiter,
   registerRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
@@ -24,6 +25,7 @@ module.exports = {
   idempotency,
   cache,
   loginRateLimiter,
+  loginAccountRateLimiter,
   registerRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
