@@ -50,6 +50,10 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   if (!professional) throw new NotFoundError('Professional registration not found.')
   if (professional.status !== 'PENDING_VERIFICATION') throw new ConflictError('Professional is not awaiting verification.')
 
+  if (Number(professional.userId) === Number(actorId)) {
+    throw new ConflictError('A professional cannot approve or decline their own verification.')
+  }
+
   const accepted = decision === 'ACCEPTED'
   const cleanReason = reason?.trim() || null
   if (!accepted && !cleanReason) throw new BadRequestError('A reason is required when declining a professional verification application.')
