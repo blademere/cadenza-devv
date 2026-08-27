@@ -1,24 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const findUserById = vi.fn()
-const createEmailVerificationToken = vi.fn()
-const findEmailVerificationToken = vi.fn()
-const invalidateEmailVerificationTokens = vi.fn()
-const consumeEmailVerificationToken = vi.fn()
-const publish = vi.fn()
+const mocks = vi.hoisted(() => ({
+  findUserById: vi.fn(),
+  createEmailVerificationToken: vi.fn(),
+  findEmailVerificationToken: vi.fn(),
+  invalidateEmailVerificationTokens: vi.fn(),
+  consumeEmailVerificationToken: vi.fn(),
+  publish: vi.fn(),
+}))
 
 vi.mock('../../../src/features/auth/auth.repository', () => ({
-  findUserById,
-  createEmailVerificationToken,
-  findEmailVerificationToken,
-  invalidateEmailVerificationTokens,
-  consumeEmailVerificationToken,
+  findUserById: mocks.findUserById,
+  createEmailVerificationToken: mocks.createEmailVerificationToken,
+  findEmailVerificationToken: mocks.findEmailVerificationToken,
+  invalidateEmailVerificationTokens: mocks.invalidateEmailVerificationTokens,
+  consumeEmailVerificationToken: mocks.consumeEmailVerificationToken,
 }))
-vi.mock('../../../src/platform/event-bus/event-bus', () => ({ publish }))
+vi.mock('../../../src/platform/event-bus/event-bus', () => ({ publish: mocks.publish }))
 
 const { issueEmailVerification, verifyEmail, encryptVerificationSecret, decryptVerificationSecret } = require('../../../src/features/auth/email-verification.service')
 
 describe('email verification security', () => {
+  const { findUserById, createEmailVerificationToken, findEmailVerificationToken, invalidateEmailVerificationTokens, consumeEmailVerificationToken, publish } = mocks
+
   beforeEach(() => vi.clearAllMocks())
 
   it('encrypts verification credentials and round-trips without exposing plaintext', () => {
