@@ -1,21 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({
-  can: vi.fn(),
-  getAuthorizationContext: vi.fn(),
-  assertPolicy: vi.fn(),
-}))
-
-vi.mock('../../src/platform/authorization/access-control.service', () => ({
-  can: mocks.can,
-  getAuthorizationContext: mocks.getAuthorizationContext,
-}))
-
-vi.mock('../../src/platform/authorization/access-control.policy', () => ({
-  assertPolicy: mocks.assertPolicy,
-}))
-
+const accessControlService = require('../../src/platform/authorization/access-control.service')
+const accessControlPolicy = require('../../src/platform/authorization/access-control.policy')
 const authorizeResource = require('../../src/platform/authorization/authorizeResource')
+
+const mocks = {
+  can: vi.spyOn(accessControlService, 'can'),
+  getAuthorizationContext: vi.spyOn(accessControlService, 'getAuthorizationContext'),
+  assertPolicy: vi.spyOn(accessControlPolicy, 'assertPolicy'),
+}
 
 const runMiddleware = async (options, req = { user: { id: 1 }, params: { id: '42' } }) => {
   const middleware = authorizeResource(options)
