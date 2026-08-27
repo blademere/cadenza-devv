@@ -22,6 +22,7 @@ const envSchema = z.object({
   COOKIE_DOMAIN: optionalEnvString,
   COOKIE_REFRESH_MAX_AGE_MS: z.coerce.number().int().positive().default(7 * 24 * 60 * 60 * 1000),
   PASSWORD_RESET_URL: z.url().default('http://localhost:5173/auth/reset-password?token='),
+  EMAIL_VERIFICATION_URL: z.url().default('http://localhost:5173/auth/verify-email?token='),
   METRICS_TOKEN: optionalEnvString,
   SEED_ADMIN_EMAIL: z.email().optional(),
   SEED_ADMIN_PASSWORD: optionalEnvString,
@@ -54,6 +55,7 @@ if ((data.SEED_ADMIN_EMAIL && !data.SEED_ADMIN_PASSWORD) || (!data.SEED_ADMIN_EM
 const refreshTokenLifetimeMs = parseDurationMs(data.JWT_REFRESH_EXPIRES_IN)
 if (data.COOKIE_REFRESH_MAX_AGE_MS !== refreshTokenLifetimeMs) throw new Error('COOKIE_REFRESH_MAX_AGE_MS must exactly match JWT_REFRESH_EXPIRES_IN.')
 if (data.NODE_ENV === 'production' && data.PASSWORD_RESET_URL.startsWith('http://')) throw new Error('PASSWORD_RESET_URL must use HTTPS in production.')
+if (data.NODE_ENV === 'production' && data.EMAIL_VERIFICATION_URL.startsWith('http://')) throw new Error('EMAIL_VERIFICATION_URL must use HTTPS in production.')
 const hasGoogleCredentials = Boolean(data.OAUTH_GOOGLE_CLIENT_ID || data.OAUTH_GOOGLE_CLIENT_SECRET)
 if (hasGoogleCredentials && (!data.OAUTH_GOOGLE_CLIENT_ID || !data.OAUTH_GOOGLE_CLIENT_SECRET || !data.OAUTH_GOOGLE_CALLBACK_URL)) throw new Error('Google OAuth requires OAUTH_GOOGLE_CLIENT_ID, OAUTH_GOOGLE_CLIENT_SECRET, and OAUTH_GOOGLE_CALLBACK_URL.')
 const hasFacebookCredentials = Boolean(data.OAUTH_FACEBOOK_CLIENT_ID || data.OAUTH_FACEBOOK_CLIENT_SECRET)
