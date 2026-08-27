@@ -46,7 +46,7 @@ vi.mock('../../src/features/auth/oauth/oauth.providers', () => ({
   getProviderConfig: mocks.getProviderConfig,
 }))
 
-const { linkOAuthAccountWithCode, unlinkOAuthAccount } = require('../../src/features/auth/oauth/oauth.service')
+const { linkOAuthAccountWithCode, unlinkOAuthAccount } = await import('../../src/features/auth/oauth/oauth.service.js')
 
 describe('OAuth audit events', () => {
   beforeEach(() => {
