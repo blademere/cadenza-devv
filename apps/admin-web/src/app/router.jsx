@@ -23,11 +23,12 @@ export const router = createBrowserRouter([
         children: [
           { path: 'dashboard', element: <DashboardPage /> },
           {
-            element: <AuthorizationRoute />,
-            children: [
-              { path: 'roles', element: <RolesPage /> },
-              { path: 'users', element: <UsersPage /> },
-            ],
+            element: <AuthorizationRoute requiredPermission="authorization:manage" />,
+            children: [{ path: 'roles', element: <RolesPage /> }],
+          },
+          {
+            element: <AuthorizationRoute requiredPermission="users:manage" />,
+            children: [{ path: 'users', element: <UsersPage /> }],
           },
         ],
       },
