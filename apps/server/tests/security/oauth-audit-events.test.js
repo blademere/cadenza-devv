@@ -1,14 +1,14 @@
-import { createRequire } from 'node:module'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const require = createRequire(import.meta.url)
-const authRepository = require('../../src/features/auth/auth.repository')
 
 const mocks = {
   findOAuthAccount: vi.spyOn(authRepository, 'findOAuthAccount'),
   findUserByEmail: vi.spyOn(authRepository, 'findUserByEmail'),
   findUserById: vi.spyOn(authRepository, 'findUserById'),
   createOAuthUser: vi.spyOn(authRepository, 'createOAuthUser'),
+  createRefreshTokenRecord: vi.spyOn(
+    authRepository,
+    'createRefreshTokenRecord'
+  ),
   createRefreshTokenRecord: vi.spyOn(
     authRepository,
     'createRefreshTokenRecord'
@@ -42,8 +42,10 @@ vi.mock('../../src/features/auth/oauth/oauth.providers', () => ({
   getProviderConfig: mocks.getProviderConfig,
 }))
 
-const { linkOAuthAccountWithCode, unlinkOAuthAccount } =
-  await import('../../src/features/auth/oauth/oauth.service.js')
+const {
+  linkOAuthAccountWithCode,
+  unlinkOAuthAccount,
+} = require('../../src/features/auth/oauth/oauth.service.js')
 
 describe('OAuth audit events', () => {
   beforeEach(() => {
@@ -60,13 +62,37 @@ describe('OAuth audit events', () => {
   })
 
   it('publishes auth.oauth_link only after a new OAuth account is linked', async () => {
+    mocks.findUserById.mockResolvedValue({
+      id: 7,
+      email: 'user@example.com',
+      isActive: true,
+    })
     mocks.findOAuthAccount.mockResolvedValue(null)
     mocks.findUserByEmail.mockResolvedValue(null)
     mocks.linkOAuthAccount.mockResolvedValue({
       account: { userId: 7 },
       user: { id: 7, email: 'user@example.com', isActive: true },
     })
+    mocks.linkOAuthAccount.mockResolvedValue({
+      account: { userId: 7 },
+      user: { id: 7, email: 'user@example.com', isActive: true },
+    })
     globalThis.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ access_token: 'provider-token' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            sub: 'google-123',
+            email: 'USER@example.com',
+            email_verified: true,
+          }),
+      })
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -91,6 +117,14 @@ describe('OAuth audit events', () => {
         codeVerifier: 'a'.repeat(43),
       })
     ).resolves.toEqual({ provider: 'google', alreadyLinked: false })
+    await expect(
+      linkOAuthAccountWithCode({
+        userId: 7,
+        provider: 'google',
+        code: 'authorization-code',
+        codeVerifier: 'a'.repeat(43),
+      })
+    ).resolves.toEqual({ provider: 'google', alreadyLinked: false })
 
     expect(mocks.linkOAuthAccount).toHaveBeenCalledWith({
       userId: 7,
@@ -106,11 +140,40 @@ describe('OAuth audit events', () => {
         context: expect.objectContaining({ oauth: { provider: 'google' } }),
       })
     )
+    expect(mocks.publish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'auth.oauth_link',
+        entityType: 'User',
+        entityId: 7,
+        actorId: 7,
+        context: expect.objectContaining({ oauth: { provider: 'google' } }),
+      })
+    )
   })
 
   it('does not emit an OAuth-link audit event when the account was already linked', async () => {
+    mocks.findUserById.mockResolvedValue({
+      id: 7,
+      email: 'user@example.com',
+      isActive: true,
+    })
     mocks.findOAuthAccount.mockResolvedValue({ userId: 7 })
     globalThis.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ access_token: 'provider-token' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            sub: 'google-123',
+            email: 'USER@example.com',
+            email_verified: true,
+          }),
+      })
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -135,6 +198,14 @@ describe('OAuth audit events', () => {
         codeVerifier: 'a'.repeat(43),
       })
     ).resolves.toEqual({ provider: 'google', alreadyLinked: true })
+    await expect(
+      linkOAuthAccountWithCode({
+        userId: 7,
+        provider: 'google',
+        code: 'authorization-code',
+        codeVerifier: 'a'.repeat(43),
+      })
+    ).resolves.toEqual({ provider: 'google', alreadyLinked: true })
 
     expect(mocks.publish).not.toHaveBeenCalled()
     expect(mocks.linkOAuthAccount).not.toHaveBeenCalled()
@@ -146,7 +217,23 @@ describe('OAuth audit events', () => {
     await expect(
       unlinkOAuthAccount({ userId: 7, provider: 'facebook' })
     ).resolves.toEqual({ provider: 'facebook' })
+    await expect(
+      unlinkOAuthAccount({ userId: 7, provider: 'facebook' })
+    ).resolves.toEqual({ provider: 'facebook' })
 
+    expect(mocks.unlinkOAuthAccount).toHaveBeenCalledWith({
+      userId: 7,
+      provider: 'facebook',
+    })
+    expect(mocks.publish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'auth.oauth_unlink',
+        entityType: 'User',
+        entityId: 7,
+        actorId: 7,
+        context: expect.objectContaining({ oauth: { provider: 'facebook' } }),
+      })
+    )
     expect(mocks.unlinkOAuthAccount).toHaveBeenCalledWith({
       userId: 7,
       provider: 'facebook',
