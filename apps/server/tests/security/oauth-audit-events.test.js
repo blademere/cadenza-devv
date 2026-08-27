@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   getProviderConfig: vi.fn(),
 }))
 
-vi.mock('../../src/features/auth/auth.repository.js', () => ({
+vi.mock('../../src/features/auth/auth.repository', () => ({
   findOAuthAccount: mocks.findOAuthAccount,
   findUserByEmail: mocks.findUserByEmail,
   findUserById: mocks.findUserById,
