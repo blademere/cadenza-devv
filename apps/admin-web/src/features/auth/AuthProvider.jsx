@@ -3,6 +3,7 @@ import { authApi } from './auth.api'
 import { apiClient } from '../../services/api/client'
 
 const AuthContext = createContext(null)
+let globalRefreshPromise = null
 
 export function AuthProvider({ children }) {
   const [accessToken, setAccessToken] = useState(null)
@@ -27,6 +28,7 @@ export function AuthProvider({ children }) {
 
   const refresh = useCallback(async () => {
     if (refreshPromiseRef.current) return refreshPromiseRef.current
+    if (globalRefreshPromise) return globalRefreshPromise
 
     const refreshPromise = (async () => {
       try {
@@ -45,10 +47,12 @@ export function AuthProvider({ children }) {
         return null
       } finally {
         refreshPromiseRef.current = null
+        globalRefreshPromise = null
       }
     })()
 
     refreshPromiseRef.current = refreshPromise
+    globalRefreshPromise = refreshPromise
     return refreshPromise
   }, [applySession])
 
