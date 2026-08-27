@@ -1,52 +1,28 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+const { describe, expect, it, vi, beforeEach } = require('vitest')
 
-const mocks = vi.hoisted(() => ({
+const mocks = {
   findOAuthAccount: vi.fn(),
   findUserByEmail: vi.fn(),
-  findUserById: vi.fn(),
   createOAuthUser: vi.fn(),
   createRefreshTokenRecord: vi.fn(),
   linkOAuthAccount: vi.fn(),
   listOAuthAccounts: vi.fn(),
   unlinkOAuthAccount: vi.fn(),
-  createAccessToken: vi.fn(),
-  createRefreshToken: vi.fn(),
   publish: vi.fn(),
   getProviderConfig: vi.fn(),
-}))
+}
 
-vi.mock('../../src/features/auth/auth.repository', () => ({
-  findOAuthAccount: mocks.findOAuthAccount,
-  findUserByEmail: mocks.findUserByEmail,
-  findUserById: mocks.findUserById,
-  createOAuthUser: mocks.createOAuthUser,
-  createRefreshTokenRecord: mocks.createRefreshTokenRecord,
-  linkOAuthAccount: mocks.linkOAuthAccount,
-  listOAuthAccounts: mocks.listOAuthAccounts,
-  unlinkOAuthAccount: mocks.unlinkOAuthAccount,
-}))
+const authRepository = require('../../src/features/auth/auth.repository')
+const eventBus = require('../../src/platform/event-bus/event-bus')
+const oauthProviders = require('../../src/features/auth/oauth/oauth.providers')
 
-vi.mock('../../src/features/auth/auth.tokens', () => ({
-  createAccessToken: mocks.createAccessToken,
-  createRefreshToken: mocks.createRefreshToken,
-}))
+for (const [name, mock] of Object.entries(mocks)) {
+  if (name in authRepository) authRepository[name] = mock
+  if (name in eventBus) eventBus[name] = mock
+  if (name in oauthProviders) oauthProviders[name] = mock
+}
 
-vi.mock('../../src/config', () => ({
-  env: {
-    OAUTH_DEFAULT_ROLE_NAME: 'client',
-    COOKIE_REFRESH_MAX_AGE_MS: 86_400_000,
-  },
-}))
-
-vi.mock('../../src/platform/event-bus/event-bus', () => ({
-  publish: mocks.publish,
-}))
-
-vi.mock('../../src/features/auth/oauth/oauth.providers', () => ({
-  getProviderConfig: mocks.getProviderConfig,
-}))
-
-const { linkOAuthAccountWithCode, unlinkOAuthAccount } = await import('../../src/features/auth/oauth/oauth.service.js')
+const { linkOAuthAccountWithCode, unlinkOAuthAccount } = require('../../src/features/auth/oauth/oauth.service.js')
 
 describe('OAuth audit events', () => {
   beforeEach(() => {
