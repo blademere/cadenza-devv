@@ -12,6 +12,7 @@ const OAUTH_LINK_STATE_COOKIE = 'oauthLinkState'
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000
 const OAUTH_LINK_STATE_MAX_AGE_MS = 10 * 60 * 1000
 const OAUTH_STATE_KEY_PREFIX = 'oauth:state:'
+const PKCE_VERIFIER_BYTES = 32
 
 const providerConfig = {
   google: {
@@ -46,7 +47,11 @@ const getProviderConfig = (provider) => {
 
 const createState = () => crypto.randomBytes(32).toString('base64url')
 
-const createAuthorizationUrl = (provider, state) => {
+const createPkceVerifier = () => crypto.randomBytes(PKCE_VERIFIER_BYTES).toString('base64url')
+
+const createPkceChallenge = (verifier) => crypto.createHash('sha256').update(verifier).digest('base64url')
+
+const createAuthorizationUrl = (provider, state, codeChallenge) => {
   const config = getProviderConfig(provider)
   const url = new URL(config.authorizationUrl)
 
@@ -55,6 +60,8 @@ const createAuthorizationUrl = (provider, state) => {
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('state', state)
   url.searchParams.set('scope', config.scope.join(' '))
+  url.searchParams.set('code_challenge', codeChallenge)
+  url.searchParams.set('code_challenge_method', 'S256')
 
   if (provider === 'google') {
     url.searchParams.set('access_type', 'online')
@@ -78,7 +85,7 @@ const storeOAuthState = async (state, metadata, maxAgeMs) => {
     throw new Error('OAuth state metadata is required.')
   }
 
-  const { flow, provider, userId } = metadata
+  const { flow, provider, userId, codeVerifier } = metadata
 
   if (!['login', 'link'].includes(flow)) {
     throw new Error('Invalid OAuth state flow.')
@@ -86,6 +93,10 @@ const storeOAuthState = async (state, metadata, maxAgeMs) => {
 
   if (!providerConfig[provider]) {
     throw new Error('Invalid OAuth state provider.')
+  }
+
+  if (typeof codeVerifier !== 'string' || codeVerifier.length < 43) {
+    throw new Error('A valid PKCE code verifier is required.')
   }
 
   if (
@@ -98,6 +109,7 @@ const storeOAuthState = async (state, metadata, maxAgeMs) => {
   const value = JSON.stringify({
     flow,
     provider,
+    codeVerifier,
     ...(flow === 'link' ? { userId: Number(userId) } : {}),
   })
 
@@ -156,6 +168,10 @@ const consumeOAuthState = async (state, expectedFlow, expectedProvider) => {
     }
 
     if (!Object.prototype.hasOwnProperty.call(providerConfig, metadata.provider)) {
+      return null
+    }
+
+    if (typeof metadata.codeVerifier !== 'string' || metadata.codeVerifier.length < 43) {
       return null
     }
 
@@ -232,6 +248,8 @@ module.exports = {
   OAUTH_LINK_STATE_MAX_AGE_MS,
   getProviderConfig,
   createState,
+  createPkceVerifier,
+  createPkceChallenge,
   createAuthorizationUrl,
   storeOAuthState,
   consumeOAuthState,
