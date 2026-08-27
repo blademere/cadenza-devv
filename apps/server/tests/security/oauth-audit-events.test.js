@@ -1,30 +1,23 @@
+import { createRequire } from 'node:module'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({
-  findOAuthAccount: vi.fn(),
-  findUserByEmail: vi.fn(),
-  findUserById: vi.fn(),
-  createOAuthUser: vi.fn(),
-  createRefreshTokenRecord: vi.fn(),
-  linkOAuthAccount: vi.fn(),
-  listOAuthAccounts: vi.fn(),
-  unlinkOAuthAccount: vi.fn(),
+const require = createRequire(import.meta.url)
+const authRepository = require('../../src/features/auth/auth.repository')
+
+const mocks = {
+  findOAuthAccount: vi.spyOn(authRepository, 'findOAuthAccount'),
+  findUserByEmail: vi.spyOn(authRepository, 'findUserByEmail'),
+  findUserById: vi.spyOn(authRepository, 'findUserById'),
+  createOAuthUser: vi.spyOn(authRepository, 'createOAuthUser'),
+  createRefreshTokenRecord: vi.spyOn(authRepository, 'createRefreshTokenRecord'),
+  linkOAuthAccount: vi.spyOn(authRepository, 'linkOAuthAccount'),
+  listOAuthAccounts: vi.spyOn(authRepository, 'listOAuthAccounts'),
+  unlinkOAuthAccount: vi.spyOn(authRepository, 'unlinkOAuthAccount'),
   createAccessToken: vi.fn(),
   createRefreshToken: vi.fn(),
   publish: vi.fn(),
   getProviderConfig: vi.fn(),
-}))
-
-vi.mock('../../src/features/auth/auth.repository', () => ({
-  findOAuthAccount: mocks.findOAuthAccount,
-  findUserByEmail: mocks.findUserByEmail,
-  findUserById: mocks.findUserById,
-  createOAuthUser: mocks.createOAuthUser,
-  createRefreshTokenRecord: mocks.createRefreshTokenRecord,
-  linkOAuthAccount: mocks.linkOAuthAccount,
-  listOAuthAccounts: mocks.listOAuthAccounts,
-  unlinkOAuthAccount: mocks.unlinkOAuthAccount,
-}))
+}
 
 vi.mock('../../src/features/auth/auth.tokens', () => ({
   createAccessToken: mocks.createAccessToken,
@@ -78,6 +71,11 @@ describe('OAuth audit events', () => {
       codeVerifier: 'a'.repeat(43),
     })).resolves.toEqual({ provider: 'google', alreadyLinked: false })
 
+    expect(mocks.linkOAuthAccount).toHaveBeenCalledWith({
+      userId: 7,
+      provider: 'google',
+      providerAccountId: 'google-123',
+    })
     expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({
       event: 'auth.oauth_link',
       entityType: 'User',
