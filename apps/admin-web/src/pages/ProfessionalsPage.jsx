@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react'
 import { apiClient } from '../services/api/client'
-import { Card } from '../../components/ui/card'
-import { Heading } from '../../components/ui/heading'
-import { Text } from '../../components/ui/text'
-import { VStack } from '../../components/ui/vstack'
-import { HStack } from '../../components/ui/hstack'
-import { Badge, BadgeText } from '../../components/ui/badge'
+import { Alert, Card, Chip, CircularProgress, Stack, Typography } from '@mui/material'
 
 export default function ProfessionalsPage() {
-  const [verified, setVerified] = useState([])
-  const [error, setError] = useState(null)
-  useEffect(() => { apiClient.get('/obo/professionals/verified').then((response) => setVerified(response?.data ?? response ?? [])).catch((nextError) => setError(nextError.message)) }, [])
-  return <VStack space="lg" className="mx-auto w-full max-w-7xl"><VStack space="xs"><Text size="sm" className="text-muted-foreground">Professional registry</Text><Heading size="xl">Professionals</Heading><Text className="text-muted-foreground">Verified professionals available for association with permit applications.</Text></VStack>{error && <Card variant="outline" className="p-5"><Text className="text-error-700">{error}</Text></Card>}<Card variant="outline" className="overflow-hidden p-0">{verified.length ? verified.map((professional) => <HStack key={professional.id} className="items-center justify-between gap-4 border-b border-outline-100 p-5 last:border-b-0"><VStack space="none"><Text size="sm" bold>{professional.name ?? professional.user?.name ?? 'Professional'}</Text><Text size="2xs" className="text-muted-foreground">{professional.registrationNumber ?? professional.prcId ?? 'Registration unavailable'}</Text></VStack><Badge action="success" variant="outline"><BadgeText>Verified</BadgeText></Badge></HStack>) : <Text className="p-5 text-muted-foreground">No verified professionals returned.</Text>}</Card></VStack>
+  const [verified, setVerified] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(null)
+  useEffect(() => { let active = true; apiClient.get('/obo/professionals/verified').then((response) => { if (active) setVerified(response?.data ?? response ?? []) }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [])
+  return <Stack spacing={3} sx={{ maxWidth: 1280, mx: 'auto' }}>
+    <Stack spacing={0.5}><Typography variant="body2" color="text.secondary">Professional registry</Typography><Typography variant="h3">Professionals</Typography><Typography color="text.secondary">Verified professionals available for association with permit applications.</Typography></Stack>
+    {error && <Alert severity="error">{error}</Alert>}
+    <Card variant="outlined">{loading ? <Stack alignItems="center" spacing={1} sx={{ p: 6 }}><CircularProgress size={28} /><Typography color="text.secondary">Loading professionals…</Typography></Stack> : verified.length ? verified.map((professional) => <Stack key={professional.id} direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ p: 2.5, borderBottom: 1, borderColor: 'divider' }}><Stack><Typography variant="body2" fontWeight={700}>{professional.name ?? professional.user?.name ?? 'Professional'}</Typography><Typography variant="caption" color="text.secondary">{professional.registrationNumber ?? professional.prcId ?? 'Registration unavailable'}</Typography></Stack><Chip label="Verified" color="success" variant="outlined" size="small" /></Stack>) : <Typography sx={{ p: 2.5 }} color="text.secondary">No verified professionals returned.</Typography>}</Card>
+  </Stack>
 }
