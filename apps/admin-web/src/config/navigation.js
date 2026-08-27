@@ -1,6 +1,7 @@
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined'
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
 
 // Navigation is a frontend presentation concern. Each protected item declares
 // the exact server permission required to see it. The server remains the
@@ -20,14 +21,12 @@ export const navigation = Object.freeze([
     icon: PeopleOutlinedIcon,
   },
   {
-    key: 'authorization',
-    name: 'Authorization',
+    key: 'roles',
+    name: 'Roles',
     route: '/authorization',
     permission: 'authorization:manage',
-    icon: AdminPanelSettingsOutlinedIcon,
+    icon: BadgeOutlinedIcon,
   },
-  // When an Applications page/route is added, register it here with the
-  // explicit contract: permission: 'applications:read'.
 ])
 
 export function getNavigationItem(item) {
