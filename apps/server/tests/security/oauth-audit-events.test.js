@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   getProviderConfig: vi.fn(),
 }))
 
-vi.mock('../../src/features/auth/auth.repository', () => ({
+vi.mock('../../src/features/auth/auth.repository.js', () => ({
   findOAuthAccount: mocks.findOAuthAccount,
   findUserByEmail: mocks.findUserByEmail,
   findUserById: mocks.findUserById,
@@ -63,10 +63,9 @@ describe('OAuth audit events', () => {
   })
 
   it('publishes auth.oauth_link only after a new OAuth account is linked', async () => {
-    mocks.findUserById.mockResolvedValue({ id: 7, email: 'user@example.com', isActive: true })
     mocks.findOAuthAccount.mockResolvedValue(null)
     mocks.findUserByEmail.mockResolvedValue(null)
-    mocks.linkOAuthAccount.mockResolvedValue(undefined)
+    mocks.linkOAuthAccount.mockResolvedValue({ account: { userId: 7 }, user: { id: 7, email: 'user@example.com', isActive: true } })
     globalThis.fetch
       .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ access_token: 'provider-token' }) })
       .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ sub: 'google-123', email: 'USER@example.com', email_verified: true }) })
@@ -78,6 +77,11 @@ describe('OAuth audit events', () => {
       codeVerifier: 'a'.repeat(43),
     })).resolves.toEqual({ provider: 'google', alreadyLinked: false })
 
+    expect(mocks.linkOAuthAccount).toHaveBeenCalledWith({
+      userId: 7,
+      provider: 'google',
+      providerAccountId: 'google-123',
+    })
     expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({
       event: 'auth.oauth_link',
       entityType: 'User',
@@ -88,7 +92,6 @@ describe('OAuth audit events', () => {
   })
 
   it('does not emit an OAuth-link audit event when the account was already linked', async () => {
-    mocks.findUserById.mockResolvedValue({ id: 7, email: 'user@example.com', isActive: true })
     mocks.findOAuthAccount.mockResolvedValue({ userId: 7 })
     globalThis.fetch
       .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ access_token: 'provider-token' }) })
