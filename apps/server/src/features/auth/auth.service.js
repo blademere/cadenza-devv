@@ -1,7 +1,7 @@
 const crypto = require('crypto')
 const bcrypt = require('bcrypt')
 const { BadRequestError, NotFoundError, UnauthorizedError } = require('../../common/errors/appError')
-const { findUserByEmail, findUserById, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, changePassword: persistPasswordChange, listActiveSessions, revokeSession } = require('./auth.repository')
+const { findUserByEmail, findUserById, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, changePassword: persistPasswordChange, listActiveSessions, revokeSession, bumpUserAuthVersion } = require('./auth.repository')
 const { createAccessToken, createRefreshToken, verifyRefreshToken } = require('./auth.tokens')
 const { env } = require('../../config')
 const getRefreshTokenExpiration = () => {
@@ -37,6 +37,10 @@ const revokeSessionById = async ({ userId, sessionId }) => {
   if (result.count !== 1) throw new NotFoundError('Session not found or already revoked.')
   return { success: true }
 }
+const revokeAllSessions = async ({ userId }) => {
+  await bumpUserAuthVersion(userId)
+  return { success: true }
+}
 const refreshAccessToken = async ({ refreshToken }) => {
   let payload
   try { payload = verifyRefreshToken(refreshToken) } catch { throw new UnauthorizedError('Refresh token is invalid or expired.') }
@@ -64,4 +68,4 @@ const logout = async ({ refreshToken }) => {
   if (!storedToken || storedToken.id !== payload.tokenId || storedToken.revokedAt) return
   await revokeRefreshToken(storedToken.id)
 }
-module.exports = { login, changePassword, getSessions, revokeSessionById, refreshAccessToken, logout }
+module.exports = { login, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout }
