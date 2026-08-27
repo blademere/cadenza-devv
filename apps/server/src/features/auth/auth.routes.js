@@ -12,7 +12,7 @@ const requireRegistrationIdempotency = idempotency({ scope: 'auth-registration',
 const requirePasswordResetIdempotency = idempotency({ scope: 'auth-password-reset', required: true })
 const requireEmailVerificationIdempotency = idempotency({ scope: 'auth-email-verification', required: true })
 authRouter.get('/csrf', asyncHandler(csrfTokenController))
-authRouter.post('/register', loginRateLimiter, validate(registrationValidator), requireRegistrationIdempotency, asyncHandler(registerUserController))
+authRouter.post('/register', registerRateLimiter, validate(registrationValidator), requireRegistrationIdempotency, asyncHandler(registerUserController))
 authRouter.post('/login', loginRateLimiter, validate(loginValidator), asyncHandler(loginController))
 authRouter.post('/password/reset/request', loginRateLimiter, validate(passwordResetRequestValidator), requirePasswordResetIdempotency, asyncHandler(requestPasswordResetController))
 authRouter.post('/password/reset', loginRateLimiter, validate(passwordResetValidator), requirePasswordResetIdempotency, asyncHandler(resetPasswordController))
