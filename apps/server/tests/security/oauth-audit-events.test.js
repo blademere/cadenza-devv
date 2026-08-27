@@ -1,31 +1,49 @@
+import { createRequire } from 'node:module'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const require = createRequire(import.meta.url)
+const authRepository = require('../../src/features/auth/auth.repository')
+
 const mocks = {
-  findOAuthAccount: vi.fn(),
-  findUserByEmail: vi.fn(),
-  createOAuthUser: vi.fn(),
-  createRefreshTokenRecord: vi.fn(),
-  linkOAuthAccount: vi.fn(),
-  listOAuthAccounts: vi.fn(),
-  unlinkOAuthAccount: vi.fn(),
+  findOAuthAccount: vi.spyOn(authRepository, 'findOAuthAccount'),
+  findUserByEmail: vi.spyOn(authRepository, 'findUserByEmail'),
+  findUserById: vi.spyOn(authRepository, 'findUserById'),
+  createOAuthUser: vi.spyOn(authRepository, 'createOAuthUser'),
+  createRefreshTokenRecord: vi.spyOn(
+    authRepository,
+    'createRefreshTokenRecord'
+  ),
+  linkOAuthAccount: vi.spyOn(authRepository, 'linkOAuthAccount'),
+  listOAuthAccounts: vi.spyOn(authRepository, 'listOAuthAccounts'),
+  unlinkOAuthAccount: vi.spyOn(authRepository, 'unlinkOAuthAccount'),
+  createAccessToken: vi.fn(),
+  createRefreshToken: vi.fn(),
   publish: vi.fn(),
   getProviderConfig: vi.fn(),
 }
 
-const authRepository = require('../../src/features/auth/auth.repository')
-const eventBus = require('../../src/platform/event-bus/event-bus')
-const oauthProviders = require('../../src/features/auth/oauth/oauth.providers')
+vi.mock('../../src/features/auth/auth.tokens', () => ({
+  createAccessToken: mocks.createAccessToken,
+  createRefreshToken: mocks.createRefreshToken,
+}))
 
-for (const [name, mock] of Object.entries(mocks)) {
-  if (name in authRepository) authRepository[name] = mock
-  if (name in eventBus) eventBus[name] = mock
-  if (name in oauthProviders) oauthProviders[name] = mock
-}
+vi.mock('../../src/config', () => ({
+  env: {
+    OAUTH_DEFAULT_ROLE_NAME: 'client',
+    COOKIE_REFRESH_MAX_AGE_MS: 86_400_000,
+  },
+}))
 
-const {
-  linkOAuthAccountWithCode,
-  unlinkOAuthAccount,
-} = require('../../src/features/auth/oauth/oauth.service.js')
+vi.mock('../../src/platform/event-bus/event-bus', () => ({
+  publish: mocks.publish,
+}))
+
+vi.mock('../../src/features/auth/oauth/oauth.providers', () => ({
+  getProviderConfig: mocks.getProviderConfig,
+}))
+
+const { linkOAuthAccountWithCode, unlinkOAuthAccount } =
+  await import('../../src/features/auth/oauth/oauth.service.js')
 
 describe('OAuth audit events', () => {
   beforeEach(() => {
