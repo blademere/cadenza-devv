@@ -23,6 +23,7 @@ const {
   notFound,
   errorHandler,
 } = require('./common/middleware')
+const originProtection = require('./common/middleware/originProtection')
 
 const { env, requestLogger } = require('./config')
 const apiRoutes = require('./routes')
@@ -30,6 +31,7 @@ const { registerSwagger } = require('./infrastructure/docs/swagger')
 const { withTimeout } = require('./common/utils/withTimeout')
 
 const app = express()
+const allowedCorsOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
 
 app.set('trust proxy', 1)
 app.use(requestId)
@@ -39,13 +41,18 @@ app.use(helmet())
 
 app.use(
   cors({
-    origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN,
+    origin: (requestOrigin, callback) => {
+      if (!requestOrigin) return callback(null, false)
+      if (allowedCorsOrigins.includes(requestOrigin)) return callback(null, requestOrigin)
+      return callback(new Error('CORS origin is not allowed.'))
+    },
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'Idempotency-Key'],
   })
 )
 
+app.use(originProtection)
 app.use(hpp())
 app.use(compression())
 app.use(express.json({ limit: '1mb' }))
