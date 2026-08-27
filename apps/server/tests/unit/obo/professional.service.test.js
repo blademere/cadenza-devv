@@ -63,10 +63,10 @@ describe('OBO professional service', () => {
   })
 
   it('rejects a professional from deciding their own verification', async () => {
-    spies.findById.mockResolvedValue({ id: 'professional-1', userId: 'user-1', status: 'PENDING_VERIFICATION' })
+    spies.findById.mockResolvedValue({ id: 'professional-1', userId: 1, status: 'PENDING_VERIFICATION' })
     await expect(service.decideVerification({
       id: 'professional-1',
-      actorId: 'user-1',
+      actorId: 1,
       decision: 'ACCEPTED',
     })).rejects.toThrow('cannot approve or decline their own verification')
     expect(spies.update).not.toHaveBeenCalled()
@@ -75,12 +75,12 @@ describe('OBO professional service', () => {
   })
 
   it('records an accepted verification decision transactionally', async () => {
-    spies.findById.mockResolvedValue({ id: 'professional-1', userId: 'professional-user-1', personId: 'person-1', status: 'PENDING_VERIFICATION', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' })
+    spies.findById.mockResolvedValue({ id: 'professional-1', userId: 2, personId: 'person-1', status: 'PENDING_VERIFICATION', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' })
     spies.update.mockResolvedValue({ id: 'professional-1', status: 'VERIFIED' })
     spies.addDecision.mockResolvedValue({ id: 'decision-1' })
-    spies.findPersonById.mockResolvedValue({ userId: 'professional-user-1', email: 'professional@example.com' })
-    await expect(service.decideVerification({ id: 'professional-1', actorId: 'officer-1', decision: 'ACCEPTED' })).resolves.toMatchObject({ status: 'VERIFIED' })
-    expect(spies.update).toHaveBeenCalledWith('professional-1', expect.objectContaining({ status: 'VERIFIED', verifiedByUserId: 'officer-1' }), expect.any(Object))
+    spies.findPersonById.mockResolvedValue({ userId: 2, email: 'professional@example.com' })
+    await expect(service.decideVerification({ id: 'professional-1', actorId: 3, decision: 'ACCEPTED' })).resolves.toMatchObject({ status: 'VERIFIED' })
+    expect(spies.update).toHaveBeenCalledWith('professional-1', expect.objectContaining({ status: 'VERIFIED', verifiedByUserId: 3 }), expect.any(Object))
     expect(spies.addDecision).toHaveBeenCalled()
     expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ db: expect.any(Object), event: 'obo.professional.verification.decided' }))
   })
