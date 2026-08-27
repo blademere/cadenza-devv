@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt')
 const { ConflictError } = require('../../common/errors/appError')
 const { findUserByEmail, findRoleByName, createUser } = require('./auth.repository')
+const { issueEmailVerification } = require('./email-verification.service')
 
 const toPublicUser = (user) => ({
   id: user.id,
@@ -20,6 +21,7 @@ const registerUser = async ({ email, password }) => {
   const passwordHash = await bcrypt.hash(password, 12)
   try {
     const user = await createUser({ email, roleId: role.id, passwordHash })
+    await issueEmailVerification({ userId: user.id, reason: 'registration' })
     return toPublicUser(user)
   } catch (error) {
     if (error?.code === 'P2002') throw new ConflictError('An account with this email already exists.')
