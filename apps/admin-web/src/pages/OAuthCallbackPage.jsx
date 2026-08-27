@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Alert, Box, Button, Card, CircularProgress, Stack, Typography } from '@mui/material'
+import LoginIcon from '@mui/icons-material/Login'
 import { useAuth } from '../features/auth/AuthProvider'
-import { Box } from '../../components/ui/box'
-import { VStack } from '../../components/ui/vstack'
-import { Button, ButtonText } from '../../components/ui/button'
-import { Card } from '../../components/ui/card'
-import { Heading } from '../../components/ui/heading'
-import { Text } from '../../components/ui/text'
 
 const ERROR_MESSAGES = {
   oauth_denied: 'OAuth sign-in was cancelled or denied.',
@@ -27,7 +23,10 @@ export default function OAuthCallbackPage({ mode = 'success' }) {
   useEffect(() => {
     let cancelled = false
     const complete = async () => {
-      if (mode === 'failure') { if (!cancelled) setError(ERROR_MESSAGES[searchParams.get('error')] ?? 'OAuth sign-in failed. Please try again.'); return }
+      if (mode === 'failure') {
+        if (!cancelled) setError(ERROR_MESSAGES[searchParams.get('error')] ?? 'OAuth sign-in failed. Please try again.')
+        return
+      }
       const session = await refresh()
       if (cancelled) return
       if (session?.accessToken) { navigate('/dashboard', { replace: true }); return }
@@ -39,16 +38,14 @@ export default function OAuthCallbackPage({ mode = 'success' }) {
 
   const isFailure = mode === 'failure' || Boolean(error)
   return (
-    <Box className="min-h-screen items-center justify-center bg-background px-5">
-      <Card size="lg" variant="elevated" className="w-full max-w-md bg-card p-8">
-        <VStack space="lg" className="items-center text-center">
-          <Box className="h-12 w-12 items-center justify-center rounded-2xl bg-primary-600"><Text size="sm" bold className="text-white">EA</Text></Box>
-          <VStack space="sm" className="items-center">
-            <Heading size="xl" className="text-center text-foreground">{isFailure ? (mode === 'failure' ? 'Sign-in failed' : 'Unable to sign you in') : 'Signing you in…'}</Heading>
-            <Text size="sm" className="text-center text-muted-foreground">{isFailure ? error : 'Please wait while we securely finish authentication.'}</Text>
-          </VStack>
-          {isFailure && <Button size="lg" onPress={() => navigate('/login', { replace: true })}><ButtonText>Back to sign in</ButtonText></Button>}
-        </VStack>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'grid', placeItems: 'center', p: 2 }}>
+      <Card variant="outlined" sx={{ width: '100%', maxWidth: 460 }}>
+        <Stack spacing={3} alignItems="center" sx={{ p: 4, textAlign: 'center' }}>
+          {!isFailure && <CircularProgress aria-label="Completing sign in" />}
+          <Box><Typography variant="h5">{isFailure ? (mode === 'failure' ? 'Sign-in failed' : 'Unable to sign you in') : 'Signing you in…'}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{isFailure ? error : 'Please wait while the server securely finishes authentication.'}</Typography></Box>
+          {isFailure && <Alert severity="error" sx={{ width: '100%' }}>{error}</Alert>}
+          {isFailure && <Button variant="contained" startIcon={<LoginIcon />} onClick={() => navigate('/login', { replace: true })}>Back to sign in</Button>}
+        </Stack>
       </Card>
     </Box>
   )

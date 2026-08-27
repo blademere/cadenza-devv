@@ -1,17 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Alert, Box, Button, Card, Divider, Stack, TextField, Typography } from '@mui/material'
+import GoogleIcon from '@mui/icons-material/Google'
+import FacebookIcon from '@mui/icons-material/Facebook'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import { useAuth } from '../features/auth/AuthProvider'
 import { getOAuthLoginUrl } from '../features/auth/auth.api'
-import { Box } from '../../components/ui/box'
-import { HStack } from '../../components/ui/hstack'
-import { VStack } from '../../components/ui/vstack'
-import { Button, ButtonText } from '../../components/ui/button'
-import { Card } from '../../components/ui/card'
-import { Input, InputField } from '../../components/ui/input'
-import { Badge, BadgeText } from '../../components/ui/badge'
-import { Heading } from '../../components/ui/heading'
-import { Text } from '../../components/ui/text'
-import { Divider } from '../../components/ui/divider'
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth()
@@ -21,7 +15,8 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isBusy = isSubmitting || isLoading
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event) => {
+    event.preventDefault()
     if (isBusy) return
     setError('')
     const normalizedEmail = email.trim().toLowerCase()
@@ -40,64 +35,46 @@ export default function LoginPage() {
     }
   }
 
-  const handleFormSubmit = (event) => {
-    event.preventDefault()
-    void handleSubmit()
-  }
-
   const handleOAuthLogin = (provider) => {
     setError('')
     window.location.assign(getOAuthLoginUrl(provider))
   }
 
   return (
-    <Box className="min-h-screen bg-background px-5 md:px-10">
-      <Box className="mx-auto min-h-screen w-full max-w-6xl">
-        <HStack className="min-h-[82px] items-center justify-between border-b border-border">
-          <Link to="/" aria-label="Back to Express App home" className="no-underline">
-            <HStack space="sm" className="items-center">
-              <Box className="h-9 w-9 items-center justify-center rounded-xl bg-primary-600"><Text size="xs" bold className="text-white">EA</Text></Box>
-              <Text size="lg" bold className="text-foreground">Express App Admin</Text>
-            </HStack>
-          </Link>
-          <Link to="/" className="text-sm font-medium text-muted-foreground no-underline">Back to home</Link>
-        </HStack>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
+      <Box sx={{ width: '100%', maxWidth: 1040 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 3, md: 6 }} alignItems="stretch">
+          <Box sx={{ flex: 1, display: { xs: 'none', md: 'flex' }, flexDirection: 'column', justifyContent: 'center', p: 3 }}>
+            <Typography variant="overline" color="primary.main" fontWeight={700}>ADMIN WORKSPACE</Typography>
+            <Typography variant="h2" sx={{ mt: 1, mb: 2 }}>Secure access to your platform console.</Typography>
+            <Typography color="text.secondary" sx={{ maxWidth: 520 }}>Sign in to manage authorization, users, and the administrative capabilities exposed by the Express server.</Typography>
+          </Box>
 
-        <HStack className="items-center gap-12 py-12 md:py-20 lg:gap-20">
-          <VStack space="lg" className="hidden flex-1 lg:flex">
-            <Badge size="sm" variant="outline" action="info" className="self-start"><BadgeText>ADMIN WORKSPACE AWAITS</BadgeText></Badge>
-            <Heading size="3xl" className="max-w-xl tracking-tight text-foreground">Pick up exactly where you left off.</Heading>
-            <Text size="md" className="max-w-xl leading-7 text-muted-foreground">Sign in once and move straight into your focused administrative workspace.</Text>
-          </VStack>
+          <Card variant="outlined" sx={{ width: '100%', maxWidth: 460, mx: 'auto' }}>
+            <Stack spacing={3} sx={{ p: { xs: 3, sm: 4 } }}>
+              <Stack direction="row" spacing={1.5} alignItems="center"><Box sx={{ width: 42, height: 42, borderRadius: 2, bgcolor: 'primary.main', color: 'primary.contrastText', display: 'grid', placeItems: 'center' }}><LockOutlinedIcon fontSize="small" /></Box><Box><Typography variant="h5">Express App Admin</Typography><Typography variant="body2" color="text.secondary">Sign in to continue</Typography></Box></Stack>
 
-          <Card size="lg" variant="elevated" className="w-full max-w-xl bg-card p-6 md:p-8">
-            <VStack space="lg">
-              <VStack space="xs"><Text size="sm" bold className="text-primary-600">WELCOME BACK</Text><Heading size="xl" className="text-foreground">Sign in to continue</Heading></VStack>
-              <VStack space="sm">
-                <Button variant="outline" size="lg" onPress={() => handleOAuthLogin('google')} isDisabled={isBusy}><ButtonText>Continue with Google</ButtonText></Button>
-                <Button variant="outline" size="lg" onPress={() => handleOAuthLogin('facebook')} isDisabled={isBusy}><ButtonText>Continue with Facebook</ButtonText></Button>
-              </VStack>
-              <HStack space="md" className="items-center"><Divider className="flex-1" /><Text size="xs" className="text-muted-foreground">or use email</Text><Divider className="flex-1" /></HStack>
+              <Stack spacing={1.5}>
+                <Button variant="outlined" size="large" startIcon={<GoogleIcon />} disabled={isBusy} onClick={() => handleOAuthLogin('google')}>Continue with Google</Button>
+                <Button variant="outlined" size="large" startIcon={<FacebookIcon />} disabled={isBusy} onClick={() => handleOAuthLogin('facebook')}>Continue with Facebook</Button>
+              </Stack>
 
-              <form onSubmit={handleFormSubmit} noValidate>
-                <VStack space="md">
-                  <VStack space="xs">
-                    <Text size="sm" bold className="text-foreground">Email address</Text>
-                    <Input size="lg"><InputField id="login-email" type="email" value={email} onChangeText={setEmail} autoComplete="email" placeholder="you@example.com" required /></Input>
-                  </VStack>
-                  <VStack space="xs">
-                    <HStack className="items-center justify-between"><Text size="sm" bold className="text-foreground">Password</Text><Text size="xs" className="text-muted-foreground">Required</Text></HStack>
-                    <Input size="lg"><InputField id="login-password" type="password" value={password} onChangeText={setPassword} autoComplete="current-password" placeholder="Enter your password" minLength={8} required /></Input>
-                  </VStack>
-                  {error && <Text size="sm" className="text-error-600" role="alert">{error}</Text>}
-                  <Button size="lg" type="submit" onPress={handleSubmit} isDisabled={isBusy}><ButtonText>{isSubmitting ? 'Signing you in…' : 'Sign in →'}</ButtonText></Button>
-                </VStack>
-              </form>
-              <Text size="xs" className="text-muted-foreground">● Your connection is protected by secure authentication.</Text>
-            </VStack>
+              <Stack direction="row" alignItems="center" spacing={2}><Divider sx={{ flex: 1 }} /><Typography variant="caption" color="text.secondary">OR USE EMAIL</Typography><Divider sx={{ flex: 1 }} /></Stack>
+
+              <Box component="form" onSubmit={handleSubmit} noValidate>
+                <Stack spacing={2}>
+                  <TextField label="Email address" id="login-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" required fullWidth disabled={isBusy} />
+                  <TextField label="Password" id="login-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" placeholder="Enter your password" minLength={8} required fullWidth disabled={isBusy} />
+                  {error && <Alert severity="error" role="alert">{error}</Alert>}
+                  <Button variant="contained" size="large" type="submit" disabled={isBusy}>{isSubmitting ? 'Signing you in…' : 'Sign in'}</Button>
+                </Stack>
+              </Box>
+
+              <Typography variant="caption" color="text.secondary">Authentication uses the server session and CSRF flow; credentials and tokens are not persisted in local storage.</Typography>
+              <Button component={Link} to="/" variant="text" size="small">Back to home</Button>
+            </Stack>
           </Card>
-        </HStack>
-        <Text size="xs" className="border-t border-border py-6 text-muted-foreground">© Express App • Secure access to your workspace</Text>
+        </Stack>
       </Box>
     </Box>
   )

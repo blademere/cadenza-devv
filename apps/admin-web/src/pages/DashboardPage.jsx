@@ -1,30 +1,72 @@
 import { Link } from 'react-router-dom'
+import { Box, Button, Card, Chip, Stack, Typography } from '@mui/material'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import SecurityIcon from '@mui/icons-material/Security'
+import AppsIcon from '@mui/icons-material/Apps'
+import KeyIcon from '@mui/icons-material/Key'
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useAuthorization } from '../features/authorization/AuthorizationProvider'
-import { HStack } from '../../components/ui/hstack'
-import { VStack } from '../../components/ui/vstack'
-import { Text } from '../../components/ui/text'
-import { Heading } from '../../components/ui/heading'
-import { Badge, BadgeText } from '../../components/ui/badge'
-import { Card } from '../../components/ui/card'
+
+const Stat = ({ label, value, icon }) => (
+  <Card variant="outlined" sx={{ flex: '1 1 220px' }}>
+    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ p: 2.5 }}>
+      <Box>
+        <Typography variant="body2" color="text.secondary">{label}</Typography>
+        <Typography variant="h5" sx={{ mt: 0.5 }}>{value}</Typography>
+      </Box>
+      {icon}
+    </Stack>
+  </Card>
+)
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const { context, isLoading, error } = useAuthorization()
   const name = user?.name || user?.email?.split('@')[0] || 'Administrator'
-  const visible = (context?.navigation ?? []).filter((item) => item.visible && item.key === 'authorization')
+  const authorizationVisible = (context?.navigation ?? []).some((item) => item.visible && item.key === 'authorization')
   const activeModules = (context?.modules ?? []).filter((module) => module.isActive !== false)
   const permissions = context?.permissions ?? []
 
-  return <VStack space="lg" className="mx-auto w-full max-w-6xl">
-    <VStack space="xs"><Text size="sm" className="text-muted-foreground">Platform administration</Text><Heading size="xl">Welcome, {name}</Heading><Text className="max-w-2xl text-muted-foreground">Manage the platform's module availability and role-based access from one authorization console.</Text></VStack>
-    {error && <Card variant="outline" className="border-error-300 bg-error-50 p-4"><Text className="text-error-700">Authorization context could not be loaded. Administrative actions remain unavailable until access is resolved.</Text></Card>}
-    <HStack className="flex-wrap gap-3">
-      <Card variant="outline" className="min-w-[180px] flex-1 p-5"><Text size="xs" className="text-muted-foreground">Current role</Text><Heading size="lg" className="mt-1">{context?.role?.name ?? context?.role?.key ?? '—'}</Heading></Card>
-      <Card variant="outline" className="min-w-[180px] flex-1 p-5"><Text size="xs" className="text-muted-foreground">Permissions</Text><Heading size="lg" className="mt-1">{permissions.length}</Heading></Card>
-      <Card variant="outline" className="min-w-[180px] flex-1 p-5"><Text size="xs" className="text-muted-foreground">Enabled modules</Text><Heading size="lg" className="mt-1">{activeModules.length}</Heading></Card>
-      <Card variant="outline" className="min-w-[180px] flex-1 p-5"><Text size="xs" className="text-muted-foreground">Admin capability</Text><Heading size="lg" className="mt-1">{visible.length ? 'Granted' : 'Restricted'}</Heading></Card>
-    </HStack>
-    <Card variant="outline" className="p-6"><VStack space="md"><HStack className="items-center justify-between"><VStack space="xs"><Heading size="md">Authorization center</Heading><Text size="sm" className="text-muted-foreground">The server determines what you can administer.</Text></VStack>{isLoading && <Badge variant="outline"><BadgeText>Checking access</BadgeText></Badge>}</HStack><Link to="/authorization" className="no-underline"><Card variant="outline" className="p-5 transition-colors hover:bg-background-50"><VStack space="xs"><Text size="xs" className="text-muted-foreground">Modules · roles · permissions</Text><Heading size="sm">Manage platform access</Heading><Text size="sm" className="text-muted-foreground">Enable or disable modules and grant permissions to roles.</Text></VStack></Card></Link></VStack></Card>
-  </VStack>
+  return (
+    <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="body2" color="text.secondary">Platform administration</Typography>
+          <Typography variant="h3" sx={{ mt: 0.5, mb: 1 }}>Welcome, {name}</Typography>
+          <Typography color="text.secondary" sx={{ maxWidth: 720 }}>
+            Manage platform modules, roles, permissions, and administrative access. Authorization is always enforced by the server.
+          </Typography>
+        </Box>
+
+        {error && <Box role="alert" sx={{ p: 2, borderRadius: 2, bgcolor: 'error.50', color: 'error.dark' }}>{error.message ?? String(error)}</Box>}
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap" useFlexGap>
+          <Stat label="Current role" value={context?.role?.name ?? context?.role?.key ?? '—'} icon={<AdminPanelSettingsIcon color="primary" />} />
+          <Stat label="Permissions" value={permissions.length} icon={<KeyIcon color="primary" />} />
+          <Stat label="Enabled modules" value={activeModules.length} icon={<AppsIcon color="primary" />} />
+          <Stat label="Admin capability" value={authorizationVisible ? 'Granted' : 'Restricted'} icon={<SecurityIcon color={authorizationVisible ? 'success' : 'disabled'} />} />
+        </Stack>
+
+        <Card variant="outlined">
+          <Stack spacing={2} sx={{ p: 3 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={2}>
+              <Box>
+                <Typography variant="h6">Authorization center</Typography>
+                <Typography variant="body2" color="text.secondary">The server determines which administrative capabilities are available to you.</Typography>
+              </Box>
+              {isLoading && <Chip size="small" label="Checking access" variant="outlined" />}
+            </Stack>
+            {authorizationVisible ? (
+              <Button component={Link} to="/authorization" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ alignSelf: 'flex-start' }}>
+                Manage platform access
+              </Button>
+            ) : (
+              <Typography variant="body2" color="text.secondary">Your account does not currently have authorization-management access.</Typography>
+            )}
+          </Stack>
+        </Card>
+      </Stack>
+    </Box>
+  )
 }

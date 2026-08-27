@@ -1,17 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Alert, Avatar, Box, Button, Card, Chip, Divider, MenuItem, Select, Stack, Typography } from '@mui/material'
+import SaveIcon from '@mui/icons-material/Save'
+import CloseIcon from '@mui/icons-material/Close'
 import { usersApi } from '../features/users/users.api'
 import { authorizationApi } from '../features/authorization/authorization.api'
-import { Box } from '../../components/ui/box'
-import { Card } from '../../components/ui/card'
-import { Heading } from '../../components/ui/heading'
-import { Text } from '../../components/ui/text'
-import { HStack } from '../../components/ui/hstack'
-import { VStack } from '../../components/ui/vstack'
-import { Button, ButtonText } from '../../components/ui/button'
-import { Badge, BadgeText } from '../../components/ui/badge'
-import { Divider } from '../../components/ui/divider'
-import { Select, SelectTrigger, SelectInput, SelectIcon, SelectPortal, SelectBackdrop, SelectContent, SelectItem } from '../../components/ui/select'
-import { ChevronDownIcon } from '../../components/ui/icon'
 
 const unwrap = (value) => value?.data ?? value
 
@@ -22,21 +14,18 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState(null)
   const [busyUserId, setBusyUserId] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState('')
   const [saved, setSaved] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError(null)
+    setError('')
     try {
-      const [userResult, roleResult] = await Promise.all([
-        usersApi.listUsers(),
-        authorizationApi.listRoles(),
-      ])
+      const [userResult, roleResult] = await Promise.all([usersApi.listUsers(), authorizationApi.listRoles()])
       setUsers(unwrap(userResult) ?? [])
       setRoles(unwrap(roleResult) ?? [])
     } catch (nextError) {
-      setError(nextError.message)
+      setError(nextError.message || 'Unable to load users.')
     } finally {
       setLoading(false)
     }
@@ -52,75 +41,95 @@ export default function UsersPage() {
     const roleId = pendingRoles[user.id]
     if (!roleId || String(roleId) === String(user.role?.id ?? '')) return
     setBusyUserId(user.id)
-    setError(null)
+    setError('')
     setSaved(null)
     try {
-      const result = await usersApi.assignRole(user.id, roleId)
-      const updated = unwrap(result)
+      const updated = unwrap(await usersApi.assignRole(user.id, roleId))
       setUsers((current) => current.map((item) => item.id === user.id ? { ...item, ...updated } : item))
       setPendingRoles((current) => { const next = { ...current }; delete next[user.id]; return next })
       setSelectedUser((current) => current?.id === user.id ? { ...current, ...updated } : current)
       setSaved(user.id)
     } catch (nextError) {
-      setError(nextError.message)
+      setError(nextError.message || 'Unable to update the user role.')
     } finally {
       setBusyUserId(null)
     }
   }
 
   return (
-    <VStack space="lg" className="mx-auto w-full max-w-7xl">
-      <VStack space="xs">
-        <Text size="sm" className="text-muted-foreground">Authorization</Text>
-        <Heading size="xl">Users</Heading>
-        <Text className="max-w-2xl text-muted-foreground">Assign users to roles. Permissions are inherited from the selected role and enforced by the server.</Text>
-      </VStack>
+    <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="body2" color="text.secondary">Authorization</Typography>
+          <Typography variant="h3" sx={{ mt: 0.5, mb: 1 }}>Users</Typography>
+          <Typography color="text.secondary" sx={{ maxWidth: 760 }}>Assign users to roles. Effective permissions come from the selected role and all changes are enforced by the Express API.</Typography>
+        </Box>
 
-      {error && <Card variant="outline" className="border-error-300 bg-error-50 p-4"><Text className="text-error-700">{error}</Text></Card>}
-      {loading ? <Card variant="outline" className="p-6"><Text className="text-muted-foreground">Loading users…</Text></Card> : (
-        <HStack className="items-start gap-6 lg:flex-row">
-          <Card variant="outline" className="min-w-0 flex-1 p-0">
-            <VStack>
-              <HStack className="items-center justify-between px-5 py-4"><VStack space="none"><Heading size="md">Users</Heading><Text size="sm" className="text-muted-foreground">{users.length} users</Text></VStack></HStack>
-              <Divider />
-              {users.length === 0 ? <Text className="p-5 text-muted-foreground">No users found.</Text> : users.map((user) => {
-                const roleId = String(pendingRoles[user.id] ?? user.role?.id ?? '')
-                const changed = roleId !== String(user.role?.id ?? '')
-                const isSelected = selectedUser?.id === user.id
-                return <HStack key={user.id} className={`items-center gap-4 px-5 py-4 ${isSelected ? 'bg-background-50' : ''}`}>
-                  <VStack space="none" className="min-w-0 flex-1">
-                    <Text size="sm" bold className="truncate">{user.email}</Text>
-                    <Text size="2xs" className="text-muted-foreground">{user.isActive ? 'Active' : 'Inactive'}</Text>
-                  </VStack>
-                  <Badge variant="outline" className="hidden sm:flex"><BadgeText>{user.role?.name ?? 'No role'}</BadgeText></Badge>
-                  <Button size="sm" variant={isSelected ? 'solid' : 'outline'} onPress={() => setSelectedUser(user)}><ButtonText>{isSelected ? 'Selected' : 'Manage'}</ButtonText></Button>
-                </HStack>
-              })}
-            </VStack>
-          </Card>
-
-          {selectedUser && <Card variant="outline" className="w-full p-5 lg:w-[380px] lg:shrink-0">
-            <VStack space="lg">
-              <VStack space="xs"><Text size="sm" className="text-muted-foreground">User</Text><Heading size="md" className="break-all">{selectedUser.email}</Heading></VStack>
-              <VStack space="xs"><Text size="sm" bold>Role</Text><Select selectedValue={selectedRoleId} onValueChange={(value) => setPendingRoles((current) => ({ ...current, [selectedUser.id]: value }))}>
-                <SelectTrigger><SelectInput placeholder="Select a role" /><SelectIcon as={ChevronDownIcon} className="mr-3" /></SelectTrigger>
-                <SelectPortal><SelectBackdrop /><SelectContent>{roles.map((role) => <SelectItem key={role.id} label={role.name} value={String(role.id)} />)}</SelectContent></SelectPortal>
-              </Select></VStack>
-              <Divider />
-              <VStack space="sm"><HStack className="items-center justify-between"><Text size="sm" bold>Effective permissions</Text><Badge variant="outline"><BadgeText>{selectedRole?.permissions?.length ?? 0}</BadgeText></Badge></HStack>
-                {(selectedRole?.permissions ?? []).map((entry) => {
-                  const permission = entry.permission ?? entry
-                  const moduleKey = permission.module?.key ?? permission.resource ?? 'permission'
-                  return <Text key={permission.id} size="sm" className="text-muted-foreground">{moduleKey}:{permission.action}</Text>
+        {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
+        {loading ? <Card variant="outlined"><Typography sx={{ p: 3 }} color="text.secondary">Loading users…</Typography></Card> : (
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3} alignItems="flex-start">
+            <Card variant="outlined" sx={{ flex: 1, width: '100%' }}>
+              <Stack>
+                <Box sx={{ p: 2.5 }}>
+                  <Typography variant="h6">Users</Typography>
+                  <Typography variant="body2" color="text.secondary">{users.length} users returned by the server</Typography>
+                </Box>
+                <Divider />
+                {users.length === 0 ? <Typography sx={{ p: 2.5 }} color="text.secondary">No users found.</Typography> : users.map((user) => {
+                  const isSelected = selectedUser?.id === user.id
+                  return <Stack key={user.id} direction="row" alignItems="center" spacing={2} sx={{ px: 2.5, py: 1.75, bgcolor: isSelected ? 'action.selected' : 'transparent', borderBottom: 1, borderColor: 'divider' }}>
+                    <Avatar sx={{ width: 38, height: 38 }}>{(user.name || user.email || '?').slice(0, 1).toUpperCase()}</Avatar>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography variant="body2" fontWeight={600} noWrap>{user.name || user.email}</Typography>
+                      {user.name && <Typography variant="caption" color="text.secondary" noWrap>{user.email}</Typography>}
+                      <Typography variant="caption" color={user.isActive ? 'success.main' : 'text.secondary'} display="block">{user.isActive ? 'Active' : 'Inactive'}</Typography>
+                    </Box>
+                    <Chip label={user.role?.name ?? 'No role'} size="small" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />
+                    <Button size="small" variant={isSelected ? 'contained' : 'outlined'} onClick={() => setSelectedUser(user)}>{isSelected ? 'Selected' : 'Manage'}</Button>
+                  </Stack>
                 })}
-                {!selectedRole?.permissions?.length && <Text size="sm" className="text-muted-foreground">No permissions granted.</Text>}
-              </VStack>
-              <HStack className="justify-end gap-2"><Button variant="outline" onPress={() => setSelectedUser(null)}><ButtonText>Close</ButtonText></Button><Button isDisabled={!pendingRoles[selectedUser.id] || String(pendingRoles[selectedUser.id]) === String(selectedUser.role?.id ?? '') || busyUserId === selectedUser.id} onPress={() => saveRole(selectedUser)}><ButtonText>{busyUserId === selectedUser.id ? 'Saving…' : 'Save role'}</ButtonText></Button></HStack>
-              {saved === selectedUser.id && <Text size="sm" className="text-success-700">Role updated successfully.</Text>}
-            </VStack>
-          </Card>}
-        </HStack>
-      )}
-    </VStack>
+              </Stack>
+            </Card>
+
+            {selectedUser && <Card variant="outlined" sx={{ width: { xs: '100%', lg: 390 }, flexShrink: 0 }}>
+              <Stack spacing={2.5} sx={{ p: 2.5 }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">User</Typography>
+                  <Typography variant="h6" sx={{ mt: 0.5, wordBreak: 'break-word' }}>{selectedUser.name || selectedUser.email}</Typography>
+                  {selectedUser.name && <Typography variant="body2" color="text.secondary">{selectedUser.email}</Typography>}
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Role</Typography>
+                  <Select fullWidth size="small" value={selectedRoleId} displayEmpty onChange={(event) => setPendingRoles((current) => ({ ...current, [selectedUser.id]: event.target.value }))}>
+                    <MenuItem value="" disabled>Select a role</MenuItem>
+                    {roles.map((role) => <MenuItem key={role.id} value={String(role.id)}>{role.name}</MenuItem>)}
+                  </Select>
+                </Box>
+                <Divider />
+                <Box>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+                    <Typography variant="subtitle2">Effective permissions</Typography>
+                    <Chip label={selectedRole?.permissions?.length ?? 0} size="small" variant="outlined" />
+                  </Stack>
+                  <Stack spacing={0.75}>
+                    {(selectedRole?.permissions ?? []).map((entry) => {
+                      const permission = entry.permission ?? entry
+                      const moduleKey = permission.module?.key ?? permission.resource ?? 'permission'
+                      return <Typography key={permission.id} variant="body2" color="text.secondary">{moduleKey}:{permission.action}</Typography>
+                    })}
+                    {!selectedRole?.permissions?.length && <Typography variant="body2" color="text.secondary">No permissions granted.</Typography>}
+                  </Stack>
+                </Box>
+                <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                  <Button variant="outlined" startIcon={<CloseIcon />} onClick={() => setSelectedUser(null)}>Close</Button>
+                  <Button variant="contained" startIcon={<SaveIcon />} disabled={!pendingRoles[selectedUser.id] || String(pendingRoles[selectedUser.id]) === String(selectedUser.role?.id ?? '') || busyUserId === selectedUser.id} onClick={() => void saveRole(selectedUser)}>{busyUserId === selectedUser.id ? 'Saving…' : 'Save role'}</Button>
+                </Stack>
+                {saved === selectedUser.id && <Alert severity="success">Role updated successfully.</Alert>}
+              </Stack>
+            </Card>}
+          </Stack>
+        )}
+      </Stack>
+    </Box>
   )
 }
