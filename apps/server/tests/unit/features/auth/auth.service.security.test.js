@@ -1,4 +1,4 @@
-const { describe, expect, it, vi, beforeEach } = require('vitest')
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 const repository = require('../../../../src/features/auth/auth.repository')
 const bcrypt = require('bcrypt')
@@ -50,6 +50,7 @@ describe('auth security lifecycle', () => {
     repository.findUserById.mockResolvedValue({ id: 7, isActive: true, passwordHash: 'old-hash' })
     bcrypt.compare.mockResolvedValue(true)
     bcrypt.hash.mockResolvedValue('new-hash')
+    repository.changePassword.mockResolvedValue({ id: 7, authVersion: 3 })
 
     await service.changePassword({ userId: 7, currentPassword: 'old-password', newPassword: 'new-password' })
 
