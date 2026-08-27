@@ -5,10 +5,10 @@ describe('authorization context service', () => {
   const capabilities = [
     {
       key: 'applications',
-      moduleKey: 'obo_plan_permits',
+      moduleKey: 'applications',
       name: 'Applications',
       route: '/applications',
-      permission: 'obo_plan_permits:read',
+      permission: 'applications:read',
     },
     {
       key: 'verification',
@@ -24,12 +24,12 @@ describe('authorization context service', () => {
       context: {
         role: { id: 3, name: 'receiving_officer' },
         permissions: [
-          { resource: 'obo_plan_permits', action: 'read' },
+          { resource: 'applications', action: 'read' },
           { resource: 'obo_professionals', action: 'review' },
         ],
       },
       modules: [
-        { key: 'obo_plan_permits', name: 'Plan Permits', isActive: true },
+        { key: 'applications', name: 'Applications', isActive: true },
         { key: 'obo_professionals', name: 'Professionals', isActive: true },
       ],
       capabilities,
@@ -37,7 +37,7 @@ describe('authorization context service', () => {
 
     expect(result.role).toEqual({ id: 3, name: 'receiving_officer' })
     expect(result.permissions).toEqual([
-      'obo_plan_permits:read',
+      'applications:read',
       'obo_professionals:review',
     ])
     expect(result.navigation.every((item) => item.visible)).toBe(true)
@@ -48,35 +48,35 @@ describe('authorization context service', () => {
       context: {
         role: { id: 3, name: 'receiving_officer' },
         permissions: [
-          { resource: 'obo_plan_permits', action: 'read' },
+          { resource: 'applications', action: 'read' },
           { resource: 'obo_professionals', action: 'review' },
         ],
       },
       modules: [
-        { key: 'obo_plan_permits', name: 'Plan Permits', isActive: true },
-        { key: 'obo_professionals', name: 'Professionals', isActive: false },
+        { key: 'applications', name: 'Applications', isActive: false },
+        { key: 'obo_professionals', name: 'Professionals', isActive: true },
       ],
       capabilities,
     })
 
-    expect(result.navigation.find((item) => item.key === 'applications').visible).toBe(true)
-    expect(result.navigation.find((item) => item.key === 'verification').visible).toBe(false)
+    expect(result.navigation.find((item) => item.key === 'applications').visible).toBe(false)
+    expect(result.navigation.find((item) => item.key === 'verification').visible).toBe(true)
   })
 
   it('does not expose a capability without its required permission', () => {
     const result = buildAuthorizationContext({
       context: {
         role: { id: 1, name: 'client' },
-        permissions: [{ resource: 'obo_plan_permits', action: 'read' }],
+        permissions: [{ resource: 'obo_professionals', action: 'review' }],
       },
       modules: [
-        { key: 'obo_plan_permits', name: 'Plan Permits', isActive: true },
+        { key: 'applications', name: 'Applications', isActive: true },
         { key: 'obo_professionals', name: 'Professionals', isActive: true },
       ],
       capabilities,
     })
 
-    expect(result.navigation.find((item) => item.key === 'applications').visible).toBe(true)
-    expect(result.navigation.find((item) => item.key === 'verification').visible).toBe(false)
+    expect(result.navigation.find((item) => item.key === 'applications').visible).toBe(false)
+    expect(result.navigation.find((item) => item.key === 'verification').visible).toBe(true)
   })
 })
