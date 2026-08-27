@@ -6,12 +6,12 @@ import { useAuth } from '../auth/AuthProvider'
 const AuthorizationContext = createContext(null)
 const AUTHORIZATION_QUERY_KEY = ['authorization', 'context']
 const QUERY_OPTIONS = {
-  staleTime: Infinity,
-  gcTime: Infinity,
+  staleTime: 0,
+  gcTime: 0,
   retry: false,
-  refetchOnMount: false,
-  refetchOnWindowFocus: false,
-  refetchOnReconnect: false,
+  refetchOnMount: 'always',
+  refetchOnWindowFocus: true,
+  refetchOnReconnect: true,
 }
 
 export function AuthorizationProvider({ children }) {
@@ -58,9 +58,10 @@ export function AuthorizationProvider({ children }) {
   }, [query.data])
 
   const isNavigationVisible = useCallback((key) => {
-    return query.data?.navigation?.some(
-      (item) => item.key === key && item.visible,
-    ) ?? false
+    if (!query.data || !Array.isArray(query.data.navigation)) return false
+    return query.data.navigation.some(
+      (item) => item.key === key && item.visible === true,
+    )
   }, [query.data])
 
   const value = useMemo(() => ({
