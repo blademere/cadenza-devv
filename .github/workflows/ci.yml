@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main, develop, development]
+    branches: [main, development]
   push:
-    branches: [main, develop, development]
+    branches: [main, development]
   workflow_dispatch:
     inputs:
       staging:
@@ -161,7 +161,7 @@ jobs:
       - name: Generate server coverage
         run: npm run test:coverage
       - name: Publish coverage summary
-        if: "${{ always() }}"
+        if: '${{ always() }}'
         run: |
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('fs');
@@ -253,7 +253,7 @@ jobs:
   required:
     name: Required
     needs: [changes, quality, database, docker, workflow-validation]
-    if: "${{ always() }}"
+    if: '${{ always() }}'
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate applicable checks
@@ -335,7 +335,7 @@ jobs:
       - name: Verify metrics authentication
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/metrics)" = "401"
       - name: Cleanup staging container
-        if: "${{ always() }}"
+        if: '${{ always() }}'
         run: |
           docker logs express-app-staging || true
           docker rm -f express-app-staging || true

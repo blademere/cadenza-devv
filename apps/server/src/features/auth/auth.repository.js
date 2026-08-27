@@ -30,11 +30,22 @@ const createOAuthUser = async ({ email, provider, providerAccountId, roleName })
   if (await tx.user.findUnique({ where: { email } })) throw new Error('An account already exists for this email address.')
   return tx.user.create({ data: { email, passwordHash: null, emailVerifiedAt: new Date(), roleId: role.id, oauthAccounts: { create: { provider, providerAccountId } } }, include: userInclude })
 })
-const linkOAuthAccount = async ({ userId, provider, providerAccountId }) => {
-  const existingAccount = await prisma.oAuthAccount.findUnique({ where: { provider_providerAccountId: { provider, providerAccountId } } })
-  if (existingAccount) { if (existingAccount.userId === Number(userId)) return existingAccount; const error = new Error('This OAuth account is already linked to another user.'); error.code = 'OAUTH_ACCOUNT_ALREADY_LINKED'; throw error }
-  return prisma.oAuthAccount.create({ data: { userId: Number(userId), provider, providerAccountId } })
-}
+const linkOAuthAccount = async ({ userId, provider, providerAccountId }) => prisma.$transaction(async (tx) => {
+  const user = await tx.user.findUnique({ where: { id: Number(userId) }, select: { id: true, email: true, isActive: true } })
+  if (!user) { const error = new Error('User account was not found.'); error.code = 'USER_NOT_FOUND'; throw error }
+  if (!user.isActive) { const error = new Error('User account is inactive.'); error.code = 'USER_INACTIVE'; throw error }
+
+  const existingAccount = await tx.oAuthAccount.findUnique({ where: { provider_providerAccountId: { provider, providerAccountId } } })
+  if (existingAccount) {
+    if (existingAccount.userId === Number(userId)) return { account: existingAccount, user }
+    const error = new Error('This OAuth account is already linked to another user.')
+    error.code = 'OAUTH_ACCOUNT_ALREADY_LINKED'
+    throw error
+  }
+
+  const account = await tx.oAuthAccount.create({ data: { userId: Number(userId), provider, providerAccountId } })
+  return { account, user }
+})
 const listOAuthAccounts = async (userId) => prisma.oAuthAccount.findMany({ where: { userId: Number(userId) }, select: { id: true, provider: true, providerAccountId: true, createdAt: true }, orderBy: { createdAt: 'asc' } })
 const unlinkOAuthAccount = async ({ userId, provider }) => prisma.$transaction(async (tx) => {
   const user = await tx.user.findUnique({ where: { id: Number(userId) }, select: { id: true, passwordHash: true } })
