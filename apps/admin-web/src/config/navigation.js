@@ -22,7 +22,14 @@ export function getNavigationItem(item) {
 }
 
 export function normalizeNavigation(items = []) {
+  if (!Array.isArray(items)) return []
+
   return items
-    .filter((item) => item?.visible !== false && item?.route)
+    .filter(
+      (item) =>
+        item?.visible === true &&
+        typeof item?.route === 'string' &&
+        item.route.length > 0,
+    )
     .map(getNavigationItem)
 }
