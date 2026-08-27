@@ -1,23 +1,8 @@
-html {
-  min-width: 320px;
-  min-height: 100%;
-  background: #f7f8fc;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background: #f7f8fc;
-  color: #172033;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
+html { min-width: 320px; min-height: 100%; background: #f7f8fc; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: #f7f8fc; color: #172033; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 * { box-sizing: border-box; }
 button, input, textarea, select { font: inherit; }
 a { color: inherit; }
-
 .admin-app { min-height: 100vh; background: #f7f8fc; color: #172033; }
 .admin-sidebar { background: #fff; border-color: #e6e8ed; }
 .admin-topbar { background: rgba(255, 255, 255, 0.94); border-color: #e6e8ed; backdrop-filter: blur(14px); }
@@ -51,22 +36,14 @@ a { color: inherit; }
 .admin-skip { position: absolute; left: -9999px; }
 .admin-skip:focus { left: 12px; top: 12px; z-index: 100; padding: 8px 12px; background: #fff; border-radius: 8px; box-shadow: 0 4px 16px rgba(15,23,42,.15); }
 .route-loading { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f7f8fc; }
-
 .admin-role-card { min-height: 155px; padding: 18px; background: #fff; border: 1px solid #e6e8ed; border-radius: 12px; box-shadow: 0 1px 2px rgba(15,23,42,.03); cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
 .admin-role-card:hover, .admin-role-card:focus-visible { border-color: #c7c3ff; box-shadow: 0 6px 18px rgba(15,23,42,.07); transform: translateY(-1px); outline: none; }
 .admin-role-name { color: #172033; }
 .admin-permission-group { padding: 12px; background: #fafbfc; border: 1px solid #eef0f3; border-radius: 10px; }
 .admin-permission-row { padding: 10px 6px; }
+.admin-user-card { min-height: 150px; padding: 16px; background: #fff; border: 1px solid #e6e8ed; border-radius: 12px; box-shadow: 0 1px 2px rgba(15,23,42,.03); cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.admin-user-card:hover, .admin-user-card:focus-visible { border-color: #c7c3ff; box-shadow: 0 6px 18px rgba(15,23,42,.07); transform: translateY(-1px); outline: none; }
+.admin-user-permissions { max-height: 190px; overflow: auto; padding: 12px 14px; background: #fafbfc; border: 1px solid #eef0f3; border-radius: 10px; }
 .admin-page-loading { min-height: 180px; display: grid; place-items: center; }
-
-@media (max-width: 1024px) {
-  .admin-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 640px) {
-  .admin-page { gap: 16px; }
-  .admin-page-header { align-items: flex-start; flex-direction: column; gap: 12px; }
-  .admin-page-title { font-size: 24px; line-height: 30px; }
-  .admin-kpi-grid { grid-template-columns: 1fr; }
-  .admin-role-card { min-height: 135px; }
-}
+@media (max-width: 1024px) { .admin-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .admin-page { gap: 16px; } .admin-page-header { align-items: flex-start; flex-direction: column; gap: 12px; } .admin-page-title { font-size: 24px; line-height: 30px; } .admin-kpi-grid { grid-template-columns: 1fr; } .admin-role-card { min-height: 135px; } .admin-user-card { min-height: 135px; } }
