@@ -18,13 +18,12 @@ const authorizationCatalog = {
   obo_clients: ['read', 'create'],
   obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive'],
   obo_professionals: ['read', 'create', 'update', 'review'],
-  professionals: ['read', 'review'],
 }
 
 const rolePermissions = {
   client: ['applications:read','applications:create','applications:update','appointments:read','appointments:create','appointments:cancel','obo_clients:read','obo_clients:create','obo_plan_permits:read','obo_plan_permits:create','obo_plan_permits:update','obo_plan_permits:submit','obo_plan_permits:schedule_submission','obo_professionals:read'],
   professional: ['applications:read','applications:create','applications:update','appointments:read','obo_plan_permits:read','obo_professionals:create','obo_professionals:read','obo_professionals:update'],
-  receiving_officer: ['applications:read','applications:review','applications:receive','applications:approve','applications:reject','professionals:read','professionals:review','appointments:read','appointments:check_in','appointments:manage','obo_plan_permits:read','obo_plan_permits:receive','obo_professionals:read','obo_professionals:review'],
+  receiving_officer: ['applications:read','applications:review','applications:receive','applications:approve','applications:reject','appointments:read','appointments:check_in','appointments:manage','obo_plan_permits:read','obo_plan_permits:receive','obo_professionals:read','obo_professionals:review'],
   admin: ['authorization:manage','users:read','users:create','users:manage'],
 }
 
@@ -111,17 +110,19 @@ async function seed() {
     admin: await prisma.role.upsert({ where: { name: 'admin' }, update: { description: 'Platform administrator with full authorization administration access.' }, create: { name: 'admin', description: 'Platform administrator with full authorization administration access.' } }),
   }
 
+  // Role permissions are managed by the Admin Web. Seeding creates the
+  // canonical catalog and only ensures the declared baseline assignments exist;
+  // it must never grant every catalog permission back to admin.
   for (const [roleName, keys] of Object.entries(rolePermissions)) for (const key of keys) {
     const permission = permissionRecords.get(key); if (!permission) throw new Error(`Unknown permission declared for ${roleName}: ${key}`)
     await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles[roleName].id, permissionId: permission.id } }, update: {}, create: { roleId: roles[roleName].id, permissionId: permission.id } })
   }
-  for (const permission of permissionRecords.values()) await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles.admin.id, permissionId: permission.id } }, update: {}, create: { roleId: roles.admin.id, permissionId: permission.id } })
 
   await prisma.oboPermitType.upsert({ where: { key: 'building-plan-permit' }, update: { name: 'Building Plan Permit', isActive: true }, create: { key: 'building-plan-permit', name: 'Building Plan Permit', description: 'Plan permit application for building construction and related work.' } })
   await prisma.appointmentType.upsert({ where: { key: 'obo-hardcopy-submission' }, update: { name: 'OBO Hardcopy Submission', isActive: true }, create: { key: 'obo-hardcopy-submission', name: 'OBO Hardcopy Submission', description: 'Physical hardcopy submission appointment for an OBO permit application.', defaultDurationMinutes: 30, defaultCapacity: 1 } })
   await seedOboWorkflow(); await seedOboNotifications()
   const adminEmail = process.env.SEED_ADMIN_EMAIL; const adminPassword = process.env.SEED_ADMIN_PASSWORD
   if (adminEmail && adminPassword) { const passwordHash = await bcrypt.hash(adminPassword, 12); await prisma.user.upsert({ where: { email: adminEmail }, update: { roleId: roles.admin.id, isActive: true }, create: { email: adminEmail, passwordHash, roleId: roles.admin.id, isActive: true } }); console.log(`Development admin ensured: ${adminEmail}`) } else console.log('No development admin configured; set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD to create one.')
-  console.log(`Seeded ${moduleRecords.size} canonical modules, ${permissionRecords.size} canonical permissions, role assignments, OBO plan permit type, appointment type, workflow, notification templates/rules, and application roles.`)
+  console.log(`Seeded ${moduleRecords.size} canonical modules, ${permissionRecords.size} canonical permissions, baseline role assignments, OBO plan permit type, appointment type, workflow, notification templates/rules, and application roles.`)
 }
 seed().catch((error) => { console.error(`Database seed failed: ${error.message}`); process.exitCode = 1 }).finally(async () => { await disconnectPrisma() })

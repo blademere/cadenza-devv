@@ -1,13 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
-import { Box } from '../../components/ui/box'
-import { HStack } from '../../components/ui/hstack'
-import { VStack } from '../../components/ui/vstack'
-import { Button, ButtonText } from '../../components/ui/button'
-import { Card } from '../../components/ui/card'
-import { Badge, BadgeText } from '../../components/ui/badge'
-import { Heading } from '../../components/ui/heading'
-import { Text } from '../../components/ui/text'
+import { Box, Button, Card, CardContent, Chip, Container, Divider, Stack, Typography } from '@mui/material'
 
 const highlights = [
   ['01', 'One clear starting point', 'A focused workspace that keeps the important actions easy to find.'],
@@ -20,30 +13,77 @@ export default function HomePage() {
   const destination = isAuthenticated ? '/dashboard' : '/login'
 
   return (
-    <Box className="min-h-screen bg-background px-5 md:px-10">
-      <Box className="mx-auto min-h-screen w-full max-w-6xl">
-        <HStack className="min-h-[82px] items-center justify-between border-b border-border">
-          <Link to="/" aria-label="Express App home" className="no-underline"><HStack space="sm" className="items-center"><Box className="h-9 w-9 items-center justify-center rounded-xl bg-primary-600"><Text size="xs" bold className="text-white">EA</Text></Box><Text size="lg" bold className="text-foreground">Express App</Text></HStack></Link>
-          <HStack space="lg" className="items-center"><Box className="hidden items-center gap-6 md:flex"><a href="#features" className="text-sm text-muted-foreground no-underline">Why Express App</a><a href="#experience" className="text-sm text-muted-foreground no-underline">Experience</a></Box>{!isLoading && <Link to={destination} className="no-underline"><Button size="sm"><ButtonText>{isAuthenticated ? 'Open dashboard' : 'Sign in'}</ButtonText></Button></Link>}</HStack>
-        </HStack>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <Container maxWidth="lg">
+        <Stack component="header" direction="row" alignItems="center" justifyContent="space-between" sx={{ minHeight: 82 }}>
+          <Link to="/" aria-label="Express App home" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box sx={{ width: 36, height: 36, display: 'grid', placeItems: 'center', borderRadius: 2, bgcolor: 'primary.main' }}>
+                <Typography variant="caption" fontWeight={700} color="primary.contrastText">EA</Typography>
+              </Box>
+              <Typography variant="h6" fontWeight={700}>Express App</Typography>
+            </Stack>
+          </Link>
+          <Stack direction="row" spacing={3} alignItems="center">
+            <Stack direction="row" spacing={3} sx={{ display: { xs: 'none', md: 'flex' } }}>
+              <Button component="a" href="#features" color="inherit">Why Express App</Button>
+              <Button component="a" href="#experience" color="inherit">Experience</Button>
+            </Stack>
+            {!isLoading && <Button component={Link} to={destination} size="small" variant="contained">{isAuthenticated ? 'Open dashboard' : 'Sign in'}</Button>}
+          </Stack>
+        </Stack>
+        <Divider />
 
-        <HStack className="items-center gap-10 py-16 md:py-24">
-          <VStack space="lg" className="flex-1">
-            <Badge size="sm" variant="outline" action="info" className="self-start"><BadgeText>● A simpler way to get things done</BadgeText></Badge>
-            <VStack space="xs"><Heading size="3xl" className="max-w-3xl tracking-tight text-foreground md:text-5xl">From sign-in to workspace,</Heading><Heading size="3xl" className="max-w-3xl tracking-tight text-primary-600 md:text-5xl">everything flows.</Heading></VStack>
-            <Text size="md" className="max-w-2xl leading-7 text-muted-foreground">A polished application experience with a clear public entry point, fast authentication, and a focused dashboard that puts the next action in front of you.</Text>
-            <HStack space="sm" className="items-center"><Link to={destination} className="no-underline"><Button size="lg"><ButtonText>{isAuthenticated ? 'Go to dashboard →' : 'Get started →'}</ButtonText></Button></Link><Button variant="link" size="lg" onPress={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}><ButtonText>Explore the experience</ButtonText></Button></HStack>
-            {isAuthenticated && <Text size="sm" className="text-muted-foreground">Signed in as {user?.email || 'your account'}.</Text>}
-          </VStack>
-          <Card size="lg" variant="elevated" className="hidden w-[360px] bg-card p-6 lg:flex"><VStack space="lg"><HStack className="items-center justify-between"><Box className="h-10 w-10 items-center justify-center rounded-full bg-primary-600"><Text size="xs" bold className="text-white">EA</Text></Box><Badge action="success"><BadgeText>Active</BadgeText></Badge></HStack><VStack space="xs"><Text size="xs" bold className="tracking-widest text-muted-foreground">YOUR WORKSPACE</Text><Heading size="lg" className="text-foreground">Everything is ready.</Heading></VStack><Box className="h-2 overflow-hidden rounded-full bg-muted"><Box className="h-full w-full rounded-full bg-primary-600" /></Box><Text size="xs" className="text-muted-foreground">Secure session · 100% ready</Text><HStack space="sm"><Badge action="success"><BadgeText>✓ Authenticated</BadgeText></Badge><Badge action="info"><BadgeText>↗ Next action</BadgeText></Badge></HStack></VStack></Card>
-        </HStack>
+        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={6} alignItems="center" sx={{ py: { xs: 8, md: 12 } }}>
+          <Stack spacing={3} sx={{ flex: 1 }}>
+            <Chip label="● A simpler way to get things done" size="small" variant="outlined" color="info" sx={{ alignSelf: 'flex-start' }} />
+            <Box>
+              <Typography variant="h2" component="h1" sx={{ fontWeight: 700, letterSpacing: '-0.03em', fontSize: { xs: '2.5rem', md: '3.75rem' } }}>From sign-in to workspace,</Typography>
+              <Typography variant="h2" sx={{ fontWeight: 700, letterSpacing: '-0.03em', color: 'primary.main', fontSize: { xs: '2.5rem', md: '3.75rem' } }}>everything flows.</Typography>
+            </Box>
+            <Typography color="text.secondary" sx={{ maxWidth: 680, lineHeight: 1.75 }}>A polished application experience with a clear public entry point, fast authentication, and a focused dashboard that puts the next action in front of you.</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
+              <Button component={Link} to={destination} size="large" variant="contained">{isAuthenticated ? 'Go to dashboard →' : 'Get started →'}</Button>
+              <Button component="a" href="#features" size="large">Explore the experience</Button>
+            </Stack>
+            {isAuthenticated && <Typography variant="body2" color="text.secondary">Signed in as {user?.email || 'your account'}.</Typography>}
+          </Stack>
 
-        <Box id="experience" className="grid grid-cols-1 gap-4 border-y border-border py-8 md:grid-cols-3">{[['Built for clarity', 'Every screen has a purpose and a next step.'], ['Fast entry', 'Get from landing page to workspace without friction.'], ['Responsive', 'Designed to feel intentional on every screen size.']].map(([title, description]) => <VStack key={title} space="xs"><Text size="sm" bold className="text-foreground">{title}</Text><Text size="sm" className="text-muted-foreground">{description}</Text></VStack>)}</Box>
+          <Card variant="outlined" sx={{ display: { xs: 'none', lg: 'block' }, width: 360, flexShrink: 0 }}>
+            <CardContent sx={{ p: 3 }}>
+              <Stack spacing={3}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Box sx={{ width: 40, height: 40, display: 'grid', placeItems: 'center', borderRadius: '50%', bgcolor: 'primary.main' }}><Typography variant="caption" fontWeight={700} color="primary.contrastText">EA</Typography></Box>
+                  <Chip label="Active" color="success" size="small" />
+                </Stack>
+                <Box><Typography variant="overline" color="text.secondary">YOUR WORKSPACE</Typography><Typography variant="h6">Everything is ready.</Typography></Box>
+                <Box sx={{ height: 8, overflow: 'hidden', borderRadius: 4, bgcolor: 'action.hover' }}><Box sx={{ width: '100%', height: '100%', bgcolor: 'primary.main' }} /></Box>
+                <Typography variant="caption" color="text.secondary">Secure session · 100% ready</Typography>
+                <Stack direction="row" spacing={1}><Chip label="✓ Authenticated" color="success" size="small" variant="outlined" /><Chip label="↗ Next action" color="info" size="small" variant="outlined" /></Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Stack>
 
-        <VStack id="features" space="xl" className="py-20 md:py-28"><VStack space="sm" className="max-w-2xl"><Text size="xs" bold className="tracking-widest text-primary-600">THE FOUNDATION</Text><Heading size="2xl" className="text-foreground">A better flow, not just a new look.</Heading><Text size="md" className="leading-7 text-muted-foreground">The redesign keeps the existing authentication architecture while making the user journey much more obvious.</Text></VStack><Box className="grid grid-cols-1 gap-4 md:grid-cols-3">{highlights.map(([number, title, description]) => <Card key={number} size="lg" variant="outline" className="bg-card p-6"><VStack space="md"><Text size="xs" bold className="text-primary-600">{number}</Text><Heading size="md" className="text-foreground">{title}</Heading><Text size="sm" className="leading-6 text-muted-foreground">{description}</Text></VStack></Card>)}</Box></VStack>
+        <Stack id="experience" direction={{ xs: 'column', md: 'row' }} spacing={4} sx={{ py: 4, borderTop: 1, borderBottom: 1, borderColor: 'divider' }}>
+          {[['Built for clarity', 'Every screen has a purpose and a next step.'], ['Fast entry', 'Get from landing page to workspace without friction.'], ['Responsive', 'Designed to feel intentional on every screen size.']].map(([title, description]) => <Stack key={title} spacing={0.5} sx={{ flex: 1 }}><Typography variant="body2" fontWeight={700}>{title}</Typography><Typography variant="body2" color="text.secondary">{description}</Typography></Stack>)}
+        </Stack>
 
-        <HStack className="min-h-[85px] items-center justify-between border-t border-border"><Link to="/" className="no-underline"><Text size="sm" bold className="text-foreground">Express App</Text></Link><Text size="xs" className="text-muted-foreground">Secure. Focused. Ready.</Text></HStack>
-      </Box>
+        <Stack id="features" spacing={4} sx={{ py: { xs: 10, md: 14 } }}>
+          <Stack spacing={1} sx={{ maxWidth: 680 }}>
+            <Typography variant="overline" color="primary.main" fontWeight={700}>THE FOUNDATION</Typography>
+            <Typography variant="h3">A better flow, not just a new look.</Typography>
+            <Typography color="text.secondary" sx={{ lineHeight: 1.75 }}>The redesign keeps the existing authentication architecture while making the user journey much more obvious.</Typography>
+          </Stack>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            {highlights.map(([number, title, description]) => <Card key={number} variant="outlined" sx={{ flex: 1 }}><CardContent><Stack spacing={2}><Typography variant="caption" color="primary.main" fontWeight={700}>{number}</Typography><Typography variant="h6">{title}</Typography><Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>{description}</Typography></Stack></CardContent></Card>)}
+          </Stack>
+        </Stack>
+
+        <Stack component="footer" direction="row" alignItems="center" justifyContent="space-between" sx={{ minHeight: 85, borderTop: 1, borderColor: 'divider' }}>
+          <Typography variant="body2" fontWeight={700}>Express App</Typography><Typography variant="caption" color="text.secondary">Secure. Focused. Ready.</Typography>
+        </Stack>
+      </Container>
     </Box>
   )
 }

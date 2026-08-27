@@ -2,6 +2,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 let accessToken = null
 let csrfToken = null
+let refreshHandler = null
 
 const getCookie = (name) => {
   const prefix = `${encodeURIComponent(name)}=`
@@ -17,7 +18,7 @@ const createIdempotencyKey = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-const request = async (path, options = {}) => {
+const request = async (path, options = {}, allowRefresh = true) => {
   const method = options.method ?? 'GET'
   const headers = new Headers(options.headers)
 
@@ -49,6 +50,11 @@ const request = async (path, options = {}) => {
   }
 
   if (!response.ok) {
+    if (response.status === 401 && allowRefresh && refreshHandler && !path.endsWith('/auth/refresh')) {
+      const refreshed = await refreshHandler()
+      if (refreshed) return request(path, options, false)
+    }
+
     const error = new Error(payload?.message ?? `API request failed with status ${response.status}`)
     error.status = response.status
     error.errors = payload?.errors ?? []
@@ -68,6 +74,9 @@ export const apiClient = {
   },
   setCsrfToken(token) {
     csrfToken = token ?? null
+  },
+  setRefreshHandler(handler) {
+    refreshHandler = typeof handler === 'function' ? handler : null
   },
   get: (path, options) => request(path, { ...options, method: 'GET' }),
   post: (path, body, options = {}) =>

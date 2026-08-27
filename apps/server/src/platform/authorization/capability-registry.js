@@ -1,10 +1,10 @@
 const capabilities = Object.freeze([
   {
     key: 'applications',
-    moduleKey: 'obo_plan_permits',
+    moduleKey: 'applications',
     name: 'Applications',
     route: '/applications',
-    permission: 'obo_plan_permits:read',
+    permission: 'applications:read',
   },
   {
     key: 'appointments',
