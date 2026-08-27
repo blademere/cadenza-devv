@@ -1,12 +1,21 @@
-const Icon = ({ children }) => (
-  <span aria-hidden="true" style={{ width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-    {children}
-  </span>
-)
+const Icon = ({ children }) => ({
+  type: 'span',
+  props: {
+    'aria-hidden': true,
+    style: {
+      width: 20,
+      height: 20,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    children,
+  },
+})
 
-const DashboardIcon = () => <Icon>⌂</Icon>
-const UsersIcon = () => <Icon>♙</Icon>
-const RolesIcon = () => <Icon>◆</Icon>
+const DashboardIcon = () => Icon({ children: '⌂' })
+const UsersIcon = () => Icon({ children: '♙' })
+const RolesIcon = () => Icon({ children: '◆' })
 
 // Navigation is a frontend presentation concern. Each protected item declares
 // the exact server permission required to see it. The server remains the
