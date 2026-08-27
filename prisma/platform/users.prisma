@@ -65,9 +65,7 @@ model Module {
   isActive    Boolean      @default(true)
   permissions Permission[]
   createdAt   DateTime     @default(now())
-
-  @@unique([moduleId, action])
-  @@index([moduleId])
+  updatedAt   DateTime     @updatedAt
 }
 
 model Permission {
