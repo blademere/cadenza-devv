@@ -4,11 +4,13 @@ model User {
   passwordHash                         String?
   isActive                             Boolean                               @default(true)
   authVersion                          Int                                   @default(0)
+  emailVerifiedAt                      DateTime?
   roleId                               Int
   role                                 Role                                  @relation(fields: [roleId], references: [id])
   oauthAccounts                        OAuthAccount[]
   refreshTokens                        RefreshToken[]
   passwordResetTokens                  PasswordResetToken[]
+  emailVerificationTokens              EmailVerificationToken[]
   workflowInstancesStarted             WorkflowInstance[]                    @relation("WorkflowInstanceStartedBy")
   workflowHistoryActions               WorkflowHistory[]                     @relation("WorkflowHistoryActor")
   auditLogs                            AuditLog[]                            @relation("AuditLogActor")
@@ -109,6 +111,20 @@ model RefreshToken {
 }
 
 model PasswordResetToken {
+  id         String   @id @default(uuid())
+  tokenHash  String   @unique
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
+}
+
+model EmailVerificationToken {
   id         String   @id @default(uuid())
   tokenHash  String   @unique
   userId     Int

@@ -28,7 +28,7 @@ const createOAuthUser = async ({ email, provider, providerAccountId, roleName })
   const role = await tx.role.findUnique({ where: { name: roleName } })
   if (!role) throw new Error(`OAuth default role '${roleName}' does not exist.`)
   if (await tx.user.findUnique({ where: { email } })) throw new Error('An account already exists for this email address.')
-  return tx.user.create({ data: { email, passwordHash: null, roleId: role.id, oauthAccounts: { create: { provider, providerAccountId } } }, include: userInclude })
+  return tx.user.create({ data: { email, passwordHash: null, emailVerifiedAt: new Date(), roleId: role.id, oauthAccounts: { create: { provider, providerAccountId } } }, include: userInclude })
 })
 const linkOAuthAccount = async ({ userId, provider, providerAccountId }) => {
   const existingAccount = await prisma.oAuthAccount.findUnique({ where: { provider_providerAccountId: { provider, providerAccountId } } })
@@ -67,4 +67,14 @@ const consumePasswordResetToken = async ({ tokenId, userId, passwordHash }) => p
   return { success: true }
 })
 const invalidatePasswordResetTokens = async (userId) => prisma.passwordResetToken.updateMany({ where: { userId: Number(userId), usedAt: null }, data: { usedAt: new Date() } })
-module.exports = { findUserByEmail, findUserById, findUserAuthState, findRoleByName, createUser, bumpUserAuthVersion, changePassword, listActiveSessions, revokeSession, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, createPasswordResetToken, findPasswordResetToken, consumePasswordResetToken, invalidatePasswordResetTokens, deleteExpiredRefreshTokens }
+const createEmailVerificationToken = async ({ token, userId, expiresAt }) => prisma.emailVerificationToken.create({ data: { tokenHash: hashRefreshToken(token), userId: Number(userId), expiresAt } })
+const findEmailVerificationToken = async (token) => prisma.emailVerificationToken.findUnique({ where: { tokenHash: hashRefreshToken(token) }, include: { user: true } })
+const invalidateEmailVerificationTokens = async (userId) => prisma.emailVerificationToken.updateMany({ where: { userId: Number(userId), usedAt: null }, data: { usedAt: new Date() } })
+const consumeEmailVerificationToken = async ({ tokenId, userId }) => prisma.$transaction(async (tx) => {
+  const consumed = await tx.emailVerificationToken.updateMany({ where: { id: tokenId, userId: Number(userId), usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } })
+  if (consumed.count !== 1) return { success: false }
+  const verified = await tx.user.updateMany({ where: { id: Number(userId), emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } })
+  if (verified.count !== 1) return { success: false }
+  return { success: true }
+})
+module.exports = { findUserByEmail, findUserById, findUserAuthState, findRoleByName, createUser, bumpUserAuthVersion, changePassword, listActiveSessions, revokeSession, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, createPasswordResetToken, findPasswordResetToken, consumePasswordResetToken, invalidatePasswordResetTokens, createEmailVerificationToken, findEmailVerificationToken, invalidateEmailVerificationTokens, consumeEmailVerificationToken, deleteExpiredRefreshTokens }
