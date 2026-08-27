@@ -1,17 +1,20 @@
-const Icon = ({ children }) => ({
-  type: 'span',
-  props: {
-    'aria-hidden': true,
-    style: {
-      width: 20,
-      height: 20,
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+import { createElement } from 'react'
+
+const Icon = ({ children }) =>
+  createElement(
+    'span',
+    {
+      'aria-hidden': true,
+      style: {
+        width: 20,
+        height: 20,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
     },
     children,
-  },
-})
+  )
 
 const DashboardIcon = () => Icon({ children: '⌂' })
 const UsersIcon = () => Icon({ children: '♙' })
