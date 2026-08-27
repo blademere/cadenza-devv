@@ -15,6 +15,8 @@ const {
 const {
   OAUTH_STATE_COOKIE,
   createState,
+  createPkceVerifier,
+  createPkceChallenge,
   createAuthorizationUrl,
   storeOAuthState,
   consumeOAuthState,
@@ -59,11 +61,13 @@ const startOAuth = (provider) => async (_req, res) => {
   clearOAuthLinkStateCookie(res)
 
   const state = createState()
-  const authorizationUrl = createAuthorizationUrl(provider, state)
+  const codeVerifier = createPkceVerifier()
+  const codeChallenge = createPkceChallenge(codeVerifier)
+  const authorizationUrl = createAuthorizationUrl(provider, state, codeChallenge)
 
   await storeOAuthState(
     state,
-    { flow: 'login', provider },
+    { flow: 'login', provider, codeVerifier },
     OAUTH_STATE_MAX_AGE_MS
   )
 
@@ -138,6 +142,7 @@ const handleOAuthCallback = (provider) => async (req, res) => {
         userId: Number(stateData.userId),
         provider,
         code,
+        codeVerifier: stateData.codeVerifier,
       })
 
       clearOAuthLinkStateCookie(res)
@@ -172,6 +177,7 @@ const handleOAuthCallback = (provider) => async (req, res) => {
     const result = await authenticateWithOAuth({
       provider,
       code,
+      codeVerifier: stateData.codeVerifier,
     })
 
     setAuthCookies(res, result.refreshToken)
@@ -203,11 +209,13 @@ const startOAuthLink = (provider) => async (req, res) => {
   clearOAuthStateCookie(res)
 
   const state = createState()
-  const authorizationUrl = createAuthorizationUrl(provider, state)
+  const codeVerifier = createPkceVerifier()
+  const codeChallenge = createPkceChallenge(codeVerifier)
+  const authorizationUrl = createAuthorizationUrl(provider, state, codeChallenge)
 
   await storeOAuthState(
     state,
-    { flow: 'link', provider, userId: Number(req.user.id) },
+    { flow: 'link', provider, userId: Number(req.user.id), codeVerifier },
     OAUTH_LINK_STATE_MAX_AGE_MS
   )
 
