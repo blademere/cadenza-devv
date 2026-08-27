@@ -1,10 +1,21 @@
 import { Link } from 'react-router-dom'
-import { Alert, Badge, Box, Button, Card, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { Alert, Badge, Box, Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine/core'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useAuthorization } from '../features/authorization/AuthorizationProvider'
 import PageHeader from '../components/common/PageHeader'
 
-const Stat = ({ label, value }) => <Card withBorder><Text size="sm" c="dimmed">{label}</Text><Title order={3} mt={4}>{value}</Title></Card>
+function StatCard({ label, value, hint, icon }) {
+  return (
+    <Card className="admin-kpi" withBorder>
+      <Group justify="space-between" align="flex-start">
+        <Text className="admin-kpi-label">{label}</Text>
+        <ThemeIcon size={30} radius="md" variant="light" color="indigo">{icon}</ThemeIcon>
+      </Group>
+      <Text className="admin-kpi-value">{value}</Text>
+      <Text className="admin-kpi-meta">{hint}</Text>
+    </Card>
+  )
+}
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -13,15 +24,29 @@ export default function DashboardPage() {
   const authorizationVisible = (context?.navigation ?? []).some((item) => item.visible && item.key === 'authorization')
   const activeModules = (context?.modules ?? []).filter((module) => module.isActive !== false)
   const permissions = context?.permissions ?? []
-  return <Stack gap="xl">
-    <PageHeader eyebrow="Platform administration" title={`Welcome, ${name}`} description="Manage platform modules, roles, permissions, and administrative access." />
-    {error && <Alert color="red">{error.message ?? String(error)}</Alert>}
-    <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}><Stat label="Current role" value={context?.role?.name ?? context?.role?.key ?? '—'} /><Stat label="Permissions" value={permissions.length} /><Stat label="Enabled modules" value={activeModules.length} /><Stat label="Admin capability" value={authorizationVisible ? 'Granted' : 'Restricted'} /></SimpleGrid>
-    <Card withBorder>
-      <Stack gap="md">
-        <Group justify="space-between" align="flex-start"><Box><Group gap="sm"><Title order={4}>Authorization center</Title>{authorizationVisible && <Badge color="green" variant="light">Available</Badge>}</Group><Text size="sm" c="dimmed" mt={4}>The server determines which administrative capabilities are available to you.</Text></Box>{isLoading && <Badge variant="light">Checking access</Badge>}</Group>
-        {authorizationVisible ? <Button component={Link} to="/authorization" w="fit-content">Manage platform access</Button> : <Text size="sm" c="dimmed">Your account does not currently have authorization-management access.</Text>}
-      </Stack>
-    </Card>
-  </Stack>
+  const role = context?.role?.name ?? context?.role?.key ?? 'No role assigned'
+
+  return (
+    <Stack className="admin-page">
+      <PageHeader eyebrow="Overview" title={`Welcome back, ${name}`} description="A focused view of your administrative access, platform modules, and the actions available to you." />
+      {error && <Alert color="red" variant="light" title="Unable to load access context">{error.message ?? String(error)}</Alert>}
+      <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }}>
+        <StatCard label="Current role" value={role} hint="Assigned access profile" icon="R" />
+        <StatCard label="Permissions" value={permissions.length} hint="Effective permissions" icon="P" />
+        <StatCard label="Enabled modules" value={activeModules.length} hint="Currently available" icon="M" />
+        <StatCard label="Access status" value={authorizationVisible ? 'Granted' : 'Restricted'} hint={isLoading ? 'Checking access…' : 'Server-authorized'} icon="✓" />
+      </SimpleGrid>
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+        <Card className="admin-panel" withBorder p={0}>
+          <Box className="admin-panel-header"><Box><Text className="admin-panel-title">Authorization center</Text><Text className="admin-panel-subtitle">Manage roles and access policies</Text></Box><Badge color={authorizationVisible ? 'green' : 'gray'} variant="light">{authorizationVisible ? 'Available' : 'Restricted'}</Badge></Box>
+          <Stack p="lg" gap="md"><Text size="sm" c="dimmed" lh={1.7}>Permissions are resolved by the server and applied to the current account. Changes take effect through the authorization system.</Text>{authorizationVisible ? <Group><Button component={Link} to="/roles">Manage roles</Button><Button component={Link} to="/users" variant="light">Manage users</Button></Group> : <Text size="sm" c="dimmed">Your account does not currently have authorization-management access.</Text>}</Stack>
+        </Card>
+        <Card className="admin-panel" withBorder p={0}>
+          <Box className="admin-panel-header"><Box><Text className="admin-panel-title">Workspace status</Text><Text className="admin-panel-subtitle">Current platform context</Text></Box><ThemeIcon size={30} radius="xl" color="green" variant="light">✓</ThemeIcon></Box>
+          <Stack p="lg" gap="sm"><Group justify="space-between"><Text size="sm" c="dimmed">Signed-in account</Text><Text size="sm" fw={600}>{user?.email || '—'}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Role</Text><Text size="sm" fw={600}>{role}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Modules</Text><Text size="sm" fw={600}>{activeModules.length} enabled</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Authorization</Text><Badge color={authorizationVisible ? 'green' : 'gray'} variant="light">{authorizationVisible ? 'Authorized' : 'Restricted'}</Badge></Group></Stack>
+        </Card>
+      </SimpleGrid>
+      <Box className="admin-action-panel"><Group justify="space-between" align="center" wrap="wrap"><Box style={{ minWidth: 0, flex: 1 }}><Text className="admin-action-title">Keep access intentional</Text><Text className="admin-action-text">Review role permissions regularly and grant only the capabilities required for each administrative responsibility.</Text></Box>{authorizationVisible && <Button component={Link} to="/roles" variant="white" color="dark">Review roles</Button>}</Group></Box>
+    </Stack>
+  )
 }
