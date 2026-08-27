@@ -1,0 +1,3 @@
+import { Card, CardContent, Stack, Typography } from '@mui/material'
+
+export default function StatCard({ label, value, icon, helper }) { return <Card><CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}><Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}><Stack spacing={.5} minWidth={0}><Typography variant="body2" color="text.secondary">{label}</Typography><Typography variant="h5">{value}</Typography>{helper && <Typography variant="caption" color="text.secondary">{helper}</Typography>}</Stack>{icon && <Stack sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: 'action.hover', color: 'primary.main', display: 'grid', placeItems: 'center' }}>{icon}</Stack>}</Stack></CardContent></Card> }
