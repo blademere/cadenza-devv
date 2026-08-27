@@ -7,39 +7,33 @@ import DashboardPage from '../pages/DashboardPage'
 import AuthorizationPage from '../pages/AuthorizationPage'
 import UsersPage from '../pages/UsersPage'
 import OAuthCallbackPage from '../pages/OAuthCallbackPage'
-import { useAuth } from '../features/auth/AuthProvider'
-import { useAuthorization } from '../features/authorization/AuthorizationProvider'
+import ProtectedRoute from './router/ProtectedRoute'
+import GuestRoute from './router/GuestRoute'
+import AuthorizationRoute from './router/AuthorizationRoute'
 
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth()
-  if (isLoading) return <div className="route-loading">Loading your workspace…</div>
-  if (!isAuthenticated) return <Navigate to="/login" replace />
-  return children
-}
-
-function AuthorizationRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth()
-  const { can, isLoading: authorizationLoading } = useAuthorization()
-  if (isLoading || authorizationLoading) return <div className="route-loading">Checking authorization…</div>
-  if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (!can('authorization:manage')) return <Navigate to="/dashboard" replace />
-  return <AdminLayout>{children}</AdminLayout>
-}
-
-function GuestRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth()
-  if (isLoading) return <div className="route-loading">Loading…</div>
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />
-  return children
-}
-
-export const router = createBrowserRouter([{ path: '/', element: <App />, children: [
-  { index: true, element: <GuestRoute><HomePage /></GuestRoute> },
-  { path: 'login', element: <GuestRoute><LoginPage /></GuestRoute> },
-  { path: 'dashboard', element: <ProtectedRoute><AdminLayout><DashboardPage /></AdminLayout></ProtectedRoute> },
-  { path: 'authorization', element: <AuthorizationRoute><AuthorizationPage /></AuthorizationRoute> },
-  { path: 'authorization/users', element: <AuthorizationRoute><UsersPage /></AuthorizationRoute> },
-  { path: 'auth/callback/success', element: <OAuthCallbackPage /> },
-  { path: 'auth/callback/failure', element: <OAuthCallbackPage mode="failure" /> },
-  { path: '*', element: <Navigate to="/" replace /> },
-]}])
+export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <App />,
+    children: [
+      { index: true, element: <GuestRoute><HomePage /></GuestRoute> },
+      { path: 'login', element: <GuestRoute><LoginPage /></GuestRoute> },
+      {
+        element: <ProtectedRoute><AdminLayout /></ProtectedRoute>,
+        children: [
+          { path: 'dashboard', element: <DashboardPage /> },
+          {
+            element: <AuthorizationRoute />,
+            children: [
+              { path: 'authorization', element: <AuthorizationPage /> },
+              { path: 'authorization/users', element: <UsersPage /> },
+            ],
+          },
+        ],
+      },
+      { path: 'auth/callback/success', element: <OAuthCallbackPage /> },
+      { path: 'auth/callback/failure', element: <OAuthCallbackPage mode="failure" /> },
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+])
