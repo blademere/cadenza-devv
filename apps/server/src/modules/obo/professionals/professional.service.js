@@ -24,7 +24,7 @@ const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumb
   if (!normalizedPtrNumber) throw new BadRequestError('ptrNumber is required.')
 
   const person = await repository.findPersonByUserId(userId)
-  if (!person) throw new ConflictError('Complete your person profile before applying for professional verification.')
+  if (!person) throw new ConflictError('User does not have a person profile. Complete your person profile before applying for professional verification.')
   const existing = await repository.findByPersonId(person.id)
   if (existing) throw new ConflictError('A professional verification record already exists for this person.')
 
@@ -49,6 +49,10 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   const professional = await repository.findById(id)
   if (!professional) throw new NotFoundError('Professional registration not found.')
   if (professional.status !== 'PENDING_VERIFICATION') throw new ConflictError('Professional is not awaiting verification.')
+
+  if (Number(professional.userId) === Number(actorId)) {
+    throw new ConflictError('A professional cannot approve or decline their own verification.')
+  }
 
   const accepted = decision === 'ACCEPTED'
   const cleanReason = reason?.trim() || null

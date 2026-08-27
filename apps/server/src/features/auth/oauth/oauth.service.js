@@ -50,14 +50,19 @@ const fetchJson = async (url, options = {}) => {
   }
 }
 
-const exchangeCode = async (provider, code) => {
+const exchangeCode = async (provider, code, codeVerifier) => {
   const config = getProviderConfig(provider)
+  if (typeof codeVerifier !== 'string' || codeVerifier.length < 43) {
+    throw new UnauthorizedError('OAuth authorization could not be completed.')
+  }
+
   const body = new URLSearchParams({
     client_id: config.clientId,
     client_secret: config.clientSecret,
     code,
     grant_type: 'authorization_code',
     redirect_uri: config.callbackUrl,
+    code_verifier: codeVerifier,
   })
   const { data } = await fetchJson(config.tokenUrl, {
     method: 'POST',
@@ -104,8 +109,8 @@ const getProviderIdentity = async (provider, accessToken) => {
   throw new UnauthorizedError('Unsupported OAuth provider.')
 }
 
-const authenticateWithOAuth = async ({ provider, code }) => {
-  const accessToken = await exchangeCode(provider, code)
+const authenticateWithOAuth = async ({ provider, code, codeVerifier }) => {
+  const accessToken = await exchangeCode(provider, code, codeVerifier)
   const identity = await getProviderIdentity(provider, accessToken)
   const linkedAccount = await findOAuthAccount(identity)
   let user
@@ -123,10 +128,10 @@ const authenticateWithOAuth = async ({ provider, code }) => {
   return { user, accessToken: accessTokenJwt, refreshToken }
 }
 
-const linkOAuthAccountWithCode = async ({ userId, provider, code }) => {
+const linkOAuthAccountWithCode = async ({ userId, provider, code, codeVerifier }) => {
   const user = await findUserById(userId)
   if (!user || !user.isActive) throw new UnauthorizedError('User account is inactive or does not exist.')
-  const accessToken = await exchangeCode(provider, code)
+  const accessToken = await exchangeCode(provider, code, codeVerifier)
   const identity = await getProviderIdentity(provider, accessToken)
   const existingAccount = await findOAuthAccount(identity)
   if (existingAccount && existingAccount.userId !== Number(userId)) throw new ConflictError('This OAuth account is already linked to another user.')
