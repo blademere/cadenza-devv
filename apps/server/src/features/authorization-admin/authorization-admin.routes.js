@@ -23,27 +23,27 @@ const router = express.Router()
 const manageAuthorization = authorize('authorization', 'manage')
 const requireIdempotency = idempotency({ scope: 'authorization-admin', required: true })
 
-// Express route params are strings. Resource authorization must consume the
-// validated/coerced params so Prisma receives the model's native Int IDs.
 const authorizeModuleResource = authorizeResource({
   resource: 'authorization',
   action: 'manage',
   loadResource: repository.findModuleById,
-  getResourceId: (req) => req.validated?.params?.moduleId,
+  // Express route params are strings; Prisma module IDs are Ints.
+  getResourceId: (req) => Number(req.params.moduleId),
 })
 
 const authorizeRoleResource = authorizeResource({
   resource: 'authorization',
   action: 'manage',
   loadResource: repository.findRoleById,
-  getResourceId: (req) => req.validated?.params?.roleId,
+  // Express route params are strings; Prisma role IDs are Ints.
+  getResourceId: (req) => Number(req.params.roleId),
 })
 
 router.get('/modules', authenticate, manageAuthorization, asyncHandler(listModulesController))
 router.post('/modules', authenticate, manageAuthorization, requireIdempotency, validate(createModuleValidator), asyncHandler(createModuleController))
-router.post('/modules/:moduleId/permissions', authenticate, validate(createPermissionValidator), authorizeModuleResource, requireIdempotency, asyncHandler(createPermissionController))
-router.patch('/modules/:moduleId/active', authenticate, validate(setModuleActiveValidator), authorizeModuleResource, requireIdempotency, asyncHandler(setModuleActiveController))
+router.post('/modules/:moduleId/permissions', authenticate, authorizeModuleResource, requireIdempotency, validate(createPermissionValidator), asyncHandler(createPermissionController))
+router.patch('/modules/:moduleId/active', authenticate, authorizeModuleResource, requireIdempotency, validate(setModuleActiveValidator), asyncHandler(setModuleActiveController))
 router.get('/roles', authenticate, manageAuthorization, asyncHandler(listRolesController))
-router.put('/roles/:roleId/permissions', authenticate, validate(replaceRolePermissionsValidator), authorizeRoleResource, requireIdempotency, asyncHandler(replaceRolePermissionsController))
+router.put('/roles/:roleId/permissions', authenticate, authorizeRoleResource, requireIdempotency, validate(replaceRolePermissionsValidator), asyncHandler(replaceRolePermissionsController))
 
 module.exports = router
