@@ -16,6 +16,7 @@ const {
 
 const { createAccessToken, createRefreshToken } = require('../auth.tokens')
 const { env } = require('../../../config')
+const { publish } = require('../../../platform/event-bus/event-bus')
 const { getProviderConfig } = require('./oauth.providers')
 
 const OAUTH_REQUEST_TIMEOUT_MS = 5000
@@ -144,6 +145,17 @@ const linkOAuthAccountWithCode = async ({ userId, provider, code, codeVerifier }
     if (error?.code === 'OAUTH_ACCOUNT_ALREADY_LINKED') throw new ConflictError('This OAuth account is already linked to another user.')
     throw error
   }
+  await publish({
+    event: 'auth.oauth_link',
+    entityType: 'User',
+    entityId: Number(userId),
+    actorId: Number(userId),
+    context: {
+      user: { id: Number(userId), email: user.email },
+      oauth: { provider: identity.provider },
+    },
+    idempotencyKey: `auth.oauth-link:${userId}:${identity.provider}:${identity.providerAccountId}`,
+  })
   return { provider: identity.provider, alreadyLinked: false }
 }
 
@@ -158,6 +170,17 @@ const unlinkOAuthAccount = async ({ userId, provider }) => {
     if (error?.code === 'USER_NOT_FOUND') throw new UnauthorizedError('User account does not exist.')
     throw error
   }
+  await publish({
+    event: 'auth.oauth_unlink',
+    entityType: 'User',
+    entityId: Number(userId),
+    actorId: Number(userId),
+    context: {
+      user: { id: Number(userId) },
+      oauth: { provider },
+    },
+    idempotencyKey: `auth.oauth-unlink:${userId}:${provider}`,
+  })
   return { provider }
 }
 
