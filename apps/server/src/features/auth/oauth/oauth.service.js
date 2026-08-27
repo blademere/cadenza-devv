@@ -121,7 +121,7 @@ const authenticateWithOAuth = async ({ provider, code, codeVerifier }) => {
     if (existingUser) throw new ConflictError('An account already exists with this email. Sign in with your password first, then link the OAuth provider.')
     user = await createOAuthUser({ ...identity, roleName: env.OAUTH_DEFAULT_ROLE_NAME })
   }
-  if (!user.isActive) throw new UnauthorizedError('User account is inactive')
+  if (!user.isActive) throw new UnauthorizedError('User account is inactive.')
   const tokenId = crypto.randomUUID()
   const refreshToken = createRefreshToken(user, tokenId)
   const accessTokenJwt = createAccessToken(user)
