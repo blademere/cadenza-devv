@@ -1,5 +1,5 @@
+import { Center, Loader, Stack, Text } from '@mantine/core'
 import { Navigate, Outlet } from 'react-router-dom'
-import { CircularProgress, Stack, Typography } from '@mui/material'
 import { useAuth } from '../../features/auth/AuthProvider'
 import { useAuthorization } from '../../features/authorization/AuthorizationProvider'
 
@@ -9,15 +9,12 @@ export default function AuthorizationRoute() {
 
   if (isLoading || authorizationLoading) {
     return (
-      <Stack
-        minHeight="50vh"
-        alignItems="center"
-        justifyContent="center"
-        spacing={2}
-      >
-        <CircularProgress size={28} />
-        <Typography color="text.secondary">Checking authorization…</Typography>
-      </Stack>
+      <Center mih="50vh">
+        <Stack align="center" gap="sm">
+          <Loader size="sm" />
+          <Text c="dimmed">Checking authorization…</Text>
+        </Stack>
+      </Center>
     )
   }
 
