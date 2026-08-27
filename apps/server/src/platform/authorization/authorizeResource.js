@@ -1,6 +1,6 @@
 const { ForbiddenError, NotFoundError } = require("../../common/errors/appError")
 const accessControlService = require("./access-control.service")
-const { assertPolicy } = require("./access-control.policy")
+const accessControlPolicy = require("./access-control.policy")
 
 const authorizeResource = ({
   resource,
@@ -58,7 +58,7 @@ const authorizeResource = ({
           user.ownerId = getOwnerId(resourceInstance, req)
         }
 
-        await assertPolicy({
+        await accessControlPolicy.assertPolicy({
           policy,
           user,
           resource: resourceInstance,
