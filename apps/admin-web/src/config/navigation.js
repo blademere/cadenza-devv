@@ -16,7 +16,7 @@ export const navigation = Object.freeze([
     key: 'users',
     name: 'Users',
     route: '/authorization/users',
-    permission: 'users:read',
+    permission: 'authorization:manage',
     icon: PeopleOutlinedIcon,
   },
   {
@@ -26,9 +26,8 @@ export const navigation = Object.freeze([
     permission: 'authorization:manage',
     icon: AdminPanelSettingsOutlinedIcon,
   },
-  // Add application navigation here when the corresponding admin-web route
-  // exists. Its visibility contract is intentionally explicit:
-  // permission: 'applications:read'.
+  // When an Applications page/route is added, register it here with the
+  // explicit contract: permission: 'applications:read'.
 ])
 
 export function getNavigationItem(item) {
