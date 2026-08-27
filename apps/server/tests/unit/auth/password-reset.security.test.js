@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../../src/platform/event-bus/event-bus', () => ({ publish: vi.fn().mockResolvedValue({ id: 'event-1' }) }))
-
 const repository = require('../../../src/features/auth/auth.repository.js')
 const bcrypt = require('bcrypt')
 const eventBus = require('../../../src/platform/event-bus/event-bus')
 
+vi.spyOn(eventBus, 'publish').mockResolvedValue({ id: 'event-1' })
 vi.spyOn(repository, 'findUserByEmail')
 vi.spyOn(repository, 'invalidatePasswordResetTokens')
 vi.spyOn(repository, 'createPasswordResetToken')
