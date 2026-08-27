@@ -71,10 +71,9 @@ export function AuthorizationProvider({ children }) {
 
   const isNavigationVisible = useCallback(
     (key) => {
-      return (
-        query.data?.navigation?.some(
-          (item) => item.key === key && item.visible === true
-        ) ?? false
+      if (!query.data || !Array.isArray(query.data.navigation)) return false
+      return query.data.navigation.some(
+        (item) => item.key === key && item.visible === true
       )
     },
     [query.data]
