@@ -8,12 +8,6 @@ const serverTests = resolve(repositoryRoot, 'apps/server/tests')
 export default defineConfig({
   test: {
     dir: serverTests,
-    // The server is CommonJS. Run Vitest through Node's native module loader
-    // so CommonJS require() follows production semantics and vi.mock() can
-    // intercept the repository/service dependencies used by these tests.
-    experimental: {
-      viteModuleRunner: false,
-    },
     setupFiles: [resolve(serverTests, 'setup.js')],
     coverage: {
       provider: 'v8',
