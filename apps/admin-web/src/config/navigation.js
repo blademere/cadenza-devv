@@ -20,9 +20,6 @@ const DashboardIcon = () => Icon({ children: '⌂' })
 const UsersIcon = () => Icon({ children: '♙' })
 const RolesIcon = () => Icon({ children: '◆' })
 
-// Navigation is a frontend presentation concern. Each protected item declares
-// the exact server permission required to see it. The server remains the
-// security authority and independently enforces the same permission on APIs.
 export const navigation = Object.freeze([
   {
     key: 'dashboard',
@@ -33,14 +30,14 @@ export const navigation = Object.freeze([
   {
     key: 'users',
     name: 'Users',
-    route: '/authorization/users',
+    route: '/users',
     permission: 'users:manage',
     icon: UsersIcon,
   },
   {
     key: 'roles',
     name: 'Roles',
-    route: '/authorization',
+    route: '/roles',
     permission: 'authorization:manage',
     icon: RolesIcon,
   },
