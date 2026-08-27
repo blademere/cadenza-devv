@@ -26,8 +26,7 @@ export const router = createBrowserRouter([
             element: <AuthorizationRoute />,
             children: [
               { path: 'roles', element: <RolesPage /> },
-              { path: 'authorization', element: <Navigate to="/roles" replace /> },
-              { path: 'authorization/users', element: <UsersPage /> },
+              { path: 'users', element: <UsersPage /> },
             ],
           },
         ],
