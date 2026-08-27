@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../../src/platform/event-bus/event-bus', () => ({ publish: vi.fn().mockResolvedValue({ id: 'event-1' }) }))
-
+const eventBus = require('../../../src/platform/event-bus/event-bus')
 const repository = require('../../../src/features/auth/auth.repository.js')
 const tokens = require('../../../src/features/auth/auth.tokens.js')
 
+vi.spyOn(eventBus, 'publish').mockResolvedValue({ id: 'event-1' })
 vi.spyOn(repository, 'findUserByEmail')
 vi.spyOn(repository, 'hashRefreshToken')
 vi.spyOn(repository, 'createRefreshTokenRecord')
@@ -21,6 +21,7 @@ const { refreshAccessToken } = await import('../../../src/features/auth/auth.ser
 
 beforeEach(() => {
   vi.clearAllMocks()
+  repository.revokeAllRefreshTokensForUser.mockResolvedValue(undefined)
   tokens.verifyRefreshToken.mockReturnValue({ type: 'refresh', sub: '42', tokenId: 'old-token-id', authVersion: 0 })
 })
 
