@@ -1,11 +1,8 @@
 import { NavLink } from 'react-router-dom'
-import { Avatar, Box, Button, Divider, List, ListItemButton, ListItemText, Stack, Typography } from '@mui/material'
+import { Avatar, Box, Button, Divider, List, ListItemButton, ListItemIcon, ListItemText, Stack, Typography } from '@mui/material'
 import LogoutIcon from '@mui/icons-material/Logout'
 
-export default function Sidebar({ navigation, authorizationVisible, authorizationLoading, user, role, onNavigate, onLogout }) {
-  const items = authorizationVisible
-    ? [{ key: 'authorization', name: 'Authorization', route: '/authorization' }, ...navigation]
-    : navigation
+export default function Sidebar({ navigation = [], navigationLoading = false, user, role, onNavigate, onLogout }) {
   const displayName = user?.name || user?.email?.split('@')[0] || 'Administrator'
 
   return (
@@ -18,13 +15,23 @@ export default function Sidebar({ navigation, authorizationVisible, authorizatio
       <Box sx={{ px: 1.5, py: 2, flex: 1 }}>
         <Typography variant="overline" color="text.secondary" sx={{ px: 1.5 }}>Platform</Typography>
         <List dense>
-          {items.map((item) => (
-            <ListItemButton key={item.key} component={NavLink} to={item.route} onClick={onNavigate} sx={{ borderRadius: 1.5, '&.active': { bgcolor: 'action.selected', color: 'primary.main' } }}>
-              <ListItemText primary={item.name} primaryTypographyProps={{ fontWeight: 'inherit' }} />
-            </ListItemButton>
-          ))}
-          {authorizationLoading && <ListItemText sx={{ px: 1.5, py: 1 }} primary="Checking access…" primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }} />}
-          {!authorizationLoading && !items.length && <ListItemText sx={{ px: 1.5, py: 1 }} primary="No administrative access." primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }} />}
+          {navigation.map((item) => {
+            const Icon = item.icon
+            return (
+              <ListItemButton
+                key={item.key || item.route}
+                component={NavLink}
+                to={item.route}
+                onClick={onNavigate}
+                sx={{ borderRadius: 1.5, mb: 0.25, '&.active': { bgcolor: 'action.selected', color: 'primary.main', '& .MuiListItemIcon-root': { color: 'primary.main' } } }}
+              >
+                <ListItemIcon sx={{ minWidth: 38, color: 'text.secondary' }}><Icon fontSize="small" /></ListItemIcon>
+                <ListItemText primary={item.name} primaryTypographyProps={{ fontWeight: 'inherit' }} />
+              </ListItemButton>
+            )
+          })}
+          {navigationLoading && <ListItemText sx={{ px: 1.5, py: 1 }} primary="Loading navigation…" primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }} />}
+          {!navigationLoading && !navigation.length && <ListItemText sx={{ px: 1.5, py: 1 }} primary="No administrative access." primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }} />}
         </List>
       </Box>
       <Box sx={{ p: 2 }}>
