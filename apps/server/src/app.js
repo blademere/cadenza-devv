@@ -44,7 +44,7 @@ app.use(
     origin: (requestOrigin, callback) => {
       if (!requestOrigin) return callback(null, false)
       if (allowedCorsOrigins.includes(requestOrigin)) return callback(null, requestOrigin)
-      return callback(new Error('CORS origin is not allowed.'))
+      return callback(null, false)
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
