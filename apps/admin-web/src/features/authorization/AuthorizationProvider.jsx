@@ -73,7 +73,7 @@ export function AuthorizationProvider({ children }) {
     (key) => {
       return (
         query.data?.navigation?.some(
-          (item) => item.key === key && item.visible
+          (item) => item.key === key && item.visible === true
         ) ?? false
       )
     },
