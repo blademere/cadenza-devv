@@ -1,13 +1,74 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Avatar, Box, Button, Divider, Group, NavLink as MantineNavLink, Stack, Text } from '@mantine/core'
+import { Avatar, Box, Button, Divider, Group, NavLink as MantineNavLink, Stack, Text, ThemeIcon } from '@mantine/core'
+
+const icons = {
+  dashboard: '⌂',
+  users: '♙',
+  roles: '◆',
+}
 
 export default function Sidebar({ navigation = [], navigationLoading = false, user, role, onNavigate, onLogout }) {
   const location = useLocation()
   const displayName = user?.name || user?.email?.split('@')[0] || 'Administrator'
-  return <Stack h="100%" gap={0}>
-    <Group px="lg" py="md" gap="sm"><Avatar variant="filled" radius="md" color="blue">EA</Avatar><Box><Text fw={700}>Express App</Text><Text size="xs" c="dimmed">Admin Console</Text></Box></Group>
-    <Divider />
-    <Box px="sm" py="md" style={{ flex: 1 }}><Text size="xs" fw={700} tt="uppercase" c="dimmed" px="sm" mb="xs">Platform</Text><Stack gap={4}>{navigation.map((item) => <MantineNavLink key={item.key || item.route} component={NavLink} to={item.route} label={item.name} active={location.pathname === item.route || (item.route !== '/' && location.pathname.startsWith(`${item.route}/`))} onClick={onNavigate} />)}{navigationLoading && <Text size="xs" c="dimmed" px="sm" py="xs">Loading navigation…</Text>}{!navigationLoading && !navigation.length && <Text size="xs" c="dimmed" px="sm" py="xs">No administrative access.</Text>}</Stack></Box>
-    <Box p="md"><Group gap="sm" mb="sm" wrap="nowrap"><Avatar size="sm" radius="xl">{displayName.slice(0, 1).toUpperCase()}</Avatar><Box style={{ minWidth: 0 }}><Text size="sm" fw={600} truncate>{displayName}</Text><Text size="xs" c="dimmed" truncate>{role || user?.email || 'Administrator'}</Text></Box></Group><Button fullWidth variant="light" size="sm" onClick={onLogout}>Sign out</Button></Box>
-  </Stack>
+  const initial = displayName.slice(0, 1).toUpperCase()
+
+  return (
+    <Stack h="100%" gap={0}>
+      <Box px="lg" py="lg">
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon size={38} radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet', deg: 110 }}>
+            <Text fw={800} size="sm">EA</Text>
+          </ThemeIcon>
+          <Box style={{ minWidth: 0 }}>
+            <Text fw={750} lh={1.2}>Express App</Text>
+            <Text size="xs" c="dimmed" mt={2}>Administration</Text>
+          </Box>
+        </Group>
+      </Box>
+
+      <Divider />
+
+      <Box px="sm" py="lg" style={{ flex: 1, overflowY: 'auto' }}>
+        <Text className="admin-section-label" px="sm" mb="xs">Workspace</Text>
+        <Stack gap={3}>
+          {navigation.map((item) => {
+            const active = location.pathname === item.route || (
+              item.route !== '/' && location.pathname.startsWith(`${item.route}/`)
+            )
+            return (
+              <MantineNavLink
+                key={item.key || item.route}
+                component={NavLink}
+                to={item.route}
+                label={item.name}
+                leftSection={<Text className="admin-nav-icon" fw={active ? 700 : 500}>{icons[item.key] || '•'}</Text>}
+                active={active}
+                onClick={onNavigate}
+                styles={{ root: { borderRadius: 9, minHeight: 42 } }}
+              />
+            )
+          })}
+          {navigationLoading && (
+            <Text size="xs" c="dimmed" px="sm" py="sm">Loading navigation…</Text>
+          )}
+          {!navigationLoading && !navigation.length && (
+            <Text size="xs" c="dimmed" px="sm" py="sm">No administrative access.</Text>
+          )}
+        </Stack>
+      </Box>
+
+      <Box p="md">
+        <Box className="admin-profile">
+          <Group gap="sm" wrap="nowrap">
+            <Avatar size="sm" radius="xl" color="indigo">{initial}</Avatar>
+            <Box style={{ minWidth: 0, flex: 1 }}>
+              <Text size="sm" fw={650} truncate>{displayName}</Text>
+              <Text size="xs" c="dimmed" truncate>{role || user?.email || 'Administrator'}</Text>
+            </Box>
+          </Group>
+          <Button fullWidth mt="sm" variant="subtle" color="gray" size="sm" onClick={onLogout}>Sign out</Button>
+        </Box>
+      </Box>
+    </Stack>
+  )
 }
