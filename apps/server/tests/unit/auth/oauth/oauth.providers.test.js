@@ -18,7 +18,14 @@ process.env.OAUTH_FACEBOOK_CLIENT_SECRET = 'facebook-secret';
 process.env.OAUTH_FACEBOOK_CALLBACK_URL = 'http://localhost:3000/api/v1/auth/oauth/facebook/callback';
 process.env.OAUTH_FACEBOOK_API_VERSION = 'v24.0';
 
-const { createState, createAuthorizationUrl, safeEqual, getProviderConfig } = require('../../../../src/features/auth/oauth/oauth.providers');
+const {
+  createState,
+  createPkceVerifier,
+  createPkceChallenge,
+  createAuthorizationUrl,
+  safeEqual,
+  getProviderConfig,
+} = require('../../../../src/features/auth/oauth/oauth.providers');
 
 describe('OAuth providers', () => {
   it('creates an opaque cryptographically random state', () => {
@@ -27,30 +34,52 @@ describe('OAuth providers', () => {
     expect(state.length).toBeGreaterThanOrEqual(40);
     expect(createState()).not.toBe(state);
   });
-  it('creates a Google authorization URL with the supplied state', () => {
-    const parsed = new URL(createAuthorizationUrl('google', 'state-123'));
+
+  it('creates a cryptographically random PKCE verifier and deterministic S256 challenge', () => {
+    const verifier = createPkceVerifier();
+    const challenge = createPkceChallenge(verifier);
+    expect(verifier.length).toBeGreaterThanOrEqual(43);
+    expect(challenge).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(createPkceChallenge(verifier)).toBe(challenge);
+    expect(createPkceChallenge(createPkceVerifier())).not.toBe(challenge);
+  });
+
+  it('creates a Google authorization URL with state and S256 PKCE', () => {
+    const verifier = createPkceVerifier();
+    const challenge = createPkceChallenge(verifier);
+    const parsed = new URL(createAuthorizationUrl('google', 'state-123', challenge));
     expect(parsed.hostname).toBe('accounts.google.com');
     expect(parsed.searchParams.get('state')).toBe('state-123');
     expect(parsed.searchParams.get('client_id')).toBe('google-client');
     expect(parsed.searchParams.get('redirect_uri')).toBe('http://localhost:3000/api/v1/auth/oauth/google/callback');
     expect(parsed.searchParams.get('response_type')).toBe('code');
+    expect(parsed.searchParams.get('code_challenge')).toBe(challenge);
+    expect(parsed.searchParams.get('code_challenge_method')).toBe('S256');
   });
-  it('creates a Facebook authorization URL with the supplied state', () => {
-    const parsed = new URL(createAuthorizationUrl('facebook', 'state-456'));
+
+  it('creates a Facebook authorization URL with state and S256 PKCE', () => {
+    const verifier = createPkceVerifier();
+    const challenge = createPkceChallenge(verifier);
+    const parsed = new URL(createAuthorizationUrl('facebook', 'state-456', challenge));
     expect(parsed.hostname).toBe('www.facebook.com');
     expect(parsed.pathname).toBe('/v24.0/dialog/oauth');
     expect(parsed.searchParams.get('state')).toBe('state-456');
     expect(parsed.searchParams.get('client_id')).toBe('facebook-client');
     expect(parsed.searchParams.get('scope')).toBe('email');
+    expect(parsed.searchParams.get('code_challenge')).toBe(challenge);
+    expect(parsed.searchParams.get('code_challenge_method')).toBe('S256');
   });
+
   it('returns provider configuration for supported providers', () => {
     expect(getProviderConfig('google')).toMatchObject({ clientId: 'google-client', clientSecret: 'google-secret' });
     expect(getProviderConfig('facebook')).toMatchObject({ clientId: 'facebook-client', clientSecret: 'facebook-secret' });
   });
+
   it('rejects unsupported providers', () => {
     expect(() => getProviderConfig('github')).toThrow();
-    expect(() => createAuthorizationUrl('github', 'state')).toThrow();
+    expect(() => createAuthorizationUrl('github', 'state', 'challenge')).toThrow();
   });
+
   describe('safeEqual', () => {
     it('returns true for equal values', () => expect(safeEqual('same-state', 'same-state')).toBe(true));
     it('returns false for different values', () => expect(safeEqual('state-a', 'state-b')).toBe(false));
