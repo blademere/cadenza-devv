@@ -63,6 +63,11 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    apiClient.setRefreshHandler(refresh)
+    return () => apiClient.setRefreshHandler(null)
+  }, [refresh])
+
+  useEffect(() => {
     const isOAuthCallback = window.location.pathname === '/auth/callback/success'
       || window.location.pathname === '/auth/callback/failure'
 
