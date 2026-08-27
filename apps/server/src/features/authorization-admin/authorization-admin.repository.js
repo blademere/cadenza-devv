@@ -3,7 +3,6 @@ const { getPrismaClient } = require('../../infrastructure/database/prisma')
 const prisma = getPrismaClient()
 
 const listModules = () => prisma.module.findMany({
-  where: { key: { not: 'professionals' } },
   orderBy: { key: 'asc' },
   include: {
     permissions: {
