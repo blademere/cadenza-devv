@@ -1,5 +1,5 @@
-import { Center, Loader, Stack, Text } from '@mantine/core'
 import { Navigate } from 'react-router-dom'
+import { Box, Skeleton, Stack } from '@mantine/core'
 import { useAuth } from '../../features/auth/AuthProvider'
 
 export default function ProtectedRoute({ children }) {
@@ -7,12 +7,14 @@ export default function ProtectedRoute({ children }) {
 
   if (isLoading) {
     return (
-      <Center mih="100vh">
-        <Stack align="center" gap="sm">
-          <Loader size="sm" />
-          <Text c="dimmed">Loading your workspace…</Text>
+      <Box className="route-loading">
+        <Stack w="min(360px, 100%)" gap="md">
+          <Skeleton height={12} width="38%" radius="xl" />
+          <Skeleton height={34} radius="md" />
+          <Skeleton height={14} width="72%" radius="xl" />
+          <Skeleton height={90} radius="lg" mt="md" />
         </Stack>
-      </Center>
+      </Box>
     )
   }
 
