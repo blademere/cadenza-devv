@@ -8,6 +8,7 @@ model User {
   role                                 Role                                  @relation(fields: [roleId], references: [id])
   oauthAccounts                        OAuthAccount[]
   refreshTokens                        RefreshToken[]
+  passwordResetTokens                  PasswordResetToken[]
   workflowInstancesStarted             WorkflowInstance[]                    @relation("WorkflowInstanceStartedBy")
   workflowHistoryActions               WorkflowHistory[]                     @relation("WorkflowHistoryActor")
   auditLogs                            AuditLog[]                            @relation("AuditLogActor")
@@ -64,7 +65,9 @@ model Module {
   isActive    Boolean      @default(true)
   permissions Permission[]
   createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+
+  @@unique([moduleId, action])
+  @@index([moduleId])
 }
 
 model Permission {
@@ -105,5 +108,18 @@ model RefreshToken {
   @@index([userId])
   @@index([expiresAt])
   @@index([revokedAt])
-  @@index([replacedByTokenId])
+}
+
+model PasswordResetToken {
+  id         String   @id @default(uuid())
+  tokenHash  String   @unique
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
 }
