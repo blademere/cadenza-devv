@@ -4,34 +4,11 @@ import { Box, Chip, Drawer, useMediaQuery } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useAuthorization } from '../features/authorization/AuthorizationProvider'
-import { normalizeNavigation } from '../config/navigation'
+import { navigation, normalizeNavigation } from '../config/navigation'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 
 const drawerWidth = 240
-
-const getEffectiveNavigation = (context) => {
-  if (!context || !Array.isArray(context.navigation)) return []
-
-  const permissions = new Set(Array.isArray(context.permissions) ? context.permissions : [])
-  const activeModules = new Set(
-    (Array.isArray(context.modules) ? context.modules : [])
-      .filter((module) => module?.isActive !== false)
-      .map((module) => module.key),
-  )
-
-  // The server is the source of truth, but the client deliberately derives
-  // visibility from the returned permission/module state as well. This keeps
-  // navigation synchronized immediately after an administrator changes a
-  // role instead of trusting a stale `navigation[].visible` value.
-  return context.navigation.map((item) => ({
-    ...item,
-    visible:
-      item?.visible === true &&
-      activeModules.has(item?.moduleKey) &&
-      permissions.has(item?.permission),
-  }))
-}
 
 export default function AdminLayout() {
   const { user, logout } = useAuth()
@@ -40,14 +17,14 @@ export default function AdminLayout() {
   const desktop = useMediaQuery(theme.breakpoints.up('lg'))
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const navigation = useMemo(
-    () => normalizeNavigation(getEffectiveNavigation(context)),
-    [context],
+  const visibleNavigation = useMemo(
+    () => normalizeNavigation(navigation, context?.permissions),
+    [context?.permissions],
   )
 
   const sidebar = (
     <Sidebar
-      navigation={navigation}
+      navigation={visibleNavigation}
       navigationLoading={authorizationLoading}
       user={user}
       role={context?.role?.name}
