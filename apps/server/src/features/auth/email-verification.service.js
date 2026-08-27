@@ -13,6 +13,24 @@ const {
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000
 const createVerificationSecret = () => crypto.randomBytes(32).toString('base64url')
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex')
+const verificationKey = () => crypto.createHash('sha256').update(env.JWT_REFRESH_SECRET).digest()
+const encryptVerificationSecret = (secret) => {
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', verificationKey(), iv)
+  const ciphertext = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()])
+  return `${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${ciphertext.toString('base64url')}`
+}
+const decryptVerificationSecret = (value) => {
+  try {
+    const [iv, tag, ciphertext] = String(value).split('.').map((part) => Buffer.from(part, 'base64url'))
+    if (!iv || !tag || !ciphertext || iv.length !== 12 || tag.length !== 16) throw new Error('invalid token')
+    const decipher = crypto.createDecipheriv('aes-256-gcm', verificationKey(), iv)
+    decipher.setAuthTag(tag)
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+  } catch {
+    throw new UnauthorizedError('Email verification token is invalid or expired.')
+  }
+}
 const getExpiration = () => new Date(Date.now() + VERIFICATION_TTL_MS)
 
 const issueEmailVerification = async ({ userId, reason = 'registration' }) => {
@@ -23,8 +41,9 @@ const issueEmailVerification = async ({ userId, reason = 'registration' }) => {
   await invalidateEmailVerificationTokens(user.id)
   const secret = createVerificationSecret()
   const expiresAt = getExpiration()
-  await createEmailVerificationToken({ token: secret, userId: user.id, expiresAt })
-  const url = `${env.EMAIL_VERIFICATION_URL}${encodeURIComponent(secret)}`
+  const record = await createEmailVerificationToken({ token: secret, userId: user.id, expiresAt })
+  const encryptedToken = encryptVerificationSecret(secret)
+  const url = `${env.EMAIL_VERIFICATION_URL}${encodeURIComponent(encryptedToken)}`
 
   await publish({
     event: 'auth.user.email_verification_requested',
@@ -34,20 +53,15 @@ const issueEmailVerification = async ({ userId, reason = 'registration' }) => {
       user: { id: user.id, email: user.email },
       emailVerification: { url, expiresAt: expiresAt.toISOString(), reason },
     },
-    idempotencyKey: `auth.email-verification.requested:${user.id}:${hashToken(secret)}`,
+    idempotencyKey: `auth.email-verification.requested:${record.id}`,
   })
 
   return { success: true, expiresAt }
 }
 
 const verifyEmail = async ({ token }) => {
-  let stored
-  try {
-    stored = await findEmailVerificationToken(token)
-  } catch {
-    throw new UnauthorizedError('Email verification token is invalid or expired.')
-  }
-
+  const plaintextToken = decryptVerificationSecret(token)
+  const stored = await findEmailVerificationToken(plaintextToken)
   if (!stored || stored.usedAt || stored.expiresAt <= new Date() || !stored.user?.isActive) {
     throw new UnauthorizedError('Email verification token is invalid or expired.')
   }
@@ -67,4 +81,4 @@ const verifyEmail = async ({ token }) => {
   return { success: true }
 }
 
-module.exports = { issueEmailVerification, verifyEmail, VERIFICATION_TTL_MS }
+module.exports = { issueEmailVerification, verifyEmail, VERIFICATION_TTL_MS, hashToken, encryptVerificationSecret, decryptVerificationSecret }
