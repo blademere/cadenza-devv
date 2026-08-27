@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Box, Chip, Drawer, useMediaQuery } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useAuthorization } from '../features/authorization/AuthorizationProvider'
+import { normalizeNavigation } from '../config/navigation'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 
@@ -11,17 +12,20 @@ const drawerWidth = 240
 
 export default function AdminLayout() {
   const { user, logout } = useAuth()
-  const { context, can, isLoading: authorizationLoading } = useAuthorization()
+  const { context, isLoading: authorizationLoading } = useAuthorization()
   const theme = useTheme()
   const desktop = useMediaQuery(theme.breakpoints.up('lg'))
   const [mobileOpen, setMobileOpen] = useState(false)
-  const navigation = (context?.navigation ?? []).filter((item) => item.visible && item.key !== 'authorization')
+
+  const navigation = useMemo(
+    () => normalizeNavigation(context?.navigation ?? []),
+    [context?.navigation],
+  )
 
   const sidebar = (
     <Sidebar
       navigation={navigation}
-      authorizationVisible={can('authorization:manage')}
-      authorizationLoading={authorizationLoading}
+      navigationLoading={authorizationLoading}
       user={user}
       role={context?.role?.name}
       onNavigate={() => setMobileOpen(false)}
