@@ -1,3 +1,3 @@
-import { Box, CircularProgress, Stack, Typography } from '@mui/material'
+import { Center, Loader, Stack, Text } from '@mantine/core'
 
-export default function LoadingState({ label = 'Loading…' }) { return <Box sx={{ py: 7, display: 'grid', placeItems: 'center' }}><Stack alignItems="center" spacing={1.5}><CircularProgress size={26} /><Typography variant="body2" color="text.secondary">{label}</Typography></Stack></Box> }
+export default function LoadingState({ label = 'Loading…' }) { return <Center py={70}><Stack align="center" gap="sm"><Loader size="sm" /><Text size="sm" c="dimmed">{label}</Text></Stack></Center> }
