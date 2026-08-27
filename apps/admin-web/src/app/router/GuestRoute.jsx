@@ -1,17 +1,19 @@
-import { Center, Loader, Stack, Text } from '@mantine/core'
 import { Navigate } from 'react-router-dom'
+import { Box, Skeleton, Stack } from '@mantine/core'
 import { useAuth } from '../../features/auth/AuthProvider'
 
 export default function GuestRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth()
   if (isLoading) {
     return (
-      <Center mih="100vh">
-        <Stack align="center" gap="sm">
-          <Loader size="sm" />
-          <Text c="dimmed">Loading…</Text>
+      <Box className="route-loading">
+        <Stack w="min(360px, 100%)" gap="md">
+          <Skeleton height={38} width="42%" radius="md" />
+          <Skeleton height={12} width="68%" radius="xl" />
+          <Skeleton height={150} radius="lg" mt="md" />
+          <Skeleton height={42} radius="md" />
         </Stack>
-      </Center>
+      </Box>
     )
   }
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
