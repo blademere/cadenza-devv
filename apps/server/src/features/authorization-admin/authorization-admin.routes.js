@@ -30,6 +30,8 @@ const requireIdempotency = idempotency({
   required: true,
 })
 
+// Express route params are strings. Resource authorization must consume the
+// validated/coerced params so Prisma receives the model's native Int IDs.
 const authorizeModuleResource = authorizeResource({
   resource: 'authorization',
   action: 'manage',
