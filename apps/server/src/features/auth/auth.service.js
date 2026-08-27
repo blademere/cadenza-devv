@@ -1,8 +1,9 @@
 const crypto = require('crypto')
 const bcrypt = require('bcrypt')
 const { BadRequestError, NotFoundError, UnauthorizedError } = require('../../common/errors/appError')
-const { findUserByEmail, findUserById, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, changePassword: persistPasswordChange, listActiveSessions, revokeSession, bumpUserAuthVersion } = require('./auth.repository')
+const { findUserByEmail, findUserById, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, changePassword: persistPasswordChange, listActiveSessions, revokeSession, bumpUserAuthVersion, createPasswordResetToken, findPasswordResetToken, consumePasswordResetToken, invalidatePasswordResetTokens } = require('./auth.repository')
 const { createAccessToken, createRefreshToken, verifyRefreshToken } = require('./auth.tokens')
+const { publish } = require('../../platform/event-bus/event-bus')
 const { env } = require('../../config')
 const getRefreshTokenExpiration = () => {
   const match = env.JWT_REFRESH_EXPIRES_IN.match(/^(\d+)([smhd])$/)
@@ -11,6 +12,8 @@ const getRefreshTokenExpiration = () => {
   return new Date(Date.now() + Number(match[1]) * milliseconds[match[2]])
 }
 const createTokenId = () => crypto.randomUUID()
+const createPasswordResetSecret = () => crypto.randomBytes(32).toString('base64url')
+const getPasswordResetExpiration = () => new Date(Date.now() + 30 * 60 * 1000)
 const login = async ({ email, password }) => {
   const user = await findUserByEmail(email)
   if (!user || !user.isActive) throw new UnauthorizedError('Invalid credentials.')
@@ -19,7 +22,28 @@ const login = async ({ email, password }) => {
   const accessToken = createAccessToken(user)
   const refreshToken = createRefreshToken(user, tokenId)
   await createRefreshTokenRecord({ tokenId, token: refreshToken, userId: user.id, expiresAt: getRefreshTokenExpiration() })
+  await publish({ event: 'auth.session.created', entityType: 'User', entityId: user.id, actorId: user.id, context: { user: { id: user.id, email: user.email } }, idempotencyKey: `auth.session.created:${tokenId}` })
   return { accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role ? { id: user.role.id, name: user.role.name, description: user.role.description } : null } }
+}
+const requestPasswordReset = async ({ email }) => {
+  const user = await findUserByEmail(email)
+  if (user?.isActive && user.passwordHash) {
+    await invalidatePasswordResetTokens(user.id)
+    const token = createPasswordResetSecret()
+    await createPasswordResetToken({ token, userId: user.id, expiresAt: getPasswordResetExpiration() })
+    await publish({ event: 'auth.user.password_reset_requested', entityType: 'User', entityId: user.id, context: { user: { id: user.id, email: user.email }, passwordReset: { expiresAt: getPasswordResetExpiration().toISOString() }, deliveryRequired: true }, idempotencyKey: `auth.password-reset.requested:${user.id}:${Date.now()}` })
+    if (env.NODE_ENV === 'test') return { token }
+  }
+  return { success: true }
+}
+const resetPassword = async ({ token, newPassword }) => {
+  const stored = await findPasswordResetToken(token)
+  if (!stored || stored.usedAt || stored.expiresAt <= new Date() || !stored.user?.isActive) throw new UnauthorizedError('Password reset token is invalid or expired.')
+  const passwordHash = await bcrypt.hash(newPassword, 12)
+  const result = await consumePasswordResetToken({ tokenId: stored.id, userId: stored.userId, passwordHash })
+  if (!result.success) throw new UnauthorizedError('Password reset token is invalid or expired.')
+  await publish({ event: 'auth.user.password_reset', entityType: 'User', entityId: stored.userId, context: { user: { id: stored.userId, email: stored.user.email } }, idempotencyKey: `auth.password-reset.completed:${stored.id}` })
+  return { success: true }
 }
 const changePassword = async ({ userId, currentPassword, newPassword }) => {
   if (currentPassword === newPassword) throw new BadRequestError('New password must be different from the current password.')
@@ -29,16 +53,19 @@ const changePassword = async ({ userId, currentPassword, newPassword }) => {
   if (!(await bcrypt.compare(currentPassword, user.passwordHash))) throw new UnauthorizedError('Current password is incorrect.')
   const passwordHash = await bcrypt.hash(newPassword, 12)
   await persistPasswordChange({ userId: user.id, passwordHash })
+  await publish({ event: 'auth.user.password_changed', entityType: 'User', entityId: user.id, actorId: user.id, context: { user: { id: user.id, email: user.email } }, idempotencyKey: `auth.password-changed:${user.id}:${user.authVersion + 1}` })
   return { success: true }
 }
 const getSessions = async ({ userId }) => listActiveSessions(userId)
 const revokeSessionById = async ({ userId, sessionId }) => {
   const result = await revokeSession({ userId, sessionId })
   if (result.count !== 1) throw new NotFoundError('Session not found or already revoked.')
+  await publish({ event: 'auth.session.revoked', entityType: 'RefreshToken', entityId: sessionId, actorId: userId, context: { user: { id: userId } }, idempotencyKey: `auth.session.revoked:${sessionId}` })
   return { success: true }
 }
 const revokeAllSessions = async ({ userId }) => {
   await bumpUserAuthVersion(userId)
+  await publish({ event: 'auth.session.revoked_all', entityType: 'User', entityId: userId, actorId: userId, context: { user: { id: userId } }, idempotencyKey: `auth.session.revoked-all:${userId}:${Date.now()}` })
   return { success: true }
 }
 const refreshAccessToken = async ({ refreshToken }) => {
@@ -50,13 +77,13 @@ const refreshAccessToken = async ({ refreshToken }) => {
   const storedToken = await findRefreshToken(refreshToken)
   if (!storedToken || storedToken.id !== payload.tokenId || storedToken.userId !== userId) throw new UnauthorizedError('Refresh token is invalid.')
   if (storedToken.user.authVersion !== payload.authVersion) { await revokeAllRefreshTokensForUser(storedToken.userId); throw new UnauthorizedError('Refresh token has been revoked.') }
-  if (storedToken.revokedAt) { await revokeAllRefreshTokensForUser(storedToken.userId); throw new UnauthorizedError('Refresh token has already been used.') }
+  if (storedToken.revokedAt) { await revokeAllRefreshTokensForUser(storedToken.userId); await publish({ event: 'auth.session.reuse_detected', entityType: 'RefreshToken', entityId: storedToken.id, actorId: storedToken.userId, context: { user: { id: storedToken.userId } }, idempotencyKey: `auth.session.reuse:${storedToken.id}` }); throw new UnauthorizedError('Refresh token has already been used.') }
   if (storedToken.expiresAt <= new Date()) throw new UnauthorizedError('Refresh token is expired.')
   if (!storedToken.user.isActive) throw new UnauthorizedError('User account is inactive.')
   const newTokenId = createTokenId()
   const newRefreshToken = createRefreshToken(storedToken.user, newTokenId)
   const rotation = await rotateRefreshToken({ currentTokenId: storedToken.id, newTokenId, newTokenHash: hashRefreshToken(newRefreshToken), userId: storedToken.user.id, expiresAt: getRefreshTokenExpiration() })
-  if (!rotation.success) { await revokeAllRefreshTokensForUser(storedToken.userId); throw new UnauthorizedError('Refresh token has already been used.') }
+  if (!rotation.success) { await revokeAllRefreshTokensForUser(storedToken.userId); await publish({ event: 'auth.session.reuse_detected', entityType: 'RefreshToken', entityId: storedToken.id, actorId: storedToken.userId, context: { user: { id: storedToken.userId } }, idempotencyKey: `auth.session.reuse:${storedToken.id}:race` }); throw new UnauthorizedError('Refresh token has already been used.') }
   return { accessToken: createAccessToken(storedToken.user), refreshToken: newRefreshToken }
 }
 const logout = async ({ refreshToken }) => {
@@ -67,5 +94,6 @@ const logout = async ({ refreshToken }) => {
   const storedToken = await findRefreshToken(refreshToken)
   if (!storedToken || storedToken.id !== payload.tokenId || storedToken.revokedAt) return
   await revokeRefreshToken(storedToken.id)
+  await publish({ event: 'auth.session.revoked', entityType: 'RefreshToken', entityId: storedToken.id, actorId: storedToken.userId, context: { user: { id: storedToken.userId } }, idempotencyKey: `auth.session.logout:${storedToken.id}` })
 }
-module.exports = { login, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout }
+module.exports = { login, requestPasswordReset, resetPassword, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout }
