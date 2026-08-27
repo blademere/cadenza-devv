@@ -73,7 +73,8 @@ const invalidateEmailVerificationTokens = async (userId) => prisma.emailVerifica
 const consumeEmailVerificationToken = async ({ tokenId, userId }) => prisma.$transaction(async (tx) => {
   const consumed = await tx.emailVerificationToken.updateMany({ where: { id: tokenId, userId: Number(userId), usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } })
   if (consumed.count !== 1) return { success: false }
-  await tx.user.update({ where: { id: Number(userId), emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } })
+  const verified = await tx.user.updateMany({ where: { id: Number(userId), emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } })
+  if (verified.count !== 1) return { success: false }
   return { success: true }
 })
 module.exports = { findUserByEmail, findUserById, findUserAuthState, findRoleByName, createUser, bumpUserAuthVersion, changePassword, listActiveSessions, revokeSession, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, createPasswordResetToken, findPasswordResetToken, consumePasswordResetToken, invalidatePasswordResetTokens, createEmailVerificationToken, findEmailVerificationToken, invalidateEmailVerificationTokens, consumeEmailVerificationToken, deleteExpiredRefreshTokens }
