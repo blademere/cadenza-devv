@@ -1,5 +1,5 @@
 const crypto = require('crypto')
-const { rateLimit } = require('express-rate-limit')
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit')
 const RedisRateLimitStore = require('./redisRateLimitStore')
 
 const AUTH_RATE_WINDOW_MS = 15 * 60 * 1000
@@ -28,7 +28,7 @@ const hashIdentity = (identity) => crypto.createHash('sha256').update(identity).
 const getAccountIdentity = (req) => normalizeIdentity(req.body?.email)
 const loginAccountKeyGenerator = (req) => {
   const identity = getAccountIdentity(req)
-  return identity ? hashIdentity(identity) : req.ip
+  return identity ? hashIdentity(identity) : ipKeyGenerator(req.ip)
 }
 
 const loginRateLimiter = createAuthLimiter({
