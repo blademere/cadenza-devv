@@ -20,7 +20,7 @@
     "build:workspaces": "npm run build --workspaces --if-present",
     "build:web": "npm --workspace @express-app/web run build",
     "build:admin-web": "npm --workspace @express-app/admin-web run build",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "npm run lint:workspaces",
     "lint:workspaces": "npm run lint --workspaces --if-present",
     "test": "npm --workspace @express-app/server run test",
     "test:watch": "npm --workspace @express-app/server run test:watch",
