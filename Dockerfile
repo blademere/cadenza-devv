@@ -11,10 +11,10 @@ RUN npm ci
 
 ENV NODE_ENV=production
 
-COPY apps/server ./apps/server
+COPY apps/api ./apps/api
 COPY eslint.config.mjs ./
 
-RUN npm --workspace @express-app/server run prisma:generate
+RUN npm --workspace @express-app/api run prisma:generate
 RUN npm prune --omit=dev
 
 FROM node:22-bookworm-slim AS runtime
@@ -27,7 +27,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
-COPY --from=build --chown=node:node /app/apps/server ./apps/server
+COPY --from=build --chown=node:node /app/apps/api ./apps/api
 COPY --from=build --chown=node:node /app/package.json ./package.json
 
 USER node
@@ -36,4 +36,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "require('http').get('http://127.0.0.1:3000/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
-CMD ["node", "apps/server/src/server.js"]
+CMD ["node", "apps/api/src/server.js"]

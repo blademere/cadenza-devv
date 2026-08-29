@@ -2,11 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Server: Express",
+      "name": "API: Express",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/apps/server/src/server.js",
-      "cwd": "${workspaceFolder}/apps/server",
+      "program": "${workspaceFolder}/apps/api/src/server.js",
+      "cwd": "${workspaceFolder}/apps/api",
       "runtimeExecutable": "node",
       "runtimeArgs": ["--inspect=0.0.0.0:9229"],
       "console": "integratedTerminal",
@@ -23,9 +23,7 @@
       "request": "launch",
       "command": "npm --workspace @express-app/web run dev",
       "cwd": "${workspaceFolder}",
-      "env": {
-        "BROWSER": "none"
-      }
+      "env": { "BROWSER": "none" }
     },
     {
       "name": "Admin Web: React",
@@ -33,20 +31,18 @@
       "request": "launch",
       "command": "npm --workspace @express-app/admin-web run dev",
       "cwd": "${workspaceFolder}",
-      "env": {
-        "BROWSER": "none"
-      }
+      "env": { "BROWSER": "none" }
     }
   ],
   "compounds": [
     {
-      "name": "Full Stack: Server + Web",
-      "configurations": ["Server: Express", "Web: React"],
+      "name": "Full Stack: API + Web",
+      "configurations": ["API: Express", "Web: React"],
       "stopAll": true
     },
     {
-      "name": "Full Stack: Server + Admin Web",
-      "configurations": ["Server: Express", "Admin Web: React"],
+      "name": "Full Stack: API + Admin Web",
+      "configurations": ["API: Express", "Admin Web: React"],
       "stopAll": true
     }
   ]

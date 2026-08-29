@@ -1,0 +1,33 @@
+model RequirementDefinition {
+  id               String            @id @default(uuid())
+  key              String            @unique
+  name             String
+  description      String?
+  isActive         Boolean           @default(true)
+  metadata         Json?
+  caseRequirements CaseRequirement[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([isActive])
+}
+
+model CaseRequirement {
+  id            String                @id @default(uuid())
+  caseId        String
+  requirementId String
+  status        String                @default("PENDING")
+  dueAt         DateTime?
+  submittedAt   DateTime?
+  verifiedAt    DateTime?
+  notes         String?
+  metadata      Json?
+  caseRecord    CaseRecord            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  requirement   RequirementDefinition @relation(fields: [requirementId], references: [id], onDelete: Restrict)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@unique([caseId, requirementId])
+  @@index([caseId, status])
+  @@index([requirementId])
+}

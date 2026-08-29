@@ -1,0 +1,14 @@
+const NOTIFICATION_CHANNELS = Object.freeze({
+  EMAIL: 'EMAIL',
+  SMS: 'SMS',
+  PUSH: 'PUSH',
+  IN_APP: 'IN_APP',
+  WEBHOOK: 'WEBHOOK',
+})
+
+const NOTIFICATION_CHANNEL_LIST = Object.freeze(Object.values(NOTIFICATION_CHANNELS))
+
+module.exports = {
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_CHANNEL_LIST,
+}

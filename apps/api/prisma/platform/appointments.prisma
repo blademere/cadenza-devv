@@ -1,0 +1,78 @@
+model AppointmentType {
+  id                     String                 @id @default(uuid())
+  key                    String                 @unique
+  name                   String
+  description            String?
+  defaultDurationMinutes Int                    @default(30)
+  defaultCapacity        Int                    @default(1)
+  isActive               Boolean                @default(true)
+  schedules              AvailabilitySchedule[]
+  slots                  AppointmentSlot[]
+  appointments           Appointment[]
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  @@index([isActive])
+}
+
+model AvailabilitySchedule {
+  id                  String            @id @default(uuid())
+  appointmentTypeId   String
+  dayOfWeek           Int
+  startTime           String
+  endTime             String
+  timezone            String            @default("UTC")
+  slotDurationMinutes Int
+  capacity            Int
+  isActive            Boolean           @default(true)
+  appointmentType     AppointmentType   @relation(fields: [appointmentTypeId], references: [id], onDelete: Cascade)
+  slots               AppointmentSlot[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([appointmentTypeId, dayOfWeek, isActive])
+}
+
+model AppointmentSlot {
+  id                String                @id @default(uuid())
+  appointmentTypeId String
+  scheduleId        String?
+  startsAt          DateTime
+  endsAt            DateTime
+  capacity          Int
+  bookedCount       Int                   @default(0)
+  status            String                @default("OPEN")
+  appointmentType   AppointmentType       @relation(fields: [appointmentTypeId], references: [id], onDelete: Cascade)
+  schedule          AvailabilitySchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  appointments      Appointment[]
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@unique([appointmentTypeId, startsAt])
+  @@index([startsAt, status])
+  @@index([appointmentTypeId, startsAt])
+}
+
+model Appointment {
+  id                String          @id @default(uuid())
+  referenceNumber   String          @unique
+  appointmentTypeId String
+  slotId            String
+  userId            Int?
+  status            String          @default("PENDING")
+  metadata          Json?
+  notes             String?
+  cancelledAt       DateTime?
+  checkedInAt       DateTime?
+  completedAt       DateTime?
+  noShowAt          DateTime?
+  appointmentType   AppointmentType @relation(fields: [appointmentTypeId], references: [id], onDelete: Restrict)
+  slot              AppointmentSlot @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([slotId, status])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([appointmentTypeId, status])
+}

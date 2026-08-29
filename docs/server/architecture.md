@@ -13,29 +13,29 @@ modules → features → platform → infrastructure
 - `platform` contains reusable engines and mechanisms.
 - `infrastructure` contains concrete technical providers and persistence.
 
-`common/`, `config/`, and `routes/` support the server application boundary. They are not additional business-architecture layers.
+`common/`, `config/`, and `routes/` support the API application boundary. They are not additional business-architecture layers.
 
 ## Layer responsibilities
 
-### `apps/server/src/modules/`
+### `apps/api/src/modules/`
 
 Modules own domain terminology, domain validation, domain workflows and policies, domain-specific persistence through repositories, and domain-owned API composition.
 
 Modules may depend on shared features and platform services. Shared layers must never import a module. Create a module only when its domain is actually implemented; do not create placeholders or duplicate shared capabilities inside a module.
 
-### `apps/server/src/features/`
+### `apps/api/src/features/`
 
 Features are reusable business capabilities that can support multiple application modules. Current examples include people, cases, participants, requirements, tasks, appointments, authentication, users, documents, notifications, and audit.
 
 Features must remain domain-neutral. Appointments are a business feature: availability, slots, capacity, booking, and appointment lifecycle belong here. Generic background scheduling is a platform mechanism and is not the appointment implementation.
 
-### `apps/server/src/platform/`
+### `apps/api/src/platform/`
 
 Platform provides reusable mechanisms such as authorization, workflow, forms, configurable custom fields, rules, event/outbox infrastructure, jobs, generic scheduling primitives, notification mechanisms, and storage boundaries.
 
 Platform code must be provider-neutral and domain-neutral. It provides mechanisms, not application-specific business decisions.
 
-### `apps/server/src/infrastructure/`
+### `apps/api/src/infrastructure/`
 
 Infrastructure contains concrete technology integrations and persistence implementations such as PostgreSQL/Prisma, Redis, BullMQ, Resend, OAuth providers, object storage, and monitoring providers. Infrastructure must not contain application-domain business rules or import application modules.
 
@@ -85,11 +85,11 @@ For domain-specific forms, the module associates its business entity with a plat
 
 ## Public API boundaries
 
-`apps/server/src/routes/index.js` is the API composition root. It should mount application-owned APIs rather than every reusable capability in the repository.
+`apps/api/src/routes/index.js` is the API composition root. It should mount application-owned APIs rather than every reusable capability in the repository.
 
 Generic feature or platform services should not automatically become public CRUD endpoints. When a module needs a shared capability, its domain-owned route should compose that capability internally.
 
-`apps/server/openapi/openapi.yaml` is the public API contract and should match routes actually exposed by the application.
+`apps/api/openapi/openapi.yaml` is the public API contract and should match routes actually exposed by the application.
 
 ## Storage and email boundaries
 
@@ -156,12 +156,12 @@ When adding code:
 Do not introduce:
 
 ```text
-apps/server/src/domains/
-apps/server/src/core/
-apps/server/src/application/
-apps/server/src/adapters/
-apps/server/src/platform/<specific-domain>/
-apps/server/src/features/<specific-domain>/
+apps/api/src/domains/
+apps/api/src/core/
+apps/api/src/application/
+apps/api/src/adapters/
+apps/api/src/platform/<specific-domain>/
+apps/api/src/features/<specific-domain>/
 ```
 
 Also avoid direct Prisma access from services, domain-specific rules in platform services, shared features importing modules, infrastructure importing modules, generic JSON/custom fields for stable relationships, generic public CRUD routes for internal capabilities, provider-specific clients in business code, and placeholder domain documentation.
