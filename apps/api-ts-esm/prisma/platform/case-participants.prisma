@@ -1,0 +1,16 @@
+model CaseParticipant {
+  id         String     @id @default(uuid())
+  caseId     String
+  personId   String
+  roleKey    String
+  isPrimary  Boolean    @default(false)
+  metadata   Json?
+  caseRecord CaseRecord @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  person     Person     @relation(fields: [personId], references: [id], onDelete: Restrict)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([caseId, personId, roleKey])
+  @@index([caseId, roleKey])
+  @@index([personId])
+}

@@ -1,0 +1,9 @@
+MessageResponse:
+  type: object
+  properties:
+    message:
+      type: string
+
+ApiResponse:
+  type: object
+  additionalProperties: true
