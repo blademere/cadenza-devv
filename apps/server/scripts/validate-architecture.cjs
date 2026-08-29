@@ -1,7 +1,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 
-const ROOT = path.resolve(__dirname, '..', 'apps', 'server', 'src')
+const ROOT = path.resolve(__dirname, '..', 'src')
 const ROUTES = path.join(ROOT, 'features')
 const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:features|modules)\//
 const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+modules\//
@@ -31,15 +31,12 @@ for (const file of files) {
   if (relative.startsWith('apps/server/src/platform/') && FORBIDDEN_PLATFORM_IMPORT.test(source)) {
     failures.push(`${relative}: platform code must not import features or modules.`)
   }
-
   if (relative.startsWith('apps/server/src/features/') && FORBIDDEN_FEATURE_IMPORT.test(source)) {
     failures.push(`${relative}: shared features must not import modules.`)
   }
-
   if (relative.startsWith('apps/server/src/infrastructure/') && FORBIDDEN_INFRASTRUCTURE_IMPORT.test(source)) {
     failures.push(`${relative}: infrastructure must not import modules.`)
   }
-
   if (relative.startsWith('apps/server/src/common/') && FORBIDDEN_COMMON_IMPORT.test(source)) {
     failures.push(`${relative}: common code must not import features, platform, or modules.`)
   }
@@ -64,7 +61,6 @@ for (const file of walk(ROUTES).filter((entry) => entry.endsWith('.routes.js')))
     const statement = source.slice(lineStart, lineEnd === -1 ? source.length : lineEnd)
     const context = source.slice(Math.max(0, operationStart - 400), lineEnd === -1 ? source.length : lineEnd)
     const explicitlyExempt = /idempotency\s*:\s*exempt/i.test(context)
-
     if (!IDEMPOTENCY_MIDDLEWARE.test(statement) && !explicitlyExempt) {
       failures.push(`${relative}: ${match[1].toUpperCase()} mutation must use shared idempotency middleware or an explicit 'idempotency: exempt' comment with justification.`)
     }
@@ -75,9 +71,7 @@ for (const file of walk(ROUTES).filter((entry) => entry.endsWith('.routes.js')))
     const lineStart = source.lastIndexOf('\n', operationStart) + 1
     const lineEnd = source.indexOf('\n', operationStart)
     const statement = source.slice(lineStart, lineEnd === -1 ? source.length : lineEnd)
-
-    const usesResourceAuthorization = /\bauthorizeResource\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/.test(statement)
-    if (!usesResourceAuthorization) {
+    if (!/\bauthorizeResource\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/.test(statement)) {
       failures.push(`${relative}: resource route '${match[2]}' must use authorizeResource or an explicit resource-authorization helper.`)
     }
   }
@@ -88,5 +82,4 @@ if (failures.length) {
   failures.forEach((failure) => console.error(`- ${failure}`))
   process.exit(1)
 }
-
 console.log('Architecture enforcement passed.')
