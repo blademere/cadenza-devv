@@ -1,9 +1,0 @@
-{
-  "name": "@express-app/eslint-config",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./index.mjs"
-  }
-}
