@@ -4,9 +4,7 @@
   "private": true,
   "description": "Express API and React web application monorepo",
   "workspaces": [
-    "apps/server",
-    "apps/web",
-    "apps/admin-web",
+    "apps/*",
     "packages/*"
   ],
   "scripts": {
