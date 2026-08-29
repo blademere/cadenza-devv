@@ -11,11 +11,10 @@ RUN npm ci
 
 ENV NODE_ENV=production
 
-COPY prisma ./prisma
 COPY apps/server ./apps/server
 COPY eslint.config.mjs ./
 
-RUN npx prisma generate
+RUN npm --workspace @express-app/server run prisma:generate
 RUN npm prune --omit=dev
 
 FROM node:22-bookworm-slim AS runtime
@@ -29,7 +28,6 @@ RUN apt-get update \
 
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/apps/server ./apps/server
-COPY --from=build --chown=node:node /app/prisma ./prisma
 COPY --from=build --chown=node:node /app/package.json ./package.json
 
 USER node
