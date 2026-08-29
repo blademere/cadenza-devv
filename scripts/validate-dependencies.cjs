@@ -34,8 +34,14 @@ for (const directory of workspaceDirectories) {
     workspaceNames.set(pkg.name, relative)
   }
 
-  if (relative.startsWith('apps/') && !pkg.name.startsWith('@express-app/')) {
+  if (!pkg.name || typeof pkg.name !== 'string') {
+    failures.push(`${relative}/package.json must define a package name.`)
+  } else if (!pkg.name.startsWith('@express-app/')) {
     failures.push(`${relative}/package.json must use the @express-app/* package naming convention.`)
+  }
+
+  if (pkg.private !== true) {
+    failures.push(`${relative}/package.json must be private because workspace packages are internal.`)
   }
 }
 
@@ -81,6 +87,10 @@ for (const appDirectory of listWorkspaceDirectories(appsRoot)) {
           if (targetApp && targetApp !== appName) {
             failures.push(`${relativeFile}: workspace ${appRelative} must not import source files directly from apps/${targetApp}; use a shared workspace package.`)
           }
+        }
+
+        if (targetRelative.startsWith('packages/')) {
+          failures.push(`${relativeFile}: workspace ${appRelative} must not import package source by relative path; use the package's @express-app/* name.`)
         }
       }
     }
