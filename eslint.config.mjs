@@ -35,10 +35,6 @@ export default defineConfig([
       sourceType: 'commonjs',
     },
   },
-  createReactConfig({
-    reactHooks: await import('eslint-plugin-react-hooks'),
-    reactRefresh: await import('eslint-plugin-react-refresh'),
-  }),
   {
     files: ['apps/server/tests/**/*.{js,mjs,cjs}'],
     languageOptions: {
