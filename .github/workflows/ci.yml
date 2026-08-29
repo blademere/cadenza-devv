@@ -58,16 +58,16 @@ jobs:
             app=false; database=false; docker=false; workflow=false; security=false
             for file in "${files[@]}"; do
               case "$file" in
-                apps/server/**|apps/web/**|apps/admin-web/**|packages/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|prisma.config.ts|.env.example) app=true ;;
+                apps/**|packages/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|.env.example) app=true ;;
               esac
               case "$file" in
-                prisma/**|prisma.config.ts|scripts/validate-migrations.cjs) database=true ;;
+                apps/server/prisma/**|apps/server/prisma.config.ts|apps/server/scripts/validate-migrations.cjs) database=true ;;
               esac
               case "$file" in
-                apps/server/**|apps/web/**|apps/admin-web/**|packages/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
+                apps/**|packages/**|apps/server/prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json) docker=true ;;
               esac
               case "$file" in
-                apps/server/**|apps/web/**|apps/admin-web/**|packages/**) security=true ;;
+                apps/**|packages/**) security=true ;;
               esac
               case "$file" in
                 .github/workflows/**|.github/dependabot.yml) workflow=true ;;
@@ -152,10 +152,11 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run validate:architecture
+      - run: npm run validate:authorization
       - run: npm run validate:migrations
-      - run: npx prisma validate --schema=prisma/schema.prisma
-      - run: npx prisma generate --schema=prisma/schema.prisma
-      - run: npx prisma migrate deploy --schema=prisma/schema.prisma
+      - run: npm --workspace @express-app/server run prisma:validate
+      - run: npm --workspace @express-app/server run prisma:generate
+      - run: npm --workspace @express-app/server run prisma:migrate:deploy
       - name: Test server
         run: npm --workspace @express-app/server run test
       - name: Build workspaces
@@ -214,10 +215,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run validate:migrations
-      - run: npx prisma validate --schema=prisma/schema.prisma
-      - run: npx prisma generate --schema=prisma/schema.prisma
-      - run: npx prisma migrate deploy --schema=prisma/schema.prisma
+      - run: npm --workspace @express-app/server run validate:migrations
+      - run: npm --workspace @express-app/server run prisma:validate
+      - run: npm --workspace @express-app/server run prisma:generate
+      - run: npm --workspace @express-app/server run prisma:migrate:deploy
 
   docker:
     name: Docker
