@@ -4,116 +4,70 @@
     {
       "label": "dev:server",
       "type": "shell",
-      "command": "npm run dev:server",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "command": "npm --workspace @express-app/server run dev",
+      "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": {
         "owner": "node",
-        "pattern": {
-          "regexp": "^(.*)$",
-          "file": 1,
-          "message": 1
-        },
+        "pattern": { "regexp": "^(.*)$", "file": 1, "message": 1 },
         "background": {
           "activeOnStart": true,
           "beginsPattern": "^",
           "endsPattern": ".*(Server started|listening|started|running).*"
         }
       },
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "focus": false
-      },
-      "runOptions": {
-        "instanceLimit": 1
-      }
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false },
+      "runOptions": { "instanceLimit": 1 }
     },
     {
       "label": "dev:web",
       "type": "shell",
-      "command": "npm run dev:web",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "command": "npm --workspace @express-app/web run dev",
+      "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": {
         "owner": "vite",
-        "pattern": {
-          "regexp": "^(.*)$",
-          "message": 1
-        },
+        "pattern": { "regexp": "^(.*)$", "message": 1 },
         "background": {
           "activeOnStart": true,
           "beginsPattern": "^\\s*VITE v\\S+\\s+ready in",
           "endsPattern": "^\\s*.*Local:\\s+http://localhost:5173/"
         }
       },
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "focus": false
-      },
-      "runOptions": {
-        "instanceLimit": 1
-      }
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false },
+      "runOptions": { "instanceLimit": 1 }
     },
     {
       "label": "dev:admin-web",
       "type": "shell",
-      "command": "npm run dev:admin-web",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "command": "npm --workspace @express-app/admin-web run dev",
+      "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": {
         "owner": "vite",
-        "pattern": {
-          "regexp": "^(.*)$",
-          "message": 1
-        },
+        "pattern": { "regexp": "^(.*)$", "message": 1 },
         "background": {
           "activeOnStart": true,
           "beginsPattern": "^\\s*VITE v\\S+\\s+ready in",
           "endsPattern": "^\\s*.*Local:\\s+http://localhost:5174/"
         }
       },
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "focus": false
-      },
-      "runOptions": {
-        "instanceLimit": 1
-      }
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false },
+      "runOptions": { "instanceLimit": 1 }
     },
     {
       "label": "dev:full-stack",
-      "dependsOn": [
-        "dev:server",
-        "dev:web"
-      ],
+      "dependsOn": ["dev:server", "dev:web"],
       "dependsOrder": "parallel",
       "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
+      "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
       "label": "dev:full-stack:admin",
-      "dependsOn": [
-        "dev:server",
-        "dev:admin-web"
-      ],
+      "dependsOn": ["dev:server", "dev:admin-web"],
       "dependsOrder": "parallel",
       "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
+      "presentation": { "reveal": "always", "panel": "shared" }
     }
   ]
 }
