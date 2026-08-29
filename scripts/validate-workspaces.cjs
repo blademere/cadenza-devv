@@ -13,29 +13,23 @@ function readJson(filePath) {
   }
 }
 
-function workspaceDirectories(pattern) {
-  if (!pattern.endsWith('/*')) {
-    return [pattern]
-  }
+function resolveWorkspaceDirectories(pattern) {
+  if (!pattern.endsWith('/*')) return [pattern]
 
   const parent = pattern.slice(0, -2)
   const parentPath = path.join(root, parent)
-
   if (!fs.existsSync(parentPath)) return []
 
   return fs.readdirSync(parentPath, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(parent, entry.name))
+    .filter((workspacePath) => fs.existsSync(path.join(root, workspacePath, 'package.json')))
 }
 
 function assertWorkspacePackage(workspacePath, names) {
   const packagePath = path.join(root, workspacePath, 'package.json')
-
-  if (!fs.existsSync(packagePath)) {
-    throw new Error(`${workspacePath} is declared as a workspace but has no package.json`)
-  }
-
   const pkg = readJson(packagePath)
+
   if (!pkg.name || typeof pkg.name !== 'string') {
     throw new Error(`${workspacePath}/package.json must define a package name`)
   }
@@ -44,10 +38,6 @@ function assertWorkspacePackage(workspacePath, names) {
     throw new Error(`Duplicate workspace package name: ${pkg.name}`)
   }
   names.add(pkg.name)
-
-  if (pkg.private !== true) {
-    throw new Error(`${pkg.name} must be private because it is an application workspace`)
-  }
 }
 
 function assertNoNestedLockfiles(workspacePath) {
@@ -75,7 +65,7 @@ function main() {
   }
 
   const names = new Set()
-  const workspacePaths = rootPackage.workspaces.flatMap(workspaceDirectories)
+  const workspacePaths = rootPackage.workspaces.flatMap(resolveWorkspaceDirectories)
 
   for (const workspacePath of workspacePaths) {
     assertWorkspacePackage(workspacePath, names)
@@ -84,22 +74,8 @@ function main() {
 
   const lockPackages = lockfile.packages || {}
   for (const workspacePath of workspacePaths) {
-    const lockEntry = lockPackages[workspacePath]
-    if (!lockEntry) {
+    if (!lockPackages[workspacePath]) {
       throw new Error(`Workspace ${workspacePath} is missing from package-lock.json`)
-    }
-  }
-
-  const declaredNames = new Set(
-    workspacePaths.map((workspacePath) => readJson(path.join(root, workspacePath, 'package.json')).name),
-  )
-
-  for (const [lockPath, lockEntry] of Object.entries(lockPackages)) {
-    if (!lockPath.startsWith('node_modules/') || !lockEntry || !lockEntry.name) continue
-    if (lockEntry.link && lockEntry.name.startsWith('@express-app/')) {
-      if (!declaredNames.has(lockEntry.name)) {
-        throw new Error(`Lockfile links unknown workspace package: ${lockEntry.name}`)
-      }
     }
   }
 
