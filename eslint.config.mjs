@@ -2,6 +2,24 @@ import js from '@eslint/js'
 import globals from 'globals'
 import { defineConfig } from 'eslint/config'
 
+export function createReactConfig({ reactHooks, reactRefresh }) {
+  return {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      sourceType: 'module',
+      globals: globals.browser,
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
+    },
+  }
+}
+
 export default defineConfig([
   {
     files: ['**/*.{js,mjs,cjs,jsx}'],
@@ -15,16 +33,6 @@ export default defineConfig([
     files: ['**/*.js'],
     languageOptions: {
       sourceType: 'commonjs',
-    },
-  },
-  {
-    files: ['apps/web/**/*.{js,jsx}'],
-    languageOptions: {
-      sourceType: 'module',
-      globals: globals.browser,
-      parserOptions: {
-        ecmaFeatures: { jsx: true },
-      },
     },
   },
   {

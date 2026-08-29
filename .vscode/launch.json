@@ -6,7 +6,7 @@
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/apps/server/src/server.js",
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/apps/server",
       "runtimeExecutable": "node",
       "runtimeArgs": ["--inspect=0.0.0.0:9229"],
       "console": "integratedTerminal",
@@ -19,29 +19,23 @@
     },
     {
       "name": "Web: React",
-      "type": "node",
+      "type": "node-terminal",
       "request": "launch",
-      "program": "${workspaceFolder}/node_modules/vite/bin/vite.js",
-      "cwd": "${workspaceFolder}/apps/web",
-      "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**",
-        "${workspaceFolder}/node_modules/**"
-      ],
-      "sourceMaps": true
+      "command": "npm --workspace @express-app/web run dev",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "BROWSER": "none"
+      }
     },
     {
       "name": "Admin Web: React",
-      "type": "node",
+      "type": "node-terminal",
       "request": "launch",
-      "program": "${workspaceFolder}/node_modules/vite/bin/vite.js",
-      "cwd": "${workspaceFolder}/apps/admin-web",
-      "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**",
-        "${workspaceFolder}/node_modules/**"
-      ],
-      "sourceMaps": true
+      "command": "npm --workspace @express-app/admin-web run dev",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "BROWSER": "none"
+      }
     }
   ],
   "compounds": [

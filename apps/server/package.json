@@ -7,19 +7,33 @@
   "scripts": {
     "start": "node src/server.js",
     "start:worker": "node src/platform/platform-worker.js",
-    "predev": "prisma generate --config ../../prisma.config.ts",
+    "predev": "npm run prisma:generate",
     "dev": "nodemon --legacy-watch src/server.js",
-    "prestart": "prisma generate --config ../../prisma.config.ts",
+    "prestart": "npm run prisma:generate",
     "lint": "eslint src tests --max-warnings=0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --dir tests/unit",
-    "test:integration": "prisma generate --config ../../prisma.config.ts && prisma migrate deploy --config ../../prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration",
-    "test:postgres": "prisma generate --config ../../prisma.config.ts && prisma migrate deploy --config ../../prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration/database",
+    "test:integration": "npm run prisma:generate && npm run prisma:migrate:deploy && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration",
+    "test:postgres": "npm run prisma:generate && npm run prisma:migrate:deploy && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration/database",
     "test:redis": "RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration/cache",
     "test:auth": "vitest run --dir tests/integration/auth",
     "test:all": "npm run test:unit && npm run test:integration",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "openapi:lint": "redocly lint openapi/openapi.yaml",
+    "openapi:bundle": "redocly bundle openapi/openapi.yaml -o openapi/dist/openapi.yaml",
+    "openapi:build": "npm run openapi:lint && npm run openapi:bundle",
+    "prisma:generate": "prisma generate --config ./prisma.config.ts",
+    "prisma:validate": "prisma validate --config ./prisma.config.ts",
+    "prisma:migrate": "prisma migrate dev --config ./prisma.config.ts",
+    "prisma:migrate:deploy": "prisma migrate deploy --config ./prisma.config.ts",
+    "db:seed": "node scripts/db-seed.cjs",
+    "db:setup": "npm run prisma:generate && npm run prisma:migrate && npm run db:seed",
+    "db:backup": "node scripts/db-backup.cjs",
+    "db:restore": "node scripts/db-restore.cjs",
+    "validate:architecture": "node scripts/validate-architecture.cjs",
+    "validate:authorization": "node scripts/validate-authorization.cjs",
+    "validate:migrations": "node scripts/validate-migrations.cjs"
   },
   "type": "commonjs",
   "dependencies": {
@@ -51,8 +65,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@redocly/cli": "^2.47.0",
     "@vitest/coverage-v8": "^4.1.10",
     "nodemon": "^3.1.14",
+    "prisma": "^7.9.1",
     "supertest": "^7.2.2",
     "vitest": "^4.1.10"
   }
