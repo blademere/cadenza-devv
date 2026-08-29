@@ -157,19 +157,17 @@ jobs:
       - run: npx prisma generate --schema=prisma/schema.prisma
       - run: npx prisma migrate deploy --schema=prisma/schema.prisma
       - name: Test server
-        run: npm test
-      - name: Build web
-        run: npm run build:web
-      - name: Build admin web
-        run: npm run build:admin-web
+        run: npm --workspace @express-app/server run test
+      - name: Build workspaces
+        run: npm run build
       - name: Generate server coverage
-        run: npm run test:coverage
+        run: npm --workspace @express-app/server run test:coverage
       - name: Publish coverage summary
         if: '${{ always() }}'
         run: |
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('fs');
-          const file = 'coverage/coverage-summary.json';
+          const file = 'apps/server/coverage/coverage-summary.json';
           console.log('## Test coverage\n');
           if (!fs.existsSync(file)) {
             console.log('Coverage summary was not generated.');
@@ -185,7 +183,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: vitest-coverage
-          path: coverage/
+          path: apps/server/coverage/
           if-no-files-found: error
           retention-days: 14
 
