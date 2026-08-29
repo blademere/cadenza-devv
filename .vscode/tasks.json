@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "dev:server",
+      "label": "dev:api",
       "type": "shell",
-      "command": "npm --workspace @express-app/server run dev",
+      "command": "npm --workspace @express-app/api run dev",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": {
@@ -57,14 +57,14 @@
     },
     {
       "label": "dev:full-stack",
-      "dependsOn": ["dev:server", "dev:web"],
+      "dependsOn": ["dev:api", "dev:web"],
       "dependsOrder": "parallel",
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
       "label": "dev:full-stack:admin",
-      "dependsOn": ["dev:server", "dev:admin-web"],
+      "dependsOn": ["dev:api", "dev:admin-web"],
       "dependsOrder": "parallel",
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "shared" }
