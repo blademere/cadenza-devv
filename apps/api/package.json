@@ -1,8 +1,8 @@
 {
-  "name": "@express-app/server",
+  "name": "@express-app/api",
   "version": "1.0.0",
   "private": true,
-  "description": "Express API server application",
+  "description": "Express API application",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
