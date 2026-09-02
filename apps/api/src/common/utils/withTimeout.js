@@ -1,4 +1,4 @@
-const withTimeout = (promise, timeoutMs, message = "Operation timed out") => {
+const withTimeout = (promise, timeoutMs, message = 'Operation timed out') => {
   let timer
 
   const timeout = new Promise((_, reject) => {
@@ -9,4 +9,4 @@ const withTimeout = (promise, timeoutMs, message = "Operation timed out") => {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
 }
 
-module.exports = { withTimeout }
+export { withTimeout }
