@@ -1,0 +1,107 @@
+{
+  "name": "api",
+  "projectType": "application",
+  "sourceRoot": "apps/api/src",
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run dev", "cwd": "apps/api" }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run build", "cwd": "apps/api" }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run lint", "cwd": "apps/api" }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run test", "cwd": "apps/api" }
+    },
+    "test:unit": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run test:unit", "cwd": "apps/api" }
+    },
+    "test:integration": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run test:integration", "cwd": "apps/api" }
+    },
+    "test:postgres": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run test:postgres", "cwd": "apps/api" }
+    },
+    "test:redis": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run test:redis", "cwd": "apps/api" }
+    },
+    "test:auth": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run test:auth", "cwd": "apps/api" }
+    },
+    "test:all": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run test:all", "cwd": "apps/api" }
+    },
+    "test:coverage": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run test:coverage", "cwd": "apps/api" }
+    },
+    "prisma:generate": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run prisma:generate", "cwd": "apps/api" }
+    },
+    "prisma:validate": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run prisma:validate", "cwd": "apps/api" }
+    },
+    "prisma:migrate": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run prisma:migrate", "cwd": "apps/api" }
+    },
+    "prisma:migrate:deploy": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run prisma:migrate:deploy", "cwd": "apps/api" }
+    },
+    "db:seed": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run db:seed", "cwd": "apps/api" }
+    },
+    "db:setup": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run db:setup", "cwd": "apps/api" }
+    },
+    "db:backup": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run db:backup", "cwd": "apps/api" }
+    },
+    "db:restore": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run db:restore", "cwd": "apps/api" }
+    },
+    "openapi:lint": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run openapi:lint", "cwd": "apps/api" }
+    },
+    "openapi:bundle": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run openapi:bundle", "cwd": "apps/api" }
+    },
+    "openapi:build": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run openapi:build", "cwd": "apps/api" }
+    },
+    "validate:architecture": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run validate:architecture", "cwd": "apps/api" }
+    },
+    "validate:authorization": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run validate:authorization", "cwd": "apps/api" }
+    },
+    "validate:migrations": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run validate:migrations", "cwd": "apps/api" }
+    }
+  }
+}
