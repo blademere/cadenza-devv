@@ -1,7 +1,7 @@
-const { enqueueJob } = require("./job.service")
-const { JOB_NAMES, JOB_QUEUES } = require("./job.constants")
+import { enqueueJob } from './job.service.js'
+import { JOB_NAMES, JOB_QUEUES } from './job.constants.js'
 
-module.exports = {
+export {
   enqueueJob,
   JOB_NAMES,
   JOB_QUEUES,
