@@ -53,7 +53,6 @@ const requestPasswordReset = async ({ email }) => {
     const encryptedToken = encryptPasswordResetSecret(token)
     await createPasswordResetToken({ token, userId: user.id, expiresAt })
     await publish({ event: 'auth.user.password_reset_requested', entityType: 'User', entityId: user.id, context: { user: { id: user.id, email: user.email }, passwordReset: { url: `${env.PASSWORD_RESET_URL}${encodeURIComponent(encryptedToken)}`, expiresAt: expiresAt.toISOString() } }, idempotencyKey: `auth.password-reset.requested:${user.id}:${Date.now()}` })
-    if (env.NODE_ENV === 'test') return { token: encryptedToken }
   }
   return { success: true }
 }
