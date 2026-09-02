@@ -1,6 +1,6 @@
-const crypto = require('crypto')
-const { rateLimit, ipKeyGenerator } = require('express-rate-limit')
-const RedisRateLimitStore = require('./redisRateLimitStore')
+import crypto from 'node:crypto'
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit'
+import RedisRateLimitStore from './redisRateLimitStore.js'
 
 const AUTH_RATE_WINDOW_MS = 15 * 60 * 1000
 const LOGIN_RATE_LIMIT = 5
@@ -54,7 +54,7 @@ const refreshRateLimiter = createAuthLimiter({ prefix: 'auth-refresh-rate-limit'
 const logoutRateLimiter = createAuthLimiter({ prefix: 'auth-logout-rate-limit', limit: 30 })
 const oauthRateLimiter = createAuthLimiter({ prefix: 'auth-oauth-rate-limit', limit: 20 })
 
-module.exports = {
+export {
   AUTH_RATE_WINDOW_MS,
   LOGIN_RATE_LIMIT,
   normalizeIdentity,
