@@ -19,7 +19,8 @@
         "postman.postman-for-vscode",
         "vitest.explorer",
         "github.vscode-github-actions",
-        "shd101wyy.markdown-preview-enhanced"
+        "shd101wyy.markdown-preview-enhanced",
+        "nrwl.angular-console"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
