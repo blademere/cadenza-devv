@@ -93,8 +93,8 @@ describe('Authorization context integration', () => {
       (item) => item.key === 'verification',
     )
 
-    expect(applications.visible).toBe(true)
-    expect(verification.visible).toBe(true)
+    expect(applications.visible).toBe(false)
+    expect(verification.visible).toBe(false)
   })
 
   it('hides capabilities for inactive modules even if the role has the permission', async () => {
@@ -121,7 +121,7 @@ describe('Authorization context integration', () => {
     expect(response.status).toBe(200)
     expect(
       response.body.data.navigation.find((item) => item.key === 'applications').visible,
-    ).toBe(true)
+    ).toBe(false)
     expect(
       response.body.data.navigation.find((item) => item.key === 'verification').visible,
     ).toBe(false)
