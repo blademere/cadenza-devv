@@ -1,5 +1,5 @@
-const { createHash } = require('node:crypto')
-const { connectRedis: defaultConnectRedis } = require('../../infrastructure/cache/redis')
+import { createHash } from 'node:crypto'
+import { connectRedis as defaultConnectRedis } from '../../infrastructure/cache/redis.js'
 
 const DEFAULT_TTL_SECONDS = 60
 const MAX_TTL_SECONDS = 24 * 60 * 60
@@ -48,8 +48,6 @@ const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
     return async (req, res, next) => {
       if (!methods.has(req.method)) return next()
       if (options.skip && (await options.skip(req))) return next()
-      // Never allow a caller to accidentally share an authenticated response.
-      // User-varying caches must opt in explicitly.
       if (req.user && !varyByUser && !publicOnly) return next()
 
       try {
@@ -96,4 +94,6 @@ const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
 
 const cache = createCache()
 cache.createCache = createCache
-module.exports = cache
+
+export default cache
+export { cache, createCache, hashKey, defaultKey, getCacheRedisKey, normalizeKey, normalizeTtl, parseEntry }
