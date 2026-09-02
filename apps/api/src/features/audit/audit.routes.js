@@ -1,4 +1,4 @@
-mport express from 'express'
+import express from 'express'
 import { asyncHandler, validate } from '../../common/middleware.js'
 import authenticate from '../auth/authenticate.secure.js'
 import authorize from '../../platform/authorization/authorize.js'
