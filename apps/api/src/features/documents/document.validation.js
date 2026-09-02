@@ -57,7 +57,7 @@ const documentUploadValidator = async (req) => {
   return { body: req.body }
 }
 
-export default {
+export {
   documentIdValidator,
   documentTypeIdValidator,
   documentUploadValidator,
