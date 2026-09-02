@@ -9,6 +9,7 @@
     },
     "build": {
       "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
       "options": { "command": "npm run build", "cwd": "apps/admin-web" }
     },
     "lint": {
