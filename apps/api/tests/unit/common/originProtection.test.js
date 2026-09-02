@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import originProtection from '../../../src/common/middleware/originProtection.js'
 import { ForbiddenError } from '../../../src/common/errors/appError.js'
 
@@ -12,8 +12,6 @@ process.env.COOKIE_REFRESH_MAX_AGE_MS = process.env.COOKIE_REFRESH_MAX_AGE_MS ||
 process.env.CORS_ORIGIN = 'http://localhost:5173,http://localhost:4173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
-
-beforeAll(() => {})
 
 describe('originProtection', () => {
   it('allows state-changing requests from an explicitly configured origin', () => {
