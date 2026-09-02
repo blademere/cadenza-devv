@@ -18,27 +18,27 @@
     "test:unit": {
       "executor": "nx:run-commands",
       "dependsOn": ["prisma:generate"],
-      "options": { "command": "vitest run tests/unit", "cwd": "apps/api" }
+      "options": { "command": "vitest run --dir tests/unit", "cwd": "apps/api" }
     },
     "test:integration": {
       "executor": "nx:run-commands",
-      "options": { "command": "vitest run tests/integration", "cwd": "apps/api" }
+      "options": { "command": "prisma generate --config ./prisma.config.ts && prisma migrate deploy --config ./prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration", "cwd": "apps/api" }
     },
     "test:postgres": {
       "executor": "nx:run-commands",
-      "options": { "command": "vitest run tests/postgres", "cwd": "apps/api" }
+      "options": { "command": "prisma generate --config ./prisma.config.ts && prisma migrate deploy --config ./prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration/database", "cwd": "apps/api" }
     },
     "test:redis": {
       "executor": "nx:run-commands",
-      "options": { "command": "vitest run tests/redis", "cwd": "apps/api" }
+      "options": { "command": "RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration/cache", "cwd": "apps/api" }
     },
     "test:auth": {
       "executor": "nx:run-commands",
-      "options": { "command": "vitest run tests/auth", "cwd": "apps/api" }
+      "options": { "command": "vitest run --dir tests/integration/auth", "cwd": "apps/api" }
     },
     "test:all": {
       "executor": "nx:run-commands",
-      "options": { "command": "vitest run", "cwd": "apps/api" }
+      "options": { "command": "vitest run --dir tests/unit && prisma generate --config ./prisma.config.ts && prisma migrate deploy --config ./prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration", "cwd": "apps/api" }
     },
     "test:coverage": {
       "executor": "nx:run-commands",
@@ -47,19 +47,19 @@
     },
     "prisma:generate": {
       "executor": "nx:run-commands",
-      "options": { "command": "prisma generate", "cwd": "apps/api" }
+      "options": { "command": "prisma generate --config ./prisma.config.ts", "cwd": "apps/api" }
     },
     "prisma:validate": {
       "executor": "nx:run-commands",
-      "options": { "command": "prisma validate", "cwd": "apps/api" }
+      "options": { "command": "prisma validate --config ./prisma.config.ts", "cwd": "apps/api" }
     },
     "prisma:migrate": {
       "executor": "nx:run-commands",
-      "options": { "command": "prisma migrate dev", "cwd": "apps/api" }
+      "options": { "command": "prisma migrate dev --config ./prisma.config.ts", "cwd": "apps/api" }
     },
     "prisma:migrate:deploy": {
       "executor": "nx:run-commands",
-      "options": { "command": "prisma migrate deploy", "cwd": "apps/api" }
+      "options": { "command": "prisma migrate deploy --config ./prisma.config.ts", "cwd": "apps/api" }
     },
     "db:seed": {
       "executor": "nx:run-commands",
@@ -67,7 +67,7 @@
     },
     "db:setup": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-setup.cjs", "cwd": "apps/api" }
+      "options": { "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.cjs", "cwd": "apps/api" }
     },
     "db:backup": {
       "executor": "nx:run-commands",
@@ -83,11 +83,11 @@
     },
     "openapi:bundle": {
       "executor": "nx:run-commands",
-      "options": { "command": "redocly bundle openapi/openapi.yaml -o openapi/dist/openapi.bundle.yaml", "cwd": "apps/api" }
+      "options": { "command": "redocly bundle openapi/openapi.yaml -o openapi/dist/openapi.yaml", "cwd": "apps/api" }
     },
     "openapi:build": {
       "executor": "nx:run-commands",
-      "options": { "command": "redocly bundle openapi/openapi.yaml -o openapi/dist/openapi.bundle.yaml", "cwd": "apps/api" }
+      "options": { "command": "redocly lint openapi/openapi.yaml && redocly bundle openapi/openapi.yaml -o openapi/dist/openapi.yaml", "cwd": "apps/api" }
     },
     "validate:architecture": {
       "executor": "nx:run-commands",
