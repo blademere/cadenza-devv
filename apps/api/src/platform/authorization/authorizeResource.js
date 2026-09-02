@@ -1,6 +1,6 @@
-const { ForbiddenError, NotFoundError } = require("../../common/errors/appError")
-const accessControlService = require("./access-control.service")
-const accessControlPolicy = require("./access-control.policy")
+import { ForbiddenError, NotFoundError } from '../../common/errors/appError.js'
+import * as accessControlService from './access-control.service.js'
+import * as accessControlPolicy from './access-control.policy.js'
 
 const authorizeResource = ({
   resource,
@@ -10,18 +10,18 @@ const authorizeResource = ({
   getResourceId = (req) => req.params?.id,
   getOwnerId,
 }) => {
-  if (typeof loadResource !== "function") {
-    throw new TypeError("authorizeResource requires a loadResource function.")
+  if (typeof loadResource !== 'function') {
+    throw new TypeError('authorizeResource requires a loadResource function.')
   }
 
-  if (policy !== undefined && typeof policy !== "function") {
-    throw new TypeError("authorizeResource policy must be a function.")
+  if (policy !== undefined && typeof policy !== 'function') {
+    throw new TypeError('authorizeResource policy must be a function.')
   }
 
   return async (req, _res, next) => {
     try {
       if (!req.user) {
-        return next(new ForbiddenError("User context not found."))
+        return next(new ForbiddenError('User context not found.'))
       }
 
       const allowed = await accessControlService.can({
@@ -33,7 +33,7 @@ const authorizeResource = ({
       if (!allowed) {
         return next(
           new ForbiddenError(
-            "You do not have permission to perform this action.",
+            'You do not have permission to perform this action.',
           ),
         )
       }
@@ -42,7 +42,7 @@ const authorizeResource = ({
       const resourceInstance = await loadResource(resourceId, req)
 
       if (!resourceInstance) {
-        return next(new NotFoundError("Resource not found."))
+        return next(new NotFoundError('Resource not found.'))
       }
 
       if (policy) {
@@ -54,7 +54,7 @@ const authorizeResource = ({
           role: authorizationContext.role,
         }
 
-        if (typeof getOwnerId === "function") {
+        if (typeof getOwnerId === 'function') {
           user.ownerId = getOwnerId(resourceInstance, req)
         }
 
@@ -73,4 +73,4 @@ const authorizeResource = ({
   }
 }
 
-module.exports = authorizeResource
+export default authorizeResource
