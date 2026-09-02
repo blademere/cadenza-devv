@@ -33,9 +33,9 @@ for (const capability of capabilities) {
 const routeFiles = ROUTE_ROOTS.flatMap(walk).filter((file) => file.endsWith('.routes.js'))
 for (const file of routeFiles) {
   const source = fs.readFileSync(file, 'utf8')
-  const relative = path.relative(path.resolve(__dirname, '../..'), file).replaceAll(path.sep, '/')
-  const isAuthFile = relative.startsWith('apps/api/src/features/auth/')
-  const isAuthorizationContext = relative === 'apps/api/src/platform/authorization/authorization-context.routes.js'
+  const relative = path.relative(path.resolve(__dirname, '..'), file).replaceAll(path.sep, '/')
+  const isAuthFile = relative.startsWith('src/features/auth/')
+  const isAuthorizationContext = relative === 'src/platform/authorization/authorization-context.routes.js'
   const middlewareAliases = new Set(['authenticate'])
   const authorizationAliases = new Set(['authorize', 'authorizeResource'])
 
