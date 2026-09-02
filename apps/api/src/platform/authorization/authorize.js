@@ -1,5 +1,5 @@
-const { ForbiddenError } = require('../../common/errors/appError')
-const accessControlService = require('./access-control.service')
+import { ForbiddenError } from '../../common/errors/appError.js'
+import * as accessControlService from './access-control.service.js'
 
 /**
  * Authorize against the database permission catalog.
@@ -61,4 +61,4 @@ const authorize = (resourceOrPermission, action) => {
   }
 }
 
-module.exports = authorize
+export default authorize
