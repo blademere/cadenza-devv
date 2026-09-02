@@ -1,5 +1,5 @@
-const { successResponse } = require('../../../common/responses/apiResponse')
-const service = require('./permit-type.service')
+import { successResponse } from '../../../common/responses/apiResponse.js'
+import * as service from './permit-type.service.js'
 
 const list = async (_req, res) => successResponse(
   res,
@@ -13,4 +13,4 @@ const getForm = async (req, res) => successResponse(
   await service.getPermitTypeForm(req.params.permitTypeId),
 )
 
-module.exports = { list, getForm }
+export { list, getForm }
