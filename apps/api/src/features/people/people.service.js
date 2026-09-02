@@ -75,4 +75,5 @@ const update = async (id, data) => {
   return updatePerson(id, next)
 }
 
+export { create, getById, getByUserId, list, update }
 export default { create, getById, getByUserId, list, update }
