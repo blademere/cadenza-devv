@@ -3,12 +3,9 @@ import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 const prisma = getPrismaClient()
 
 const createPerson = (data) => prisma.person.create({ data })
-
 const findPersonById = (id) => prisma.person.findUnique({ where: { id } })
-
 const findPersonByUserId = (userId) =>
   prisma.person.findUnique({ where: { userId: Number(userId) } })
-
 const listPeople = ({ skip, take, where }) =>
   prisma.person.findMany({
     where,
@@ -16,12 +13,10 @@ const listPeople = ({ skip, take, where }) =>
     take,
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   })
-
 const countPeople = (where) => prisma.person.count({ where })
-
 const updatePerson = (id, data) => prisma.person.update({ where: { id }, data })
 
-export default {
+export {
   createPerson,
   findPersonById,
   findPersonByUserId,
