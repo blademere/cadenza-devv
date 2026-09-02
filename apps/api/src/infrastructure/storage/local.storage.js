@@ -1,10 +1,10 @@
-const fs = require("node:fs/promises")
-const path = require("node:path")
-const crypto = require("node:crypto")
-const { normalizeStorageKey } = require("../../platform/storage/storage.key")
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { normalizeStorageKey } from '../../platform/storage/storage.key.js'
 
 function createLocalStorageAdapter({ root }) {
-  if (!root) throw new Error("Storage root is required")
+  if (!root) throw new Error('Storage root is required')
 
   function resolveKey(key) {
     return path.join(root, normalizeStorageKey(key))
@@ -14,7 +14,7 @@ function createLocalStorageAdapter({ root }) {
     const filePath = resolveKey(key)
     await fs.mkdir(path.dirname(filePath), { recursive: true })
     const buffer = Buffer.isBuffer(body) ? body : Buffer.from(body)
-    await fs.writeFile(filePath, buffer, { flag: "w" })
+    await fs.writeFile(filePath, buffer, { flag: 'w' })
     return { key, size: buffer.length, contentType, metadata }
   }
 
@@ -41,10 +41,10 @@ function createLocalStorageAdapter({ root }) {
 
   async function getSignedUrl({ key }) {
     normalizeStorageKey(key)
-    return `local://${encodeURIComponent(key)}?token=${crypto.randomBytes(16).toString("hex")}`
+    return `local://${encodeURIComponent(key)}?token=${crypto.randomBytes(16).toString('hex')}`
   }
 
   return { put, get, head, delete: remove, copy, getSignedUrl }
 }
 
-module.exports = { createLocalStorageAdapter }
+export { createLocalStorageAdapter }
