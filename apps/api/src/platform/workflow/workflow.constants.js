@@ -15,7 +15,7 @@ const WORKFLOW_ACTIONS = Object.freeze({
   COMPLETED: "COMPLETED",
 })
 
-module.exports = {
+export {
   WORKFLOW_STATUS,
   WORKFLOW_ACTIONS,
 }
