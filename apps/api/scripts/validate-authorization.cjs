@@ -10,6 +10,8 @@ const AUTHORIZE = /\bauthorize(?:Resource)?\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/
 const EXEMPTION = /authorization\s*:\s*public|authorization\s*:\s*auth-boundary/i
 const PERMISSION_KEY = /^[a-z0-9_-]+:[a-z0-9_-]+$/
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 const walk = (directory) => {
   if (!fs.existsSync(directory)) return []
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -49,13 +51,39 @@ for (const file of routeFiles) {
   }
 
   for (const match of source.matchAll(METHODS)) {
-    const lineStart = source.lastIndexOf('\n', match.index) + 1
-    const lineEnd = source.indexOf('\n', match.index)
-    const line = source.slice(lineStart, lineEnd === -1 ? source.length : lineEnd)
     const lineNumber = source.slice(0, match.index).split('\n').length
-    if (EXEMPTION.test(line) || isAuthFile) continue
-    const hasAuthentication = [...middlewareAliases].some((name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(line))
-    const hasAuthorization = [...authorizationAliases].some((name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(line))
+    const start = match.index
+    let cursor = match.index + match[0].length
+    let depth = 1
+    let quote = null
+    let escaped = false
+
+    while (cursor < source.length && depth > 0) {
+      const char = source[cursor]
+      if (quote) {
+        if (escaped) escaped = false
+        else if (char === '\\') escaped = true
+        else if (char === quote) quote = null
+      } else if (char === '\'' || char === '"' || char === '`') {
+        quote = char
+      } else if (char === '(') {
+        depth += 1
+      } else if (char === ')') {
+        depth -= 1
+      }
+      cursor += 1
+    }
+
+    const statement = source.slice(start, cursor)
+    if (EXEMPTION.test(statement) || isAuthFile) continue
+
+    const hasAuthentication = [...middlewareAliases].some((name) =>
+      new RegExp(`\\b${escapeRegExp(name)}\\b`).test(statement)
+    )
+    const hasAuthorization = [...authorizationAliases].some((name) =>
+      new RegExp(`\\b${escapeRegExp(name)}\\b`).test(statement)
+    )
+
     if (!hasAuthentication) failures.push(`${relative}:${lineNumber}: route is missing authentication middleware.`)
     if (!isAuthorizationContext && !hasAuthorization) failures.push(`${relative}:${lineNumber}: route is missing authorization middleware.`)
   }
