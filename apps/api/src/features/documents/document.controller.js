@@ -1,5 +1,5 @@
 import { successResponse } from '../../common/responses/apiResponse.js'
-import service from './document.service.js'
+import * as service from './document.service.js'
 
 const normalize = (document) => ({
   ...document,
@@ -18,52 +18,25 @@ const uploadDocumentController = async (req, res) => {
     buffer: req.body,
     documentTypeId,
   })
-  return successResponse(
-    res,
-    'Document uploaded successfully.',
-    normalize(document),
-    201
-  )
+  return successResponse(res, 'Document uploaded successfully.', normalize(document), 201)
 }
 
 const listDocumentsController = async (req, res) =>
-  successResponse(
-    res,
-    'Documents retrieved successfully.',
-    (await service.listMyDocuments({ userId: req.user.id })).map(normalize)
-  )
+  successResponse(res, 'Documents retrieved successfully.', (await service.listMyDocuments({ userId: req.user.id })).map(normalize))
 
 const getDocumentController = async (req, res) =>
-  successResponse(
-    res,
-    'Document retrieved successfully.',
-    normalize(
-      await service.getOwnedDocument({
-        userId: req.user.id,
-        id: req.validated.params.id,
-      })
-    )
-  )
+  successResponse(res, 'Document retrieved successfully.', normalize(await service.getOwnedDocument({ userId: req.user.id, id: req.validated.params.id })))
 
 const downloadDocumentController = async (req, res) => {
-  const { document, buffer } = await service.readDocument({
-    userId: req.user.id,
-    id: req.validated.params.id,
-  })
+  const { document, buffer } = await service.readDocument({ userId: req.user.id, id: req.validated.params.id })
   res.setHeader('Content-Type', document.mimeType)
   res.setHeader('Content-Length', buffer.length)
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="${document.originalName.replace(/"/g, '')}"`
-  )
+  res.setHeader('Content-Disposition', `attachment; filename="${document.originalName.replace(/"/g, '')}"`)
   return res.send(buffer)
 }
 
 const deleteDocumentController = async (req, res) => {
-  await service.deleteDocument({
-    userId: req.user.id,
-    id: req.validated.params.id,
-  })
+  await service.deleteDocument({ userId: req.user.id, id: req.validated.params.id })
   return successResponse(res, 'Document deleted successfully.', null)
 }
 
