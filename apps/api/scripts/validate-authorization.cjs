@@ -77,12 +77,8 @@ for (const file of routeFiles) {
     const statement = source.slice(start, cursor)
     if (EXEMPTION.test(statement) || isAuthFile) continue
 
-    const hasAuthentication = [...middlewareAliases].some((name) =>
-      new RegExp(`\\b${escapeRegExp(name)}\\b`).test(statement)
-    )
-    const hasAuthorization = [...authorizationAliases].some((name) =>
-      new RegExp(`\\b${escapeRegExp(name)}\\b`).test(statement)
-    )
+    const hasAuthentication = [...middlewareAliases].some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(statement))
+    const hasAuthorization = [...authorizationAliases].some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(statement))
 
     if (!hasAuthentication) failures.push(`${relative}:${lineNumber}: route is missing authentication middleware.`)
     if (!isAuthorizationContext && !hasAuthorization) failures.push(`${relative}:${lineNumber}: route is missing authorization middleware.`)
