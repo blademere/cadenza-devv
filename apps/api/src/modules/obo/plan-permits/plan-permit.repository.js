@@ -1,5 +1,5 @@
-const crypto = require('node:crypto')
-const { getPrismaClient } = require('../../../infrastructure/database/prisma')
+import crypto from 'node:crypto'
+import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
 const reference = () => `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
@@ -52,7 +52,7 @@ const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data
 const createSubmissionAppointment = (data, db = prisma) => db.oboSubmissionAppointment.create({ data })
 const withTransaction = (callback) => prisma.$transaction(callback)
 
-module.exports = {
+export {
   findPersonByUserId,
   findPersonNotificationContext,
   findPermitType,
