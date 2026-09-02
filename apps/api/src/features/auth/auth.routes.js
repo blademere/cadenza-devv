@@ -1,36 +1,188 @@
-const express = require('express')
-const { csrfTokenController, registerUserController, loginController, requestPasswordResetController, resetPasswordController, currentUserController, changePasswordController, listSessionsController, revokeSessionController, revokeAllSessionsController, refreshAccessTokenController, logoutController, verifyEmailController, requestEmailVerificationController } = require('./auth.controller')
-const { loginValidator, registrationValidator, passwordChangeValidator, passwordResetRequestValidator, passwordResetValidator, emailVerificationValidator, sessionIdValidator } = require('./auth.validation')
-const authenticate = require('./authenticate.secure')
-const { asyncHandler, loginRateLimiter, loginAccountRateLimiter, registerRateLimiter, refreshRateLimiter, logoutRateLimiter, oauthRateLimiter, idempotency } = require('../../common/middleware')
-const validate = require('../../common/middleware/validate')
-const { csrfProtection } = require('../../common/middleware/csrf')
-const { startOAuth, handleOAuthCallback, startOAuthLink, listOAuthAccountsController, unlinkOAuthAccountController } = require('./oauth/oauth.controller')
+import express from 'express'
+import {
+  csrfTokenController,
+  registerUserController,
+  loginController,
+  requestPasswordResetController,
+  resetPasswordController,
+  currentUserController,
+  changePasswordController,
+  listSessionsController,
+  revokeSessionController,
+  revokeAllSessionsController,
+  refreshAccessTokenController,
+  logoutController,
+  verifyEmailController,
+  requestEmailVerificationController,
+} from './auth.controller.js'
+import {
+  loginValidator,
+  registrationValidator,
+  passwordChangeValidator,
+  passwordResetRequestValidator,
+  passwordResetValidator,
+  emailVerificationValidator,
+  sessionIdValidator,
+} from './auth.validation.js'
+import authenticate from './authenticate.secure.js'
+import {
+  asyncHandler,
+  loginRateLimiter,
+  loginAccountRateLimiter,
+  registerRateLimiter,
+  refreshRateLimiter,
+  logoutRateLimiter,
+  oauthRateLimiter,
+  idempotency,
+} from '../../common/middleware.js'
+import validate from '../../common/middleware/validate.js'
+import { csrfProtection } from '../../common/middleware/csrf.js'
+import {
+  startOAuth,
+  handleOAuthCallback,
+  startOAuthLink,
+  listOAuthAccountsController,
+  unlinkOAuthAccountController,
+} from './oauth/oauth.controller.js'
+
 const authRouter = express.Router()
 const requireAuthIdempotency = idempotency({ scope: 'auth', required: true })
-const requireRegistrationIdempotency = idempotency({ scope: 'auth-registration', required: true })
-const requirePasswordResetIdempotency = idempotency({ scope: 'auth-password-reset', required: true })
-const requireEmailVerificationIdempotency = idempotency({ scope: 'auth-email-verification', required: true })
+const requireRegistrationIdempotency = idempotency({
+  scope: 'auth-registration',
+  required: true,
+})
+const requirePasswordResetIdempotency = idempotency({
+  scope: 'auth-password-reset',
+  required: true,
+})
+const requireEmailVerificationIdempotency = idempotency({
+  scope: 'auth-email-verification',
+  required: true,
+})
 authRouter.get('/csrf', asyncHandler(csrfTokenController))
-authRouter.post('/register', registerRateLimiter, validate(registrationValidator), requireRegistrationIdempotency, asyncHandler(registerUserController))
-authRouter.post('/login', loginRateLimiter, loginAccountRateLimiter, validate(loginValidator), asyncHandler(loginController))
-authRouter.post('/password/reset/request', loginRateLimiter, validate(passwordResetRequestValidator), requirePasswordResetIdempotency, asyncHandler(requestPasswordResetController))
-authRouter.post('/password/reset', loginRateLimiter, validate(passwordResetValidator), requirePasswordResetIdempotency, asyncHandler(resetPasswordController))
-authRouter.post('/email/verify', loginRateLimiter, validate(emailVerificationValidator), requireEmailVerificationIdempotency, asyncHandler(verifyEmailController))
+authRouter.post(
+  '/register',
+  registerRateLimiter,
+  validate(registrationValidator),
+  requireRegistrationIdempotency,
+  asyncHandler(registerUserController)
+)
+authRouter.post(
+  '/login',
+  loginRateLimiter,
+  loginAccountRateLimiter,
+  validate(loginValidator),
+  asyncHandler(loginController)
+)
+authRouter.post(
+  '/password/reset/request',
+  loginRateLimiter,
+  validate(passwordResetRequestValidator),
+  requirePasswordResetIdempotency,
+  asyncHandler(requestPasswordResetController)
+)
+authRouter.post(
+  '/password/reset',
+  loginRateLimiter,
+  validate(passwordResetValidator),
+  requirePasswordResetIdempotency,
+  asyncHandler(resetPasswordController)
+)
+authRouter.post(
+  '/email/verify',
+  loginRateLimiter,
+  validate(emailVerificationValidator),
+  requireEmailVerificationIdempotency,
+  asyncHandler(verifyEmailController)
+)
 authRouter.get('/me', authenticate, asyncHandler(currentUserController))
-authRouter.post('/email/verification/request', authenticate, csrfProtection, requireEmailVerificationIdempotency, asyncHandler(requestEmailVerificationController))
-authRouter.post('/password/change', authenticate, csrfProtection, validate(passwordChangeValidator), requireAuthIdempotency, asyncHandler(changePasswordController))
+authRouter.post(
+  '/email/verification/request',
+  authenticate,
+  csrfProtection,
+  requireEmailVerificationIdempotency,
+  asyncHandler(requestEmailVerificationController)
+)
+authRouter.post(
+  '/password/change',
+  authenticate,
+  csrfProtection,
+  validate(passwordChangeValidator),
+  requireAuthIdempotency,
+  asyncHandler(changePasswordController)
+)
 authRouter.get('/sessions', authenticate, asyncHandler(listSessionsController))
-authRouter.delete('/sessions/:id', authenticate, csrfProtection, validate(sessionIdValidator), requireAuthIdempotency, asyncHandler(revokeSessionController))
-authRouter.post('/sessions/revoke-all', authenticate, csrfProtection, requireAuthIdempotency, asyncHandler(revokeAllSessionsController))
-authRouter.get('/oauth/google', oauthRateLimiter, asyncHandler(startOAuth('google')))
-authRouter.get('/oauth/google/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('google')))
-authRouter.get('/oauth/facebook', oauthRateLimiter, asyncHandler(startOAuth('facebook')))
-authRouter.get('/oauth/facebook/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('facebook')))
-authRouter.get('/oauth/accounts', authenticate, asyncHandler(listOAuthAccountsController))
-authRouter.get('/oauth/link/google', oauthRateLimiter, authenticate, asyncHandler(startOAuthLink('google')))
-authRouter.get('/oauth/link/facebook', oauthRateLimiter, authenticate, asyncHandler(startOAuthLink('facebook')))
-authRouter.delete('/oauth/link/:provider', authenticate, requireAuthIdempotency, asyncHandler(unlinkOAuthAccountController))
-authRouter.post('/refresh', refreshRateLimiter, csrfProtection, requireAuthIdempotency, asyncHandler(refreshAccessTokenController))
-authRouter.post('/logout', logoutRateLimiter, csrfProtection, requireAuthIdempotency, asyncHandler(logoutController))
-module.exports = authRouter
+authRouter.delete(
+  '/sessions/:id',
+  authenticate,
+  csrfProtection,
+  validate(sessionIdValidator),
+  requireAuthIdempotency,
+  asyncHandler(revokeSessionController)
+)
+authRouter.post(
+  '/sessions/revoke-all',
+  authenticate,
+  csrfProtection,
+  requireAuthIdempotency,
+  asyncHandler(revokeAllSessionsController)
+)
+authRouter.get(
+  '/oauth/google',
+  oauthRateLimiter,
+  asyncHandler(startOAuth('google'))
+)
+authRouter.get(
+  '/oauth/google/callback',
+  oauthRateLimiter,
+  asyncHandler(handleOAuthCallback('google'))
+)
+authRouter.get(
+  '/oauth/facebook',
+  oauthRateLimiter,
+  asyncHandler(startOAuth('facebook'))
+)
+authRouter.get(
+  '/oauth/facebook/callback',
+  oauthRateLimiter,
+  asyncHandler(handleOAuthCallback('facebook'))
+)
+authRouter.get(
+  '/oauth/accounts',
+  authenticate,
+  asyncHandler(listOAuthAccountsController)
+)
+authRouter.get(
+  '/oauth/link/google',
+  oauthRateLimiter,
+  authenticate,
+  asyncHandler(startOAuthLink('google'))
+)
+authRouter.get(
+  '/oauth/link/facebook',
+  oauthRateLimiter,
+  authenticate,
+  asyncHandler(startOAuthLink('facebook'))
+)
+authRouter.delete(
+  '/oauth/link/:provider',
+  authenticate,
+  requireAuthIdempotency,
+  asyncHandler(unlinkOAuthAccountController)
+)
+authRouter.post(
+  '/refresh',
+  refreshRateLimiter,
+  csrfProtection,
+  requireAuthIdempotency,
+  asyncHandler(refreshAccessTokenController)
+)
+authRouter.post(
+  '/logout',
+  logoutRateLimiter,
+  csrfProtection,
+  requireAuthIdempotency,
+  asyncHandler(logoutController)
+)
+
+export default authRouter

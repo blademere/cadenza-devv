@@ -1,27 +1,23 @@
-const express = require('express')
-const {
-  asyncHandler,
-  validate,
-  idempotency,
-} = require('../../common/middleware')
-const authenticate = require('../auth/authenticate.secure')
-const authorize = require('../../platform/authorization/authorize')
-const authorizeResource = require('../../platform/authorization/authorizeResource')
-const repository = require('./authorization-admin.repository')
-const {
+import express from 'express'
+import { asyncHandler, validate, idempotency } from '../../common/middleware.js'
+import authenticate from '../auth/authenticate.secure.js'
+import authorize from '../../platform/authorization/authorize.js'
+import authorizeResource from '../../platform/authorization/authorizeResource.js'
+import * as repository from './authorization-admin.repository.js'
+import {
   listModulesController,
   createModuleController,
   createPermissionController,
   setModuleActiveController,
   listRolesController,
   replaceRolePermissionsController,
-} = require('./authorization-admin.controller')
-const {
+} from './authorization-admin.controller.js'
+import {
   createModuleValidator,
   createPermissionValidator,
   setModuleActiveValidator,
   replaceRolePermissionsValidator,
-} = require('./authorization-admin.validation')
+} from './authorization-admin.validation.js'
 
 const router = express.Router()
 const manageAuthorization = authorize('authorization', 'manage')
@@ -89,4 +85,4 @@ router.put(
   asyncHandler(replaceRolePermissionsController)
 )
 
-module.exports = router
+export default router

@@ -1,6 +1,12 @@
-const { BadRequestError, NotFoundError } = require('../../common/errors/appError')
-const { createTask, findTaskById, findCase, listTasks, updateTask } = require('./tasks.repository')
-const { TASK_STATUS } = require('./tasks.constants')
+import { BadRequestError, NotFoundError } from '../../common/errors/appError.js'
+import {
+  createTask,
+  findTaskById,
+  findCase,
+  listTasks,
+  updateTask,
+} from './tasks.repository.js'
+import { TASK_STATUS } from './tasks.constants.js'
 
 const create = async (data) => {
   if (!data.title?.trim()) throw new BadRequestError('title is required.')
@@ -34,10 +40,14 @@ const update = async (id, data) => {
   if (next.status === TASK_STATUS.DONE && next.completedAt === undefined) {
     next.completedAt = new Date()
   }
-  if (next.status && next.status !== TASK_STATUS.DONE && next.completedAt === undefined) {
+  if (
+    next.status &&
+    next.status !== TASK_STATUS.DONE &&
+    next.completedAt === undefined
+  ) {
     next.completedAt = null
   }
   return updateTask(id, next)
 }
 
-module.exports = { create, getById, list, update }
+export { create, getById, list, update }

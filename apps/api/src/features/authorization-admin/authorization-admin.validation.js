@@ -1,7 +1,17 @@
-const { z } = require('zod')
+import { z } from 'zod'
 
-const keySchema = z.string().trim().min(1).max(100).regex(/^[a-z0-9][a-z0-9_-]*$/)
-const actionSchema = z.string().trim().min(1).max(100).regex(/^[a-z0-9][a-z0-9_-]*$/)
+const keySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .regex(/^[a-z0-9][a-z0-9_-]*$/)
+const actionSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .regex(/^[a-z0-9][a-z0-9_-]*$/)
 
 const createModuleSchema = z.object({
   body: z.object({
@@ -23,17 +33,14 @@ const setModuleActiveSchema = z.object({
 
 const replaceRolePermissionsSchema = z.object({
   params: z.object({ roleId: z.coerce.number().int().positive() }),
-  body: z.object({ permissionIds: z.array(z.coerce.number().int().positive()).max(500) }),
+  body: z.object({
+    permissionIds: z.array(z.coerce.number().int().positive()).max(500),
+  }),
 })
 
-const validate = (schema) => async (req) => schema.parse({
-  body: req.body || {},
-  params: req.params || {},
-})
-
-module.exports = {
-  createModuleValidator: validate(createModuleSchema),
-  createPermissionValidator: validate(createPermissionSchema),
-  setModuleActiveValidator: validate(setModuleActiveSchema),
-  replaceRolePermissionsValidator: validate(replaceRolePermissionsSchema),
+export {
+  createModuleValidator,
+  createPermissionValidator,
+  setModuleActiveValidator,
+  replaceRolePermissionsValidator,
 }

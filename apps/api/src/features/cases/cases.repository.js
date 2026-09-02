@@ -1,5 +1,5 @@
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
-const { publish } = require('../../platform/event-bus/event-bus')
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+import { publish } from '../../platform/event-bus/event-bus.js'
 
 const prisma = getPrismaClient()
 
@@ -30,8 +30,23 @@ const findCaseById = (id, options = {}) =>
   prisma.caseRecord.findUnique({
     where: { id },
     ...(options.includeDetails === false
-      ? { select: { id: true, caseTypeId: true, status: true, caseNumber: true, title: true } }
-      : { include: { caseType: true, participants: true, requirements: true, tasks: true } }),
+      ? {
+          select: {
+            id: true,
+            caseTypeId: true,
+            status: true,
+            caseNumber: true,
+            title: true,
+          },
+        }
+      : {
+          include: {
+            caseType: true,
+            participants: true,
+            requirements: true,
+            tasks: true,
+          },
+        }),
   })
 
 const findCaseTypeById = (id) => prisma.caseType.findUnique({ where: { id } })
@@ -47,7 +62,14 @@ const listCases = ({ skip, take, where }) =>
 
 const countCases = (where) => prisma.caseRecord.count({ where })
 
-const transitionCase = (id, fromStatus, toStatus, changedByUserId, reason, metadata) =>
+const transitionCase = (
+  id,
+  fromStatus,
+  toStatus,
+  changedByUserId,
+  reason,
+  metadata
+) =>
   prisma.$transaction(async (tx) => {
     const updated = await tx.caseRecord.updateMany({
       where: { id, status: fromStatus },
@@ -88,8 +110,7 @@ const transitionCase = (id, fromStatus, toStatus, changedByUserId, reason, metad
 
     return tx.caseRecord.findUnique({ where: { id } })
   })
-
-module.exports = {
+export {
   createCaseType,
   createCase,
   findCaseById,

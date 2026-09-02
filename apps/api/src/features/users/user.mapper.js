@@ -17,6 +17,4 @@ const toUserResponse = (user) => {
   }
 }
 
-module.exports = {
-  toUserResponse,
-}
+export { toUserResponse }

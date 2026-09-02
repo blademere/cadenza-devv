@@ -1,4 +1,4 @@
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
 
@@ -20,14 +20,17 @@ const findParticipant = (caseId, personId, roleKey) =>
     where: { caseId_personId_roleKey: { caseId, personId, roleKey } },
   })
 
-const findCase = (id) => prisma.caseRecord.findUnique({ where: { id }, select: { id: true } })
-const findPerson = (id) => prisma.person.findUnique({ where: { id }, select: { id: true } })
+const findCase = (id) =>
+  prisma.caseRecord.findUnique({ where: { id }, select: { id: true } })
+const findPerson = (id) =>
+  prisma.person.findUnique({ where: { id }, select: { id: true } })
 const findCaseAndPerson = (caseId, personId) =>
   Promise.all([findCase(caseId), findPerson(personId)])
 
-const removeParticipant = (id) => prisma.caseParticipant.delete({ where: { id } })
+const removeParticipant = (id) =>
+  prisma.caseParticipant.delete({ where: { id } })
 
-module.exports = {
+export default {
   addParticipant,
   listParticipants,
   findParticipant,

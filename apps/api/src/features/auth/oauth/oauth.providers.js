@@ -1,12 +1,13 @@
-const crypto = require('crypto')
-const { env } = require('../../../config')
-const { connectRedis } = require('../../../infrastructure/cache/redis')
-const { getGoogleAuthUrl } = require('../../../infrastructure/oauth/google')
-const {
+import { crypto } from 'node:crypto'
+import { env } from '../../../config.js'
+import { connectRedis } from '../../../infrastructure/cache/redis.js'
+import { getGoogleAuthUrl } from '../../../infrastructure/oauth/google.js'
+import {
   getFacebookAuthUrl,
   getFacebookTokenUrl,
   getFacebookUserInfoUrl,
-} = require('../../../infrastructure/oauth/facebook')
+} from '../../../infrastructure/oauth/facebook.js'
+
 const OAUTH_STATE_COOKIE = 'oauthState'
 const OAUTH_LINK_STATE_COOKIE = 'oauthLinkState'
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000
@@ -47,9 +48,11 @@ const getProviderConfig = (provider) => {
 
 const createState = () => crypto.randomBytes(32).toString('base64url')
 
-const createPkceVerifier = () => crypto.randomBytes(PKCE_VERIFIER_BYTES).toString('base64url')
+const createPkceVerifier = () =>
+  crypto.randomBytes(PKCE_VERIFIER_BYTES).toString('base64url')
 
-const createPkceChallenge = (verifier) => crypto.createHash('sha256').update(verifier).digest('base64url')
+const createPkceChallenge = (verifier) =>
+  crypto.createHash('sha256').update(verifier).digest('base64url')
 
 const createAuthorizationUrl = (provider, state, codeChallenge) => {
   const config = getProviderConfig(provider)
@@ -149,10 +152,7 @@ const consumeOAuthState = async (state, expectedFlow, expectedProvider) => {
   try {
     const metadata = JSON.parse(value)
 
-    if (
-      expectedFlow !== undefined &&
-      metadata.flow !== expectedFlow
-    ) {
+    if (expectedFlow !== undefined && metadata.flow !== expectedFlow) {
       return null
     }
 
@@ -167,11 +167,16 @@ const consumeOAuthState = async (state, expectedFlow, expectedProvider) => {
       return null
     }
 
-    if (!Object.prototype.hasOwnProperty.call(providerConfig, metadata.provider)) {
+    if (
+      !Object.prototype.hasOwnProperty.call(providerConfig, metadata.provider)
+    ) {
       return null
     }
 
-    if (typeof metadata.codeVerifier !== 'string' || metadata.codeVerifier.length < 43) {
+    if (
+      typeof metadata.codeVerifier !== 'string' ||
+      metadata.codeVerifier.length < 43
+    ) {
       return null
     }
 
@@ -241,7 +246,7 @@ const safeEqual = (left, right) => {
   return crypto.timingSafeEqual(leftBuffer, rightBuffer)
 }
 
-module.exports = {
+export {
   OAUTH_STATE_COOKIE,
   OAUTH_LINK_STATE_COOKIE,
   OAUTH_STATE_MAX_AGE_MS,

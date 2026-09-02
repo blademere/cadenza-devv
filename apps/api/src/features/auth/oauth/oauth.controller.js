@@ -1,18 +1,18 @@
-const { env, logger } = require('../../../config')
-const {
+import { env, logger } from '../../../config'
+import {
   UnauthorizedError,
   ConflictError,
-} = require('../../../common/errors/appError')
-const { setCsrfCookie } = require('../../../common/middleware/csrf')
-const asyncHandler = require('../../../common/middleware/asyncHandler')
-const {
+} from '../../../common/errors/appError.js'
+import { setCsrfCookie } from '../../../common/middleware/csrf.js'
+import asyncHandler from '../../../common/middleware/asyncHandler.js'
+import {
   authenticateWithOAuth,
   linkOAuthAccountWithCode,
   getLinkedOAuthAccounts,
   unlinkOAuthAccount,
-} = require('./oauth.service')
+} from './oauth.service.js'
 
-const {
+import {
   OAUTH_STATE_COOKIE,
   createState,
   createPkceVerifier,
@@ -28,7 +28,7 @@ const {
   safeEqual,
   OAUTH_STATE_MAX_AGE_MS,
   OAUTH_LINK_STATE_MAX_AGE_MS,
-} = require('./oauth.providers')
+} from './oauth.providers.js'
 
 const setAuthCookies = (res, refreshToken) => {
   res.cookie('refreshToken', refreshToken, {
@@ -57,174 +57,191 @@ const redirectSuccess = (res, params = {}) => {
   return res.redirect(303, url.toString())
 }
 
-const startOAuth = (provider) => async (_req, res) => {
-  clearOAuthLinkStateCookie(res)
-
-  const state = createState()
-  const codeVerifier = createPkceVerifier()
-  const codeChallenge = createPkceChallenge(codeVerifier)
-  const authorizationUrl = createAuthorizationUrl(provider, state, codeChallenge)
-
-  await storeOAuthState(
-    state,
-    { flow: 'login', provider, codeVerifier },
-    OAUTH_STATE_MAX_AGE_MS
-  )
-
-  setOAuthStateCookie(res, state)
-
-  return res.redirect(302, authorizationUrl)
-}
-
-const handleOAuthCallback = (provider) => async (req, res) => {
-  const { code, state, error } = req.query
-
-  if (error) {
-    clearOAuthStateCookie(res)
+const startOAuth = (provider) =>
+  asyncHandler(async (_req, res) => {
     clearOAuthLinkStateCookie(res)
-    return redirectFailure(res, 'oauth_denied')
-  }
 
-  if (!code || !state) {
-    clearOAuthStateCookie(res)
-    clearOAuthLinkStateCookie(res)
-    return redirectFailure(res, 'invalid_oauth_state')
-  }
+    const state = createState()
+    const codeVerifier = createPkceVerifier()
+    const codeChallenge = createPkceChallenge(codeVerifier)
+    const authorizationUrl = createAuthorizationUrl(
+      provider,
+      state,
+      codeChallenge
+    )
 
-  const loginState = req.cookies?.[OAUTH_STATE_COOKIE]
-  const linkState = req.cookies?.[OAUTH_LINK_STATE_COOKIE]
+    await storeOAuthState(
+      state,
+      { flow: 'login', provider, codeVerifier },
+      OAUTH_STATE_MAX_AGE_MS
+    )
 
-  const cookieMatchesLogin = loginState && safeEqual(loginState, state)
-  const cookieMatchesLink = linkState && safeEqual(linkState, state)
+    setOAuthStateCookie(res, state)
 
-  if (!cookieMatchesLogin && !cookieMatchesLink) {
-    clearOAuthStateCookie(res)
-    clearOAuthLinkStateCookie(res)
-    return redirectFailure(res, 'invalid_oauth_state')
-  }
+    return res.redirect(302, authorizationUrl)
+  })
 
-  let stateData
-  try {
-    stateData = await consumeOAuthState(state, undefined, provider)
-  } catch (error) {
-    logger.error({ err: error, provider }, 'OAuth state consumption failed')
-    clearOAuthStateCookie(res)
-    clearOAuthLinkStateCookie(res)
-    return redirectFailure(res, 'oauth_state_failed')
-  }
+const handleOAuthCallback = (provider) =>
+  asyncHandler(async (req, res) => {
+    const { code, state, error } = req.query
 
-  if (!stateData) {
-    clearOAuthStateCookie(res)
-    clearOAuthLinkStateCookie(res)
-    return redirectFailure(res, 'invalid_oauth_state')
-  }
+    if (error) {
+      clearOAuthStateCookie(res)
+      clearOAuthLinkStateCookie(res)
+      return redirectFailure(res, 'oauth_denied')
+    }
 
-  if (stateData.flow === 'login' && !cookieMatchesLogin) {
-    clearOAuthStateCookie(res)
-    clearOAuthLinkStateCookie(res)
-    return redirectFailure(res, 'invalid_oauth_state')
-  }
+    if (!code || !state) {
+      clearOAuthStateCookie(res)
+      clearOAuthLinkStateCookie(res)
+      return redirectFailure(res, 'invalid_oauth_state')
+    }
 
-  if (stateData.flow === 'link' && !cookieMatchesLink) {
-    clearOAuthStateCookie(res)
-    clearOAuthLinkStateCookie(res)
-    return redirectFailure(res, 'invalid_oauth_state')
-  }
+    const loginState = req.cookies?.[OAUTH_STATE_COOKIE]
+    const linkState = req.cookies?.[OAUTH_LINK_STATE_COOKIE]
 
-  if (stateData.flow === 'link') {
-    if (!stateData.userId || !Number.isInteger(Number(stateData.userId))) {
+    const cookieMatchesLogin = loginState && safeEqual(loginState, state)
+    const cookieMatchesLink = linkState && safeEqual(linkState, state)
+
+    if (!cookieMatchesLogin && !cookieMatchesLink) {
+      clearOAuthStateCookie(res)
+      clearOAuthLinkStateCookie(res)
+      return redirectFailure(res, 'invalid_oauth_state')
+    }
+
+    let stateData
+    try {
+      stateData = await consumeOAuthState(state, undefined, provider)
+    } catch (error) {
+      logger.error({ err: error, provider }, 'OAuth state consumption failed')
+      clearOAuthStateCookie(res)
+      clearOAuthLinkStateCookie(res)
+      return redirectFailure(res, 'oauth_state_failed')
+    }
+
+    if (!stateData) {
+      clearOAuthStateCookie(res)
+      clearOAuthLinkStateCookie(res)
+      return redirectFailure(res, 'invalid_oauth_state')
+    }
+
+    if (stateData.flow === 'login' && !cookieMatchesLogin) {
+      clearOAuthStateCookie(res)
+      clearOAuthLinkStateCookie(res)
+      return redirectFailure(res, 'invalid_oauth_state')
+    }
+
+    if (stateData.flow === 'link' && !cookieMatchesLink) {
+      clearOAuthStateCookie(res)
+      clearOAuthLinkStateCookie(res)
+      return redirectFailure(res, 'invalid_oauth_state')
+    }
+
+    if (stateData.flow === 'link') {
+      if (!stateData.userId || !Number.isInteger(Number(stateData.userId))) {
+        clearOAuthLinkStateCookie(res)
+        return redirectFailure(res, 'invalid_oauth_state')
+      }
+
+      try {
+        const result = await linkOAuthAccountWithCode({
+          userId: Number(stateData.userId),
+          provider,
+          code,
+          codeVerifier: stateData.codeVerifier,
+        })
+
+        clearOAuthLinkStateCookie(res)
+
+        return redirectSuccess(res, {
+          action: 'oauth_linked',
+          provider: result.provider,
+        })
+      } catch (error) {
+        logger.error(
+          { err: error, provider, flow: 'link' },
+          'OAuth account linking failed'
+        )
+        clearOAuthLinkStateCookie(res)
+
+        if (error instanceof UnauthorizedError) {
+          return redirectFailure(res, 'oauth_unauthorized')
+        }
+
+        if (error instanceof ConflictError) {
+          return redirectFailure(res, 'oauth_link_conflict')
+        }
+
+        return redirectFailure(res, 'oauth_link_failed')
+      }
+    }
+
+    if (stateData.flow !== 'login') {
+      clearOAuthStateCookie(res)
       clearOAuthLinkStateCookie(res)
       return redirectFailure(res, 'invalid_oauth_state')
     }
 
     try {
-      const result = await linkOAuthAccountWithCode({
-        userId: Number(stateData.userId),
+      const result = await authenticateWithOAuth({
         provider,
         code,
         codeVerifier: stateData.codeVerifier,
       })
 
-      clearOAuthLinkStateCookie(res)
+      setAuthCookies(res, result.refreshToken)
+      setCsrfCookie(res)
+      clearOAuthStateCookie(res)
 
-      return redirectSuccess(res, {
-        action: 'oauth_linked',
-        provider: result.provider,
-      })
+      return redirectSuccess(res)
     } catch (error) {
-      logger.error({ err: error, provider, flow: 'link' }, 'OAuth account linking failed')
-      clearOAuthLinkStateCookie(res)
+      logger.error(
+        { err: error, provider, flow: 'login' },
+        'OAuth authentication failed'
+      )
+      clearOAuthStateCookie(res)
 
       if (error instanceof UnauthorizedError) {
         return redirectFailure(res, 'oauth_unauthorized')
       }
 
       if (error instanceof ConflictError) {
-        return redirectFailure(res, 'oauth_link_conflict')
+        return redirectFailure(res, 'account_exists')
       }
 
-      return redirectFailure(res, 'oauth_link_failed')
+      return redirectFailure(res, 'oauth_failed')
     }
-  }
+  })
 
-  if (stateData.flow !== 'login') {
+const startOAuthLink = (provider) =>
+  asyncHandler(async (req, res) => {
+    if (!req.user?.id) {
+      return redirectFailure(res, 'unauthorized')
+    }
+
     clearOAuthStateCookie(res)
-    clearOAuthLinkStateCookie(res)
-    return redirectFailure(res, 'invalid_oauth_state')
-  }
 
-  try {
-    const result = await authenticateWithOAuth({
+    const state = createState()
+    const codeVerifier = createPkceVerifier()
+    const codeChallenge = createPkceChallenge(codeVerifier)
+    const authorizationUrl = createAuthorizationUrl(
       provider,
-      code,
-      codeVerifier: stateData.codeVerifier,
-    })
+      state,
+      codeChallenge
+    )
 
-    setAuthCookies(res, result.refreshToken)
-    setCsrfCookie(res)
-    clearOAuthStateCookie(res)
+    await storeOAuthState(
+      state,
+      { flow: 'link', provider, userId: Number(req.user.id), codeVerifier },
+      OAUTH_LINK_STATE_MAX_AGE_MS
+    )
 
-    return redirectSuccess(res)
-  } catch (error) {
-    logger.error({ err: error, provider, flow: 'login' }, 'OAuth authentication failed')
-    clearOAuthStateCookie(res)
+    setOAuthLinkStateCookie(res, state)
 
-    if (error instanceof UnauthorizedError) {
-      return redirectFailure(res, 'oauth_unauthorized')
-    }
+    return res.redirect(302, authorizationUrl)
+  })
 
-    if (error instanceof ConflictError) {
-      return redirectFailure(res, 'account_exists')
-    }
-
-    return redirectFailure(res, 'oauth_failed')
-  }
-}
-
-const startOAuthLink = (provider) => async (req, res) => {
-  if (!req.user?.id) {
-    return redirectFailure(res, 'unauthorized')
-  }
-
-  clearOAuthStateCookie(res)
-
-  const state = createState()
-  const codeVerifier = createPkceVerifier()
-  const codeChallenge = createPkceChallenge(codeVerifier)
-  const authorizationUrl = createAuthorizationUrl(provider, state, codeChallenge)
-
-  await storeOAuthState(
-    state,
-    { flow: 'link', provider, userId: Number(req.user.id), codeVerifier },
-    OAUTH_LINK_STATE_MAX_AGE_MS
-  )
-
-  setOAuthLinkStateCookie(res, state)
-
-  return res.redirect(302, authorizationUrl)
-}
-
-const listOAuthAccountsController = async (req, res) => {
+const listOAuthAccountsController = asyncHandler(async (req, res) => {
   const accounts = await getLinkedOAuthAccounts(req.user.id)
 
   return res.status(200).json({
@@ -235,9 +252,9 @@ const listOAuthAccountsController = async (req, res) => {
       createdAt: account.createdAt,
     })),
   })
-}
+})
 
-const unlinkOAuthAccountController = async (req, res) => {
+const unlinkOAuthAccountController = asyncHandler(async (req, res) => {
   const result = await unlinkOAuthAccount({
     userId: req.user.id,
     provider: req.params.provider,
@@ -247,12 +264,12 @@ const unlinkOAuthAccountController = async (req, res) => {
     success: true,
     message: `${result.provider} OAuth account unlinked successfully.`,
   })
-}
+})
 
-module.exports = {
-  startOAuth: (provider) => asyncHandler(startOAuth(provider)),
+export {
+  startOAuth,
   handleOAuthCallback,
-  startOAuthLink: (provider) => asyncHandler(startOAuthLink(provider)),
+  startOAuthLink,
   listOAuthAccountsController,
   unlinkOAuthAccountController,
 }

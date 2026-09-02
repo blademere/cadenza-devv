@@ -1,16 +1,16 @@
-const { BadRequestError, NotFoundError } = require('../../common/errors/appError')
-const {
+import { BadRequestError, NotFoundError } from '../../common/errors/appError.js'
+import {
   normalizePagination,
   createPaginationMeta,
-} = require('../../common/pagination/pagination')
-const {
+} from '../../common/pagination/pagination.js'
+import {
   createPerson,
   findPersonById,
   findPersonByUserId,
   listPeople,
   countPeople,
   updatePerson,
-} = require('./people.repository')
+} from './people.repository.js'
 
 const normalizeName = (value) => value?.trim()
 
@@ -66,7 +66,8 @@ const list = async (query = {}) => {
 const update = async (id, data) => {
   await getById(id)
   const next = { ...data }
-  if (next.firstName !== undefined) next.firstName = normalizeName(next.firstName)
+  if (next.firstName !== undefined)
+    next.firstName = normalizeName(next.firstName)
   if (next.lastName !== undefined) next.lastName = normalizeName(next.lastName)
   if (next.firstName === '' || next.lastName === '') {
     throw new BadRequestError('firstName and lastName cannot be empty.')
@@ -74,4 +75,4 @@ const update = async (id, data) => {
   return updatePerson(id, next)
 }
 
-module.exports = { create, getById, getByUserId, list, update }
+export default { create, getById, getByUserId, list, update }

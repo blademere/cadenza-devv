@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken')
-const { env } = require('../../config')
+import { jwt } from 'jsonwebtoken'
+import { env } from '../../config.js'
 
 const JWT_ISSUER = 'express-app'
 const JWT_AUDIENCE = 'api'
@@ -51,7 +51,7 @@ const verifyRefreshToken = (token) => {
   })
 }
 
-module.exports = {
+export {
   createAccessToken,
   createRefreshToken,
   verifyAccessToken,

@@ -1,4 +1,4 @@
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
 
@@ -6,7 +6,8 @@ const createPerson = (data) => prisma.person.create({ data })
 
 const findPersonById = (id) => prisma.person.findUnique({ where: { id } })
 
-const findPersonByUserId = (userId) => prisma.person.findUnique({ where: { userId: Number(userId) } })
+const findPersonByUserId = (userId) =>
+  prisma.person.findUnique({ where: { userId: Number(userId) } })
 
 const listPeople = ({ skip, take, where }) =>
   prisma.person.findMany({
@@ -20,7 +21,7 @@ const countPeople = (where) => prisma.person.count({ where })
 
 const updatePerson = (id, data) => prisma.person.update({ where: { id }, data })
 
-module.exports = {
+export default {
   createPerson,
   findPersonById,
   findPersonByUserId,
