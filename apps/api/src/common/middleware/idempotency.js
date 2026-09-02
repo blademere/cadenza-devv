@@ -1,7 +1,6 @@
-const crypto = require('node:crypto')
-
-const { connectRedis } = require('../../infrastructure/cache/redis')
-const { ConflictError } = require('../errors/appError')
+import crypto from 'node:crypto'
+import { connectRedis } from '../../infrastructure/cache/redis.js'
+import { ConflictError } from '../errors/appError.js'
 
 const DEFAULT_TTL_SECONDS = 24 * 60 * 60
 const IDEMPOTENCY_HEADER = 'Idempotency-Key'
@@ -177,4 +176,5 @@ idempotency.parseEntry = parseEntry
 idempotency.IDEMPOTENCY_HEADER = IDEMPOTENCY_HEADER
 idempotency.DEFAULT_TTL_SECONDS = DEFAULT_TTL_SECONDS
 
-module.exports = idempotency
+export default idempotency
+export { idempotency }
