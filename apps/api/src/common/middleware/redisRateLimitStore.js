@@ -1,7 +1,7 @@
-const { connectRedis, getRedisClient } = require("../../infrastructure/cache/redis")
+import { connectRedis, getRedisClient } from '../../infrastructure/cache/redis.js'
 
 class RedisRateLimitStore {
-  constructor(prefix = "rate-limit") {
+  constructor(prefix = 'rate-limit') {
     this.prefix = prefix
     this.windowMs = 15 * 60 * 1000
   }
@@ -44,4 +44,4 @@ class RedisRateLimitStore {
   }
 }
 
-module.exports = RedisRateLimitStore
+export default RedisRateLimitStore
