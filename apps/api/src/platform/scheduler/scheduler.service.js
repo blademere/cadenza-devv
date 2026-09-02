@@ -150,17 +150,21 @@ const createSchedulerService = ({
 }
 
 const scheduler = createSchedulerService()
+const {
+  scheduleEvery,
+  scheduleCron,
+  scheduleOnce,
+  removeSchedule,
+  listSchedules,
+  types,
+} = scheduler
 
 export {
   createSchedulerService,
-  scheduler,
-  SCHEDULER_TYPES,
-  normalizeString,
-  normalizeQueue,
-  normalizeSchedulerId,
-  normalizeJobName,
-  validateEvery,
-  validateDelay,
-  validateCron,
-  ...scheduler,
+  scheduleEvery,
+  scheduleCron,
+  scheduleOnce,
+  removeSchedule,
+  listSchedules,
+  types,
 }
