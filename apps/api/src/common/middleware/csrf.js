@@ -1,6 +1,7 @@
-const crypto = require('crypto')
-const { BadRequestError } = require('../errors/appError')
-const { env } = require('../../config')
+import crypto from 'node:crypto'
+import { BadRequestError } from '../errors/appError.js'
+import { env } from '../../config/index.js'
+
 const CSRF_COOKIE_NAME = 'csrfToken'
 const CSRF_HEADER_NAME = 'x-csrf-token'
 
@@ -47,8 +48,9 @@ const csrfProtection = (req, _res, next) => {
   return next()
 }
 
-module.exports = {
+export {
   CSRF_COOKIE_NAME,
+  CSRF_HEADER_NAME,
   createCsrfToken,
   setCsrfCookie,
   csrfProtection,
