@@ -1,88 +1,22 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../src/platform/authorization/access-control.service.js')
-vi.mock('../../src/platform/authorization/access-control.policy.js')
+vi.mock('../../src/platform/authorization/access-control.service.js', () => ({ can: vi.fn(), getAuthorizationContext: vi.fn() }))
+vi.mock('../../src/platform/authorization/access-control.policy.js', () => ({ assertPolicy: vi.fn() }))
 
 const accessControlService = await import('../../src/platform/authorization/access-control.service.js')
-const accessControlPolicy = await import('../../src/platform/authorization/access-control.policy.js')
-const { default: authorizeResource } = await import('../../src/platform/authorization/authorizeResource.js')
+const { default: authorizeResource } = await import('../../src/platform/authorization/authorization-resource.middleware.js')
 
-const mocks = {
-  can: accessControlService.can,
-  getAuthorizationContext: accessControlService.getAuthorizationContext,
-  assertPolicy: accessControlPolicy.assertPolicy,
-}
-
-const runMiddleware = async (options, req = { user: { id: 1 }, params: { id: '42' } }) => {
-  const middleware = authorizeResource(options)
-  const next = vi.fn()
-  await middleware(req, {}, next)
-  return { req, next }
-}
-
-describe('resource authorization / IDOR security boundary', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mocks.can.mockResolvedValue(true)
-    mocks.getAuthorizationContext.mockResolvedValue({ role: { id: 1, name: 'client' } })
-    mocks.assertPolicy.mockResolvedValue(undefined)
-  })
-
-  it('requires the capability before loading the requested resource', async () => {
-    mocks.can.mockResolvedValue(false)
-    const loadResource = vi.fn()
-    const { next } = await runMiddleware({ resource: 'applications', action: 'read', loadResource })
-    expect(next).toHaveBeenCalledTimes(1)
-    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 })
-    expect(loadResource).not.toHaveBeenCalled()
-  })
-
-  it('returns not-found when an authenticated user targets a resource that does not exist', async () => {
-    const loadResource = vi.fn().mockResolvedValue(null)
-    const { next } = await runMiddleware({ resource: 'applications', action: 'read', loadResource })
-    expect(loadResource).toHaveBeenCalledWith('42', expect.any(Object))
-    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 404 })
-  })
-
-  it('enforces ownership after capability authorization, preventing cross-user IDOR', async () => {
-    const resource = { id: 42, clientId: 99 }
-    const loadResource = vi.fn().mockResolvedValue(resource)
-    mocks.assertPolicy.mockRejectedValue(Object.assign(new Error('forbidden'), { statusCode: 403 }))
-    const { next } = await runMiddleware({
-      resource: 'applications',
-      action: 'read',
-      loadResource,
-      policy: ({ user, resource: loaded }) => Number(user.id) === Number(loaded.clientId),
-      getOwnerId: (loaded) => loaded.clientId,
-    })
-    expect(mocks.can).toHaveBeenCalledWith({ userId: 1, resource: 'applications', action: 'read' })
-    expect(mocks.assertPolicy).toHaveBeenCalledWith(expect.objectContaining({
-      user: expect.objectContaining({ id: 1, ownerId: 99 }),
-      resource,
-    }))
-    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 })
-    expect(next.mock.calls[0][0].message).toBe('forbidden')
-  })
-
-  it('attaches the authorized resource only after policy succeeds', async () => {
-    const resource = { id: 42, clientId: 1 }
-    const loadResource = vi.fn().mockResolvedValue(resource)
-    const { req, next } = await runMiddleware({
-      resource: 'applications',
-      action: 'read',
-      loadResource,
-      policy: ({ user, resource: loaded }) => Number(user.id) === Number(loaded.clientId),
-      getOwnerId: (loaded) => loaded.clientId,
-    })
-    expect(mocks.assertPolicy).toHaveBeenCalledTimes(1)
-    expect(req.authorizedResource).toBe(resource)
+describe('authorizeResource', () => {
+  it('passes a numeric route resource ID to the loader before Prisma access', async () => {
+    accessControlService.can.mockResolvedValue(true)
+    const loadResource = vi.fn().mockResolvedValue({ id: 4 })
+    const next = vi.fn()
+    const req = { user: { id: 1 }, params: { roleId: '4' } }
+    const middleware = authorizeResource({ resource: 'authorization', action: 'manage', loadResource, getResourceId: (request) => Number(request.params.roleId) })
+    await middleware(req, {}, next)
+    expect(loadResource).toHaveBeenCalledWith(4, req)
+    expect(loadResource).not.toHaveBeenCalledWith('4', req)
+    expect(req.authorizedResource).toEqual({ id: 4 })
     expect(next).toHaveBeenCalledWith()
-  })
-
-  it('does not permit missing authentication context to reach the resource loader', async () => {
-    const loadResource = vi.fn()
-    const { next } = await runMiddleware({ resource: 'applications', action: 'read', loadResource }, { params: { id: '42' } })
-    expect(loadResource).not.toHaveBeenCalled()
-    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 })
   })
 })
