@@ -15,7 +15,7 @@ export function AuthorizationProvider({ children }) {
     if (!isAuthenticated) queryClient.removeQueries({ queryKey: AUTHORIZATION_QUERY_KEY })
   }, [isAuthenticated, queryClient])
   const query = useQuery({ queryKey: AUTHORIZATION_QUERY_KEY, queryFn: authorizationApi.getContext, enabled: isAuthenticated, ...QUERY_OPTIONS })
-  const load = useCallback(async ({ force = false } = {}) => {
+  const load = useCallback(async () => {
     if (!isAuthenticated) {
       queryClient.removeQueries({ queryKey: AUTHORIZATION_QUERY_KEY })
       return null
