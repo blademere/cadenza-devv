@@ -1,9 +1,9 @@
-const express = require('express')
-const { asyncHandler, validate, idempotency } = require('../../../common/middleware')
-const authenticate = require('../../../features/auth/authenticate.secure')
-const authorize = require('../../../platform/authorization/authorize')
-const controller = require('./plan-permit.controller')
-const validation = require('./plan-permit.validation')
+import express from 'express'
+import { asyncHandler, validate, idempotency } from '../../../common/middleware/index.js'
+import authenticate from '../../../features/auth/authenticate.secure.js'
+import authorize from '../../../platform/authorization/authorize.js'
+import * as controller from './plan-permit.controller.js'
+import * as validation from './plan-permit.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-plan-permits', required: true })
@@ -14,4 +14,4 @@ router.get('/:id', authenticate, authorize('obo_plan_permits', 'read'), validate
 router.patch('/:id', authenticate, authorize('obo_plan_permits', 'update'), requireIdempotency, validate(validation.updateApplicationValidator), asyncHandler(controller.update))
 router.post('/:id/submit', authenticate, authorize('obo_plan_permits', 'submit'), requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.submit))
 
-module.exports = router
+export default router
