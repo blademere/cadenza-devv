@@ -1,10 +1,10 @@
-const express = require('express')
-const permitTypeRoutes = require('./permit-types/permit-type.routes')
-const clientRoutes = require('./clients/client.routes')
-const professionalRoutes = require('./professionals/professional.routes')
-const planPermitRoutes = require('./plan-permits/plan-permit.routes')
-const receivingRoutes = require('./receiving/receiving.routes')
-const submissionAppointmentRoutes = require('./submission-appointments/submission-appointment.routes')
+import express from 'express'
+import permitTypeRoutes from './permit-types/permit-type.routes.js'
+import clientRoutes from './clients/client.routes.js'
+import professionalRoutes from './professionals/professional.routes.js'
+import planPermitRoutes from './plan-permits/plan-permit.routes.js'
+import receivingRoutes from './receiving/receiving.routes.js'
+import submissionAppointmentRoutes from './submission-appointments/submission-appointment.routes.js'
 
 const router = express.Router()
 
@@ -15,4 +15,4 @@ router.use('/applications/:applicationId/submission-appointments', submissionApp
 router.use('/applications', planPermitRoutes)
 router.use('/receiving', receivingRoutes)
 
-module.exports = router
+export default router
