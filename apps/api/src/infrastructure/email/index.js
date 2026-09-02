@@ -1,8 +1,6 @@
-const { sendWithResend } = require("./resend")
+import { sendWithResend } from './resend.js'
 
 const sendEmail = async (input) => sendWithResend(input)
 
-module.exports = {
-  provider: "resend",
-  sendEmail,
-}
+export { sendEmail }
+export const provider = 'resend'
