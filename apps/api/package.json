@@ -35,7 +35,7 @@
     "validate:authorization": "node scripts/validate-authorization.cjs",
     "validate:migrations": "node scripts/validate-migrations.cjs"
   },
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1105.0",
     "@prisma/adapter-pg": "^7.9.1",
