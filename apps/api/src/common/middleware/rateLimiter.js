@@ -1,8 +1,5 @@
-const {
-  getRedisClient,
-  connectRedis,
-} = require('../../infrastructure/cache/redis')
-const { env } = require('../../config')
+import { connectRedis, getRedisClient } from '../../infrastructure/cache/redis.js'
+import { env } from '../../config/index.js'
 
 const WINDOW_MS = 15 * 60 * 1000
 const MAX_REQUESTS = 200
@@ -36,8 +33,6 @@ const rateLimiter = async (req, res, next) => {
       return next()
     }
 
-    // Redis is a required production dependency. Fail closed so a Redis outage
-    // cannot silently disable the API rate-limit control.
     return res.status(503).json({
       success: false,
       message: 'Rate limiting service is temporarily unavailable.',
@@ -46,5 +41,5 @@ const rateLimiter = async (req, res, next) => {
   }
 }
 
-module.exports = rateLimiter
-module.exports.rateLimiter = rateLimiter
+export default rateLimiter
+export { rateLimiter }
