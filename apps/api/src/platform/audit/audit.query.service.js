@@ -1,9 +1,11 @@
-const prisma = require('../../infrastructure/database/prisma')
-const {
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+import {
   normalizePagination,
   createPaginationMeta,
   createOrderBy,
-} = require('../../common/pagination/pagination')
+} from '../../common/pagination/pagination.js'
+
+const prisma = getPrismaClient()
 
 const parseDate = (value) => {
   if (!value) return undefined
@@ -94,7 +96,7 @@ const getEntityTimeline = async ({ entityType, entityId, ...query } = {}, db = p
   }, db)
 }
 
-module.exports = {
+export {
   buildAuditWhere,
   listAuditLogs,
   getEntityTimeline,
