@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const repository = require('../../../../src/modules/obo/professionals/professional.repository')
-const prismaModule = require('../../../../src/infrastructure/database/prisma')
-const eventBus = require('../../../../src/platform/event-bus/event-bus')
+const transaction = vi.hoisted(() => vi.fn(async (callback) => callback({ $queryRaw: vi.fn().mockResolvedValue([{ id: 'event-1', status: 'PENDING', attempts: 0, payload: {} }]) })))
+vi.mock('../../../../src/modules/obo/professionals/professional.repository.js')
+vi.mock('../../../../src/infrastructure/database/prisma.js', () => ({ getPrismaClient: () => ({ $transaction: transaction }) }))
+vi.mock('../../../../src/platform/event-bus/event-bus.js')
 
-const transaction = vi.fn(async (callback) => callback({ $queryRaw: vi.fn().mockResolvedValue([{ id: 'event-1', status: 'PENDING', attempts: 0, payload: {} }]) }))
-vi.spyOn(prismaModule, 'getPrismaClient').mockReturnValue({ $transaction: transaction })
-vi.spyOn(eventBus, 'publish').mockResolvedValue({ id: 'event-1' })
+const repository = await import('../../../../src/modules/obo/professionals/professional.repository.js')
+const eventBus = await import('../../../../src/platform/event-bus/event-bus.js')
+const service = await import('../../../../src/modules/obo/professionals/professional.service.js')
 
 const spies = {
-  findPersonByUserId: vi.spyOn(repository, 'findPersonByUserId'), findByPersonId: vi.spyOn(repository, 'findByPersonId'), findByUserId: vi.spyOn(repository, 'findByUserId'), findPersonById: vi.spyOn(repository, 'findPersonById'), create: vi.spyOn(repository, 'create'), listPending: vi.spyOn(repository, 'listPending'), listVerified: vi.spyOn(repository, 'listVerified'), findById: vi.spyOn(repository, 'findById'), update: vi.spyOn(repository, 'update'), addDecision: vi.spyOn(repository, 'addDecision'),
+  findPersonByUserId: repository.findPersonByUserId, findByPersonId: repository.findByPersonId, findByUserId: repository.findByUserId, findPersonById: repository.findPersonById, create: repository.create, listPending: repository.listPending, listVerified: repository.listVerified, findById: repository.findById, update: repository.update, addDecision: repository.addDecision,
 }
 
-const service = require('../../../../src/modules/obo/professionals/professional.service')
 afterEach(() => vi.clearAllMocks())
 
 describe('OBO professional service', () => {
