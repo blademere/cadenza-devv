@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const transaction = vi.hoisted(() => vi.fn(async (callback) => callback({
-  person: { findUnique: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'client@example.com', user: { email: 'client@example.com' } }) },
-})))
-
 vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 vi.mock('../../../../src/platform/forms/form.service.js')
 vi.mock('../../../../src/platform/workflow/workflow.service.js')
-vi.mock('../../../../src/infrastructure/database/prisma.js', () => ({ getPrismaClient: () => ({ $transaction: transaction }) }))
 
 const repository = await import('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 const formService = await import('../../../../src/platform/forms/form.service.js')
@@ -26,15 +21,21 @@ const spies = {
   listByClient: repository.listByClient,
   create: repository.create,
   update: repository.update,
+  findPersonNotificationContext: repository.findPersonNotificationContext,
+  withTransaction: repository.withTransaction,
   startWorkflow: workflowService.startWorkflow,
   transitionWorkflow: workflowService.transitionWorkflow,
+  validateFormValues: formService.validateFormValues,
 }
 
 afterEach(() => vi.clearAllMocks())
 beforeEach(() => {
+  spies.withTransaction.mockImplementation(async (callback) => callback({}))
   spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
   spies.startWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
   spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
+  spies.validateFormValues.mockResolvedValue({ valid: true, formVersionId: null })
+  spies.findPersonNotificationContext.mockResolvedValue(null)
 })
 
 const person = { id: 'person-1', userId: 'user-1', email: 'client@example.com' }
