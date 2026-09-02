@@ -49,7 +49,7 @@ const pickFilters = (query = {}, allowedFilters = []) => {
   )
 }
 
-module.exports = {
+export {
   DEFAULT_PAGE,
   DEFAULT_LIMIT,
   MAX_LIMIT,
