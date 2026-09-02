@@ -1,5 +1,6 @@
-const dotenv = require('dotenv')
-const { z } = require('zod')
+import dotenv from 'dotenv'
+import { z } from 'zod'
+
 dotenv.config()
 const emptyToUndefined = (value) => (value === '' ? undefined : value)
 const optionalEnvString = z.preprocess(emptyToUndefined, z.string().optional())
@@ -62,4 +63,5 @@ const hasFacebookCredentials = Boolean(data.OAUTH_FACEBOOK_CLIENT_ID || data.OAU
 if (hasFacebookCredentials && (!data.OAUTH_FACEBOOK_CLIENT_ID || !data.OAUTH_FACEBOOK_CLIENT_SECRET || !data.OAUTH_FACEBOOK_CALLBACK_URL)) throw new Error('Facebook OAuth requires OAUTH_FACEBOOK_CLIENT_ID, OAUTH_FACEBOOK_CLIENT_SECRET, and OAUTH_FACEBOOK_CALLBACK_URL.')
 if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_SUCCESS_URL.startsWith('http://')) throw new Error('OAUTH_FRONTEND_SUCCESS_URL must use HTTPS in production.')
 if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_FAILURE_URL.startsWith('http://')) throw new Error('OAUTH_FRONTEND_FAILURE_URL must use HTTPS in production.')
-module.exports = Object.freeze(data)
+
+export default Object.freeze(data)
