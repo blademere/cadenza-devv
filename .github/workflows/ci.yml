@@ -154,31 +154,31 @@ jobs:
       - name: Validate workspace boundaries and lockfile
         run: npm run validate:workspaces && npm run validate:dependencies && npm run validate:lockfile
       - name: Validate and bundle OpenAPI
-        run: npx nx run api:openapi:build
+        run: npm run openapi:build
       - name: Dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
       - name: Lint affected projects
-        run: npx nx affected -t lint --base="$NX_BASE" --head="$NX_HEAD"
+        run: npm exec -- nx affected -t lint --base="$NX_BASE" --head="$NX_HEAD"
       - run: npm run format:check
-      - run: npx nx run api:validate:architecture
+      - run: npm run validate:architecture
       - name: Validate authorization rules
         continue-on-error: true
         run: |
-          if npx nx run api:validate:authorization; then
+          if npm run validate:authorization; then
             echo 'Authorization validation passed.'
           else
             echo '::warning::Authorization validation reported issues. CI continues; review the authorization check before merging.'
           fi
-      - run: npx nx run api:validate:migrations
-      - run: npx nx run api:prisma:validate
-      - run: npx nx run api:prisma:generate
-      - run: npx nx run api:prisma:migrate:deploy
+      - run: npm run validate:migrations
+      - run: npm exec -- nx run api:prisma:validate
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
       - name: Test affected projects
-        run: npx nx affected -t test --base="$NX_BASE" --head="$NX_HEAD"
+        run: npm exec -- nx affected -t test --base="$NX_BASE" --head="$NX_HEAD"
       - name: Build affected projects
-        run: npx nx affected -t build --base="$NX_BASE" --head="$NX_HEAD"
+        run: npm exec -- nx affected -t build --base="$NX_BASE" --head="$NX_HEAD"
       - name: Generate API coverage
-        run: npx nx run api:test:coverage
+        run: npm exec -- nx run api:test:coverage
       - name: Publish coverage summary
         if: '${{ always() }}'
         run: |
@@ -231,10 +231,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx nx run api:validate:migrations
-      - run: npx nx run api:prisma:validate
-      - run: npx nx run api:prisma:generate
-      - run: npx nx run api:prisma:migrate:deploy
+      - run: npm run validate:migrations
+      - run: npm exec -- nx run api:prisma:validate
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
 
   docker:
     name: Docker
