@@ -1,4 +1,4 @@
-const { getPrismaClient } = require('../../../infrastructure/database/prisma')
+import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
 
@@ -32,4 +32,4 @@ const findActiveById = (id) => prisma.oboPermitType.findFirst({
   include: { form: { include: publishedFormInclude } },
 })
 
-module.exports = { listActive, findActiveById }
+export { listActive, findActiveById }
