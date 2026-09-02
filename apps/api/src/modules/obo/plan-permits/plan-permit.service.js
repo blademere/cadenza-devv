@@ -3,6 +3,7 @@ import * as workflowService from '../../../platform/workflow/workflow.service.js
 import * as repository from './plan-permit.repository.js'
 import { resolveAndValidateForm } from './plan-permit.form.js'
 import { getWorkflowState, withWorkflowState } from './plan-permit.workflow.js'
+import { getNotificationContext } from '../notification-context.js'
 
 const WORKFLOW_KEY = 'obo_plan_permit'
 const SUBJECT_TYPE = 'OboPermitApplication'
@@ -21,14 +22,6 @@ const getClientPerson = async (userId) => {
     throw new ConflictError('The authenticated user does not have a person profile.')
   }
   return person
-}
-
-const getClientNotificationContext = async (personId, db) => {
-  const person = await repository.findPersonNotificationContext(personId, db)
-  return {
-    clientUserId: person?.userId || null,
-    clientEmail: person?.user?.email || person?.email || null,
-  }
 }
 
 const resolveReplacement = async ({ replacesApplicationId, personId }) => {
@@ -92,7 +85,11 @@ const createApplication = async ({ userId, permitTypeId, professionalId, formVer
       throw new NotFoundError('Professional registration not found.')
     }
 
-    const notificationContext = await getClientNotificationContext(person.id, tx)
+    const notificationContext = await getNotificationContext({
+      personId: person.id,
+      db: tx,
+      findPersonNotificationContext: repository.findPersonNotificationContext,
+    })
     const workflow = await workflowService.startWorkflow({
       workflowKey: WORKFLOW_KEY,
       subjectType: SUBJECT_TYPE,
@@ -162,7 +159,10 @@ const submit = async ({ id, userId }) => {
     throw new ConflictError('Only draft applications can be submitted.')
   }
 
-  const notificationContext = await getClientNotificationContext(application.clientPersonId)
+  const notificationContext = await getNotificationContext({
+    personId: application.clientPersonId,
+    findPersonNotificationContext: repository.findPersonNotificationContext,
+  })
   await workflowService.transitionWorkflow({
     instanceId: application.workflowInstanceId,
     transitionKey: 'SUBMIT_FOR_SUBMISSION',
