@@ -8,14 +8,16 @@ let globalRefreshPromise = null
 export function AuthProvider({ children }) {
   const [accessToken, setAccessToken] = useState(null)
   const [user, setUser] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(() => {
+    const path = window.location.pathname
+    return path !== '/auth/callback/success' && path !== '/auth/callback/failure'
+  })
   const refreshPromiseRef = useRef(null)
 
   const applySession = useCallback((session) => {
     const token = session?.accessToken ?? null
     setAccessToken(token)
     apiClient.setAccessToken(token)
-
     if (session?.csrfToken) apiClient.setCsrfToken(session.csrfToken)
     if (session?.user !== undefined) setUser(session.user)
   }, [])
@@ -29,7 +31,6 @@ export function AuthProvider({ children }) {
   const refresh = useCallback(async () => {
     if (refreshPromiseRef.current) return refreshPromiseRef.current
     if (globalRefreshPromise) return globalRefreshPromise
-
     const refreshPromise = (async () => {
       try {
         await authApi.csrf()
@@ -50,16 +51,13 @@ export function AuthProvider({ children }) {
         globalRefreshPromise = null
       }
     })()
-
     refreshPromiseRef.current = refreshPromise
     globalRefreshPromise = refreshPromise
     return refreshPromise
   }, [applySession])
 
   const logout = useCallback(async () => {
-    try {
-      await authApi.logout()
-    } finally {
+    try { await authApi.logout() } finally {
       setAccessToken(null)
       setUser(null)
       apiClient.clearAccessToken()
@@ -72,27 +70,12 @@ export function AuthProvider({ children }) {
   }, [refresh])
 
   useEffect(() => {
-    const isOAuthCallback = window.location.pathname === '/auth/callback/success'
-      || window.location.pathname === '/auth/callback/failure'
-
-    if (isOAuthCallback) {
-      setIsLoading(false)
-      return
-    }
-
+    const path = window.location.pathname
+    if (path === '/auth/callback/success' || path === '/auth/callback/failure') return
     refresh().finally(() => setIsLoading(false))
   }, [refresh])
 
-  const value = useMemo(() => ({
-    accessToken,
-    user,
-    isAuthenticated: Boolean(accessToken),
-    isLoading,
-    login,
-    refresh,
-    logout,
-  }), [accessToken, user, isLoading, login, refresh, logout])
-
+  const value = useMemo(() => ({ accessToken, user, isAuthenticated: Boolean(accessToken), isLoading, login, refresh, logout }), [accessToken, user, isLoading, login, refresh, logout])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
