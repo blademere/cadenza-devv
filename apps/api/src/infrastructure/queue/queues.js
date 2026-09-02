@@ -3,6 +3,4 @@ const QUEUES = Object.freeze({
   NOTIFICATIONS: 'notifications',
 })
 
-module.exports = {
-  QUEUES,
-}
+export { QUEUES }
