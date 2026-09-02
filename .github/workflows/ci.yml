@@ -31,6 +31,8 @@ jobs:
       workflow: ${{ steps.filter.outputs.workflow }}
       security: ${{ steps.filter.outputs.security }}
       docs_only: ${{ steps.filter.outputs.docs_only }}
+      base_sha: ${{ steps.filter.outputs.base_sha }}
+      head_sha: ${{ steps.filter.outputs.head_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -43,6 +45,8 @@ jobs:
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             app=true; database=true; docker=true; workflow=true; security=true; docs_only=false
+            base="$(git rev-parse "${{ github.sha }}^")"
+            head="${{ github.sha }}"
           else
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               base="${{ github.event.pull_request.base.sha }}"
@@ -81,8 +85,8 @@ jobs:
               esac
             done
           fi
-          printf 'app=%s\ndatabase=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\n' \
-            "$app" "$database" "$docker" "$workflow" "$security" "$docs_only" >> "$GITHUB_OUTPUT"
+          printf 'app=%s\ndatabase=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\nbase_sha=%s\nhead_sha=%s\n' \
+            "$app" "$database" "$docker" "$workflow" "$security" "$docs_only" "$base" "$head" >> "$GITHUB_OUTPUT"
 
       - name: Write CI classification summary
         if: always()
@@ -136,8 +140,12 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app_test
       REDIS_URL: redis://localhost:6379
       PRISMA_GENERATE_SKIP_AUTOINSTALL: 'true'
+      NX_BASE: ${{ needs.changes.outputs.base_sha }}
+      NX_HEAD: ${{ needs.changes.outputs.head_sha }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -149,7 +157,8 @@ jobs:
         run: npm run openapi:build
       - name: Dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
-      - run: npm run lint
+      - name: Lint affected projects
+        run: npm exec -- nx affected -t lint --base="$NX_BASE" --head="$NX_HEAD"
       - run: npm run format:check
       - run: npm run validate:architecture
       - name: Validate authorization rules
@@ -161,15 +170,15 @@ jobs:
             echo '::warning::Authorization validation reported issues. CI continues; review the authorization check before merging.'
           fi
       - run: npm run validate:migrations
-      - run: npm --workspace @express-app/api run prisma:validate
-      - run: npm --workspace @express-app/api run prisma:generate
-      - run: npm --workspace @express-app/api run prisma:migrate:deploy
-      - name: Test API
-        run: npm --workspace @express-app/api run test
-      - name: Build workspaces
-        run: npm run build
+      - run: npm exec -- nx run api:prisma:validate
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
+      - name: Test affected projects
+        run: npm exec -- nx affected -t test --base="$NX_BASE" --head="$NX_HEAD"
+      - name: Build affected projects
+        run: npm exec -- nx affected -t build --base="$NX_BASE" --head="$NX_HEAD"
       - name: Generate API coverage
-        run: npm --workspace @express-app/api run test:coverage
+        run: npm exec -- nx run api:test:coverage
       - name: Publish coverage summary
         if: '${{ always() }}'
         run: |
@@ -222,10 +231,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm --workspace @express-app/api run validate:migrations
-      - run: npm --workspace @express-app/api run prisma:validate
-      - run: npm --workspace @express-app/api run prisma:generate
-      - run: npm --workspace @express-app/api run prisma:migrate:deploy
+      - run: npm run validate:migrations
+      - run: npm exec -- nx run api:prisma:validate
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
 
   docker:
     name: Docker

@@ -77,3 +77,9 @@ Thumbs.db
 
 # PM2 runtime state
 .pm2/
+
+
+
+.nx/cache
+.nx/workspace-data
+.nx/migrate-runs
