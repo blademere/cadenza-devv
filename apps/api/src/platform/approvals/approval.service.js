@@ -1,16 +1,17 @@
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
-const prisma = getPrismaClient()
-const {
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+import {
   BadRequestError,
   ConflictError,
   ForbiddenError,
   NotFoundError,
-} = require('../../common/errors/appError')
-const {
+} from '../../common/errors/appError.js'
+import {
   evaluateCondition,
   validateCondition,
-} = require('../rules/rule.service')
-const { recordAudit } = require('../audit/audit.service')
+} from '../rules/rule.service.js'
+import { recordAudit } from '../audit/audit.service.js'
+
+const prisma = getPrismaClient()
 
 const parsePermissionKey = (key) => {
   const index = key?.indexOf('.')
@@ -341,7 +342,7 @@ const actOnApproval = async ({
   return result
 }
 
-module.exports = {
+export {
   createApprovalPolicy,
   findApplicablePolicy,
   startApproval,
