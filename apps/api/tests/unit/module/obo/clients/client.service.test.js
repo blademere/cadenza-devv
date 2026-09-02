@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const peopleMocks = vi.hoisted(() => ({ create: vi.fn(), getByUserId: vi.fn() }))
-vi.mock('../../../../../src/features/people/people.service.js', () => ({ default: peopleMocks }))
+vi.mock('../../../../../src/features/people/people.service.js', () => ({ ...peopleMocks, default: peopleMocks }))
 vi.mock('../../../../../src/modules/obo/clients/client.repository.js')
 
 const peopleService = peopleMocks
