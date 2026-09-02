@@ -58,16 +58,16 @@ jobs:
             app=false; database=false; docker=false; workflow=false; security=false
             for file in "${files[@]}"; do
               case "$file" in
-                apps/server/**|apps/web/**|packages/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|prisma.config.ts|.env.example) app=true ;;
+                apps/**|packages/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|.env.example) app=true ;;
               esac
               case "$file" in
-                prisma/**|prisma.config.ts|scripts/validate-migrations.cjs) database=true ;;
+                apps/server/prisma/**|apps/server/prisma.config.ts|apps/server/scripts/validate-migrations.cjs) database=true ;;
               esac
               case "$file" in
-                apps/server/**|apps/web/**|packages/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
+                apps/**|packages/**|apps/server/prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json) docker=true ;;
               esac
               case "$file" in
-                apps/server/**|apps/web/**|packages/**) security=true ;;
+                apps/**|packages/**) security=true ;;
               esac
               case "$file" in
                 .github/workflows/**|.github/dependabot.yml) workflow=true ;;
@@ -143,6 +143,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Validate workspace boundaries and lockfile
+        run: npm run validate:workspaces && npm run validate:dependencies && npm run validate:lockfile
       - name: Validate and bundle OpenAPI
         run: npm run openapi:build
       - name: Dependency vulnerability audit
@@ -150,22 +152,23 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run validate:architecture
+      - run: npm run validate:authorization
       - run: npm run validate:migrations
-      - run: npx prisma validate --schema=prisma/schema.prisma
-      - run: npx prisma generate --schema=prisma/schema.prisma
-      - run: npx prisma migrate deploy --schema=prisma/schema.prisma
+      - run: npm --workspace @express-app/server run prisma:validate
+      - run: npm --workspace @express-app/server run prisma:generate
+      - run: npm --workspace @express-app/server run prisma:migrate:deploy
       - name: Test server
-        run: npm test
-      - name: Build web
-        run: npm run build:web
+        run: npm --workspace @express-app/server run test
+      - name: Build workspaces
+        run: npm run build
       - name: Generate server coverage
-        run: npm run test:coverage
+        run: npm --workspace @express-app/server run test:coverage
       - name: Publish coverage summary
         if: '${{ always() }}'
         run: |
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('fs');
-          const file = 'coverage/coverage-summary.json';
+          const file = 'apps/server/coverage/coverage-summary.json';
           console.log('## Test coverage\n');
           if (!fs.existsSync(file)) {
             console.log('Coverage summary was not generated.');
@@ -181,7 +184,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: vitest-coverage
-          path: coverage/
+          path: apps/server/coverage/
           if-no-files-found: error
           retention-days: 14
 
@@ -212,10 +215,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run validate:migrations
-      - run: npx prisma validate --schema=prisma/schema.prisma
-      - run: npx prisma generate --schema=prisma/schema.prisma
-      - run: npx prisma migrate deploy --schema=prisma/schema.prisma
+      - run: npm --workspace @express-app/server run validate:migrations
+      - run: npm --workspace @express-app/server run prisma:validate
+      - run: npm --workspace @express-app/server run prisma:generate
+      - run: npm --workspace @express-app/server run prisma:migrate:deploy
 
   docker:
     name: Docker
