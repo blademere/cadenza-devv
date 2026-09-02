@@ -35,7 +35,7 @@ export default function UsersPage() {
       setSaved(selectedUser.id)
       const updatedUser = users.find((user) => user.id === selectedUser.id)
       if (updatedUser) setSelectedUser({ ...updatedUser, role: roleById.get(String(roleId)) ?? updatedUser.role })
-    } catch (error) {
+    } catch {
       setSaved(null)
     }
   }
