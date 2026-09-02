@@ -1,5 +1,5 @@
 import { getPrismaClient } from "../../infrastructure/database/prisma.js"
-import { BadRequestError, ConflictError, NotFoundError } from "../../common/errors/appError.js"
+import { ConflictError, NotFoundError } from "../../common/errors/appError.js"
 import { recordAudit } from "../audit/audit.service.js"
 import { publish } from "../event-bus/event-bus.js"
 import { assertTransition, assertMutable, assertRollbackTarget } from "../configuration/configuration-lifecycle.service.js"
