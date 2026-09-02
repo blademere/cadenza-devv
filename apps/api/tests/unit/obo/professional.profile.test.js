@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../src/modules/obo/professionals/professional.repository.js')
 const peopleMocks = vi.hoisted(() => ({ getByUserId: vi.fn(), create: vi.fn(), update: vi.fn() }))
-vi.mock('../../../src/features/people/people.service.js', () => ({ default: peopleMocks }))
+vi.mock('../../../src/features/people/people.service.js', () => ({ ...peopleMocks, default: peopleMocks }))
 
 const repository = await import('../../../src/modules/obo/professionals/professional.repository.js')
 const peopleService = peopleMocks
