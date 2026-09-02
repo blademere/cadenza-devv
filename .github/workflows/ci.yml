@@ -146,30 +146,30 @@ jobs:
       - name: Validate workspace boundaries and lockfile
         run: npm run validate:workspaces && npm run validate:dependencies && npm run validate:lockfile
       - name: Validate and bundle OpenAPI
-        run: npm run openapi:build
+        run: npx nx run api:openapi:build
       - name: Dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
-      - run: npm run lint
+      - run: npx nx run-many -t lint
       - run: npm run format:check
-      - run: npm run validate:architecture
+      - run: npx nx run api:validate:architecture
       - name: Validate authorization rules
         continue-on-error: true
         run: |
-          if npm run validate:authorization; then
+          if npx nx run api:validate:authorization; then
             echo 'Authorization validation passed.'
           else
             echo '::warning::Authorization validation reported issues. CI continues; review the authorization check before merging.'
           fi
-      - run: npm run validate:migrations
-      - run: npm --workspace @express-app/api run prisma:validate
-      - run: npm --workspace @express-app/api run prisma:generate
-      - run: npm --workspace @express-app/api run prisma:migrate:deploy
+      - run: npx nx run api:validate:migrations
+      - run: npx nx run api:prisma:validate
+      - run: npx nx run api:prisma:generate
+      - run: npx nx run api:prisma:migrate:deploy
       - name: Test API
-        run: npm --workspace @express-app/api run test
+        run: npx nx run api:test
       - name: Build workspaces
-        run: npm run build
+        run: npx nx run-many -t build
       - name: Generate API coverage
-        run: npm --workspace @express-app/api run test:coverage
+        run: npx nx run api:test:coverage
       - name: Publish coverage summary
         if: '${{ always() }}'
         run: |
@@ -222,10 +222,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm --workspace @express-app/api run validate:migrations
-      - run: npm --workspace @express-app/api run prisma:validate
-      - run: npm --workspace @express-app/api run prisma:generate
-      - run: npm --workspace @express-app/api run prisma:migrate:deploy
+      - run: npx nx run api:validate:migrations
+      - run: npx nx run api:prisma:validate
+      - run: npx nx run api:prisma:generate
+      - run: npx nx run api:prisma:migrate:deploy
 
   docker:
     name: Docker
