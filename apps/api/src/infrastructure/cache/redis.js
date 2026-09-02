@@ -1,5 +1,5 @@
-const { createClient } = require('redis')
-const { env, logger } = require('../../config')
+import { createClient } from 'redis'
+import { env, logger } from '../../config/index.js'
 
 let redisClient
 
@@ -36,8 +36,4 @@ const disconnectRedis = async () => {
   }
 }
 
-module.exports = {
-  getRedisClient,
-  connectRedis,
-  disconnectRedis,
-}
+export { getRedisClient, connectRedis, disconnectRedis }
