@@ -1,34 +1,34 @@
-const express = require('express')
-const cookieParser = require('cookie-parser')
-const helmet = require('helmet')
-const cors = require('cors')
-const hpp = require('hpp')
-const compression = require('compression')
-const crypto = require('crypto')
+import express from 'express'
+import cookieParser from 'cookie-parser'
+import helmet from 'helmet'
+import cors from 'cors'
+import hpp from 'hpp'
+import compression from 'compression'
+import crypto from 'node:crypto'
 
-const {
+import {
   prometheusMiddleware,
   metricsHandler,
   recordDependencyHealth,
   recordDependencyLatency,
-} = require('./infrastructure/monitoring/prometheus')
+} from './infrastructure/monitoring/prometheus.js'
 
-const { getPrismaClient } = require('./infrastructure/database/prisma')
-const { connectRedis } = require('./infrastructure/cache/redis')
-require('./infrastructure/storage')
+import { getPrismaClient } from './infrastructure/database/prisma.js'
+import { connectRedis } from './infrastructure/cache/redis.js'
+import './infrastructure/storage/index.js'
 
-const {
+import {
   rateLimiter,
   requestId,
   notFound,
   errorHandler,
-} = require('./common/middleware')
-const originProtection = require('./common/middleware/originProtection')
+} from './common/middleware/index.js'
+import originProtection from './common/middleware/originProtection.js'
 
-const { env, requestLogger } = require('./config')
-const apiRoutes = require('./routes')
-const { registerSwagger } = require('./infrastructure/docs/swagger')
-const { withTimeout } = require('./common/utils/withTimeout')
+import { env, requestLogger } from './config/index.js'
+import apiRoutes from './routes/index.js'
+import { registerSwagger } from './infrastructure/docs/swagger.js'
+import { withTimeout } from './common/utils/withTimeout.js'
 
 const app = express()
 const allowedCorsOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
@@ -166,4 +166,4 @@ app.use('/api/v1', apiRoutes)
 app.use(notFound)
 app.use(errorHandler)
 
-module.exports = app
+export default app
