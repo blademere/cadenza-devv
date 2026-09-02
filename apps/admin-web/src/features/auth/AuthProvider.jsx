@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- provider and its hook share the context boundary */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { authApi } from './auth.api'
 import { apiClient } from '../../services/api/client'
@@ -13,7 +14,6 @@ export function AuthProvider({ children }) {
     return path !== '/auth/callback/success' && path !== '/auth/callback/failure'
   })
   const refreshPromiseRef = useRef(null)
-
   const applySession = useCallback((session) => {
     const token = session?.accessToken ?? null
     setAccessToken(token)
@@ -21,13 +21,11 @@ export function AuthProvider({ children }) {
     if (session?.csrfToken) apiClient.setCsrfToken(session.csrfToken)
     if (session?.user !== undefined) setUser(session.user)
   }, [])
-
   const login = useCallback(async (credentials) => {
     const session = await authApi.login(credentials)
     applySession(session)
     return session
   }, [applySession])
-
   const refresh = useCallback(async () => {
     if (refreshPromiseRef.current) return refreshPromiseRef.current
     if (globalRefreshPromise) return globalRefreshPromise
@@ -55,7 +53,6 @@ export function AuthProvider({ children }) {
     globalRefreshPromise = refreshPromise
     return refreshPromise
   }, [applySession])
-
   const logout = useCallback(async () => {
     try { await authApi.logout() } finally {
       setAccessToken(null)
@@ -63,22 +60,18 @@ export function AuthProvider({ children }) {
       apiClient.clearAccessToken()
     }
   }, [])
-
   useEffect(() => {
     apiClient.setRefreshHandler(refresh)
     return () => apiClient.setRefreshHandler(null)
   }, [refresh])
-
   useEffect(() => {
     const path = window.location.pathname
     if (path === '/auth/callback/success' || path === '/auth/callback/failure') return
     refresh().finally(() => setIsLoading(false))
   }, [refresh])
-
   const value = useMemo(() => ({ accessToken, user, isAuthenticated: Boolean(accessToken), isLoading, login, refresh, logout }), [accessToken, user, isLoading, login, refresh, logout])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
-
 export function useAuth() {
   const context = useContext(AuthContext)
   if (!context) throw new Error('useAuth must be used within AuthProvider.')
