@@ -1,4 +1,4 @@
-const { getPrismaClient } = require("../../infrastructure/database/prisma")
+import { getPrismaClient } from "../../infrastructure/database/prisma.js"
 
 const prisma = getPrismaClient()
 
@@ -74,7 +74,7 @@ const findUserIdsByRoleId = async (roleId) => {
   return users.map((user) => user.id)
 }
 
-module.exports = {
+export {
   getUserAuthorizationContext,
   getUserPermissions,
   findRoleById,
