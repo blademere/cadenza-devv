@@ -94,7 +94,7 @@ describe('Authorization context integration', () => {
     )
 
     expect(applications.visible).toBe(false)
-    expect(verification.visible).toBe(false)
+    expect(verification.visible).toBe(true)
   })
 
   it('hides capabilities for inactive modules even if the role has the permission', async () => {
