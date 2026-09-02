@@ -52,4 +52,4 @@ const capabilities = Object.freeze([
 
 const getCapabilityRegistry = () => capabilities.map((capability) => ({ ...capability }))
 
-module.exports = { getCapabilityRegistry }
+export { getCapabilityRegistry }
