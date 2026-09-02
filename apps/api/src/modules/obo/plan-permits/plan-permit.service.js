@@ -1,7 +1,7 @@
-const { ConflictError, NotFoundError } = require('../../../common/errors/appError')
-const formService = require('../../../platform/forms/form.service')
-const workflowService = require('../../../platform/workflow/workflow.service')
-const repository = require('./plan-permit.repository')
+import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
+import * as formService from '../../../platform/forms/form.service.js'
+import * as workflowService from '../../../platform/workflow/workflow.service.js'
+import * as repository from './plan-permit.repository.js'
 
 const WORKFLOW_KEY = 'obo_plan_permit'
 const SUBJECT_TYPE = 'OboPermitApplication'
@@ -53,9 +53,7 @@ const resolveReplacement = async ({ replacesApplicationId, personId }) => {
   const original = await repository.findOwnedByClient(replacesApplicationId, personId)
   if (!original) throw new NotFoundError('The application being replaced was not found.')
   const originalWithStatus = await withWorkflowState(original)
-  if (originalWithStatus.status !== STATUS.DECLINED) {
-    throw new ConflictError('Only a declined permit application can be replaced with a new application.')
-  }
+  if (originalWithStatus.status !== STATUS.DECLINED) throw new ConflictError('Only a declined permit application can be replaced with a new application.')
   return originalWithStatus
 }
 
@@ -111,4 +109,4 @@ const submit = async ({ id, userId }) => {
   return withWorkflowState(await repository.findById(id))
 }
 
-module.exports = { STATUS, WORKFLOW_KEY, SUBJECT_TYPE, createApplication, getMine, listMine, updateDraft, submit, getWorkflowState, withWorkflowState }
+export { STATUS, WORKFLOW_KEY, SUBJECT_TYPE, createApplication, getMine, listMine, updateDraft, submit, getWorkflowState, withWorkflowState }
