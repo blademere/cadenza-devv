@@ -1,0 +1,23 @@
+{
+  "name": "admin-web",
+  "projectType": "application",
+  "sourceRoot": "apps/admin-web/src",
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run dev", "cwd": "apps/admin-web" }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run build", "cwd": "apps/admin-web" }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run lint", "cwd": "apps/admin-web" }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npm run preview", "cwd": "apps/admin-web" }
+    }
+  }
+}
