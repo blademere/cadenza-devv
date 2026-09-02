@@ -1,26 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const eventBus = require('../../../src/platform/event-bus/event-bus')
-const repository = require('../../../src/features/auth/auth.repository.js')
-const tokens = require('../../../src/features/auth/auth.tokens.js')
+vi.mock('../../../src/platform/event-bus/event-bus.js')
+vi.mock('../../../src/features/auth/auth.repository.js')
+vi.mock('../../../src/features/auth/auth.tokens.js')
 
-vi.spyOn(eventBus, 'publish').mockResolvedValue({ id: 'event-1' })
-vi.spyOn(repository, 'findUserByEmail')
-vi.spyOn(repository, 'hashRefreshToken')
-vi.spyOn(repository, 'createRefreshTokenRecord')
-vi.spyOn(repository, 'findRefreshToken')
-vi.spyOn(repository, 'revokeRefreshToken')
-vi.spyOn(repository, 'revokeAllRefreshTokensForUser')
-vi.spyOn(repository, 'rotateRefreshToken')
-vi.spyOn(tokens, 'createAccessToken')
-vi.spyOn(tokens, 'createRefreshToken')
-vi.spyOn(tokens, 'verifyRefreshToken')
-
-const { UnauthorizedError } = require('../../../src/common/errors/appError')
+const eventBus = await import('../../../src/platform/event-bus/event-bus.js')
+const repository = await import('../../../src/features/auth/auth.repository.js')
+const tokens = await import('../../../src/features/auth/auth.tokens.js')
+const { UnauthorizedError } = await import('../../../src/common/errors/appError.js')
 const { refreshAccessToken } = await import('../../../src/features/auth/auth.service.js')
 
 beforeEach(() => {
   vi.clearAllMocks()
+  eventBus.publish.mockResolvedValue({ id: 'event-1' })
   repository.revokeAllRefreshTokensForUser.mockResolvedValue(undefined)
   tokens.verifyRefreshToken.mockReturnValue({ type: 'refresh', sub: '42', tokenId: 'old-token-id', authVersion: 0 })
 })
