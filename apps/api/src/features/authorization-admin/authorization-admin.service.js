@@ -3,7 +3,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../../common/errors/appError.js'
-import * as repository from './authorization-admin.repository.js'
+import repository from './authorization-admin.repository.js'
 import { clearRolePermissionCache } from '../../platform/authorization/access-control.service.js'
 
 const listModules = () => repository.listModules()
