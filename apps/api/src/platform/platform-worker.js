@@ -1,9 +1,20 @@
-const { disconnectPrisma } = require('../infrastructure/database/prisma')
-const { deleteExpiredRefreshTokens } = require('../infrastructure/maintenance/auth-token')
-const { processEvent } = require('./event-bus/event-bus')
-const { claimBatch, markProcessed, markFailed, recoverStale } = require('./event-bus/event-outbox.service')
-const { enqueueJob, registerWorker, closeQueues } = require('../infrastructure/queue/bullmq')
-const { logger } = require('../config')
+import { pathToFileURL } from 'node:url'
+
+import { disconnectPrisma } from '../infrastructure/database/prisma.js'
+import { deleteExpiredRefreshTokens } from '../infrastructure/maintenance/auth-token.js'
+import { processEvent } from './event-bus/event-bus.js'
+import {
+  claimBatch,
+  markProcessed,
+  markFailed,
+  recoverStale,
+} from './event-bus/event-outbox.service.js'
+import {
+  enqueueJob,
+  registerWorker,
+  closeQueues,
+} from '../infrastructure/queue/bullmq.js'
+import { logger } from '../config/index.js'
 
 const EVENT_QUEUE = 'platform-events'
 
@@ -54,6 +65,23 @@ const startWorker = async ({ intervalMs = 5000, batchSize = 50 } = {}) => {
   }
 }
 
-if (require.main === module) startWorker().catch((error) => { logger.error({ err: error }, 'Platform worker stopped unexpectedly'); process.exitCode = 1 })
+const isMainModule = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false
 
-module.exports = { EVENT_QUEUE, runPlatformMaintenance, processOutbox, publishOutbox, startEventWorker, runWorkerCycle, startWorker }
+if (isMainModule) {
+  startWorker().catch((error) => {
+    logger.error({ err: error }, 'Platform worker stopped unexpectedly')
+    process.exitCode = 1
+  })
+}
+
+export {
+  EVENT_QUEUE,
+  runPlatformMaintenance,
+  processOutbox,
+  publishOutbox,
+  startEventWorker,
+  runWorkerCycle,
+  startWorker,
+}
