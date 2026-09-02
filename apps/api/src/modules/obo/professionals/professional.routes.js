@@ -1,11 +1,11 @@
-const express = require('express')
-const { asyncHandler, validate, idempotency } = require('../../../common/middleware')
-const authenticate = require('../../../features/auth/authenticate.secure')
-const authorize = require('../../../platform/authorization/authorize')
-const authorizeResource = require('../../../platform/authorization/authorizeResource')
-const repository = require('./professional.repository')
-const controller = require('./professional.controller')
-const validation = require('./professional.validation')
+import express from 'express'
+import { asyncHandler, validate, idempotency } from '../../../common/middleware/index.js'
+import authenticate from '../../../features/auth/authenticate.secure.js'
+import authorize from '../../../platform/authorization/authorize.js'
+import authorizeResource from '../../../platform/authorization/authorizeResource.js'
+import * as repository from './professional.repository.js'
+import * as controller from './professional.controller.js'
+import * as validation from './professional.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-professionals', required: true })
@@ -16,11 +16,6 @@ router.post('/', authenticate, authorize('obo_professionals', 'create'), require
 router.get('/mine', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getMine))
 router.get('/verified', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.listVerified))
 router.get('/pending', authenticate, authorize('obo_professionals', 'review'), asyncHandler(controller.listPending))
-router.post('/:id/verification', authenticate, authorizeResource({
-  resource: 'obo_professionals',
-  action: 'review',
-  loadResource: repository.findById,
-  getResourceId: (req) => req.params.id,
-}), requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
+router.post('/:id/verification', authenticate, authorizeResource({ resource: 'obo_professionals', action: 'review', loadResource: repository.findById, getResourceId: (req) => req.params.id }), requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
 
-module.exports = router
+export default router
