@@ -3,7 +3,7 @@ import { asyncHandler, validate, idempotency } from '../../common/middleware/ind
 import authenticate from '../auth/authenticate.secure.js'
 import authorize from '../../platform/authorization/authorize.js'
 import authorizeResource from '../../platform/authorization/authorizeResource.js'
-import * as repository from './authorization-admin.repository.js'
+import repository from './authorization-admin.repository.js'
 import { listModulesController, createModuleController, createPermissionController, setModuleActiveController, listRolesController, replaceRolePermissionsController } from './authorization-admin.controller.js'
 import { createModuleValidator, createPermissionValidator, setModuleActiveValidator, replaceRolePermissionsValidator } from './authorization-admin.validation.js'
 const router = express.Router()
