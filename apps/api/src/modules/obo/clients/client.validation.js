@@ -1,4 +1,4 @@
-const { z } = require('zod')
+import { z } from 'zod'
 
 const optionalText = (max) => z.string().trim().max(max).optional().nullable()
 
@@ -15,4 +15,4 @@ const registrationValidator = async (req) => ({
   }).strict().parse(req.body || {}),
 })
 
-module.exports = { registrationValidator }
+export { registrationValidator }
