@@ -5,6 +5,4 @@ const uploadToCloudinary = async (fileName) => {
   }
 }
 
-module.exports = {
-  uploadToCloudinary,
-}
+export { uploadToCloudinary }
