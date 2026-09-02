@@ -1,11 +1,11 @@
-const express = require('express')
-const { asyncHandler } = require('../../../common/middleware')
-const authenticate = require('../../../features/auth/authenticate.secure')
-const authorize = require('../../../platform/authorization/authorize')
-const controller = require('./permit-type.controller')
+import express from 'express'
+import { asyncHandler } from '../../../common/middleware/index.js'
+import authenticate from '../../../features/auth/authenticate.secure.js'
+import authorize from '../../../platform/authorization/authorize.js'
+import * as controller from './permit-type.controller.js'
 
 const router = express.Router()
 router.get('/', authenticate, authorize('obo_plan_permits', 'read'), asyncHandler(controller.list))
 router.get('/:permitTypeId/form', authenticate, authorize('obo_plan_permits', 'read'), asyncHandler(controller.getForm))
 
-module.exports = router
+export default router
