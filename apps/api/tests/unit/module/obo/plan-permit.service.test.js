@@ -1,32 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const repository = require('../../../../src/modules/obo/plan-permits/plan-permit.repository')
-const formService = require('../../../../src/platform/forms/form.service')
-const workflowService = require('../../../../src/platform/workflow/workflow.service')
-const prismaModule = require('../../../../src/infrastructure/database/prisma')
-
-const transaction = vi.fn(async (callback) => callback({
+const transaction = vi.hoisted(() => vi.fn(async (callback) => callback({
   person: { findUnique: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'client@example.com', user: { email: 'client@example.com' } }) },
-}))
-vi.spyOn(prismaModule, 'getPrismaClient').mockReturnValue({ $transaction: transaction })
+})))
+
+vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
+vi.mock('../../../../src/platform/forms/form.service.js')
+vi.mock('../../../../src/platform/workflow/workflow.service.js')
+vi.mock('../../../../src/infrastructure/database/prisma.js', () => ({ getPrismaClient: () => ({ $transaction: transaction }) }))
+
+const repository = await import('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
+const formService = await import('../../../../src/platform/forms/form.service.js')
+const workflowService = await import('../../../../src/platform/workflow/workflow.service.js')
+const service = await import('../../../../src/modules/obo/plan-permits/plan-permit.service.js')
 
 const spies = {
-  findPersonByUserId: vi.spyOn(repository, 'findPersonByUserId'),
-  findPermitType: vi.spyOn(repository, 'findPermitType'),
-  findProfessional: vi.spyOn(repository, 'findProfessional'),
-  findFormById: vi.spyOn(repository, 'findFormById'),
-  findFormVersionById: vi.spyOn(repository, 'findFormVersionById'),
-  findWorkflowInstance: vi.spyOn(repository, 'findWorkflowInstance'),
-  findById: vi.spyOn(repository, 'findById'),
-  findOwnedByClient: vi.spyOn(repository, 'findOwnedByClient'),
-  listByClient: vi.spyOn(repository, 'listByClient'),
-  create: vi.spyOn(repository, 'create'),
-  update: vi.spyOn(repository, 'update'),
-  startWorkflow: vi.spyOn(workflowService, 'startWorkflow'),
-  transitionWorkflow: vi.spyOn(workflowService, 'transitionWorkflow'),
+  findPersonByUserId: repository.findPersonByUserId,
+  findPermitType: repository.findPermitType,
+  findProfessional: repository.findProfessional,
+  findFormById: repository.findFormById,
+  findFormVersionById: repository.findFormVersionById,
+  findWorkflowInstance: repository.findWorkflowInstance,
+  findById: repository.findById,
+  findOwnedByClient: repository.findOwnedByClient,
+  listByClient: repository.listByClient,
+  create: repository.create,
+  update: repository.update,
+  startWorkflow: workflowService.startWorkflow,
+  transitionWorkflow: workflowService.transitionWorkflow,
 }
-
-vi.spyOn(formService, 'validateFormValues')
 
 afterEach(() => vi.clearAllMocks())
 beforeEach(() => {
@@ -34,8 +36,6 @@ beforeEach(() => {
   spies.startWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
   spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
 })
-
-const service = require('../../../../src/modules/obo/plan-permits/plan-permit.service')
 
 const person = { id: 'person-1', userId: 'user-1', email: 'client@example.com' }
 const permitType = { id: 'permit-1', name: 'Building Permit', isActive: true, formId: null }
@@ -96,13 +96,10 @@ describe('OBO plan permit service', () => {
   it('creates a new draft linked to the declined application', async () => {
     await arrangeClient()
     spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-old', referenceNumber: 'OBO-OLD' })
-    spies.findWorkflowInstance
-      .mockResolvedValueOnce({ id: 'workflow-old', currentStep: { key: 'DECLINED' } })
-      .mockResolvedValueOnce({ id: 'workflow-new', currentStep: { key: 'DRAFT' } })
+    spies.findWorkflowInstance.mockResolvedValueOnce({ id: 'workflow-old', currentStep: { key: 'DECLINED' } }).mockResolvedValueOnce({ id: 'workflow-new', currentStep: { key: 'DRAFT' } })
     spies.create.mockResolvedValue({ id: 'application-2', status: 'DRAFT', replacesApplicationId: 'application-1' })
     spies.update.mockResolvedValue({ id: 'application-2', workflowInstanceId: 'workflow-new', replacesApplicationId: 'application-1' })
     spies.startWorkflow.mockResolvedValue({ id: 'workflow-new', currentStep: { key: 'DRAFT' } })
-
     await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', professionalId: 'professional-1', formValues: { corrected: true }, replacesApplicationId: 'application-1' })).resolves.toMatchObject({ id: 'application-2', status: 'DRAFT', replacesApplicationId: 'application-1' })
     expect(spies.create).toHaveBeenCalledWith(expect.objectContaining({ replacesApplicationId: 'application-1' }), expect.anything())
     expect(spies.startWorkflow).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ source: 'obo-plan-permit.replace-declined', replacesReferenceNumber: 'OBO-OLD' }) }))
