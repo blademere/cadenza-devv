@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const repository = {
-  getUserAuthorizationContext: vi.fn(),
-  findRoleById: vi.fn(),
-  findUserIdsByRoleId: vi.fn(),
-}
-const cache = {
-  hasCachedPermission: vi.fn(),
-  cacheUserPermissions: vi.fn(),
-  invalidateUserPermissionCache: vi.fn(),
-}
+const { repository, cache } = vi.hoisted(() => ({
+  repository: {
+    getUserAuthorizationContext: vi.fn(),
+    findRoleById: vi.fn(),
+    findUserIdsByRoleId: vi.fn(),
+  },
+  cache: {
+    hasCachedPermission: vi.fn(),
+    cacheUserPermissions: vi.fn(),
+    invalidateUserPermissionCache: vi.fn(),
+  },
+}))
 
 vi.mock('../../../src/platform/authorization/access-control.repository.js', () => repository)
 vi.mock('../../../src/platform/authorization/access-control.cache.js', () => cache)
