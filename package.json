@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev:all",
+    "dev": "nx run-many -t dev --parallel=3",
     "dev:all": "nx run-many -t dev --parallel=3",
     "build": "nx run-many -t build",
     "build:workspaces": "nx run-many -t build",
@@ -22,17 +22,17 @@
     "validate:architecture": "nx run api:validate:architecture",
     "validate:authorization": "nx run api:validate:authorization",
     "validate:migrations": "nx run api:validate:migrations",
-    "validate": "npm run validate:workspaces && npm run validate:dependencies && npm run validate:lockfile && npm run validate:architecture && npm run validate:authorization && npm run validate:migrations",
+    "validate": "npm run validate:workspaces && npm run validate:dependencies && npm run validate:lockfile && nx run api:validate:architecture && nx run api:validate:authorization && nx run api:validate:migrations",
     "openapi:lint": "nx run api:openapi:lint",
     "openapi:bundle": "nx run api:openapi:bundle",
     "openapi:build": "nx run api:openapi:build",
     "prisma:generate": "nx run api:prisma:generate",
     "prisma:migrate": "nx run api:prisma:migrate",
     "prisma:migrate:deploy": "nx run api:prisma:migrate:deploy",
-    "db:seed": "npm --workspace @express-app/api run db:seed",
-    "db:setup": "npm --workspace @express-app/api run db:setup",
-    "db:backup": "npm --workspace @express-app/api run db:backup",
-    "db:restore": "npm --workspace @express-app/api run db:restore"
+    "db:seed": "nx run api:db:seed",
+    "db:setup": "nx run api:db:setup",
+    "db:backup": "nx run api:db:backup",
+    "db:restore": "nx run api:db:restore"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
