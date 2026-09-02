@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const accessControlService = require('../../src/platform/authorization/access-control.service')
-const accessControlPolicy = require('../../src/platform/authorization/access-control.policy')
-const authorizeResource = require('../../src/platform/authorization/authorizeResource')
+vi.mock('../../src/platform/authorization/access-control.service.js')
+vi.mock('../../src/platform/authorization/access-control.policy.js')
+
+const accessControlService = await import('../../src/platform/authorization/access-control.service.js')
+const accessControlPolicy = await import('../../src/platform/authorization/access-control.policy.js')
+const { default: authorizeResource } = await import('../../src/platform/authorization/authorizeResource.js')
 
 const mocks = {
-  can: vi.spyOn(accessControlService, 'can'),
-  getAuthorizationContext: vi.spyOn(accessControlService, 'getAuthorizationContext'),
-  assertPolicy: vi.spyOn(accessControlPolicy, 'assertPolicy'),
+  can: accessControlService.can,
+  getAuthorizationContext: accessControlService.getAuthorizationContext,
+  assertPolicy: accessControlPolicy.assertPolicy,
 }
 
 const runMiddleware = async (options, req = { user: { id: 1 }, params: { id: '42' } }) => {
@@ -21,22 +24,14 @@ describe('resource authorization / IDOR security boundary', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.can.mockResolvedValue(true)
-    mocks.getAuthorizationContext.mockResolvedValue({
-      role: { id: 1, name: 'client' },
-    })
+    mocks.getAuthorizationContext.mockResolvedValue({ role: { id: 1, name: 'client' } })
     mocks.assertPolicy.mockResolvedValue(undefined)
   })
 
   it('requires the capability before loading the requested resource', async () => {
     mocks.can.mockResolvedValue(false)
     const loadResource = vi.fn()
-
-    const { next } = await runMiddleware({
-      resource: 'applications',
-      action: 'read',
-      loadResource,
-    })
-
+    const { next } = await runMiddleware({ resource: 'applications', action: 'read', loadResource })
     expect(next).toHaveBeenCalledTimes(1)
     expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 })
     expect(loadResource).not.toHaveBeenCalled()
@@ -44,13 +39,7 @@ describe('resource authorization / IDOR security boundary', () => {
 
   it('returns not-found when an authenticated user targets a resource that does not exist', async () => {
     const loadResource = vi.fn().mockResolvedValue(null)
-
-    const { next } = await runMiddleware({
-      resource: 'applications',
-      action: 'read',
-      loadResource,
-    })
-
+    const { next } = await runMiddleware({ resource: 'applications', action: 'read', loadResource })
     expect(loadResource).toHaveBeenCalledWith('42', expect.any(Object))
     expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 404 })
   })
@@ -59,7 +48,6 @@ describe('resource authorization / IDOR security boundary', () => {
     const resource = { id: 42, clientId: 99 }
     const loadResource = vi.fn().mockResolvedValue(resource)
     mocks.assertPolicy.mockRejectedValue(Object.assign(new Error('forbidden'), { statusCode: 403 }))
-
     const { next } = await runMiddleware({
       resource: 'applications',
       action: 'read',
@@ -67,12 +55,7 @@ describe('resource authorization / IDOR security boundary', () => {
       policy: ({ user, resource: loaded }) => Number(user.id) === Number(loaded.clientId),
       getOwnerId: (loaded) => loaded.clientId,
     })
-
-    expect(mocks.can).toHaveBeenCalledWith({
-      userId: 1,
-      resource: 'applications',
-      action: 'read',
-    })
+    expect(mocks.can).toHaveBeenCalledWith({ userId: 1, resource: 'applications', action: 'read' })
     expect(mocks.assertPolicy).toHaveBeenCalledWith(expect.objectContaining({
       user: expect.objectContaining({ id: 1, ownerId: 99 }),
       resource,
@@ -84,7 +67,6 @@ describe('resource authorization / IDOR security boundary', () => {
   it('attaches the authorized resource only after policy succeeds', async () => {
     const resource = { id: 42, clientId: 1 }
     const loadResource = vi.fn().mockResolvedValue(resource)
-
     const { req, next } = await runMiddleware({
       resource: 'applications',
       action: 'read',
@@ -92,7 +74,6 @@ describe('resource authorization / IDOR security boundary', () => {
       policy: ({ user, resource: loaded }) => Number(user.id) === Number(loaded.clientId),
       getOwnerId: (loaded) => loaded.clientId,
     })
-
     expect(mocks.assertPolicy).toHaveBeenCalledTimes(1)
     expect(req.authorizedResource).toBe(resource)
     expect(next).toHaveBeenCalledWith()
@@ -100,15 +81,7 @@ describe('resource authorization / IDOR security boundary', () => {
 
   it('does not permit missing authentication context to reach the resource loader', async () => {
     const loadResource = vi.fn()
-    const { next } = await runMiddleware(
-      {
-        resource: 'applications',
-        action: 'read',
-        loadResource,
-      },
-      { params: { id: '42' } },
-    )
-
+    const { next } = await runMiddleware({ resource: 'applications', action: 'read', loadResource }, { params: { id: '42' } })
     expect(loadResource).not.toHaveBeenCalled()
     expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 })
   })
