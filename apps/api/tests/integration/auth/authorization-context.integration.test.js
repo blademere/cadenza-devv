@@ -14,28 +14,35 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
-const authorizationContextRepository = require('../../../src/platform/authorization/authorization-context.repository')
-const authRepository = require('../../../src/features/auth/auth.repository')
-const { createAccessToken } = require('../../../src/features/auth/auth.tokens')
-const app = require('../../../src/app')
+const mocks = vi.hoisted(() => ({
+  findUserAuthState: vi.fn(),
+  getUserAuthorizationContext: vi.fn(),
+  listActiveModules: vi.fn(),
+}))
 
-const findUserAuthState = vi.spyOn(authRepository, 'findUserAuthState')
-const getUserAuthorizationContext = vi.spyOn(
-  authorizationContextRepository,
-  'getUserAuthorizationContext',
-)
-const listActiveModules = vi.spyOn(
-  authorizationContextRepository,
-  'listActiveModules',
-)
+vi.mock('../../../src/features/auth/auth.repository.js', () => ({
+  findUserAuthState: mocks.findUserAuthState,
+}))
+
+vi.mock('../../../src/platform/authorization/authorization-context.repository.js', () => ({
+  getUserAuthorizationContext: mocks.getUserAuthorizationContext,
+  listActiveModules: mocks.listActiveModules,
+}))
+
+const { createAccessToken } = await import('../../../src/features/auth/auth.tokens.js')
+const { default: app } = await import('../../../src/app.js')
 
 describe('Authorization context integration', () => {
   const user = { id: 42, authVersion: 0 }
 
   beforeEach(() => {
     vi.clearAllMocks()
-    findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
-    getUserAuthorizationContext.mockResolvedValue({
+    mocks.findUserAuthState.mockResolvedValue({
+      id: 42,
+      isActive: true,
+      authVersion: 0,
+    })
+    mocks.getUserAuthorizationContext.mockResolvedValue({
       userId: 42,
       role: { id: 3, name: 'receiving_officer' },
       permissions: [
@@ -43,9 +50,19 @@ describe('Authorization context integration', () => {
         { resource: 'obo_professionals', action: 'review' },
       ],
     })
-    listActiveModules.mockResolvedValue([
-      { key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true },
-      { key: 'obo_professionals', name: 'Professionals', description: null, isActive: true },
+    mocks.listActiveModules.mockResolvedValue([
+      {
+        key: 'obo_plan_permits',
+        name: 'Plan Permits',
+        description: null,
+        isActive: true,
+      },
+      {
+        key: 'obo_professionals',
+        name: 'Professionals',
+        description: null,
+        isActive: true,
+      },
     ])
   })
 
@@ -81,9 +98,19 @@ describe('Authorization context integration', () => {
   })
 
   it('hides capabilities for inactive modules even if the role has the permission', async () => {
-    listActiveModules.mockResolvedValue([
-      { key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true },
-      { key: 'obo_professionals', name: 'Professionals', description: null, isActive: false },
+    mocks.listActiveModules.mockResolvedValue([
+      {
+        key: 'obo_plan_permits',
+        name: 'Plan Permits',
+        description: null,
+        isActive: true,
+      },
+      {
+        key: 'obo_professionals',
+        name: 'Professionals',
+        description: null,
+        isActive: false,
+      },
     ])
 
     const token = createAccessToken(user)
@@ -92,7 +119,11 @@ describe('Authorization context integration', () => {
       .set('Authorization', `Bearer ${token}`)
 
     expect(response.status).toBe(200)
-    expect(response.body.data.navigation.find((item) => item.key === 'applications').visible).toBe(true)
-    expect(response.body.data.navigation.find((item) => item.key === 'verification').visible).toBe(false)
+    expect(
+      response.body.data.navigation.find((item) => item.key === 'applications').visible,
+    ).toBe(true)
+    expect(
+      response.body.data.navigation.find((item) => item.key === 'verification').visible,
+    ).toBe(false)
   })
 })
