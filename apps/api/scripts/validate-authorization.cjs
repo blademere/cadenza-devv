@@ -27,17 +27,15 @@ for (const capability of capabilities) {
   capabilityKeys.add(capability.key)
   if (!PERMISSION_KEY.test(capability.permission)) failures.push(`capability registry: invalid permission key '${capability.permission}'.`)
   const [resource] = capability.permission.split(':')
-  if (resource !== capability.moduleKey) {
-    failures.push(`capability registry: capability '${capability.key}' binds module '${capability.moduleKey}' to '${capability.permission}'.`)
-  }
+  if (resource !== capability.moduleKey) failures.push(`capability registry: capability '${capability.key}' binds module '${capability.moduleKey}' to '${capability.permission}'.`)
 }
 
 const routeFiles = ROUTE_ROOTS.flatMap(walk).filter((file) => file.endsWith('.routes.js'))
 for (const file of routeFiles) {
   const source = fs.readFileSync(file, 'utf8')
-  const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
-  const isAuthFile = relative.startsWith('apps/server/src/features/auth/')
-  const isAuthorizationContext = relative === 'apps/server/src/platform/authorization/authorization-context.routes.js'
+  const relative = path.relative(path.resolve(__dirname, '../..'), file).replaceAll(path.sep, '/')
+  const isAuthFile = relative.startsWith('apps/api/src/features/auth/')
+  const isAuthorizationContext = relative === 'apps/api/src/platform/authorization/authorization-context.routes.js'
   const middlewareAliases = new Set(['authenticate'])
   const authorizationAliases = new Set(['authorize', 'authorizeResource'])
 
