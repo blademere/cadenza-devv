@@ -5,20 +5,15 @@
   "targets": {
     "dev": {
       "executor": "nx:run-commands",
+      "continuous": true,
       "options": { "command": "npm run dev", "cwd": "apps/api" }
     },
     "build": {
       "executor": "nx:run-commands",
       "options": { "command": "npm run build --if-present", "cwd": "apps/api" }
     },
-    "lint": {
-      "executor": "nx:run-commands",
-      "options": { "command": "npm run lint", "cwd": "apps/api" }
-    },
     "test": {
-      "executor": "nx:run-commands",
-      "dependsOn": ["prisma:generate"],
-      "options": { "command": "npm run test", "cwd": "apps/api" }
+      "dependsOn": ["prisma:generate"]
     },
     "test:unit": {
       "executor": "nx:run-commands",
