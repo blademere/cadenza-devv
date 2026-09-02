@@ -15,6 +15,8 @@ COPY apps/admin-web/package*.json ./apps/admin-web/
 RUN npm ci
 
 ENV NODE_ENV=production
+# Prisma config requires DATABASE_URL during generation. Generation does not connect to the database.
+ENV DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
 
 COPY apps/api ./apps/api
 COPY eslint.config.mjs ./
