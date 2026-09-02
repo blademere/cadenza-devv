@@ -10,8 +10,4 @@ const getFacebookUserInfoUrl = (apiVersion) => {
   return `https://graph.facebook.com/${apiVersion}/me`
 }
 
-module.exports = {
-  getFacebookAuthUrl,
-  getFacebookTokenUrl,
-  getFacebookUserInfoUrl,
-}
+export { getFacebookAuthUrl, getFacebookTokenUrl, getFacebookUserInfoUrl }
