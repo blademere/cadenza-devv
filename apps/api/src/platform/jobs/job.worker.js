@@ -1,5 +1,5 @@
-const { registerWorker } = require("../../infrastructure/queue/bullmq")
-const { JOB_QUEUES } = require("./job.constants")
+import { registerWorker } from '../../infrastructure/queue/bullmq.js'
+import { JOB_QUEUES } from './job.constants.js'
 
 function createJobWorker({ queue, processor, concurrency = 5 }) {
   return registerWorker(queue, processor, { concurrency })
@@ -16,7 +16,7 @@ function registerJobWorker({ queue, name, processor, concurrency }) {
   })
 }
 
-module.exports = {
+export {
   JOB_QUEUES,
   createJobWorker,
   registerJobWorker,
