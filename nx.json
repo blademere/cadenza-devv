@@ -6,7 +6,7 @@
       "cache": true
     },
     "test": {
-      "cache": true
+      "cache": false
     },
     "build": {
       "cache": true
