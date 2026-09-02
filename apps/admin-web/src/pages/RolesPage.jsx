@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Card, CardContent, Chip, Divider, FormControlLabel, Stack, Switch, Typography } from '@mui/material'
-import SaveIcon from '@mui/icons-material/Save'
-import UndoIcon from '@mui/icons-material/Undo'
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
+import { Alert, Badge, Box, Button, Checkbox, Divider, Group, Modal, ScrollArea, SimpleGrid, Stack, Text, Title } from '@mantine/core'
 import { authorizationApi } from '../features/authorization/authorization.api'
 import { useAuthorization } from '../features/authorization/AuthorizationProvider'
 import PageHeader from '../components/common/PageHeader'
@@ -21,23 +18,21 @@ export default function RolesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [opened, setOpened] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const [moduleResult, roleResult] = await Promise.all([
-        authorizationApi.listModules(),
-        authorizationApi.listRoles(),
-      ])
+      const [moduleResult, roleResult] = await Promise.all([authorizationApi.listModules(), authorizationApi.listRoles()])
       const nextModules = unwrap(moduleResult) ?? []
       const nextRoles = unwrap(roleResult) ?? []
       setModules(nextModules)
       setRoles(nextRoles)
       setActiveRoleId((current) => current ?? nextRoles[0]?.id ?? null)
       await load({ force: true })
-    } catch (nextError) {
-      setError(nextError.message || 'Unable to load authorization data.')
+    } catch (e) {
+      setError(e.message || 'Unable to load authorization data.')
     } finally {
       setLoading(false)
     }
@@ -46,22 +41,13 @@ export default function RolesPage() {
   useEffect(() => { void reload() }, [reload])
 
   const activeRole = roles.find((role) => String(role.id) === String(activeRoleId)) ?? null
-  const allPermissions = useMemo(
-    () => modules.flatMap((module) => (module.permissions ?? []).map((permission) => ({ ...permission, module }))),
-    [modules],
-  )
-  const permissionMap = useMemo(
-    () => new Map(allPermissions.map((permission) => [String(permission.id), permission])),
-    [allPermissions],
-  )
+  const allPermissions = useMemo(() => modules.flatMap((module) => (module.permissions ?? []).map((permission) => ({ ...permission, module }))), [modules])
+  const permissionMap = useMemo(() => new Map(allPermissions.map((permission) => [String(permission.id), permission])), [allPermissions])
+  const groupedPermissions = useMemo(() => modules.map((module) => ({ module, permissions: allPermissions.filter((permission) => permission.module.id === module.id) })).filter((group) => group.permissions.length), [modules, allPermissions])
   const dirty = JSON.stringify([...draft].sort()) !== JSON.stringify([...savedPermissions].sort())
 
   useEffect(() => {
-    if (!activeRole) {
-      setDraft([])
-      setSavedPermissions([])
-      return
-    }
+    if (!activeRole) { setDraft([]); setSavedPermissions([]); return }
     const selected = (activeRole.permissions ?? []).map(permissionId).filter(Boolean).map(String)
     setDraft(selected)
     setSavedPermissions(selected)
@@ -69,12 +55,26 @@ export default function RolesPage() {
     setError('')
   }, [activeRole])
 
+  const openRole = (role) => {
+    setActiveRoleId(role.id)
+    const selected = (role.permissions ?? []).map(permissionId).filter(Boolean).map(String)
+    setDraft(selected)
+    setSavedPermissions(selected)
+    setSaved(false)
+    setOpened(true)
+  }
+
   const togglePermission = (id) => {
     const key = String(id)
     setSaved(false)
-    setDraft((current) => current.includes(key)
-      ? current.filter((value) => value !== key)
-      : [...current, key])
+    setDraft((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key])
+  }
+
+  const toggleModule = (permissions) => {
+    const ids = permissions.map((permission) => String(permission.id))
+    const allSelected = ids.every((id) => draft.includes(id))
+    setDraft((current) => allSelected ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])])
+    setSaved(false)
   }
 
   const save = async () => {
@@ -84,110 +84,55 @@ export default function RolesPage() {
     setSaved(false)
     try {
       await authorizationApi.replaceRolePermissions(activeRole.id, draft)
-      setRoles((current) => current.map((role) => role.id === activeRole.id
-        ? { ...role, permissions: draft.map((id) => ({ permissionId: id, permission: permissionMap.get(String(id)) })) }
-        : role))
+      setRoles((current) => current.map((role) => role.id === activeRole.id ? { ...role, permissions: draft.map((id) => ({ permissionId: id, permission: permissionMap.get(String(id)) })) } : role))
       setSavedPermissions([...draft])
       setSaved(true)
       await load({ force: true })
-    } catch (nextError) {
-      setError(nextError.message || 'Unable to save role permissions.')
+    } catch (e) {
+      setError(e.message || 'Unable to save role permissions.')
     } finally {
       setSaving(false)
     }
   }
 
-  const groupedPermissions = useMemo(
-    () => modules
-      .map((module) => ({ module, permissions: allPermissions.filter((permission) => permission.module.id === module.id) }))
-      .filter((group) => group.permissions.length),
-    [modules, allPermissions],
-  )
-
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        eyebrow="Platform security"
-        title="Roles"
-        description="Manage roles and their permission actions with the Express server as the source of truth."
-        actions={<Chip icon={<ShieldOutlinedIcon />} label={context?.role?.name ?? 'Administrator'} color="primary" variant="outlined" />}
-      />
-      {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
-      {loading ? (
-        <Card><CardContent><Typography color="text.secondary">Loading roles…</Typography></CardContent></Card>
-      ) : (
-        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3} alignItems="flex-start">
-          <Card sx={{ width: { xs: '100%', lg: 300 }, flexShrink: 0 }}>
-            <CardContent sx={{ p: 1.5 }}>
-              <Box sx={{ px: 1, py: 1.25 }}>
-                <Typography variant="h6">Roles</Typography>
-                <Typography variant="body2" color="text.secondary">Choose a role to manage.</Typography>
+    <Stack className="admin-page">
+      <PageHeader eyebrow="Platform security" title="Roles" description="Select a role to quickly review and manage its permissions." actions={<Badge color="indigo" variant="light">{roles.length} roles</Badge>} />
+      {error && <Alert color="red" variant="light" title="Something went wrong">{error}</Alert>}
+      {loading ? <Box className="admin-panel admin-page-loading"><Text c="dimmed">Loading roles…</Text></Box> : (
+        <Stack gap="md">
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+            {roles.map((role) => {
+              const permissionCount = role.permissions?.length ?? 0
+              return <Box key={role.id} className="admin-role-card" role="button" tabIndex={0} onClick={() => openRole(role)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') openRole(role) }}>
+                <Group justify="space-between" align="flex-start" wrap="nowrap"><Box style={{ minWidth: 0 }}><Text fw={700} className="admin-role-name" truncate>{role.name}</Text><Text size="xs" c="dimmed" mt={3} truncate>{role.key ?? 'Role'}</Text></Box><Badge variant="light" color="indigo">{permissionCount}</Badge></Group>
+                <Text size="sm" c="dimmed" mt="lg">{permissionCount ? `${permissionCount} permissions granted` : 'No permissions granted'}</Text>
+                <Button mt="md" variant="light" size="xs" onClick={(event) => { event.stopPropagation(); openRole(role) }}>Manage permissions</Button>
               </Box>
-              <Stack spacing={0.5} sx={{ mt: 1 }}>
-                {roles.map((role) => {
-                  const selected = String(role.id) === String(activeRoleId)
-                  return (
-                    <Button key={role.id} fullWidth variant={selected ? 'contained' : 'text'} onClick={() => setActiveRoleId(role.id)} sx={{ justifyContent: 'space-between', textAlign: 'left', px: 1.5, py: 1.25 }}>
-                      <Box>
-                        <Typography variant="body2" fontWeight={650}>{role.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{role.key ?? 'Role'}</Typography>
-                      </Box>
-                      <Chip size="small" label={role.permissions?.length ?? 0} variant={selected ? 'filled' : 'outlined'} />
-                    </Button>
-                  )
-                })}
-              </Stack>
-            </CardContent>
-          </Card>
-          {activeRole && (
-            <Card sx={{ flex: 1, width: '100%' }}>
-              <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-                <Stack>
-                  <Box sx={{ p: 3 }}>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-                      <Box>
-                        <Typography variant="h5">{activeRole.name}</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>Configure the permission actions granted to this role.</Typography>
-                      </Box>
-                      <Chip color={dirty ? 'warning' : 'success'} variant="outlined" label={dirty ? 'Unsaved changes' : `${draft.length} granted`} />
-                    </Stack>
-                  </Box>
-                  <Divider />
-                  <Stack spacing={3} sx={{ p: { xs: 2, md: 3 } }}>
-                    {groupedPermissions.map(({ module, permissions }) => (
-                      <Box key={module.id}>
-                        <Typography variant="subtitle1" fontWeight={700}>{module.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{module.key}</Typography>
-                        <Card variant="outlined" sx={{ mt: 1.25, boxShadow: 'none' }}>
-                          {permissions.map((permission, index) => (
-                            <Box key={permission.id} sx={{ px: 2, py: 1.25, borderTop: index ? 1 : 0, borderColor: 'divider' }}>
-                              <FormControlLabel
-                                label={<Box><Typography variant="body2" fontWeight={600}>{module.key}:{permission.action}</Typography><Typography variant="caption" color="text.secondary">{permission.description ?? `Allows ${permission.action} access to ${module.name}.`}</Typography></Box>}
-                                control={<Switch checked={draft.includes(String(permission.id))} onChange={() => togglePermission(permission.id)} disabled={saving} />}
-                                labelPlacement="start"
-                                sx={{ width: '100%', m: 0, justifyContent: 'space-between', gap: 2, '& .MuiFormControlLabel-label': { flex: 1 } }}
-                              />
-                            </Box>
-                          ))}
-                        </Card>
-                      </Box>
-                    ))}
-                  </Stack>
-                  <Divider />
-                  <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={2} sx={{ p: 2.5 }}>
-                    <Typography variant="body2" color="text.secondary">{draft.length} permissions granted</Typography>
-                    <Stack direction="row" spacing={1}>
-                      <Button variant="outlined" startIcon={<UndoIcon />} disabled={!dirty || saving} onClick={() => { setDraft([...savedPermissions]); setSaved(false) }}>Cancel</Button>
-                      <Button variant="contained" startIcon={<SaveIcon />} disabled={!dirty || saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save changes'}</Button>
-                    </Stack>
-                  </Stack>
-                  {saved && <Alert severity="success" sx={{ mx: 2.5, mb: 2.5 }}>Role permissions updated successfully.</Alert>}
-                </Stack>
-              </CardContent>
-            </Card>
-          )}
+            })}
+          </SimpleGrid>
+          {!roles.length && <Box className="admin-panel"><Text c="dimmed">No roles found.</Text></Box>}
         </Stack>
       )}
+
+      <Modal opened={opened} onClose={() => setOpened(false)} title={<Box><Text fw={700}>{activeRole?.name ?? 'Role permissions'}</Text><Text size="xs" c="dimmed">Select the capabilities granted to this role.</Text></Box>} centered size="lg" radius="md" overlayProps={{ backgroundOpacity: 0.45, blur: 2 }}>
+        <Stack gap="md">
+          {error && <Alert color="red" variant="light">{error}</Alert>}
+          <Group justify="space-between"><Text size="sm" c="dimmed">{draft.length} of {allPermissions.length} permissions selected</Text>{dirty && <Badge color="yellow" variant="light">Unsaved changes</Badge>}</Group>
+          <ScrollArea h={{ base: 400, sm: 480 }} offsetScrollbars>
+            <Stack gap="md" pr="sm">
+              {groupedPermissions.map(({ module, permissions }) => {
+                const ids = permissions.map((permission) => String(permission.id))
+                const selectedCount = ids.filter((id) => draft.includes(id)).length
+                return <Box key={module.id} className="admin-permission-group"><Group justify="space-between" mb="xs"><Box><Text fw={700} size="sm">{module.name}</Text><Text size="xs" c="dimmed">{module.key}</Text></Box><Button variant="subtle" size="compact-xs" onClick={() => toggleModule(permissions)}>{selectedCount === permissions.length ? 'Clear all' : 'Select all'}</Button></Group><Stack gap={0}>{permissions.map((permission, index) => <Box key={permission.id} className="admin-permission-row" style={index ? { borderTop: '1px solid var(--mantine-color-gray-2)' } : undefined}><Checkbox checked={draft.includes(String(permission.id))} onChange={() => togglePermission(permission.id)} label={<Box><Text size="sm" fw={600}>{permission.action}</Text><Text size="xs" c="dimmed">{permission.description ?? `Allows ${permission.action} access to ${module.name}.`}</Text></Box>} /></Box>)}</Stack></Box>
+              })}
+            </Stack>
+          </ScrollArea>
+          <Divider />
+          <Group justify="space-between" wrap="wrap"><Text size="xs" c="dimmed">Changes are enforced by the Express API.</Text><Group gap="xs"><Button variant="default" disabled={!dirty || saving} onClick={() => { setDraft([...savedPermissions]); setSaved(false) }}>Reset</Button><Button disabled={!dirty || saving} loading={saving} onClick={() => void save()}>Save changes</Button></Group></Group>
+          {saved && <Alert color="green" variant="light">Role permissions updated successfully.</Alert>}
+        </Stack>
+      </Modal>
     </Stack>
   )
 }

@@ -1,46 +1,74 @@
-import { NavLink } from 'react-router-dom'
-import { Avatar, Box, Button, Divider, List, ListItemButton, ListItemIcon, ListItemText, Stack, Typography } from '@mui/material'
-import LogoutIcon from '@mui/icons-material/Logout'
+import { NavLink, useLocation } from 'react-router-dom'
+import { Avatar, Box, Button, Divider, Group, NavLink as MantineNavLink, Stack, Text, ThemeIcon } from '@mantine/core'
+
+const icons = {
+  dashboard: '⌂',
+  users: '♙',
+  roles: '◆',
+}
 
 export default function Sidebar({ navigation = [], navigationLoading = false, user, role, onNavigate, onLogout }) {
+  const location = useLocation()
   const displayName = user?.name || user?.email?.split('@')[0] || 'Administrator'
+  const initial = displayName.slice(0, 1).toUpperCase()
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2.5, py: 2.25 }}>
-        <Avatar variant="rounded" sx={{ bgcolor: 'primary.main', width: 38, height: 38 }}>EA</Avatar>
-        <Box><Typography fontWeight={700}>Express App</Typography><Typography variant="caption" color="text.secondary">Admin Console</Typography></Box>
-      </Stack>
+    <Stack h="100%" gap={0}>
+      <Box px="lg" py="lg">
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon size={38} radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet', deg: 110 }}>
+            <Text fw={800} size="sm">EA</Text>
+          </ThemeIcon>
+          <Box style={{ minWidth: 0 }}>
+            <Text fw={750} lh={1.2}>Express App</Text>
+            <Text size="xs" c="dimmed" mt={2}>Administration</Text>
+          </Box>
+        </Group>
+      </Box>
+
       <Divider />
-      <Box sx={{ px: 1.5, py: 2, flex: 1 }}>
-        <Typography variant="overline" color="text.secondary" sx={{ px: 1.5 }}>Platform</Typography>
-        <List dense>
+
+      <Box px="sm" py="lg" style={{ flex: 1, overflowY: 'auto' }}>
+        <Text className="admin-section-label" px="sm" mb="xs">Workspace</Text>
+        <Stack gap={3}>
           {navigation.map((item) => {
-            const Icon = item.icon
+            const active = location.pathname === item.route || (
+              item.route !== '/' && location.pathname.startsWith(`${item.route}/`)
+            )
             return (
-              <ListItemButton
+              <MantineNavLink
                 key={item.key || item.route}
                 component={NavLink}
                 to={item.route}
+                label={item.name}
+                leftSection={<Text className="admin-nav-icon" fw={active ? 700 : 500}>{icons[item.key] || '•'}</Text>}
+                active={active}
                 onClick={onNavigate}
-                sx={{ borderRadius: 1.5, mb: 0.25, '&.active': { bgcolor: 'action.selected', color: 'primary.main', '& .MuiListItemIcon-root': { color: 'primary.main' } } }}
-              >
-                <ListItemIcon sx={{ minWidth: 38, color: 'text.secondary' }}><Icon fontSize="small" /></ListItemIcon>
-                <ListItemText primary={item.name} primaryTypographyProps={{ fontWeight: 'inherit' }} />
-              </ListItemButton>
+                styles={{ root: { borderRadius: 9, minHeight: 42 } }}
+              />
             )
           })}
-          {navigationLoading && <ListItemText sx={{ px: 1.5, py: 1 }} primary="Loading navigation…" primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }} />}
-          {!navigationLoading && !navigation.length && <ListItemText sx={{ px: 1.5, py: 1 }} primary="No administrative access." primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }} />}
-        </List>
-      </Box>
-      <Box sx={{ p: 2 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
-          <Avatar sx={{ width: 34, height: 34 }}>{displayName.slice(0, 1).toUpperCase()}</Avatar>
-          <Box sx={{ minWidth: 0 }}><Typography variant="body2" fontWeight={600} noWrap>{displayName}</Typography><Typography variant="caption" color="text.secondary" noWrap>{role || user?.email || 'Administrator'}</Typography></Box>
+          {navigationLoading && (
+            <Text size="xs" c="dimmed" px="sm" py="sm">Loading navigation…</Text>
+          )}
+          {!navigationLoading && !navigation.length && (
+            <Text size="xs" c="dimmed" px="sm" py="sm">No administrative access.</Text>
+          )}
         </Stack>
-        <Button fullWidth variant="outlined" size="small" startIcon={<LogoutIcon />} onClick={onLogout}>Sign out</Button>
       </Box>
-    </Box>
+
+      <Box p="md">
+        <Box className="admin-profile">
+          <Group gap="sm" wrap="nowrap">
+            <Avatar size="sm" radius="xl" color="indigo">{initial}</Avatar>
+            <Box style={{ minWidth: 0, flex: 1 }}>
+              <Text size="sm" fw={650} truncate>{displayName}</Text>
+              <Text size="xs" c="dimmed" truncate>{role || user?.email || 'Administrator'}</Text>
+            </Box>
+          </Group>
+          <Button fullWidth mt="sm" variant="subtle" color="gray" size="sm" onClick={onLogout}>Sign out</Button>
+        </Box>
+      </Box>
+    </Stack>
   )
 }

@@ -1,3 +1,24 @@
-import { Card, CardContent, Stack, Typography } from '@mui/material'
+import { Card, Group, Stack, Text } from '@mantine/core'
 
-export default function StatCard({ label, value, icon, helper }) { return <Card><CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}><Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}><Stack spacing={.5} minWidth={0}><Typography variant="body2" color="text.secondary">{label}</Typography><Typography variant="h5">{value}</Typography>{helper && <Typography variant="caption" color="text.secondary">{helper}</Typography>}</Stack>{icon && <Stack sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: 'action.hover', color: 'primary.main', display: 'grid', placeItems: 'center' }}>{icon}</Stack>}</Stack></CardContent></Card> }
+export default function StatCard({ label, value, icon, helper }) {
+  return (
+    <Card withBorder>
+      <Group justify="space-between" align="flex-start">
+        <Stack gap={4} style={{ minWidth: 0 }}>
+          <Text size="sm" c="dimmed">
+            {label}
+          </Text>
+          <Text fz="h2" fw={700}>
+            {value}
+          </Text>
+          {helper && <Text size="xs" c="dimmed">{helper}</Text>}
+        </Stack>
+        {icon && (
+          <Group w={40} h={40} justify="center" bg="gray.0" c="blue" style={{ borderRadius: 8 }}>
+            {icon}
+          </Group>
+        )}
+      </Group>
+    </Card>
+  )
+}

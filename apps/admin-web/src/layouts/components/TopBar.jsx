@@ -1,16 +1,26 @@
-import { AppBar, Chip, IconButton, Toolbar, Typography } from '@mui/material'
-import MenuIcon from '@mui/icons-material/Menu'
-import SecurityIcon from '@mui/icons-material/Security'
+import { Avatar, Box, Burger, Group, Text } from '@mantine/core'
 
-export default function TopBar({ onMenu }) {
+export default function TopBar({ onMenu, user, role }) {
+  const displayName = user?.name || user?.email?.split('@')[0] || 'Administrator'
   return (
-    <AppBar position="fixed" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-      <Toolbar>
-        <IconButton edge="start" onClick={onMenu} aria-label="Open navigation" sx={{ mr: 1 }}><MenuIcon /></IconButton>
-        <SecurityIcon color="primary" sx={{ mr: 1 }} />
-        <Typography variant="h6" sx={{ flex: 1 }}>Admin Console</Typography>
-        <Chip size="small" label="Authorized" color="success" variant="outlined" />
-      </Toolbar>
-    </AppBar>
+    <Group h="100%" px={{ base: 'md', md: 'xl' }} justify="space-between">
+      <Group gap="sm">
+        <Burger hiddenFrom="lg" onClick={onMenu} aria-label="Open navigation" size="sm" />
+        <Box visibleFrom="lg">
+          <Text size="sm" fw={650}>Administration</Text>
+          <Text size="xs" c="dimmed">Manage your platform workspace</Text>
+        </Box>
+        <Box hiddenFrom="lg">
+          <Text size="sm" fw={700}>Express App</Text>
+        </Box>
+      </Group>
+      <Group gap="sm">
+        <Box ta="right" visibleFrom="sm">
+          <Text size="sm" fw={600}>{displayName}</Text>
+          <Text size="xs" c="dimmed">{role || 'Administrator'}</Text>
+        </Box>
+        <Avatar size={34} radius="xl" color="indigo">{displayName.slice(0, 1).toUpperCase()}</Avatar>
+      </Group>
+    </Group>
   )
 }

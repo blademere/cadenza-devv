@@ -1,54 +1,42 @@
 import { Link } from 'react-router-dom'
-import { Box, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
-import SecurityIcon from '@mui/icons-material/Security'
-import AppsIcon from '@mui/icons-material/Apps'
-import KeyIcon from '@mui/icons-material/Key'
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import { Alert, Badge, Box, Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine/core'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useAuthorization } from '../features/authorization/AuthorizationProvider'
 import PageHeader from '../components/common/PageHeader'
 
-const Stat = ({ label, value, icon }) => (
-  <Card sx={{ flex: '1 1 220px', minWidth: 0 }}>
-    <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-        <Box minWidth={0}><Typography variant="body2" color="text.secondary" noWrap>{label}</Typography><Typography variant="h5" sx={{ mt: 0.5 }}>{value}</Typography></Box>
-        <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', borderRadius: 2.5, bgcolor: 'primary.50', color: 'primary.main' }}>{icon}</Box>
-      </Stack>
-    </CardContent>
-  </Card>
-)
+function StatCard({ label, value, hint, icon }) {
+  return <Card className="admin-kpi" withBorder><Group justify="space-between" align="flex-start"><Text className="admin-kpi-label">{label}</Text><ThemeIcon size={30} radius="md" variant="light" color="indigo">{icon}</ThemeIcon></Group><Text className="admin-kpi-value">{value}</Text><Text className="admin-kpi-meta">{hint}</Text></Card>
+}
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const { context, isLoading, error } = useAuthorization()
   const name = user?.name || user?.email?.split('@')[0] || 'Administrator'
-  const authorizationVisible = (context?.navigation ?? []).some((item) => item.visible && item.key === 'authorization')
-  const activeModules = (context?.modules ?? []).filter((module) => module.isActive !== false)
   const permissions = context?.permissions ?? []
+  const authorizationVisible = permissions.includes('authorization:manage')
+  const usersVisible = permissions.includes('users:manage')
+  const activeModules = (context?.modules ?? []).filter((module) => module.isActive !== false)
+  const role = context?.role?.name ?? context?.role?.key ?? 'No role assigned'
 
-  return (
-    <Stack spacing={3}>
-      <PageHeader eyebrow="Platform administration" title={`Welcome, ${name}`} description="Manage platform modules, roles, permissions, and administrative access." />
-      {error && <Box role="alert" sx={{ p: 2, borderRadius: 2, bgcolor: 'error.50', color: 'error.dark', border: 1, borderColor: 'error.100' }}>{error.message ?? String(error)}</Box>}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap" useFlexGap>
-        <Stat label="Current role" value={context?.role?.name ?? context?.role?.key ?? '—'} icon={<AdminPanelSettingsIcon />} />
-        <Stat label="Permissions" value={permissions.length} icon={<KeyIcon />} />
-        <Stat label="Enabled modules" value={activeModules.length} icon={<AppsIcon />} />
-        <Stat label="Admin capability" value={authorizationVisible ? 'Granted' : 'Restricted'} icon={<SecurityIcon />} />
-      </Stack>
-      <Card>
-        <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
-          <Stack spacing={2.5}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={2}>
-              <Box><Stack direction="row" spacing={1} alignItems="center"><Typography variant="h6">Authorization center</Typography>{authorizationVisible && <Chip size="small" label="Available" color="success" variant="outlined" />}</Stack><Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>The server determines which administrative capabilities are available to you.</Typography></Box>
-              {isLoading && <Chip size="small" label="Checking access" variant="outlined" />}
-            </Stack>
-            {authorizationVisible ? <Button component={Link} to="/authorization" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ alignSelf: 'flex-start' }}>Manage platform access</Button> : <Typography variant="body2" color="text.secondary">Your account does not currently have authorization-management access.</Typography>}
-          </Stack>
-        </CardContent>
+  return <Stack className="admin-page">
+    <PageHeader eyebrow="Overview" title={`Welcome back, ${name}`} description="A focused view of your administrative access, platform modules, and the actions available to you." />
+    {error && <Alert color="red" variant="light" title="Unable to load access context">{error.message ?? String(error)}</Alert>}
+    <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }}>
+      <StatCard label="Current role" value={role} hint="Assigned access profile" icon="R" />
+      <StatCard label="Permissions" value={permissions.length} hint="Effective permissions" icon="P" />
+      <StatCard label="Enabled modules" value={activeModules.length} hint="Currently available" icon="M" />
+      <StatCard label="Access status" value={authorizationVisible || usersVisible ? 'Granted' : 'Restricted'} hint={isLoading ? 'Checking access…' : 'Server-authorized'} icon="✓" />
+    </SimpleGrid>
+    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+      <Card className="admin-panel" withBorder p={0}>
+        <Box className="admin-panel-header"><Box><Text className="admin-panel-title">Authorization center</Text><Text className="admin-panel-subtitle">Manage roles and access policies</Text></Box><Badge color={authorizationVisible ? 'green' : 'gray'} variant="light">{authorizationVisible ? 'Available' : 'Restricted'}</Badge></Box>
+        <Stack p="lg" gap="md"><Text size="sm" c="dimmed" lh={1.7}>Permissions are resolved by the server and applied to the current account. Changes take effect through the authorization system.</Text><Group>{authorizationVisible && <Button component={Link} to="/roles">Manage roles</Button>}{usersVisible && <Button component={Link} to="/users" variant="light">Manage users</Button>}</Group>{!authorizationVisible && !usersVisible && <Text size="sm" c="dimmed">Your account does not currently have authorization-management access.</Text>}</Stack>
       </Card>
-    </Stack>
-  )
+      <Card className="admin-panel" withBorder p={0}>
+        <Box className="admin-panel-header"><Box><Text className="admin-panel-title">Workspace status</Text><Text className="admin-panel-subtitle">Current platform context</Text></Box><ThemeIcon size={30} radius="xl" color="green" variant="light">✓</ThemeIcon></Box>
+        <Stack p="lg" gap="sm"><Group justify="space-between"><Text size="sm" c="dimmed">Signed-in account</Text><Text size="sm" fw={600}>{user?.email || '—'}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Role</Text><Text size="sm" fw={600}>{role}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Modules</Text><Text size="sm" fw={600}>{activeModules.length} enabled</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Authorization</Text><Badge color={authorizationVisible || usersVisible ? 'green' : 'gray'} variant="light">{authorizationVisible || usersVisible ? 'Authorized' : 'Restricted'}</Badge></Group></Stack>
+      </Card>
+    </SimpleGrid>
+    {(authorizationVisible || usersVisible) && <Box className="admin-action-panel"><Group justify="space-between" align="center" wrap="wrap"><Box style={{ minWidth: 0, flex: 1 }}><Text className="admin-action-title">Keep access intentional</Text><Text className="admin-action-text">Review role permissions regularly and grant only the capabilities required for each administrative responsibility.</Text></Box>{authorizationVisible && <Button component={Link} to="/roles" variant="white" color="dark">Review roles</Button>}</Group></Box>}
+  </Stack>
 }
