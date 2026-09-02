@@ -8,10 +8,6 @@
       "continuous": true,
       "options": { "command": "nodemon --legacy-watch src/server.js", "cwd": "apps/api" }
     },
-    "build": {
-      "executor": "nx:run-commands",
-      "options": { "command": "npm run build --if-present", "cwd": "apps/api" }
-    },
     "test": {
       "dependsOn": ["prisma:generate"]
     },
@@ -38,7 +34,8 @@
     },
     "test:all": {
       "executor": "nx:run-commands",
-      "options": { "command": "vitest run --dir tests/unit && prisma generate --config ./prisma.config.ts && prisma migrate deploy --config ./prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration", "cwd": "apps/api" }
+      "dependsOn": ["prisma:generate"],
+      "options": { "command": "vitest run --dir tests/unit && prisma migrate deploy --config ./prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration", "cwd": "apps/api" }
     },
     "test:coverage": {
       "executor": "nx:run-commands",
