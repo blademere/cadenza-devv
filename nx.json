@@ -1,6 +1,31 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "analytics": false,
+  "plugins": [
+    {
+      "plugin": "@nx/vite/plugin",
+      "include": ["apps/web/**", "apps/admin-web/**"],
+      "options": {
+        "buildTargetName": "build",
+        "devTargetName": "dev",
+        "previewTargetName": "preview"
+      }
+    },
+    {
+      "plugin": "@nx/eslint/plugin",
+      "include": ["apps/api/**", "apps/web/**", "apps/admin-web/**"],
+      "options": {
+        "targetName": "lint"
+      }
+    },
+    {
+      "plugin": "@nx/vitest",
+      "include": ["apps/api/**"],
+      "options": {
+        "testTargetName": "test"
+      }
+    }
+  ],
   "targetDefaults": {
     "lint": {
       "cache": true
