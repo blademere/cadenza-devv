@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const repository = require('../../../src/platform/authorization/access-control.repository.js')
-const cache = require('../../../src/platform/authorization/access-control.cache.js')
+const repository = {
+  getUserAuthorizationContext: vi.fn(),
+  findRoleById: vi.fn(),
+  findUserIdsByRoleId: vi.fn(),
+}
+const cache = {
+  hasCachedPermission: vi.fn(),
+  cacheUserPermissions: vi.fn(),
+  invalidateUserPermissionCache: vi.fn(),
+}
 
-vi.spyOn(repository, 'getUserAuthorizationContext')
-vi.spyOn(repository, 'findRoleById')
-vi.spyOn(repository, 'findUserIdsByRoleId')
-vi.spyOn(cache, 'hasCachedPermission')
-vi.spyOn(cache, 'cacheUserPermissions')
-vi.spyOn(cache, 'invalidateUserPermissionCache')
+vi.mock('../../../src/platform/authorization/access-control.repository.js', () => repository)
+vi.mock('../../../src/platform/authorization/access-control.cache.js', () => cache)
 
 const {
   hasPermission,
