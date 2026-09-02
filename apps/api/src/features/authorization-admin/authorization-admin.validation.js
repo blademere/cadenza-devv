@@ -38,9 +38,14 @@ const replaceRolePermissionsSchema = z.object({
   }),
 })
 
+const validate = (schema) => async (req) => schema.parse({
+  body: req.body || {},
+  params: req.params || {},
+})
+
 export {
-  createModuleValidator,
-  createPermissionValidator,
-  setModuleActiveValidator,
-  replaceRolePermissionsValidator,
+  createModuleValidator: validate(createModuleSchema),
+  createPermissionValidator: validate(createPermissionSchema),
+  setModuleActiveValidator: validate(setModuleActiveSchema),
+  replaceRolePermissionsValidator: validate(replaceRolePermissionsSchema),
 }
