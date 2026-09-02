@@ -1,5 +1,5 @@
-const { env } = require('../../config')
-const { ForbiddenError } = require('../errors/appError')
+import { env } from '../../config/index.js'
+import { ForbiddenError } from '../errors/appError.js'
 
 const allowedOrigins = new Set(
   env.CORS_ORIGIN
@@ -21,4 +21,5 @@ const originProtection = (req, _res, next) => {
   return next()
 }
 
-module.exports = originProtection
+export default originProtection
+export { originProtection }
