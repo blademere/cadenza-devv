@@ -30,12 +30,12 @@ jobs:
         run: npm ci
 
       - name: Validate Prisma schema
-        run: npx nx run api:prisma:validate
+        run: npm exec -- nx run api:prisma:validate
 
       - name: Apply production migrations
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
-        run: npx nx run api:prisma:migrate:deploy
+        run: npm exec -- nx run api:prisma:migrate:deploy
 
       - name: Record migration completion
         run: echo "Production migrations completed for ${GITHUB_SHA}"
