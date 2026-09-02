@@ -26,4 +26,4 @@ const buildAuthorizationContext = ({ context, modules, capabilities }) => {
   }
 }
 
-module.exports = { buildAuthorizationContext }
+export { buildAuthorizationContext }
