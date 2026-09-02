@@ -1,7 +1,8 @@
-const { NotFoundError } = require("../errors/appError")
+import { NotFoundError } from '../errors/appError.js'
 
 const notFound = (req, _res, next) => {
   return next(new NotFoundError(`Route not found: ${req.originalUrl}`))
 }
 
-module.exports = notFound
+export default notFound
+export { notFound }
