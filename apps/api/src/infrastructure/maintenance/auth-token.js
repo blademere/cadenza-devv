@@ -1,8 +1,8 @@
-const { getPrismaClient } = require('../database/prisma')
+import { getPrismaClient } from '../database/prisma.js'
 
 const prisma = getPrismaClient()
 
 const deleteExpiredRefreshTokens = async () =>
   prisma.refreshToken.deleteMany({ where: { expiresAt: { lt: new Date() } } })
 
-module.exports = { deleteExpiredRefreshTokens }
+export { deleteExpiredRefreshTokens }
