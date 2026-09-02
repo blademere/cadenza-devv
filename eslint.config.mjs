@@ -30,7 +30,13 @@ export default defineConfig([
     },
   },
   {
-    files: ['**/*.js'],
+    files: ['apps/api/**/*.js'],
+    languageOptions: {
+      sourceType: 'module',
+    },
+  },
+  {
+    files: ['**/*.cjs'],
     languageOptions: {
       sourceType: 'commonjs',
     },
