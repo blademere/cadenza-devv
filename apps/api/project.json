@@ -17,10 +17,12 @@
     },
     "test": {
       "executor": "nx:run-commands",
+      "dependsOn": ["prisma:generate"],
       "options": { "command": "npm run test", "cwd": "apps/api" }
     },
     "test:unit": {
       "executor": "nx:run-commands",
+      "dependsOn": ["prisma:generate"],
       "options": { "command": "npm run test:unit", "cwd": "apps/api" }
     },
     "test:integration": {
@@ -45,6 +47,7 @@
     },
     "test:coverage": {
       "executor": "nx:run-commands",
+      "dependsOn": ["prisma:generate"],
       "options": { "command": "npm run test:coverage", "cwd": "apps/api" }
     },
     "prisma:generate": {
