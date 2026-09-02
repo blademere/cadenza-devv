@@ -1,7 +1,7 @@
-const workflowService = require("./workflow.service")
-const workflowVersionService = require("./workflow-version.service")
+import * as workflowService from './workflow.service.js'
+import * as workflowVersionService from './workflow-version.service.js'
 
-module.exports = {
+export {
   ...workflowService,
   ...workflowVersionService,
 }
