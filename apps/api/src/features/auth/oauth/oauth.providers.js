@@ -1,12 +1,13 @@
-const crypto = require('crypto')
-const { env } = require('../../../config')
-const { connectRedis } = require('../../../infrastructure/cache/redis')
-const { getGoogleAuthUrl } = require('../../../infrastructure/oauth/google')
-const {
+import crypto from 'node:crypto'
+import { env } from '../../../config/index.js'
+import { connectRedis } from '../../../infrastructure/cache/redis.js'
+import { getGoogleAuthUrl } from '../../../infrastructure/oauth/google.js'
+import {
   getFacebookAuthUrl,
   getFacebookTokenUrl,
   getFacebookUserInfoUrl,
-} = require('../../../infrastructure/oauth/facebook')
+} from '../../../infrastructure/oauth/facebook.js'
+
 const OAUTH_STATE_COOKIE = 'oauthState'
 const OAUTH_LINK_STATE_COOKIE = 'oauthLinkState'
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000
@@ -46,10 +47,10 @@ const getProviderConfig = (provider) => {
 }
 
 const createState = () => crypto.randomBytes(32).toString('base64url')
-
-const createPkceVerifier = () => crypto.randomBytes(PKCE_VERIFIER_BYTES).toString('base64url')
-
-const createPkceChallenge = (verifier) => crypto.createHash('sha256').update(verifier).digest('base64url')
+const createPkceVerifier = () =>
+  crypto.randomBytes(PKCE_VERIFIER_BYTES).toString('base64url')
+const createPkceChallenge = (verifier) =>
+  crypto.createHash('sha256').update(verifier).digest('base64url')
 
 const createAuthorizationUrl = (provider, state, codeChallenge) => {
   const config = getProviderConfig(provider)
@@ -72,37 +73,24 @@ const createAuthorizationUrl = (provider, state, codeChallenge) => {
   return url.toString()
 }
 
-const getStateKey = (state) => {
-  return `${OAUTH_STATE_KEY_PREFIX}${crypto.createHash('sha256').update(state).digest('hex')}`
-}
+const getStateKey = (state) =>
+  `${OAUTH_STATE_KEY_PREFIX}${crypto.createHash('sha256').update(state).digest('hex')}`
 
 const storeOAuthState = async (state, metadata, maxAgeMs) => {
   if (typeof state !== 'string' || state.length < 32) {
     throw new Error('OAuth state must be a high-entropy string.')
   }
-
   if (!metadata || typeof metadata !== 'object') {
     throw new Error('OAuth state metadata is required.')
   }
 
   const { flow, provider, userId, codeVerifier } = metadata
-
-  if (!['login', 'link'].includes(flow)) {
-    throw new Error('Invalid OAuth state flow.')
-  }
-
-  if (!providerConfig[provider]) {
-    throw new Error('Invalid OAuth state provider.')
-  }
-
+  if (!['login', 'link'].includes(flow)) throw new Error('Invalid OAuth state flow.')
+  if (!providerConfig[provider]) throw new Error('Invalid OAuth state provider.')
   if (typeof codeVerifier !== 'string' || codeVerifier.length < 43) {
     throw new Error('A valid PKCE code verifier is required.')
   }
-
-  if (
-    flow === 'link' &&
-    (!Number.isInteger(Number(userId)) || Number(userId) <= 0)
-  ) {
+  if (flow === 'link' && (!Number.isInteger(Number(userId)) || Number(userId) <= 0)) {
     throw new Error('A valid userId is required for OAuth linking.')
   }
 
@@ -112,28 +100,18 @@ const storeOAuthState = async (state, metadata, maxAgeMs) => {
     codeVerifier,
     ...(flow === 'link' ? { userId: Number(userId) } : {}),
   })
-
   const client = await connectRedis()
   const ttlSeconds = Math.ceil(maxAgeMs / 1000)
   const key = getStateKey(state)
-
-  const stored = await client.set(key, value, {
-    NX: true,
-    EX: ttlSeconds,
-  })
-
-  if (stored !== 'OK') {
-    throw new Error('OAuth state collision detected.')
-  }
+  const stored = await client.set(key, value, { NX: true, EX: ttlSeconds })
+  if (stored !== 'OK') throw new Error('OAuth state collision detected.')
 }
 
 const consumeOAuthState = async (state, expectedFlow, expectedProvider) => {
   if (typeof state !== 'string' || state.length < 32) return null
-
   if (expectedFlow !== undefined && !['login', 'link'].includes(expectedFlow)) {
     throw new Error('Invalid expected OAuth state flow.')
   }
-
   if (
     expectedProvider !== undefined &&
     !Object.prototype.hasOwnProperty.call(providerConfig, expectedProvider)
@@ -143,45 +121,19 @@ const consumeOAuthState = async (state, expectedFlow, expectedProvider) => {
 
   const client = await connectRedis()
   const value = await client.getDel(getStateKey(state))
-
   if (!value) return null
 
   try {
     const metadata = JSON.parse(value)
-
-    if (
-      expectedFlow !== undefined &&
-      metadata.flow !== expectedFlow
-    ) {
-      return null
-    }
-
-    if (
-      expectedProvider !== undefined &&
-      metadata.provider !== expectedProvider
-    ) {
-      return null
-    }
-
-    if (!['login', 'link'].includes(metadata.flow)) {
-      return null
-    }
-
-    if (!Object.prototype.hasOwnProperty.call(providerConfig, metadata.provider)) {
-      return null
-    }
-
-    if (typeof metadata.codeVerifier !== 'string' || metadata.codeVerifier.length < 43) {
-      return null
-    }
-
+    if (expectedFlow !== undefined && metadata.flow !== expectedFlow) return null
+    if (expectedProvider !== undefined && metadata.provider !== expectedProvider) return null
+    if (!['login', 'link'].includes(metadata.flow)) return null
+    if (!Object.prototype.hasOwnProperty.call(providerConfig, metadata.provider)) return null
+    if (typeof metadata.codeVerifier !== 'string' || metadata.codeVerifier.length < 43) return null
     if (
       metadata.flow === 'link' &&
       (!Number.isInteger(metadata.userId) || metadata.userId <= 0)
-    ) {
-      return null
-    }
-
+    ) return null
     return metadata
   } catch {
     return null
@@ -232,16 +184,13 @@ const clearOAuthLinkStateCookie = (res) => {
 
 const safeEqual = (left, right) => {
   if (typeof left !== 'string' || typeof right !== 'string') return false
-
   const leftBuffer = Buffer.from(left, 'utf8')
   const rightBuffer = Buffer.from(right, 'utf8')
-
   if (leftBuffer.length !== rightBuffer.length) return false
-
   return crypto.timingSafeEqual(leftBuffer, rightBuffer)
 }
 
-module.exports = {
+export {
   OAUTH_STATE_COOKIE,
   OAUTH_LINK_STATE_COOKIE,
   OAUTH_STATE_MAX_AGE_MS,

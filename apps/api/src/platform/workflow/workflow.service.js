@@ -1,11 +1,12 @@
-const { getPrismaClient } = require("../../infrastructure/database/prisma")
+import { getPrismaClient } from "../../infrastructure/database/prisma.js"
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../common/errors/appError.js"
+import { recordAudit } from "../audit/audit.service.js"
+import { can } from "../authorization/access-control.service.js"
+import { publish } from "../event-bus/event-bus.js"
+import { findWorkflowByKey, findPublishedVersion, findInstance, findInstanceWithHistory } from "./workflow.repository.js"
+import { WORKFLOW_ACTIONS, WORKFLOW_STATUS } from "./workflow.constants.js"
+
 const prisma = getPrismaClient()
-const { BadRequestError, ConflictError, ForbiddenError, NotFoundError } = require("../../common/errors/appError")
-const { recordAudit } = require("../audit/audit.service")
-const { can } = require("../authorization/access-control.service")
-const { publish } = require("../event-bus/event-bus")
-const { findWorkflowByKey, findPublishedVersion, findInstance, findInstanceWithHistory } = require("./workflow.repository")
-const { WORKFLOW_ACTIONS, WORKFLOW_STATUS } = require("./workflow.constants")
 
 const parsePermissionKey = (permissionKey) => {
   if (!permissionKey) return null
@@ -84,4 +85,4 @@ const transitionWorkflow = async ({ instanceId, transitionKey, actorId = null, m
 
 const getWorkflowInstance = async (instanceId) => { const instance = await findInstanceWithHistory(instanceId); if (!instance) throw new NotFoundError("Workflow instance not found."); return instance }
 
-module.exports = { createWorkflow, startWorkflow, transitionWorkflow, getWorkflowInstance, assertTransitionPermission, assertWorkflowDefinition }
+export { createWorkflow, startWorkflow, transitionWorkflow, getWorkflowInstance, assertTransitionPermission, assertWorkflowDefinition }

@@ -1,5 +1,5 @@
-const { getUserAuthorizationContext, findRoleById, findUserIdsByRoleId } = require('./access-control.repository')
-const { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } = require('./access-control.cache')
+import { getUserAuthorizationContext, findRoleById, findUserIdsByRoleId } from './access-control.repository.js'
+import { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } from './access-control.cache.js'
 
 const AUTHORIZATION_CACHE_ENABLED = process.env.AUTHORIZATION_CACHE_ENABLED !== 'false'
 
@@ -98,7 +98,7 @@ const clearRolePermissionCache = async (roleId) => {
   await Promise.all(userIds.map((userId) => clearUserPermissionCache(userId)))
 }
 
-module.exports = {
+export {
   getPermissionKey,
   hasPermission,
   getAuthorizationContext,

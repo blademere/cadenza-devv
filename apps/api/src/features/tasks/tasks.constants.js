@@ -8,5 +8,4 @@ const TASK_PRIORITY = Object.freeze({
   NORMAL: 'NORMAL',
   HIGH: 'HIGH',
 })
-
-module.exports = { TASK_STATUS, TASK_PRIORITY }
+export { TASK_STATUS, TASK_PRIORITY }

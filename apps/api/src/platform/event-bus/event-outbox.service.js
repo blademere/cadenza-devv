@@ -1,5 +1,5 @@
-const { randomUUID } = require('node:crypto')
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
+import { randomUUID } from 'node:crypto'
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
 const MAX_EVENT_DEPTH = 10
@@ -150,7 +150,7 @@ const recoverStale = async ({
   `
 }
 
-module.exports = {
+export {
   MAX_EVENT_DEPTH,
   MAX_ATTEMPTS,
   DEFAULT_LEASE_SECONDS,

@@ -3,4 +3,5 @@ const asyncHandler = (handler) => {
     Promise.resolve(handler(req, res, next)).catch(next)
 }
 
-module.exports = asyncHandler
+export default asyncHandler
+export { asyncHandler }

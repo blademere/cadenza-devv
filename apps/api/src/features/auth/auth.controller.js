@@ -1,11 +1,12 @@
-const { successResponse } = require('../../common/responses/apiResponse')
-const { login, requestPasswordReset, resetPassword, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout } = require('./auth.service')
-const { registerUser } = require('./user-registration')
-const { issueEmailVerification, verifyEmail } = require('./email-verification.service')
-const { findUserById } = require('./auth.repository')
-const { setCsrfCookie } = require('../../common/middleware/csrf')
-const { UnauthorizedError } = require('../../common/errors/appError')
-const { env } = require('../../config')
+import { successResponse } from '../../common/responses/apiResponse.js'
+import { login, requestPasswordReset, resetPassword, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout } from './auth.service.js'
+import { registerUser } from './user-registration.js'
+import { issueEmailVerification, verifyEmail } from './email-verification.service.js'
+import { findUserById } from './auth.repository.js'
+import { setCsrfCookie } from '../../common/middleware/csrf.js'
+import { UnauthorizedError } from '../../common/errors/appError.js'
+import { env } from '../../config/index.js'
+
 const refreshCookieOptions = { httpOnly: true, secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/api/v1/auth', maxAge: env.COOKIE_REFRESH_MAX_AGE_MS }
 const clearRefreshCookie = (res) => res.clearCookie('refreshToken', { httpOnly: true, secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/api/v1/auth' })
 const toPublicUser = (user) => ({ id: user.id, email: user.email, emailVerified: Boolean(user.emailVerifiedAt), role: user.role ? { id: user.role.id, name: user.role.name, description: user.role.description } : null })
@@ -23,4 +24,5 @@ const refreshAccessTokenController = async (req, res) => { const refreshToken = 
 const logoutController = async (req, res) => { await logout({ refreshToken: req.cookies?.refreshToken }); clearRefreshCookie(res); res.clearCookie('csrfToken', { secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/' }); return successResponse(res, 'Logout successful.', null, 200) }
 const verifyEmailController = async (req, res) => { await verifyEmail(req.validated.body); return successResponse(res, 'Email address verified successfully.', null, 200) }
 const requestEmailVerificationController = async (req, res) => { await issueEmailVerification({ userId: req.user.id, reason: 'resend' }); return successResponse(res, 'If your account requires email verification, a verification email will be sent.', null, 202) }
-module.exports = { csrfTokenController, registerUserController, loginController, requestPasswordResetController, resetPasswordController, currentUserController, changePasswordController, listSessionsController, revokeSessionController, revokeAllSessionsController, refreshAccessTokenController, logoutController, verifyEmailController, requestEmailVerificationController }
+
+export { csrfTokenController, registerUserController, loginController, requestPasswordResetController, resetPasswordController, currentUserController, changePasswordController, listSessionsController, revokeSessionController, revokeAllSessionsController, refreshAccessTokenController, logoutController, verifyEmailController, requestEmailVerificationController }

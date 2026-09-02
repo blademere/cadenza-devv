@@ -1,6 +1,7 @@
-const crypto = require('crypto')
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
-const { deleteExpiredRefreshTokens } = require('../../infrastructure/maintenance/auth-token')
+import crypto from 'node:crypto'
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+import { deleteExpiredRefreshTokens } from '../../infrastructure/maintenance/auth-token.js'
+
 const prisma = getPrismaClient()
 const userInclude = { role: { select: { id: true, name: true, description: true } } }
 const findUserByEmail = async (email) => prisma.user.findUnique({ where: { email }, include: userInclude })
@@ -34,7 +35,6 @@ const linkOAuthAccount = async ({ userId, provider, providerAccountId }) => pris
   const user = await tx.user.findUnique({ where: { id: Number(userId) }, select: { id: true, email: true, isActive: true } })
   if (!user) { const error = new Error('User account was not found.'); error.code = 'USER_NOT_FOUND'; throw error }
   if (!user.isActive) { const error = new Error('User account is inactive.'); error.code = 'USER_INACTIVE'; throw error }
-
   const existingAccount = await tx.oAuthAccount.findUnique({ where: { provider_providerAccountId: { provider, providerAccountId } } })
   if (existingAccount) {
     if (existingAccount.userId === Number(userId)) return { account: existingAccount, user }
@@ -42,7 +42,6 @@ const linkOAuthAccount = async ({ userId, provider, providerAccountId }) => pris
     error.code = 'OAUTH_ACCOUNT_ALREADY_LINKED'
     throw error
   }
-
   const account = await tx.oAuthAccount.create({ data: { userId: Number(userId), provider, providerAccountId } })
   return { account, user }
 })
@@ -88,4 +87,5 @@ const consumeEmailVerificationToken = async ({ tokenId, userId }) => prisma.$tra
   if (verified.count !== 1) return { success: false }
   return { success: true }
 })
-module.exports = { findUserByEmail, findUserById, findUserAuthState, findRoleByName, createUser, bumpUserAuthVersion, changePassword, listActiveSessions, revokeSession, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, createPasswordResetToken, findPasswordResetToken, consumePasswordResetToken, invalidatePasswordResetTokens, createEmailVerificationToken, findEmailVerificationToken, invalidateEmailVerificationTokens, consumeEmailVerificationToken, deleteExpiredRefreshTokens }
+
+export { findUserByEmail, findUserById, findUserAuthState, findRoleByName, createUser, bumpUserAuthVersion, changePassword, listActiveSessions, revokeSession, findOAuthAccount, createOAuthUser, linkOAuthAccount, listOAuthAccounts, unlinkOAuthAccount, hashRefreshToken, createRefreshTokenRecord, findRefreshToken, findRefreshTokenById, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, createPasswordResetToken, findPasswordResetToken, consumePasswordResetToken, invalidatePasswordResetTokens, createEmailVerificationToken, findEmailVerificationToken, invalidateEmailVerificationTokens, consumeEmailVerificationToken, deleteExpiredRefreshTokens }

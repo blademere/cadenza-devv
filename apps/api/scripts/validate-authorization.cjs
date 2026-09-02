@@ -10,6 +10,8 @@ const AUTHORIZE = /\bauthorize(?:Resource)?\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/
 const EXEMPTION = /authorization\s*:\s*public|authorization\s*:\s*auth-boundary/i
 const PERMISSION_KEY = /^[a-z0-9_-]+:[a-z0-9_-]+$/
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 const walk = (directory) => {
   if (!fs.existsSync(directory)) return []
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -27,17 +29,15 @@ for (const capability of capabilities) {
   capabilityKeys.add(capability.key)
   if (!PERMISSION_KEY.test(capability.permission)) failures.push(`capability registry: invalid permission key '${capability.permission}'.`)
   const [resource] = capability.permission.split(':')
-  if (resource !== capability.moduleKey) {
-    failures.push(`capability registry: capability '${capability.key}' binds module '${capability.moduleKey}' to '${capability.permission}'.`)
-  }
+  if (resource !== capability.moduleKey) failures.push(`capability registry: capability '${capability.key}' binds module '${capability.moduleKey}' to '${capability.permission}'.`)
 }
 
 const routeFiles = ROUTE_ROOTS.flatMap(walk).filter((file) => file.endsWith('.routes.js'))
 for (const file of routeFiles) {
   const source = fs.readFileSync(file, 'utf8')
-  const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
-  const isAuthFile = relative.startsWith('apps/server/src/features/auth/')
-  const isAuthorizationContext = relative === 'apps/server/src/platform/authorization/authorization-context.routes.js'
+  const relative = path.relative(path.resolve(__dirname, '..'), file).replaceAll(path.sep, '/')
+  const isAuthFile = relative.startsWith('src/features/auth/')
+  const isAuthorizationContext = relative === 'src/platform/authorization/authorization-context.routes.js'
   const middlewareAliases = new Set(['authenticate'])
   const authorizationAliases = new Set(['authorize', 'authorizeResource'])
 
@@ -51,13 +51,35 @@ for (const file of routeFiles) {
   }
 
   for (const match of source.matchAll(METHODS)) {
-    const lineStart = source.lastIndexOf('\n', match.index) + 1
-    const lineEnd = source.indexOf('\n', match.index)
-    const line = source.slice(lineStart, lineEnd === -1 ? source.length : lineEnd)
     const lineNumber = source.slice(0, match.index).split('\n').length
-    if (EXEMPTION.test(line) || isAuthFile) continue
-    const hasAuthentication = [...middlewareAliases].some((name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(line))
-    const hasAuthorization = [...authorizationAliases].some((name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(line))
+    const start = match.index
+    let cursor = match.index + match[0].length
+    let depth = 1
+    let quote = null
+    let escaped = false
+
+    while (cursor < source.length && depth > 0) {
+      const char = source[cursor]
+      if (quote) {
+        if (escaped) escaped = false
+        else if (char === '\\') escaped = true
+        else if (char === quote) quote = null
+      } else if (char === '\'' || char === '"' || char === '`') {
+        quote = char
+      } else if (char === '(') {
+        depth += 1
+      } else if (char === ')') {
+        depth -= 1
+      }
+      cursor += 1
+    }
+
+    const statement = source.slice(start, cursor)
+    if (EXEMPTION.test(statement) || isAuthFile) continue
+
+    const hasAuthentication = [...middlewareAliases].some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(statement))
+    const hasAuthorization = [...authorizationAliases].some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(statement))
+
     if (!hasAuthentication) failures.push(`${relative}:${lineNumber}: route is missing authentication middleware.`)
     if (!isAuthorizationContext && !hasAuthorization) failures.push(`${relative}:${lineNumber}: route is missing authorization middleware.`)
   }

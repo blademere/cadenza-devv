@@ -1,11 +1,50 @@
-const express = require('express')
-const { csrfTokenController, registerUserController, loginController, requestPasswordResetController, resetPasswordController, currentUserController, changePasswordController, listSessionsController, revokeSessionController, revokeAllSessionsController, refreshAccessTokenController, logoutController, verifyEmailController, requestEmailVerificationController } = require('./auth.controller')
-const { loginValidator, registrationValidator, passwordChangeValidator, passwordResetRequestValidator, passwordResetValidator, emailVerificationValidator, sessionIdValidator } = require('./auth.validation')
-const authenticate = require('./authenticate.secure')
-const { asyncHandler, loginRateLimiter, loginAccountRateLimiter, registerRateLimiter, refreshRateLimiter, logoutRateLimiter, oauthRateLimiter, idempotency } = require('../../common/middleware')
-const validate = require('../../common/middleware/validate')
-const { csrfProtection } = require('../../common/middleware/csrf')
-const { startOAuth, handleOAuthCallback, startOAuthLink, listOAuthAccountsController, unlinkOAuthAccountController } = require('./oauth/oauth.controller')
+import express from 'express'
+import {
+  csrfTokenController,
+  registerUserController,
+  loginController,
+  requestPasswordResetController,
+  resetPasswordController,
+  currentUserController,
+  changePasswordController,
+  listSessionsController,
+  revokeSessionController,
+  revokeAllSessionsController,
+  refreshAccessTokenController,
+  logoutController,
+  verifyEmailController,
+  requestEmailVerificationController,
+} from './auth.controller.js'
+import {
+  loginValidator,
+  registrationValidator,
+  passwordChangeValidator,
+  passwordResetRequestValidator,
+  passwordResetValidator,
+  emailVerificationValidator,
+  sessionIdValidator,
+} from './auth.validation.js'
+import authenticate from './authenticate.secure.js'
+import {
+  asyncHandler,
+  loginRateLimiter,
+  loginAccountRateLimiter,
+  registerRateLimiter,
+  refreshRateLimiter,
+  logoutRateLimiter,
+  oauthRateLimiter,
+  idempotency,
+} from '../../common/middleware/index.js'
+import validate from '../../common/middleware/validate.js'
+import { csrfProtection } from '../../common/middleware/csrf.js'
+import {
+  startOAuth,
+  handleOAuthCallback,
+  startOAuthLink,
+  listOAuthAccountsController,
+  unlinkOAuthAccountController,
+} from './oauth/oauth.controller.js'
+
 const authRouter = express.Router()
 const requireAuthIdempotency = idempotency({ scope: 'auth', required: true })
 const requireRegistrationIdempotency = idempotency({ scope: 'auth-registration', required: true })
@@ -33,4 +72,5 @@ authRouter.get('/oauth/link/facebook', oauthRateLimiter, authenticate, asyncHand
 authRouter.delete('/oauth/link/:provider', authenticate, requireAuthIdempotency, asyncHandler(unlinkOAuthAccountController))
 authRouter.post('/refresh', refreshRateLimiter, csrfProtection, requireAuthIdempotency, asyncHandler(refreshAccessTokenController))
 authRouter.post('/logout', logoutRateLimiter, csrfProtection, requireAuthIdempotency, asyncHandler(logoutController))
-module.exports = authRouter
+
+export default authRouter

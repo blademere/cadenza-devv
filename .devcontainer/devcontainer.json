@@ -43,5 +43,5 @@
     "5173": { "label": "Web Vite", "onAutoForward": "openBrowser" },
     "5174": { "label": "Admin Web Vite", "onAutoForward": "openBrowser" }
   },
-  "postCreateCommand": "npm --workspace @express-app/api run prisma:generate"
+  "postCreateCommand": "npm ci --include=dev && npm --workspace @express-app/api run prisma:generate"
 }

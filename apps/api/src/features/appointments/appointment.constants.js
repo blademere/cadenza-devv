@@ -24,7 +24,7 @@ const SLOT_STATUS = Object.freeze({
   CLOSED: 'CLOSED',
 })
 
-module.exports = {
+export {
   APPOINTMENT_MODULE,
   APPOINTMENT_ACTIONS,
   APPOINTMENT_STATUS,

@@ -1,6 +1,6 @@
-const { Queue, QueueEvents, Worker } = require('bullmq')
-const { connectRedis, getRedisClient } = require('../cache/redis')
-const { logger } = require('../../config')
+import { Queue, QueueEvents, Worker } from 'bullmq'
+import { connectRedis, getRedisClient } from '../cache/redis.js'
+import { logger } from '../../config/index.js'
 
 const createBullMqInfrastructure = ({
   Queue: QueueClass = Queue,
@@ -122,7 +122,15 @@ const createBullMqInfrastructure = ({
   }
 }
 
-module.exports = {
-  ...createBullMqInfrastructure(),
+const { enqueueJob, getQueue, getFailedJobs, retryFailedJob, getQueueEvents, registerWorker, closeQueues } = createBullMqInfrastructure()
+
+export {
+  enqueueJob,
+  getQueue,
+  getFailedJobs,
+  retryFailedJob,
+  getQueueEvents,
+  registerWorker,
+  closeQueues,
   createBullMqInfrastructure,
 }

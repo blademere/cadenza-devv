@@ -1,7 +1,7 @@
-const { AppError } = require('../errors/appError')
-const { errorResponse } = require('../responses/apiResponse')
-const { logger } = require('../../config')
-const { captureException } = require('../../infrastructure/monitoring/sentry')
+import { AppError } from '../errors/appError.js'
+import { errorResponse } from '../responses/apiResponse.js'
+import { logger } from '../../config/index.js'
+import { captureException } from '../../infrastructure/monitoring/sentry.js'
 
 const errorHandler = (error, req, res, _next) => {
   if (!(error instanceof AppError)) {
@@ -43,4 +43,5 @@ const errorHandler = (error, req, res, _next) => {
   return errorResponse(res, 'Internal server error.', [], 500)
 }
 
-module.exports = errorHandler
+export default errorHandler
+export { errorHandler }

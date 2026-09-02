@@ -1,10 +1,10 @@
-const express = require('express')
-const authRouter = require('../features/auth/auth.routes')
-const userRouter = require('../features/users/user.routes')
-const authorizationAdminRouter = require('../features/authorization-admin/authorization-admin.routes')
-const authorizationContextRouter = require('../platform/authorization/authorization-context.routes')
-const oboRouter = require('../modules/obo')
-const authenticate = require('../features/auth/authenticate.secure')
+import express from 'express'
+import authRouter from '../features/auth/auth.routes.js'
+import userRouter from '../features/users/user.routes.js'
+import authorizationAdminRouter from '../features/authorization-admin/authorization-admin.routes.js'
+import authorizationContextRouter from '../platform/authorization/authorization-context.routes.js'
+import oboRouter from '../modules/obo/index.js'
+import authenticate from '../features/auth/authenticate.secure.js'
 
 const router = express.Router()
 const authorizationContextProtectedRouter = express.Router()
@@ -18,4 +18,4 @@ router.use('/authorization', authorizationAdminRouter)
 router.use('/', authorizationContextProtectedRouter)
 router.use('/obo', oboRouter)
 
-module.exports = router
+export default router

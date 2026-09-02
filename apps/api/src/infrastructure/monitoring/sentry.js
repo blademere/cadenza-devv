@@ -1,5 +1,5 @@
-const Sentry = require('@sentry/node')
-const { env } = require('../../config')
+import * as Sentry from '@sentry/node'
+import { env } from '../../config/index.js'
 
 let initialized = false
 
@@ -49,8 +49,4 @@ const flushSentry = async (timeout = 2000) => {
   return Sentry.flush(timeout)
 }
 
-module.exports = {
-  initializeSentry,
-  captureException,
-  flushSentry,
-}
+export { initializeSentry, captureException, flushSentry }

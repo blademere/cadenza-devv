@@ -1,20 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const repository = require('../../../src/features/auth/auth.repository.js')
-const bcrypt = require('bcrypt')
-const eventBus = require('../../../src/platform/event-bus/event-bus')
+vi.mock('../../../src/features/auth/auth.repository.js')
+vi.mock('../../../src/platform/event-bus/event-bus.js')
+vi.mock('bcrypt')
 
-vi.spyOn(eventBus, 'publish').mockResolvedValue({ id: 'event-1' })
-vi.spyOn(repository, 'findUserByEmail')
-vi.spyOn(repository, 'invalidatePasswordResetTokens')
-vi.spyOn(repository, 'createPasswordResetToken')
-vi.spyOn(repository, 'findPasswordResetToken')
-vi.spyOn(repository, 'consumePasswordResetToken')
-vi.spyOn(bcrypt, 'hash')
+const repository = await import('../../../src/features/auth/auth.repository.js')
+const eventBus = await import('../../../src/platform/event-bus/event-bus.js')
+const bcrypt = await import('bcrypt')
+const { requestPasswordReset, resetPassword } = await import('../../../src/features/auth/auth.service.js')
 
-const { requestPasswordReset, resetPassword } = require('../../../src/features/auth/auth.service.js')
-
-beforeEach(() => { vi.clearAllMocks(); bcrypt.hash.mockResolvedValue('new-password-hash') })
+beforeEach(() => {
+  vi.clearAllMocks()
+  eventBus.publish.mockResolvedValue({ id: 'event-1' })
+  bcrypt.default.hash.mockResolvedValue('new-password-hash')
+})
 
 const getPublishedResetToken = () => {
   const publishCall = eventBus.publish.mock.calls[0]?.[0]

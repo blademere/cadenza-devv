@@ -1,5 +1,5 @@
-const { successResponse } = require('../../../common/responses/apiResponse')
-const service = require('./plan-permit.service')
+import { successResponse } from '../../../common/responses/apiResponse.js'
+import * as service from './plan-permit.service.js'
 
 const create = async (req, res) => successResponse(res, 'Permit application created successfully.', await service.createApplication({ userId: req.user.id, ...req.validated.body }), 201)
 const get = async (req, res) => successResponse(res, 'Permit application retrieved successfully.', await service.getMine({ id: req.validated.params.id, userId: req.user.id }))
@@ -7,4 +7,4 @@ const list = async (req, res) => successResponse(res, 'Permit applications retri
 const update = async (req, res) => successResponse(res, 'Permit application updated successfully.', await service.updateDraft({ id: req.validated.params.id, userId: req.user.id, ...req.validated.body }))
 const submit = async (req, res) => successResponse(res, 'Permit application marked ready for submission.', await service.submit({ id: req.validated.params.id, userId: req.user.id }))
 
-module.exports = { create, get, list, update, submit }
+export { create, get, list, update, submit }

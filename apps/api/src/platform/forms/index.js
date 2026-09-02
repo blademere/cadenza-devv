@@ -1,1 +1,1 @@
-module.exports = require('./form.service')
+export * from './form.service.js'

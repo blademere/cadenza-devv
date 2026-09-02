@@ -14,7 +14,4 @@ const errorResponse = (res, message, errors = [], statusCode = 500) => {
   })
 }
 
-module.exports = {
-  successResponse,
-  errorResponse,
-}
+export { successResponse, errorResponse }

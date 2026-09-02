@@ -4,4 +4,4 @@ const CASE_STATUS = Object.freeze({
   CLOSED: 'CLOSED',
 })
 
-module.exports = { CASE_STATUS }
+export { CASE_STATUS }

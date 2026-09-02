@@ -1,4 +1,4 @@
-const { getPrismaClient } = require('./prisma')
+import { getPrismaClient } from './prisma.js'
 
 const runInTransaction = async (handler) => {
   const prisma = getPrismaClient()
@@ -6,6 +6,4 @@ const runInTransaction = async (handler) => {
   return prisma.$transaction(handler)
 }
 
-module.exports = {
-  runInTransaction,
-}
+export { runInTransaction }

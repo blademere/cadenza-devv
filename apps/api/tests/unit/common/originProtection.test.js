@@ -1,4 +1,5 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { ForbiddenError } from '../../../src/common/errors/appError.js'
 
 process.env.NODE_ENV = 'test'
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/test'
@@ -11,13 +12,7 @@ process.env.CORS_ORIGIN = 'http://localhost:5173,http://localhost:4173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
-let originProtection
-let ForbiddenError
-
-beforeAll(() => {
-  originProtection = require('../../../src/common/middleware/originProtection')
-  ForbiddenError = require('../../../src/common/errors/appError').ForbiddenError
-})
+const { default: originProtection } = await import('../../../src/common/middleware/originProtection.js')
 
 describe('originProtection', () => {
   it('allows state-changing requests from an explicitly configured origin', () => {

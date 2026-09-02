@@ -1,21 +1,21 @@
-const asyncHandler = require('./asyncHandler')
-const validate = require('./validate')
-const errorHandler = require('./errorHandler')
-const notFound = require('./notFound')
-const rateLimiter = require('./rateLimiter')
-const requestId = require('./requestId')
-const idempotency = require('./idempotency')
-const cache = require('./cache')
-const {
+import asyncHandler from './asyncHandler.js'
+import validate from './validate.js'
+import errorHandler from './errorHandler.js'
+import notFound from './notFound.js'
+import rateLimiter from './rateLimiter.js'
+import requestId from './requestId.js'
+import idempotency from './idempotency.js'
+import cache from './cache.js'
+import {
   loginRateLimiter,
   loginAccountRateLimiter,
   registerRateLimiter,
   refreshRateLimiter,
   logoutRateLimiter,
   oauthRateLimiter,
-} = require('./authRateLimiter')
+} from './authRateLimiter.js'
 
-module.exports = {
+export {
   asyncHandler,
   validate,
   errorHandler,

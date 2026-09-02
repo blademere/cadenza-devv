@@ -1,5 +1,5 @@
-const { successResponse } = require('../../common/responses/apiResponse')
-const service = require('./authorization-admin.service')
+import { successResponse } from '../../common/responses/apiResponse.js'
+import * as service from './authorization-admin.service.js'
 
 const listModulesController = async (_req, res) => {
   const modules = await service.listModules()
@@ -41,7 +41,7 @@ const replaceRolePermissionsController = async (req, res) => {
   return successResponse(res, 'Role permissions updated successfully.', role)
 }
 
-module.exports = {
+export {
   listModulesController,
   createModuleController,
   createPermissionController,

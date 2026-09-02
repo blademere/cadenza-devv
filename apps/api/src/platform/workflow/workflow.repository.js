@@ -1,4 +1,6 @@
-const prisma = require("../../infrastructure/database/prisma")
+import { getPrismaClient } from "../../infrastructure/database/prisma.js"
+
+const prisma = getPrismaClient()
 
 const workflowInclude = {
   versions: {
@@ -59,7 +61,7 @@ const findInstanceWithHistory = (id, db = prisma) =>
     },
   })
 
-module.exports = {
+export {
   workflowInclude,
   findWorkflowByKey,
   findPublishedVersion,

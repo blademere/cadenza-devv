@@ -1,10 +1,10 @@
-const { getQueue, enqueueJob } = require('../../infrastructure/queue/bullmq')
-const {
+import { getQueue, enqueueJob } from '../../infrastructure/queue/bullmq.js'
+import {
   SCHEDULER_TYPES,
   DEFAULT_SCHEDULER_QUEUE,
   MAX_SCHEDULER_ID_LENGTH,
   MAX_JOB_NAME_LENGTH,
-} = require('./scheduler.constants')
+} from './scheduler.constants.js'
 
 const normalizeString = (value, name, maxLength) => {
   const normalized = String(value || '').trim()
@@ -150,8 +150,21 @@ const createSchedulerService = ({
 }
 
 const scheduler = createSchedulerService()
+const {
+  scheduleEvery,
+  scheduleCron,
+  scheduleOnce,
+  removeSchedule,
+  listSchedules,
+  types,
+} = scheduler
 
-module.exports = {
+export {
   createSchedulerService,
-  ...scheduler,
+  scheduleEvery,
+  scheduleCron,
+  scheduleOnce,
+  removeSchedule,
+  listSchedules,
+  types,
 }

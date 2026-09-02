@@ -1,9 +1,9 @@
-const { randomUUID } = require('node:crypto')
-const { recordAudit } = require('../audit/audit.service')
-const { evaluateRules } = require('../rules/rule.service')
-const { dispatchActions } = require('../rules/action-dispatcher')
-const { queueNotifications } = require('../notifications/notification.service')
-const { enqueueEvent, MAX_EVENT_DEPTH } = require('./event-outbox.service')
+import { randomUUID } from 'node:crypto'
+import { recordAudit } from '../audit/audit.service.js'
+import { evaluateRules } from '../rules/rule.service.js'
+import { dispatchActions } from '../rules/action-dispatcher.js'
+import { queueNotifications } from '../notifications/notification.service.js'
+import { enqueueEvent, MAX_EVENT_DEPTH } from './event-outbox.service.js'
 
 const buildEnvelope = ({
   event,
@@ -103,4 +103,4 @@ const processEvent = async (envelope) => {
   }
 }
 
-module.exports = { publish, processEvent, buildEnvelope }
+export { publish, processEvent, buildEnvelope }

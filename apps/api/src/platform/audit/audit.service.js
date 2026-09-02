@@ -1,4 +1,6 @@
-const prisma = require('../../infrastructure/database/prisma')
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+
+const prisma = getPrismaClient()
 
 const SENSITIVE_KEYS = new Set([
   'password',
@@ -62,7 +64,7 @@ const recordAudit = async ({
   })
 }
 
-module.exports = {
+export {
   recordAudit,
   sanitizeJson,
 }

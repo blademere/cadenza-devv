@@ -1,6 +1,6 @@
-const { ConflictError, NotFoundError } = require('../../../common/errors/appError')
-const peopleService = require('../../../features/people/people.service')
-const repository = require('./client.repository')
+import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
+import * as peopleService from '../../../features/people/people.service.js'
+import * as repository from './client.repository.js'
 
 const createMine = async ({ userId, ...data }) => {
   const existing = await repository.findByUserId(userId)
@@ -25,4 +25,4 @@ const getMine = async ({ userId }) => {
   }
 }
 
-module.exports = { createMine, getMine }
+export { createMine, getMine }

@@ -1,4 +1,4 @@
-const { getPrismaClient } = require('../../infrastructure/database/prisma')
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
 
@@ -53,4 +53,4 @@ const listActiveModules = () => prisma.module.findMany({
   select: { id: true, key: true, name: true, description: true, isActive: true },
 })
 
-module.exports = { getUserAuthorizationContext, listActiveModules }
+export { getUserAuthorizationContext, listActiveModules }

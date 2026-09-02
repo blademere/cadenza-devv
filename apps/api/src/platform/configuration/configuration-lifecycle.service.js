@@ -1,7 +1,7 @@
-const {
+import {
   BadRequestError,
   ConflictError,
-} = require('../../common/errors/appError')
+} from '../../common/errors/appError.js'
 
 const CONFIGURATION_STATUS = Object.freeze({
   DRAFT: 'DRAFT',
@@ -63,7 +63,7 @@ const buildPublishWhere = ({ id, parentId, expectedStatus }) => ({
   status: expectedStatus,
 })
 
-module.exports = {
+export {
   CONFIGURATION_STATUS,
   TRANSITIONS,
   assertKnownStatus,

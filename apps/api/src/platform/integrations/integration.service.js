@@ -1,9 +1,11 @@
-const prisma = require('../../infrastructure/database/prisma')
-const {
+import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+import {
   BadRequestError,
   ConflictError,
   NotFoundError,
-} = require('../../common/errors/appError')
+} from '../../common/errors/appError.js'
+
+const prisma = getPrismaClient()
 
 const createIntegration = async ({
   key,
@@ -43,4 +45,4 @@ const getActiveSubscribers = async (event) =>
     include: { integration: true },
   })
 
-module.exports = { createIntegration, subscribeEvent, getActiveSubscribers }
+export { createIntegration, subscribeEvent, getActiveSubscribers }

@@ -1,4 +1,7 @@
-const { listAuditLogs, getEntityTimeline } = require('../../platform/audit/audit.query.service')
+import {
+  listAuditLogs,
+  getEntityTimeline,
+} from '../../platform/audit/audit.query.service.js'
 
 const listAuditLogsController = async (req, res) => {
   const result = await listAuditLogs(req.validated.query)
@@ -23,4 +26,4 @@ const timelineController = async (req, res) => {
   })
 }
 
-module.exports = { listAuditLogsController, timelineController }
+export { listAuditLogsController, timelineController }

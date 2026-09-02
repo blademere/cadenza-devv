@@ -1,12 +1,11 @@
-const app = require('./app')
-const { env } = require('./config')
-const {
+import app from './app.js'
+import { env, logger } from './config/index.js'
+import {
   initializeSentry,
   flushSentry,
-} = require('./infrastructure/monitoring/sentry')
-const { disconnectPrisma } = require('./infrastructure/database/prisma')
-const { disconnectRedis } = require('./infrastructure/cache/redis')
-const { logger } = require('./config')
+} from './infrastructure/monitoring/sentry.js'
+import { disconnectPrisma } from './infrastructure/database/prisma.js'
+import { disconnectRedis } from './infrastructure/cache/redis.js'
 
 initializeSentry()
 
@@ -43,4 +42,5 @@ const shutdown = async (signal) => {
 process.once('SIGTERM', () => shutdown('SIGTERM'))
 process.once('SIGINT', () => shutdown('SIGINT'))
 
-module.exports = { server, shutdown }
+export { server, shutdown }
+export default app

@@ -1,1 +1,1 @@
-module.exports = require('./obo.routes')
+export { default } from './obo.routes.js'

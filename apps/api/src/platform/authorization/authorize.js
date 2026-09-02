@@ -1,23 +1,16 @@
-const { ForbiddenError } = require('../../common/errors/appError')
-const accessControlService = require('./access-control.service')
+import { ForbiddenError } from '../../common/errors/appError.js'
+import * as accessControlService from './access-control.service.js'
 
-/**
- * Authorize against the database permission catalog.
- *
- * Supported forms:
- *   authorize('plan_permits', 'create')
- *   authorize('plan_permits:create')
- *
- * The first form is preferred for readability in feature routes. Neither form
- * requires adding the module or action to the authorization platform code.
- */
 const authorize = (resourceOrPermission, action) => {
   let resource = resourceOrPermission
   let resolvedAction = action
 
   if (action === undefined && typeof resourceOrPermission === 'string') {
     const separatorIndex = resourceOrPermission.indexOf(':')
-    if (separatorIndex > 0 && separatorIndex < resourceOrPermission.length - 1) {
+    if (
+      separatorIndex > 0 &&
+      separatorIndex < resourceOrPermission.length - 1
+    ) {
       resource = resourceOrPermission.slice(0, separatorIndex)
       resolvedAction = resourceOrPermission.slice(separatorIndex + 1)
     }
@@ -30,7 +23,7 @@ const authorize = (resourceOrPermission, action) => {
     !resolvedAction.trim()
   ) {
     throw new TypeError(
-      'authorize requires a resource/action pair or a permission key such as "plan_permits:create".',
+      'authorize requires a resource/action pair or a permission key such as "plan_permits:create".'
     )
   }
 
@@ -49,8 +42,8 @@ const authorize = (resourceOrPermission, action) => {
       if (!allowed) {
         return next(
           new ForbiddenError(
-            'You do not have permission to perform this action.',
-          ),
+            'You do not have permission to perform this action.'
+          )
         )
       }
 
@@ -61,4 +54,4 @@ const authorize = (resourceOrPermission, action) => {
   }
 }
 
-module.exports = authorize
+export default authorize

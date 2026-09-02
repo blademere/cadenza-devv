@@ -1,13 +1,14 @@
-const express = require('express')
-const { asyncHandler } = require('../../common/middleware')
-const { successResponse } = require('../../common/responses/apiResponse')
-const repository = require('./authorization-context.repository')
-const { getCapabilityRegistry } = require('./capability-registry')
-const { buildAuthorizationContext } = require('./authorization-context.service')
+import express from 'express'
+import { asyncHandler } from '../../common/middleware/index.js'
+import authenticate from '../../features/auth/authenticate.secure.js'
+import { successResponse } from '../../common/responses/apiResponse.js'
+import { getUserAuthorizationContext, listActiveModules } from './authorization-context.repository.js'
+import { getCapabilityRegistry } from './capability-registry.js'
+import { buildAuthorizationContext } from './authorization-context.service.js'
 
 const router = express.Router()
 
-router.get('/me/authorization', asyncHandler(async (req, res) => {
+router.get('/me/authorization', authenticate, asyncHandler(async (req, res) => {
   // Authorization state changes independently of the application shell, so a
   // previously cached GET response must never keep old navigation/permissions.
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
@@ -15,8 +16,8 @@ router.get('/me/authorization', asyncHandler(async (req, res) => {
   res.set('Expires', '0')
 
   const [context, modules] = await Promise.all([
-    repository.getUserAuthorizationContext(req.user.id),
-    repository.listActiveModules(),
+    getUserAuthorizationContext(req.user.id),
+    listActiveModules(),
   ])
 
   const authorizationContext = buildAuthorizationContext({
@@ -32,4 +33,4 @@ router.get('/me/authorization', asyncHandler(async (req, res) => {
   )
 }))
 
-module.exports = router
+export default router

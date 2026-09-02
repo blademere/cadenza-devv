@@ -1,12 +1,29 @@
-const bcrypt = require('bcrypt')
-
-const { ConflictError, ForbiddenError, NotFoundError } = require('../../common/errors/appError')
-const { normalizePagination, createPaginationMeta, createOrderBy, pickFilters } = require('../../common/pagination/pagination')
-const { findAllUsers, createUser, findUserWithRole, findRoleForAssignment, updateUserRole } = require('./user.repository')
-const { toUserResponse } = require('./user.mapper')
-const { findUserByEmail } = require('../auth/auth.repository')
-const { findRoleById, getUserAuthorizationContext } = require('../../platform/authorization/access-control.repository')
-const { clearUserPermissionCache } = require('../../platform/authorization/access-control.service')
+import bcrypt from 'bcrypt'
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from '../../common/errors/appError.js'
+import {
+  normalizePagination,
+  createPaginationMeta,
+  createOrderBy,
+  pickFilters,
+} from '../../common/pagination/pagination.js'
+import {
+  findAllUsers,
+  createUser,
+  findUserWithRole,
+  findRoleForAssignment,
+  updateUserRole,
+} from './user.repository.js'
+import { toUserResponse } from './user.mapper.js'
+import { findUserByEmail } from '../auth/auth.repository.js'
+import {
+  findRoleById,
+  getUserAuthorizationContext,
+} from '../../platform/authorization/access-control.repository.js'
+import { clearUserPermissionCache } from '../../platform/authorization/access-control.service.js'
 
 const permissionKey = (permission) => {
   const resource = permission.resource ?? permission.module?.key
@@ -15,7 +32,7 @@ const permissionKey = (permission) => {
 
 const canAssignRole = (requesterPermissions, targetRole) => {
   const requesterPermissionSet = new Set(
-    (requesterPermissions || []).map((permission) => permissionKey(permission)),
+    (requesterPermissions || []).map((permission) => permissionKey(permission))
   )
 
   return targetRole.permissions.every(({ permission }) => {
@@ -26,20 +43,41 @@ const canAssignRole = (requesterPermissions, targetRole) => {
 
 const listUsers = async (query = {}) => {
   const pagination = normalizePagination(query)
-  const orderBy = createOrderBy(query, ['createdAt', 'updatedAt', 'email', 'isActive'], 'createdAt')
+  const orderBy = createOrderBy(
+    query,
+    ['createdAt', 'updatedAt', 'email', 'isActive'],
+    'createdAt'
+  )
   const filters = pickFilters(query, ['email', 'isActive'])
-  const { users, total } = await findAllUsers({ skip: pagination.skip, take: pagination.take, filters, orderBy })
-  return { data: users.map(toUserResponse), pagination: createPaginationMeta({ page: pagination.page, limit: pagination.limit, total }) }
+  const { users, total } = await findAllUsers({
+    skip: pagination.skip,
+    take: pagination.take,
+    filters,
+    orderBy,
+  })
+  return {
+    data: users.map(toUserResponse),
+    pagination: createPaginationMeta({
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+    }),
+  }
 }
 
 const registerUser = async ({ requesterId, email, roleId, password }) => {
   const requester = await getUserAuthorizationContext(requesterId)
-  if (!requester) throw new ForbiddenError('Your account is not authorized to create users.')
+  if (!requester)
+    throw new ForbiddenError('Your account is not authorized to create users.')
   const existingUser = await findUserByEmail(email)
-  if (existingUser) throw new ConflictError('A user with this email already exists.')
+  if (existingUser)
+    throw new ConflictError('A user with this email already exists.')
   const role = await findRoleById(roleId)
   if (!role) throw new NotFoundError('Role not found.')
-  if (!canAssignRole(requester.permissions, role)) throw new ForbiddenError('You cannot assign a role containing permissions that you do not have.')
+  if (!canAssignRole(requester.permissions, role))
+    throw new ForbiddenError(
+      'You cannot assign a role containing permissions that you do not have.'
+    )
   const passwordHash = await bcrypt.hash(password, 12)
   return toUserResponse(await createUser({ email, roleId, passwordHash }))
 }
@@ -50,18 +88,35 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
     findUserWithRole(userId),
     findRoleForAssignment(roleId),
   ])
-  if (!requester) throw new ForbiddenError('Your account is not authorized to manage users.')
+  if (!requester)
+    throw new ForbiddenError('Your account is not authorized to manage users.')
   if (!targetUser) throw new NotFoundError('User not found.')
   if (!targetRole) throw new NotFoundError('Role not found.')
-  if (!requester.permissions.has('authorization:manage')) throw new ForbiddenError('You do not have permission to assign user roles.')
-  if (!canAssignRole(requester.permissions, targetRole)) throw new ForbiddenError('You cannot assign a role containing permissions that you do not have.')
+  if (!requester.permissions.has('authorization:manage'))
+    throw new ForbiddenError('You do not have permission to assign user roles.')
+  if (!canAssignRole(requester.permissions, targetRole))
+    throw new ForbiddenError(
+      'You cannot assign a role containing permissions that you do not have.'
+    )
 
-  if (Number(requesterId) === Number(userId) && targetRole.id !== targetUser.roleId) {
-    const retainsAuthorization = targetRole.permissions.some(({ permission }) => {
-      const candidate = permission ?? {}
-      return candidate.module?.isActive !== false && candidate.module?.key === 'authorization' && candidate.action === 'manage'
-    })
-    if (!retainsAuthorization) throw new ForbiddenError('You cannot remove your own authorization management permission.')
+  if (
+    Number(requesterId) === Number(userId) &&
+    targetRole.id !== targetUser.roleId
+  ) {
+    const retainsAuthorization = targetRole.permissions.some(
+      ({ permission }) => {
+        const candidate = permission ?? {}
+        return (
+          candidate.module?.isActive !== false &&
+          candidate.module?.key === 'authorization' &&
+          candidate.action === 'manage'
+        )
+      }
+    )
+    if (!retainsAuthorization)
+      throw new ForbiddenError(
+        'You cannot remove your own authorization management permission.'
+      )
   }
 
   if (targetUser.roleId === targetRole.id) return toUserResponse(targetUser)
@@ -70,4 +125,4 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
   return toUserResponse(updatedUser)
 }
 
-module.exports = { listUsers, registerUser, assignUserRole }
+export { listUsers, registerUser, assignUserRole }

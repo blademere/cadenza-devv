@@ -1,5 +1,5 @@
-const { successResponse } = require('../../../common/responses/apiResponse')
-const service = require('./professional.service')
+import { successResponse } from '../../../common/responses/apiResponse.js'
+import * as service from './professional.service.js'
 
 const getProfile = async (req, res) => successResponse(res, 'Professional person profile retrieved successfully.', await service.getProfile({ userId: req.user.id }))
 const updateProfile = async (req, res) => successResponse(res, 'Professional person profile saved successfully.', await service.updateProfile({ userId: req.user.id, ...req.validated.body }))
@@ -9,4 +9,4 @@ const listPending = async (_req, res) => successResponse(res, 'Pending professio
 const listVerified = async (_req, res) => successResponse(res, 'Verified professionals retrieved successfully.', await service.listVerified())
 const decide = async (req, res) => successResponse(res, 'Professional verification decision recorded successfully.', await service.decideVerification({ id: req.validated.params.id, actorId: req.user.id, ...req.validated.body }))
 
-module.exports = { getProfile, updateProfile, apply, getMine, listPending, listVerified, decide }
+export { getProfile, updateProfile, apply, getMine, listPending, listVerified, decide }

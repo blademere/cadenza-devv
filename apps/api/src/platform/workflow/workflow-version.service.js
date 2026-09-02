@@ -1,9 +1,11 @@
-const prisma = require("../../infrastructure/database/prisma")
-const { BadRequestError, ConflictError, NotFoundError } = require("../../common/errors/appError")
-const { recordAudit } = require("../audit/audit.service")
-const { publish } = require("../event-bus/event-bus")
-const { assertTransition, assertMutable, assertRollbackTarget } = require("../configuration/configuration-lifecycle.service")
-const { WORKFLOW_STATUS } = require("./workflow.constants")
+import { getPrismaClient } from "../../infrastructure/database/prisma.js"
+import { BadRequestError, ConflictError, NotFoundError } from "../../common/errors/appError.js"
+import { recordAudit } from "../audit/audit.service.js"
+import { publish } from "../event-bus/event-bus.js"
+import { assertTransition, assertMutable, assertRollbackTarget } from "../configuration/configuration-lifecycle.service.js"
+import { WORKFLOW_STATUS } from "./workflow.constants.js"
+
+const prisma = getPrismaClient()
 
 const validateDefinition = ({ steps = [], transitions = [] }) => {
   if (!Array.isArray(steps) || steps.length === 0) throw new BadRequestError("A workflow version requires at least one step.")
@@ -119,4 +121,4 @@ const rollbackWorkflowVersion = async ({ workflowKey, version, actorId = null })
   return published
 }
 
-module.exports = { createWorkflowVersion, validateWorkflowVersion, publishWorkflowVersion, rollbackWorkflowVersion, validateDefinition }
+export { createWorkflowVersion, validateWorkflowVersion, publishWorkflowVersion, rollbackWorkflowVersion, validateDefinition }

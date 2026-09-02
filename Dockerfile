@@ -6,10 +6,17 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
 
+# Copy workspace manifests before npm ci so npm installs workspace dependencies.
 COPY package*.json ./
+COPY apps/api/package*.json ./apps/api/
+COPY apps/web/package*.json ./apps/web/
+COPY apps/admin-web/package*.json ./apps/admin-web/
+
 RUN npm ci
 
 ENV NODE_ENV=production
+# Prisma config requires DATABASE_URL during generation. Generation does not connect to the database.
+ENV DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
 
 COPY apps/api ./apps/api
 COPY eslint.config.mjs ./

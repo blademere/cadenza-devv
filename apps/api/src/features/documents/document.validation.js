@@ -1,4 +1,4 @@
-const { z } = require('zod')
+import { z } from 'zod'
 
 const documentIdValidator = {
   params: z.object({
@@ -9,7 +9,10 @@ const documentIdValidator = {
 const documentTypeIdValidator = z.string().uuid()
 
 const documentUploadValidator = async (req) => {
-  const contentType = String(req.headers['content-type'] || '').split(';', 1)[0].trim().toLowerCase()
+  const contentType = String(req.headers['content-type'] || '')
+    .split(';', 1)[0]
+    .trim()
+    .toLowerCase()
   const filename = String(req.headers['x-filename'] || '').trim()
 
   const allowedMimeTypes = new Set([
@@ -32,7 +35,9 @@ const documentUploadValidator = async (req) => {
     throw error
   }
 
-  const extension = filename.includes('.') ? filename.slice(filename.lastIndexOf('.')).toLowerCase() : ''
+  const extension = filename.includes('.')
+    ? filename.slice(filename.lastIndexOf('.')).toLowerCase()
+    : ''
   const allowedExtensions = {
     'application/pdf': ['.pdf'],
     'image/jpeg': ['.jpg', '.jpeg'],
@@ -42,7 +47,9 @@ const documentUploadValidator = async (req) => {
   }
 
   if (!allowedExtensions[contentType].includes(extension)) {
-    const error = new Error('Document filename extension does not match content type')
+    const error = new Error(
+      'Document filename extension does not match content type'
+    )
     error.statusCode = 400
     throw error
   }
@@ -50,7 +57,7 @@ const documentUploadValidator = async (req) => {
   return { body: req.body }
 }
 
-module.exports = {
+export {
   documentIdValidator,
   documentTypeIdValidator,
   documentUploadValidator,

@@ -1,6 +1,5 @@
-const { ValidationError } = require("../errors/appError")
-
-const { ZodError } = require("zod")
+import { ValidationError } from '../errors/appError.js'
+import { ZodError } from 'zod'
 
 const validate = (validator) => {
   return async (req, _res, next) => {
@@ -13,11 +12,11 @@ const validate = (validator) => {
     } catch (error) {
       if (error instanceof ZodError) {
         const details = error.issues.map((issue) => ({
-          path: issue.path.join("."),
+          path: issue.path.join('.'),
           message: issue.message,
         }))
 
-        return next(new ValidationError("Validation failed.", details))
+        return next(new ValidationError('Validation failed.', details))
       }
 
       return next(error)
@@ -25,4 +24,5 @@ const validate = (validator) => {
   }
 }
 
-module.exports = validate
+export default validate
+export { validate }

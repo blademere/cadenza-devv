@@ -1,4 +1,4 @@
-const { connectRedis } = require("../../infrastructure/cache/redis")
+import { connectRedis } from "../../infrastructure/cache/redis.js"
 
 const PERMISSION_CACHE_TTL = 1800
 
@@ -25,9 +25,6 @@ const hasCachedPermission = async (userId, resource, action) => {
 
   const granted = await redis.sIsMember(key, getPermissionKey(resource, action))
 
-  // Never cache a negative authorization decision. A role permission can be
-  // granted in PostgreSQL while an older Redis set is still alive. Returning
-  // null forces the service to re-read the database and refresh the set.
   return granted ? true : null
 }
 
@@ -50,7 +47,7 @@ const invalidateUserPermissionCache = async (userId) => {
   await redis.del(getPermissionCacheKey(userId))
 }
 
-module.exports = {
+export {
   PERMISSION_CACHE_TTL,
   getPermissionCacheKey,
   hasCachedPermission,

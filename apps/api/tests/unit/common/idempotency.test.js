@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-
-const idempotency = require('../../../src/common/middleware/idempotency')
+import idempotency from '../../../src/common/middleware/idempotency.js'
 
 describe('generic idempotency middleware', () => {
   it('builds a scoped Redis key for the authenticated user', () => {

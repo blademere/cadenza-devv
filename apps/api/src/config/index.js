@@ -1,8 +1,4 @@
-const env = require("./env")
-const { logger, requestLogger } = require("./logger")
+import env from './env.js'
+import { logger, requestLogger } from './logger.js'
 
-module.exports = {
-  env,
-  logger,
-  requestLogger,
-}
+export { env, logger, requestLogger }

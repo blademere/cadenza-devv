@@ -1,18 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const authRepository = require('../../../src/features/auth/auth.repository')
-const eventBus = require('../../../src/platform/event-bus/event-bus')
+vi.mock('../../../src/features/auth/auth.repository.js')
+vi.mock('../../../src/platform/event-bus/event-bus.js')
+
+const authRepository = await import('../../../src/features/auth/auth.repository.js')
+const eventBus = await import('../../../src/platform/event-bus/event-bus.js')
+const { issueEmailVerification, verifyEmail, encryptVerificationSecret, decryptVerificationSecret } = await import('../../../src/features/auth/email-verification.service.js')
 
 const mocks = {
-  findUserById: vi.spyOn(authRepository, 'findUserById'),
-  createEmailVerificationToken: vi.spyOn(authRepository, 'createEmailVerificationToken'),
-  findEmailVerificationToken: vi.spyOn(authRepository, 'findEmailVerificationToken'),
-  invalidateEmailVerificationTokens: vi.spyOn(authRepository, 'invalidateEmailVerificationTokens'),
-  consumeEmailVerificationToken: vi.spyOn(authRepository, 'consumeEmailVerificationToken'),
-  publish: vi.spyOn(eventBus, 'publish'),
+  findUserById: authRepository.findUserById,
+  createEmailVerificationToken: authRepository.createEmailVerificationToken,
+  findEmailVerificationToken: authRepository.findEmailVerificationToken,
+  invalidateEmailVerificationTokens: authRepository.invalidateEmailVerificationTokens,
+  consumeEmailVerificationToken: authRepository.consumeEmailVerificationToken,
+  publish: eventBus.publish,
 }
-
-const { issueEmailVerification, verifyEmail, encryptVerificationSecret, decryptVerificationSecret } = require('../../../src/features/auth/email-verification.service')
 
 describe('email verification security', () => {
   const { findUserById, createEmailVerificationToken, findEmailVerificationToken, invalidateEmailVerificationTokens, consumeEmailVerificationToken, publish } = mocks
@@ -22,7 +24,6 @@ describe('email verification security', () => {
   it('encrypts verification credentials and round-trips without exposing plaintext', () => {
     const secret = 'a'.repeat(43)
     const encrypted = encryptVerificationSecret(secret)
-
     expect(encrypted).not.toContain(secret)
     expect(decryptVerificationSecret(encrypted)).toBe(secret)
   })
@@ -32,11 +33,9 @@ describe('email verification security', () => {
     invalidateEmailVerificationTokens.mockResolvedValue({ count: 0 })
     createEmailVerificationToken.mockResolvedValue({ id: 'verification-record-1' })
     publish.mockResolvedValue(undefined)
-
     const result = await issueEmailVerification({ userId: 7 })
     expect(publish).toHaveBeenCalledTimes(1)
     const event = publish.mock.calls[0][0]
-
     expect(result.success).toBe(true)
     expect(createEmailVerificationToken).toHaveBeenCalledWith(expect.objectContaining({ userId: 7, token: expect.any(String) }))
     expect(event.event).toBe('auth.user.email_verification_requested')
@@ -45,33 +44,17 @@ describe('email verification security', () => {
   })
 
   it('rejects replayed, expired, inactive, and already-used verification tokens', async () => {
-    const secret = 'b'.repeat(43)
-    const token = encryptVerificationSecret(secret)
-    findEmailVerificationToken.mockResolvedValue({
-      id: 'verification-record-2',
-      userId: 7,
-      usedAt: new Date(),
-      expiresAt: new Date(Date.now() + 60_000),
-      user: { id: 7, email: 'user@example.com', isActive: true },
-    })
-
+    const token = encryptVerificationSecret('b'.repeat(43))
+    findEmailVerificationToken.mockResolvedValue({ id: 'verification-record-2', userId: 7, usedAt: new Date(), expiresAt: new Date(Date.now() + 60000), user: { id: 7, email: 'user@example.com', isActive: true } })
     await expect(verifyEmail({ token })).rejects.toThrow('Email verification token is invalid or expired.')
     expect(consumeEmailVerificationToken).not.toHaveBeenCalled()
   })
 
   it('consumes a valid token atomically and publishes completion', async () => {
-    const secret = 'c'.repeat(43)
-    const token = encryptVerificationSecret(secret)
-    findEmailVerificationToken.mockResolvedValue({
-      id: 'verification-record-3',
-      userId: 7,
-      usedAt: null,
-      expiresAt: new Date(Date.now() + 60_000),
-      user: { id: 7, email: 'user@example.com', isActive: true },
-    })
+    const token = encryptVerificationSecret('c'.repeat(43))
+    findEmailVerificationToken.mockResolvedValue({ id: 'verification-record-3', userId: 7, usedAt: null, expiresAt: new Date(Date.now() + 60000), user: { id: 7, email: 'user@example.com', isActive: true } })
     consumeEmailVerificationToken.mockResolvedValue({ success: true })
     publish.mockResolvedValue(undefined)
-
     await expect(verifyEmail({ token })).resolves.toEqual({ success: true })
     expect(consumeEmailVerificationToken).toHaveBeenCalledWith({ tokenId: 'verification-record-3', userId: 7 })
     expect(publish).toHaveBeenCalledWith(expect.objectContaining({ event: 'auth.user.email_verified', entityId: 7 }))

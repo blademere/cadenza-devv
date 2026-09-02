@@ -8,7 +8,7 @@ const JOB_NAMES = Object.freeze({
   NOTIFICATION_DELIVERY: "notification.delivery",
 })
 
-module.exports = {
+export {
   JOB_QUEUES,
   JOB_NAMES,
 }

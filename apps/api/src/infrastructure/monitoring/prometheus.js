@@ -1,4 +1,4 @@
-const client = require('prom-client')
+import client from 'prom-client'
 
 const register = new client.Registry()
 
@@ -75,7 +75,7 @@ const metricsHandler = async (_req, res) => {
   res.end(await register.metrics())
 }
 
-module.exports = {
+export {
   register,
   prometheusMiddleware,
   metricsHandler,

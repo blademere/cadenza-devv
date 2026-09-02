@@ -1,4 +1,4 @@
-const { z } = require('zod')
+import { z } from 'zod'
 
 const listAuditLogsSchema = z.object({
   query: z.object({
@@ -26,10 +26,12 @@ const timelineSchema = z.object({
   }),
 })
 
-const listAuditLogsValidator = async (req) => listAuditLogsSchema.parse({ query: req.query || {} })
-const timelineValidator = async (req) => timelineSchema.parse({
-  params: req.params || {},
-  query: req.query || {},
-})
+const listAuditLogsValidator = async (req) =>
+  listAuditLogsSchema.parse({ query: req.query || {} })
+const timelineValidator = async (req) =>
+  timelineSchema.parse({
+    params: req.params || {},
+    query: req.query || {},
+  })
 
-module.exports = { listAuditLogsValidator, timelineValidator }
+export { listAuditLogsValidator, timelineValidator }

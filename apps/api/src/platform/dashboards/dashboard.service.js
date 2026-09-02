@@ -1,9 +1,9 @@
-const prisma = require('../../infrastructure/database/prisma')
-const {
+import { prisma } from '../../infrastructure/database/prisma.js'
+import {
   BadRequestError,
   ConflictError,
   NotFoundError,
-} = require('../../common/errors/appError')
+} from '../../common/errors/appError.js'
 
 const createDashboard = async ({
   key,
@@ -81,9 +81,4 @@ const addWidget = async ({ dashboardKey, widget }) => {
   })
 }
 
-module.exports = {
-  createDashboard,
-  getDashboard,
-  getDashboardForPermissions,
-  addWidget,
-}
+export { createDashboard, getDashboard, getDashboardForPermissions, addWidget }

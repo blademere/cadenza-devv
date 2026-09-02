@@ -1,6 +1,10 @@
-const fs = require('fs')
-const path = require('path')
-const swaggerUi = require('swagger-ui-express')
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import swaggerUi from 'swagger-ui-express'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const OPENAPI_DIR = path.resolve(__dirname, '../../../openapi')
 const OPENAPI_SOURCE_PATH = path.join(OPENAPI_DIR, 'openapi.yaml')
@@ -35,4 +39,4 @@ const registerSwagger = (app) => {
   )
 }
 
-module.exports = { registerSwagger }
+export { registerSwagger }

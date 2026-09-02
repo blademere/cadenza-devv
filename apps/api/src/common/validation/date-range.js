@@ -1,4 +1,4 @@
-const { z } = require('zod')
+import { z } from 'zod'
 
 const dateRange = ({ fromKey = 'from', toKey = 'to' } = {}) =>
   z.object({}).passthrough().superRefine((value, ctx) => {
@@ -17,4 +17,4 @@ const dateRange = ({ fromKey = 'from', toKey = 'to' } = {}) =>
     }
   })
 
-module.exports = { dateRange }
+export { dateRange }

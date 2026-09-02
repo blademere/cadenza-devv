@@ -1,4 +1,4 @@
-const { z } = require('zod')
+import { z } from 'zod'
 
 const id = z.string().uuid()
 const requiredName = (name) => z.string().trim().min(1, `${name} is required.`).max(100)
@@ -30,10 +30,8 @@ const decisionValidator = async (req) => ({
     decision: z.enum(['ACCEPTED', 'DECLINED']),
     reason: z.string().trim().max(2000).optional(),
   }).superRefine((value, ctx) => {
-    if (value.decision === 'DECLINED' && !value.reason) {
-      ctx.addIssue({ code: 'custom', path: ['reason'], message: 'A reason is required when declining a professional verification application.' })
-    }
+    if (value.decision === 'DECLINED' && !value.reason) ctx.addIssue({ code: 'custom', path: ['reason'], message: 'A reason is required when declining a professional verification application.' })
   }).parse(req.body || {}),
 })
 
-module.exports = { profileValidator, applyValidator, decisionValidator }
+export { profileValidator, applyValidator, decisionValidator }

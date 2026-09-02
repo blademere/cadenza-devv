@@ -1,5 +1,5 @@
-const { PrismaClient } = require('@prisma/client')
-const { PrismaPg } = require('@prisma/adapter-pg')
+import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
 const connectionString = process.env.DATABASE_URL
 
@@ -25,7 +25,4 @@ const prismaClient = new PrismaClient({
 const getPrismaClient = () => prismaClient
 const disconnectPrisma = async () => prismaClient.$disconnect()
 
-module.exports = {
-  getPrismaClient,
-  disconnectPrisma,
-}
+export { getPrismaClient, disconnectPrisma }

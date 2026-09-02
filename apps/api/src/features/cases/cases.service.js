@@ -1,9 +1,13 @@
-const { BadRequestError, ConflictError, NotFoundError } = require('../../common/errors/appError')
-const {
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from '../../common/errors/appError.js'
+import {
   normalizePagination,
   createPaginationMeta,
-} = require('../../common/pagination/pagination')
-const {
+} from '../../common/pagination/pagination.js'
+import {
   createCaseType,
   createCase,
   findCaseById,
@@ -11,8 +15,8 @@ const {
   listCases,
   countCases,
   transitionCase,
-} = require('./cases.repository')
-const { CASE_STATUS } = require('./cases.constants')
+} from './cases.repository.js'
+import { CASE_STATUS } from './cases.constants.js'
 
 const createType = async (data) => {
   if (!data.key?.trim() || !data.name?.trim()) {
@@ -67,7 +71,13 @@ const list = async (query = {}) => {
   }
 }
 
-const transition = async ({ id, toStatus, changedByUserId, reason, metadata }) => {
+const transition = async ({
+  id,
+  toStatus,
+  changedByUserId,
+  reason,
+  metadata,
+}) => {
   if (!toStatus?.trim()) throw new BadRequestError('toStatus is required.')
   const current = await getById(id, { includeDetails: false })
   const normalizedStatus = toStatus.trim()
@@ -80,16 +90,13 @@ const transition = async ({ id, toStatus, changedByUserId, reason, metadata }) =
     normalizedStatus,
     changedByUserId,
     reason,
-    metadata,
+    metadata
   )
-  if (!updated) throw new ConflictError('Case status changed before this transition could be completed.')
+  if (!updated)
+    throw new ConflictError(
+      'Case status changed before this transition could be completed.'
+    )
   return updated
 }
 
-module.exports = {
-  createType,
-  createRecord,
-  getById,
-  list,
-  transition,
-}
+export { createType, createRecord, getById, list, transition }

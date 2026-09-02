@@ -1,4 +1,4 @@
-const { ForbiddenError } = require("../../common/errors/appError")
+import { ForbiddenError } from "../../common/errors/appError.js"
 
 const ownershipPolicy = ({ userId, ownerId }) => {
   return Number(userId) === Number(ownerId)
@@ -24,7 +24,7 @@ const assertPolicy = async ({ policy, user, resource, message }) => {
   }
 }
 
-module.exports = {
+export {
   ownershipPolicy,
   anyPolicy,
   evaluatePolicy,

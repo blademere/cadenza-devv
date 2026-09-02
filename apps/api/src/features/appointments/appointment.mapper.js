@@ -70,7 +70,7 @@ const mapAvailabilitySchedule = (schedule) => {
   }
 }
 
-module.exports = {
+export {
   mapAppointmentType,
   mapAppointment,
   mapAppointmentSlot,

@@ -1,5 +1,5 @@
-const { NotFoundError } = require('../../../common/errors/appError')
-const repository = require('./permit-type.repository')
+import { NotFoundError } from '../../../common/errors/appError.js'
+import * as repository from './permit-type.repository.js'
 
 const listPermitTypes = () => repository.listActive()
 
@@ -21,4 +21,4 @@ const getPermitTypeForm = async (id) => {
   }
 }
 
-module.exports = { listPermitTypes, getPermitTypeForm }
+export { listPermitTypes, getPermitTypeForm }
