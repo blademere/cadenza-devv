@@ -9,7 +9,7 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "options": { "command": "npm run build", "cwd": "apps/api" }
+      "options": { "command": "npm run build --if-present", "cwd": "apps/api" }
     },
     "lint": {
       "executor": "nx:run-commands",
