@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const repository = require('../../../../src/modules/obo/professionals/professional.repository')
-const prismaModule = require('../../../../src/infrastructure/database/prisma')
-const eventBus = require('../../../../src/platform/event-bus/event-bus')
+const prismaModule = await import('../../../../src/infrastructure/database/prisma.js')
+const eventBus = await import('../../../../src/platform/event-bus/event-bus.js')
 
 const transaction = vi.fn(async (callback) =>
   callback({
@@ -18,6 +17,9 @@ vi.spyOn(prismaModule, 'getPrismaClient').mockReturnValue({
 })
 vi.spyOn(eventBus, 'publish').mockResolvedValue({ id: 'event-1' })
 
+const repository = await import('../../../../src/modules/obo/professionals/professional.repository.js')
+const service = await import('../../../../src/modules/obo/professionals/professional.service.js')
+
 const spies = {
   findPersonByUserId: vi.spyOn(repository, 'findPersonByUserId'),
   findByPersonId: vi.spyOn(repository, 'findByPersonId'),
@@ -28,8 +30,6 @@ const spies = {
   addDecision: vi.spyOn(repository, 'addDecision'),
   findPersonById: vi.spyOn(repository, 'findPersonById'),
 }
-
-const service = require('../../../../src/modules/obo/professionals/professional.service')
 
 afterEach(() => vi.clearAllMocks())
 
