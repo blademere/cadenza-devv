@@ -1,4 +1,15 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "analytics": false
+  "analytics": false,
+  "targetDefaults": {
+    "lint": {
+      "cache": true
+    },
+    "test": {
+      "cache": true
+    },
+    "build": {
+      "cache": true
+    }
+  }
 }
