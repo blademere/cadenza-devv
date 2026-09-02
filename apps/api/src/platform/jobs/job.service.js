@@ -1,5 +1,5 @@
-const { JOB_QUEUES } = require('./job.constants')
-const { enqueueJob: enqueueBullMqJob } = require('../../infrastructure/queue/bullmq')
+import { JOB_QUEUES } from './job.constants.js'
+import { enqueueJob as enqueueBullMqJob } from '../../infrastructure/queue/bullmq.js'
 
 const DEFAULT_ATTEMPTS = 5
 const DEFAULT_BACKOFF_DELAY = 1000
@@ -39,7 +39,7 @@ function createJobService({ enqueue = enqueueBullMqJob } = {}) {
 
 const { enqueueJob } = createJobService()
 
-module.exports = {
+export {
   createJobService,
   enqueueJob,
 }
