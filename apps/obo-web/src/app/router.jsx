@@ -43,7 +43,7 @@ export const router = createBrowserRouter([
           { path: 'dashboard', element: <DashboardPage /> },
           protectedPage('applications', <ApplicationsPage />, permissions.planPermits.read),
           protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.planPermits.read),
-          protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.planPermits.scheduleSubmission),
+          protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.planPermits.read),
           protectedPage('permit-types', <PermitTypesPage />, permissions.planPermits.read),
           protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.planPermits.read),
           route('receiving', 'Receiving', permissions.planPermits.receive),
