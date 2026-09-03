@@ -58,7 +58,7 @@ export const navigation = Object.freeze([
         key: 'appointments',
         name: 'Appointments',
         route: '/app/appointments',
-        requiredPermissions: [permissions.planPermits.read],
+        requiredPermissions: [permissions.appointments.read],
         icon: AppointmentsIcon,
       },
       {
