@@ -3,7 +3,8 @@ import { Alert, Badge, Box, Button, Card, Group, SimpleGrid, Stack, Text, ThemeI
 import { useAuth } from '../features/auth/AuthProvider'
 import { useCan } from '../features/authorization/useCan'
 import { permissions } from '../config/permissions'
-import { usePendingProfessionals, useReceivingApplications } from '../features/workflow/workflow.queries'
+import { usePendingProfessionals } from '../features/professionals/professionals.queries'
+import { useReceivingApplications } from '../features/receiving/receiving.queries'
 import PageHeader from '../components/common/PageHeader'
 
 function StatCard({ label, value, hint, icon }) {
