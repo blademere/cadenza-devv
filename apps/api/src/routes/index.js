@@ -3,6 +3,7 @@ import authRouter from '../features/auth/auth.routes.js'
 import userRouter from '../features/users/user.routes.js'
 import authorizationAdminRouter from '../features/authorization-admin/authorization-admin.routes.js'
 import authorizationContextRouter from '../platform/authorization/authorization-context.routes.js'
+import appointmentRouter from '../features/appointments/appointment.routes.js'
 import oboRouter from '../modules/obo/obo.routes.js'
 import authenticate from '../features/auth/authenticate.secure.js'
 
@@ -15,6 +16,7 @@ authorizationContextProtectedRouter.use(authorizationContextRouter)
 router.use('/auth', authRouter)
 router.use('/users', userRouter)
 router.use('/authorization', authorizationAdminRouter)
+router.use('/appointments', appointmentRouter)
 router.use('/', authorizationContextProtectedRouter)
 router.use('/obo', oboRouter)
 
