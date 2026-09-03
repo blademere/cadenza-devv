@@ -2,8 +2,9 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { Box, Skeleton, Stack } from '@mantine/core'
 import { useAuth } from '../../features/auth/AuthProvider'
 import { useAuthorization } from '../../features/authorization/AuthorizationProvider'
+import { permissions } from '../../config/permissions'
 
-export default function AuthorizationRoute({ requiredPermission = 'authorization:manage' }) {
+export default function AuthorizationRoute({ requiredPermission = permissions.authorization.manage }) {
   const { isAuthenticated, isLoading } = useAuth()
   const { can, isLoading: authorizationLoading } = useAuthorization()
 
