@@ -2,41 +2,74 @@ import { Link } from 'react-router-dom'
 import { Alert, Badge, Box, Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine/core'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useAuthorization } from '../features/authorization/AuthorizationProvider'
+import { usePendingProfessionals, useReceivingApplications } from '../features/workflow/workflow.queries'
 import PageHeader from '../components/common/PageHeader'
 
 function StatCard({ label, value, hint, icon }) {
   return <Card className="obo-kpi" withBorder><Group justify="space-between" align="flex-start"><Text className="obo-kpi-label">{label}</Text><ThemeIcon size={30} radius="md" variant="light" color="indigo">{icon}</ThemeIcon></Group><Text className="obo-kpi-value">{value}</Text><Text className="obo-kpi-meta">{hint}</Text></Card>
 }
 
+function collectionSize(value) {
+  if (Array.isArray(value)) return value.length
+  if (Array.isArray(value?.items)) return value.items.length
+  if (Array.isArray(value?.data)) return value.data.length
+  return 0
+}
+
+function statusOf(application) {
+  return application?.status || application?.workflowStatus || application?.currentStep?.key || application?.workflow?.currentStep?.key || null
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { context, isLoading, error } = useAuthorization()
-  const name = user?.name || user?.email?.split('@')[0] || 'User'
+  const { context } = useAuthorization()
   const permissions = context?.permissions ?? []
-  const authorizationVisible = permissions.includes('authorization:manage')
-  const usersVisible = permissions.includes('users:manage')
-  const activeModules = (context?.modules ?? []).filter((module) => module.isActive !== false)
-  const role = context?.role?.name ?? context?.role?.key ?? 'No role assigned'
+  const canReceive = permissions.includes('obo_plan_permits:receive')
+  const canReviewProfessionals = permissions.includes('obo_professionals:review')
+  const receivingQuery = useReceivingApplications({ enabled: canReceive })
+  const professionalsQuery = usePendingProfessionals({ enabled: canReviewProfessionals })
+  const name = user?.name || user?.email?.split('@')[0] || 'User'
+  const applications = receivingQuery.data
+  const applicationItems = Array.isArray(applications) ? applications : applications?.items || applications?.data || []
+  const scheduled = applicationItems.filter((application) => statusOf(application) === 'SUBMISSION_SCHEDULED').length
+  const receiving = applicationItems.filter((application) => statusOf(application) === 'RECEIVING').length
+  const forInspection = applicationItems.filter((application) => statusOf(application) === 'FOR_INSPECTION').length
+  const professionalReviews = collectionSize(professionalsQuery.data)
+  const hasOperationalData = canReceive || canReviewProfessionals
+  const dataError = receivingQuery.error || professionalsQuery.error
 
   return <Stack className="obo-page">
-    <PageHeader eyebrow="Overview" title={`Welcome back, ${name}`} description="A focused view of your workspace access, platform modules, and the actions available to you." />
-    {error && <Alert color="red" variant="light" title="Unable to load access context">{error.message ?? String(error)}</Alert>}
+    <PageHeader eyebrow="OBO Operations" title={`Welcome back, ${name}`} description="Monitor permit receiving work and professional verification from your OBO workspace." />
+
+    {dataError && <Alert color="red" variant="light" title="Unable to load operational data">{dataError.message ?? String(dataError)}</Alert>}
+
+    {!hasOperationalData && (
+      <Alert color="gray" variant="light" title="No operational dashboard access">Your account does not currently have permission to view operational queues.</Alert>
+    )}
+
     <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }}>
-      <StatCard label="Current role" value={role} hint="Assigned access profile" icon="R" />
-      <StatCard label="Permissions" value={permissions.length} hint="Effective permissions" icon="P" />
-      <StatCard label="Enabled modules" value={activeModules.length} hint="Currently available" icon="M" />
-      <StatCard label="Access status" value={authorizationVisible || usersVisible ? 'Granted' : 'Restricted'} hint={isLoading ? 'Checking access…' : 'Server-authorized'} icon="✓" />
+      <StatCard label="Submission scheduled" value={receivingQuery.isLoading ? '—' : scheduled} hint="Awaiting hard-copy receiving" icon="S" />
+      <StatCard label="Receiving" value={receivingQuery.isLoading ? '—' : receiving} hint="Applications being received" icon="R" />
+      <StatCard label="For inspection" value={receivingQuery.isLoading ? '—' : forInspection} hint="Accepted receiving phase" icon="I" />
+      <StatCard label="Professional reviews" value={professionalsQuery.isLoading ? '—' : professionalReviews} hint="Pending verification" icon="P" />
     </SimpleGrid>
+
     <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-      <Card className="obo-panel" withBorder p={0}>
-        <Box className="obo-panel-header"><Box><Text className="obo-panel-title">Authorization center</Text><Text className="obo-panel-subtitle">Manage roles and access policies</Text></Box><Badge color={authorizationVisible ? 'green' : 'gray'} variant="light">{authorizationVisible ? 'Available' : 'Restricted'}</Badge></Box>
-        <Stack p="lg" gap="md"><Text size="sm" c="dimmed" lh={1.7}>Permissions are resolved by the server and applied to the current account. Changes take effect through the authorization system.</Text><Group>{authorizationVisible && <Button component={Link} to="/roles">Manage roles</Button>}{usersVisible && <Button component={Link} to="/users" variant="light">Manage users</Button>}</Group>{!authorizationVisible && !usersVisible && <Text size="sm" c="dimmed">Your account does not currently have authorization-management access.</Text>}</Stack>
-      </Card>
-      <Card className="obo-panel" withBorder p={0}>
-        <Box className="obo-panel-header"><Box><Text className="obo-panel-title">Workspace status</Text><Text className="obo-panel-subtitle">Current platform context</Text></Box><ThemeIcon size={30} radius="xl" color="green" variant="light">✓</ThemeIcon></Box>
-        <Stack p="lg" gap="sm"><Group justify="space-between"><Text size="sm" c="dimmed">Signed-in account</Text><Text size="sm" fw={600}>{user?.email || '—'}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Role</Text><Text size="sm" fw={600}>{role}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Modules</Text><Text size="sm" fw={600}>{activeModules.length} enabled</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Authorization</Text><Badge color={authorizationVisible || usersVisible ? 'green' : 'gray'} variant="light">{authorizationVisible || usersVisible ? 'Authorized' : 'Restricted'}</Badge></Group></Stack>
-      </Card>
+      {canReceive && (
+        <Card className="obo-panel" withBorder p={0}>
+          <Box className="obo-panel-header"><Box><Text className="obo-panel-title">Plan Permit receiving</Text><Text className="obo-panel-subtitle">Process scheduled hard-copy submissions</Text></Box><Badge color="green" variant="light">Available</Badge></Box>
+          <Stack p="lg" gap="md"><Group justify="space-between"><Text size="sm" c="dimmed">Scheduled</Text><Text size="sm" fw={650}>{scheduled}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Receiving</Text><Text size="sm" fw={650}>{receiving}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">For inspection</Text><Text size="sm" fw={650}>{forInspection}</Text></Group><Button component={Link} to="/receiving">Open receiving</Button></Stack>
+        </Card>
+      )}
+
+      {canReviewProfessionals && (
+        <Card className="obo-panel" withBorder p={0}>
+          <Box className="obo-panel-header"><Box><Text className="obo-panel-title">Professional verification</Text><Text className="obo-panel-subtitle">Review pending professional registrations</Text></Box><Badge color={professionalReviews ? 'orange' : 'green'} variant="light">{professionalReviews ? 'Action required' : 'Clear'}</Badge></Box>
+          <Stack p="lg" gap="md"><Group justify="space-between"><Text size="sm" c="dimmed">Pending reviews</Text><Text size="sm" fw={650}>{professionalReviews}</Text></Group><Text size="sm" c="dimmed" lh={1.7}>Review professional registration details and record the verification decision.</Text><Button component={Link} to="/professionals" variant="light">Open professional reviews</Button></Stack>
+        </Card>
+      )}
     </SimpleGrid>
-    {(authorizationVisible || usersVisible) && <Box className="obo-action-panel"><Group justify="space-between" align="center" wrap="wrap"><Box style={{ minWidth: 0, flex: 1 }}><Text className="obo-action-title">Keep access intentional</Text><Text className="obo-action-text">Review role permissions regularly and grant only the capabilities required for each responsibility.</Text></Box>{authorizationVisible && <Button component={Link} to="/roles" variant="white" color="dark">Review roles</Button>}</Group></Box>}
+
+    <Box className="obo-action-panel"><Group justify="space-between" align="center" wrap="wrap"><Box style={{ minWidth: 0, flex: 1 }}><Text className="obo-action-title">Operational workspace</Text><Text className="obo-action-text">Dashboard access is determined by your server-authorized permissions. Administration remains available separately when your role permits it.</Text></Box><Button component={Link} to="/roles" variant="white" color="dark">Administration</Button></Group></Box>
   </Stack>
 }
