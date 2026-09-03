@@ -1,8 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert, Box, Button, Card, Divider, Group, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
+import { FacebookLogo, GoogleLogo } from '@phosphor-icons/react'
 import { useAuth } from '../features/auth/AuthProvider'
 import { getOAuthLoginUrl } from '../features/auth/auth.api'
+
+const oauthIconProps = {
+  size: 20,
+  weight: 'regular',
+  'aria-hidden': true,
+}
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth()
@@ -34,7 +41,7 @@ export default function LoginPage() {
       <Card withBorder shadow="sm" radius="md" w="100%" maw={450} p={{ base: 'lg', sm: 'xl' }}>
         <Stack gap="lg">
           <Box><Title order={2}>Welcome back</Title><Text size="sm" c="dimmed" mt={4}>Sign in to your admin workspace.</Text></Box>
-          <Stack gap="sm"><Button variant="default" size="md" disabled={isBusy} onClick={() => handleOAuthLogin('google')}>Continue with Google</Button><Button variant="default" size="md" disabled={isBusy} onClick={() => handleOAuthLogin('facebook')}>Continue with Facebook</Button></Stack>
+          <Stack gap="sm"><Button variant="default" size="md" disabled={isBusy} onClick={() => handleOAuthLogin('google')} leftSection={<GoogleLogo {...oauthIconProps} />}>Continue with Google</Button><Button variant="default" size="md" disabled={isBusy} onClick={() => handleOAuthLogin('facebook')} leftSection={<FacebookLogo {...oauthIconProps} />}>Continue with Facebook</Button></Stack>
           <Divider label="OR EMAIL" labelPosition="center" />
           <Box component="form" onSubmit={handleSubmit} noValidate><Stack gap="md"><TextInput label="Email address" type="email" value={email} onChange={(event) => setEmail(event.currentTarget.value)} autoComplete="email" required disabled={isBusy} /><PasswordInput label="Password" value={password} onChange={(event) => setPassword(event.currentTarget.value)} autoComplete="current-password" required disabled={isBusy} />{error && <Alert color="red">{error}</Alert>}<Button color="blue" size="md" type="submit" loading={isSubmitting} disabled={isBusy}>Sign in</Button></Stack></Box>
           <Text size="xs" c="dimmed">Authentication uses the server session and CSRF flow. Credentials and tokens are not persisted in local storage.</Text>
