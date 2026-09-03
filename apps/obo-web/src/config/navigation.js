@@ -1,24 +1,18 @@
-import { createElement } from 'react'
+import {
+  SquaresFour,
+  UsersThree,
+  ShieldCheck,
+} from '@phosphor-icons/react'
 
-const Icon = ({ children }) =>
-  createElement(
-    'span',
-    {
-      'aria-hidden': true,
-      style: {
-        width: 20,
-        height: 20,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-    },
-    children,
-  )
+const iconProps = {
+  size: 20,
+  weight: 'regular',
+  'aria-hidden': true,
+}
 
-const DashboardIcon = () => Icon({ children: '⌂' })
-const UsersIcon = () => Icon({ children: '♙' })
-const RolesIcon = () => Icon({ children: '◆' })
+const DashboardIcon = () => <SquaresFour {...iconProps} />
+const UsersIcon = () => <UsersThree {...iconProps} />
+const RolesIcon = () => <ShieldCheck {...iconProps} />
 
 export const navigation = Object.freeze([
   {
