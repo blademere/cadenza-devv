@@ -4,7 +4,7 @@ vi.mock('../../../../src/platform/authorization/access-control.service.js', () =
 vi.mock('../../../../src/platform/authorization/access-control.policy.js', () => ({ assertPolicy: vi.fn() }))
 
 const accessControlService = await import('../../../../src/platform/authorization/access-control.service.js')
-const { default: authorizeResource } = await import('../../../../src/platform/authorization/authorizeResource.js')
+const { default: authorizeResource } = await import('../../../../src/platform/authorization/authorization-resource.middleware.js')
 
 describe('authorizeResource', () => {
   it('passes a numeric route resource ID to the loader before Prisma access', async () => {

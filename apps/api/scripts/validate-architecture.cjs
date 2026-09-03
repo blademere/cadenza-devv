@@ -28,21 +28,21 @@ for (const file of files) {
   const source = fs.readFileSync(file, 'utf8')
   const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
 
-  if (relative.startsWith('apps/server/src/platform/') && FORBIDDEN_PLATFORM_IMPORT.test(source)) {
+  if (relative.startsWith('apps/api/src/platform/') && FORBIDDEN_PLATFORM_IMPORT.test(source)) {
     failures.push(`${relative}: platform code must not import features or modules.`)
   }
-  if (relative.startsWith('apps/server/src/features/') && FORBIDDEN_FEATURE_IMPORT.test(source)) {
+  if (relative.startsWith('apps/api/src/features/') && FORBIDDEN_FEATURE_IMPORT.test(source)) {
     failures.push(`${relative}: shared features must not import modules.`)
   }
-  if (relative.startsWith('apps/server/src/infrastructure/') && FORBIDDEN_INFRASTRUCTURE_IMPORT.test(source)) {
+  if (relative.startsWith('apps/api/src/infrastructure/') && FORBIDDEN_INFRASTRUCTURE_IMPORT.test(source)) {
     failures.push(`${relative}: infrastructure must not import modules.`)
   }
-  if (relative.startsWith('apps/server/src/common/') && FORBIDDEN_COMMON_IMPORT.test(source)) {
+  if (relative.startsWith('apps/api/src/common/') && FORBIDDEN_COMMON_IMPORT.test(source)) {
     failures.push(`${relative}: common code must not import features, platform, or modules.`)
   }
 
   const isApplicationService =
-    (relative.startsWith('apps/server/src/features/') || relative.startsWith('apps/server/src/modules/')) &&
+    (relative.startsWith('apps/api/src/features/') || relative.startsWith('apps/api/src/modules/')) &&
     /(?:^|\/)\w+\.service\.(?:js|cjs|mjs)$/.test(relative)
 
   if (isApplicationService && (PRISMA_IMPORT.test(source) || PRISMA_CLIENT_ACCESS.test(source))) {

@@ -6,13 +6,13 @@ import planPermitRoutes from './plan-permits/plan-permit.routes.js'
 import receivingRoutes from './receiving/receiving.routes.js'
 import submissionAppointmentRoutes from './submission-appointments/submission-appointment.routes.js'
 
-const router = express.Router()
+const oboRouter = express.Router()
 
-router.use('/permit-types', permitTypeRoutes)
-router.use('/clients', clientRoutes)
-router.use('/professionals', professionalRoutes)
-router.use('/applications/:applicationId/submission-appointments', submissionAppointmentRoutes)
-router.use('/applications', planPermitRoutes)
-router.use('/receiving', receivingRoutes)
+oboRouter.use('/permit-types', permitTypeRoutes)
+oboRouter.use('/clients', clientRoutes)
+oboRouter.use('/professionals', professionalRoutes)
+oboRouter.use('/applications/:applicationId/submission-appointments', submissionAppointmentRoutes)
+oboRouter.use('/applications', planPermitRoutes)
+oboRouter.use('/receiving', receivingRoutes)
 
-export default router
+export default oboRouter

@@ -23,9 +23,7 @@ const hasCachedPermission = async (userId, resource, action) => {
     return null
   }
 
-  const granted = await redis.sIsMember(key, getPermissionKey(resource, action))
-
-  return granted ? true : null
+  return Boolean(await redis.sIsMember(key, getPermissionKey(resource, action)))
 }
 
 const cacheUserPermissions = async (userId, permissions) => {
