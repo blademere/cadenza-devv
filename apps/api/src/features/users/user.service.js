@@ -96,15 +96,8 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
   const requesterPermissionSet = new Set(
     (requester.permissions || []).map((permission) => permissionKey(permission))
   )
-  const canManageAuthorization = requesterPermissionSet.has('authorization:manage')
-
-  if (!canManageAuthorization)
+  if (!requesterPermissionSet.has('authorization:manage'))
     throw new ForbiddenError('You do not have permission to assign user roles.')
-
-  if (!canManageAuthorization && !canAssignRole(requester.permissions, targetRole))
-    throw new ForbiddenError(
-      'You cannot assign a role containing permissions that you do not have.'
-    )
 
   if (
     Number(requesterId) === Number(userId) &&
