@@ -99,7 +99,11 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
   if (!requesterPermissionSet.has('authorization:manage'))
     throw new ForbiddenError('You do not have permission to assign user roles.')
 
-  if (!canAssignRole(requester.permissions, targetRole))
+  const isAdministrator =
+    typeof requester.role === 'string' &&
+    requester.role.trim().toLowerCase() === 'administrator'
+
+  if (!isAdministrator && !canAssignRole(requester.permissions, targetRole))
     throw new ForbiddenError(
       'You cannot assign a role containing permissions that you do not have.'
     )
