@@ -9,6 +9,7 @@ export const appointmentSlotsQueryKey = ({ appointmentTypeId, from, to } = {}) =
   'slots',
   { appointmentTypeId, from, to },
 ]
+export const myAppointmentsQueryKey = ['appointments', 'mine']
 
 export function useSubmissionAppointment(applicationId, options = {}) {
   return useQuery({
@@ -36,6 +37,14 @@ export function useAvailableAppointmentSlots(params = {}, options = {}) {
   })
 }
 
+export function useMyAppointments(options = {}) {
+  return useQuery({
+    queryKey: myAppointmentsQueryKey,
+    queryFn: submissionAppointmentsApi.listMyAppointments,
+    ...options,
+  })
+}
+
 export function useScheduleSubmissionAppointment(applicationId, options = {}) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -46,6 +55,7 @@ export function useScheduleSubmissionAppointment(applicationId, options = {}) {
         queryClient.invalidateQueries({ queryKey: submissionAppointmentQueryKey(applicationId) }),
         queryClient.invalidateQueries({ queryKey: planPermitApplicationQueryKey(applicationId) }),
         queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: myAppointmentsQueryKey }),
       ])
       await options.onSuccess?.(...args)
     },
