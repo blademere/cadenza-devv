@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Alert, Button, Card, Group, Select, Stack, Text, Textarea } from '@mantine/core'
+import { Alert, Button, Group, Select, Stack, Text, Textarea } from '@mantine/core'
 import { CalendarBlank, CheckCircle } from '@phosphor-icons/react'
 import { permissions } from '../../../config/permissions'
 import PermissionGate from '../../authorization/components/PermissionGate'
@@ -28,7 +28,10 @@ const formatTime = (value) => new Intl.DateTimeFormat(undefined, {
   minute: '2-digit',
 }).format(new Date(value))
 
-const dayKey = (value) => new Date(value).toISOString().slice(0, 10)
+const dayKey = (value) => {
+  const date = new Date(value)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 export default function SubmissionAppointmentScheduler({ applicationId }) {
   const [appointmentTypeId, setAppointmentTypeId] = useState(null)
@@ -36,15 +39,16 @@ export default function SubmissionAppointmentScheduler({ applicationId }) {
   const [notes, setNotes] = useState('')
 
   const typesQuery = useAppointmentTypes()
-  const slotsQuery = useAvailableAppointmentSlots({ appointmentTypeId }, {
-    enabled: Boolean(appointmentTypeId),
-  })
-  const scheduleMutation = useScheduleSubmissionAppointment(applicationId)
-
   const appointmentTypes = asArray(typesQuery.data)
   const activeTypes = appointmentTypes.filter((type) => type.isActive !== false)
   const submissionType = activeTypes.find((type) => type.key === 'obo-hardcopy-submission')
   const effectiveTypeId = appointmentTypeId ?? submissionType?.id ?? null
+
+  const slotsQuery = useAvailableAppointmentSlots(
+    { appointmentTypeId: effectiveTypeId },
+    { enabled: Boolean(effectiveTypeId) },
+  )
+  const scheduleMutation = useScheduleSubmissionAppointment(applicationId)
 
   const slots = useMemo(() => {
     return asArray(slotsQuery.data)
@@ -144,7 +148,7 @@ export default function SubmissionAppointmentScheduler({ applicationId }) {
                     <Button
                       key={slot.id}
                       variant={selectedSlotId === slot.id ? 'filled' : 'light'}
-                      leftSection={selectedSlotId === slot.id ? <CheckCircle size={16} aria-hidden /> : null}
+                      leftSection={selectedSlotId === slot.id ? <CheckCircle size={16} aria-hidden /> : undefined}
                       onClick={() => setSelectedSlotId(slot.id)}
                       disabled={scheduleMutation.isPending}
                     >
