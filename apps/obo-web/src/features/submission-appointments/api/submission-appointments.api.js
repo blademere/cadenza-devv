@@ -20,6 +20,10 @@ export const submissionAppointmentsApi = {
     return unwrap(await apiClient.post(`/obo/applications/${encodeURIComponent(applicationId)}/submission-appointments`, data))
   },
 
+  async listMyAppointments() {
+    return unwrap(await apiClient.get('/appointments/mine'))
+  },
+
   async listAppointmentTypes() {
     return unwrap(await apiClient.get('/appointments/types?active=true'))
   },
