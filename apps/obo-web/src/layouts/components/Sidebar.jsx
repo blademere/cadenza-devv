@@ -1,12 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { Avatar, Box, Button, Divider, Group, NavLink as MantineNavLink, Stack, Text, ThemeIcon } from '@mantine/core'
 
-const icons = {
-  dashboard: '⌂',
-  users: '♙',
-  roles: '◆',
-}
-
 export default function Sidebar({ navigation = [], navigationLoading = false, user, role, onNavigate, onLogout }) {
   const location = useLocation()
   const displayName = user?.name || user?.email?.split('@')[0] || 'User'
@@ -38,13 +32,15 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
                   const active = location.pathname === item.route || (
                     item.route !== '/' && location.pathname.startsWith(`${item.route}/`)
                   )
+                  const Icon = item.icon
+
                   return (
                     <MantineNavLink
                       key={item.key || item.route}
                       component={NavLink}
                       to={item.route}
                       label={item.name}
-                      leftSection={<Text className="obo-nav-icon" fw={active ? 700 : 500}>{icons[item.key] || '•'}</Text>}
+                      leftSection={Icon ? <Icon /> : null}
                       active={active}
                       onClick={onNavigate}
                       styles={{ root: { borderRadius: 9, minHeight: 42 } }}
