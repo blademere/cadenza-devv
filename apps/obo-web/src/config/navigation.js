@@ -1,3 +1,4 @@
+import { createElement } from 'react'
 import {
   SquaresFour,
   UsersThree,
@@ -10,9 +11,9 @@ const iconProps = {
   'aria-hidden': true,
 }
 
-const DashboardIcon = () => <SquaresFour {...iconProps} />
-const UsersIcon = () => <UsersThree {...iconProps} />
-const RolesIcon = () => <ShieldCheck {...iconProps} />
+const DashboardIcon = () => createElement(SquaresFour, iconProps)
+const UsersIcon = () => createElement(UsersThree, iconProps)
+const RolesIcon = () => createElement(ShieldCheck, iconProps)
 
 export const navigation = Object.freeze([
   {
