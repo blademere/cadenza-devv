@@ -1,4 +1,5 @@
 import { Avatar, Box, Burger, Group, Text } from '@mantine/core'
+import { branding } from '../../config/branding'
 
 export default function TopBar({ onMenu, user, role }) {
   const displayName = user?.name || user?.email?.split('@')[0] || 'User'
@@ -7,11 +8,11 @@ export default function TopBar({ onMenu, user, role }) {
       <Group gap="sm">
         <Burger hiddenFrom="lg" onClick={onMenu} aria-label="Open navigation" size="sm" />
         <Box visibleFrom="lg">
-          <Text size="sm" fw={650}>OBO Workspace</Text>
-          <Text size="xs" c="dimmed">Manage your platform operations</Text>
+          <Text size="sm" fw={650}>{branding.workspaceName}</Text>
+          <Text size="xs" c="dimmed">{branding.workspaceDescription}</Text>
         </Box>
         <Box hiddenFrom="lg">
-          <Text size="sm" fw={700}>Express App</Text>
+          <Text size="sm" fw={700}>{branding.name}</Text>
         </Box>
       </Group>
       <Group gap="sm">
