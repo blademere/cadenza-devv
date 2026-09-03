@@ -20,6 +20,6 @@ export default function AuthorizationRoute({ requiredPermission = 'authorization
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (requiredPermission && !can(requiredPermission)) return <Navigate to="/dashboard" replace />
+  if (requiredPermission && !can(requiredPermission)) return <Navigate to="/app/dashboard" replace />
   return <Outlet />
 }

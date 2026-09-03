@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 import { Box, Skeleton, Stack } from '@mantine/core'
 import { useAuth } from '../../features/auth/AuthProvider'
 
@@ -16,6 +16,6 @@ export default function GuestRoute({ children }) {
       </Box>
     )
   }
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />
-  return children
+  if (isAuthenticated) return <Navigate to="/app/dashboard" replace />
+  return children ?? <Outlet />
 }
