@@ -8,6 +8,11 @@ export const permissions = Object.freeze({
     receive: 'obo_plan_permits:receive',
     inspect: 'obo_plan_permits:inspect',
   }),
+  appointments: Object.freeze({
+    read: 'appointments:read',
+    create: 'appointments:create',
+    cancel: 'appointments:cancel',
+  }),
   professionals: Object.freeze({
     read: 'obo_professionals:read',
     create: 'obo_professionals:create',
@@ -23,6 +28,7 @@ export const permissions = Object.freeze({
 
 export const permissionList = Object.freeze([
   ...Object.values(permissions.planPermits),
+  ...Object.values(permissions.appointments),
   ...Object.values(permissions.professionals),
   ...Object.values(permissions.users),
   ...Object.values(permissions.authorization),
