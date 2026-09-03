@@ -11,6 +11,7 @@ import RoutePlaceholder from './router/RoutePlaceholder'
 import ProtectedRoute from './router/ProtectedRoute'
 import GuestRoute from './router/GuestRoute'
 import AuthorizationRoute from './router/AuthorizationRoute'
+import { permissions } from '../config/permissions'
 
 const route = (path, title, permission) => ({
   element: <AuthorizationRoute requiredPermission={permission} />,
@@ -30,19 +31,19 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
-          route('applications', 'Applications', 'obo_plan_permits:read'),
-          route('appointments', 'Appointments', 'obo_plan_permits:read'),
-          route('permit-types', 'Permit Types', 'obo_plan_permits:read'),
-          route('receiving', 'Receiving', 'obo_plan_permits:receive'),
-          route('professionals', 'Professionals', 'obo_professionals:read'),
-          route('professionals/verification', 'Professional Verification', 'obo_professionals:review'),
-          route('inspections', 'Inspections', 'obo_plan_permits:inspect'),
+          route('applications', 'Applications', permissions.planPermits.read),
+          route('appointments', 'Appointments', permissions.planPermits.read),
+          route('permit-types', 'Permit Types', permissions.planPermits.read),
+          route('receiving', 'Receiving', permissions.planPermits.receive),
+          route('professionals', 'Professionals', permissions.professionals.read),
+          route('professionals/verification', 'Professional Verification', permissions.professionals.review),
+          route('inspections', 'Inspections', permissions.planPermits.inspect),
           {
-            element: <AuthorizationRoute requiredPermission="users:manage" />,
+            element: <AuthorizationRoute requiredPermission={permissions.users.manage} />,
             children: [{ path: 'users', element: <UsersPage /> }],
           },
           {
-            element: <AuthorizationRoute requiredPermission="authorization:manage" />,
+            element: <AuthorizationRoute requiredPermission={permissions.authorization.manage} />,
             children: [{ path: 'roles', element: <RolesPage /> }],
           },
         ],
