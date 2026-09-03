@@ -1,5 +1,5 @@
 {
-  "name": "@express-app/admin-web",
+  "name": "@express-app/obo-web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
