@@ -9,7 +9,7 @@ import TopBar from './components/TopBar'
 
 const sidebarWidth = 252
 
-export default function AdminLayout() {
+export default function OBOLayout() {
   const { user, logout } = useAuth()
   const { context, isLoading: authorizationLoading } = useAuthorization()
   const desktop = useMatches({ base: false, lg: true })

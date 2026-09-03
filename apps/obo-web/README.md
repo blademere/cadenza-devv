@@ -1,6 +1,6 @@
-# Admin Web
+# OBO Web
 
-Administrative web application for the Express App platform.
+Operational web application for the Express App platform.
 
 ## Development
 
@@ -8,11 +8,11 @@ From the repository root:
 
 ```bash
 npm install
-npm run dev:admin-web
+npm run dev:obo-web
 ```
 
 The Vite development server uses port `5174` by default.
 
 ## Architecture
 
-`apps/admin-web` is an independent frontend workspace. It can consume the shared Express API while keeping administrative UI, routing, and feature modules isolated from `apps/web`.
+`apps/obo-web` is an independent frontend workspace for OBO operations. It consumes the shared Express API and contains authentication, operational workflows, and permission-controlled administration features alongside the existing `apps/web` frontend.
