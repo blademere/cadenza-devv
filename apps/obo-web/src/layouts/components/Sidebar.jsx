@@ -29,25 +29,31 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
       <Divider />
 
       <Box px="sm" py="lg" style={{ flex: 1, overflowY: 'auto' }}>
-        <Text className="obo-section-label" px="sm" mb="xs">Workspace</Text>
-        <Stack gap={3}>
-          {navigation.map((item) => {
-            const active = location.pathname === item.route || (
-              item.route !== '/' && location.pathname.startsWith(`${item.route}/`)
-            )
-            return (
-              <MantineNavLink
-                key={item.key || item.route}
-                component={NavLink}
-                to={item.route}
-                label={item.name}
-                leftSection={<Text className="obo-nav-icon" fw={active ? 700 : 500}>{icons[item.key] || '•'}</Text>}
-                active={active}
-                onClick={onNavigate}
-                styles={{ root: { borderRadius: 9, minHeight: 42 } }}
-              />
-            )
-          })}
+        <Stack gap="lg">
+          {navigation.map((section) => (
+            <Box key={section.key || section.name}>
+              <Text className="obo-section-label" px="sm" mb="xs">{section.name}</Text>
+              <Stack gap={3}>
+                {section.items.map((item) => {
+                  const active = location.pathname === item.route || (
+                    item.route !== '/' && location.pathname.startsWith(`${item.route}/`)
+                  )
+                  return (
+                    <MantineNavLink
+                      key={item.key || item.route}
+                      component={NavLink}
+                      to={item.route}
+                      label={item.name}
+                      leftSection={<Text className="obo-nav-icon" fw={active ? 700 : 500}>{icons[item.key] || '•'}</Text>}
+                      active={active}
+                      onClick={onNavigate}
+                      styles={{ root: { borderRadius: 9, minHeight: 42 } }}
+                    />
+                  )
+                })}
+              </Stack>
+            </Box>
+          ))}
           {navigationLoading && (
             <Text size="xs" c="dimmed" px="sm" py="sm">Loading navigation…</Text>
           )}
