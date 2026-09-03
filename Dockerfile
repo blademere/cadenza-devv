@@ -10,7 +10,7 @@ RUN apt-get update \
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
 COPY apps/web/package*.json ./apps/web/
-COPY apps/admin-web/package*.json ./apps/admin-web/
+COPY apps/obo-web/package*.json ./apps/obo-web/
 
 RUN npm ci
 
