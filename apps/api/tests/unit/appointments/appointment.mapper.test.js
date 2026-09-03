@@ -61,6 +61,73 @@ describe('appointment response mappers', () => {
     expect(value.metadata).toEqual({ source: 'web' })
   })
 
+  it('maps nested appointment type and slot details when relations are loaded', () => {
+    const createdAt = new Date('2026-08-19T00:00:00.000Z')
+    const value = mapAppointment({
+      id: 'appointment-1',
+      referenceNumber: 'APT-1',
+      appointmentTypeId: 'type-1',
+      slotId: 'slot-1',
+      userId: 42,
+      status: 'CONFIRMED',
+      metadata: null,
+      notes: null,
+      cancelledAt: null,
+      checkedInAt: null,
+      completedAt: null,
+      noShowAt: null,
+      createdAt,
+      updatedAt: createdAt,
+      appointmentType: {
+        id: 'type-1',
+        key: 'obo-hardcopy-submission',
+        name: 'OBO Hardcopy Submission',
+        description: 'Physical submission',
+        defaultDurationMinutes: 30,
+        defaultCapacity: 1,
+        isActive: true,
+        createdAt,
+        updatedAt: createdAt,
+      },
+      slot: {
+        id: 'slot-1',
+        appointmentTypeId: 'type-1',
+        scheduleId: 'schedule-1',
+        startsAt: createdAt,
+        endsAt: new Date('2026-08-19T00:30:00.000Z'),
+        capacity: 1,
+        bookedCount: 1,
+        status: 'OPEN',
+        createdAt,
+        updatedAt: createdAt,
+      },
+    })
+
+    expect(value.appointmentType).toEqual({
+      id: 'type-1',
+      key: 'obo-hardcopy-submission',
+      name: 'OBO Hardcopy Submission',
+      description: 'Physical submission',
+      defaultDurationMinutes: 30,
+      defaultCapacity: 1,
+      isActive: true,
+      createdAt,
+      updatedAt: createdAt,
+    })
+    expect(value.slot).toEqual({
+      id: 'slot-1',
+      appointmentTypeId: 'type-1',
+      scheduleId: 'schedule-1',
+      startsAt: createdAt,
+      endsAt: new Date('2026-08-19T00:30:00.000Z'),
+      capacity: 1,
+      bookedCount: 1,
+      status: 'OPEN',
+      createdAt,
+      updatedAt: createdAt,
+    })
+  })
+
   it('maps slots and schedules explicitly', () => {
     const createdAt = new Date('2026-08-19T00:00:00.000Z')
 
