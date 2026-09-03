@@ -121,7 +121,12 @@ const getMine = async ({ id, userId }) => {
 }
 
 const listMine = async ({ userId }) => {
-  const applications = await repository.listByClient((await getClientPerson(userId)).id)
+  const person = await repository.findPersonByUserId(userId)
+  if (!person) {
+    return []
+  }
+
+  const applications = await repository.listByClient(person.id)
   return Promise.all(applications.map(withWorkflowState))
 }
 
@@ -159,34 +164,13 @@ const submit = async ({ id, userId }) => {
     throw new ConflictError('Only draft applications can be submitted.')
   }
 
-  const notificationContext = await getNotificationContext({
-    personId: application.clientPersonId,
-    findPersonNotificationContext: repository.findPersonNotificationContext,
-  })
-  await workflowService.transitionWorkflow({
-    instanceId: application.workflowInstanceId,
-    transitionKey: 'SUBMIT_FOR_SUBMISSION',
+  return withWorkflowState(await workflowService.transitionWorkflow({
+    workflowKey: WORKFLOW_KEY,
+    subjectType: SUBJECT_TYPE,
+    subjectId: id,
+    transitionKey: 'submit',
     actorId: userId,
-    metadata: {
-      source: 'obo-plan-permit.submit',
-      referenceNumber: application.referenceNumber,
-      permitTypeName: application.permitType.name,
-      ...notificationContext,
-    },
-  })
-
-  return withWorkflowState(await repository.findById(id))
+  }))
 }
 
-export {
-  STATUS,
-  WORKFLOW_KEY,
-  SUBJECT_TYPE,
-  createApplication,
-  getMine,
-  listMine,
-  updateDraft,
-  submit,
-  getWorkflowState,
-  withWorkflowState,
-}
+export { createApplication, getMine, listMine, updateDraft, submit }
