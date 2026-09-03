@@ -38,9 +38,9 @@
       "runOptions": { "instanceLimit": 1 }
     },
     {
-      "label": "dev:admin-web",
+      "label": "dev:obo-web",
       "type": "shell",
-      "command": "npm --workspace @express-app/admin-web run dev",
+      "command": "npm --workspace @express-app/obo-web run dev",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": {
@@ -63,8 +63,8 @@
       "presentation": { "reveal": "always", "panel": "shared" }
     },
     {
-      "label": "dev:full-stack:admin",
-      "dependsOn": ["dev:api", "dev:admin-web"],
+      "label": "dev:full-stack:obo",
+      "dependsOn": ["dev:api", "dev:obo-web"],
       "dependsOrder": "parallel",
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "shared" }
