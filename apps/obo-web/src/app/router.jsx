@@ -1,4 +1,4 @@
-import { Navigate, Outlet, createBrowserRouter } from 'react-router-dom'
+import { Navigate, createBrowserRouter } from 'react-router-dom'
 import App from './App'
 import OBOLayout from '../layouts/OBOLayout'
 import HomePage from '../pages/HomePage'
@@ -7,6 +7,10 @@ import DashboardPage from '../pages/DashboardPage'
 import RolesPage from '../pages/RolesPage'
 import UsersPage from '../pages/UsersPage'
 import OAuthCallbackPage from '../pages/OAuthCallbackPage'
+import ApplicationsPage from '../features/plan-permits/pages/ApplicationsPage'
+import ApplicationDetailsPage from '../features/plan-permits/pages/ApplicationDetailsPage'
+import PermitTypesPage from '../features/plan-permits/pages/PermitTypesPage'
+import PermitTypeDetailsPage from '../features/plan-permits/pages/PermitTypeDetailsPage'
 import RoutePlaceholder from './router/RoutePlaceholder'
 import ProtectedRoute from './router/ProtectedRoute'
 import GuestRoute from './router/GuestRoute'
@@ -16,6 +20,11 @@ import { permissions } from '../config/permissions'
 const route = (path, title, permission) => ({
   element: <AuthorizationRoute requiredPermission={permission} />,
   children: [{ path, element: <RoutePlaceholder title={title} /> }],
+})
+
+const protectedPage = (path, element, permission) => ({
+  element: <AuthorizationRoute requiredPermission={permission} />,
+  children: [{ path, element }],
 })
 
 export const router = createBrowserRouter([
@@ -31,9 +40,11 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
-          route('applications', 'Applications', permissions.planPermits.read),
+          protectedPage('applications', <ApplicationsPage />, permissions.planPermits.read),
+          protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.planPermits.read),
           route('appointments', 'Appointments', permissions.planPermits.read),
-          route('permit-types', 'Permit Types', permissions.planPermits.read),
+          protectedPage('permit-types', <PermitTypesPage />, permissions.planPermits.read),
+          protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.planPermits.read),
           route('receiving', 'Receiving', permissions.planPermits.receive),
           route('professionals', 'Professionals', permissions.professionals.read),
           route('professionals/verification', 'Professional Verification', permissions.professionals.review),
