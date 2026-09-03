@@ -92,12 +92,12 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
     throw new ForbiddenError('Your account is not authorized to manage users.')
   if (!targetUser) throw new NotFoundError('User not found.')
   if (!targetRole) throw new NotFoundError('Role not found.')
-  if (!requester.permissions.has('authorization:manage'))
+
+  const requesterPermissionSet = new Set(
+    (requester.permissions || []).map((permission) => permissionKey(permission))
+  )
+  if (!requesterPermissionSet.has('authorization:manage'))
     throw new ForbiddenError('You do not have permission to assign user roles.')
-  if (!canAssignRole(requester.permissions, targetRole))
-    throw new ForbiddenError(
-      'You cannot assign a role containing permissions that you do not have.'
-    )
 
   if (
     Number(requesterId) === Number(userId) &&

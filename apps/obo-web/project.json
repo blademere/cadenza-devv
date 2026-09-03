@@ -1,0 +1,5 @@
+{
+  "name": "obo-web",
+  "projectType": "application",
+  "sourceRoot": "apps/obo-web/src"
+}

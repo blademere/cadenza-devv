@@ -1,6 +1,6 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import App from './App'
-import AdminLayout from '../layouts/AdminLayout'
+import OBOLayout from '../layouts/OBOLayout'
 import HomePage from '../pages/HomePage'
 import LoginPage from '../pages/LoginPage'
 import DashboardPage from '../pages/DashboardPage'
@@ -19,7 +19,7 @@ export const router = createBrowserRouter([
       { index: true, element: <GuestRoute><HomePage /></GuestRoute> },
       { path: 'login', element: <GuestRoute><LoginPage /></GuestRoute> },
       {
-        element: <ProtectedRoute><AdminLayout /></ProtectedRoute>,
+        element: <ProtectedRoute><OBOLayout /></ProtectedRoute>,
         children: [
           { path: 'dashboard', element: <DashboardPage /> },
           {

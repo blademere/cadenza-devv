@@ -4,7 +4,7 @@
   "plugins": [
     {
       "plugin": "@nx/vite/plugin",
-      "include": ["apps/web/**", "apps/admin-web/**"],
+      "include": ["apps/web/**", "apps/obo-web/**"],
       "options": {
         "buildTargetName": "build",
         "devTargetName": "dev",
@@ -13,7 +13,7 @@
     },
     {
       "plugin": "@nx/eslint/plugin",
-      "include": ["apps/api/**", "apps/web/**", "apps/admin-web/**"],
+      "include": ["apps/api/**", "apps/web/**", "apps/obo-web/**"],
       "options": {
         "targetName": "lint"
       }

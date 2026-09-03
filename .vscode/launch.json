@@ -26,10 +26,10 @@
       "env": { "BROWSER": "none" }
     },
     {
-      "name": "Admin Web: React",
+      "name": "OBO Web: React",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm --workspace @express-app/admin-web run dev",
+      "command": "npm --workspace @express-app/obo-web run dev",
       "cwd": "${workspaceFolder}",
       "env": { "BROWSER": "none" }
     }
@@ -41,8 +41,8 @@
       "stopAll": true
     },
     {
-      "name": "Full Stack: API + Admin Web",
-      "configurations": ["API: Express", "Admin Web: React"],
+      "name": "Full Stack: API + OBO Web",
+      "configurations": ["API: Express", "OBO Web: React"],
       "stopAll": true
     }
   ]
