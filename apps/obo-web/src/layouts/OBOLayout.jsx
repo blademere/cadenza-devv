@@ -32,30 +32,30 @@ export default function OBOLayout() {
 
   return (
     <AppShell
-      className="admin-app"
+      className="obo-app"
       navbar={{ width: sidebarWidth, breakpoint: 'lg', collapsed: { mobile: true, desktop: false } }}
       header={{ height: 68, collapsed: { mobile: false, desktop: true } }}
       padding={0}
     >
-      <AppShell.Header className="admin-topbar">
+      <AppShell.Header className="obo-topbar">
         <TopBar onMenu={() => setMobileOpen(true)} user={user} role={context?.role?.name} />
       </AppShell.Header>
-      <AppShell.Navbar className="admin-sidebar">{sidebar}</AppShell.Navbar>
+      <AppShell.Navbar className="obo-sidebar">{sidebar}</AppShell.Navbar>
       {!desktop && (
         <Drawer
           opened={mobileOpen}
           onClose={() => setMobileOpen(false)}
           size={sidebarWidth}
           title="Navigation"
-          classNames={{ content: 'admin-mobile-nav', header: 'admin-mobile-nav' }}
+          classNames={{ content: 'obo-mobile-nav', header: 'obo-mobile-nav' }}
         >
           {sidebar}
         </Drawer>
       )}
       <AppShell.Main>
-        <Box className="admin-content" px={{ base: 'md', sm: 'lg', lg: 'xl' }} py={{ base: 'lg', md: 'xl' }}>
-          <a className="admin-skip" href="#admin-main">Skip to content</a>
-          <Box id="admin-main" component="main">
+        <Box className="obo-content" px={{ base: 'md', sm: 'lg', lg: 'xl' }} py={{ base: 'lg', md: 'xl' }}>
+          <a className="obo-skip" href="#obo-main">Skip to content</a>
+          <Box id="obo-main" component="main">
             <Outlet />
           </Box>
         </Box>
