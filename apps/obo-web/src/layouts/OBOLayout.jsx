@@ -4,15 +4,14 @@ import { AppShell, Box, Drawer, useMatches } from '@mantine/core'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useAuthorization } from '../features/authorization/AuthorizationProvider'
 import { navigation, normalizeNavigation } from '../config/navigation'
+import { layout } from '../config/layout'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
-
-const sidebarWidth = 252
 
 export default function OBOLayout() {
   const { user, logout } = useAuth()
   const { context, isLoading: authorizationLoading } = useAuthorization()
-  const desktop = useMatches({ base: false, lg: true })
+  const desktop = useMatches({ base: false, [layout.breakpoint]: true })
   const [mobileOpen, setMobileOpen] = useState(false)
   const visibleNavigation = useMemo(
     () => normalizeNavigation(navigation, context?.permissions),
@@ -33,8 +32,12 @@ export default function OBOLayout() {
   return (
     <AppShell
       className="obo-app"
-      navbar={{ width: sidebarWidth, breakpoint: 'lg', collapsed: { mobile: true, desktop: false } }}
-      header={{ height: 68, collapsed: { mobile: false, desktop: true } }}
+      navbar={{
+        width: layout.sidebarWidth,
+        breakpoint: layout.breakpoint,
+        collapsed: { mobile: true, desktop: false },
+      }}
+      header={{ height: layout.headerHeight, collapsed: { mobile: false, desktop: true } }}
       padding={0}
     >
       <AppShell.Header className="obo-topbar">
@@ -45,7 +48,7 @@ export default function OBOLayout() {
         <Drawer
           opened={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          size={sidebarWidth}
+          size={layout.sidebarWidth}
           title="Navigation"
           classNames={{ content: 'obo-mobile-nav', header: 'obo-mobile-nav' }}
         >
