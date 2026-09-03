@@ -11,7 +11,6 @@ import ApplicationsPage from '../features/plan-permits/pages/ApplicationsPage'
 import ApplicationDetailsPage from '../features/plan-permits/pages/ApplicationDetailsPage'
 import PermitTypesPage from '../features/plan-permits/pages/PermitTypesPage'
 import PermitTypeDetailsPage from '../features/plan-permits/pages/PermitTypeDetailsPage'
-import AppointmentsPage from '../features/submission-appointments/pages/AppointmentsPage'
 import SubmissionAppointmentPage from '../features/submission-appointments/pages/SubmissionAppointmentPage'
 import RoutePlaceholder from './router/RoutePlaceholder'
 import ProtectedRoute from './router/ProtectedRoute'
@@ -45,7 +44,6 @@ export const router = createBrowserRouter([
           protectedPage('applications', <ApplicationsPage />, permissions.planPermits.read),
           protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.planPermits.read),
           protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.planPermits.scheduleSubmission),
-          protectedPage('appointments', <AppointmentsPage />, permissions.appointments.read),
           protectedPage('permit-types', <PermitTypesPage />, permissions.planPermits.read),
           protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.planPermits.read),
           route('receiving', 'Receiving', permissions.planPermits.receive),
