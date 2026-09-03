@@ -1,7 +1,6 @@
 import { createElement } from 'react'
 import {
   Archive,
-  CalendarBlank,
   ClipboardText,
   FileText,
   MagnifyingGlass,
@@ -21,7 +20,6 @@ const createIcon = (Icon) => () => createElement(Icon, iconProps)
 
 const DashboardIcon = createIcon(Archive)
 const ApplicationsIcon = createIcon(FileText)
-const AppointmentsIcon = createIcon(CalendarBlank)
 const PermitTypesIcon = createIcon(ClipboardText)
 const ReceivingIcon = createIcon(Archive)
 const ProfessionalsIcon = createIcon(UsersThree)
@@ -53,13 +51,6 @@ export const navigation = Object.freeze([
         route: '/app/applications',
         requiredPermissions: [permissions.planPermits.read],
         icon: ApplicationsIcon,
-      },
-      {
-        key: 'appointments',
-        name: 'Appointments',
-        route: '/app/appointments',
-        requiredPermissions: [permissions.appointments.read],
-        icon: AppointmentsIcon,
       },
       {
         key: 'permit-types',
