@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Alert, Badge, Box, Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine/core'
 import { useAuth } from '../features/auth/AuthProvider'
-import { useAuthorization } from '../features/authorization/AuthorizationProvider'
+import { useCan } from '../features/authorization/useCan'
+import { permissions } from '../config/permissions'
 import { usePendingProfessionals, useReceivingApplications } from '../features/workflow/workflow.queries'
 import PageHeader from '../components/common/PageHeader'
 
@@ -22,11 +23,10 @@ function statusOf(application) {
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { context } = useAuthorization()
-  const permissions = context?.permissions ?? []
-  const canReceive = permissions.includes('obo_plan_permits:receive')
-  const canReviewProfessionals = permissions.includes('obo_professionals:review')
-  const canManageAuthorization = permissions.includes('authorization:manage') || permissions.includes('users:manage')
+  const can = useCan()
+  const canReceive = can(permissions.planPermits.receive)
+  const canReviewProfessionals = can(permissions.professionals.review)
+  const canManageAuthorization = can(permissions.authorization.manage) || can(permissions.users.manage)
   const receivingQuery = useReceivingApplications({ enabled: canReceive })
   const professionalsQuery = usePendingProfessionals({ enabled: canReviewProfessionals })
   const name = user?.name || user?.email?.split('@')[0] || 'User'
