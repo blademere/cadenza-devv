@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const permissions = context?.permissions ?? []
   const canReceive = permissions.includes('obo_plan_permits:receive')
   const canReviewProfessionals = permissions.includes('obo_professionals:review')
+  const canManageAuthorization = permissions.includes('authorization:manage') || permissions.includes('users:manage')
   const receivingQuery = useReceivingApplications({ enabled: canReceive })
   const professionalsQuery = usePendingProfessionals({ enabled: canReviewProfessionals })
   const name = user?.name || user?.email?.split('@')[0] || 'User'
@@ -57,19 +58,19 @@ export default function DashboardPage() {
     <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
       {canReceive && (
         <Card className="obo-panel" withBorder p={0}>
-          <Box className="obo-panel-header"><Box><Text className="obo-panel-title">Plan Permit receiving</Text><Text className="obo-panel-subtitle">Process scheduled hard-copy submissions</Text></Box><Badge color="green" variant="light">Available</Badge></Box>
-          <Stack p="lg" gap="md"><Group justify="space-between"><Text size="sm" c="dimmed">Scheduled</Text><Text size="sm" fw={650}>{scheduled}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Receiving</Text><Text size="sm" fw={650}>{receiving}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">For inspection</Text><Text size="sm" fw={650}>{forInspection}</Text></Group><Button component={Link} to="/receiving">Open receiving</Button></Stack>
+          <Box className="obo-panel-header"><Box><Text className="obo-panel-title">Plan Permit receiving</Text><Text className="obo-panel-subtitle">Current hard-copy receiving workload</Text></Box><Badge color="green" variant="light">Available</Badge></Box>
+          <Stack p="lg" gap="md"><Group justify="space-between"><Text size="sm" c="dimmed">Scheduled</Text><Text size="sm" fw={650}>{scheduled}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">Receiving</Text><Text size="sm" fw={650}>{receiving}</Text></Group><Group justify="space-between"><Text size="sm" c="dimmed">For inspection</Text><Text size="sm" fw={650}>{forInspection}</Text></Group></Stack>
         </Card>
       )}
 
       {canReviewProfessionals && (
         <Card className="obo-panel" withBorder p={0}>
-          <Box className="obo-panel-header"><Box><Text className="obo-panel-title">Professional verification</Text><Text className="obo-panel-subtitle">Review pending professional registrations</Text></Box><Badge color={professionalReviews ? 'orange' : 'green'} variant="light">{professionalReviews ? 'Action required' : 'Clear'}</Badge></Box>
-          <Stack p="lg" gap="md"><Group justify="space-between"><Text size="sm" c="dimmed">Pending reviews</Text><Text size="sm" fw={650}>{professionalReviews}</Text></Group><Text size="sm" c="dimmed" lh={1.7}>Review professional registration details and record the verification decision.</Text><Button component={Link} to="/professionals" variant="light">Open professional reviews</Button></Stack>
+          <Box className="obo-panel-header"><Box><Text className="obo-panel-title">Professional verification</Text><Text className="obo-panel-subtitle">Current professional review workload</Text></Box><Badge color={professionalReviews ? 'orange' : 'green'} variant="light">{professionalReviews ? 'Action required' : 'Clear'}</Badge></Box>
+          <Stack p="lg" gap="md"><Group justify="space-between"><Text size="sm" c="dimmed">Pending reviews</Text><Text size="sm" fw={650}>{professionalReviews}</Text></Group><Text size="sm" c="dimmed" lh={1.7}>Review professional registration details and record the verification decision in the corresponding operational workflow.</Text></Stack>
         </Card>
       )}
     </SimpleGrid>
 
-    <Box className="obo-action-panel"><Group justify="space-between" align="center" wrap="wrap"><Box style={{ minWidth: 0, flex: 1 }}><Text className="obo-action-title">Operational workspace</Text><Text className="obo-action-text">Dashboard access is determined by your server-authorized permissions. Administration remains available separately when your role permits it.</Text></Box><Button component={Link} to="/roles" variant="white" color="dark">Administration</Button></Group></Box>
+    <Box className="obo-action-panel"><Group justify="space-between" align="center" wrap="wrap"><Box style={{ minWidth: 0, flex: 1 }}><Text className="obo-action-title">Operational workspace</Text><Text className="obo-action-text">Dashboard access is determined by your server-authorized permissions. Administration remains available separately when your role permits it.</Text></Box>{canManageAuthorization && <Button component={Link} to="/roles" variant="white" color="dark">Administration</Button>}</Group></Box>
   </Stack>
 }
