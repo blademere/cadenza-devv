@@ -14,7 +14,10 @@ export function useApplyProfessionalVerification(options = {}) {
     mutationFn: (data) => professionalsApi.applyVerification(data),
     ...options,
     onSuccess: async (data, variables, context) => {
-      await queryClient.invalidateQueries({ queryKey: professionalMineQueryKey })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: professionalMineQueryKey }),
+        queryClient.invalidateQueries({ queryKey: pendingProfessionalsQueryKey }),
+      ])
       await options.onSuccess?.(data, variables, context)
     },
   })
