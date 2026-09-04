@@ -62,11 +62,12 @@ export default function ApplicationFormPage() {
   const [professionalId, setProfessionalId] = useState('')
   const [formValues, setFormValues] = useState({})
   const [initialized, setInitialized] = useState(false)
+  const [professionalTouched, setProfessionalTouched] = useState(false)
   const createMutation = useCreatePlanPermitApplication()
   const updateMutation = useUpdatePlanPermitDraft()
   const submitMutation = useSubmitPlanPermitApplication()
   const effectivePermitTypeId = editing ? String(application?.permitTypeId ?? '') : permitTypeId
-  const effectiveProfessionalId = editing ? String(application?.professionalId ?? professionalId) : professionalId
+  const effectiveProfessionalId = editing && !professionalTouched ? String(application?.professionalId ?? '') : professionalId
   const effectiveFormValues = editing && !initialized ? (application?.formValues ?? {}) : formValues
   const sectionFields = useMemo(() => {
     if (!sections.length) return [{ key: 'default', title: 'Application information', description: null, fields }]
@@ -121,7 +122,7 @@ export default function ApplicationFormPage() {
       <Stack gap="lg">
         <Select label="Permit type" required data={permitTypeOptions} value={effectivePermitTypeId || null} onChange={setPermitTypeId} disabled={editing} searchable placeholder="Select a permit type" />
         {effectivePermitTypeId && !permitType && editing && <Alert color="yellow">The permit type for this application is not present in the current active permit type list.</Alert>}
-        <Select label="Verified professional" required data={professionalOptions} value={effectiveProfessionalId || null} onChange={setProfessionalId} searchable placeholder="Select a verified professional" nothingFoundMessage="No verified professionals are available" />
+        <Select label="Verified professional" required data={professionalOptions} value={effectiveProfessionalId || null} onChange={(value) => { setProfessionalTouched(true); setProfessionalId(value ?? '') }} searchable placeholder="Select a verified professional" nothingFoundMessage="No verified professionals are available" />
         {effectivePermitTypeId && form && <Box><Text fw={700}>{form.name ?? 'Application information'}</Text><Text size="sm" c="dimmed" mt={3}>{form.description ?? 'Complete the required application fields.'}</Text></Box>}
         {!effectivePermitTypeId && <Alert color="gray">Select a permit type to load its published application form.</Alert>}
         {effectivePermitTypeId && !form && <Alert color="yellow">No published form is configured for this permit type. The application can still be saved if the backend permits a form-less application.</Alert>}
