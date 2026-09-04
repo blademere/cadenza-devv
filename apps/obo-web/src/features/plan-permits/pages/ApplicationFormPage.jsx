@@ -52,12 +52,6 @@ export default function ApplicationFormPage() {
   const application = unwrap(applicationQuery.data)
   const permitTypes = asArray(permitTypesQuery.data)
   const professionals = asArray(professionalsQuery.data)
-  const selectedPermitTypeId = editing ? application?.permitTypeId : undefined
-  const permitType = permitTypes.find((item) => String(item.id) === String(selectedPermitTypeId))
-  const formQuery = usePermitTypeForm(selectedPermitTypeId)
-  const form = asForm(formQuery.data)
-  const fields = form?.fields ?? []
-  const sections = form?.sections ?? []
   const [permitTypeId, setPermitTypeId] = useState('')
   const [professionalId, setProfessionalId] = useState('')
   const [formValues, setFormValues] = useState({})
@@ -68,6 +62,11 @@ export default function ApplicationFormPage() {
   const submitMutation = useSubmitPlanPermitApplication()
   const effectivePermitTypeId = editing ? String(application?.permitTypeId ?? '') : permitTypeId
   const effectiveProfessionalId = editing && !professionalTouched ? String(application?.professionalId ?? '') : professionalId
+  const formQuery = usePermitTypeForm(effectivePermitTypeId)
+  const form = asForm(formQuery.data)
+  const fields = form?.fields ?? []
+  const sections = form?.sections ?? []
+  const permitType = permitTypes.find((item) => String(item.id) === effectivePermitTypeId)
   const effectiveFormValues = editing && !initialized ? (application?.formValues ?? {}) : formValues
   const sectionFields = useMemo(() => {
     if (!sections.length) return [{ key: 'default', title: 'Application information', description: null, fields }]
@@ -120,7 +119,7 @@ export default function ApplicationFormPage() {
     {mutationError && <Alert color="red" title="Unable to save application">{mutationError.message ?? 'The application could not be saved.'}</Alert>}
     <Box className="obo-panel" p="lg">
       <Stack gap="lg">
-        <Select label="Permit type" required data={permitTypeOptions} value={effectivePermitTypeId || null} onChange={setPermitTypeId} disabled={editing} searchable placeholder="Select a permit type" />
+        <Select label="Permit type" required data={permitTypeOptions} value={effectivePermitTypeId || null} onChange={(value) => setPermitTypeId(value ?? '')} disabled={editing} searchable placeholder="Select a permit type" />
         {effectivePermitTypeId && !permitType && editing && <Alert color="yellow">The permit type for this application is not present in the current active permit type list.</Alert>}
         <Select label="Verified professional" required data={professionalOptions} value={effectiveProfessionalId || null} onChange={(value) => { setProfessionalTouched(true); setProfessionalId(value ?? '') }} searchable placeholder="Select a verified professional" nothingFoundMessage="No verified professionals are available" />
         {effectivePermitTypeId && form && <Box><Text fw={700}>{form.name ?? 'Application information'}</Text><Text size="sm" c="dimmed" mt={3}>{form.description ?? 'Complete the required application fields.'}</Text></Box>}
