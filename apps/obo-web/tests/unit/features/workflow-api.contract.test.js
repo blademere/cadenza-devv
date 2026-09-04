@@ -6,12 +6,12 @@ const apiClient = {
   patch: vi.fn(),
 }
 
-vi.mock('../../../../src/services/api/client', () => ({ apiClient }))
+vi.mock('../../../src/services/api/client', () => ({ apiClient }))
 
-const { planPermitsApi } = await import('../../../../src/features/plan-permits/api/plan-permits.api.js')
-const { professionalsApi } = await import('../../../../src/features/professionals/api/professionals.api.js')
-const { submissionAppointmentsApi } = await import('../../../../src/features/submission-appointments/api/submission-appointments.api.js')
-const { receivingApi } = await import('../../../../src/features/receiving/api/receiving.api.js')
+const { planPermitsApi } = await import('../../../src/features/plan-permits/api/plan-permits.api.js')
+const { professionalsApi } = await import('../../../src/features/professionals/api/professionals.api.js')
+const { submissionAppointmentsApi } = await import('../../../src/features/submission-appointments/api/submission-appointments.api.js')
+const { receivingApi } = await import('../../../src/features/receiving/api/receiving.api.js')
 
 describe('OBO Web workflow API contracts', () => {
   beforeEach(() => vi.clearAllMocks())
