@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { AppShell, Box, Drawer, useMatches } from '@mantine/core'
 import { useAuth } from '../features/auth/components/AuthProvider'
-import { useAuthorization } from '../features/authorization/AuthorizationProvider'
+import { useAuthorization } from '../features/authorization/components/AuthorizationProvider'
 import { navigation, normalizeNavigation } from '../config/navigation'
 import { layout } from '../config/layout'
 import Sidebar from './components/Sidebar'
@@ -15,7 +15,7 @@ export default function OBOLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const visibleNavigation = useMemo(
     () => normalizeNavigation(navigation, context?.permissions),
-    [context?.permissions],
+    [context?.permissions]
   )
 
   const sidebar = (
@@ -37,11 +37,18 @@ export default function OBOLayout() {
         breakpoint: layout.breakpoint,
         collapsed: { mobile: true, desktop: false },
       }}
-      header={{ height: layout.headerHeight, collapsed: { mobile: false, desktop: true } }}
+      header={{
+        height: layout.headerHeight,
+        collapsed: { mobile: false, desktop: true },
+      }}
       padding={0}
     >
       <AppShell.Header className="obo-topbar">
-        <TopBar onMenu={() => setMobileOpen(true)} user={user} role={context?.role?.name} />
+        <TopBar
+          onMenu={() => setMobileOpen(true)}
+          user={user}
+          role={context?.role?.name}
+        />
       </AppShell.Header>
       <AppShell.Navbar className="obo-sidebar">{sidebar}</AppShell.Navbar>
       {!desktop && (
@@ -56,8 +63,14 @@ export default function OBOLayout() {
         </Drawer>
       )}
       <AppShell.Main>
-        <Box className="obo-content" px={{ base: 'md', sm: 'lg', lg: 'xl' }} py={{ base: 'lg', md: 'xl' }}>
-          <a className="obo-skip" href="#obo-main">Skip to content</a>
+        <Box
+          className="obo-content"
+          px={{ base: 'md', sm: 'lg', lg: 'xl' }}
+          py={{ base: 'lg', md: 'xl' }}
+        >
+          <a className="obo-skip" href="#obo-main">
+            Skip to content
+          </a>
           <Box id="obo-main" component="main">
             <Outlet />
           </Box>

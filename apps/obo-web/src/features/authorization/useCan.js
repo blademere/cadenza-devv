@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { useAuthorization } from './AuthorizationProvider'
+import { useAuthorization } from './components/AuthorizationProvider'
 
 export function useCan() {
   const { can } = useAuthorization()
