@@ -2,12 +2,10 @@
 
 require('dotenv').config()
 const bcrypt = require('bcrypt')
-const {
-  getPrismaClient,
-  disconnectPrisma,
-} = require('../apps/server/src/infrastructure/database/prisma')
 const { seedModelCoverage } = require('./seed-model-coverage')
-const prisma = getPrismaClient()
+
+let prisma
+let disconnectPrisma
 
 // Canonical application authorization catalog. Modules and permissions are
 // developer-owned capabilities; the Admin Web manages role assignments.
@@ -125,4 +123,12 @@ async function seed() {
   await seedModelCoverage(prisma)
   console.log(`Seeded ${moduleRecords.size} canonical modules, ${permissionRecords.size} canonical permissions, baseline role assignments, OBO plan permit type, appointment type, workflow, notification templates/rules, and verified complete Prisma model coverage.`)
 }
-seed().catch((error) => { console.error(`Database seed failed: ${error.message}`); process.exitCode = 1 }).finally(async () => { await disconnectPrisma() })
+
+async function main() {
+  const database = await import('../src/infrastructure/database/prisma.js')
+  prisma = database.getPrismaClient()
+  disconnectPrisma = database.disconnectPrisma
+  await seed()
+}
+
+main().catch((error) => { console.error(`Database seed failed: ${error.message}`); process.exitCode = 1 }).finally(async () => { if (disconnectPrisma) await disconnectPrisma() })
