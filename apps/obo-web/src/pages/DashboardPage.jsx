@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, ClipboardText, FileText, GearSix, UserCheck, UsersThree } from '@phosphor-icons/react'
+import { ArrowRight, ClipboardText, FileText, UserCheck } from '@phosphor-icons/react'
 import { Alert, Badge, Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon, Title } from '@mantine/core'
 import { useAuth } from '../features/auth/components/AuthProvider'
 import { useCan } from '../features/authorization/useCan'
@@ -8,7 +8,6 @@ import { usePendingProfessionals } from '../features/professionals/queries/profe
 import { useReceivingApplications } from '../features/receiving/queries/receiving.queries'
 import PageHeader from '../components/common/PageHeader'
 import EmptyState from '../components/common/EmptyState'
-import { getAdministrationActions } from './dashboard.utils'
 
 const iconProps = { size: 22, weight: 'regular', 'aria-hidden': true }
 
@@ -37,9 +36,6 @@ export default function DashboardPage() {
   const canReceive = can(permissions.planPermits.receive)
   const canInspect = can(permissions.planPermits.inspect)
   const canReviewProfessionals = can(permissions.professionals.review)
-  const canManageUsers = can(permissions.users.manage)
-  const canManageAuthorization = can(permissions.authorization.manage)
-  const administrationActions = getAdministrationActions({ canManageUsers, canManageAuthorization })
   const scheduledQuery = useReceivingApplications('SUBMISSION_SCHEDULED', { enabled: canReceive })
   const receivingQuery = useReceivingApplications('RECEIVING', { enabled: canReceive })
   const inspectionQuery = useReceivingApplications('FOR_INSPECTION', { enabled: canInspect })
@@ -63,6 +59,5 @@ export default function DashboardPage() {
     </SimpleGrid>
     <Stack gap="md"><BoxTitle title="Work queues" description="Open the operational queue that matches your current responsibilities." />{loading && !queryError ? <Text size="sm" c="dimmed">Loading operational queues…</Text> : <SimpleGrid cols={{ base: 1, md: 2 }}>{canReceive && <QueueCard title="Plan Permit receiving" description="Receive scheduled hard-copy submissions and evaluate received applications." count={scheduled + receiving} loading={scheduledQuery.isLoading || receivingQuery.isLoading} route="/app/receiving" icon={ClipboardText} />}{canReviewProfessionals && <QueueCard title="Professional verification" description="Review registration details, PRC ID, and PTR submissions before verification." count={professionalReviews} loading={professionalsQuery.isLoading} route="/app/professionals/verification" icon={UserCheck} />}{canInspect && <QueueCard title="Inspection handoff" description="Applications accepted by receiving and ready for the inspection workflow." count={forInspection} loading={inspectionQuery.isLoading} route="/app/inspections" icon={FileText} actionLabel="Open inspections" />}</SimpleGrid>}</Stack>
     {!loading && !queryError && canReceive && scheduled === 0 && receiving === 0 && canReviewProfessionals && professionalReviews === 0 && canInspect && forInspection === 0 && <Card withBorder><EmptyState title="All operational queues are clear" description="There are no pending receiving, professional verification, or inspection handoff items requiring attention." /></Card>}
-    {administrationActions.length > 0 && <Card className="obo-action-panel" withBorder><Group justify="space-between" align="center" wrap="wrap"><Group align="flex-start" gap="md"><ThemeIcon size={42} radius="md" variant="light"><GearSix {...iconProps} /></ThemeIcon><BoxTitle title="Administration" description="Manage users and authorization separately from operational work queues." /></Group><Group>{administrationActions.map((action) => <Button key={action.key} component={Link} to={action.route} variant="default" leftSection={action.key === 'users' ? <UsersThree size={18} aria-hidden /> : <GearSix size={18} aria-hidden />}>{action.label}</Button>)}</Group></Group></Card>}
   </Stack>
 }
