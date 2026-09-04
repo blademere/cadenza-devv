@@ -6,6 +6,7 @@ const {
   getPrismaClient,
   disconnectPrisma,
 } = require('../apps/server/src/infrastructure/database/prisma')
+const { seedModelCoverage } = require('./seed-model-coverage')
 const prisma = getPrismaClient()
 
 // Canonical application authorization catalog. Modules and permissions are
@@ -110,9 +111,6 @@ async function seed() {
     admin: await prisma.role.upsert({ where: { name: 'admin' }, update: { description: 'Platform administrator with full authorization administration access.' }, create: { name: 'admin', description: 'Platform administrator with full authorization administration access.' } }),
   }
 
-  // Role permissions are managed by the Admin Web. Seeding creates the
-  // canonical catalog and only ensures the declared baseline assignments exist;
-  // it must never grant every catalog permission back to admin.
   for (const [roleName, keys] of Object.entries(rolePermissions)) for (const key of keys) {
     const permission = permissionRecords.get(key); if (!permission) throw new Error(`Unknown permission declared for ${roleName}: ${key}`)
     await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: roles[roleName].id, permissionId: permission.id } }, update: {}, create: { roleId: roles[roleName].id, permissionId: permission.id } })
@@ -123,6 +121,8 @@ async function seed() {
   await seedOboWorkflow(); await seedOboNotifications()
   const adminEmail = process.env.SEED_ADMIN_EMAIL; const adminPassword = process.env.SEED_ADMIN_PASSWORD
   if (adminEmail && adminPassword) { const passwordHash = await bcrypt.hash(adminPassword, 12); await prisma.user.upsert({ where: { email: adminEmail }, update: { roleId: roles.admin.id, isActive: true }, create: { email: adminEmail, passwordHash, roleId: roles.admin.id, isActive: true } }); console.log(`Development admin ensured: ${adminEmail}`) } else console.log('No development admin configured; set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD to create one.')
-  console.log(`Seeded ${moduleRecords.size} canonical modules, ${permissionRecords.size} canonical permissions, baseline role assignments, OBO plan permit type, appointment type, workflow, notification templates/rules, and application roles.`)
+
+  await seedModelCoverage(prisma)
+  console.log(`Seeded ${moduleRecords.size} canonical modules, ${permissionRecords.size} canonical permissions, baseline role assignments, OBO plan permit type, appointment type, workflow, notification templates/rules, and verified complete Prisma model coverage.`)
 }
 seed().catch((error) => { console.error(`Database seed failed: ${error.message}`); process.exitCode = 1 }).finally(async () => { await disconnectPrisma() })
