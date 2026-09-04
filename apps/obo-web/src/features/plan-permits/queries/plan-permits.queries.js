@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { planPermitsApi } from '../api/plan-permits.api'
 
 export const planPermitApplicationsQueryKey = ['obo', 'plan-permits', 'applications']
@@ -37,5 +37,44 @@ export function usePermitTypeForm(id, options = {}) {
     queryFn: () => planPermitsApi.getPermitTypeForm(id),
     enabled: Boolean(id) && options.enabled !== false,
     ...options,
+  })
+}
+
+export function useCreatePlanPermitApplication() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: planPermitsApi.createApplication,
+    onSuccess: (application) => {
+      queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey })
+      if (application?.id) {
+        queryClient.setQueryData(planPermitApplicationQueryKey(application.id), application)
+      }
+    },
+  })
+}
+
+export function useUpdatePlanPermitDraft() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }) => planPermitsApi.updateDraft(id, data),
+    onSuccess: (application) => {
+      queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey })
+      if (application?.id) {
+        queryClient.setQueryData(planPermitApplicationQueryKey(application.id), application)
+      }
+    },
+  })
+}
+
+export function useSubmitPlanPermitApplication() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: planPermitsApi.submitApplication,
+    onSuccess: (application) => {
+      queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey })
+      if (application?.id) {
+        queryClient.setQueryData(planPermitApplicationQueryKey(application.id), application)
+      }
+    },
   })
 }
