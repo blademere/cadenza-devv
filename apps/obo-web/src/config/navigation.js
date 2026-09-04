@@ -1,9 +1,14 @@
 import { createElement } from 'react'
 import {
-  SquaresFour,
-  UsersThree,
+  Archive,
+  ClipboardText,
+  FileText,
+  MagnifyingGlass,
   ShieldCheck,
+  UserCheck,
+  UsersThree,
 } from '@phosphor-icons/react'
+import { permissions } from './permissions'
 
 const iconProps = {
   size: 20,
@@ -11,9 +16,17 @@ const iconProps = {
   'aria-hidden': true,
 }
 
-const DashboardIcon = () => createElement(SquaresFour, iconProps)
-const UsersIcon = () => createElement(UsersThree, iconProps)
-const RolesIcon = () => createElement(ShieldCheck, iconProps)
+const createIcon = (Icon) => () => createElement(Icon, iconProps)
+
+const DashboardIcon = createIcon(Archive)
+const ApplicationsIcon = createIcon(FileText)
+const PermitTypesIcon = createIcon(ClipboardText)
+const ReceivingIcon = createIcon(Archive)
+const ProfessionalsIcon = createIcon(UsersThree)
+const VerificationIcon = createIcon(UserCheck)
+const InspectionsIcon = createIcon(MagnifyingGlass)
+const UsersIcon = createIcon(UsersThree)
+const RolesIcon = createIcon(ShieldCheck)
 
 export const navigation = Object.freeze([
   {
@@ -23,8 +36,62 @@ export const navigation = Object.freeze([
       {
         key: 'dashboard',
         name: 'Dashboard',
-        route: '/dashboard',
+        route: '/app/dashboard',
         icon: DashboardIcon,
+      },
+    ],
+  },
+  {
+    key: 'plan-permits',
+    name: 'Plan Permits',
+    items: [
+      {
+        key: 'applications',
+        name: 'Applications',
+        route: '/app/applications',
+        requiredPermissions: [permissions.planPermits.read],
+        icon: ApplicationsIcon,
+      },
+      {
+        key: 'permit-types',
+        name: 'Permit Types',
+        route: '/app/permit-types',
+        requiredPermissions: [permissions.planPermits.read],
+        icon: PermitTypesIcon,
+      },
+    ],
+  },
+  {
+    key: 'operations',
+    name: 'Operations',
+    items: [
+      {
+        key: 'receiving',
+        name: 'Receiving',
+        route: '/app/receiving',
+        requiredPermissions: [permissions.planPermits.receive],
+        icon: ReceivingIcon,
+      },
+      {
+        key: 'professionals',
+        name: 'Professionals',
+        route: '/app/professionals',
+        requiredPermissions: [permissions.professionals.read],
+        icon: ProfessionalsIcon,
+      },
+      {
+        key: 'professional-verification',
+        name: 'Professional Verification',
+        route: '/app/professionals/verification',
+        requiredPermissions: [permissions.professionals.review],
+        icon: VerificationIcon,
+      },
+      {
+        key: 'inspections',
+        name: 'Inspections',
+        route: '/app/inspections',
+        requiredPermissions: [permissions.planPermits.inspect],
+        icon: InspectionsIcon,
       },
     ],
   },
@@ -35,15 +102,15 @@ export const navigation = Object.freeze([
       {
         key: 'users',
         name: 'Users',
-        route: '/users',
-        requiredPermissions: ['users:manage'],
+        route: '/app/users',
+        requiredPermissions: [permissions.users.manage],
         icon: UsersIcon,
       },
       {
         key: 'roles',
         name: 'Roles & Permissions',
-        route: '/roles',
-        requiredPermissions: ['authorization:manage'],
+        route: '/app/roles',
+        requiredPermissions: [permissions.authorization.manage],
         icon: RolesIcon,
       },
     ],

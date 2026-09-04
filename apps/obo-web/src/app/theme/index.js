@@ -1,4 +1,4 @@
-export const adminTheme = {
+export const oboTheme = {
   primaryColor: 'indigo',
   primaryShade: { light: 6, dark: 5 },
   fontFamily: 'Inter, Roboto, Helvetica, Arial, sans-serif',

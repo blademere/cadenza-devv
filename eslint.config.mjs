@@ -4,6 +4,9 @@ import { defineConfig } from 'eslint/config'
 
 export function createReactConfig({ reactHooks, reactRefresh }) {
   return [
+    {
+      ignores: ['**/dist/**', '**/coverage/**'],
+    },
     js.configs.recommended,
     reactHooks.configs.flat.recommended,
     reactRefresh.configs.vite,
@@ -21,6 +24,9 @@ export function createReactConfig({ reactHooks, reactRefresh }) {
 }
 
 export default defineConfig([
+  {
+    ignores: ['**/dist/**', '**/coverage/**'],
+  },
   {
     files: ['**/*.{js,mjs,cjs,jsx}'],
     plugins: { js },

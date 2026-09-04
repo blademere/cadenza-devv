@@ -3,15 +3,28 @@ import {
   NotFoundError,
   ValidationError,
 } from '../../common/errors/appError.js'
+import { cache } from '../../common/middleware/cache.js'
 import repository from './authorization-admin.repository.js'
 import { clearRolePermissionCache } from '../../platform/authorization/access-control.service.js'
+
+const AUTHORIZATION_MODULES_CACHE_KEY = 'authorization:modules'
+const AUTHORIZATION_ROLES_CACHE_KEY = 'authorization:roles'
+
+const invalidateAuthorizationCache = async (...keys) => {
+  await Promise.all(keys.map((key) => cache.invalidate(key)))
+}
 
 const listModules = () => repository.listModules()
 
 const createModule = async ({ key, name, description }) => {
   const existing = await repository.findModuleByKey(key)
   if (existing) throw new ConflictError(`Module '${key}' already exists.`)
-  return repository.createModule({ key, name, description })
+  const module = await repository.createModule({ key, name, description })
+  await invalidateAuthorizationCache(
+    AUTHORIZATION_MODULES_CACHE_KEY,
+    AUTHORIZATION_ROLES_CACHE_KEY
+  )
+  return module
 }
 
 const addPermission = async ({ moduleId, action }) => {
@@ -26,7 +39,12 @@ const addPermission = async ({ moduleId, action }) => {
       `Permission '${action}' already exists for this module.`
     )
 
-  return repository.createPermission({ moduleId, action })
+  const permission = await repository.createPermission({ moduleId, action })
+  await invalidateAuthorizationCache(
+    AUTHORIZATION_MODULES_CACHE_KEY,
+    AUTHORIZATION_ROLES_CACHE_KEY
+  )
+  return permission
 }
 
 const setModuleActive = async ({ moduleId, isActive }) => {
@@ -42,10 +60,14 @@ const setModuleActive = async ({ moduleId, isActive }) => {
   await Promise.all(
     affectedRoles.map((role) => clearRolePermissionCache(role.id))
   )
+  await invalidateAuthorizationCache(
+    AUTHORIZATION_MODULES_CACHE_KEY,
+    AUTHORIZATION_ROLES_CACHE_KEY
+  )
   return updated
 }
 
-const listRoles = async () => repository.listRoles()
+const listRoles = () => repository.listRoles()
 
 const replaceRolePermissions = async ({
   roleId,
@@ -114,10 +136,13 @@ const replaceRolePermissions = async ({
     uniquePermissionIds
   )
   await clearRolePermissionCache(roleId)
+  await invalidateAuthorizationCache(AUTHORIZATION_ROLES_CACHE_KEY)
   return updated
 }
 
 export {
+  AUTHORIZATION_MODULES_CACHE_KEY,
+  AUTHORIZATION_ROLES_CACHE_KEY,
   listModules,
   createModule,
   addPermission,

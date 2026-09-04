@@ -28,7 +28,8 @@
     {
       "plugin": "@nx/vitest",
       "include": [
-        "apps/api/**"
+        "apps/api/**",
+        "apps/obo-web/**"
       ],
       "options": {
         "testTargetName": "test"

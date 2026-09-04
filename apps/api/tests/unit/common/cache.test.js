@@ -36,6 +36,7 @@ describe('generic API cache middleware', () => {
     redis.get.mockResolvedValue(JSON.stringify({
       statusCode: 200,
       contentType: 'application/json; charset=utf-8',
+      etag: 'W/"roles-123"',
       body: { success: true, data: { id: 1 } },
     }))
 
@@ -50,6 +51,7 @@ describe('generic API cache middleware', () => {
     await cache({ key: () => 'users:1' })({ method: 'GET', originalUrl: '/users/1' }, res, next)
 
     expect(next).not.toHaveBeenCalled()
+    expect(res.set).toHaveBeenCalledWith('ETag', 'W/"roles-123"')
     expect(res.set).toHaveBeenCalledWith('X-Cache', 'HIT')
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.send).toHaveBeenCalledWith({ success: true, data: { id: 1 } })

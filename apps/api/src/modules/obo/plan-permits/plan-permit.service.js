@@ -121,7 +121,12 @@ const getMine = async ({ id, userId }) => {
 }
 
 const listMine = async ({ userId }) => {
-  const applications = await repository.listByClient((await getClientPerson(userId)).id)
+  const person = await repository.findPersonByUserId(userId)
+  if (!person) {
+    return []
+  }
+
+  const applications = await repository.listByClient(person.id)
   return Promise.all(applications.map(withWorkflowState))
 }
 

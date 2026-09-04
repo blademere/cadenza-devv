@@ -14,27 +14,6 @@ const mapAppointmentType = (type) => {
   }
 }
 
-const mapAppointment = (appointment) => {
-  if (!appointment) return null
-
-  return {
-    id: appointment.id,
-    referenceNumber: appointment.referenceNumber,
-    appointmentTypeId: appointment.appointmentTypeId,
-    slotId: appointment.slotId,
-    userId: appointment.userId,
-    status: appointment.status,
-    metadata: appointment.metadata ?? null,
-    notes: appointment.notes ?? null,
-    cancelledAt: appointment.cancelledAt ?? null,
-    checkedInAt: appointment.checkedInAt ?? null,
-    completedAt: appointment.completedAt ?? null,
-    noShowAt: appointment.noShowAt ?? null,
-    createdAt: appointment.createdAt,
-    updatedAt: appointment.updatedAt,
-  }
-}
-
 const mapAppointmentSlot = (slot) => {
   if (!slot) return null
 
@@ -68,6 +47,32 @@ const mapAvailabilitySchedule = (schedule) => {
     createdAt: schedule.createdAt,
     updatedAt: schedule.updatedAt,
   }
+}
+
+const mapAppointment = (appointment) => {
+  if (!appointment) return null
+
+  const mapped = {
+    id: appointment.id,
+    referenceNumber: appointment.referenceNumber,
+    appointmentTypeId: appointment.appointmentTypeId,
+    slotId: appointment.slotId,
+    userId: appointment.userId,
+    status: appointment.status,
+    metadata: appointment.metadata ?? null,
+    notes: appointment.notes ?? null,
+    cancelledAt: appointment.cancelledAt ?? null,
+    checkedInAt: appointment.checkedInAt ?? null,
+    completedAt: appointment.completedAt ?? null,
+    noShowAt: appointment.noShowAt ?? null,
+    createdAt: appointment.createdAt,
+    updatedAt: appointment.updatedAt,
+  }
+
+  if (appointment.appointmentType) mapped.appointmentType = mapAppointmentType(appointment.appointmentType)
+  if (appointment.slot) mapped.slot = mapAppointmentSlot(appointment.slot)
+
+  return mapped
 }
 
 export {

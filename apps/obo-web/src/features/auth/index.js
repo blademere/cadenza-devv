@@ -1,1 +1,2 @@
-// Authentication feature boundary. Add auth-specific UI, hooks, and API modules here.
+export { AuthProvider, useAuth } from './components/AuthProvider'
+export { authApi, getOAuthLinkUrl, getOAuthLoginUrl } from './api/auth.api'

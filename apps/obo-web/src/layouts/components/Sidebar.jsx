@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { Avatar, Box, Button, Divider, Group, NavLink as MantineNavLink, Stack, Text, ThemeIcon } from '@mantine/core'
+import { branding } from '../../config/branding'
 
 export default function Sidebar({ navigation = [], navigationLoading = false, user, role, onNavigate, onLogout }) {
   const location = useLocation()
@@ -11,11 +12,11 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
       <Box px="lg" py="lg">
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon size={38} radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet', deg: 110 }}>
-            <Text fw={800} size="sm">EA</Text>
+            <Text fw={800} size="sm">{branding.shortName}</Text>
           </ThemeIcon>
           <Box style={{ minWidth: 0 }}>
-            <Text fw={750} lh={1.2}>Express App</Text>
-            <Text size="xs" c="dimmed" mt={2}>OBO Workspace</Text>
+            <Text fw={750} lh={1.2}>{branding.name}</Text>
+            <Text size="xs" c="dimmed" mt={2}>{branding.workspaceName}</Text>
           </Box>
         </Group>
       </Box>
