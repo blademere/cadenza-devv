@@ -13,7 +13,12 @@ export const professionalsApi = {
   },
 
   async getMine() {
-    return unwrap(await apiClient.get('/obo/professionals/mine'))
+    try {
+      return unwrap(await apiClient.get('/obo/professionals/mine'))
+    } catch (error) {
+      if (error?.status === 404) return null
+      throw error
+    }
   },
 
   async applyVerification(data) {
