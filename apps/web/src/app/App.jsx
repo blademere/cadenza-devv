@@ -1,5 +1,5 @@
 import { Link, Outlet } from 'react-router-dom'
-import { useAuth } from '../features/auth/AuthProvider'
+import { useAuth } from '../features/auth/components/AuthProvider'
 
 export default function App() {
   const { isAuthenticated, user, logout, isLoading } = useAuth()
@@ -13,7 +13,9 @@ export default function App() {
           {!isLoading && isAuthenticated && (
             <span>
               {user?.email ? `Signed in as ${user.email}` : 'Signed in'}{' '}
-              <button type="button" onClick={logout}>Sign out</button>
+              <button type="button" onClick={logout}>
+                Sign out
+              </button>
             </span>
           )}
         </nav>

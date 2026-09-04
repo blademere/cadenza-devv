@@ -20,7 +20,9 @@
         "vitest.explorer",
         "github.vscode-github-actions",
         "shd101wyy.markdown-preview-enhanced",
-        "nrwl.angular-console"
+        "nrwl.angular-console",
+        "rodrigovallades.es7-react-js-snippets",
+        "usernamehw.errorlens"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",

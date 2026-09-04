@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../features/auth/AuthProvider'
+import { useAuth } from '../features/auth/components/AuthProvider'
 import { getOAuthLoginUrl } from '../features/auth/auth.api'
 import './LoginPage.css'
 
@@ -43,11 +43,16 @@ export default function LoginPage() {
     <main className="login-page">
       <section className="login-shell" aria-label="Sign in">
         <aside className="login-brand-panel">
-          <div className="login-brand-mark" aria-hidden="true">EA</div>
+          <div className="login-brand-mark" aria-hidden="true">
+            EA
+          </div>
 
           <div className="login-brand-copy">
             <h1>Welcome back.</h1>
-            <p>Sign in to continue to your account and pick up where you left off.</p>
+            <p>
+              Sign in to continue to your account and pick up where you left
+              off.
+            </p>
           </div>
 
           <div className="login-brand-footer">Express App</div>
@@ -66,7 +71,9 @@ export default function LoginPage() {
               onClick={() => handleOAuthLogin('google')}
               disabled={isBusy}
             >
-              <span className="login-oauth-icon google" aria-hidden="true">G</span>
+              <span className="login-oauth-icon google" aria-hidden="true">
+                G
+              </span>
               Continue with Google
             </button>
             <button
@@ -75,12 +82,16 @@ export default function LoginPage() {
               onClick={() => handleOAuthLogin('facebook')}
               disabled={isBusy}
             >
-              <span className="login-oauth-icon facebook" aria-hidden="true">f</span>
+              <span className="login-oauth-icon facebook" aria-hidden="true">
+                f
+              </span>
               Continue with Facebook
             </button>
           </div>
 
-          <div className="login-divider" role="separator"><span>or continue with email</span></div>
+          <div className="login-divider" role="separator">
+            <span>or continue with email</span>
+          </div>
 
           <form className="login-form" onSubmit={handleSubmit} noValidate>
             <div className="login-field">
@@ -110,7 +121,11 @@ export default function LoginPage() {
               />
             </div>
 
-            {error && <p className="login-error" role="alert">{error}</p>}
+            {error && (
+              <p className="login-error" role="alert">
+                {error}
+              </p>
+            )}
 
             <button className="login-submit" type="submit" disabled={isBusy}>
               {isSubmitting ? 'Signing in…' : 'Sign in'}
