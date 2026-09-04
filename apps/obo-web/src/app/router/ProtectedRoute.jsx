@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { Box, Skeleton, Stack } from '@mantine/core'
-import { useAuth } from '../../features/auth/AuthProvider'
+import { useAuth } from '../../features/auth/components/AuthProvider'
 
 export default function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth()
