@@ -9,11 +9,16 @@ import * as validation from './receiving.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-receiving', required: true })
-const resource = (action) => authorizeResource({ resource: 'obo_plan_permits', action, loadResource: repository.findApplication, getResourceId: (req) => req.params.id })
+const authorizeReceivingApplication = authorizeResource({
+  resource: 'obo_plan_permits',
+  action: 'receive',
+  loadResource: repository.findApplication,
+  getResourceId: (req) => req.params.id,
+})
 
 router.get('/applications', authenticate, authorize('obo_plan_permits', 'receive'), validate(validation.listValidator), asyncHandler(controller.list))
-router.get('/applications/:id', authenticate, resource('receive'), validate(validation.applicationParamsValidator), asyncHandler(controller.get))
-router.post('/applications/:id/receive', authenticate, resource('receive'), requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.receive))
-router.post('/applications/:id/decision', authenticate, resource('receive'), requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
+router.get('/applications/:id', authenticate, authorizeReceivingApplication, validate(validation.applicationParamsValidator), asyncHandler(controller.get))
+router.post('/applications/:id/receive', authenticate, authorizeReceivingApplication, requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.receive))
+router.post('/applications/:id/decision', authenticate, authorizeReceivingApplication, requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
 
 export default router
