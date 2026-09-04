@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, ClipboardText, FileSearch, GearSix, UserCheck, UsersThree } from '@phosphor-icons/react'
+import { ArrowRight, ClipboardText, FileText, GearSix, UserCheck, UsersThree } from '@phosphor-icons/react'
 import { Alert, Badge, Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon, Title } from '@mantine/core'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useCan } from '../features/authorization/useCan'
@@ -77,8 +77,8 @@ export default function DashboardPage() {
 
       <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }}>
         <StatCard label="Submission scheduled" value={scheduledQuery.isLoading ? '—' : scheduled} description="Awaiting hard-copy receiving" icon={ClipboardText} />
-        <StatCard label="Receiving" value={receivingQuery.isLoading ? '—' : receiving} description="Applications in receiving" icon={FileSearch} />
-        <StatCard label="For inspection" value={inspectionQuery.isLoading ? '—' : forInspection} description="Accepted from receiving" icon={FileSearch} />
+        <StatCard label="Receiving" value={receivingQuery.isLoading ? '—' : receiving} description="Applications in receiving" icon={FileText} />
+        <StatCard label="For inspection" value={inspectionQuery.isLoading ? '—' : forInspection} description="Accepted from receiving" icon={FileText} />
         <StatCard label="Professional reviews" value={professionalsQuery.isLoading ? '—' : professionalReviews} description="Verification decisions pending" icon={UserCheck} />
       </SimpleGrid>
 
@@ -88,7 +88,7 @@ export default function DashboardPage() {
           <SimpleGrid cols={{ base: 1, md: 2 }}>
             {canReceive && <QueueCard title="Plan Permit receiving" description="Receive scheduled hard-copy submissions and evaluate received applications." count={scheduled + receiving} loading={scheduledQuery.isLoading || receivingQuery.isLoading} route="/app/receiving" icon={ClipboardText} />}
             {canReviewProfessionals && <QueueCard title="Professional verification" description="Review registration details, PRC ID, and PTR submissions before verification." count={professionalReviews} loading={professionalsQuery.isLoading} route="/app/professionals/verification" icon={UserCheck} />}
-            {canInspect && <QueueCard title="Inspection handoff" description="Applications accepted by receiving and ready for the inspection workflow." count={forInspection} loading={inspectionQuery.isLoading} route="/app/inspections" icon={FileSearch} actionLabel="Open inspections" />}
+            {canInspect && <QueueCard title="Inspection handoff" description="Applications accepted by receiving and ready for the inspection workflow." count={forInspection} loading={inspectionQuery.isLoading} route="/app/inspections" icon={FileText} actionLabel="Open inspections" />}
           </SimpleGrid>
         )}
       </Stack>
