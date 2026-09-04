@@ -43,7 +43,11 @@ router.get(
   '/modules',
   authenticate,
   manageAuthorization,
-  cache({ key: () => AUTHORIZATION_MODULES_CACHE_KEY, ttlSeconds: 300 }),
+  cache({
+    key: () => AUTHORIZATION_MODULES_CACHE_KEY,
+    ttlSeconds: 300,
+    public: true,
+  }),
   asyncHandler(listModulesController)
 )
 router.post('/modules', authenticate, manageAuthorization, requireIdempotency, validate(createModuleValidator), asyncHandler(createModuleController))
@@ -53,7 +57,11 @@ router.get(
   '/roles',
   authenticate,
   manageAuthorization,
-  cache({ key: () => AUTHORIZATION_ROLES_CACHE_KEY, ttlSeconds: 300 }),
+  cache({
+    key: () => AUTHORIZATION_ROLES_CACHE_KEY,
+    ttlSeconds: 300,
+    public: true,
+  }),
   asyncHandler(listRolesController)
 )
 router.put('/roles/:roleId/permissions', authenticate, authorizeRoleResource, requireIdempotency, validate(replaceRolePermissionsValidator), asyncHandler(replaceRolePermissionsController))
