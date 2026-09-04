@@ -4,6 +4,10 @@ const unwrap = (response) => response?.data ?? response
 
 export const receivingApi = {
   async listApplications(status) {
+    if (status !== undefined && typeof status !== 'string') {
+      throw new TypeError('Receiving application status must be a string')
+    }
+
     const query = status ? `?status=${encodeURIComponent(status)}` : ''
     return unwrap(await apiClient.get(`/obo/receiving/applications${query}`))
   },
