@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, ClipboardText, FileText, GearSix, UserCheck, UsersThree } from '@phosphor-icons/react'
-import { Alert, Badge, Box, Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon, Title } from '@mantine/core'
+import { Alert, Badge, Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon, Title } from '@mantine/core'
 import { useAuth } from '../features/auth/components/AuthProvider'
 import { useCan } from '../features/authorization/useCan'
 import { permissions } from '../config/permissions'
