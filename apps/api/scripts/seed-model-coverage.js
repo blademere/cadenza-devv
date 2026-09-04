@@ -16,6 +16,15 @@ function getModelMeta(modelName) {
   return Prisma.dmmf.datamodel.models.find((model) => model.name === modelName)
 }
 
+function isRequired(field) {
+  // Prisma runtime DMMF versions may omit isRequired for required fields.
+  return field.isRequired !== false
+}
+
+function hasDefault(field) {
+  return field.hasDefaultValue === true
+}
+
 function getUniqueField(model) {
   return model.fields.find((field) => field.isId || field.isUnique)
 }
@@ -56,7 +65,9 @@ async function ensureModel(prisma, modelName, state, depth = 0) {
 
   const delegate = prisma[modelDelegateName(modelName)]
   const model = getModelMeta(modelName)
-  if (!delegate || !model) throw new Error(`Prisma model '${modelName}' is not available to the seed client`)
+  if (!delegate || !model) {
+    throw new Error(`Prisma model '${modelName}' is not available to the seed client`)
+  }
 
   const existing = await delegate.findFirst()
   if (existing) {
@@ -69,34 +80,69 @@ async function ensureModel(prisma, modelName, state, depth = 0) {
   }
   state.inProgress.add(modelName)
 
-  const data = {}
-  const counter = state.counter++
+  try {
+    const data = {}
+    const counter = state.counter++
 
-  for (const field of model.fields) {
-    if (field.kind === 'object') {
-      if (!field.isRequired || !field.relationFromFields?.length) continue
-      const relatedModel = field.type
-      const related = await ensureModel(prisma, relatedModel, state, depth + 1)
-      const uniqueField = getUniqueField(getModelMeta(relatedModel))
-      if (!uniqueField) throw new Error(`No unique field available for required relation ${modelName}.${field.name}`)
-      data[field.name] = { connect: { [uniqueField.name]: related[uniqueField.name] } }
-      continue
+    // Foreign-key scalar fields are populated from their relation metadata
+    // below. Do not generate placeholder values for them.
+    const relationScalarFields = new Set(
+      model.fields
+        .filter((field) => field.kind === 'object' && field.relationFromFields?.length)
+        .flatMap((field) => field.relationFromFields),
+    )
+
+    for (const field of model.fields) {
+      if (field.kind === 'object') continue
+      if (!isRequired(field) || hasDefault(field) || field.isUpdatedAt) continue
+      if (relationScalarFields.has(field.name)) continue
+
+      const value = field.kind === 'enum'
+        ? enumValue(field)
+        : scalarValue(field, modelName, counter)
+
+      if (value !== undefined) data[field.name] = value
     }
 
-    if (!field.isRequired || field.hasDefaultValue || field.isUpdatedAt) continue
-    if (field.relationName) continue
+    for (const field of model.fields) {
+      if (field.kind !== 'object' || !isRequired(field)) continue
 
-    const value = field.kind === 'enum'
-      ? enumValue(field)
-      : scalarValue(field, modelName, counter)
+      const relatedModel = field.type
+      const related = await ensureModel(prisma, relatedModel, state, depth + 1)
 
-    if (value !== undefined) data[field.name] = value
+      if (field.relationFromFields?.length) {
+        const relationToFields = field.relationToFields || []
+        if (relationToFields.length !== field.relationFromFields.length) {
+          throw new Error(`Relation metadata mismatch for ${modelName}.${field.name}`)
+        }
+
+        for (let index = 0; index < field.relationFromFields.length; index += 1) {
+          const fromField = field.relationFromFields[index]
+          const toField = relationToFields[index]
+          if (related[toField] === undefined) {
+            throw new Error(`Related field ${relatedModel}.${toField} is unavailable for ${modelName}.${fromField}`)
+          }
+          data[fromField] = related[toField]
+        }
+        continue
+      }
+
+      // Some required relations expose no FK scalar in the current model's
+      // DMMF. These require a nested connect using a single unique selector.
+      const relatedMeta = getModelMeta(relatedModel)
+      const uniqueField = relatedMeta && getUniqueField(relatedMeta)
+      if (!uniqueField || related[uniqueField.name] === undefined) {
+        throw new Error(`No single unique field available for required relation ${modelName}.${field.name}`)
+      }
+      data[field.name] = { connect: { [uniqueField.name]: related[uniqueField.name] } }
+    }
+
+    const record = await delegate.create({ data })
+    state.records.set(modelName, record)
+    return record
+  } finally {
+    state.inProgress.delete(modelName)
   }
-
-  const record = await delegate.create({ data })
-  state.inProgress.delete(modelName)
-  state.records.set(modelName, record)
-  return record
 }
 
 async function seedModelCoverage(prisma) {
