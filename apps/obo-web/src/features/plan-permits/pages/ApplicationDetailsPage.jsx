@@ -22,6 +22,7 @@ export default function ApplicationDetailsPage() {
   const canSchedule = application?.status === 'READY_FOR_SUBMISSION' && !submissionAppointment
   const isDraft = application?.status === 'DRAFT'
   const isDeclined = application?.status === 'DECLINED'
+  const isForInspection = application?.status === 'FOR_INSPECTION'
   const latestDecision = decisions[0]
 
   const handleSubmit = async () => {
@@ -37,7 +38,7 @@ export default function ApplicationDetailsPage() {
     <PageHeader
       eyebrow="Plan Permits / Application"
       title={application.referenceNumber ?? 'Application'}
-      description={application.permitType?.name ?? 'Plan permit application'}
+      description={isForInspection ? 'Hard-copy receiving is complete. This application is now in the inspection phase.' : isDeclined ? 'This application was declined and cannot continue through the current workflow.' : application.permitType?.name ?? 'Plan permit application'}
       actions={
         <Group>
           <Button component={Link} to="/app/applications" variant="default">Back</Button>
@@ -55,6 +56,7 @@ export default function ApplicationDetailsPage() {
       }
     />
     {submitMutation.error && <Alert color="red" title="Unable to submit application">{submitMutation.error.message ?? 'The application could not be submitted.'}</Alert>}
+    {isForInspection && <Alert color="blue" title="Application ready for inspection">The hard-copy submission was accepted. The receiving phase is complete and no further appointment or receiving action is available.</Alert>}
     {isDeclined && <Alert color="red" title="Application declined">
       <Stack gap={4}>
         <Text size="sm">This application cannot continue through the current workflow. A new application is required.</Text>
@@ -74,6 +76,8 @@ export default function ApplicationDetailsPage() {
         <Box><Text size="xs" c="dimmed">Submission appointment</Text><Text size="sm" fw={600}>{submissionAppointment ? 'Scheduled' : 'Not scheduled'}</Text></Box>
       </Group>
     </Box>
+    {(isForInspection || isDeclined) && latestDecision && <Box className="obo-panel" p="lg"><Text fw={700}>Receiving outcome</Text><Group mt="md" justify="space-between"><Group gap="sm"><StatusChip status={latestDecision.decision ?? latestDecision.status} label={latestDecision.decision ?? latestDecision.status} /><Text size="sm" fw={600}>{latestDecision.reason ?? (isForInspection ? 'Accepted for inspection' : 'Application declined')}</Text></Group><Text size="xs" c="dimmed">{formatDate(latestDecision.decidedAt)}</Text></Group></Box>}
+    {isDeclined && <Box className="obo-panel" p="lg"><Text fw={700}>Start a new application</Text><Text size="sm" c="dimmed" mt={3}>The declined application cannot be edited, resubmitted, or scheduled. Start a new application to begin again.</Text><PermissionGate permission={permissions.planPermits.create}><Button mt="md" component={Link} to="/app/applications/new">Start New Application</Button></PermissionGate></Box>}
     <Box className="obo-panel" p="lg">
       <Text fw={700}>Application history</Text>
       <Text size="sm" c="dimmed" mt={3}>Recorded receiving decisions and workflow outcomes.</Text>
