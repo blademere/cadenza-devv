@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { professionalsApi } from '../api/professionals.api'
 
 export const verifiedProfessionalsQueryKey = ['obo', 'professionals', 'verified']
@@ -26,20 +26,5 @@ export function useMyProfessional(options = {}) {
     queryKey: professionalMineQueryKey,
     queryFn: professionalsApi.getMine,
     ...options,
-  })
-}
-
-export function useDecideProfessionalVerification(options = {}) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, decision, reason }) => professionalsApi.decideVerification(id, decision, reason),
-    ...options,
-    onSuccess: async (data, variables, context) => {
-      await queryClient.invalidateQueries({ queryKey: pendingProfessionalsQueryKey })
-      await queryClient.invalidateQueries({ queryKey: verifiedProfessionalsQueryKey })
-      await queryClient.invalidateQueries({ queryKey: professionalMineQueryKey })
-      await options.onSuccess?.(data, variables, context)
-    },
   })
 }
