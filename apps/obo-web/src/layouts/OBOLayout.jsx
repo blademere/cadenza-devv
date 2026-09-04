@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { AppShell, Box, Drawer, useMatches } from '@mantine/core'
-import { useAuth } from '../features/auth/AuthProvider'
+import { useAuth } from '../features/auth/components/AuthProvider'
 import { useAuthorization } from '../features/authorization/AuthorizationProvider'
 import { navigation, normalizeNavigation } from '../config/navigation'
 import { layout } from '../config/layout'
