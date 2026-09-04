@@ -27,6 +27,7 @@ const parseEntry = (value) => {
 }
 const replay = (res, entry) => {
   if (entry.contentType) res.set('Content-Type', entry.contentType)
+  if (entry.etag) res.set('ETag', entry.etag)
   res.set('X-Cache', 'HIT')
   return res.status(entry.statusCode).send(entry.body)
 }
@@ -68,7 +69,12 @@ const createCache = ({ connectRedis = defaultConnectRedis } = {}) => {
         res.json = (body) => { responseBody = body; responseCaptured = true; return originalJson(body) }
         res.once('finish', () => {
           if (!responseCaptured || !cacheableStatusCodes.has(res.statusCode)) return
-          const entry = JSON.stringify({ statusCode: res.statusCode, contentType: res.get('Content-Type') || null, body: responseBody })
+          const entry = JSON.stringify({
+            statusCode: res.statusCode,
+            contentType: res.get('Content-Type') || null,
+            etag: res.get('ETag') || null,
+            body: responseBody,
+          })
           redis.set(redisKey, entry, { EX: ttlSeconds }).catch(() => undefined)
         })
         res.set('X-Cache', 'MISS')
