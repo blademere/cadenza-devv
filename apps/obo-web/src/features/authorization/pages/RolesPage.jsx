@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Alert, Badge, Box, Button, Checkbox, Divider, Group, Modal, ScrollArea, SimpleGrid, Stack, Text } from '@mantine/core'
 import { useAuthorizationModules, useAuthorizationRoles } from '../queries/authorization.queries'
 import { useReplaceRolePermissions } from '../mutations/authorization.mutations'
@@ -23,7 +23,8 @@ export default function RolesPage() {
 
   const modules = useMemo(() => unwrap(modulesQuery.data) ?? [], [modulesQuery.data])
   const roles = useMemo(() => unwrap(rolesQuery.data) ?? [], [rolesQuery.data])
-  const activeRole = roles.find((role) => String(role.id) === String(activeRoleId)) ?? null
+  const resolvedActiveRoleId = activeRoleId ?? roles[0]?.id ?? null
+  const activeRole = roles.find((role) => String(role.id) === String(resolvedActiveRoleId)) ?? null
   const allPermissions = useMemo(() => modules.flatMap((module) => (module.permissions ?? []).map((permission) => ({ ...permission, module }))), [modules])
   const groupedPermissions = useMemo(() => modules.map((module) => ({ module, permissions: allPermissions.filter((permission) => permission.module.id === module.id) })).filter((group) => group.permissions.length), [modules, allPermissions])
   const dirty = JSON.stringify([...draft].sort()) !== JSON.stringify([...savedPermissions].sort())
@@ -33,10 +34,6 @@ export default function RolesPage() {
   const refreshAuthorization = useCallback(async () => {
     await load()
   }, [load])
-
-  useEffect(() => {
-    if (activeRoleId == null && roles.length) setActiveRoleId(roles[0].id)
-  }, [activeRoleId, roles])
 
   const openRole = (role) => {
     setActiveRoleId(role.id)
