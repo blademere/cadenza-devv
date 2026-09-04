@@ -1,31 +1,49 @@
 import { createElement } from 'react'
 import {
   Archive,
+  ClipboardText,
   FileText,
+  MagnifyingGlass,
+  ShieldCheck,
   UserCheck,
   UsersThree,
 } from '@phosphor-icons/react'
 import { permissions } from './permissions'
 
-const iconProps = { size: 20, weight: 'regular', 'aria-hidden': true }
+const iconProps = {
+  size: 20,
+  weight: 'regular',
+  'aria-hidden': true,
+}
+
 const createIcon = (Icon) => () => createElement(Icon, iconProps)
+
 const DashboardIcon = createIcon(Archive)
 const ApplicationsIcon = createIcon(FileText)
+const PermitTypesIcon = createIcon(ClipboardText)
 const ReceivingIcon = createIcon(Archive)
 const ProfessionalsIcon = createIcon(UsersThree)
 const VerificationIcon = createIcon(UserCheck)
+const InspectionsIcon = createIcon(MagnifyingGlass)
+const UsersIcon = createIcon(UsersThree)
+const RolesIcon = createIcon(ShieldCheck)
 
 export const navigation = Object.freeze([
   {
     key: 'workspace',
     name: 'Workspace',
     items: [
-      { key: 'dashboard', name: 'Dashboard', route: '/app/dashboard', icon: DashboardIcon },
+      {
+        key: 'dashboard',
+        name: 'Dashboard',
+        route: '/app/dashboard',
+        icon: DashboardIcon,
+      },
     ],
   },
   {
-    key: 'applications',
-    name: 'Applications',
+    key: 'plan-permits',
+    name: 'Plan Permits',
     items: [
       {
         key: 'applications',
@@ -34,12 +52,26 @@ export const navigation = Object.freeze([
         requiredPermissions: [permissions.planPermits.read],
         icon: ApplicationsIcon,
       },
+      {
+        key: 'permit-types',
+        name: 'Permit Types',
+        route: '/app/permit-types',
+        requiredPermissions: [permissions.planPermits.read],
+        icon: PermitTypesIcon,
+      },
     ],
   },
   {
-    key: 'professionals',
-    name: 'Professionals',
+    key: 'operations',
+    name: 'Operations',
     items: [
+      {
+        key: 'receiving',
+        name: 'Receiving',
+        route: '/app/receiving',
+        requiredPermissions: [permissions.planPermits.receive],
+        icon: ReceivingIcon,
+      },
       {
         key: 'professionals',
         name: 'Professionals',
@@ -61,18 +93,32 @@ export const navigation = Object.freeze([
         requiredPermissions: [permissions.professionals.create],
         icon: VerificationIcon,
       },
+      {
+        key: 'inspections',
+        name: 'Inspections',
+        route: '/app/inspections',
+        requiredPermissions: [permissions.planPermits.inspect],
+        icon: InspectionsIcon,
+      },
     ],
   },
   {
-    key: 'operations',
-    name: 'Operations',
+    key: 'administration',
+    name: 'Administration',
     items: [
       {
-        key: 'receiving',
-        name: 'Receiving',
-        route: '/app/receiving',
-        requiredPermissions: [permissions.planPermits.receive],
-        icon: ReceivingIcon,
+        key: 'users',
+        name: 'Users',
+        route: '/app/users',
+        requiredPermissions: [permissions.users.manage],
+        icon: UsersIcon,
+      },
+      {
+        key: 'roles',
+        name: 'Roles & Permissions',
+        route: '/app/roles',
+        requiredPermissions: [permissions.authorization.manage],
+        icon: RolesIcon,
       },
     ],
   },
@@ -83,12 +129,16 @@ export function getNavigationItem(item) {
 }
 
 function hasRequiredPermissions(item, permissionSet) {
-  if (!Array.isArray(item.requiredPermissions) || item.requiredPermissions.length === 0) return true
+  if (!Array.isArray(item.requiredPermissions) || item.requiredPermissions.length === 0) {
+    return true
+  }
+
   return item.requiredPermissions.every((permission) => permissionSet.has(permission))
 }
 
 export function normalizeNavigation(sections = [], permissions = []) {
   if (!Array.isArray(sections)) return []
+
   const permissionSet = new Set(Array.isArray(permissions) ? permissions : [])
 
   return sections
@@ -96,7 +146,10 @@ export function normalizeNavigation(sections = [], permissions = []) {
     .map((section) => ({
       ...section,
       items: section.items
-        .filter((item) => item && typeof item.route === 'string' && item.route.length && hasRequiredPermissions(item, permissionSet))
+        .filter((item) => {
+          if (!item || typeof item.route !== 'string' || !item.route.length) return false
+          return hasRequiredPermissions(item, permissionSet)
+        })
         .map(getNavigationItem),
     }))
     .filter((section) => section.items.length > 0)
