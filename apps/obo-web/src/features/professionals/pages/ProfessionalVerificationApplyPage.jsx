@@ -17,22 +17,20 @@ export default function ProfessionalVerificationApplyPage() {
   const [registrationNumber, setRegistrationNumber] = useState('')
   const [prcId, setPrcId] = useState('')
   const [ptrNumber, setPtrNumber] = useState('')
+  const noRecord = query.error?.status === 404
 
   if (query.isLoading) return <Stack className="obo-page"><LoadingState label="Loading professional verification status…" /></Stack>
-  if (query.error) return <Stack className="obo-page"><Alert color="red" title="Unable to load verification status">{query.error.message ?? 'The professional profile could not be loaded.'}</Alert></Stack>
+  if (query.error && !noRecord) return <Stack className="obo-page"><Alert color="red" title="Unable to load verification status">{query.error.message ?? 'The professional verification status could not be loaded.'}</Alert></Stack>
 
-  const status = String(application?.verificationStatus ?? application?.status ?? '').toUpperCase()
+  const status = String(application?.status ?? application?.verificationStatus ?? '').toUpperCase()
   const reason = application?.verificationReason ?? application?.declineReason ?? application?.reason
-  const canApply = !application || status === 'DECLINED'
+  const hasRecord = Boolean(application) && !noRecord
+  const canApply = !hasRecord
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (!registrationNumber.trim() || !prcId.trim() || !ptrNumber.trim()) return
-    await mutation.mutateAsync({
-      registrationNumber: registrationNumber.trim(),
-      prcId: prcId.trim(),
-      ptrNumber: ptrNumber.trim(),
-    })
+    await mutation.mutateAsync({ registrationNumber: registrationNumber.trim(), prcId: prcId.trim(), ptrNumber: ptrNumber.trim() })
   }
 
   return <Stack className="obo-page">
@@ -40,8 +38,8 @@ export default function ProfessionalVerificationApplyPage() {
     {mutation.error && <Alert color="red" title="Verification application failed">{mutation.error.message ?? 'The application could not be submitted.'}</Alert>}
     {mutation.isSuccess && <Alert color="green" title="Verification application submitted">Your professional verification application is pending review.</Alert>}
 
-    {application && !canApply && <Box className="obo-panel" p="lg"><Stack gap="md"><Group justify="space-between"><Text fw={700}>Current verification status</Text><StatusChip status={status} label={status === 'PENDING' ? 'Pending Verification' : status === 'ACCEPTED' || status === 'VERIFIED' ? 'Verified' : status} /></Group>{reason && <Alert color="red" title="Review reason">{reason}</Alert>}{status === 'PENDING' && <Text size="sm" c="dimmed">Your submitted registration details are awaiting Receiving Officer review.</Text>}{(status === 'ACCEPTED' || status === 'VERIFIED') && <Text size="sm" c="dimmed">Your professional profile is verified and can be associated with eligible Plan Permit applications.</Text>}</Stack></Box>}
+    {hasRecord && <Box className="obo-panel" p="lg"><Stack gap="md"><Group justify="space-between"><Text fw={700}>Current verification status</Text><StatusChip status={status} label={status === 'PENDING_VERIFICATION' ? 'Pending Verification' : status === 'VERIFIED' ? 'Verified' : status === 'DECLINED' ? 'Declined' : status} /></Group>{reason && <Alert color="red" title="Review reason">{reason}</Alert>}{status === 'PENDING_VERIFICATION' && <Text size="sm" c="dimmed">Your submitted registration details are awaiting Receiving Officer review.</Text>}{status === 'VERIFIED' && <Text size="sm" c="dimmed">Your professional profile is verified and can be associated with eligible Plan Permit applications.</Text>}{status === 'DECLINED' && <Alert color="yellow" title="Verification declined">The current backend does not provide a re-application operation for an existing professional verification record.</Alert>}</Stack></Box>}
 
-    {canApply && <Box className="obo-panel" p="lg"><form onSubmit={handleSubmit}><Stack gap="md"><Text fw={700}>{status === 'DECLINED' ? 'Re-apply for verification' : 'Apply for verification'}</Text>{status === 'DECLINED' && <Alert color="yellow">Your previous verification application was declined. Review the reason above and submit updated details.</Alert>}<TextInput label="Registration Number" required value={registrationNumber} onChange={(event) => setRegistrationNumber(event.currentTarget.value)} maxLength={100} /><TextInput label="PRC ID" required value={prcId} onChange={(event) => setPrcId(event.currentTarget.value)} maxLength={100} /><TextInput label="PTR Number" required value={ptrNumber} onChange={(event) => setPtrNumber(event.currentTarget.value)} maxLength={100} /><Group justify="flex-end"><PermissionGate permission={permissions.professionals.create}><Button type="submit" loading={mutation.isPending} disabled={!registrationNumber.trim() || !prcId.trim() || !ptrNumber.trim()}>Submit for verification</Button></PermissionGate></Group></Stack></form></Box>}
+    {canApply && <Box className="obo-panel" p="lg"><form onSubmit={handleSubmit}><Stack gap="md"><Text fw={700}>Apply for verification</Text><Text size="sm" c="dimmed">Provide your professional registration details. Your application will remain pending until reviewed.</Text><TextInput label="Registration Number" required value={registrationNumber} onChange={(event) => setRegistrationNumber(event.currentTarget.value)} maxLength={100} /><TextInput label="PRC ID" required value={prcId} onChange={(event) => setPrcId(event.currentTarget.value)} maxLength={100} /><TextInput label="PTR Number" required value={ptrNumber} onChange={(event) => setPtrNumber(event.currentTarget.value)} maxLength={100} /><Group justify="flex-end"><PermissionGate permission={permissions.professionals.create}><Button type="submit" loading={mutation.isPending} disabled={!registrationNumber.trim() || !prcId.trim() || !ptrNumber.trim()}>Submit for verification</Button></PermissionGate></Group></Stack></form></Box>}
   </Stack>
 }
