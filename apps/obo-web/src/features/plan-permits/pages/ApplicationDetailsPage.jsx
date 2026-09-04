@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Badge, Box, Button, Divider, Group, Stack, Text } from '@mantine/core'
-import { CalendarCheck, PencilSimple } from '@phosphor-icons/react'
+import { CalendarCheck, PencilSimple, Plus } from '@phosphor-icons/react'
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import StatusChip from '../../../components/common/StatusChip'
@@ -21,6 +21,8 @@ export default function ApplicationDetailsPage() {
   const submissionAppointment = application?.submissionAppointment
   const canSchedule = application?.status === 'READY_FOR_SUBMISSION' && !submissionAppointment
   const isDraft = application?.status === 'DRAFT'
+  const isDeclined = application?.status === 'DECLINED'
+  const latestDecision = decisions[0]
 
   const handleSubmit = async () => {
     await submitMutation.mutateAsync(applicationId)
@@ -39,6 +41,7 @@ export default function ApplicationDetailsPage() {
       actions={
         <Group>
           <Button component={Link} to="/app/applications" variant="default">Back</Button>
+          {isDeclined && <PermissionGate permission={permissions.planPermits.create}><Button component={Link} to="/app/applications/new" leftSection={<Plus size={18} aria-hidden />}>Start New Application</Button></PermissionGate>}
           <PermissionGate permission={permissions.planPermits.update}>
             {isDraft && <Button component={Link} to={`/app/applications/${applicationId}/edit`} variant="default" leftSection={<PencilSimple size={18} aria-hidden />}>Edit</Button>}
           </PermissionGate>
@@ -52,6 +55,13 @@ export default function ApplicationDetailsPage() {
       }
     />
     {submitMutation.error && <Alert color="red" title="Unable to submit application">{submitMutation.error.message ?? 'The application could not be submitted.'}</Alert>}
+    {isDeclined && <Alert color="red" title="Application declined">
+      <Stack gap={4}>
+        <Text size="sm">This application cannot continue through the current workflow. A new application is required.</Text>
+        {latestDecision?.reason && <Text size="sm"><strong>Reason:</strong> {latestDecision.reason}</Text>}
+        {latestDecision?.decidedAt && <Text size="xs" c="dimmed">Decision recorded {formatDate(latestDecision.decidedAt)}</Text>}
+      </Stack>
+    </Alert>}
     <Box className="obo-panel" p="lg">
       <Group justify="space-between" align="flex-start">
         <Box><Text size="xs" c="dimmed">Current status</Text><Group mt={5}><StatusChip status={application.status} /><Badge variant="light">{application.permitType?.key ?? 'Plan Permit'}</Badge></Group></Box>
