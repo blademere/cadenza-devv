@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authorizationApi } from './authorization.api'
-import { useAuth } from '../auth/AuthProvider'
+import { useAuth } from '../auth/components/AuthProvider'
 
 const AuthorizationContext = createContext(null)
 const AUTHORIZATION_QUERY_KEY = ['authorization', 'context']
