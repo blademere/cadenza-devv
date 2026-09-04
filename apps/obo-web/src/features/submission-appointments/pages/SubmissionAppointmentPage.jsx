@@ -34,6 +34,7 @@ export default function SubmissionAppointmentPage() {
   }
 
   const scheduled = Boolean(appointment)
+  const canSchedule = application.status === 'READY_FOR_SUBMISSION' && !scheduled
 
   return (
     <Stack className="obo-page">
@@ -62,11 +63,15 @@ export default function SubmissionAppointmentPage() {
           <Group gap="xl" mt="sm">
             <Stack gap={2}><Text size="xs" c="dimmed">Reference</Text><Text fw={600}>{appointment.referenceNumber ?? '—'}</Text></Stack>
             <Stack gap={2}><Text size="xs" c="dimmed">Status</Text><StatusChip status={appointment.status} /></Stack>
-            <Stack gap={2}><Text size="xs" c="dimmed">Slot</Text><Text fw={600}>{appointment.slot?.startsAt ? `${formatDate(appointment.slot.startsAt)} – ${formatDate(appointment.slot.endsAt)}` : 'See appointment details'}</Text></Stack>
+            <Stack gap={2}><Text size="xs" c="dimmed">Slot</Text><Text fw="600">{appointment.slot?.startsAt ? `${formatDate(appointment.slot.startsAt)} – ${formatDate(appointment.slot.endsAt)}` : 'See appointment details'}</Text></Stack>
           </Group>
         </Stack>
-      ) : (
+      ) : canSchedule ? (
         <SubmissionAppointmentScheduler applicationId={applicationId} />
+      ) : (
+        <Alert color="gray" title="Scheduling is not available">
+          This application is not currently eligible for a submission appointment. The application status is controlled by the permit workflow.
+        </Alert>
       )}
     </Stack>
   )
