@@ -16,6 +16,10 @@ export const professionalsApi = {
     return unwrap(await apiClient.get('/obo/professionals/mine'))
   },
 
+  async applyVerification(data) {
+    return unwrap(await apiClient.post('/obo/professionals', data))
+  },
+
   async decideVerification(id, decision, reason) {
     return unwrap(await apiClient.post(`/obo/professionals/${encodeId(id)}/verification`, {
       decision,
