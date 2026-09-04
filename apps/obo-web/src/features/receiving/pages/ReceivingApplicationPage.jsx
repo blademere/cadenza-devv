@@ -7,7 +7,8 @@ import LoadingState from '../../../components/common/LoadingState'
 import StatusChip from '../../../components/common/StatusChip'
 import PermissionGate from '../../authorization/components/PermissionGate'
 import { permissions } from '../../../config/permissions'
-import { useDecideReceivingApplication, useReceiveApplication, useReceivingApplication } from '../queries/receiving.queries'
+import { useReceivingApplication } from '../queries/receiving.queries'
+import { useDecideReceivingApplication, useReceiveApplication } from '../mutations/receiving.mutations'
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—')
 const professionalName = (professional) => professional?.name || [professional?.firstName, professional?.lastName].filter(Boolean).join(' ') || professional?.email || '—'
