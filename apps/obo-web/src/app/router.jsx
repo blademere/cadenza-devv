@@ -14,6 +14,8 @@ import PermitTypeDetailsPage from '../features/plan-permits/pages/PermitTypeDeta
 import SubmissionAppointmentPage from '../features/submission-appointments/pages/SubmissionAppointmentPage'
 import ReceivingPage from '../features/receiving/pages/ReceivingPage'
 import ReceivingApplicationPage from '../features/receiving/pages/ReceivingApplicationPage'
+import ProfessionalsPage from '../features/professionals/pages/ProfessionalsPage'
+import ProfessionalVerificationPage from '../features/professionals/pages/ProfessionalVerificationPage'
 import RoutePlaceholder from './router/RoutePlaceholder'
 import ProtectedRoute from './router/ProtectedRoute'
 import GuestRoute from './router/GuestRoute'
@@ -37,8 +39,8 @@ export const router = createBrowserRouter([
       protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.planPermits.read),
       protectedPage('receiving', <ReceivingPage />, permissions.planPermits.receive),
       protectedPage('receiving/:applicationId', <ReceivingApplicationPage />, permissions.planPermits.receive),
-      route('professionals', 'Professionals', permissions.professionals.read),
-      route('professionals/verification', 'Professional Verification', permissions.professionals.review),
+      protectedPage('professionals', <ProfessionalsPage />, permissions.professionals.read),
+      protectedPage('professionals/verification', <ProfessionalVerificationPage />, permissions.professionals.review),
       route('inspections', 'Inspections', permissions.planPermits.inspect),
       { element: <AuthorizationRoute requiredPermission={permissions.users.manage} />, children: [{ path: 'users', element: <UsersPage /> }] },
       { element: <AuthorizationRoute requiredPermission={permissions.authorization.manage} />, children: [{ path: 'roles', element: <RolesPage /> }] },
