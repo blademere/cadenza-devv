@@ -5,8 +5,20 @@ import { planPermitApplicationQueryKey, planPermitApplicationsQueryKey } from '.
 export const receivingApplicationsQueryKey = (status = 'SUBMISSION_SCHEDULED') => ['obo', 'receiving', 'applications', status]
 export const receivingApplicationQueryKey = (applicationId) => ['obo', 'receiving', 'applications', applicationId]
 
+function normalizeStatus(status) {
+  if (status === undefined || status === null || status === '') return 'SUBMISSION_SCHEDULED'
+  if (typeof status === 'string') return status
+  if (typeof status === 'object' && typeof status.status === 'string') return status.status
+  throw new TypeError('Receiving application status must be a string')
+}
+
 export function useReceivingApplications(status = 'SUBMISSION_SCHEDULED', options = {}) {
-  return useQuery({ queryKey: receivingApplicationsQueryKey(status), queryFn: () => receivingApi.listApplications(status), ...options })
+  const normalizedStatus = normalizeStatus(status)
+  return useQuery({
+    queryKey: receivingApplicationsQueryKey(normalizedStatus),
+    queryFn: () => receivingApi.listApplications(normalizedStatus),
+    ...options,
+  })
 }
 
 export function useReceivingApplication(applicationId, options = {}) {
