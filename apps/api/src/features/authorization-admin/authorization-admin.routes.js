@@ -38,14 +38,24 @@ const authorizeRoleResource = authorizeResource({
   loadResource: repository.findRoleById,
   getResourceId: (req) => Number(req.params.roleId),
 })
-const authorizationCache = cache({ ttlSeconds: 300 })
 
-router.get('/modules', authenticate, manageAuthorization, authorizationCache, asyncHandler(listModulesController))
+router.get(
+  '/modules',
+  authenticate,
+  manageAuthorization,
+  cache({ key: () => AUTHORIZATION_MODULES_CACHE_KEY, ttlSeconds: 300 }),
+  asyncHandler(listModulesController)
+)
 router.post('/modules', authenticate, manageAuthorization, requireIdempotency, validate(createModuleValidator), asyncHandler(createModuleController))
 router.post('/modules/:moduleId/permissions', authenticate, authorizeModuleResource, requireIdempotency, validate(createPermissionValidator), asyncHandler(createPermissionController))
 router.patch('/modules/:moduleId/active', authenticate, authorizeModuleResource, requireIdempotency, validate(setModuleActiveValidator), asyncHandler(setModuleActiveController))
-router.get('/roles', authenticate, manageAuthorization, authorizationCache, asyncHandler(listRolesController))
+router.get(
+  '/roles',
+  authenticate,
+  manageAuthorization,
+  cache({ key: () => AUTHORIZATION_ROLES_CACHE_KEY, ttlSeconds: 300 }),
+  asyncHandler(listRolesController)
+)
 router.put('/roles/:roleId/permissions', authenticate, authorizeRoleResource, requireIdempotency, validate(replaceRolePermissionsValidator), asyncHandler(replaceRolePermissionsController))
 
-export { AUTHORIZATION_MODULES_CACHE_KEY, AUTHORIZATION_ROLES_CACHE_KEY }
 export default router
