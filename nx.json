@@ -4,7 +4,10 @@
   "plugins": [
     {
       "plugin": "@nx/vite/plugin",
-      "include": ["apps/web/**", "apps/obo-web/**"],
+      "include": [
+        "apps/web/**",
+        "apps/obo-web/**"
+      ],
       "options": {
         "buildTargetName": "build",
         "devTargetName": "dev",
@@ -13,21 +16,30 @@
     },
     {
       "plugin": "@nx/eslint/plugin",
-      "include": ["apps/api/**", "apps/web/**", "apps/obo-web/**"],
+      "include": [
+        "apps/api/**",
+        "apps/web/**",
+        "apps/obo-web/**"
+      ],
       "options": {
         "targetName": "lint"
       }
     },
     {
       "plugin": "@nx/vitest",
-      "include": ["apps/api/**"],
+      "include": [
+        "apps/api/**"
+      ],
       "options": {
         "testTargetName": "test"
       }
     }
   ],
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
     "sharedGlobals": [
       "{workspaceRoot}/package.json",
       "{workspaceRoot}/package-lock.json",
@@ -45,5 +57,6 @@
     "build": {
       "cache": true
     }
-  }
+  },
+  "nxCloudId": "6a9a5023480d25cbeaa11c9f"
 }
