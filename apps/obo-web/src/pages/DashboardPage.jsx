@@ -4,7 +4,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 import { useCan } from '../features/authorization/useCan'
 import { permissions } from '../config/permissions'
 import { usePendingProfessionals } from '../features/professionals/professionals.queries'
-import { useReceivingApplications } from '../features/receiving/receiving.queries'
+import { useReceivingApplications } from '../features/receiving/queries/receiving.queries'
 import PageHeader from '../components/common/PageHeader'
 
 function StatCard({ label, value, hint, icon }) {
@@ -28,7 +28,7 @@ export default function DashboardPage() {
   const canReceive = can(permissions.planPermits.receive)
   const canReviewProfessionals = can(permissions.professionals.review)
   const canManageAuthorization = can(permissions.authorization.manage) || can(permissions.users.manage)
-  const receivingQuery = useReceivingApplications({ enabled: canReceive })
+  const receivingQuery = useReceivingApplications('SUBMISSION_SCHEDULED', { enabled: canReceive })
   const professionalsQuery = usePendingProfessionals({ enabled: canReviewProfessionals })
   const name = user?.name || user?.email?.split('@')[0] || 'User'
   const applications = receivingQuery.data
