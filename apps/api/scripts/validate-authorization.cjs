@@ -50,6 +50,13 @@ for (const file of routeFiles) {
     if (AUTHORIZE.test(match[0])) authorizationAliases.add(match[1])
   }
 
+  // Support middleware factories declared as multiline arrow functions, e.g.
+  // const resource = (action) => authorizeResource({ ... })
+  for (const match of source.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*([\s\S]*?)(?=\n\s*(?:const|let|var|router\.|export\b))/g)) {
+    if (AUTHENTICATE.test(match[2])) middlewareAliases.add(match[1])
+    if (AUTHORIZE.test(match[2])) authorizationAliases.add(match[1])
+  }
+
   for (const match of source.matchAll(METHODS)) {
     const lineNumber = source.slice(0, match.index).split('\n').length
     const start = match.index
