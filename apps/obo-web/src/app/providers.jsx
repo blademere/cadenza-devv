@@ -1,6 +1,6 @@
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider } from '../features/auth/AuthProvider'
+import { AuthProvider } from '../features/auth/components/AuthProvider'
 import { AuthorizationProvider } from '../features/authorization/AuthorizationProvider'
 import { oboTheme } from './theme'
 
