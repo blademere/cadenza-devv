@@ -10,6 +10,12 @@ const getWorkflowState = async (application) => {
   if (!workflow) throw new ConflictError('Permit application workflow instance was not found.')
   return workflow
 }
+const getApplication = async ({ id }) => {
+  const application = await repository.findApplication(id)
+  if (!application) throw new NotFoundError('Permit application not found.')
+  const workflow = await getWorkflowState(application)
+  return { ...application, status: workflow.currentStep.key }
+}
 const listApplications = ({ status }) => repository.listApplications(status)
 const receiveHardcopy = async ({ id, actorId }) => {
   const application = await repository.findApplication(id)
@@ -24,11 +30,7 @@ const receiveHardcopy = async ({ id, actorId }) => {
   if (application.professional.status !== 'VERIFIED') throw new ConflictError('The associated professional is not verified.')
   const submittedAt = application.submittedAt || new Date()
   await repository.withTransaction(async (tx) => {
-    const notificationContext = await getNotificationContext({
-      personId: application.clientPersonId,
-      db: tx,
-      findPersonNotificationContext: repository.findPersonNotificationContext,
-    })
+    const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey: 'RECEIVE_HARDCOPY', actorId, metadata: { source: 'obo-receiving.receive', appointmentId: appointment.id, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
     await repository.updateApplication(id, { submittedAt }, tx)
   })
@@ -44,11 +46,7 @@ const decide = async ({ id, actorId, decision, reason }) => {
   const accepted = decision === 'ACCEPTED'
   const transitionKey = accepted ? 'ACCEPT_FOR_INSPECTION' : 'DECLINE'
   return repository.withTransaction(async (tx) => {
-    const notificationContext = await getNotificationContext({
-      personId: application.clientPersonId,
-      db: tx,
-      findPersonNotificationContext: repository.findPersonNotificationContext,
-    })
+    const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     const nextWorkflow = await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey, actorId, metadata: { source: 'obo-receiving.decide', decision, reason: cleanReason, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
     const updated = await repository.updateApplication(id, { acceptedAt: accepted ? new Date() : null, acceptedByUserId: accepted ? actorId : null, declinedAt: accepted ? null : new Date(), declineReason: accepted ? null : cleanReason }, tx)
     await repository.addDecision({ applicationId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
@@ -56,4 +54,4 @@ const decide = async ({ id, actorId, decision, reason }) => {
   })
 }
 
-export { STATUS, listApplications, receiveHardcopy, decide, getWorkflowState }
+export { STATUS, getApplication, listApplications, receiveHardcopy, decide, getWorkflowState }
