@@ -162,13 +162,7 @@ jobs:
       - run: npm run format:check
       - run: npm run validate:architecture
       - name: Validate authorization rules
-        continue-on-error: true
-        run: |
-          if npm run validate:authorization; then
-            echo 'Authorization validation passed.'
-          else
-            echo '::warning::Authorization validation reported issues. CI continues; review the authorization check before merging.'
-          fi
+        run: npm run validate:authorization
       - run: npm run validate:migrations
       - run: npm exec -- nx run api:prisma:validate
       - run: npm run prisma:generate
