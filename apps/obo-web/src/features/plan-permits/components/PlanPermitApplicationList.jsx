@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core'
+import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core'
 import { Link } from 'react-router-dom'
 import StatusChip from '../../../components/common/StatusChip'
 
