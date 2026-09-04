@@ -1,0 +1,102 @@
+{
+  "name": "api",
+  "projectType": "application",
+  "sourceRoot": "apps/api/src",
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "options": { "command": "nodemon --legacy-watch src/server.js", "cwd": "apps/api" }
+    },
+    "test": {
+      "dependsOn": ["prisma:generate"]
+    },
+    "test:unit": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["prisma:generate"],
+      "options": { "command": "vitest run --dir tests/unit", "cwd": "apps/api" }
+    },
+    "test:integration": {
+      "executor": "nx:run-commands",
+      "options": { "command": "prisma generate --config ./prisma.config.ts && prisma migrate deploy --config ./prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration", "cwd": "apps/api" }
+    },
+    "test:postgres": {
+      "executor": "nx:run-commands",
+      "options": { "command": "prisma generate --config ./prisma.config.ts && prisma migrate deploy --config ./prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration/database", "cwd": "apps/api" }
+    },
+    "test:redis": {
+      "executor": "nx:run-commands",
+      "options": { "command": "RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration/cache", "cwd": "apps/api" }
+    },
+    "test:auth": {
+      "executor": "nx:run-commands",
+      "options": { "command": "vitest run --dir tests/integration/auth", "cwd": "apps/api" }
+    },
+    "test:all": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["prisma:generate"],
+      "options": { "command": "vitest run --dir tests/unit && prisma migrate deploy --config ./prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration", "cwd": "apps/api" }
+    },
+    "test:coverage": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["prisma:generate"],
+      "options": { "command": "vitest run --coverage", "cwd": "apps/api" }
+    },
+    "prisma:generate": {
+      "executor": "nx:run-commands",
+      "options": { "command": "prisma generate --config ./prisma.config.ts", "cwd": "apps/api" }
+    },
+    "prisma:validate": {
+      "executor": "nx:run-commands",
+      "options": { "command": "prisma validate --config ./prisma.config.ts", "cwd": "apps/api" }
+    },
+    "prisma:migrate": {
+      "executor": "nx:run-commands",
+      "options": { "command": "prisma migrate dev --config ./prisma.config.ts", "cwd": "apps/api" }
+    },
+    "prisma:migrate:deploy": {
+      "executor": "nx:run-commands",
+      "options": { "command": "prisma migrate deploy --config ./prisma.config.ts", "cwd": "apps/api" }
+    },
+    "db:seed": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/db-seed.cjs", "cwd": "apps/api" }
+    },
+    "db:setup": {
+      "executor": "nx:run-commands",
+      "options": { "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.cjs", "cwd": "apps/api" }
+    },
+    "db:backup": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/db-backup.cjs", "cwd": "apps/api" }
+    },
+    "db:restore": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/db-restore.cjs", "cwd": "apps/api" }
+    },
+    "openapi:lint": {
+      "executor": "nx:run-commands",
+      "options": { "command": "redocly lint openapi/openapi.yaml", "cwd": "apps/api" }
+    },
+    "openapi:bundle": {
+      "executor": "nx:run-commands",
+      "options": { "command": "redocly bundle openapi/openapi.yaml -o openapi/dist/openapi.yaml", "cwd": "apps/api" }
+    },
+    "openapi:build": {
+      "executor": "nx:run-commands",
+      "options": { "command": "redocly lint openapi/openapi.yaml && redocly bundle openapi/openapi.yaml -o openapi/dist/openapi.yaml", "cwd": "apps/api" }
+    },
+    "validate:architecture": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/validate-architecture.cjs", "cwd": "apps/api" }
+    },
+    "validate:authorization": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/validate-authorization.cjs", "cwd": "apps/api" }
+    },
+    "validate:migrations": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/validate-migrations.cjs", "cwd": "apps/api" }
+    }
+  }
+}

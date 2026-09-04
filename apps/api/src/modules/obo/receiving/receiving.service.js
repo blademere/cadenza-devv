@@ -1,0 +1,57 @@
+import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
+import * as workflowService from '../../../platform/workflow/workflow.service.js'
+import * as repository from './receiving.repository.js'
+import { getNotificationContext } from '../notification-context.js'
+
+const STATUS = Object.freeze({ SUBMISSION_SCHEDULED: 'SUBMISSION_SCHEDULED', RECEIVING: 'RECEIVING', DECLINED: 'DECLINED', FOR_INSPECTION: 'FOR_INSPECTION' })
+const getWorkflowState = async (application) => {
+  if (!application.workflowInstanceId) throw new ConflictError('Permit application is not attached to a workflow instance.')
+  const workflow = await repository.findWorkflowInstance(application.workflowInstanceId)
+  if (!workflow) throw new ConflictError('Permit application workflow instance was not found.')
+  return workflow
+}
+const getApplication = async ({ id }) => {
+  const application = await repository.findApplication(id)
+  if (!application) throw new NotFoundError('Permit application not found.')
+  const workflow = await getWorkflowState(application)
+  return { ...application, status: workflow.currentStep.key }
+}
+const listApplications = ({ status }) => repository.listApplications(status)
+const receiveHardcopy = async ({ id, actorId }) => {
+  const application = await repository.findApplication(id)
+  if (!application) throw new NotFoundError('Permit application not found.')
+  const workflow = await getWorkflowState(application)
+  if (workflow.currentStep.key !== STATUS.SUBMISSION_SCHEDULED) throw new ConflictError('Only scheduled applications can be received.')
+  if (!application.submissionAppointment) throw new ConflictError('A hardcopy submission appointment is required.')
+  const appointment = await repository.findSubmissionAppointment(application.submissionAppointment.appointmentId)
+  if (!appointment) throw new ConflictError('The submission appointment no longer exists.')
+  if (appointment.status === 'CANCELLED' || appointment.status === 'NO_SHOW') throw new ConflictError('The submission appointment is not valid for receiving.')
+  if (appointment.slot.startsAt > new Date()) throw new ConflictError('The hardcopy submission appointment has not started yet.')
+  if (application.professional.status !== 'VERIFIED') throw new ConflictError('The associated professional is not verified.')
+  const submittedAt = application.submittedAt || new Date()
+  await repository.withTransaction(async (tx) => {
+    const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
+    await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey: 'RECEIVE_HARDCOPY', actorId, metadata: { source: 'obo-receiving.receive', appointmentId: appointment.id, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
+    await repository.updateApplication(id, { submittedAt }, tx)
+  })
+  return repository.findApplication(id)
+}
+const decide = async ({ id, actorId, decision, reason }) => {
+  const application = await repository.findApplication(id)
+  if (!application) throw new NotFoundError('Permit application not found.')
+  const workflow = await getWorkflowState(application)
+  if (workflow.currentStep.key !== STATUS.RECEIVING) throw new ConflictError('Application must be received before a receiving decision can be made.')
+  const cleanReason = reason?.trim() || null
+  if (decision === 'DECLINED' && !cleanReason) throw new ConflictError('A reason is required when declining an application.')
+  const accepted = decision === 'ACCEPTED'
+  const transitionKey = accepted ? 'ACCEPT_FOR_INSPECTION' : 'DECLINE'
+  return repository.withTransaction(async (tx) => {
+    const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
+    const nextWorkflow = await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey, actorId, metadata: { source: 'obo-receiving.decide', decision, reason: cleanReason, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
+    const updated = await repository.updateApplication(id, { acceptedAt: accepted ? new Date() : null, acceptedByUserId: accepted ? actorId : null, declinedAt: accepted ? null : new Date(), declineReason: accepted ? null : cleanReason }, tx)
+    await repository.addDecision({ applicationId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
+    return { ...updated, status: nextWorkflow.currentStep.key, workflowInstanceId: nextWorkflow.id }
+  })
+}
+
+export { STATUS, getApplication, listApplications, receiveHardcopy, decide, getWorkflowState }

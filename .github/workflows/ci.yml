@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, development]
   push:
-    branches: [main, develop]
+    branches: [main, development]
   workflow_dispatch:
     inputs:
       staging:
@@ -31,6 +31,8 @@ jobs:
       workflow: ${{ steps.filter.outputs.workflow }}
       security: ${{ steps.filter.outputs.security }}
       docs_only: ${{ steps.filter.outputs.docs_only }}
+      base_sha: ${{ steps.filter.outputs.base_sha }}
+      head_sha: ${{ steps.filter.outputs.head_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -43,6 +45,8 @@ jobs:
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             app=true; database=true; docker=true; workflow=true; security=true; docs_only=false
+            base="$(git rev-parse "${{ github.sha }}^")"
+            head="${{ github.sha }}"
           else
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               base="${{ github.event.pull_request.base.sha }}"
@@ -58,16 +62,16 @@ jobs:
             app=false; database=false; docker=false; workflow=false; security=false
             for file in "${files[@]}"; do
               case "$file" in
-                apps/server/**|apps/web/**|packages/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|prisma.config.ts|.env.example) app=true ;;
+                apps/**|packages/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|.env.example) app=true ;;
               esac
               case "$file" in
-                prisma/**|prisma.config.ts|scripts/validate-migrations.cjs) database=true ;;
+                apps/api/prisma/**|apps/api/prisma.config.ts|apps/api/scripts/validate-migrations.cjs) database=true ;;
               esac
               case "$file" in
-                apps/server/**|apps/web/**|packages/**|prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json|prisma.config.ts) docker=true ;;
+                apps/**|packages/**|apps/api/prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json) docker=true ;;
               esac
               case "$file" in
-                apps/server/**|apps/web/**|packages/**) security=true ;;
+                apps/**|packages/**) security=true ;;
               esac
               case "$file" in
                 .github/workflows/**|.github/dependabot.yml) workflow=true ;;
@@ -81,8 +85,8 @@ jobs:
               esac
             done
           fi
-          printf 'app=%s\ndatabase=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\n' \
-            "$app" "$database" "$docker" "$workflow" "$security" "$docs_only" >> "$GITHUB_OUTPUT"
+          printf 'app=%s\ndatabase=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\nbase_sha=%s\nhead_sha=%s\n' \
+            "$app" "$database" "$docker" "$workflow" "$security" "$docs_only" "$base" "$head" >> "$GITHUB_OUTPUT"
 
       - name: Write CI classification summary
         if: always()
@@ -136,34 +140,45 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app_test
       REDIS_URL: redis://localhost:6379
       PRISMA_GENERATE_SKIP_AUTOINSTALL: 'true'
+      NX_BASE: ${{ needs.changes.outputs.base_sha }}
+      NX_HEAD: ${{ needs.changes.outputs.head_sha }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Validate workspace boundaries and lockfile
+        run: npm run validate:workspaces && npm run validate:dependencies && npm run validate:lockfile
+      - name: Validate and bundle OpenAPI
+        run: npm run openapi:build
       - name: Dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
-      - run: npm run lint
+      - name: Lint affected projects
+        run: npm exec -- nx affected -t lint --base="$NX_BASE" --head="$NX_HEAD"
       - run: npm run format:check
       - run: npm run validate:architecture
+      - name: Validate authorization rules
+        run: npm run validate:authorization
       - run: npm run validate:migrations
-      - run: npx prisma validate --schema=prisma/schema.prisma
-      - run: npx prisma generate --schema=prisma/schema.prisma
-      - run: npx prisma migrate deploy --schema=prisma/schema.prisma
-      - name: Test server
-        run: npm test
-      - name: Build web
-        run: npm run build:web
-      - name: Generate server coverage
-        run: npm run test:coverage
+      - run: npm exec -- nx run api:prisma:validate
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
+      - name: Test affected projects
+        run: npm exec -- nx affected -t test --base="$NX_BASE" --head="$NX_HEAD"
+      - name: Build affected projects
+        run: npm exec -- nx affected -t build --base="$NX_BASE" --head="$NX_HEAD"
+      - name: Generate API coverage
+        run: npm exec -- nx run api:test:coverage
       - name: Publish coverage summary
-        if: "${{ always() }}"
+        if: '${{ always() }}'
         run: |
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('fs');
-          const file = 'coverage/coverage-summary.json';
+          const file = 'apps/api/coverage/coverage-summary.json';
           console.log('## Test coverage\n');
           if (!fs.existsSync(file)) {
             console.log('Coverage summary was not generated.');
@@ -179,7 +194,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: vitest-coverage
-          path: coverage/
+          path: apps/api/coverage/
           if-no-files-found: error
           retention-days: 14
 
@@ -211,9 +226,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run validate:migrations
-      - run: npx prisma validate --schema=prisma/schema.prisma
-      - run: npx prisma generate --schema=prisma/schema.prisma
-      - run: npx prisma migrate deploy --schema=prisma/schema.prisma
+      - run: npm exec -- nx run api:prisma:validate
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
 
   docker:
     name: Docker
@@ -251,7 +266,7 @@ jobs:
   required:
     name: Required
     needs: [changes, quality, database, docker, workflow-validation]
-    if: "${{ always() }}"
+    if: '${{ always() }}'
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate applicable checks
@@ -333,7 +348,7 @@ jobs:
       - name: Verify metrics authentication
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/metrics)" = "401"
       - name: Cleanup staging container
-        if: "${{ always() }}"
+        if: '${{ always() }}'
         run: |
           docker logs express-app-staging || true
           docker rm -f express-app-staging || true

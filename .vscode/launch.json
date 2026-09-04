@@ -2,11 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Server: Express",
+      "name": "API: Express",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/apps/server/src/server.js",
-      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/apps/api/src/server.js",
+      "cwd": "${workspaceFolder}/apps/api",
       "runtimeExecutable": "node",
       "runtimeArgs": ["--inspect=0.0.0.0:9229"],
       "console": "integratedTerminal",
@@ -19,40 +19,30 @@
     },
     {
       "name": "Web: React",
-      "type": "node",
+      "type": "node-terminal",
       "request": "launch",
-      "program": "${workspaceFolder}/node_modules/vite/bin/vite.js",
-      "cwd": "${workspaceFolder}/apps/web",
-      "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**",
-        "${workspaceFolder}/node_modules/**"
-      ],
-      "sourceMaps": true
+      "command": "npm --workspace @express-app/web run dev",
+      "cwd": "${workspaceFolder}",
+      "env": { "BROWSER": "none" }
     },
     {
-      "name": "Admin Web: React",
-      "type": "node",
+      "name": "OBO Web: React",
+      "type": "node-terminal",
       "request": "launch",
-      "program": "${workspaceFolder}/node_modules/vite/bin/vite.js",
-      "cwd": "${workspaceFolder}/apps/admin-web",
-      "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**",
-        "${workspaceFolder}/node_modules/**"
-      ],
-      "sourceMaps": true
+      "command": "npm --workspace @express-app/obo-web run dev",
+      "cwd": "${workspaceFolder}",
+      "env": { "BROWSER": "none" }
     }
   ],
   "compounds": [
     {
-      "name": "Full Stack: Server + Web",
-      "configurations": ["Server: Express", "Web: React"],
+      "name": "Full Stack: API + Web",
+      "configurations": ["API: Express", "Web: React"],
       "stopAll": true
     },
     {
-      "name": "Full Stack: Server + Admin Web",
-      "configurations": ["Server: Express", "Admin Web: React"],
+      "name": "Full Stack: API + OBO Web",
+      "configurations": ["API: Express", "OBO Web: React"],
       "stopAll": true
     }
   ]

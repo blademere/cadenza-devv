@@ -15,9 +15,7 @@ if (result.error) {
 }
 
 if (result.status !== 0) {
-  console.warn(
-    '\nFormatting differences were detected. This is currently a warning and does not fail CI.',
-  )
+  console.warn('\nFormatting differences were detected. This is currently a warning and does not fail CI.')
 }
 
 process.exit(0)

@@ -2,11 +2,34 @@ import js from '@eslint/js'
 import globals from 'globals'
 import { defineConfig } from 'eslint/config'
 
+export function createReactConfig({ reactHooks, reactRefresh }) {
+  return [
+    {
+      ignores: ['**/dist/**', '**/coverage/**'],
+    },
+    js.configs.recommended,
+    reactHooks.configs.flat.recommended,
+    reactRefresh.configs.vite,
+    {
+      files: ['**/*.{js,jsx}'],
+      languageOptions: {
+        sourceType: 'module',
+        globals: globals.browser,
+        parserOptions: {
+          ecmaFeatures: { jsx: true },
+        },
+      },
+    },
+  ]
+}
+
 export default defineConfig([
+  {
+    ignores: ['**/dist/**', '**/coverage/**'],
+  },
   {
     files: ['**/*.{js,mjs,cjs,jsx}'],
     plugins: { js },
-    extends: ['js/recommended'],
     languageOptions: {
       globals: globals.node,
     },
@@ -14,23 +37,13 @@ export default defineConfig([
   {
     files: ['**/*.js'],
     languageOptions: {
+      sourceType: 'module',
+    },
+  },
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
       sourceType: 'commonjs',
-    },
-  },
-  {
-    files: ['apps/web/**/*.{js,jsx}'],
-    languageOptions: {
-      sourceType: 'module',
-      globals: globals.browser,
-      parserOptions: {
-        ecmaFeatures: { jsx: true },
-      },
-    },
-  },
-  {
-    files: ['apps/server/tests/**/*.{js,mjs,cjs}'],
-    languageOptions: {
-      sourceType: 'module',
     },
   },
   {

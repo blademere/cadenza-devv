@@ -3,16 +3,21 @@ import { apiClient } from '../../../services/api/client'
 const unwrap = (response) => response?.data ?? response
 
 export const receivingApi = {
-  async listApplications(status = 'SUBMISSION_SCHEDULED') {
+  async listApplications(status) {
+    if (status !== undefined && typeof status !== 'string') {
+      throw new TypeError('Receiving application status must be a string')
+    }
+
     const query = status ? `?status=${encodeURIComponent(status)}` : ''
     return unwrap(await apiClient.get(`/obo/receiving/applications${query}`))
   },
-
-  async receiveApplication(applicationId) {
-    return unwrap(await apiClient.post(`/obo/receiving/applications/${encodeURIComponent(applicationId)}/receive`, {}))
+  async getApplication(id) {
+    return unwrap(await apiClient.get(`/obo/receiving/applications/${encodeURIComponent(id)}`))
   },
-
-  async decideApplication(applicationId, data) {
-    return unwrap(await apiClient.post(`/obo/receiving/applications/${encodeURIComponent(applicationId)}/decision`, data))
+  async receiveApplication(id) {
+    return unwrap(await apiClient.post(`/obo/receiving/applications/${encodeURIComponent(id)}/receive`, {}))
+  },
+  async decideApplication(id, decision, reason) {
+    return unwrap(await apiClient.post(`/obo/receiving/applications/${encodeURIComponent(id)}/decision`, { decision, ...(reason?.trim() ? { reason: reason.trim() } : {}) }))
   },
 }
