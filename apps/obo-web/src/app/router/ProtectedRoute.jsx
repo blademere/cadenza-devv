@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
-import { Box, Skeleton, Stack } from '@mantine/core'
+import { Box } from '@mantine/core'
+import LoadingState from '../../components/common/LoadingState'
 import { useAuth } from '../../features/auth/components/AuthProvider'
 
 export default function ProtectedRoute({ children }) {
@@ -8,12 +9,7 @@ export default function ProtectedRoute({ children }) {
   if (isLoading) {
     return (
       <Box className="route-loading">
-        <Stack w="min(360px, 100%)" gap="md">
-          <Skeleton height={12} width="38%" radius="xl" />
-          <Skeleton height={34} radius="md" />
-          <Skeleton height={14} width="72%" radius="xl" />
-          <Skeleton height={90} radius="lg" mt="md" />
-        </Stack>
+        <LoadingState label="Checking your session…" rows={3} />
       </Box>
     )
   }
