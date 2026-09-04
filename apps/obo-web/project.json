@@ -1,13 +1,5 @@
 {
   "name": "obo-web",
   "projectType": "application",
-  "sourceRoot": "apps/obo-web/src",
-  "targets": {
-    "test": {
-      "executor": "@nx/vitest:test",
-      "options": {
-        "configFile": "apps/obo-web/vitest.config.js"
-      }
-    }
-  }
+  "sourceRoot": "apps/obo-web/src"
 }
