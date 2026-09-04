@@ -8,6 +8,7 @@ import UsersPage from '../features/users/pages/UsersPage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import OAuthCallbackPage from '../features/auth/pages/OAuthCallbackPage'
 import ApplicationsPage from '../features/plan-permits/pages/ApplicationsPage'
+import ApplicationFormPage from '../features/plan-permits/pages/ApplicationFormPage'
 import ApplicationDetailsPage from '../features/plan-permits/pages/ApplicationDetailsPage'
 import PermitTypesPage from '../features/plan-permits/pages/PermitTypesPage'
 import PermitTypeDetailsPage from '../features/plan-permits/pages/PermitTypeDetailsPage'
@@ -33,7 +34,9 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
       protectedPage('applications', <ApplicationsPage />, permissions.planPermits.read),
+      protectedPage('applications/new', <ApplicationFormPage />, permissions.planPermits.create),
       protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.planPermits.read),
+      protectedPage('applications/:applicationId/edit', <ApplicationFormPage />, permissions.planPermits.update),
       protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.planPermits.read),
       protectedPage('permit-types', <PermitTypesPage />, permissions.planPermits.read),
       protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.planPermits.read),
