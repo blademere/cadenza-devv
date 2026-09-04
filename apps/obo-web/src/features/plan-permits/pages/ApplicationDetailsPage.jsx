@@ -1,23 +1,31 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Badge, Box, Button, Divider, Group, Stack, Text } from '@mantine/core'
-import { CalendarCheck } from '@phosphor-icons/react'
+import { CalendarCheck, PencilSimple } from '@phosphor-icons/react'
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import StatusChip from '../../../components/common/StatusChip'
 import PermissionGate from '../../authorization/components/PermissionGate'
 import { permissions } from '../../../config/permissions'
-import { usePlanPermitApplication } from '../queries/plan-permits.queries'
+import { usePlanPermitApplication, useSubmitPlanPermitApplication } from '../queries/plan-permits.queries'
 
 const unwrap = (value) => value?.data ?? value
 const formatDate = (value) => value ? new Date(value).toLocaleString() : '—'
 
 export default function ApplicationDetailsPage() {
   const { applicationId } = useParams()
+  const navigate = useNavigate()
   const query = usePlanPermitApplication(applicationId)
+  const submitMutation = useSubmitPlanPermitApplication()
   const application = unwrap(query.data)
   const decisions = application?.decisions ?? []
   const submissionAppointment = application?.submissionAppointment
   const canSchedule = application?.status === 'READY_FOR_SUBMISSION' && !submissionAppointment
+  const isDraft = application?.status === 'DRAFT'
+
+  const handleSubmit = async () => {
+    await submitMutation.mutateAsync(applicationId)
+    navigate(`/app/applications/${applicationId}`)
+  }
 
   if (query.isLoading) return <Stack className="obo-page"><LoadingState label="Loading application…" /></Stack>
   if (query.error) return <Stack className="obo-page"><Alert color="red" title="Unable to load application">{query.error.message ?? 'The application could not be loaded.'}</Alert><Button component={Link} to="/app/applications" variant="light">Back to applications</Button></Stack>
@@ -31,12 +39,19 @@ export default function ApplicationDetailsPage() {
       actions={
         <Group>
           <Button component={Link} to="/app/applications" variant="default">Back</Button>
+          <PermissionGate permission={permissions.planPermits.update}>
+            {isDraft && <Button component={Link} to={`/app/applications/${applicationId}/edit`} variant="default" leftSection={<PencilSimple size={18} aria-hidden />}>Edit</Button>}
+          </PermissionGate>
+          <PermissionGate permission={permissions.planPermits.submit}>
+            {isDraft && <Button onClick={handleSubmit} loading={submitMutation.isPending}>Submit for submission</Button>}
+          </PermissionGate>
           <PermissionGate permission={permissions.planPermits.scheduleSubmission}>
             {canSchedule && <Button component={Link} to={`/app/applications/${applicationId}/submission-appointment`} leftSection={<CalendarCheck size={18} aria-hidden />}>Schedule submission</Button>}
           </PermissionGate>
         </Group>
       }
     />
+    {submitMutation.error && <Alert color="red" title="Unable to submit application">{submitMutation.error.message ?? 'The application could not be submitted.'}</Alert>}
     <Box className="obo-panel" p="lg">
       <Group justify="space-between" align="flex-start">
         <Box><Text size="xs" c="dimmed">Current status</Text><Group mt={5}><StatusChip status={application.status} /><Badge variant="light">{application.permitType?.key ?? 'Plan Permit'}</Badge></Group></Box>
