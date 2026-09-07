@@ -9,6 +9,7 @@ import * as validation from './professional.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-professionals', required: true })
+const loadProfessional = (id) => repository.findById(id)
 
 router.get('/profile', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getProfile))
 router.put('/profile', authenticate, authorize('obo_professionals', 'update'), requireIdempotency, validate(validation.profileValidator), asyncHandler(controller.updateProfile))
@@ -16,6 +17,6 @@ router.post('/', authenticate, authorize('obo_professionals', 'create'), require
 router.get('/mine', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getMine))
 router.get('/verified', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.listVerified))
 router.get('/pending', authenticate, authorize('obo_professionals', 'review'), asyncHandler(controller.listPending))
-router.post('/:id/verification', authenticate, authorizeResource({ resource: 'obo_professionals', action: 'review', loadResource: repository.findById, getResourceId: (req) => req.params.id }), requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
+router.post('/:id/verification', authenticate, authorizeResource({ resource: 'obo_professionals', action: 'review', loadResource: loadProfessional, getResourceId: (req) => req.params.id }), requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
 
 export default router
