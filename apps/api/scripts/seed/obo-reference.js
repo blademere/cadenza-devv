@@ -12,11 +12,13 @@ const OBO_APPOINTMENT_TYPE = {
   defaultCapacity: 1,
 }
 
-async function seedOboReferenceData(prisma) {
+async function seedOboReferenceData(prisma, { planPermitForm } = {}) {
+  if (!planPermitForm?.id) throw new Error("Platform form 'obo-building-plan-permit' must be seeded before OBO reference data.")
+
   const permitType = await prisma.oboPermitType.upsert({
     where: { key: OBO_PERMIT_TYPE.key },
-    update: { name: OBO_PERMIT_TYPE.name, description: OBO_PERMIT_TYPE.description, isActive: true },
-    create: { ...OBO_PERMIT_TYPE, isActive: true },
+    update: { name: OBO_PERMIT_TYPE.name, description: OBO_PERMIT_TYPE.description, formId: planPermitForm.id, isActive: true },
+    create: { ...OBO_PERMIT_TYPE, formId: planPermitForm.id, isActive: true },
   })
 
   const appointmentType = await prisma.appointmentType.upsert({
