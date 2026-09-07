@@ -1,15 +1,24 @@
 const OBO_PERMIT_FORM_KEY = 'obo-building-plan-permit'
+const OBO_FORM_VERSION = 1
 const OBO_APPLICATION_REFERENCE = 'OBO-DEV-20300610-0001'
 
 async function bindOboDevelopmentForm(prisma) {
   const form = await prisma.form.findUnique({
     where: { key: OBO_PERMIT_FORM_KEY },
-    include: { versions: { where: { status: 'PUBLISHED' }, orderBy: { version: 'desc' }, take: 1 } },
   })
   if (!form || !form.isActive) throw new Error(`Active platform form '${OBO_PERMIT_FORM_KEY}' was not seeded.`)
 
-  const formVersion = form.versions[0]
-  if (!formVersion) throw new Error(`Published platform form '${OBO_PERMIT_FORM_KEY}' has no published version.`)
+  const formVersion = await prisma.formVersion.findUnique({
+    where: {
+      formId_version: {
+        formId: form.id,
+        version: OBO_FORM_VERSION,
+      },
+    },
+  })
+  if (!formVersion || formVersion.status !== 'PUBLISHED') {
+    throw new Error(`Published platform form '${OBO_PERMIT_FORM_KEY}' v${OBO_FORM_VERSION} was not seeded.`)
+  }
 
   const application = await prisma.oboPermitApplication.findUnique({
     where: { referenceNumber: OBO_APPLICATION_REFERENCE },
