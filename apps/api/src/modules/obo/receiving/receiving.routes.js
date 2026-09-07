@@ -9,10 +9,11 @@ import * as validation from './receiving.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-receiving', required: true })
+const loadApplication = (id) => repository.findApplication(id)
 
 router.get('/applications', authenticate, authorize('obo_plan_permits', 'receive'), validate(validation.listValidator), asyncHandler(controller.list))
-router.get('/applications/:id', authenticate, authorizeResource({ resource: 'obo_plan_permits', action: 'receive', loadResource: repository.findApplication, getResourceId: (req) => req.params.id }), validate(validation.applicationParamsValidator), asyncHandler(controller.get))
-router.post('/applications/:id/receive', authenticate, authorizeResource({ resource: 'obo_plan_permits', action: 'receive', loadResource: repository.findApplication, getResourceId: (req) => req.params.id }), requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.receive))
-router.post('/applications/:id/decision', authenticate, authorizeResource({ resource: 'obo_plan_permits', action: 'receive', loadResource: repository.findApplication, getResourceId: (req) => req.params.id }), requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
+router.get('/applications/:id', authenticate, authorizeResource({ resource: 'obo_plan_permits', action: 'receive', loadResource: loadApplication, getResourceId: (req) => req.params.id }), validate(validation.applicationParamsValidator), asyncHandler(controller.get))
+router.post('/applications/:id/receive', authenticate, authorizeResource({ resource: 'obo_plan_permits', action: 'receive', loadResource: loadApplication, getResourceId: (req) => req.params.id }), requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.receive))
+router.post('/applications/:id/decision', authenticate, authorizeResource({ resource: 'obo_plan_permits', action: 'receive', loadResource: loadApplication, getResourceId: (req) => req.params.id }), requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
 
 export default router
