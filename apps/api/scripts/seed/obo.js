@@ -130,11 +130,11 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
   if (existingApplication?.workflowInstanceId) {
     workflowInstance = await prisma.workflowInstance.update({
       where: { id: existingApplication.workflowInstanceId },
-      data: { workflowVersionId: version.id, currentStepId: steps.FOR_INSPECTION.id, completedAt: now, startedByUserId: clientUser.id },
+      data: { workflowVersionId: version.id, currentStepId: steps.get('FOR_INSPECTION').id, completedAt: now, startedByUserId: clientUser.id },
     })
   } else {
     workflowInstance = await prisma.workflowInstance.create({
-      data: { workflowVersionId: version.id, currentStepId: steps.FOR_INSPECTION.id, subjectType: 'OboPermitApplication', subjectId: referenceNumber, startedByUserId: clientUser.id, startedAt: now, completedAt: now },
+      data: { workflowVersionId: version.id, currentStepId: steps.get('FOR_INSPECTION').id, subjectType: 'OboPermitApplication', subjectId: referenceNumber, startedByUserId: clientUser.id, startedAt: now, completedAt: now },
     })
   }
 
@@ -177,8 +177,8 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
       await prisma.workflowHistory.create({
         data: {
           instanceId: workflowInstance.id,
-          fromStepId: steps[fromKey].id,
-          toStepId: steps[toKey].id,
+          fromStepId: steps.get(fromKey).id,
+          toStepId: steps.get(toKey).id,
           transitionId: transition.id,
           actorId: toKey === 'FOR_INSPECTION' || toKey === 'RECEIVING' ? receivingOfficer.id : clientUser.id,
           createdAt: now,
@@ -257,7 +257,9 @@ async function verifyOboDevelopmentScenario(prisma) {
   requireCondition(workflowInstance, 'permit application workflow instance does not exist.')
   requireCondition(workflowInstance.subjectType === 'OboPermitApplication', `workflow subjectType expected OboPermitApplication, got ${workflowInstance.subjectType}.`)
   requireCondition(workflowInstance.subjectId === application.id, 'workflow instance subjectId is not linked to the permit application.')
-  requireCondition(workflowInstance.currentStepId === (await prisma.workflowStep.findUnique({ where: { workflowVersionId_key: { workflowVersionId: workflowInstance.workflowVersionId, key: 'FOR_INSPECTION' } }, select: { id: true } }))?.id, 'workflow current step is not FOR_INSPECTION.')
+  const finalStep = await prisma.workflowStep.findUnique({ where: { workflowVersionId_key: { workflowVersionId: workflowInstance.workflowVersionId, key: 'FOR_INSPECTION' } }, select: { id: true } })
+  requireCondition(finalStep, 'FOR_INSPECTION workflow step is missing.')
+  requireCondition(workflowInstance.currentStepId === finalStep.id, 'workflow current step is not FOR_INSPECTION.')
   requireCondition(workflowInstance.completedAt, 'workflow instance completedAt is missing.')
 
   const requiredHistory = [
