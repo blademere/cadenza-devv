@@ -10,6 +10,7 @@ import { seedPlatformForms } from './seed/platform-forms.js'
 import { seedOboPlatformConfiguration, verifyOboPlatformConfiguration } from './seed/obo-platform-configuration.js'
 import { bindOboDevelopmentForm } from './seed/obo-form-bindings.js'
 import { seedDevelopmentUsers } from './seed/development-users.js'
+import { seedOboProfessionalVerificationFixtures, verifyOboProfessionalVerificationFixtures } from './seed/obo-professional-verification.js'
 import { getPrismaClient, disconnectPrisma } from '../src/infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
@@ -22,13 +23,15 @@ async function seed() {
   await seedOboReferenceData(prisma, { planPermitForm })
   await seedOboPlatformConfiguration(prisma)
   await seedOboDevelopmentScenario(prisma, { roles, passwordHash: demoPasswordHash })
+  await seedOboProfessionalVerificationFixtures(prisma, { roles, passwordHash: demoPasswordHash })
   await bindOboDevelopmentForm(prisma)
   await verifyOboPlatformConfiguration(prisma)
   await verifyOboDevelopmentScenario(prisma)
+  await verifyOboProfessionalVerificationFixtures(prisma)
   await seedOboNotifications(prisma)
   await seedModelCoverage(prisma)
 
-  console.log(`Seed complete: ${permissionRecords.size} canonical permissions, baseline roles, platform OBO form/document/appointment configuration, OBO reference/workflow/notification fixtures, deterministic OBO development scenario, and verified complete Prisma model coverage.`)
+  console.log(`Seed complete: ${permissionRecords.size} canonical permissions, baseline roles, platform OBO form/document/appointment configuration, OBO reference/workflow/notification fixtures, deterministic OBO development scenario, deterministic professional verification cases, and verified complete Prisma model coverage.`)
 }
 
 async function main() {
