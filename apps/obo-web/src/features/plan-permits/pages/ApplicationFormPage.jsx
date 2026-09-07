@@ -4,7 +4,7 @@ import { Alert, Box, Button, Checkbox, Group, Select, SimpleGrid, Stack, Text, T
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import PermissionGate from '../../authorization/components/PermissionGate'
-import { permissions } from '../../../config/permissions'
+import { permissions } from '../../authorization/config/permissions'
 import { useVerifiedProfessionals } from '../../professionals/queries/professionals.queries'
 import {
   useCreatePlanPermitApplication,
@@ -89,7 +89,7 @@ export default function ApplicationFormPage() {
   }))
   const setFieldValue = (key, value) => {
     if (editing && !initialized) setInitialized(true)
-    setFormValues((current) => ({ ...current, [key]: value }))
+    setFormValues((current) => ({ ...(editing && !initialized ? effectiveFormValues : current), [key]: value }))
   }
   const mutationError = createMutation.error ?? updateMutation.error ?? submitMutation.error
   const saving = createMutation.isPending || updateMutation.isPending
