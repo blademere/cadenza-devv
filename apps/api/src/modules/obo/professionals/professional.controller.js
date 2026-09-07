@@ -7,6 +7,6 @@ const apply = async (req, res) => successResponse(res, 'Professional verificatio
 const getMine = async (req, res) => successResponse(res, 'Professional verification status retrieved successfully.', await service.getMine({ userId: req.user.id }))
 const listPending = async (_req, res) => successResponse(res, 'Pending professional verifications retrieved successfully.', await service.listPending())
 const listVerified = async (_req, res) => successResponse(res, 'Verified professionals retrieved successfully.', await service.listVerified())
-const decide = async (req, res) => successResponse(res, 'Professional verification decision recorded successfully.', await service.decideVerification({ id: req.validated.params.id, actorId: req.user.id, ...req.validated.body }))
+const decide = async (req, res) => successResponse(res, 'Professional verification decision recorded successfully.', await service.decideVerification({ id: req.params.id, actorId: req.user.id, ...req.validated.body }))
 
 export { getProfile, updateProfile, apply, getMine, listPending, listVerified, decide }
