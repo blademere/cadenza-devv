@@ -7,7 +7,7 @@ import { seedOboDevelopmentScenario, verifyOboDevelopmentScenario } from './seed
 import { seedOboNotifications } from './seed/notifications.js'
 import { seedOboReferenceData } from './seed/obo-reference.js'
 import { seedPlatformForms } from './seed/platform-forms.js'
-import { seedOboPlatformConfiguration } from './seed/obo-platform-configuration.js'
+import { seedOboPlatformConfiguration, verifyOboPlatformConfiguration } from './seed/obo-platform-configuration.js'
 import { bindOboDevelopmentForm } from './seed/obo-form-bindings.js'
 import { seedDevelopmentUsers } from './seed/development-users.js'
 import { getPrismaClient, disconnectPrisma } from '../src/infrastructure/database/prisma.js'
@@ -23,6 +23,7 @@ async function seed() {
   await seedOboPlatformConfiguration(prisma)
   await seedOboDevelopmentScenario(prisma, { roles, passwordHash: demoPasswordHash })
   await bindOboDevelopmentForm(prisma)
+  await verifyOboPlatformConfiguration(prisma)
   await verifyOboDevelopmentScenario(prisma)
   await seedOboNotifications(prisma)
   await seedModelCoverage(prisma)
