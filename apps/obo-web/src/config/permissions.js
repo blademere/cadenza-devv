@@ -6,7 +6,6 @@ export const permissions = Object.freeze({
     submit: 'obo_plan_permits:submit',
     scheduleSubmission: 'obo_plan_permits:schedule_submission',
     receive: 'obo_plan_permits:receive',
-    inspect: 'obo_plan_permits:inspect',
   }),
   appointments: Object.freeze({
     read: 'appointments:read',
