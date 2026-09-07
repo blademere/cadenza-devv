@@ -4,7 +4,7 @@ import { Alert, Box, Button, Checkbox, Group, Select, SimpleGrid, Stack, Text, T
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import PermissionGate from '../../authorization/components/PermissionGate'
-import { permissions } from '../../authorization/config/permissions'
+import { permissions } from '../../../config/permissions'
 import { useVerifiedProfessionals } from '../../professionals/queries/professionals.queries'
 import {
   useCreatePlanPermitApplication,
