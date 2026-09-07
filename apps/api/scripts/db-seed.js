@@ -6,22 +6,10 @@ import { seedModelCoverage } from './seed-model-coverage.js'
 import { seedAuthorization } from './seed/authorization.js'
 import { seedOboDevelopmentScenario, verifyOboDevelopmentScenario } from './seed/obo.js'
 import { seedOboNotifications } from './seed/notifications.js'
+import { seedDevelopmentUsers } from './seed/development-users.js'
 import { getPrismaClient, disconnectPrisma } from '../src/infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
-
-async function seedDevelopmentAdmin(roles) {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD
-  if (!adminEmail || !adminPassword) {
-    console.log('No development admin configured; set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD to create one.')
-    return null
-  }
-  const passwordHash = await bcrypt.hash(adminPassword, 12)
-  const admin = await prisma.user.upsert({ where: { email: adminEmail }, update: { roleId: roles.admin.id, isActive: true }, create: { email: adminEmail, passwordHash, roleId: roles.admin.id, isActive: true } })
-  console.log(`Development admin ensured: ${adminEmail}`)
-  return admin
-}
 
 async function seed() {
   const { roles, permissionRecords } = await seedAuthorization(prisma)
@@ -32,7 +20,7 @@ async function seed() {
   await seedOboDevelopmentScenario(prisma, { roles, passwordHash: demoPasswordHash })
   await verifyOboDevelopmentScenario(prisma)
   await seedOboNotifications(prisma)
-  await seedDevelopmentAdmin(roles)
+  await seedDevelopmentUsers(prisma, { roles, demoPasswordHash })
   await seedModelCoverage(prisma)
 
   console.log(`Seed complete: ${permissionRecords.size} canonical permissions, baseline roles, OBO reference/workflow/notification fixtures, deterministic OBO development scenario, and verified complete Prisma model coverage.`)
