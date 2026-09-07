@@ -46,7 +46,6 @@ export const router = createBrowserRouter([
       protectedPage('professionals', <ProfessionalsPage />, permissions.professionals.read),
       protectedPage('professionals/verification', <ProfessionalVerificationPage />, permissions.professionals.review),
       protectedPage('professionals/verification/apply', <ProfessionalVerificationApplyPage />, permissions.professionals.create),
-      route('inspections', 'Inspections', permissions.planPermits.inspect),
       { element: <AuthorizationRoute requiredPermission={permissions.users.manage} />, children: [{ path: 'users', element: <UsersPage /> }] },
       { element: <AuthorizationRoute requiredPermission={permissions.authorization.manage} />, children: [{ path: 'roles', element: <RolesPage /> }] },
     ] },
