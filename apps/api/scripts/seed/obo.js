@@ -62,28 +62,15 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
   const appointmentStart = new Date('2030-06-14T09:00:00.000Z')
   const appointmentEnd = new Date('2030-06-14T09:30:00.000Z')
 
-  const clientUser = await ensureUser(prisma, {
-    email: 'obo-client@example.test',
-    roleId: roles.client.id,
-    passwordHash,
-  })
-  const professionalUser = await ensureUser(prisma, {
-    email: 'obo-professional@example.test',
-    roleId: roles.professional.id,
-    passwordHash,
-  })
-  const receivingOfficer = await ensureUser(prisma, {
-    email: 'obo-receiving-officer@example.test',
-    roleId: roles.receiving_officer.id,
-    passwordHash,
-  })
+  const clientUser = await ensureUser(prisma, { email: 'obo-client@example.test', roleId: roles.client.id, passwordHash })
+  const professionalUser = await ensureUser(prisma, { email: 'obo-professional@example.test', roleId: roles.professional.id, passwordHash })
+  const receivingOfficer = await ensureUser(prisma, { email: 'obo-receiving-officer@example.test', roleId: roles.receiving_officer.id, passwordHash })
 
   const clientPerson = await prisma.person.upsert({
     where: { userId: clientUser.id },
     update: { firstName: 'OBO', lastName: 'Client', email: clientUser.email, phone: '+630000000001', isActive: true },
     create: { userId: clientUser.id, firstName: 'OBO', lastName: 'Client', email: clientUser.email, phone: '+630000000001' },
   })
-
   const professionalPerson = await prisma.person.upsert({
     where: { userId: professionalUser.id },
     update: { firstName: 'OBO', lastName: 'Professional', email: professionalUser.email, phone: '+630000000002', isActive: true },
@@ -108,7 +95,6 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
     update: { name: 'Building Plan Permit', isActive: true },
     create: { key: 'building-plan-permit', name: 'Building Plan Permit', description: 'Plan permit application for building construction and related work.' },
   })
-
   const caseType = await prisma.caseType.upsert({
     where: { key: 'obo-permit-application' },
     update: { name: 'OBO Permit Application', isActive: true },
@@ -122,14 +108,18 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
     create: { caseNumber: referenceNumber, caseTypeId: caseType.id, title: `${permitType.name} Application`, status: 'OPEN', createdByUserId: clientUser.id, openedAt: now },
   })
 
-  const workflowInstance = await prisma.workflowInstance.upsert({
-    where: { id: (await prisma.oboPermitApplication.findUnique({ where: { referenceNumber }, select: { workflowInstanceId: true } }))?.workflowInstanceId || '00000000-0000-0000-0000-000000000000' },
-    update: { currentStepId: steps.FOR_INSPECTION.id, completedAt: now, startedByUserId: clientUser.id },
-    create: { workflowVersionId: version.id, currentStepId: steps.FOR_INSPECTION.id, subjectType: 'OboPermitApplication', subjectId: referenceNumber, startedByUserId: clientUser.id, startedAt: now, completedAt: now },
-  }).catch(async (error) => {
-    if (!String(error.message).includes('Record to update not found') && !String(error.message).includes('No ')) throw error
-    return prisma.workflowInstance.create({ data: { workflowVersionId: version.id, currentStepId: steps.FOR_INSPECTION.id, subjectType: 'OboPermitApplication', subjectId: referenceNumber, startedByUserId: clientUser.id, startedAt: now, completedAt: now } })
-  })
+  const existingApplication = await prisma.oboPermitApplication.findUnique({ where: { referenceNumber }, select: { workflowInstanceId: true } })
+  let workflowInstance
+  if (existingApplication?.workflowInstanceId) {
+    workflowInstance = await prisma.workflowInstance.update({
+      where: { id: existingApplication.workflowInstanceId },
+      data: { workflowVersionId: version.id, currentStepId: steps.FOR_INSPECTION.id, completedAt: now, startedByUserId: clientUser.id },
+    })
+  } else {
+    workflowInstance = await prisma.workflowInstance.create({
+      data: { workflowVersionId: version.id, currentStepId: steps.FOR_INSPECTION.id, subjectType: 'OboPermitApplication', subjectId: referenceNumber, startedByUserId: clientUser.id, startedAt: now, completedAt: now },
+    })
+  }
 
   const application = await prisma.oboPermitApplication.upsert({
     where: { referenceNumber },
@@ -144,26 +134,18 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
     update: { name: 'OBO Hardcopy Submission', isActive: true },
     create: { key: 'obo-hardcopy-submission', name: 'OBO Hardcopy Submission', description: 'Physical hardcopy submission appointment for an OBO permit application.', defaultDurationMinutes: 30, defaultCapacity: 1 },
   })
-
   const slot = await prisma.appointmentSlot.upsert({
     where: { appointmentTypeId_startsAt: { appointmentTypeId: appointmentType.id, startsAt: appointmentStart } },
     update: { endsAt: appointmentEnd, capacity: 1, bookedCount: 1, status: 'BOOKED' },
     create: { appointmentTypeId: appointmentType.id, startsAt: appointmentStart, endsAt: appointmentEnd, capacity: 1, bookedCount: 1, status: 'BOOKED' },
   })
-
   const appointment = await prisma.appointment.upsert({
     where: { referenceNumber: 'OBO-APPT-DEV-0001' },
     update: { appointmentTypeId: appointmentType.id, slotId: slot.id, userId: clientUser.id, status: 'COMPLETED', checkedInAt: appointmentStart, completedAt: appointmentEnd, metadata: { applicationId: application.id, purpose: 'hardcopy_submission' } },
     create: { referenceNumber: 'OBO-APPT-DEV-0001', appointmentTypeId: appointmentType.id, slotId: slot.id, userId: clientUser.id, status: 'COMPLETED', checkedInAt: appointmentStart, completedAt: appointmentEnd, metadata: { applicationId: application.id, purpose: 'hardcopy_submission' } },
   })
+  await prisma.oboSubmissionAppointment.upsert({ where: { applicationId: application.id }, update: { appointmentId: appointment.id }, create: { applicationId: application.id, appointmentId: appointment.id } })
 
-  await prisma.oboSubmissionAppointment.upsert({
-    where: { applicationId: application.id },
-    update: { appointmentId: appointment.id },
-    create: { applicationId: application.id, appointmentId: appointment.id },
-  })
-
-  const transitions = OBO_WORKFLOW.transitions
   const history = [
     ['DRAFT', 'READY_FOR_SUBMISSION', 'SUBMIT_FOR_SUBMISSION'],
     ['READY_FOR_SUBMISSION', 'SUBMISSION_SCHEDULED', 'SCHEDULE_SUBMISSION'],
@@ -171,10 +153,20 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
     ['RECEIVING', 'FOR_INSPECTION', 'ACCEPT_FOR_INSPECTION'],
   ]
   for (const [fromKey, toKey, transitionKey] of history) {
-    const transition = transitions.find((item) => item.key === transitionKey)
-    const existing = await prisma.workflowHistory.findFirst({ where: { instanceId: workflowInstance.id, transition: { key: transitionKey } } })
+    const transition = await prisma.workflowTransition.findUnique({ where: { workflowVersionId_key: { workflowVersionId: version.id, key: transitionKey } } })
+    if (!transition) throw new Error(`OBO workflow transition '${transitionKey}' was not seeded.`)
+    const existing = await prisma.workflowHistory.findFirst({ where: { instanceId: workflowInstance.id, transitionId: transition.id } })
     if (!existing) {
-      await prisma.workflowHistory.create({ data: { instanceId: workflowInstance.id, fromStepId: steps[fromKey].id, toStepId: steps[toKey].id, transitionId: (await prisma.workflowTransition.findUnique({ where: { workflowVersionId_key: { workflowVersionId: version.id, key: transition.key } } }))?.id, actorId: toKey === 'FOR_INSPECTION' || toKey === 'RECEIVING' ? receivingOfficer.id : clientUser.id, createdAt: now } })
+      await prisma.workflowHistory.create({
+        data: {
+          instanceId: workflowInstance.id,
+          fromStepId: steps[fromKey].id,
+          toStepId: steps[toKey].id,
+          transitionId: transition.id,
+          actorId: toKey === 'FOR_INSPECTION' || toKey === 'RECEIVING' ? receivingOfficer.id : clientUser.id,
+          createdAt: now,
+        },
+      })
     }
   }
 
@@ -185,6 +177,7 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
     await prisma.oboReceivingDecision.create({ data: { applicationId: application.id, decision: 'ACCEPTED', reason: 'Development seed hardcopy accepted', decidedByUserId: receivingOfficer.id, decidedAt: now } })
   }
 
+  console.log(`OBO development scenario ensured: ${referenceNumber}`)
   return { clientUser, professionalUser, receivingOfficer, clientPerson, professional, application, appointment, workflowInstance }
 }
 
