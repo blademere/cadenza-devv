@@ -218,7 +218,7 @@ async function verifyOboDevelopmentScenario(prisma) {
   requireCondition(verificationDecision.decidedByUserId === receivingOfficer.id, 'professional verification decision actor is incorrect.')
   requireCondition(verificationDecision.decidedAt, 'professional verification decision timestamp is missing.')
 
-  const application = await prisma.oboPermitApplication.findUnique({ where: { referenceNumber: fixture.referenceNumber }, include: { caseRecord: true, permitType: true, clientPerson: true, professional: true, workflowInstance: { include: { currentStep: true, workflowVersion: true } }, submissionAppointment: { include: { appointment: { include: { appointmentType: true, slot: true } } } }, decisions: true } })
+  const application = await prisma.oboPermitApplication.findUnique({ where: { referenceNumber: fixture.referenceNumber }, include: { caseRecord: true, permitType: true, clientPerson: true, professional: true, workflowInstance: { include: { currentStep: true, workflowVersion: true } }, submissionAppointment: true, decisions: true } })
   requireCondition(application, `application '${fixture.referenceNumber}' does not exist.`)
   requireCondition(application.caseRecord, 'application case record is missing.')
   requireCondition(application.permitType?.key === 'building-plan-permit', 'application permit type is incorrect.')
@@ -228,10 +228,17 @@ async function verifyOboDevelopmentScenario(prisma) {
   requireCondition(application.workflowInstance.currentStep?.key === 'FOR_INSPECTION', 'application workflow is not at FOR_INSPECTION.')
   requireCondition(application.workflowInstance.completedAt, 'application workflow completion timestamp is missing.')
   requireCondition(application.workflowInstance.workflowVersion?.status === 'PUBLISHED', 'application workflow version is not published.')
-  requireCondition(application.submissionAppointment?.appointment?.appointmentType?.key === 'obo-hardcopy-submission', 'submission appointment type is incorrect.')
-  requireCondition(application.submissionAppointment.appointment.status === 'COMPLETED', 'submission appointment is not completed.')
-  requireCondition(application.submissionAppointment.appointment.slot?.status === 'BOOKED', 'submission appointment slot status is incorrect.')
-  requireCondition(application.submissionAppointment.appointment.slot?.bookedCount === 1, 'submission appointment slot booked count is incorrect.')
+  requireCondition(application.submissionAppointment, 'submission appointment linkage is missing.')
+
+  const appointment = application.submissionAppointment
+    ? await prisma.appointment.findUnique({ where: { id: application.submissionAppointment.appointmentId }, include: { appointmentType: true, slot: true } })
+    : null
+  requireCondition(appointment, 'linked appointment does not exist.')
+  requireCondition(appointment.appointmentType?.key === 'obo-hardcopy-submission', 'submission appointment type is incorrect.')
+  requireCondition(appointment.status === 'COMPLETED', 'submission appointment is not completed.')
+  requireCondition(appointment.slot?.status === 'BOOKED', 'submission appointment slot status is incorrect.')
+  requireCondition(appointment.slot?.bookedCount === 1, 'submission appointment slot booked count is incorrect.')
+
   const acceptedDecision = application.decisions.find((decision) => decision.decision === 'ACCEPTED')
   requireCondition(acceptedDecision, 'accepted receiving decision does not exist.')
   requireCondition(acceptedDecision.decidedByUserId === receivingOfficer.id, 'receiving decision actor is incorrect.')
