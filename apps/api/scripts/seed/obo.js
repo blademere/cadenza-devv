@@ -35,8 +35,16 @@ async function seedOboWorkflow(prisma) {
   const version = await prisma.workflowVersion.upsert({
     where: { workflowId_version: { workflowId: workflow.id, version: 1 } },
     update: { status: 'PUBLISHED' },
-    create: { workflowId: workflow.id, version: 1, status: 'PUBLISHED', steps: { create: OBO_WORKFLOW.steps } },
+    create: { workflowId: workflow.id, version: 1, status: 'PUBLISHED' },
   })
+
+  for (const step of OBO_WORKFLOW.steps) {
+    await prisma.workflowStep.upsert({
+      where: { workflowVersionId_key: { workflowVersionId: version.id, key: step.key } },
+      update: { name: step.name, isInitial: step.isInitial, isFinal: step.isFinal, sortOrder: step.sortOrder },
+      create: { workflowVersionId: version.id, ...step },
+    })
+  }
 
   const steps = await prisma.workflowStep.findMany({ where: { workflowVersionId: version.id } })
   const stepByKey = new Map(steps.map((step) => [step.key, step]))
