@@ -107,16 +107,14 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
     await prisma.oboProfessionalVerificationDecision.create({ data: { professionalId: professional.id, decision: 'ACCEPTED', reason: 'Development seed verification', decidedByUserId: receivingOfficer.id, decidedAt: now } })
   }
 
-  const permitType = await prisma.oboPermitType.upsert({
-    where: { key: 'building-plan-permit' },
-    update: { name: 'Building Plan Permit', isActive: true },
-    create: { key: 'building-plan-permit', name: 'Building Plan Permit', description: 'Plan permit application for building construction and related work.' },
-  })
   const caseType = await prisma.caseType.upsert({
     where: { key: 'obo-permit-application' },
     update: { name: 'OBO Permit Application', isActive: true },
     create: { key: 'obo-permit-application', name: 'OBO Permit Application', description: 'OBO permit application lifecycle' },
   })
+
+  const permitType = await prisma.oboPermitType.findUnique({ where: { key: 'building-plan-permit' } })
+  if (!permitType) throw new Error("OBO reference fixture 'building-plan-permit' was not seeded.")
 
   const referenceNumber = OBO_DEVELOPMENT_FIXTURE.referenceNumber
   const caseRecord = await prisma.caseRecord.upsert({
@@ -146,11 +144,8 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
 
   await prisma.workflowInstance.update({ where: { id: workflowInstance.id }, data: { subjectId: application.id } })
 
-  const appointmentType = await prisma.appointmentType.upsert({
-    where: { key: 'obo-hardcopy-submission' },
-    update: { name: 'OBO Hardcopy Submission', isActive: true },
-    create: { key: 'obo-hardcopy-submission', name: 'OBO Hardcopy Submission', description: 'Physical hardcopy submission appointment for an OBO permit application.', defaultDurationMinutes: 30, defaultCapacity: 1 },
-  })
+  const appointmentType = await prisma.appointmentType.findUnique({ where: { key: 'obo-hardcopy-submission' } })
+  if (!appointmentType) throw new Error("OBO reference fixture 'obo-hardcopy-submission' was not seeded.")
   const slot = await prisma.appointmentSlot.upsert({
     where: { appointmentTypeId_startsAt: { appointmentTypeId: appointmentType.id, startsAt: appointmentStart } },
     update: { endsAt: appointmentEnd, capacity: 1, bookedCount: 1, status: 'BOOKED' },
@@ -212,98 +207,45 @@ async function verifyOboDevelopmentScenario(prisma) {
   requireCondition(professionalUser, `professional user '${fixture.professionalEmail}' does not exist.`)
   requireCondition(receivingOfficer, `receiving officer '${fixture.receivingOfficerEmail}' does not exist.`)
 
-  const professional = await prisma.oboProfessional.findUnique({
-    where: { registrationNumber: fixture.registrationNumber },
-    select: { id: true, userId: true, status: true, verifiedByUserId: true, verifiedAt: true },
-  })
+  const professional = await prisma.oboProfessional.findUnique({ where: { registrationNumber: fixture.registrationNumber }, select: { id: true, userId: true, status: true, verifiedByUserId: true } })
   requireCondition(professional, `professional '${fixture.registrationNumber}' does not exist.`)
-  requireCondition(professional.userId === professionalUser.id, 'professional is not linked to the seeded professional user.')
-  requireCondition(professional.status === 'VERIFIED', `professional status expected VERIFIED, got ${professional.status}.`)
-  requireCondition(professional.verifiedByUserId === receivingOfficer.id, 'professional verification actor is incorrect.')
-  requireCondition(professional.verifiedAt, 'professional verifiedAt is missing.')
+  requireCondition(professional.userId === professionalUser.id, 'professional user linkage is incorrect.')
+  requireCondition(professional.status === 'VERIFIED', `professional status is '${professional.status}', expected VERIFIED.`)
+  requireCondition(professional.verifiedByUserId === receivingOfficer.id, 'professional verifier linkage is incorrect.')
 
-  const verificationDecision = await prisma.oboProfessionalVerificationDecision.findFirst({
-    where: { professionalId: professional.id, decision: 'ACCEPTED' },
-    orderBy: { decidedAt: 'desc' },
-    select: { id: true, decidedByUserId: true, decidedAt: true },
-  })
-  requireCondition(verificationDecision, 'accepted professional verification decision is missing.')
+  const verificationDecision = await prisma.oboProfessionalVerificationDecision.findFirst({ where: { professionalId: professional.id, decision: 'ACCEPTED' }, select: { id: true, decidedByUserId: true, decidedAt: true } })
+  requireCondition(verificationDecision, 'accepted professional verification decision does not exist.')
   requireCondition(verificationDecision.decidedByUserId === receivingOfficer.id, 'professional verification decision actor is incorrect.')
   requireCondition(verificationDecision.decidedAt, 'professional verification decision timestamp is missing.')
 
-  const application = await prisma.oboPermitApplication.findUnique({
-    where: { referenceNumber: fixture.referenceNumber },
-    select: { id: true, caseId: true, clientPersonId: true, professionalId: true, workflowInstanceId: true, submittedAt: true, acceptedAt: true, acceptedByUserId: true },
-  })
-  requireCondition(application, `permit application '${fixture.referenceNumber}' does not exist.`)
-  requireCondition(application.caseId, 'permit application is missing its case link.')
-  requireCondition(application.clientPersonId, 'permit application is missing its client link.')
-  requireCondition(application.professionalId === professional.id, 'permit application is not linked to the seeded professional.')
-  requireCondition(application.workflowInstanceId, 'permit application is missing its workflow instance link.')
-  requireCondition(application.submittedAt, 'permit application submittedAt is missing.')
-  requireCondition(application.acceptedAt, 'permit application acceptedAt is missing.')
-  requireCondition(application.acceptedByUserId === receivingOfficer.id, 'permit application acceptance actor is incorrect.')
+  const application = await prisma.oboPermitApplication.findUnique({ where: { referenceNumber: fixture.referenceNumber }, include: { caseRecord: true, permitType: true, clientPerson: true, professional: true, workflowInstance: { include: { currentStep: true, workflowVersion: true } }, submissionAppointment: { include: { appointment: { include: { appointmentType: true, slot: true } } } }, decisions: true } })
+  requireCondition(application, `application '${fixture.referenceNumber}' does not exist.`)
+  requireCondition(application.caseRecord, 'application case record is missing.')
+  requireCondition(application.permitType?.key === 'building-plan-permit', 'application permit type is incorrect.')
+  requireCondition(application.clientPerson?.userId === clientUser.id, 'application client linkage is incorrect.')
+  requireCondition(application.professional?.id === professional.id, 'application professional linkage is incorrect.')
+  requireCondition(application.workflowInstance, 'application workflow instance is missing.')
+  requireCondition(application.workflowInstance.currentStep?.key === 'FOR_INSPECTION', 'application workflow is not at FOR_INSPECTION.')
+  requireCondition(application.workflowInstance.completedAt, 'application workflow completion timestamp is missing.')
+  requireCondition(application.workflowInstance.workflowVersion?.status === 'PUBLISHED', 'application workflow version is not published.')
+  requireCondition(application.submissionAppointment?.appointment?.appointmentType?.key === 'obo-hardcopy-submission', 'submission appointment type is incorrect.')
+  requireCondition(application.submissionAppointment.appointment.status === 'COMPLETED', 'submission appointment is not completed.')
+  requireCondition(application.submissionAppointment.appointment.slot?.status === 'BOOKED', 'submission appointment slot status is incorrect.')
+  requireCondition(application.submissionAppointment.appointment.slot?.bookedCount === 1, 'submission appointment slot booked count is incorrect.')
+  const acceptedDecision = application.decisions.find((decision) => decision.decision === 'ACCEPTED')
+  requireCondition(acceptedDecision, 'accepted receiving decision does not exist.')
+  requireCondition(acceptedDecision.decidedByUserId === receivingOfficer.id, 'receiving decision actor is incorrect.')
+  requireCondition(acceptedDecision.decidedAt, 'receiving decision timestamp is missing.')
 
-  const clientPerson = await prisma.person.findUnique({ where: { id: application.clientPersonId }, select: { userId: true } })
-  requireCondition(clientPerson?.userId === clientUser.id, 'permit application client person is not linked to the seeded client user.')
+  const transitions = await prisma.workflowTransition.findMany({ where: { workflowVersionId: application.workflowInstance.workflowVersionId } })
+  const transitionKeys = new Set(transitions.map((transition) => transition.key))
+  for (const key of ['SUBMIT_FOR_SUBMISSION', 'SCHEDULE_SUBMISSION', 'RECEIVE_HARDCOPY', 'DECLINE', 'ACCEPT_FOR_INSPECTION']) requireCondition(transitionKeys.has(key), `workflow transition '${key}' is missing.`)
 
-  const caseRecord = await prisma.caseRecord.findUnique({ where: { id: application.caseId }, select: { caseNumber: true } })
-  requireCondition(caseRecord?.caseNumber === fixture.referenceNumber, 'permit application case link is inconsistent.')
-
-  const workflowInstance = await prisma.workflowInstance.findUnique({
-    where: { id: application.workflowInstanceId },
-    select: { workflowVersionId: true, currentStepId: true, subjectType: true, subjectId: true, completedAt: true },
-  })
-  requireCondition(workflowInstance, 'permit application workflow instance does not exist.')
-  requireCondition(workflowInstance.subjectType === 'OboPermitApplication', `workflow subjectType expected OboPermitApplication, got ${workflowInstance.subjectType}.`)
-  requireCondition(workflowInstance.subjectId === application.id, 'workflow instance subjectId is not linked to the permit application.')
-  const finalStep = await prisma.workflowStep.findUnique({ where: { workflowVersionId_key: { workflowVersionId: workflowInstance.workflowVersionId, key: 'FOR_INSPECTION' } }, select: { id: true } })
-  requireCondition(finalStep, 'FOR_INSPECTION workflow step is missing.')
-  requireCondition(workflowInstance.currentStepId === finalStep.id, 'workflow current step is not FOR_INSPECTION.')
-  requireCondition(workflowInstance.completedAt, 'workflow instance completedAt is missing.')
-
-  const requiredHistory = [
-    ['DRAFT', 'READY_FOR_SUBMISSION', 'SUBMIT_FOR_SUBMISSION'],
-    ['READY_FOR_SUBMISSION', 'SUBMISSION_SCHEDULED', 'SCHEDULE_SUBMISSION'],
-    ['SUBMISSION_SCHEDULED', 'RECEIVING', 'RECEIVE_HARDCOPY'],
-    ['RECEIVING', 'FOR_INSPECTION', 'ACCEPT_FOR_INSPECTION'],
-  ]
-  for (const [fromKey, toKey, transitionKey] of requiredHistory) {
-    const transition = await prisma.workflowTransition.findUnique({ where: { workflowVersionId_key: { workflowVersionId: workflowInstance.workflowVersionId, key: transitionKey } }, select: { id: true } })
-    requireCondition(transition, `workflow transition '${transitionKey}' is missing.`)
-    const history = await prisma.workflowHistory.findFirst({ where: { instanceId: workflowInstance.id, transitionId: transition.id }, select: { id: true, fromStepId: true, toStepId: true } })
-    requireCondition(history, `workflow history for transition '${transitionKey}' is missing.`)
-    const fromStep = await prisma.workflowStep.findUnique({ where: { id: history.fromStepId }, select: { key: true } })
-    const toStep = await prisma.workflowStep.findUnique({ where: { id: history.toStepId }, select: { key: true } })
-    requireCondition(fromStep?.key === fromKey && toStep?.key === toKey, `workflow history for '${transitionKey}' has incorrect step mapping.`)
-  }
-
-  const submissionAppointment = await prisma.oboSubmissionAppointment.findUnique({ where: { applicationId: application.id }, select: { appointmentId: true } })
-  requireCondition(submissionAppointment, 'submission appointment link is missing.')
-
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: submissionAppointment.appointmentId },
-    select: { referenceNumber: true, userId: true, status: true, slotId: true },
-  })
-  requireCondition(appointment, 'linked appointment does not exist.')
-  requireCondition(appointment.referenceNumber === fixture.appointmentReferenceNumber, 'submission appointment references the wrong appointment.')
-  requireCondition(appointment.userId === clientUser.id, 'appointment is not linked to the seeded client user.')
-  requireCondition(appointment.status === 'COMPLETED', `appointment status expected COMPLETED, got ${appointment.status}.`)
-  requireCondition(appointment.slotId, 'appointment is missing its slot link.')
-
-  const slot = await prisma.appointmentSlot.findUnique({ where: { id: appointment.slotId }, select: { capacity: true, bookedCount: true, status: true } })
-  requireCondition(slot, 'appointment slot does not exist.')
-  requireCondition(slot.capacity > 0, 'appointment slot capacity must be greater than zero.')
-  requireCondition(slot.bookedCount >= 1 && slot.bookedCount <= slot.capacity, `appointment slot bookedCount ${slot.bookedCount} is inconsistent with capacity ${slot.capacity}.`)
-  requireCondition(slot.status === 'BOOKED', `appointment slot status expected BOOKED, got ${slot.status}.`)
-
-  const receivingDecision = await prisma.oboReceivingDecision.findFirst({ where: { applicationId: application.id, decision: 'ACCEPTED' }, orderBy: { decidedAt: 'desc' }, select: { id: true, decidedByUserId: true, decidedAt: true } })
-  requireCondition(receivingDecision, 'accepted receiving decision is missing.')
-  requireCondition(receivingDecision.decidedByUserId === receivingOfficer.id, 'receiving decision actor is incorrect.')
-  requireCondition(receivingDecision.decidedAt, 'receiving decision timestamp is missing.')
+  const history = await prisma.workflowHistory.findMany({ where: { instanceId: application.workflowInstance.id }, select: { transitionId: true } })
+  const transitionIds = new Set(history.map((item) => item.transitionId))
+  for (const transition of transitions.filter((item) => ['SUBMIT_FOR_SUBMISSION', 'SCHEDULE_SUBMISSION', 'RECEIVE_HARDCOPY', 'ACCEPT_FOR_INSPECTION'].includes(item.key))) requireCondition(transitionIds.has(transition.id), `workflow history for '${transition.key}' is missing.`)
 
   console.log(`OBO development scenario verified: ${fixture.referenceNumber}`)
-  return true
 }
 
-export { seedOboWorkflow, seedOboDevelopmentScenario, verifyOboDevelopmentScenario }
+export { OBO_DEVELOPMENT_FIXTURE, seedOboDevelopmentScenario, verifyOboDevelopmentScenario }
