@@ -1,6 +1,5 @@
 const OBO_PROFESSIONAL_VERIFICATION_FIXTURES = [
   {
-    key: 'approve',
     email: 'obo-professional-verify-approve@example.test',
     firstName: 'Jane',
     lastName: 'Doe',
@@ -10,7 +9,6 @@ const OBO_PROFESSIONAL_VERIFICATION_FIXTURES = [
     ptrNumber: 'DEV-PTR-VERIFY-ACCEPT-0001',
   },
   {
-    key: 'decline',
     email: 'obo-professional-verify-decline@example.test',
     firstName: 'John',
     lastName: 'Smith',
@@ -20,8 +18,6 @@ const OBO_PROFESSIONAL_VERIFICATION_FIXTURES = [
     ptrNumber: 'DEV-PTR-VERIFY-DECLINE-0001',
   },
 ]
-
-const FIXTURE_DATE = new Date('2030-06-10T08:00:00.000Z')
 
 const ensureUser = async (prisma, { email, roleId, passwordHash }) => prisma.user.upsert({
   where: { email },
@@ -145,7 +141,6 @@ async function verifyOboProfessionalVerificationFixtures(prisma) {
 }
 
 export {
-  FIXTURE_DATE,
   OBO_PROFESSIONAL_VERIFICATION_FIXTURES,
   seedOboProfessionalVerificationFixtures,
   verifyOboProfessionalVerificationFixtures,
