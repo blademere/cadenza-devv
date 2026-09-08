@@ -107,7 +107,10 @@ const listApplications = async (status, db = prisma) => {
   return hydrated.filter(Boolean).filter((application) => application.status === (status || 'SUBMISSION_SCHEDULED'))
 }
 
-const updateApplication = (id, data, db = prisma) => db.oboPermitApplication.update({ where: { id }, data, include: applicationInclude })
+const updateApplication = async (id, data, db = prisma) => {
+  const application = await db.oboPermitApplication.update({ where: { id }, data, include: applicationInclude })
+  return hydrateApplication(application, db)
+}
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
 const withTransaction = (callback) => prisma.$transaction(callback)
 
