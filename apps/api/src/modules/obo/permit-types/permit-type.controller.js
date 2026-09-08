@@ -23,4 +23,24 @@ const getForm = async (req, res) => successResponse(
   await service.getPermitTypeForm(req.params.permitTypeId, getVersion(req.query.version)),
 )
 
-export { list, getForm }
+const create = async (req, res) => successResponse(
+  res,
+  'Permit type created successfully.',
+  await service.createPermitType({
+    actorId: req.user.id,
+    data: req.validated.body,
+  }),
+  201,
+)
+
+const update = async (req, res) => successResponse(
+  res,
+  'Permit type updated successfully.',
+  await service.updatePermitType({
+    actorId: req.user.id,
+    id: req.validated.params.permitTypeId,
+    data: req.validated.body,
+  }),
+)
+
+export { list, getForm, create, update }
