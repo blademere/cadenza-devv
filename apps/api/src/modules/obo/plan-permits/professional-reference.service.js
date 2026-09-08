@@ -42,6 +42,7 @@ const validateProfessionalReferences = async ({ formVersion, formValues, reposit
       continue
     }
 
+    const seenReferences = new Set()
     for (const reference of references) {
       const parsedId = professionalId.safeParse(reference)
       if (!parsedId.success) {
@@ -53,6 +54,17 @@ const validateProfessionalReferences = async ({ formVersion, formValues, reposit
         })
         continue
       }
+
+      if (seenReferences.has(parsedId.data)) {
+        errors.push({
+          field: field.key,
+          code: 'DUPLICATE',
+          reference: parsedId.data,
+          message: `${field.label} contains a duplicate professional reference.`
+        })
+        continue
+      }
+      seenReferences.add(parsedId.data)
 
       const professional = await repository.findById(parsedId.data)
       if (!professional) {
@@ -103,7 +115,49 @@ const validateProfessionalReferences = async ({ formVersion, formValues, reposit
   return true
 }
 
+const professionalSnapshot = (professional) => ({
+  professionalId: professional.id,
+  name: [
+    professional.person?.firstName,
+    professional.person?.middleName,
+    professional.person?.lastName,
+    professional.person?.suffix,
+  ].filter(Boolean).join(' ') || 'Professional',
+  registrationNumber: professional.registrationNumber ?? null,
+  prcId: professional.prcId ?? null,
+  ptrNumber: professional.ptrNumber ?? null,
+  role: professional.professionalRole ?? null,
+})
+
+const buildProfessionalSnapshots = async ({ formVersion, formValues, repository = professionalRepository }) => {
+  const snapshots = {}
+
+  for (const field of getProfessionalReferenceFields(formVersion)) {
+    if (!formService.evaluateCondition(field.visibility, formValues)) continue
+
+    const value = formValues[field.key]
+    if (isEmpty(value)) continue
+
+    const references = normalizeReferenceValues(field, value)
+    const resolved = []
+    for (const reference of references) {
+      const parsedId = professionalId.safeParse(reference)
+      if (!parsedId.success) continue
+
+      const professional = await repository.findById(parsedId.data)
+      if (!professional) continue
+      resolved.push(professionalSnapshot(professional))
+    }
+
+    if (resolved.length === 0) continue
+    snapshots[field.key] = field.config?.multiple === true ? resolved : resolved[0]
+  }
+
+  return snapshots
+}
+
 export {
   getProfessionalReferenceFields,
   validateProfessionalReferences,
+  buildProfessionalSnapshots,
 }
