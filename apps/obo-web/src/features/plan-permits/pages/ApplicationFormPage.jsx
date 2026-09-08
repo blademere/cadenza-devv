@@ -62,7 +62,8 @@ export default function ApplicationFormPage() {
   const submitMutation = useSubmitPlanPermitApplication()
   const effectivePermitTypeId = editing ? String(application?.permitTypeId ?? '') : permitTypeId
   const effectiveProfessionalId = editing && !professionalTouched ? String(application?.professionalId ?? '') : professionalId
-  const formQuery = usePermitTypeForm(effectivePermitTypeId)
+  const formVersion = editing ? application?.formVersion?.version : undefined
+  const formQuery = usePermitTypeForm(effectivePermitTypeId, formVersion)
   const form = asForm(formQuery.data)
   const fields = form?.fields ?? []
   const sections = form?.sections ?? []

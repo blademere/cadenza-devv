@@ -4,7 +4,7 @@ import { planPermitsApi } from '../api/plan-permits.api'
 export const planPermitApplicationsQueryKey = ['obo', 'plan-permits', 'applications']
 export const planPermitApplicationQueryKey = (id) => ['obo', 'plan-permits', 'applications', id]
 export const permitTypesQueryKey = ['obo', 'plan-permits', 'permit-types']
-export const permitTypeFormQueryKey = (id) => ['obo', 'plan-permits', 'permit-types', id, 'form']
+export const permitTypeFormQueryKey = (id, version) => ['obo', 'plan-permits', 'permit-types', id, 'form', version ?? 'latest']
 
 export function usePlanPermitApplications(options = {}) {
   return useQuery({
@@ -31,10 +31,10 @@ export function usePermitTypes(options = {}) {
   })
 }
 
-export function usePermitTypeForm(id, options = {}) {
+export function usePermitTypeForm(id, version, options = {}) {
   return useQuery({
-    queryKey: permitTypeFormQueryKey(id),
-    queryFn: () => planPermitsApi.getPermitTypeForm(id),
+    queryKey: permitTypeFormQueryKey(id, version),
+    queryFn: () => planPermitsApi.getPermitTypeForm(id, version),
     enabled: Boolean(id) && options.enabled !== false,
     ...options,
   })
