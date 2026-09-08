@@ -5,6 +5,8 @@ import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import PermissionGate from '../../authorization/components/PermissionGate'
 import { permissions } from '../../../config/permissions'
+import ProfessionalReferenceField from '../components/ProfessionalReferenceField'
+import { useVerifiedProfessionals } from '../../professionals/queries/professionals.queries'
 import {
   useCreatePlanPermitApplication,
   usePlanPermitApplication,
@@ -23,9 +25,10 @@ const asForm = (value) => unwrap(value) ?? null
 const fieldType = (field) => String(field.type ?? field.fieldType ?? 'text').toLowerCase()
 const fieldKey = (field) => field.key ?? field.id
 const fieldLabel = (field) => field.label ?? field.name ?? field.key ?? 'Field'
+const isProfessionalReference = (field) => fieldType(field) === 'reference' && field?.config?.referenceType === 'obo_professional'
 const optionItems = (field) => (field.options ?? []).map((option) => ({ value: String(option.value), label: option.label ?? String(option.value) }))
 
-function FormField({ field, value, error, onChange }) {
+function FormField({ field, value, error, onChange, professionals }) {
   const type = fieldType(field)
   const label = fieldLabel(field)
   const description = field.description ?? undefined
@@ -39,6 +42,7 @@ function FormField({ field, value, error, onChange }) {
     onChange: (event) => onChange(event.currentTarget.value),
   }
 
+  if (isProfessionalReference(field)) return <ProfessionalReferenceField field={field} value={value} error={error} professionals={professionals} onChange={onChange} />
   if (type === 'textarea' || type === 'longtext') return <Textarea {...common} minRows={4} />
   if (type === 'select' || type === 'dropdown') return <Select label={label} description={description} required={required} error={error} data={optionItems(field)} value={value == null ? null : String(value)} onChange={onChange} clearable={!required} />
   if (type === 'checkbox' || type === 'boolean') return <Checkbox label={label} description={description} error={error} checked={Boolean(value)} onChange={(event) => onChange(event.currentTarget.checked)} />
@@ -97,6 +101,9 @@ export default function ApplicationFormPage() {
   const form = asForm(formQuery.data)
   const fields = form?.fields ?? []
   const sections = form?.sections ?? []
+  const hasProfessionalReferenceFields = useMemo(() => fields.some(isProfessionalReference), [fields])
+  const professionalsQuery = useVerifiedProfessionals({ enabled: hasProfessionalReferenceFields })
+  const professionals = asArray(professionalsQuery.data)
   const permitType = permitTypes.find((item) => String(item.id) === effectivePermitTypeId)
   const hasConfiguredForm = Boolean(permitType?.formId || permitType?.form?.id)
   const sectionFields = useMemo(() => {
@@ -127,6 +134,7 @@ export default function ApplicationFormPage() {
   if (editing && application && application.status !== 'DRAFT') return <Stack className="obo-page"><Alert color="gray" title="Application is no longer editable">Only draft applications can be updated.</Alert><Button component={Link} to={`/app/applications/${applicationId}`} variant="light">Back to application</Button></Stack>
   if (permitTypesQuery.isLoading || (effectivePermitTypeId && formQuery.isLoading)) return <Stack className="obo-page"><LoadingState label="Loading application form…" /></Stack>
   if (permitTypesQuery.error || formQuery.error) return <Stack className="obo-page"><Alert color="red" title="Unable to load application form">{permitTypesQuery.error?.message ?? formQuery.error?.message}</Alert></Stack>
+  if (hasProfessionalReferenceFields && professionalsQuery.error) return <Stack className="obo-page"><Alert color="red" title="Unable to load professionals">{professionalsQuery.error.message}</Alert></Stack>
 
   const permitTypeOptions = permitTypes.map((item) => ({ value: String(item.id), label: item.name ?? item.key ?? String(item.id) }))
 
@@ -215,7 +223,7 @@ export default function ApplicationFormPage() {
         {effectivePermitTypeId && form && <Box><Text fw={700}>{form.name ?? 'Application information'}</Text><Text size="sm" c="dimmed" mt={3}>{form.description ?? 'Complete the required application fields.'}</Text></Box>}
         {!effectivePermitTypeId && <Alert color="gray">Select a permit type to load the published application form.</Alert>}
         {effectivePermitTypeId && !form && !hasConfiguredForm && <Alert color="gray">No application form is configured for this permit type. The application can still be saved if the backend permits a form-less application.</Alert>}
-        {form && <Stack gap="xl">{sectionFields.map((section, sectionIndex) => <Box key={section.id ?? section.key ?? sectionIndex}><Text fw={650}>{section.title ?? section.name ?? section.label ?? `Section ${sectionIndex + 1}`}</Text>{section.description && <Text size="sm" c="dimmed" mt={3} mb="md">{section.description}</Text>}<SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="md">{section.fields.map((field, index) => <FormField key={field.id ?? field.key ?? index} field={field} value={formValues[fieldKey(field)]} error={formErrors[fieldKey(field)]} onChange={(value) => setFieldValue(fieldKey(field), value)} />)}</SimpleGrid>{!section.fields.length && <Text size="sm" c="dimmed" mt="sm">No fields configured in this section.</Text>}</Box>)}</Stack>}
+        {form && <Stack gap="xl">{sectionFields.map((section, sectionIndex) => <Box key={section.id ?? section.key ?? sectionIndex}><Text fw={650}>{section.title ?? section.name ?? section.label ?? `Section ${sectionIndex + 1}`}</Text>{section.description && <Text size="sm" c="dimmed" mt={3} mb="md">{section.description}</Text>}<SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="md">{section.fields.map((field, index) => <FormField key={field.id ?? field.key ?? index} field={field} value={formValues[fieldKey(field)]} error={formErrors[fieldKey(field)]} professionals={professionals} onChange={(value) => setFieldValue(fieldKey(field), value)} />)}</SimpleGrid>{!section.fields.length && <Text size="sm" c="dimmed" mt="sm">No fields configured in this section.</Text>}</Box>)}</Stack>}
         <Group justify="flex-end">
           <Button variant="default" component={Link} to={editing ? `/app/applications/${applicationId}` : '/app/applications'}>Cancel</Button>
           <PermissionGate permission={editing ? permissions.planPermits.update : permissions.planPermits.create}>
