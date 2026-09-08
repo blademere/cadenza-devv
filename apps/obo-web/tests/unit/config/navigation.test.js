@@ -24,6 +24,11 @@ describe('OBO navigation authorization', () => {
     expect(visibleKeys([permissions.planPermits.receive])).not.toContain('applications')
   })
 
+  it('shows appointments only with appointment management permission', () => {
+    expect(visibleKeys([permissions.appointments.manage])).toContain('appointments')
+    expect(visibleKeys([])).not.toContain('appointments')
+  })
+
   it('separates professional directory and verification permissions', () => {
     expect(visibleKeys([permissions.professionals.read])).toContain('professionals')
     expect(visibleKeys([permissions.professionals.read])).not.toContain('professional-verification')
