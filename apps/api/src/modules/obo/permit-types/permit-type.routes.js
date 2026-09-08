@@ -4,6 +4,7 @@ import authenticate from '../../../features/auth/authenticate.secure.js'
 import authorize from '../../../platform/authorization/authorize.js'
 import * as controller from './permit-type.controller.js'
 import {
+  createPermitTypeFormValidator,
   createPermitTypeValidator,
   permitTypeIdValidator,
   updatePermitTypeValidator,
@@ -28,6 +29,14 @@ router.patch(
   requireIdempotency,
   validate(updatePermitTypeValidator),
   asyncHandler(controller.update),
+)
+router.post(
+  '/:permitTypeId/form',
+  authenticate,
+  authorize('obo_forms', 'create'),
+  requireIdempotency,
+  validate(createPermitTypeFormValidator),
+  asyncHandler(controller.createForm),
 )
 router.get('/:permitTypeId/form', authenticate, authorize('obo_plan_permits', 'read'), validate(permitTypeIdValidator), asyncHandler(controller.getForm))
 
