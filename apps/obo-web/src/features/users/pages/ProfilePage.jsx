@@ -6,7 +6,7 @@ import LoadingState from '../../../components/common/LoadingState'
 import { useAuth } from '../../auth/components/AuthProvider'
 import { useMyProfessional } from '../../professionals/queries/professionals.queries'
 import { useMyProfile } from '../queries/profile.queries'
-import { useUpdateMyProfile } from '../mutations/profile.mutations'
+import { useCreateMyProfile, useUpdateMyProfile } from '../mutations/profile.mutations'
 
 const unwrap = (value) => value?.data ?? value
 
@@ -85,7 +85,8 @@ function ApplicationStatus({ application, error }) {
 export default function ProfilePage() {
   const { user } = useAuth()
   const query = useMyProfile()
-  const mutation = useUpdateMyProfile()
+  const createMutation = useCreateMyProfile()
+  const updateMutation = useUpdateMyProfile()
   const role = normalizeRole(user?.role)
   const config = getRoleConfig(role)
   const isProfessional = role.includes('professional')
@@ -93,6 +94,8 @@ export default function ProfilePage() {
   const profile = unwrap(query.data)
   const person = profile?.person
   const account = profile?.user ?? user
+  const profileMissing = query.error?.status === 404
+  const mutation = person ? updateMutation : createMutation
   const [form, setForm] = useState({ firstName: '', middleName: '', lastName: '', suffix: '', phone: '' })
 
   useEffect(() => {
@@ -119,14 +122,14 @@ export default function ProfilePage() {
   }
 
   if (query.isLoading) return <Stack className="obo-page"><LoadingState label="Loading profile…" /></Stack>
-  if (query.error) return <Stack className="obo-page"><Alert color="red" title="Unable to load profile">{query.error.message ?? 'Your profile could not be loaded.'}</Alert></Stack>
+  if (query.error && !profileMissing) return <Stack className="obo-page"><Alert color="red" title="Unable to load profile">{query.error.message ?? 'Your profile could not be loaded.'}</Alert></Stack>
 
   return (
     <Stack className="obo-page" gap="lg">
       <PageHeader eyebrow="Account" title={config.title} description={config.description} />
 
-      {mutation.error && <Alert color="red" title="Profile update failed">{mutation.error.message ?? 'Your profile could not be updated.'}</Alert>}
-      {mutation.isSuccess && <Alert color="green" title="Profile updated">Your shared Person profile has been updated.</Alert>}
+      {mutation.error && <Alert color="red" title={person ? 'Profile update failed' : 'Profile creation failed'}>{mutation.error.message ?? 'Your profile could not be saved.'}</Alert>}
+      {mutation.isSuccess && <Alert color="green" title={person ? 'Profile updated' : 'Profile created'}>Your shared Person profile has been {person ? 'updated' : 'created'}.</Alert>}
 
       <Box className="obo-panel" p="lg">
         <Stack gap="lg">
@@ -140,6 +143,12 @@ export default function ProfilePage() {
 
           <Divider />
 
+          {profileMissing && (
+            <Alert color="blue" title="Complete your profile">
+              Your shared Person profile has not been created yet. Complete the form to create it.
+            </Alert>
+          )}
+
           <form onSubmit={submit}>
             <Stack gap="md">
               <SimpleGrid cols={{ base: 1, sm: 2 }}>
@@ -150,7 +159,9 @@ export default function ProfilePage() {
                 <TextInput label="Phone" value={form.phone} onChange={setField('phone')} maxLength={50} />
               </SimpleGrid>
               <Group justify="flex-end">
-                <Button type="submit" loading={mutation.isPending} disabled={!form.firstName.trim() || !form.lastName.trim()}>Save profile</Button>
+                <Button type="submit" loading={mutation.isPending} disabled={!form.firstName.trim() || !form.lastName.trim()}>
+                  {person ? 'Save profile' : 'Create profile'}
+                </Button>
               </Group>
             </Stack>
           </form>
