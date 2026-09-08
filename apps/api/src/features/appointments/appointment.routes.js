@@ -11,7 +11,7 @@ import controller from './appointment.controller.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'appointments', required: true })
-const loadAppointment = (id) => repository.findAppointment(Number(id))
+const loadAppointment = (id) => repository.findAppointment(id)
 const authorizeOwnedAppointment = (action) => authorizeResource({ resource: APPOINTMENT_MODULE, action, loadResource: loadAppointment, policy: ownershipPolicy, getOwnerId: (appointment) => appointment.userId })
 const authorizeAppointmentResource = (action) => authorizeResource({ resource: APPOINTMENT_MODULE, action, loadResource: loadAppointment })
 
