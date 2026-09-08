@@ -5,6 +5,7 @@ model OboProfessional {
   registrationNumber String @unique
   prcId              String? @unique
   ptrNumber          String?
+  professionalRole   String?
 
   status                String                                @default("PENDING_VERIFICATION")
   verifiedByUserId      Int?
@@ -19,4 +20,5 @@ model OboProfessional {
 
   @@index([status])
   @@index([ptrNumber])
+  @@index([professionalRole])
 }
