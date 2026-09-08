@@ -22,25 +22,23 @@ const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumb
   const normalizedPtrNumber = normalizeCredential(ptrNumber)
   const normalizedProfessionalRole = normalizeProfessionalRole(professionalRole)
 
-  // Validate request-local credentials before any repository access. This keeps malformed
-  // submissions deterministic and avoids a database lookup for obviously invalid input.
   if (!normalizedRegistrationNumber) throw new BadRequestError('registrationNumber is required.')
   if (!normalizedPrcId) throw new BadRequestError('prcId is required.')
   if (!normalizedPtrNumber) throw new BadRequestError('ptrNumber is required.')
 
   const person = await repository.findPersonByUserId(userId)
   if (!person) throw new ConflictError('User does not have a person profile. Complete your person profile before applying for professional verification.')
-  if (!normalizedProfessionalRole) throw new BadRequestError('professionalRole is required.')
 
   const existing = await repository.findByPersonId(person.id)
   if (existing) throw new ConflictError('A professional application already exists for this person.')
+
   return repository.create({
     personId: person.id,
     userId,
     registrationNumber: normalizedRegistrationNumber,
     prcId: normalizedPrcId,
     ptrNumber: normalizedPtrNumber,
-    professionalRole: normalizedProfessionalRole,
+    ...(normalizedProfessionalRole ? { professionalRole: normalizedProfessionalRole } : {}),
   })
 }
 const getMine = async ({ userId }) => {
