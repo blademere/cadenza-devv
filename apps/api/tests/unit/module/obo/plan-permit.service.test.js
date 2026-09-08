@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
+vi.mock('../../../../src/modules/obo/professionals/professional.repository.js')
 vi.mock('../../../../src/platform/forms/form.service.js')
 vi.mock('../../../../src/platform/workflow/workflow.service.js')
 
 const repository = await import('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
+const professionalRepository = await import('../../../../src/modules/obo/professionals/professional.repository.js')
 const formService = await import('../../../../src/platform/forms/form.service.js')
 const workflowService = await import('../../../../src/platform/workflow/workflow.service.js')
 const service = await import('../../../../src/modules/obo/plan-permits/plan-permit.service.js')
@@ -22,6 +24,7 @@ const spies = {
   update: repository.update,
   findPersonNotificationContext: repository.findPersonNotificationContext,
   withTransaction: repository.withTransaction,
+  findProfessionalById: professionalRepository.findById,
   startWorkflow: workflowService.startWorkflow,
   transitionWorkflow: workflowService.transitionWorkflow,
   validateFormValues: formService.validateFormValues,
@@ -39,6 +42,7 @@ beforeEach(() => {
   spies.getFormVersion.mockResolvedValue({ id: 'form-version-1', version: 1, fields: [] })
   spies.evaluateCondition.mockReturnValue(true)
   spies.findPersonNotificationContext.mockResolvedValue(null)
+  spies.findProfessionalById.mockResolvedValue(null)
 })
 
 const person = { id: 'person-1', userId: 'user-1', email: 'client@example.com' }
