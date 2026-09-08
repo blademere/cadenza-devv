@@ -22,6 +22,7 @@ const resolveAndValidateForm = async ({ permitType, formVersionId, formValues })
       formKey: form.key,
       version: version.version,
       values: formValues,
+      requireRequired: false,
     })
 
     if (!validation.valid) {
@@ -34,6 +35,7 @@ const resolveAndValidateForm = async ({ permitType, formVersionId, formValues })
   const validation = await formService.validateFormValues({
     formKey: form.key,
     values: formValues,
+    requireRequired: false,
   })
 
   if (!validation.valid) {
