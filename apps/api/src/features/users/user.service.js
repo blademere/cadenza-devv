@@ -19,6 +19,7 @@ import {
 } from './user.repository.js'
 import { toUserResponse } from './user.mapper.js'
 import { findUserByEmail } from '../auth/auth.repository.js'
+import * as peopleService from '../people/people.service.js'
 import {
   findRoleById,
   getUserAuthorizationContext,
@@ -125,4 +126,33 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
   return toUserResponse(updatedUser)
 }
 
-export { listUsers, registerUser, assignUserRole }
+const getMyProfile = async (userId) => {
+  const user = await findUserWithRole(Number(userId))
+  if (!user) throw new NotFoundError('User not found.')
+  const person = await peopleService.getByUserId(userId)
+
+  return {
+    user: toUserResponse(user),
+    person,
+  }
+}
+
+const updateMyProfile = async (userId, data) => {
+  const user = await findUserWithRole(Number(userId))
+  if (!user) throw new NotFoundError('User not found.')
+  const person = await peopleService.getByUserId(userId)
+  const updatedPerson = await peopleService.update(person.id, data)
+
+  return {
+    user: toUserResponse(user),
+    person: updatedPerson,
+  }
+}
+
+export {
+  listUsers,
+  registerUser,
+  assignUserRole,
+  getMyProfile,
+  updateMyProfile,
+}
