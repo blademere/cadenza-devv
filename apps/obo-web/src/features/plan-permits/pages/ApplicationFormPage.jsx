@@ -190,13 +190,19 @@ export default function ApplicationFormPage() {
   }
 
   const handleSubmit = async () => {
-    if (!editing || !applicationId) return
-    await submitMutation.mutateAsync(applicationId)
-    navigate(`/app/applications/${applicationId}`)
+    if (!editing || !applicationId || application?.status !== 'DRAFT' || isDirty || saving) return
+    setSaveMessage('')
+    try {
+      await submitMutation.mutateAsync(applicationId)
+      navigate(`/app/applications/${applicationId}`)
+    } catch {
+      // Keep the user on the edit page so the server error can be reviewed and retried.
+    }
   }
 
   const mutationError = createMutation.error ?? updateMutation.error
   const saving = createMutation.isPending || updateMutation.isPending
+  const submitError = submitMutation.error
 
   return <Stack className="obo-page">
     <PageHeader
@@ -206,6 +212,7 @@ export default function ApplicationFormPage() {
       actions={<Button component={Link} to={editing ? `/app/applications/${applicationId}` : '/app/applications'} variant="default">Cancel</Button>}
     />
     {mutationError && !Object.keys(formErrors).length && <Alert color="red" title="Unable to save application">{getErrorMessage(mutationError)}</Alert>}
+    {submitError && <Alert color="red" title="Unable to submit application">{getErrorMessage(submitError)}</Alert>}
     {saveMessage && <Alert color="green">{saveMessage}</Alert>}
     {Object.keys(formErrors).length > 0 && <Alert color="red" title="Check the application form">Correct the highlighted fields and save the draft again.</Alert>}
     <Box className="obo-panel" p="lg">
@@ -222,7 +229,7 @@ export default function ApplicationFormPage() {
           <PermissionGate permission={editing ? permissions.planPermits.update : permissions.planPermits.create}>
             <Button onClick={handleSave} loading={saving} disabled={!effectivePermitTypeId || !effectiveProfessionalId}>Save draft</Button>
           </PermissionGate>
-          {editing && <PermissionGate permission={permissions.planPermits.submit}><Button onClick={handleSubmit} loading={submitMutation.isPending} disabled={saving || isDirty}>Submit for submission</Button></PermissionGate>}
+          {editing && <PermissionGate permission={permissions.planPermits.submit}><Button onClick={handleSubmit} loading={submitMutation.isPending} disabled={saving || isDirty || application?.status !== 'DRAFT'}>Submit for submission</Button></PermissionGate>}
         </Group>
       </Stack>
     </Box>
