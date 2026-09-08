@@ -5,16 +5,22 @@ const requiredName = (name) => z.string().trim().min(1, `${name} is required.`).
 const optionalText = z.string().trim().max(255).optional().nullable()
 const credential = (name) => z.string().trim().min(1, `${name} is required.`).max(100)
 
+const profileFields = {
+  firstName: requiredName('firstName'),
+  middleName: optionalText,
+  lastName: requiredName('lastName'),
+  suffix: optionalText,
+  email: z.string().trim().email('email must be a valid email address.').max(255).optional().nullable(),
+  phone: optionalText,
+  address: z.record(z.string(), z.unknown()).optional().nullable(),
+}
+
 const profileValidator = async (req) => ({
-  body: z.object({
-    firstName: requiredName('firstName'),
-    middleName: optionalText,
-    lastName: requiredName('lastName'),
-    suffix: optionalText,
-    email: z.string().trim().email('email must be a valid email address.').max(255).optional().nullable(),
-    phone: optionalText,
-    address: z.record(z.string(), z.unknown()).optional().nullable(),
-  }).parse(req.body || {}),
+  body: z.object(profileFields).parse(req.body || {}),
+})
+
+const profileUpdateValidator = async (req) => ({
+  body: z.object(profileFields).partial().strict().parse(req.body || {}),
 })
 
 const applyValidator = async (req) => ({
@@ -34,4 +40,4 @@ const decisionValidator = async (req) => ({
   }).parse(req.body || {}),
 })
 
-export { profileValidator, applyValidator, decisionValidator }
+export { profileValidator, profileUpdateValidator, applyValidator, decisionValidator }
