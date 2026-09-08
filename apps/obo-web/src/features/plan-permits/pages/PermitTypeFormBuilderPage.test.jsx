@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialFormDefinition, createVersionPayload, hasConfiguredForm, hasConfiguredPermitTypeForm, resolvePermitTypeId, toPayload } from './PermitTypeFormBuilderPage'
+import { createInitialFormDefinition, createVersionPayload, getProfessionalReferenceErrors, hasConfiguredForm, hasConfiguredPermitTypeForm, resolvePermitTypeId, toPayload } from './PermitTypeFormBuilderPage'
 import { FIELD_TYPES } from '../components/FormBuilder'
 
 describe('PermitTypeFormBuilderPage form version lifecycle', () => {
@@ -46,6 +46,21 @@ describe('PermitTypeFormBuilderPage form version lifecycle', () => {
     })
 
     expect(payload.fields[0].config.multiple).toBe(true)
+  })
+
+  it('blocks publishing when a professional reference has no role configured', () => {
+    expect(getProfessionalReferenceErrors({
+      fields: [{ key: 'architect', label: 'Architect', type: 'reference', config: { referenceType: 'obo_professional', professionalRole: '' } }],
+    })).toEqual(['Architect requires a professional role.'])
+  })
+
+  it('allows publishing when every professional reference has a role', () => {
+    expect(getProfessionalReferenceErrors({
+      fields: [
+        { key: 'architect', label: 'Architect', type: 'reference', config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT' } },
+        { key: 'civilEngineer', label: 'Civil Engineer', type: 'reference', config: { referenceType: 'obo_professional', professionalRole: 'CIVIL_ENGINEER', multiple: false } },
+      ],
+    })).toEqual([])
   })
 
   it('opens the created version one instead of creating version two', () => {
