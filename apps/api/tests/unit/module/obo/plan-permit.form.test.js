@@ -27,7 +27,7 @@ describe('OBO plan permit form resolution', () => {
       formValues: { floorArea: 120 },
     })).resolves.toEqual({ formVersionId: 'form-version-2' })
 
-    expect(repository.findFormVersionById).toHaveBeenCalledWith('form-version-2', undefined)
+    expect(repository.findFormVersionById).toHaveBeenCalledWith('form-version-2')
     expect(formService.validateFormValues).toHaveBeenCalledWith({
       formKey: 'building-permit',
       version: 2,
