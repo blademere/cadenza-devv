@@ -52,6 +52,8 @@ const update = (id, data, db = prisma) => db.oboPermitApplication.update({
 })
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
 const createSubmissionAppointment = (data, db = prisma) => db.oboSubmissionAppointment.create({ data })
+const findSubmissionAppointmentByApplicationId = (applicationId, db = prisma) => db.oboSubmissionAppointment.findUnique({ where: { applicationId } })
+const updateSubmissionAppointment = (applicationId, appointmentId, db = prisma) => db.oboSubmissionAppointment.update({ where: { applicationId }, data: { appointmentId } })
 const withTransaction = (callback) => prisma.$transaction(callback)
 
 export {
@@ -69,5 +71,7 @@ export {
   update,
   addDecision,
   createSubmissionAppointment,
+  findSubmissionAppointmentByApplicationId,
+  updateSubmissionAppointment,
   withTransaction,
 }
