@@ -8,11 +8,12 @@ export const appointmentManagementSlotsQueryKey = ({ appointmentTypeId, from, to
   'slots',
   { appointmentTypeId, from, to, status },
 ]
+export const appointmentManagementMineQueryKey = ['appointments', 'management', 'mine']
 
 export function useAppointmentManagementTypes(options = {}) {
   return useQuery({
     queryKey: appointmentManagementTypesQueryKey,
-    queryFn: appointmentsApi.listTypes,
+    queryFn: () => appointmentsApi.listTypes(options.activeParams),
     ...options,
   })
 }
@@ -22,6 +23,14 @@ export function useAppointmentManagementSlots(params = {}, options = {}) {
     queryKey: appointmentManagementSlotsQueryKey(params),
     queryFn: () => appointmentsApi.listSlots(params),
     enabled: options.enabled !== false,
+    ...options,
+  })
+}
+
+export function useAppointmentManagementMine(options = {}) {
+  return useQuery({
+    queryKey: appointmentManagementMineQueryKey,
+    queryFn: appointmentsApi.listMine,
     ...options,
   })
 }
