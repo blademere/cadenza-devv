@@ -4,7 +4,7 @@ import {
   updateApplicationValidator,
 } from '../../../../src/modules/obo/plan-permits/plan-permit.validation.js'
 
-const uuid = '00000000-0000-0000-0000-000000000001'
+const uuid = '00000000-0000-4000-8000-000000000001'
 
 const request = (body, params = {}) => ({ body, params })
 
