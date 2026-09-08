@@ -137,13 +137,15 @@ const validateReferenceValue = (field, value, errors) => {
   }
 }
 
-const validateFieldValue = (field, value, values = {}) => {
+const validateFieldValue = (field, value, values = {}, { requireRequired = true } = {}) => {
   const errors = []
   if (!evaluateCondition(field.visibility, values)) return errors
 
   const empty = value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)
   if (field.required && empty) {
-    errors.push({ field: field.key, code: 'REQUIRED', message: `${field.label} is required.` })
+    if (requireRequired) {
+      errors.push({ field: field.key, code: 'REQUIRED', message: `${field.label} is required.` })
+    }
     return errors
   }
   if (empty) return errors
