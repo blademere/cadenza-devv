@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 vi.mock('../../../../src/modules/obo/professionals/professional.repository.js')
+vi.mock('../../../../src/modules/obo/plan-permits/professional-reference.service.js')
 vi.mock('../../../../src/platform/forms/form.service.js')
 vi.mock('../../../../src/platform/workflow/workflow.service.js')
 vi.mock('../../../../src/platform/audit/audit.service.js')
 
 const repository = await import('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 const professionalRepository = await import('../../../../src/modules/obo/professionals/professional.repository.js')
+const professionalReferenceService = await import('../../../../src/modules/obo/plan-permits/professional-reference.service.js')
 const formService = await import('../../../../src/platform/forms/form.service.js')
 const workflowService = await import('../../../../src/platform/workflow/workflow.service.js')
 const auditService = await import('../../../../src/platform/audit/audit.service.js')
@@ -30,6 +32,8 @@ const spies = {
   evaluateCondition: formService.evaluateCondition,
   transitionWorkflow: workflowService.transitionWorkflow,
   recordAudit: auditService.recordAudit,
+  validateProfessionalReferences: professionalReferenceService.validateProfessionalReferences,
+  buildProfessionalSnapshots: professionalReferenceService.buildProfessionalSnapshots,
 }
 
 const person = { id: 'person-1', userId: 'user-1' }
@@ -61,6 +65,17 @@ beforeEach(() => {
   spies.update.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', status: 'DRAFT' })
   spies.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1' })
   spies.recordAudit.mockResolvedValue({ id: 'audit-1' })
+  spies.validateProfessionalReferences.mockResolvedValue(true)
+  spies.buildProfessionalSnapshots.mockResolvedValue({
+    architect: {
+      professionalId: 'professional-a',
+      name: 'John Doe',
+      registrationNumber: 'REG-1',
+      prcId: 'PRC-1',
+      ptrNumber: 'PTR-1',
+      role: 'ARCHITECT',
+    },
+  })
 })
 
 afterEach(() => vi.clearAllMocks())
@@ -161,19 +176,18 @@ describe('OBO plan permit auditability', () => {
         config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false },
       }],
     })
-    spies.findProfessionalById.mockResolvedValue({
-      id: 'professional-a',
-      registrationNumber: 'REG-1',
-      prcId: 'PRC-1',
-      ptrNumber: 'PTR-1',
-      professionalRole: 'ARCHITECT',
-      status: 'VERIFIED',
-      person: { id: 'person-pro', isActive: true, firstName: 'John', middleName: null, lastName: 'Doe', suffix: null },
-    })
     spies.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1' })
 
     await service.submit({ id: 'application-1', userId: 'user-1' })
 
+    expect(spies.validateProfessionalReferences).toHaveBeenCalledWith(expect.objectContaining({
+      formVersion: expect.objectContaining({ id: 'form-version-1' }),
+      formValues: { architect: 'professional-a' },
+    }))
+    expect(spies.buildProfessionalSnapshots).toHaveBeenCalledWith(expect.objectContaining({
+      formVersion: expect.objectContaining({ id: 'form-version-1' }),
+      formValues: { architect: 'professional-a' },
+    }))
     expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({
       actorId: 'user-1',
       transitionKey: 'SUBMIT_FOR_SUBMISSION',
