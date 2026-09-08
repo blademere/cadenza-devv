@@ -1,5 +1,6 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import { recordAudit } from '../../../platform/audit/audit.service.js'
+import * as formService from '../../../platform/forms/form.service.js'
 import * as repository from './permit-type.repository.js'
 
 const toFormResponse = (permitType, formVersion) => ({
@@ -88,9 +89,42 @@ const updatePermitType = async ({ actorId, id, data }) => {
   }
 }
 
+const createPermitTypeForm = async ({ actorId, permitTypeId, data }) => {
+  const permitType = await repository.findById(permitTypeId)
+  if (!permitType) throw new NotFoundError('Permit type not found.')
+  if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot receive forms.')
+  if (permitType.formId) throw new ConflictError('This permit type already has a form.')
+
+  const form = await formService.createForm({
+    key: data.key,
+    name: data.name,
+    description: data.description ?? null,
+    entityType: data.entityType ?? 'OboPermitApplication',
+    sections: data.sections ?? [],
+    fields: data.fields,
+    actorId,
+  })
+
+  try {
+    const updated = await repository.attachForm(permitTypeId, form.id)
+    await recordAudit({
+      actorId,
+      action: 'OBO_PERMIT_TYPE_FORM_ATTACHED',
+      entityType: 'OboPermitType',
+      entityId: permitTypeId,
+      before: permitType,
+      after: updated,
+    })
+    return form
+  } catch (error) {
+    throw new ConflictError('The form was created but could not be attached to the permit type.')
+  }
+}
+
 export {
   listPermitTypes,
   getPermitTypeForm,
   createPermitType,
   updatePermitType,
+  createPermitTypeForm,
 }
