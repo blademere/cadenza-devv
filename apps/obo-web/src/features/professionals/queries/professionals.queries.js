@@ -7,24 +7,24 @@ export const professionalMineQueryKey = ['obo', 'professionals', 'mine']
 
 export function useVerifiedProfessionals(options = {}) {
   return useQuery({
-    queryKey: verifiedProfessionalsQueryKey,
-    queryFn: professionalsApi.listVerified,
     ...options,
+    queryKey: verifiedProfessionalsQueryKey,
+    queryFn: () => professionalsApi.listVerified(),
   })
 }
 
 export function usePendingProfessionals(options = {}) {
   return useQuery({
-    queryKey: pendingProfessionalsQueryKey,
-    queryFn: professionalsApi.listPendingVerification,
     ...options,
+    queryKey: pendingProfessionalsQueryKey,
+    queryFn: () => professionalsApi.listPendingVerification(),
   })
 }
 
 export function useMyProfessional(options = {}) {
   return useQuery({
-    queryKey: professionalMineQueryKey,
-    queryFn: professionalsApi.getApplication,
     ...options,
+    queryKey: professionalMineQueryKey,
+    queryFn: () => professionalsApi.getApplication(),
   })
 }
