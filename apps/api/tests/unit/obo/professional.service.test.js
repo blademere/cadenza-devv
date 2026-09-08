@@ -61,13 +61,13 @@ describe('OBO professional service', () => {
     expect(mocks.repository.findByUserId).toHaveBeenCalledWith('user-1')
   })
 
-  it('rejects a professional from deciding their own verification', async () => {
+  it('rejects a professional from deciding their own application', async () => {
     mocks.repository.findById.mockResolvedValue({ id: 'professional-1', userId: 1, status: 'PENDING_VERIFICATION' })
     await expect(service.decideVerification({
       id: 'professional-1',
       actorId: 1,
       decision: 'ACCEPTED',
-    })).rejects.toThrow('cannot approve or decline their own verification')
+    })).rejects.toThrow('cannot approve or decline their own application')
     expect(mocks.repository.update).not.toHaveBeenCalled()
     expect(mocks.repository.addDecision).not.toHaveBeenCalled()
     expect(mocks.publish).not.toHaveBeenCalled()
