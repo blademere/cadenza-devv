@@ -37,15 +37,15 @@ describe('OBO Web workflow API contracts', () => {
     await professionalsApi.decideVerification('professional-1', 'ACCEPTED')
     await professionalsApi.decideVerification('professional-1', 'DECLINED', 'Invalid PRC ID')
 
-    expect(apiClient.post).toHaveBeenNthCalledWith(1, '/obo/professionals', {
+    expect(apiClient.post).toHaveBeenNthCalledWith(1, '/obo/professionals/applications', {
       registrationNumber: 'REG-1',
       prcId: 'PRC-1',
       ptrNumber: 'PTR-1',
     })
-    expect(apiClient.post).toHaveBeenNthCalledWith(2, '/obo/professionals/professional-1/verification', {
+    expect(apiClient.post).toHaveBeenNthCalledWith(2, '/obo/professionals/applications/professional-1/decision', {
       decision: 'ACCEPTED',
     })
-    expect(apiClient.post).toHaveBeenNthCalledWith(3, '/obo/professionals/professional-1/verification', {
+    expect(apiClient.post).toHaveBeenNthCalledWith(3, '/obo/professionals/applications/professional-1/decision', {
       decision: 'DECLINED',
       reason: 'Invalid PRC ID',
     })
