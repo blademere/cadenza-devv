@@ -28,6 +28,10 @@ beforeEach(() => {
   cache.hasCachedPermission.mockResolvedValue(null)
   cache.cacheUserPermissions.mockResolvedValue(undefined)
   cache.invalidateUserPermissionCache.mockResolvedValue(undefined)
+  repository.getUserAuthorizationContext.mockResolvedValue({
+    role: 'operator',
+    permissions: [],
+  })
 })
 
 describe('access-control service', () => {
@@ -45,6 +49,24 @@ describe('access-control service', () => {
     expect(cache.cacheUserPermissions).toHaveBeenCalledWith(7, [
       'users:create',
       'applications:approve',
+    ])
+  })
+
+  it('refreshes PostgreSQL state when the cache contains a denial', async () => {
+    cache.hasCachedPermission.mockResolvedValue(false)
+    repository.getUserAuthorizationContext.mockResolvedValue({
+      role: 'admin',
+      permissions: [
+        { resource: 'obo_permit_types', action: 'create' },
+      ],
+    })
+
+    await expect(
+      hasPermission(7, 'obo_permit_types', 'create'),
+    ).resolves.toBe(true)
+    expect(repository.getUserAuthorizationContext).toHaveBeenCalledWith(7)
+    expect(cache.cacheUserPermissions).toHaveBeenCalledWith(7, [
+      'obo_permit_types:create',
     ])
   })
 
