@@ -30,6 +30,13 @@ export const createInitialFormDefinition = () => ({
 
 export const resolvePermitTypeId = (params) => params?.permitTypeId ?? params?.id ?? null
 
+export const createVersionPayload = (form, fallbackDefinition) => {
+  const normalized = normalizeDefinition(form)
+  const definition = normalized.fields.length > 0 ? normalized : fallbackDefinition
+  const payload = toPayload(definition)
+  return payload.fields.length > 0 ? payload : null
+}
+
 export default function PermitTypeFormBuilderPage() {
   const params = useParams()
   const permitTypeId = resolvePermitTypeId(params)
@@ -38,6 +45,7 @@ export default function PermitTypeFormBuilderPage() {
   const version = Number(searchParams.get('version')) || null
   const [definition, setDefinition] = useState(createInitialFormDefinition)
   const [modalOpen, setModalOpen] = useState(false)
+  const [operationError, setOperationError] = useState(null)
   const [meta, setMeta] = useState({ key: '', name: '', description: '' })
   const types = usePermitTypes()
   const published = usePermitTypeForm(permitTypeId)
@@ -53,21 +61,44 @@ export default function PermitTypeFormBuilderPage() {
   const activeVersion = activeForm?.version ?? null
   const isDraft = activeForm?.status === 'DRAFT'
   const loading = types.isLoading || published.isLoading || (Boolean(version) && draft.isLoading)
-  const error = types.error || published.error || draft.error || createForm.error || createVersion.error || updateVersion.error || publishVersion.error
+  const error = errorFromHooks(types, published, draft, createForm, createVersion, updateVersion, publishVersion)
   const payload = useMemo(() => toPayload(definition), [definition])
 
   useEffect(() => { if (activeForm) setDefinition(normalizeDefinition(activeForm)) }, [activeForm?.formVersionId])
 
   const missingPermitTypeIdError = !permitTypeId ? new Error('Permit type ID is missing from the route.') : null
-  const formError = error || missingPermitTypeIdError
+  const formError = operationError || error || missingPermitTypeIdError
 
   const createDraftFromPayload = (draftPayload) => {
     if (!permitTypeId) return
+    if (!draftPayload?.fields?.length) {
+      setOperationError(new Error('A form version must contain at least one field.'))
+      return
+    }
+    setOperationError(null)
     createVersion.mutate({ id: permitTypeId, ...draftPayload }, { onSuccess: (created) => setSearchParams({ version: String(created.version) }) })
   }
-  const createDraftFrom = (form) => createDraftFromPayload(toPayload(normalizeDefinition(form)))
-  const startNewVersion = () => { if (publishedForm) createDraftFrom(publishedForm) }
-  const saveDraft = () => { if (permitTypeId && activeVersion) updateVersion.mutate({ id: permitTypeId, version: activeVersion, ...payload }) }
+
+  const createDraftFrom = (form) => {
+    const draftPayload = createVersionPayload(form, definition)
+    createDraftFromPayload(draftPayload)
+  }
+
+  const startNewVersion = () => {
+    if (!publishedForm) return
+    createDraftFrom(publishedForm)
+  }
+
+  const saveDraft = () => {
+    if (!permitTypeId || !activeVersion) return
+    if (!payload.fields.length) {
+      setOperationError(new Error('A form version must contain at least one field.'))
+      return
+    }
+    setOperationError(null)
+    updateVersion.mutate({ id: permitTypeId, version: activeVersion, ...payload })
+  }
+
   const publish = () => { if (permitTypeId && activeVersion) publishVersion.mutate({ id: permitTypeId, version: activeVersion }, { onSuccess: () => navigate(`/app/permit-types/${permitTypeId}`) }) }
   const openCreateForm = () => { setMeta({ key: `${permitType?.key ?? 'permit'}-application`, name: `${permitType?.name ?? 'Permit'} Application`, description: `Application form for ${permitType?.name ?? 'this permit type'}.` }); setModalOpen(true) }
   const submitCreateForm = () => {
@@ -75,6 +106,12 @@ export default function PermitTypeFormBuilderPage() {
     const initialDefinition = createInitialFormDefinition()
     const initialPayload = toPayload(initialDefinition)
 
+    if (!initialPayload.fields.length) {
+      setOperationError(new Error('A form version must contain at least one field.'))
+      return
+    }
+
+    setOperationError(null)
     createForm.mutate({ id: permitTypeId, key: meta.key, name: meta.name, description: meta.description || null, entityType: 'OboPermitApplication', ...initialPayload }, {
       onSuccess: () => {
         setModalOpen(false)
@@ -102,4 +139,8 @@ export default function PermitTypeFormBuilderPage() {
       <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title="Create application form" centered><Stack><TextInput label="Form key" description="Lowercase letters, numbers, hyphens, or underscores." value={meta.key} onChange={(event) => setMeta((current) => ({ ...current, key: event.currentTarget.value }))} /><TextInput label="Form name" value={meta.name} onChange={(event) => setMeta((current) => ({ ...current, name: event.currentTarget.value }))} /><Textarea label="Description" value={meta.description} onChange={(event) => setMeta((current) => ({ ...current, description: event.currentTarget.value }))} autosize minRows={3} /><Group justify="flex-end"><Button variant="default" onClick={() => setModalOpen(false)}>Cancel</Button><Button onClick={submitCreateForm} loading={createForm.isPending || createVersion.isPending}>Create</Button></Group></Stack></Modal>
     </RequirePermission>
   )
+}
+
+function errorFromHooks(...hooks) {
+  return hooks.find((hook) => hook?.error)?.error ?? null
 }
