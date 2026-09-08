@@ -22,7 +22,7 @@ export const professionalsApi = {
   },
 
   async applyVerification(data) {
-    return unwrap(await apiClient.post('/obo/professionals', data))
+    return unwrap(await apiClient.post('/obo/professionals/profile', data))
   },
 
   async decideVerification(id, decision, reason) {
