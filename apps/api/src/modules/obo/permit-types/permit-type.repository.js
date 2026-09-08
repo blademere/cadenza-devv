@@ -59,6 +59,12 @@ const update = (id, data, db = prisma) => db.oboPermitType.update({
   data,
 })
 
+const attachForm = (id, formId, db = prisma) => db.oboPermitType.update({
+  where: { id },
+  data: { formId },
+  include: { form: true },
+})
+
 const withTransaction = (callback) => prisma.$transaction(callback)
 
 const findPublishedFormVersion = (formId, version) => prisma.formVersion.findFirst({
@@ -73,6 +79,7 @@ export {
   findByKey,
   create,
   update,
+  attachForm,
   withTransaction,
   findPublishedFormVersion,
 }
