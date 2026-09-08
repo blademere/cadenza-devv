@@ -34,6 +34,20 @@ describe('dynamic form validation', () => {
     expect(validateFieldValue(field, 'long enough', { scope: 'RENOVATION' })).toEqual([])
   })
 
+  it('can skip required-field errors for draft validation', () => {
+    const field = {
+      key: 'architect',
+      label: 'Architect',
+      type: 'reference',
+      required: true,
+      config: { referenceType: 'obo_professional', multiple: false },
+      options: [],
+    }
+
+    expect(validateFieldValue(field, undefined, {}, { requireRequired: false })).toEqual([])
+    expect(validateFieldValue(field, undefined, {})).toMatchObject([{ code: 'REQUIRED', field: 'architect' }])
+  })
+
   it('supports cross-field equality rules', () => {
     const field = {
       key: 'confirm_email',
