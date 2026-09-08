@@ -3,7 +3,11 @@ import { asyncHandler, idempotency, validate } from '../../../common/middleware/
 import authenticate from '../../../features/auth/authenticate.secure.js'
 import authorize from '../../../platform/authorization/authorize.js'
 import * as controller from './permit-type.controller.js'
-import { createPermitTypeFormValidator } from './permit-type.form.validation.js'
+import {
+  createPermitTypeFormValidator,
+  createPermitTypeFormVersionValidator,
+  publishPermitTypeFormVersionValidator,
+} from './permit-type.form.validation.js'
 import {
   createPermitTypeValidator,
   permitTypeIdValidator,
@@ -37,6 +41,22 @@ router.post(
   requireIdempotency,
   validate(createPermitTypeFormValidator),
   asyncHandler(controller.createForm),
+)
+router.post(
+  '/:permitTypeId/form/versions',
+  authenticate,
+  authorize('obo_forms', 'update'),
+  requireIdempotency,
+  validate(createPermitTypeFormVersionValidator),
+  asyncHandler(controller.createFormVersion),
+)
+router.post(
+  '/:permitTypeId/form/versions/:version/publish',
+  authenticate,
+  authorize('obo_forms', 'publish'),
+  requireIdempotency,
+  validate(publishPermitTypeFormVersionValidator),
+  asyncHandler(controller.publishFormVersion),
 )
 router.get('/:permitTypeId/form', authenticate, authorize('obo_plan_permits', 'read'), validate(permitTypeIdValidator), asyncHandler(controller.getForm))
 
