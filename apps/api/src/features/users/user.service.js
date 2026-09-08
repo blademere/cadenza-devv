@@ -137,6 +137,22 @@ const getMyProfile = async (userId) => {
   }
 }
 
+const createMyProfile = async (userId, data) => {
+  const user = await findUserWithRole(Number(userId))
+  if (!user) throw new NotFoundError('User not found.')
+  const existingPerson = await peopleService.getByUserId(userId).catch((error) => {
+    if (error instanceof NotFoundError) return null
+    throw error
+  })
+  if (existingPerson) throw new ConflictError('Profile already exists.')
+
+  const person = await peopleService.create({ ...data, userId })
+  return {
+    user: toUserResponse(user),
+    person,
+  }
+}
+
 const updateMyProfile = async (userId, data) => {
   const user = await findUserWithRole(Number(userId))
   if (!user) throw new NotFoundError('User not found.')
@@ -154,5 +170,6 @@ export {
   registerUser,
   assignUserRole,
   getMyProfile,
+  createMyProfile,
   updateMyProfile,
 }
