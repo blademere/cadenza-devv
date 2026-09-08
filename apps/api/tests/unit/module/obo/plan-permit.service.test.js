@@ -4,11 +4,13 @@ vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 vi.mock('../../../../src/modules/obo/professionals/professional.repository.js')
 vi.mock('../../../../src/platform/forms/form.service.js')
 vi.mock('../../../../src/platform/workflow/workflow.service.js')
+vi.mock('../../../../src/platform/audit/audit.service.js')
 
 const repository = await import('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 const professionalRepository = await import('../../../../src/modules/obo/professionals/professional.repository.js')
 const formService = await import('../../../../src/platform/forms/form.service.js')
 const workflowService = await import('../../../../src/platform/workflow/workflow.service.js')
+const auditService = await import('../../../../src/platform/audit/audit.service.js')
 const service = await import('../../../../src/modules/obo/plan-permits/plan-permit.service.js')
 
 const spies = {
@@ -30,6 +32,7 @@ const spies = {
   validateFormValues: formService.validateFormValues,
   getFormVersion: formService.getFormVersion,
   evaluateCondition: formService.evaluateCondition,
+  recordAudit: auditService.recordAudit,
 }
 
 afterEach(() => vi.clearAllMocks())
@@ -43,6 +46,7 @@ beforeEach(() => {
   spies.evaluateCondition.mockReturnValue(true)
   spies.findPersonNotificationContext.mockResolvedValue(null)
   spies.findProfessionalById.mockResolvedValue(null)
+  spies.recordAudit.mockResolvedValue({ id: 'audit-1' })
 })
 
 const person = { id: 'person-1', userId: 'user-1', email: 'client@example.com' }
@@ -286,9 +290,11 @@ describe('OBO plan permit service', () => {
     })
     spies.findFormById.mockResolvedValue(form)
     spies.getFormVersion.mockResolvedValue(version)
+    spies.findWorkflowInstance.mockReset()
     spies.findWorkflowInstance
       .mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
       .mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
+    spies.findProfessionalById.mockResolvedValue(null)
 
     await expect(service.submit({ id: 'application-1', userId: 'user-1' })).rejects.toThrow('Professional reference validation failed')
     expect(spies.transitionWorkflow).not.toHaveBeenCalled()
