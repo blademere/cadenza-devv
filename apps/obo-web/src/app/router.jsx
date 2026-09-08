@@ -15,7 +15,7 @@ import PermitTypesPage from '../features/plan-permits/pages/PermitTypesPage'
 import PermitTypeDetailsPage from '../features/plan-permits/pages/PermitTypeDetailsPage'
 import PermitTypeFormBuilderPage from '../features/plan-permits/pages/PermitTypeFormBuilderPage'
 import SubmissionAppointmentPage from '../features/submission-appointments/pages/SubmissionAppointmentPage'
-import AppointmentSlotsPage from '../features/appointments/pages/AppointmentSlotsPage'
+import AppointmentsPage from '../features/appointments/pages/AppointmentsPage'
 import ReceivingPage from '../features/receiving/pages/ReceivingPage'
 import ReceivingApplicationPage from '../features/receiving/pages/ReceivingApplicationPage'
 import ProfessionalsPage from '../features/professionals/pages/ProfessionalsPage'
@@ -41,7 +41,7 @@ export const router = createBrowserRouter([
       protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.planPermits.read),
       protectedPage('applications/:applicationId/edit', <ApplicationFormPage />, permissions.planPermits.update),
       protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.planPermits.read),
-      protectedPage('appointments/slots', <AppointmentSlotsPage />, permissions.appointments.manage),
+      protectedPage('appointments', <AppointmentsPage />, permissions.appointments.manage),
       protectedPage('permit-types', <PermitTypesPage />, permissions.permitTypes.read),
       protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.permitTypes.read),
       protectedPage('permit-types/:permitTypeId/form/edit', <PermitTypeFormBuilderPage />, permissions.forms.update),
