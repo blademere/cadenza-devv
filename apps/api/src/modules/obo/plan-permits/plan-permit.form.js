@@ -15,7 +15,7 @@ const resolveAndValidateForm = async ({ permitType, formVersionId, formValues })
   if (formVersionId) {
     const version = await repository.findFormVersionById(formVersionId)
     if (!version || version.formId !== form.id || version.status !== 'PUBLISHED') {
-      throw new ConflictError('The selected form version is not the published version for this permit type.')
+      throw new ConflictError('The selected form version is not a published version for this permit type.')
     }
 
     const validation = await formService.validateFormValues({

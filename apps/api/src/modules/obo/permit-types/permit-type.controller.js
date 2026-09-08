@@ -1,10 +1,14 @@
+import { BadRequestError } from '../../../common/errors/appError.js'
 import { successResponse } from '../../../common/responses/apiResponse.js'
 import * as service from './permit-type.service.js'
 
 const getVersion = (value) => {
   if (value == null || value === '') return undefined
   const version = Number(value)
-  return Number.isInteger(version) && version > 0 ? version : undefined
+  if (!Number.isInteger(version) || version < 1) {
+    throw new BadRequestError('Form version must be a positive integer.')
+  }
+  return version
 }
 
 const list = async (_req, res) => successResponse(
