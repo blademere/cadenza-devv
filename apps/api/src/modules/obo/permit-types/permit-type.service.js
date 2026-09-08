@@ -23,8 +23,11 @@ const getPermitTypeForm = async (id, version) => {
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) return null
 
+  // Applicant-facing form reads must only expose the published version.
+  // Draft versions are editable by form administrators through the explicit
+  // version endpoint and must never be used to create permit applications.
   const formVersion = version == null
-    ? await repository.findLatestDraftFormVersion(permitType.form.id) ?? permitType.form.versions[0]
+    ? permitType.form.versions[0]
     : await repository.findPublishedFormVersion(permitType.form.id, version)
 
   if (!formVersion) return null
