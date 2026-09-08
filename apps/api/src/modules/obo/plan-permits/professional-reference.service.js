@@ -36,12 +36,17 @@ const validateProfessionalReferences = async ({ formVersion, formValues, reposit
       continue
     }
 
-    const references = normalizeReferenceValues(field, value)
-    if (field.config?.multiple === true && !Array.isArray(value)) {
+    const multiple = field.config?.multiple === true
+    if (multiple && !Array.isArray(value)) {
       errors.push({ field: field.key, code: 'TYPE', message: `${field.label} must contain multiple professional references.` })
       continue
     }
+    if (!multiple && Array.isArray(value)) {
+      errors.push({ field: field.key, code: 'TYPE', message: `${field.label} must contain a single professional reference.` })
+      continue
+    }
 
+    const references = normalizeReferenceValues(field, value)
     const seenReferences = new Set()
     for (const reference of references) {
       const parsedId = professionalId.safeParse(reference)
