@@ -46,6 +46,16 @@ const createScheduleController = async (req, res) =>
     201
   )
 
+const listSchedulesController = async (req, res) =>
+  successResponse(
+    res,
+    'Availability schedules retrieved successfully.',
+    mapList(
+      await service.listAvailabilitySchedules(req.validated.query),
+      mapAvailabilitySchedule
+    )
+  )
+
 const createSlotController = async (req, res) =>
   successResponse(
     res,
@@ -91,6 +101,16 @@ const createAppointmentController = async (req, res) =>
       })
     ),
     201
+  )
+
+const listAppointmentsController = async (req, res) =>
+  successResponse(
+    res,
+    'Appointments retrieved successfully.',
+    mapList(
+      await service.listAppointments(req.validated.query),
+      mapAppointment
+    )
   )
 
 const listMyAppointmentsController = async (req, res) =>
@@ -167,10 +187,12 @@ export default {
   listTypesController,
   createTypeController,
   createScheduleController,
+  listSchedulesController,
   createSlotController,
   generateSlotsController,
   listSlotsController,
   createAppointmentController,
+  listAppointmentsController,
   listMyAppointmentsController,
   getMyAppointmentController,
   cancelAppointmentController,
