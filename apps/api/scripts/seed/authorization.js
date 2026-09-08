@@ -5,14 +5,16 @@ const authorizationCatalog = {
   appointments: ['read', 'create', 'cancel', 'check_in', 'manage'],
   obo_clients: ['read', 'create'],
   obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive'],
+  obo_permit_types: ['read', 'create', 'update'],
+  obo_forms: ['read', 'create', 'update', 'publish'],
   obo_professionals: ['read', 'create', 'update', 'review'],
 }
 
 const rolePermissions = {
   client: ['applications:read','applications:create','applications:update','appointments:read','appointments:create','appointments:cancel','obo_clients:read','obo_clients:create','obo_plan_permits:read','obo_plan_permits:create','obo_plan_permits:update','obo_plan_permits:submit','obo_plan_permits:schedule_submission','obo_professionals:read'],
   professional: ['applications:read','applications:create','applications:update','appointments:read','obo_plan_permits:read','obo_professionals:create','obo_professionals:read','obo_professionals:update'],
-  receiving_officer: ['applications:read','applications:review','applications:receive','applications:approve','applications:reject','appointments:read','appointments:check_in','appointments:manage','obo_plan_permits:read','obo_plan_permits:receive','obo_professionals:read','obo_professionals:review'],
-  admin: ['authorization:manage','users:read','users:create','users:manage'],
+  receiving_officer: ['applications:read','applications:review','applications:receive','applications:approve','applications:reject','appointments:read','appointments:check_in','appointments:manage','obo_plan_permits:read','obo_plan_permits:receive','obo_permit_types:read','obo_permit_types:create','obo_permit_types:update','obo_forms:read','obo_forms:create','obo_forms:update','obo_forms:publish','obo_professionals:read','obo_professionals:review'],
+  admin: ['authorization:manage','users:read','users:create','users:manage','obo_permit_types:read','obo_permit_types:create','obo_permit_types:update','obo_forms:read','obo_forms:create','obo_forms:update','obo_forms:publish'],
 }
 
 const moduleName = (key) => key.split(/[_-]+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
@@ -50,8 +52,8 @@ async function seedAuthorization(prisma) {
   const descriptions = {
     client: 'Client who creates permit applications and schedules hardcopy submission appointments.',
     professional: 'Registered professional who applies for verification and is associated with permit applications.',
-    receiving_officer: 'Receiving officer who verifies professionals and receives permit applications.',
-    admin: 'Platform administrator with full authorization administration access.',
+    receiving_officer: 'Receiving officer who verifies professionals, receives permit applications, and manages OBO permit/form configuration.',
+    admin: 'Platform administrator with full authorization administration and OBO permit/form configuration access.',
   }
 
   for (const roleName of Object.keys(rolePermissions)) {
