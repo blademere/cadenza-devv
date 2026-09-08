@@ -1,4 +1,4 @@
-import { ConflictError } from '../../../common/errors/appError.js'
+import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import * as appointmentService from '../../../features/appointments/appointment.service.js'
 import { mapAppointment } from '../../../features/appointments/appointment.mapper.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
@@ -59,4 +59,31 @@ const createSubmissionAppointment = async ({ applicationId, userId, appointmentT
   })
 }
 
-export { getSubmissionAppointment, createSubmissionAppointment }
+const replaceSubmissionAppointment = async ({ applicationId, userId, appointmentTypeId, slotId, notes }) => {
+  const application = await planPermitService.getMine({ id: applicationId, userId })
+  if (application.status !== 'SUBMISSION_SCHEDULED') throw new ConflictError('Only scheduled applications can change their submission appointment.')
+  if (!application.submissionAppointment) throw new NotFoundError('Submission appointment not found.')
+
+  return repository.withTransaction(async (tx) => {
+    await appointmentService.cancelAppointment({
+      id: application.submissionAppointment.appointmentId,
+      userId,
+      db: tx,
+    })
+
+    const appointment = await appointmentService.bookAppointment({
+      userId,
+      appointmentTypeId,
+      slotId,
+      metadata: { applicationId, purpose: 'OBO_HARDCOPY_SUBMISSION' },
+      notes,
+      db: tx,
+    })
+
+    await repository.updateSubmissionAppointment(applicationId, appointment.id, tx)
+
+    return mapAppointment(appointment)
+  })
+}
+
+export { getSubmissionAppointment, createSubmissionAppointment, replaceSubmissionAppointment }
