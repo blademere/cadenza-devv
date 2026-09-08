@@ -13,4 +13,12 @@ export const usersApi = {
       await apiClient.patch(`/users/${encodeId(userId)}/role`, { roleId })
     )
   },
+
+  async getMyProfile() {
+    return unwrap(await apiClient.get('/users/me/profile'))
+  },
+
+  async updateMyProfile(data) {
+    return unwrap(await apiClient.patch('/users/me/profile', data))
+  },
 }
