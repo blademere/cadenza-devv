@@ -103,6 +103,7 @@ export default function ApplicationFormPage() {
   const fields = form?.fields ?? []
   const sections = form?.sections ?? []
   const permitType = permitTypes.find((item) => String(item.id) === effectivePermitTypeId)
+  const hasConfiguredForm = Boolean(permitType?.formId || permitType?.form?.id)
   const sectionFields = useMemo(() => {
     if (!sections.length) return [{ key: 'default', title: 'Application information', description: null, fields }]
     return sections.map((section) => ({
@@ -168,10 +169,19 @@ export default function ApplicationFormPage() {
 
   const handleSave = async () => {
     if (!effectiveProfessionalId || !effectivePermitTypeId) return
+    if (!editing && hasConfiguredForm && !form?.formVersionId) {
+      setSaveMessage('')
+      setFormErrors({ _form: 'This permit type does not have a published application form. Publish a form version before creating an application.' })
+      return
+    }
     setFormErrors({})
     setSaveMessage('')
     try {
-      const payload = { professionalId: effectiveProfessionalId, formValues }
+      const payload = {
+        professionalId: effectiveProfessionalId,
+        formValues,
+        ...(form?.formVersionId ? { formVersionId: form.formVersionId } : {}),
+      }
       const result = editing
         ? await updateMutation.mutateAsync({ id: applicationId, ...payload })
         : await createMutation.mutateAsync({ permitTypeId: effectivePermitTypeId, ...payload })
@@ -214,20 +224,21 @@ export default function ApplicationFormPage() {
     {mutationError && !Object.keys(formErrors).length && <Alert color="red" title="Unable to save application">{getErrorMessage(mutationError)}</Alert>}
     {submitError && <Alert color="red" title="Unable to submit application">{getErrorMessage(submitError)}</Alert>}
     {saveMessage && <Alert color="green">{saveMessage}</Alert>}
-    {Object.keys(formErrors).length > 0 && <Alert color="red" title="Check the application form">Correct the highlighted fields and save the draft again.</Alert>}
+    {Object.keys(formErrors).length > 0 && <Alert color="red" title="Check the application form">{formErrors._form ?? 'Correct the highlighted fields and save the draft again.'}</Alert>}
     <Box className="obo-panel" p="lg">
       <Stack gap="lg">
         <Select label="Permit type" required data={permitTypeOptions} value={effectivePermitTypeId || null} onChange={handlePermitTypeChange} disabled={editing} searchable placeholder="Select a permit type" />
+        {effectivePermitTypeId && !form && hasConfiguredForm && <Alert color="yellow">This permit type has a form configured, but no published form version is available. Publish a form version before creating an application.</Alert>}
         {effectivePermitTypeId && !permitType && editing && <Alert color="yellow">The permit type for this application is not present in the current active permit type list.</Alert>}
         <Select label="Verified professional" required data={professionalOptions} value={effectiveProfessionalId || null} onChange={handleProfessionalChange} searchable placeholder="Select a verified professional" nothingFoundMessage="No verified professionals are available" />
         {effectivePermitTypeId && form && <Box><Text fw={700}>{form.name ?? 'Application information'}</Text><Text size="sm" c="dimmed" mt={3}>{form.description ?? 'Complete the required application fields.'}</Text></Box>}
         {!effectivePermitTypeId && <Alert color="gray">Select a permit type to load the published application form.</Alert>}
-        {effectivePermitTypeId && !form && <Alert color="yellow">No published form is configured for this permit type. The application can still be saved if the backend permits a form-less application.</Alert>}
+        {effectivePermitTypeId && !form && !hasConfiguredForm && <Alert color="gray">No application form is configured for this permit type. The application can still be saved if the backend permits a form-less application.</Alert>}
         {form && <Stack gap="xl">{sectionFields.map((section, sectionIndex) => <Box key={section.id ?? section.key ?? sectionIndex}><Text fw={650}>{section.title ?? section.name ?? section.label ?? `Section ${sectionIndex + 1}`}</Text>{section.description && <Text size="sm" c="dimmed" mt={3} mb="md">{section.description}</Text>}<SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="md">{section.fields.map((field, index) => <FormField key={field.id ?? field.key ?? index} field={field} value={formValues[fieldKey(field)]} error={formErrors[fieldKey(field)]} onChange={(value) => setFieldValue(fieldKey(field), value)} />)}</SimpleGrid>{!section.fields.length && <Text size="sm" c="dimmed" mt="sm">No fields configured in this section.</Text>}</Box>)}</Stack>}
         <Group justify="flex-end">
           <Button variant="default" component={Link} to={editing ? `/app/applications/${applicationId}` : '/app/applications'}>Cancel</Button>
           <PermissionGate permission={editing ? permissions.planPermits.update : permissions.planPermits.create}>
-            <Button onClick={handleSave} loading={saving} disabled={!effectivePermitTypeId || !effectiveProfessionalId}>Save draft</Button>
+            <Button onClick={handleSave} loading={saving} disabled={!effectivePermitTypeId || !effectiveProfessionalId || (!editing && hasConfiguredForm && !form?.formVersionId)}>Save draft</Button>
           </PermissionGate>
           {editing && <PermissionGate permission={permissions.planPermits.submit}><Button onClick={handleSubmit} loading={submitMutation.isPending} disabled={saving || isDirty || application?.status !== 'DRAFT'}>Submit for submission</Button></PermissionGate>}
         </Group>
