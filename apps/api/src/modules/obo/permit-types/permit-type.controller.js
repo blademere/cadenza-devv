@@ -43,4 +43,15 @@ const update = async (req, res) => successResponse(
   }),
 )
 
-export { list, getForm, create, update }
+const createForm = async (req, res) => successResponse(
+  res,
+  'Permit type form created successfully.',
+  await service.createPermitTypeForm({
+    actorId: req.user.id,
+    permitTypeId: req.validated.params.permitTypeId,
+    data: req.validated.body,
+  }),
+  201,
+)
+
+export { list, getForm, create, update, createForm }
