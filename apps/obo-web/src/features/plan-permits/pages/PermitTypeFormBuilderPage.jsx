@@ -7,7 +7,7 @@ import PermissionGate from '../../authorization/components/PermissionGate'
 import RequirePermission from '../../authorization/components/RequirePermission'
 import { permissions } from '../../../config/permissions'
 import FormBuilder, { createField, normalizeDefinition } from '../components/FormBuilder'
-import { useCreatePermitTypeForm, usePermitTypeForm, usePermitTypeFormVersion, usePermitTypes, usePublishPermitTypeFormVersion, useUpdatePermitTypeFormVersion } from '../queries/plan-permits.queries'
+import { useCreatePermitTypeForm, useCreatePermitTypeFormVersion, usePermitTypeForm, usePermitTypeFormVersion, usePermitTypes, usePublishPermitTypeFormVersion, useUpdatePermitTypeFormVersion } from '../queries/plan-permits.queries'
 
 const unwrap = (value) => value?.data ?? value
 
@@ -30,6 +30,13 @@ export const createInitialFormDefinition = () => ({
 
 export const resolvePermitTypeId = (params) => params?.permitTypeId ?? params?.id ?? null
 
+export const createVersionPayload = (form, fallbackDefinition) => {
+  const normalized = normalizeDefinition(form)
+  const definition = normalized.fields.length > 0 ? normalized : fallbackDefinition
+  const payload = toPayload(definition)
+  return payload.fields.length > 0 ? payload : null
+}
+
 export const hasConfiguredForm = (form) => Boolean(form?.id || form?.formId)
 export const hasConfiguredPermitTypeForm = (permitType, form) => hasConfiguredForm(form) || Boolean(permitType?.formId || permitType?.form?.id)
 
@@ -47,6 +54,7 @@ export default function PermitTypeFormBuilderPage() {
   const published = usePermitTypeForm(permitTypeId)
   const draft = usePermitTypeFormVersion(permitTypeId, version)
   const createForm = useCreatePermitTypeForm()
+  const createVersion = useCreatePermitTypeFormVersion()
   const updateVersion = useUpdatePermitTypeFormVersion()
   const publishVersion = usePublishPermitTypeFormVersion()
   const permitTypeData = unwrap(types.data)
@@ -57,13 +65,29 @@ export default function PermitTypeFormBuilderPage() {
   const isDraft = activeForm?.status === 'DRAFT'
   const hasConfiguredFormForPermitType = hasConfiguredPermitTypeForm(permitType, publishedForm)
   const loading = types.isLoading || published.isLoading || (Boolean(version) && draft.isLoading)
-  const error = errorFromHooks(types, published, draft, createForm, updateVersion, publishVersion)
+  const error = errorFromHooks(types, published, draft, createForm, createVersion, updateVersion, publishVersion)
   const payload = useMemo(() => toPayload(definition), [definition])
 
   useEffect(() => { if (activeForm) setDefinition(normalizeDefinition(activeForm)) }, [activeForm?.formVersionId])
 
   const missingPermitTypeIdError = !permitTypeId ? new Error('Permit type ID is missing from the route.') : null
   const formError = operationError || error || missingPermitTypeIdError
+
+  const createDraftFrom = (form) => {
+    if (!permitTypeId || !hasConfiguredPermitTypeForm(permitType, form)) {
+      setOperationError(new Error('This permit type does not have a configured form. Create the form before creating a new version.'))
+      return
+    }
+    const draftPayload = createVersionPayload(form, definition)
+    if (!draftPayload?.fields?.length) {
+      setOperationError(new Error('A form version must contain at least one field.'))
+      return
+    }
+    setOperationError(null)
+    createVersion.mutate({ id: permitTypeId, ...draftPayload }, { onSuccess: (created) => setSearchParams({ version: String(created.version) }) })
+  }
+
+  const startNewVersion = () => createDraftFrom(publishedForm)
 
   const saveDraft = () => {
     if (!permitTypeId || !activeVersion) return
@@ -121,6 +145,7 @@ export default function PermitTypeFormBuilderPage() {
         <PageHeader eyebrow="Plan Permits / Permit Type / Form" title={permitType?.name ?? 'Form management'} description="Build a draft form, save changes, and publish a new immutable version." actions={(
           <Group>
             <Button component={Link} to={`/app/permit-types/${permitTypeId}`} variant="default">Back</Button>
+            {hasConfiguredFormForPermitType && !version && publishedForm ? <PermissionGate permission={permissions.forms.update}><Button onClick={startNewVersion} loading={createVersion.isPending}>Create New Version</Button></PermissionGate> : null}
             {isDraft ? <Button onClick={saveDraft} loading={updateVersion.isPending}>Save Draft</Button> : null}
             {isDraft ? <PermissionGate permission={permissions.forms.publish}><Button onClick={publish} loading={publishVersion.isPending}>Publish</Button></PermissionGate> : null}
           </Group>
