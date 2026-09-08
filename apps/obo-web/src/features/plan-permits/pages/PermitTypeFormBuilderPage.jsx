@@ -10,6 +10,7 @@ import FormBuilder, { createField, normalizeDefinition } from '../components/For
 import { useCreatePermitTypeForm, useCreatePermitTypeFormVersion, usePermitTypeForm, usePermitTypeFormVersion, usePermitTypes, usePublishPermitTypeFormVersion, useUpdatePermitTypeFormVersion } from '../queries/plan-permits.queries'
 
 const unwrap = (value) => value?.data ?? value
+
 const toPayload = (definition) => ({
   sections: (definition.sections ?? []).map((section, index) => ({ key: section.key, title: section.title, description: section.description ?? null, sortOrder: index })),
   fields: (definition.fields ?? []).map((field, index) => ({
@@ -22,12 +23,17 @@ const toPayload = (definition) => ({
   })),
 })
 
+export const createInitialFormDefinition = () => ({
+  sections: [],
+  fields: [createField(0)],
+})
+
 export default function PermitTypeFormBuilderPage() {
   const { permitTypeId } = useParams()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const version = Number(searchParams.get('version')) || null
-  const [definition, setDefinition] = useState({ sections: [], fields: [createField(0)] })
+  const [definition, setDefinition] = useState(createInitialFormDefinition)
   const [modalOpen, setModalOpen] = useState(false)
   const [meta, setMeta] = useState({ key: '', name: '', description: '' })
   const types = usePermitTypes()
@@ -54,13 +60,17 @@ export default function PermitTypeFormBuilderPage() {
   const saveDraft = () => { if (activeVersion) updateVersion.mutate({ id: permitTypeId, version: activeVersion, ...payload }) }
   const publish = () => { if (activeVersion) publishVersion.mutate({ id: permitTypeId, version: activeVersion }, { onSuccess: () => navigate(`/app/permit-types/${permitTypeId}`) }) }
   const openCreateForm = () => { setMeta({ key: `${permitType?.key ?? 'permit'}-application`, name: `${permitType?.name ?? 'Permit'} Application`, description: `Application form for ${permitType?.name ?? 'this permit type'}.` }); setModalOpen(true) }
-  const submitCreateForm = () => createForm.mutate({ id: permitTypeId, key: meta.key, name: meta.name, description: meta.description || null, entityType: 'OboPermitApplication', sections: [], fields: [createField(0)] }, {
-    onSuccess: (created) => {
-      setModalOpen(false)
-      const first = unwrap(created)?.versions?.[0]
-      if (first) createDraftFrom(first)
-    },
-  })
+  const submitCreateForm = () => {
+    const initialDefinition = createInitialFormDefinition()
+    const initialPayload = toPayload(initialDefinition)
+
+    createForm.mutate({ id: permitTypeId, key: meta.key, name: meta.name, description: meta.description || null, entityType: 'OboPermitApplication', ...initialPayload }, {
+      onSuccess: () => {
+        setModalOpen(false)
+        createDraftFrom(initialDefinition)
+      },
+    })
+  }
 
   return (
     <RequirePermission permission={permissions.forms.update}>
