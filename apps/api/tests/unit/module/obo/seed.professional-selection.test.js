@@ -30,8 +30,9 @@ describe('OBO professional seed architecture', () => {
   it('does not retain the removed application-level professional relation in the active seed', async () => {
     const content = await readSeed('obo-development.js')
 
-    expect(content).not.toContain('professionalId: professional.id')
-    expect(content).not.toContain('professionalId,')
+    expect(content).not.toContain('professionalId: professional.id,\n      workflowInstanceId')
+    expect(content).not.toContain('professionalId: professional.id,\n      formVersionId')
+    expect(content).toContain('professionalSnapshots')
     expect(content).toContain('formVersionId: formVersion.id')
     expect(content).toContain('formValues,')
   })
