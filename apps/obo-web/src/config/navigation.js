@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   UserCheck,
   UsersThree,
+  UserCircle,
 } from '@phosphor-icons/react'
 import { permissions } from './permissions'
 
@@ -27,6 +28,7 @@ const VerificationIcon = createIcon(UserCheck)
 const InspectionsIcon = createIcon(MagnifyingGlass)
 const UsersIcon = createIcon(UsersThree)
 const RolesIcon = createIcon(ShieldCheck)
+const ProfileIcon = createIcon(UserCircle)
 
 export const navigation = Object.freeze([
   {
@@ -38,6 +40,12 @@ export const navigation = Object.freeze([
         name: 'Dashboard',
         route: '/app/dashboard',
         icon: DashboardIcon,
+      },
+      {
+        key: 'profile',
+        name: 'My Profile',
+        route: '/app/profile',
+        icon: ProfileIcon,
       },
     ],
   },
