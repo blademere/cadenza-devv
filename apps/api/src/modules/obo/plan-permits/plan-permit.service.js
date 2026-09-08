@@ -2,7 +2,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../../../common/e
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import * as repository from './plan-permit.repository.js'
 import { resolveAndValidateForm } from './plan-permit.form.js'
-import { validateProfessionalReferences } from './professional-reference.service.js'
+import { buildProfessionalSnapshots, validateProfessionalReferences } from './professional-reference.service.js'
 import * as formService from '../../../platform/forms/form.service.js'
 import { getWorkflowState, withWorkflowState } from './plan-permit.workflow.js'
 import { getNotificationContext } from '../notification-context.js'
@@ -139,7 +139,7 @@ const updateDraft = async ({ id, userId, formVersionId, formValues }) => {
 }
 
 const validateSubmissionProfessionals = async (application) => {
-  if (!application.formVersion || !application.permitType.formId) return
+  if (!application.formVersion || !application.permitType.formId) return null
 
   const form = await repository.findFormById(application.permitType.formId)
   if (!form || !form.isActive) {
@@ -164,6 +164,11 @@ const validateSubmissionProfessionals = async (application) => {
     formVersion,
     formValues: application.formValues,
   })
+
+  return buildProfessionalSnapshots({
+    formVersion,
+    formValues: application.formValues,
+  })
 }
 
 const submit = async ({ id, userId }) => {
@@ -172,25 +177,35 @@ const submit = async ({ id, userId }) => {
     throw new ConflictError('Only draft applications can be submitted.')
   }
 
-  await validateSubmissionProfessionals(application)
+  const professionalSnapshots = await validateSubmissionProfessionals(application)
 
-  const notificationContext = await getNotificationContext({
-    personId: application.clientPersonId,
-    findPersonNotificationContext: repository.findPersonNotificationContext,
-  })
-  await workflowService.transitionWorkflow({
-    instanceId: application.workflowInstanceId,
-    transitionKey: 'SUBMIT_FOR_SUBMISSION',
-    actorId: userId,
-    metadata: {
-      source: 'obo-plan-permit.submit',
-      referenceNumber: application.referenceNumber,
-      permitTypeName: application.permitType.name,
-      ...notificationContext,
-    },
+  const updated = await repository.withTransaction(async (tx) => {
+    if (professionalSnapshots && Object.keys(professionalSnapshots).length > 0) {
+      await repository.update(id, { professionalSnapshots }, tx)
+    }
+
+    const notificationContext = await getNotificationContext({
+      personId: application.clientPersonId,
+      db: tx,
+      findPersonNotificationContext: repository.findPersonNotificationContext,
+    })
+    await workflowService.transitionWorkflow({
+      instanceId: application.workflowInstanceId,
+      transitionKey: 'SUBMIT_FOR_SUBMISSION',
+      actorId: userId,
+      metadata: {
+        source: 'obo-plan-permit.submit',
+        referenceNumber: application.referenceNumber,
+        permitTypeName: application.permitType.name,
+        ...notificationContext,
+      },
+      db: tx,
+    })
+
+    return repository.findById(id, tx)
   })
 
-  return withWorkflowState(await repository.findById(id))
+  return withWorkflowState(updated)
 }
 
 export {
