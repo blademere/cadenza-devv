@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialFormDefinition, createVersionPayload, hasConfiguredForm, hasConfiguredPermitTypeForm, resolvePermitTypeId, toPayload } from './PermitTypeFormBuilderPage'
+import { FIELD_TYPES } from '../components/FormBuilder'
 
 describe('PermitTypeFormBuilderPage form version lifecycle', () => {
   it('creates the initial form with a non-empty version one payload', () => {
@@ -8,6 +9,43 @@ describe('PermitTypeFormBuilderPage form version lifecycle', () => {
 
     expect(initialPayload.fields).toHaveLength(1)
     expect(initialPayload.fields[0]).toEqual(expect.objectContaining({ key: 'field-1', label: 'Field 1', type: 'text', required: false }))
+  })
+
+  it('supports the reference field type used for professional selection', () => {
+    expect(FIELD_TYPES).toContainEqual(['reference', 'Reference'])
+
+    const payload = toPayload({
+      sections: [],
+      fields: [{
+        key: 'architect',
+        label: 'Architect',
+        type: 'reference',
+        required: true,
+        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false },
+        options: [],
+      }],
+    })
+
+    expect(payload.fields[0]).toEqual(expect.objectContaining({
+      type: 'reference',
+      config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false },
+    }))
+  })
+
+  it('preserves multiple professional reference configuration in the payload', () => {
+    const payload = toPayload({
+      sections: [],
+      fields: [{
+        key: 'architects',
+        label: 'Architects',
+        type: 'reference',
+        required: false,
+        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true },
+        options: [],
+      }],
+    })
+
+    expect(payload.fields[0].config.multiple).toBe(true)
   })
 
   it('opens the created version one instead of creating version two', () => {
