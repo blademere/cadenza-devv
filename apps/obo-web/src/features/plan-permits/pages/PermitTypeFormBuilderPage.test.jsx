@@ -2,28 +2,41 @@ import { describe, expect, it } from 'vitest'
 import { createInitialFormDefinition, toPayload } from './PermitTypeFormBuilderPage'
 
 describe('PermitTypeFormBuilderPage create-form to draft-version flow', () => {
-  it('keeps the initial field when building the draft version payload after form creation', () => {
+  it('uses the same non-empty payload for create form and first draft version', () => {
     const initialDefinition = createInitialFormDefinition()
-    const createFormPayload = toPayload(initialDefinition)
-    const draftVersionPayload = toPayload(initialDefinition)
+    const initialPayload = toPayload(initialDefinition)
 
-    expect(createFormPayload.fields).toHaveLength(1)
-    expect(draftVersionPayload.fields).toHaveLength(1)
-    expect(draftVersionPayload.fields[0]).toEqual(expect.objectContaining({
+    expect(initialPayload.fields).toHaveLength(1)
+    expect(initialPayload.fields[0]).toEqual(expect.objectContaining({
       key: 'field-1',
       label: 'Field 1',
       type: 'text',
       required: false,
     }))
+
+    const createFormRequest = {
+      id: 'permit-type-1',
+      key: 'building-application',
+      name: 'Building Application',
+      entityType: 'OboPermitApplication',
+      ...initialPayload,
+    }
+    const draftVersionRequest = {
+      id: 'permit-type-1',
+      ...initialPayload,
+    }
+
+    expect(draftVersionRequest.sections).toEqual(createFormRequest.sections)
+    expect(draftVersionRequest.fields).toEqual(createFormRequest.fields)
+    expect(draftVersionRequest.fields).toHaveLength(1)
   })
 
-  it('does not depend on the create-form response to populate draft fields', () => {
+  it('does not derive draft fields from a create-form response without field definitions', () => {
     const initialDefinition = createInitialFormDefinition()
     const createFormResponse = { id: 'form-1', versions: [{ version: 1, status: 'PUBLISHED' }] }
-
-    const draftVersionPayload = toPayload(initialDefinition)
+    const draftVersionRequest = { id: 'permit-type-1', ...toPayload(initialDefinition) }
 
     expect(createFormResponse.versions[0].fields).toBeUndefined()
-    expect(draftVersionPayload.fields).toHaveLength(1)
+    expect(draftVersionRequest.fields).toHaveLength(1)
   })
 })
