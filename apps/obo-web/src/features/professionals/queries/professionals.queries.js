@@ -24,7 +24,7 @@ export function usePendingProfessionals(options = {}) {
 export function useMyProfessional(options = {}) {
   return useQuery({
     queryKey: professionalMineQueryKey,
-    queryFn: professionalsApi.getMine,
+    queryFn: professionalsApi.getApplication,
     ...options,
   })
 }
