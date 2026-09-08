@@ -12,14 +12,13 @@ import ApplicationFormPage from '../features/plan-permits/pages/ApplicationFormP
 import ApplicationDetailsPage from '../features/plan-permits/pages/ApplicationDetailsPage'
 import PermitTypesPage from '../features/plan-permits/pages/PermitTypesPage'
 import PermitTypeDetailsPage from '../features/plan-permits/pages/PermitTypeDetailsPage'
-import PermitTypeFormEditPage from '../features/plan-permits/pages/PermitTypeFormEditPage'
+import PermitTypeFormBuilderPage from '../features/plan-permits/pages/PermitTypeFormBuilderPage'
 import SubmissionAppointmentPage from '../features/submission-appointments/pages/SubmissionAppointmentPage'
 import ReceivingPage from '../features/receiving/pages/ReceivingPage'
 import ReceivingApplicationPage from '../features/receiving/pages/ReceivingApplicationPage'
 import ProfessionalsPage from '../features/professionals/pages/ProfessionalsPage'
 import ProfessionalVerificationPage from '../features/professionals/pages/ProfessionalVerificationPage'
 import ProfessionalVerificationApplyPage from '../features/professionals/pages/ProfessionalVerificationApplyPage'
-import RoutePlaceholder from './router/RoutePlaceholder'
 import ProtectedRoute from './router/ProtectedRoute'
 import GuestRoute from './router/GuestRoute'
 import AuthorizationRoute from './router/AuthorizationRoute'
@@ -41,7 +40,7 @@ export const router = createBrowserRouter([
       protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.planPermits.read),
       protectedPage('permit-types', <PermitTypesPage />, permissions.permitTypes.read),
       protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.permitTypes.read),
-      protectedPage('permit-types/:permitTypeId/form/edit', <PermitTypeFormEditPage />, permissions.forms.update),
+      protectedPage('permit-types/:permitTypeId/form/edit', <PermitTypeFormBuilderPage />, permissions.forms.update),
       protectedPage('receiving', <ReceivingPage />, permissions.planPermits.receive),
       protectedPage('receiving/:applicationId', <ReceivingApplicationPage />, permissions.planPermits.receive),
       protectedPage('professionals', <ProfessionalsPage />, permissions.professionals.read),
