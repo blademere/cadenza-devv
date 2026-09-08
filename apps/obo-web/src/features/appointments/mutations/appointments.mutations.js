@@ -5,16 +5,14 @@ const invalidateAppointments = async (queryClient) => {
   await queryClient.invalidateQueries({ queryKey: ['appointments'] })
 }
 
-const createMutation = (mutationFn, options = {}) => {
-  return ({ queryClient, ...rest } = {}) => ({
-    mutationFn,
-    ...rest,
-    onSuccess: async (data, variables, context) => {
-      await invalidateAppointments(queryClient)
-      await options.onSuccess?.(data, variables, context)
-    },
-  })
-}
+const createMutation = (mutationFn, options = {}) => ({ queryClient, ...rest } = {}) => ({
+  mutationFn,
+  ...rest,
+  onSuccess: async (data, variables, context) => {
+    await invalidateAppointments(queryClient)
+    await options.onSuccess?.(data, variables, context)
+  },
+})
 
 export function useCreateAppointmentType(options = {}) {
   const queryClient = useQueryClient()
@@ -38,7 +36,7 @@ export function useGenerateAppointmentSlots(options = {}) {
 
 export function useCancelAppointment(options = {}) {
   const queryClient = useQueryClient()
-  return useMutation(createMutation(appointmentsApi.cancel, options)({ queryClient, ...options }))
+  return useMutation(createMutation(appointmentsApi.cancelManagement, options)({ queryClient, ...options }))
 }
 
 export function useCheckInAppointment(options = {}) {
