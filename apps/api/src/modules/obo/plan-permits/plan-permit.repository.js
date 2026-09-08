@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
-const formVersionInclude = { include: { fields: { orderBy: { sortOrder: 'asc' } }, sections: { orderBy: { sortOrder: 'asc' } } } }
+const formVersionInclude = { fields: { orderBy: { sortOrder: 'asc' } }, sections: { orderBy: { sortOrder: 'asc' } } }
 const reference = () => `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 
 const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where: { userId } })
@@ -11,21 +11,43 @@ const findPermitType = (id, db = prisma) => db.oboPermitType.findFirst({ where: 
 const findFormById = (id, db = prisma) => db.form.findUnique({ where: { id } })
 const findFormVersionById = (id, db = prisma) => db.formVersion.findUnique({ where: { id }, include: { form: true } })
 const findWorkflowInstance = (id, db = prisma) => db.workflowInstance.findUnique({ where: { id }, include: { currentStep: true } })
+
 const applicationInclude = {
   permitType: true,
-  formVersion: formVersionInclude,
   submissionAppointment: true,
   replacedApplication: true,
   replacementApplications: { orderBy: { createdAt: 'asc' } },
   decisions: { orderBy: { decidedAt: 'desc' } },
 }
-const findById = (id, db = prisma) => db.oboPermitApplication.findUnique({ where: { id }, include: applicationInclude })
-const findOwnedByClient = (id, personId, db = prisma) => db.oboPermitApplication.findFirst({ where: { id, clientPersonId: personId }, include: applicationInclude })
-const listByClient = (personId, db = prisma) => db.oboPermitApplication.findMany({
-  where: { clientPersonId: personId },
-  include: { permitType: true, formVersion: true, submissionAppointment: true, replacedApplication: true },
-  orderBy: { createdAt: 'desc' },
-})
+
+const attachFormVersion = async (application, db = prisma) => {
+  if (!application?.formVersionId) return { ...application, formVersion: null }
+  const formVersion = await db.formVersion.findUnique({
+    where: { id: application.formVersionId },
+    include: formVersionInclude,
+  })
+  return { ...application, formVersion }
+}
+
+const findById = async (id, db = prisma) => {
+  const application = await db.oboPermitApplication.findUnique({ where: { id }, include: applicationInclude })
+  return attachFormVersion(application, db)
+}
+
+const findOwnedByClient = async (id, personId, db = prisma) => {
+  const application = await db.oboPermitApplication.findFirst({ where: { id, clientPersonId: personId }, include: applicationInclude })
+  return attachFormVersion(application, db)
+}
+
+const listByClient = async (personId, db = prisma) => {
+  const applications = await db.oboPermitApplication.findMany({
+    where: { clientPersonId: personId },
+    include: { permitType: true, submissionAppointment: true, replacedApplication: true },
+    orderBy: { createdAt: 'desc' },
+  })
+  return Promise.all(applications.map((application) => attachFormVersion(application, db)))
+}
+
 const create = async ({ clientPersonId, permitTypeId, formVersionId, formValues, userId, replacesApplicationId }, db = prisma) => {
   const permitType = await db.oboPermitType.findFirst({ where: { id: permitTypeId, isActive: true } })
   if (!permitType) return null
@@ -38,12 +60,18 @@ const create = async ({ clientPersonId, permitTypeId, formVersionId, formValues,
   const caseRecord = await db.caseRecord.create({
     data: { caseNumber: referenceNumber, caseTypeId: caseType.id, title: `${permitType.name} Application`, status: 'OPEN', createdByUserId: userId },
   })
-  return db.oboPermitApplication.create({
+  const application = await db.oboPermitApplication.create({
     data: { referenceNumber, caseId: caseRecord.id, clientPersonId, permitTypeId, formVersionId, replacesApplicationId: replacesApplicationId || null, formValues },
-    include: { permitType: true, formVersion: true, replacedApplication: true },
+    include: { permitType: true, replacedApplication: true },
   })
+  return attachFormVersion(application, db)
 }
-const update = (id, data, db = prisma) => db.oboPermitApplication.update({ where: { id }, data, include: applicationInclude })
+
+const update = async (id, data, db = prisma) => {
+  const application = await db.oboPermitApplication.update({ where: { id }, data, include: applicationInclude })
+  return attachFormVersion(application, db)
+}
+
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
 const createSubmissionAppointment = (data, db = prisma) => db.oboSubmissionAppointment.create({ data })
 const findSubmissionAppointmentByApplicationId = (applicationId, db = prisma) => db.oboSubmissionAppointment.findUnique({ where: { applicationId } })
