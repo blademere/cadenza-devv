@@ -12,35 +12,6 @@ const ensurePerson = async (prisma, { userId, firstName, lastName, email, phone 
   create: { userId, firstName, lastName, email, phone },
 })
 
-async function ensurePeopleForUsers(prisma) {
-  const users = await prisma.user.findMany({
-    where: { isActive: true },
-    include: { role: { select: { name: true } }, person: { select: { id: true } } },
-    orderBy: { id: 'asc' },
-  })
-
-  const roleNames = {
-    admin: ['System', 'Administrator'],
-    client: ['Client', 'User'],
-    professional: ['Professional', 'User'],
-    receiving_officer: ['Receiving', 'Officer'],
-  }
-
-  for (const user of users) {
-    if (user.person) continue
-    const [firstName, lastName] = roleNames[user.role?.name] ?? ['Platform', 'User']
-    await ensurePerson(prisma, {
-      userId: user.id,
-      firstName,
-      lastName,
-      email: user.email,
-      phone: null,
-    })
-  }
-
-  return users.length
-}
-
 async function seedDevelopmentUsers(prisma, { roles }) {
   const demoPasswordHash = process.env.SEED_DEMO_PASSWORD
     ? await bcrypt.hash(process.env.SEED_DEMO_PASSWORD, 12)
@@ -66,4 +37,4 @@ async function seedDevelopmentUsers(prisma, { roles }) {
   return { admin, demoPasswordHash }
 }
 
-export { seedDevelopmentUsers, ensureUser, ensurePerson, ensurePeopleForUsers }
+export { seedDevelopmentUsers, ensureUser, ensurePerson }
