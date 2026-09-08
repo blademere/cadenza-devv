@@ -12,6 +12,10 @@ const createReferenceNumber = () =>
   `APT-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 const listAppointmentTypes = ({ active }) =>
   repository.listAppointmentTypes({ active })
+const listAvailabilitySchedules = ({ appointmentTypeId, active }) =>
+  repository.listAvailabilitySchedules({ appointmentTypeId, active })
+const listAppointments = ({ appointmentTypeId, status, from, to }) =>
+  repository.listAppointments({ appointmentTypeId, status, from, to })
 
 const createAppointmentType = async ({ actorId, data }) =>
   repository.withTransaction(async (tx) => {
@@ -173,10 +177,12 @@ const markNoShow = ({ id, actorId }) => updateAppointmentStatus({ id, actorId, f
 
 export {
   listAppointmentTypes,
+  listAvailabilitySchedules,
+  listAppointmentSlots,
+  listAppointments,
   createAppointmentType,
   createAvailabilitySchedule,
   createAppointmentSlot,
-  listAppointmentSlots,
   bookAppointment,
   getMyAppointment,
   listMyAppointments,
