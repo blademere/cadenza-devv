@@ -6,7 +6,7 @@ vi.mock('../../../../src/platform/audit/audit.service.js')
 const repository = await import('../../../../src/features/appointments/appointment.repository.js')
 const audit = await import('../../../../src/platform/audit/audit.service.js')
 const { ConflictError } = await import('../../../../src/common/errors/appError.js')
-const { bookAppointment } = await import('../../../../src/features/appointments/appointment.service.js')
+const { bookAppointment, checkInAppointment } = await import('../../../../src/features/appointments/appointment.service.js')
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -37,5 +37,42 @@ describe('appointment booking capacity and availability', () => {
     repository.claimSlot.mockResolvedValue({ count: 0 })
     await expect(bookAppointment({ userId: 10, appointmentTypeId: 'type-1', slotId: 'slot-1' })).rejects.toThrow(ConflictError)
     expect(repository.createAppointment).not.toHaveBeenCalled()
+  })
+})
+
+describe('appointment check-in window', () => {
+  const makeAppointment = (startsAt, endsAt, status = 'CONFIRMED') => ({
+    id: 'appointment-1',
+    status,
+    slot: { id: 'slot-1', startsAt, endsAt },
+  })
+
+  it('rejects check-in before the slot starts', async () => {
+    const startsAt = new Date(Date.now() + 60000)
+    repository.getAppointmentWithRelations.mockResolvedValue(makeAppointment(startsAt, new Date(startsAt.getTime() + 1800000)))
+
+    await expect(checkInAppointment({ id: 'appointment-1', actorId: 10 })).rejects.toThrow('The appointment check-in window has not started yet.')
+    expect(repository.transitionAppointment).not.toHaveBeenCalled()
+  })
+
+  it('rejects check-in after the slot ends', async () => {
+    const endsAt = new Date(Date.now() - 60000)
+    repository.getAppointmentWithRelations.mockResolvedValue(makeAppointment(new Date(endsAt.getTime() - 1800000), endsAt))
+
+    await expect(checkInAppointment({ id: 'appointment-1', actorId: 10 })).rejects.toThrow('The appointment check-in window has already ended.')
+    expect(repository.transitionAppointment).not.toHaveBeenCalled()
+  })
+
+  it('allows check-in during the slot window', async () => {
+    const startsAt = new Date(Date.now() - 60000)
+    const endsAt = new Date(Date.now() + 60000)
+    repository.getAppointmentWithRelations
+      .mockResolvedValueOnce(makeAppointment(startsAt, endsAt))
+      .mockResolvedValueOnce({ id: 'appointment-1', status: 'CHECKED_IN', slot: { id: 'slot-1', startsAt, endsAt } })
+    repository.transitionAppointment.mockResolvedValue({ count: 1 })
+
+    await expect(checkInAppointment({ id: 'appointment-1', actorId: 10 })).resolves.toMatchObject({ id: 'appointment-1', status: 'CHECKED_IN' })
+    expect(repository.transitionAppointment).toHaveBeenCalledWith({ id: 'appointment-1', fromStatus: 'CONFIRMED', status: 'CHECKED_IN', timestampField: 'checkedInAt' }, expect.anything())
+    expect(audit.recordAudit).toHaveBeenCalled()
   })
 })
