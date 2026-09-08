@@ -52,10 +52,27 @@ function FormField({ field, value, error, onChange }) {
 const getErrorMessage = (error) => error?.message ?? error?.error?.message ?? 'The application could not be saved.'
 
 const extractFieldErrors = (error) => {
-  const source = error?.details?.fieldErrors ?? error?.fieldErrors ?? error?.errors
-  if (!source || typeof source !== 'object' || Array.isArray(source)) return {}
-  return Object.fromEntries(Object.entries(source).map(([key, value]) => [key, Array.isArray(value) ? value.join(', ') : String(value)]))
+  const source = error?.errors ?? error?.details?.fieldErrors ?? error?.fieldErrors ?? error?.details
+  if (Array.isArray(source)) {
+    return source.reduce((result, item) => {
+      if (!item || typeof item !== 'object') return result
+      const key = item.field ?? item.path ?? item.key
+      if (!key) return result
+      const message = item.message ?? item.error ?? String(item)
+      if (!(key in result)) result[key] = String(message)
+      return result
+    }, {})
+  }
+  if (!source || typeof source !== 'object') return {}
+  return Object.fromEntries(
+    Object.entries(source).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? value.map((item) => item?.message ?? item).join(', ') : String(value?.message ?? value),
+    ]),
+  )
 }
+
+export { extractFieldErrors }
 
 export default function ApplicationFormPage() {
   const { applicationId } = useParams()
