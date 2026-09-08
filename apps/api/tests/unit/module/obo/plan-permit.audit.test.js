@@ -1,0 +1,182 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
+vi.mock('../../../../src/modules/obo/professionals/professional.repository.js')
+vi.mock('../../../../src/platform/forms/form.service.js')
+vi.mock('../../../../src/platform/workflow/workflow.service.js')
+vi.mock('../../../../src/platform/audit/audit.service.js')
+
+const repository = await import('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
+const professionalRepository = await import('../../../../src/modules/obo/professionals/professional.repository.js')
+const formService = await import('../../../../src/platform/forms/form.service.js')
+const workflowService = await import('../../../../src/platform/workflow/workflow.service.js')
+const auditService = await import('../../../../src/platform/audit/audit.service.js')
+const service = await import('../../../../src/modules/obo/plan-permits/plan-permit.service.js')
+
+const spies = {
+  findPersonByUserId: repository.findPersonByUserId,
+  findPermitType: repository.findPermitType,
+  findFormById: repository.findFormById,
+  findFormVersionById: repository.findFormVersionById,
+  findOwnedByClient: repository.findOwnedByClient,
+  findById: repository.findById,
+  findWorkflowInstance: repository.findWorkflowInstance,
+  update: repository.update,
+  withTransaction: repository.withTransaction,
+  findPersonNotificationContext: repository.findPersonNotificationContext,
+  findProfessionalById: professionalRepository.findById,
+  validateFormValues: formService.validateFormValues,
+  getFormVersion: formService.getFormVersion,
+  evaluateCondition: formService.evaluateCondition,
+  transitionWorkflow: workflowService.transitionWorkflow,
+  recordAudit: auditService.recordAudit,
+}
+
+const person = { id: 'person-1', userId: 'user-1' }
+const permitType = { id: 'permit-1', name: 'Building Permit', isActive: true, formId: null }
+
+beforeEach(() => {
+  spies.withTransaction.mockImplementation(async (callback) => callback({ tx: true }))
+  spies.findPersonByUserId.mockResolvedValue(person)
+  spies.findPermitType.mockResolvedValue(permitType)
+  spies.findOwnedByClient.mockResolvedValue({
+    id: 'application-1',
+    workflowInstanceId: 'workflow-1',
+    clientPersonId: 'person-1',
+    referenceNumber: 'BP-1',
+    formVersionId: 'form-version-1',
+    formVersion: { id: 'form-version-1', version: 2 },
+    permitType,
+    formValues: { architect: 'professional-a', projectAddress: 'Old address' },
+  })
+  spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
+  spies.findFormById.mockResolvedValue({ id: 'form-1', key: 'building-permit', isActive: true })
+  spies.findFormVersionById.mockResolvedValue({ id: 'form-version-1', formId: 'form-1', version: 2, status: 'PUBLISHED' })
+  spies.validateFormValues.mockResolvedValue({ valid: true, formVersionId: 'form-version-1' })
+  spies.getFormVersion.mockResolvedValue({ id: 'form-version-1', version: 2, fields: [] })
+  spies.evaluateCondition.mockReturnValue(true)
+  spies.findProfessionalById.mockResolvedValue(null)
+  spies.findPersonNotificationContext.mockResolvedValue(null)
+  spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1' })
+  spies.update.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', status: 'DRAFT' })
+  spies.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1' })
+  spies.recordAudit.mockResolvedValue({ id: 'audit-1' })
+})
+
+afterEach(() => vi.clearAllMocks())
+
+describe('OBO plan permit auditability', () => {
+  it('audits each changed draft field with form version and actor context', async () => {
+    await service.updateDraft({
+      id: 'application-1',
+      userId: 'user-1',
+      formValues: {
+        architect: 'professional-b',
+        projectAddress: 'New address',
+      },
+    })
+
+    expect(spies.recordAudit).toHaveBeenCalledTimes(2)
+    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: 'user-1',
+      action: 'OBO_PERMIT_APPLICATION_FORM_FIELD_UPDATED',
+      entityType: 'OboPermitApplication',
+      entityId: 'application-1',
+      before: 'professional-a',
+      after: 'professional-b',
+      metadata: expect.objectContaining({
+        formVersionId: 'form-version-1',
+        fieldKey: 'architect',
+      }),
+      db: { tx: true },
+    }))
+    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      before: 'Old address',
+      after: 'New address',
+      metadata: expect.objectContaining({ fieldKey: 'projectAddress' }),
+    }))
+  })
+
+  it('does not create audit records for unchanged draft fields', async () => {
+    await service.updateDraft({
+      id: 'application-1',
+      userId: 'user-1',
+      formValues: {
+        architect: 'professional-a',
+        projectAddress: 'Old address',
+      },
+    })
+
+    expect(spies.recordAudit).not.toHaveBeenCalled()
+  })
+
+  it('audits final submission with the submitted form version, values, and professional snapshots', async () => {
+    spies.findOwnedByClient.mockResolvedValue({
+      id: 'application-1',
+      workflowInstanceId: 'workflow-1',
+      clientPersonId: 'person-1',
+      referenceNumber: 'BP-1',
+      formVersionId: 'form-version-1',
+      formVersion: { id: 'form-version-1', version: 2 },
+      permitType: { ...permitType, formId: 'form-1' },
+      formValues: { architect: 'professional-a' },
+      professionalSnapshots: null,
+    })
+    spies.findFormById.mockResolvedValue({ id: 'form-1', key: 'building-permit', isActive: true })
+    spies.getFormVersion.mockResolvedValue({
+      id: 'form-version-1',
+      version: 2,
+      fields: [{
+        key: 'architect',
+        type: 'reference',
+        required: true,
+        visibility: null,
+        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false },
+      }],
+    })
+    spies.findProfessionalById.mockResolvedValue({
+      id: 'professional-a',
+      registrationNumber: 'REG-1',
+      prcId: 'PRC-1',
+      ptrNumber: 'PTR-1',
+      professionalRole: 'ARCHITECT',
+      status: 'VERIFIED',
+      person: { id: 'person-pro', isActive: true, firstName: 'John', middleName: null, lastName: 'Doe', suffix: null },
+    })
+    spies.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1' })
+
+    await service.submit({ id: 'application-1', userId: 'user-1' })
+
+    expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: 'user-1',
+      transitionKey: 'SUBMIT_FOR_SUBMISSION',
+      db: { tx: true },
+    }))
+    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: 'user-1',
+      action: 'OBO_PERMIT_APPLICATION_SUBMITTED',
+      entityType: 'OboPermitApplication',
+      entityId: 'application-1',
+      before: {
+        formVersionId: 'form-version-1',
+        formValues: { architect: 'professional-a' },
+      },
+      after: expect.objectContaining({
+        formVersionId: 'form-version-1',
+        formValues: { architect: 'professional-a' },
+        professionalSnapshots: expect.objectContaining({
+          architect: expect.objectContaining({
+            professionalId: 'professional-a',
+            name: 'John Doe',
+            role: 'ARCHITECT',
+          }),
+        }),
+      }),
+      metadata: expect.objectContaining({
+        formVersionId: 'form-version-1',
+        referenceNumber: 'BP-1',
+      }),
+      db: { tx: true },
+    }))
+  })
+})
