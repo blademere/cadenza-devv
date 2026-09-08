@@ -11,7 +11,10 @@ const getSubmissionAppointment = async ({ applicationId, userId }) => {
   const submissionAppointment = application.submissionAppointment
   if (!submissionAppointment) return null
 
-  const appointment = await appointmentService.getAppointmentWithRelations(submissionAppointment.appointmentId)
+  const appointment = await appointmentService.getMyAppointment({
+    id: submissionAppointment.appointmentId,
+    userId,
+  })
   return mapAppointment(appointment)
 }
 
