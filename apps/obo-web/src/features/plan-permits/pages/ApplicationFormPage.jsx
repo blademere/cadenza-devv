@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Alert, Box, Button, Checkbox, Group, Select, SimpleGrid, Stack, Text, TextInput, Textarea } from '@mantine/core'
+import { Alert, Box, Button, Group, Select, SimpleGrid, Stack, Text, TextInput, Textarea, Checkbox } from '@mantine/core'
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import PermissionGate from '../../authorization/components/PermissionGate'
 import { permissions } from '../../../config/permissions'
-import { useVerifiedProfessionals } from '../../professionals/queries/professionals.queries'
 import {
   useCreatePlanPermitApplication,
   usePlanPermitApplication,
@@ -80,12 +79,9 @@ export default function ApplicationFormPage() {
   const editing = Boolean(applicationId)
   const applicationQuery = usePlanPermitApplication(applicationId, { enabled: editing })
   const permitTypesQuery = usePermitTypes()
-  const professionalsQuery = useVerifiedProfessionals()
   const application = unwrap(applicationQuery.data)
   const permitTypes = asArray(permitTypesQuery.data)
-  const professionals = asArray(professionalsQuery.data)
   const [permitTypeId, setPermitTypeId] = useState('')
-  const [professionalId, setProfessionalId] = useState('')
   const [formValues, setFormValues] = useState({})
   const [formErrors, setFormErrors] = useState({})
   const [initializedApplicationId, setInitializedApplicationId] = useState(null)
@@ -96,7 +92,6 @@ export default function ApplicationFormPage() {
   const submitMutation = useSubmitPlanPermitApplication()
 
   const effectivePermitTypeId = editing ? String(application?.permitTypeId ?? '') : permitTypeId
-  const effectiveProfessionalId = professionalId
   const formVersion = editing ? application?.formVersion?.version : undefined
   const formQuery = usePermitTypeForm(effectivePermitTypeId, formVersion)
   const form = asForm(formQuery.data)
@@ -115,7 +110,6 @@ export default function ApplicationFormPage() {
   useEffect(() => {
     if (!editing || !application || initializedApplicationId === application.id) return
     setPermitTypeId(String(application.permitTypeId ?? ''))
-    setProfessionalId(String(application.professionalId ?? ''))
     setFormValues(application.formValues ?? {})
     setFormErrors({})
     setIsDirty(false)
@@ -131,14 +125,10 @@ export default function ApplicationFormPage() {
   if (editing && applicationQuery.isLoading) return <Stack className="obo-page"><LoadingState label="Loading application…" /></Stack>
   if (editing && applicationQuery.error) return <Stack className="obo-page"><Alert color="red" title="Unable to load application">{applicationQuery.error.message}</Alert></Stack>
   if (editing && application && application.status !== 'DRAFT') return <Stack className="obo-page"><Alert color="gray" title="Application is no longer editable">Only draft applications can be updated.</Alert><Button component={Link} to={`/app/applications/${applicationId}`} variant="light">Back to application</Button></Stack>
-  if (permitTypesQuery.isLoading || professionalsQuery.isLoading || (effectivePermitTypeId && formQuery.isLoading)) return <Stack className="obo-page"><LoadingState label="Loading application form…" /></Stack>
-  if (permitTypesQuery.error || professionalsQuery.error || formQuery.error) return <Stack className="obo-page"><Alert color="red" title="Unable to load application form">{permitTypesQuery.error?.message ?? professionalsQuery.error?.message ?? formQuery.error?.message}</Alert></Stack>
+  if (permitTypesQuery.isLoading || (effectivePermitTypeId && formQuery.isLoading)) return <Stack className="obo-page"><LoadingState label="Loading application form…" /></Stack>
+  if (permitTypesQuery.error || formQuery.error) return <Stack className="obo-page"><Alert color="red" title="Unable to load application form">{permitTypesQuery.error?.message ?? formQuery.error?.message}</Alert></Stack>
 
   const permitTypeOptions = permitTypes.map((item) => ({ value: String(item.id), label: item.name ?? item.key ?? String(item.id) }))
-  const professionalOptions = professionals.map((item) => ({
-    value: String(item.id),
-    label: [item.person?.firstName, item.person?.middleName, item.person?.lastName, item.person?.suffix].filter(Boolean).join(' ') || item.registrationNumber || String(item.id),
-  }))
 
   const setFieldValue = (key, value) => {
     setFormValues((current) => ({ ...current, [key]: value }))
@@ -161,14 +151,8 @@ export default function ApplicationFormPage() {
     setSaveMessage('')
   }
 
-  const handleProfessionalChange = (value) => {
-    setProfessionalId(value ?? '')
-    setIsDirty(true)
-    setSaveMessage('')
-  }
-
   const handleSave = async () => {
-    if (!effectiveProfessionalId || !effectivePermitTypeId) return
+    if (!effectivePermitTypeId) return
     if (!editing && hasConfiguredForm && !form?.formVersionId) {
       setSaveMessage('')
       setFormErrors({ _form: 'This permit type does not have a published application form. Publish a form version before creating an application.' })
@@ -178,7 +162,6 @@ export default function ApplicationFormPage() {
     setSaveMessage('')
     try {
       const payload = {
-        professionalId: effectiveProfessionalId,
         formValues,
         ...(form?.formVersionId ? { formVersionId: form.formVersionId } : {}),
       }
@@ -187,7 +170,6 @@ export default function ApplicationFormPage() {
         : await createMutation.mutateAsync({ permitTypeId: effectivePermitTypeId, ...payload })
 
       if (editing) {
-        if (result?.professionalId != null) setProfessionalId(String(result.professionalId))
         if (result?.formValues && typeof result.formValues === 'object') setFormValues(result.formValues)
       }
 
@@ -230,7 +212,6 @@ export default function ApplicationFormPage() {
         <Select label="Permit type" required data={permitTypeOptions} value={effectivePermitTypeId || null} onChange={handlePermitTypeChange} disabled={editing} searchable placeholder="Select a permit type" />
         {effectivePermitTypeId && !form && hasConfiguredForm && <Alert color="yellow">This permit type has a form configured, but no published form version is available. Publish a form version before creating an application.</Alert>}
         {effectivePermitTypeId && !permitType && editing && <Alert color="yellow">The permit type for this application is not present in the current active permit type list.</Alert>}
-        <Select label="Verified professional" required data={professionalOptions} value={effectiveProfessionalId || null} onChange={handleProfessionalChange} searchable placeholder="Select a verified professional" nothingFoundMessage="No verified professionals are available" />
         {effectivePermitTypeId && form && <Box><Text fw={700}>{form.name ?? 'Application information'}</Text><Text size="sm" c="dimmed" mt={3}>{form.description ?? 'Complete the required application fields.'}</Text></Box>}
         {!effectivePermitTypeId && <Alert color="gray">Select a permit type to load the published application form.</Alert>}
         {effectivePermitTypeId && !form && !hasConfiguredForm && <Alert color="gray">No application form is configured for this permit type. The application can still be saved if the backend permits a form-less application.</Alert>}
@@ -238,7 +219,7 @@ export default function ApplicationFormPage() {
         <Group justify="flex-end">
           <Button variant="default" component={Link} to={editing ? `/app/applications/${applicationId}` : '/app/applications'}>Cancel</Button>
           <PermissionGate permission={editing ? permissions.planPermits.update : permissions.planPermits.create}>
-            <Button onClick={handleSave} loading={saving} disabled={!effectivePermitTypeId || !effectiveProfessionalId || (!editing && hasConfiguredForm && !form?.formVersionId)}>Save draft</Button>
+            <Button onClick={handleSave} loading={saving} disabled={!effectivePermitTypeId || (!editing && hasConfiguredForm && !form?.formVersionId)}>Save draft</Button>
           </PermissionGate>
           {editing && <PermissionGate permission={permissions.planPermits.submit}><Button onClick={handleSubmit} loading={submitMutation.isPending} disabled={saving || isDirty || application?.status !== 'DRAFT'}>Submit for submission</Button></PermissionGate>}
         </Group>
