@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Alert, Badge, Button, Group, NumberInput, Select, SimpleGrid, Stack, Tabs, Text, TextInput } from '@mantine/core'
+import { Alert, Badge, Button, Divider, Group, NumberInput, Select, SimpleGrid, Stack, Tabs, Text, TextInput } from '@mantine/core'
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import StatusChip from '../../../components/common/StatusChip'
@@ -54,7 +54,9 @@ export default function AppointmentsPage() {
   const [appointmentStatus, setAppointmentStatus] = useState('')
 
   const typesQuery = useAppointmentManagementTypes()
-  const schedulesQuery = useAppointmentManagementSchedules({ appointmentTypeId: schedule.appointmentTypeId || undefined })
+  const scheduleQuery = useAppointmentManagementSchedules({ appointmentTypeId: schedule.appointmentTypeId || undefined })
+  const slotScheduleQuery = useAppointmentManagementSchedules({ appointmentTypeId: slot.appointmentTypeId || undefined })
+  const generationScheduleQuery = useAppointmentManagementSchedules({ appointmentTypeId: generation.appointmentTypeId || undefined })
   const slotsQuery = useAppointmentManagementSlots({ status: slotStatus || undefined, appointmentTypeId: slot.appointmentTypeId || undefined })
   const appointmentsQuery = useAppointmentManagement({ params: { appointmentTypeId: appointmentTypeFilter || undefined, status: appointmentStatus || undefined } })
 
@@ -68,11 +70,13 @@ export default function AppointmentsPage() {
   const complete = useCompleteAppointment()
 
   const types = asArray(typesQuery.data)
-  const schedules = asArray(schedulesQuery.data)
+  const schedules = asArray(scheduleQuery.data)
+  const slotSchedules = asArray(slotScheduleQuery.data)
+  const generationSchedules = asArray(generationScheduleQuery.data)
   const slots = asArray(slotsQuery.data)
   const appointments = asArray(appointmentsQuery.data)
   const typeOptions = useMemo(() => types.map((type) => ({ value: type.id, label: `${type.name} (${type.key})` })), [types])
-  const scheduleOptions = useMemo(() => schedules.map((item) => ({ value: item.id, label: `${dayNames[item.dayOfWeek]} · ${item.startTime}–${item.endTime} · ${item.timezone}` })), [schedules])
+  const toScheduleOptions = (items) => items.map((item) => ({ value: item.id, label: `${dayNames[item.dayOfWeek]} · ${item.startTime}–${item.endTime} · ${item.timezone}` }))
   const actionError = createType.error || createSchedule.error || createSlot.error || generateSlots.error || cancel.error || checkIn.error || noShow.error || complete.error
 
   const action = async (mutation, id) => { await mutation.mutateAsync(id) }
@@ -110,7 +114,6 @@ export default function AppointmentsPage() {
     <PermissionGate permission={permissions.appointments.manage} fallback={<Stack className="obo-page"><Alert color="gray" title="Access denied">You do not have permission to manage appointments.</Alert></Stack>}>
       <Stack className="obo-page">
         <PageHeader eyebrow="Operations / Appointments" title="Appointments" description="Configure appointment types, define recurring schedules, generate bookable slots, and manage booked appointments." />
-
         {actionError ? <Alert color="red" title="Appointment action failed">{actionError.message}</Alert> : null}
 
         <Tabs defaultValue="types">
@@ -153,8 +156,8 @@ export default function AppointmentsPage() {
               </SimpleGrid>
               <Group justify="flex-end"><Button onClick={createScheduleAction} loading={createSchedule.isPending} disabled={!schedule.appointmentTypeId}>Create schedule</Button></Group>
               <DividerLabel label="Configured schedules" />
-              {schedulesQuery.isLoading ? <LoadingState label="Loading schedules…" /> : null}
-              {!schedulesQuery.isLoading && schedules.length === 0 ? <Alert color="gray" title="No schedules">Create a schedule for the selected appointment type.</Alert> : null}
+              {scheduleQuery.isLoading ? <LoadingState label="Loading schedules…" /> : null}
+              {!scheduleQuery.isLoading && schedules.length === 0 ? <Alert color="gray" title="No schedules">Create a schedule for the selected appointment type.</Alert> : null}
               {schedules.map((item) => <BoxedRow key={item.id}><div><Text fw={600}>{dayNames[item.dayOfWeek]} · {item.startTime}–{item.endTime}</Text><Text size="sm" c="dimmed">{item.timezone} · {item.slotDurationMinutes} minute slots · capacity {item.capacity}</Text></div><Badge variant="light">{item.isActive ? 'Active' : 'Inactive'}</Badge></BoxedRow>)}
             </Stack>
           </Tabs.Panel>
@@ -163,7 +166,7 @@ export default function AppointmentsPage() {
             <Stack className="obo-panel" p="lg" gap="md">
               <BoxedSection title="Create or generate bookable slots" description="A slot is an exact date and time that a client can select. Slots are generated from schedules or can be created individually." />
               <Select label="Appointment type" data={typeOptions} value={slot.appointmentTypeId || null} onChange={updateSlotType} searchable required />
-              <Select label="Schedule (optional for manual slots)" data={scheduleOptions} value={slot.scheduleId || null} onChange={(value) => setSlot({ ...slot, scheduleId: value || '' })} searchable clearable disabled={!slot.appointmentTypeId} />
+              <Select label="Schedule (optional for manual slots)" data={toScheduleOptions(slotSchedules)} value={slot.scheduleId || null} onChange={(value) => setSlot({ ...slot, scheduleId: value || '' })} searchable clearable disabled={!slot.appointmentTypeId} />
               <SimpleGrid cols={{ base: 1, sm: 3 }}>
                 <TextInput label="Starts at" type="datetime-local" value={slot.startsAt} onChange={(e) => setSlot({ ...slot, startsAt: e.currentTarget.value })} />
                 <TextInput label="Ends at" type="datetime-local" value={slot.endsAt} onChange={(e) => setSlot({ ...slot, endsAt: e.currentTarget.value })} />
@@ -173,7 +176,7 @@ export default function AppointmentsPage() {
 
               <DividerLabel label="Generate from a schedule" />
               <Select label="Appointment type" data={typeOptions} value={generation.appointmentTypeId || null} onChange={updateGenerationType} searchable required />
-              <Select label="Schedule" data={scheduleOptions} value={generation.scheduleId || null} onChange={(value) => setGeneration({ ...generation, scheduleId: value || '' })} searchable clearable disabled={!generation.appointmentTypeId} />
+              <Select label="Schedule" data={toScheduleOptions(generationSchedules)} value={generation.scheduleId || null} onChange={(value) => setGeneration({ ...generation, scheduleId: value || '' })} searchable clearable disabled={!generation.appointmentTypeId} />
               <SimpleGrid cols={{ base: 1, sm: 2 }}>
                 <TextInput label="From" type="datetime-local" value={generation.from} onChange={(e) => setGeneration({ ...generation, from: e.currentTarget.value })} />
                 <TextInput label="To" type="datetime-local" value={generation.to} onChange={(e) => setGeneration({ ...generation, to: e.currentTarget.value })} />
