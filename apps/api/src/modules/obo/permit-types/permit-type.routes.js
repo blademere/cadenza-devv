@@ -3,8 +3,8 @@ import { asyncHandler, idempotency, validate } from '../../../common/middleware/
 import authenticate from '../../../features/auth/authenticate.secure.js'
 import authorize from '../../../platform/authorization/authorize.js'
 import * as controller from './permit-type.controller.js'
+import { createPermitTypeFormValidator } from './permit-type.form.validation.js'
 import {
-  createPermitTypeFormValidator,
   createPermitTypeValidator,
   permitTypeIdValidator,
   updatePermitTypeValidator,
