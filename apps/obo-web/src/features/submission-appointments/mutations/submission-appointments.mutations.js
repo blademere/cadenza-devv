@@ -6,13 +6,11 @@ import {
 } from '../../plan-permits/queries/plan-permits.queries'
 import { submissionAppointmentQueryKey } from '../queries/submission-appointments.queries'
 
-const unwrap = (value) => value?.data ?? value
-
 const invalidate = async (queryClient, applicationId) => {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: submissionAppointmentQueryKey(applicationId) }),
-    queryClient.invalidateQueries({ queryKey: planPermitApplicationQueryKey(applicationId) }),
-    queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey }),
+    queryClient.invalidateQueries({ queryKey: submissionAppointmentQueryKey(applicationId), refetchType: 'active' }),
+    queryClient.invalidateQueries({ queryKey: planPermitApplicationQueryKey(applicationId), refetchType: 'active' }),
+    queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey, refetchType: 'active' }),
   ])
 }
 
@@ -23,8 +21,8 @@ export function useScheduleSubmissionAppointment(applicationId, options = {}) {
     mutationFn: (data) => submissionAppointmentsApi.createApplicationAppointment(applicationId, data),
     ...options,
     onSuccess: async (data, variables, context) => {
-      const appointment = unwrap(data)
-      if (appointment) queryClient.setQueryData(submissionAppointmentQueryKey(applicationId), appointment)
+      // Do not seed the appointment query from the POST response. The GET endpoint is
+      // the authoritative persisted state and must confirm that the appointment exists.
       await invalidate(queryClient, applicationId)
       await options.onSuccess?.(data, variables, context)
     },
@@ -38,8 +36,6 @@ export function useRescheduleSubmissionAppointment(applicationId, options = {}) 
     mutationFn: (data) => submissionAppointmentsApi.replaceApplicationAppointment(applicationId, data),
     ...options,
     onSuccess: async (data, variables, context) => {
-      const appointment = unwrap(data)
-      if (appointment) queryClient.setQueryData(submissionAppointmentQueryKey(applicationId), appointment)
       await invalidate(queryClient, applicationId)
       await options.onSuccess?.(data, variables, context)
     },
