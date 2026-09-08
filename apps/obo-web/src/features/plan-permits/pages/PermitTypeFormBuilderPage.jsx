@@ -64,8 +64,10 @@ export default function PermitTypeFormBuilderPage() {
   const activeVersion = activeForm?.version ?? null
   const isDraft = activeForm?.status === 'DRAFT'
   const hasConfiguredFormForPermitType = hasConfiguredPermitTypeForm(permitType, publishedForm)
-  const loading = types.isLoading || published.isLoading || (Boolean(version) && draft.isLoading)
-  const error = errorFromHooks(types, published, draft, createForm, createVersion, updateVersion, publishVersion)
+  const loading = types.isLoading || (!version && published.isLoading) || (Boolean(version) && draft.isLoading)
+  const error = version
+    ? errorFromHooks(types, draft, createForm, createVersion, updateVersion, publishVersion)
+    : errorFromHooks(types, published, createForm, createVersion, updateVersion, publishVersion)
   const payload = useMemo(() => toPayload(definition), [definition])
 
   useEffect(() => { if (activeForm) setDefinition(normalizeDefinition(activeForm)) }, [activeForm?.formVersionId])
