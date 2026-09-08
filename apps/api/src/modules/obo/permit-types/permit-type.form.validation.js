@@ -37,6 +37,11 @@ const section = z.object({
   visibility: z.record(z.string(), z.unknown()).nullable().optional(),
 }).strict()
 
+const formDefinition = z.object({
+  sections: z.array(section).default([]),
+  fields: z.array(field).min(1),
+}).strict()
+
 const createPermitTypeFormValidator = async (req) => ({
   params: z.object({ permitTypeId: z.string().uuid() }).parse(req.params || {}),
   body: z.object({
@@ -49,4 +54,20 @@ const createPermitTypeFormValidator = async (req) => ({
   }).strict().parse(req.body || {}),
 })
 
-export { createPermitTypeFormValidator }
+const createPermitTypeFormVersionValidator = async (req) => ({
+  params: z.object({ permitTypeId: z.string().uuid() }).parse(req.params || {}),
+  body: formDefinition.parse(req.body || {}),
+})
+
+const publishPermitTypeFormVersionValidator = async (req) => ({
+  params: z.object({
+    permitTypeId: z.string().uuid(),
+    version: z.coerce.number().int().positive(),
+  }).parse(req.params || {}),
+})
+
+export {
+  createPermitTypeFormValidator,
+  createPermitTypeFormVersionValidator,
+  publishPermitTypeFormVersionValidator,
+}
