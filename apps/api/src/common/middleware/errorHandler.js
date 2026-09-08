@@ -21,12 +21,12 @@ const errorHandler = (error, req, res, _next) => {
         err: error,
         requestId: req.requestId,
         statusCode: error.statusCode,
-        details: error.details,
+        errors: error.errors,
       },
-      error.message
+      error.message,
     )
 
-    return errorResponse(res, error.message, error.details, error.statusCode)
+    return errorResponse(res, error.message, error.errors, error.statusCode)
   }
 
   logger.error(
@@ -37,7 +37,7 @@ const errorHandler = (error, req, res, _next) => {
       errorCode: error?.code,
       errorMeta: error?.meta,
     },
-    error?.message || 'Unexpected server error.'
+    error?.message || 'Unexpected server error.',
   )
 
   return errorResponse(res, 'Internal server error.', [], 500)
