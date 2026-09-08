@@ -142,11 +142,7 @@ function FieldEditor({ field, sections, onChange, onRemove, onMoveUp, onMoveDown
                 <Alert color="blue" variant="light">
                   This field will appear in the applicant form as a verified-professional selector. The application stores the selected professional ID(s) inside formValues; it does not create an application-level professional relationship.
                 </Alert>
-              ) : (
-                <Alert color="yellow" variant="light">
-                  This reference type is not currently supported by the OBO application workflow. Choose the professional reference configuration before publishing.
-                </Alert>
-              )}
+              ) : null}
             </Stack>
           </Box>
         ) : null}
@@ -222,7 +218,7 @@ export default function FormBuilder({ definition, onChange }) {
           <Stack>
             <Text fw={700}>Fields</Text>
             {fields.map((field, index) => !field.sectionKey ? (
-              <FieldEditor key={`${field.key}-${index}`} field={field} sections={sections} onChange={(value) => updateField(index, value)} onRemove={() => removeField(index)} onMoveUp={() => moveField(index, 1)} onMoveDown={() => moveField(index, 1)} />
+              <FieldEditor key={`${field.key}-${index}`} field={field} sections={sections} onChange={(value) => updateField(index, value)} onRemove={() => removeField(index)} onMoveUp={() => moveField(index, -1)} onMoveDown={() => moveField(index, 1)} />
             ) : null)}
             <Button variant="light" onClick={() => addField()}>+ Add Field</Button>
           </Stack>
