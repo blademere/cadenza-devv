@@ -14,6 +14,18 @@ const option = z.object({
   metadata: z.unknown().optional(),
 }).strict()
 
+const optionalValidation = z
+  .array(z.record(z.string(), z.unknown()))
+  .nullable()
+  .optional()
+  .transform((value) => value ?? undefined)
+
+const optionalConfig = z
+  .record(z.string(), z.unknown())
+  .nullable()
+  .optional()
+  .transform((value) => value ?? undefined)
+
 const field = z.object({
   key: z.string().trim().min(1).max(128),
   label: z.string().trim().min(1).max(200),
@@ -22,9 +34,9 @@ const field = z.object({
   sortOrder: z.number().int().min(0).optional(),
   required: z.boolean().optional(),
   defaultValue: z.unknown().optional(),
-  validation: z.array(z.record(z.string(), z.unknown())).optional(),
+  validation: optionalValidation,
   visibility: z.record(z.string(), z.unknown()).nullable().optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
+  config: optionalConfig,
   sectionKey: z.string().trim().min(1).max(128).nullable().optional(),
   options: z.array(option).optional(),
 }).strict()
