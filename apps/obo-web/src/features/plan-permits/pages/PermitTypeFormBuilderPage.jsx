@@ -38,6 +38,7 @@ export const createVersionPayload = (form, fallbackDefinition) => {
 }
 
 export const hasConfiguredForm = (form) => Boolean(form?.id || form?.formId)
+export const hasConfiguredPermitTypeForm = (permitType, form) => hasConfiguredForm(form) || Boolean(permitType?.formId || permitType?.form?.id)
 
 export default function PermitTypeFormBuilderPage() {
   const params = useParams()
@@ -62,6 +63,7 @@ export default function PermitTypeFormBuilderPage() {
   const activeForm = version ? unwrap(draft.data) : publishedForm
   const activeVersion = activeForm?.version ?? null
   const isDraft = activeForm?.status === 'DRAFT'
+  const hasConfiguredFormForPermitType = hasConfiguredPermitTypeForm(permitType, publishedForm)
   const loading = types.isLoading || published.isLoading || (Boolean(version) && draft.isLoading)
   const error = errorFromHooks(types, published, draft, createForm, createVersion, updateVersion, publishVersion)
   const payload = useMemo(() => toPayload(definition), [definition])
@@ -82,7 +84,7 @@ export default function PermitTypeFormBuilderPage() {
   }
 
   const createDraftFrom = (form) => {
-    if (!hasConfiguredForm(form)) {
+    if (!hasConfiguredPermitTypeForm(permitType, form)) {
       setOperationError(new Error('This permit type does not have a configured form. Create the form before creating a new version.'))
       return
     }
@@ -91,7 +93,7 @@ export default function PermitTypeFormBuilderPage() {
   }
 
   const startNewVersion = () => {
-    if (!publishedForm) {
+    if (!hasConfiguredFormForPermitType) {
       setOperationError(new Error('This permit type does not have a configured form. Create the form before creating a new version.'))
       return
     }
@@ -141,17 +143,17 @@ export default function PermitTypeFormBuilderPage() {
         <PageHeader eyebrow="Plan Permits / Permit Type / Form" title={permitType?.name ?? 'Form management'} description="Build a draft form, save changes, and publish a new immutable version." actions={(
           <Group>
             <Button component={Link} to={`/app/permit-types/${permitTypeId}`} variant="default">Back</Button>
-            {publishedForm && !version ? <PermissionGate permission={permissions.forms.update}><Button onClick={startNewVersion} loading={createVersion.isPending}>Create New Version</Button></PermissionGate> : null}
+            {hasConfiguredFormForPermitType && !version ? <PermissionGate permission={permissions.forms.update}><Button onClick={startNewVersion} loading={createVersion.isPending}>Create New Version</Button></PermissionGate> : null}
             {isDraft ? <Button onClick={saveDraft} loading={updateVersion.isPending}>Save Draft</Button> : null}
             {isDraft ? <PermissionGate permission={permissions.forms.publish}><Button onClick={publish} loading={publishVersion.isPending}>Publish</Button></PermissionGate> : null}
           </Group>
         )} />
         {loading ? <LoadingState label="Loading form configuration…" /> : null}
         {formError ? <Alert color="red" title="Form management error">{formError.message ?? 'The requested operation could not be completed.'}</Alert> : null}
-        {!loading && !formError && permitType && !publishedForm && !version ? <Box className="obo-panel" p="lg"><Stack><Text fw={700}>No form configured</Text><Text size="sm" c="dimmed">Create the initial form. The existing Forms platform creates version 1 as published; this editor then creates version 2 as a draft.</Text><PermissionGate permission={permissions.forms.create}><Button onClick={openCreateForm}>Create Form</Button></PermissionGate></Stack></Box> : null}
+        {!loading && !formError && !hasConfiguredFormForPermitType && !version ? <Box className="obo-panel" p="lg"><Stack><Text fw={700}>No form configured</Text><Text size="sm" c="dimmed">Create the initial form. The existing Forms platform creates version 1 as published; this editor then creates version 2 as a draft.</Text><PermissionGate permission={permissions.forms.create}><Button onClick={openCreateForm}>Create Form</Button></PermissionGate></Stack></Box> : null}
         {!loading && !formError && activeForm ? <Stack><Box className="obo-panel" p="lg"><Group justify="space-between"><Box><Text fw={700}>{activeForm.name ?? 'Application form'}</Text><Text size="sm" c="dimmed">Version {activeVersion ?? '—'} · {activeForm.status ?? 'PUBLISHED'}</Text>{activeForm.description ? <Text size="sm" mt="xs">{activeForm.description}</Text> : null}</Box><Text size="sm" c={isDraft ? 'orange' : 'dimmed'}>{isDraft ? 'Draft changes are not used until published.' : 'Published versions are immutable.'}</Text></Group></Box><FormBuilder definition={definition} onChange={setDefinition} /></Stack> : null}
       </Stack>
-      <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title="Create application form" centered><Stack><TextInput label="Form key" description="Lowercase letters, numbers, hyphens, or underscores." value={meta.key} onChange={(event) => setMeta((current) => ({ ...current, key: event.currentTarget.value }))} /><TextInput label="Form name" value={meta.name} onChange={(event) => setMeta((current) => ({ ...current, name: event.currentTarget.value }))} /><Textarea label="Description" value={meta.description} onChange={(event) => setMeta((current) => ({ ...current, description: event.currentTarget.value }))} autosize minRows={3} /><Group justify="flex-end"><Button variant="default" onClick={() => setModalOpen(false)}>Cancel</Button><Button onClick={submitCreateForm} loading={createForm.isPending || createVersion.isPending}>Create</Button></Group></Stack></Modal>
+      <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title="Create application form" centered><Stack><TextInput label="Form key" description="Lowercase letters, numbers, hyphens, or underscores." value={meta.key} onChange={(event) => setMeta((current) => ({ ...current, key: event.currentTarget.value }))} /><TextInput label="Form name" value={meta.name} onChange={(event) => setMeta((current) => ({ ...current, name: event.currentTarget.value }))} /><Textarea label="Description" value={meta.description} onChange={(event) => setMeta((current) => ({ ...current, description: event.currentTarget.value || null }))} autosize minRows={3} /><Group justify="flex-end"><Button variant="default" onClick={() => setModalOpen(false)}>Cancel</Button><Button onClick={submitCreateForm} loading={createForm.isPending || createVersion.isPending}>Create</Button></Group></Stack></Modal>
     </RequirePermission>
   )
 }
