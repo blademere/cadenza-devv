@@ -129,7 +129,7 @@ describe('OBO plan permit service', () => {
     expect(spies.update).toHaveBeenCalledWith('application-1', {
       formVersionId: null,
       formValues: { architect: 'professional-1' },
-    })
+    }, {})
     expect(spies.update.mock.calls[0][1]).not.toHaveProperty('professionalId')
 
     spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'SUBMISSION_SCHEDULED' } })
