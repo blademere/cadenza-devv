@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { NotFoundError } from '../../../../src/common/errors/appError.js'
 
 const mocks = vi.hoisted(() => ({
   findUserWithRole: vi.fn(),
@@ -56,14 +57,36 @@ describe('authenticated person profile service', () => {
     const user = { id: 7, email: 'receiving@example.test', role: { id: 4, name: 'receiving_officer' } }
     const person = { id: 'person-7', userId: 7, firstName: 'Maria', lastName: 'Officer' }
     mocks.findUserWithRole.mockResolvedValue(user)
-    mocks.getByUserId.mockRejectedValue(new Error('Person not found.'))
+    mocks.getByUserId.mockRejectedValue(new NotFoundError('Person not found.'))
     mocks.create.mockResolvedValue(person)
 
     await expect(service.createMyProfile(7, {
       firstName: 'Maria',
       lastName: 'Officer',
       phone: '+63123456789',
-    })).rejects.toThrow('Person not found.')
+    })).resolves.toEqual({
+      user: { id: 7, email: 'receiving@example.test', role: user.role },
+      person,
+    })
+    expect(mocks.create).toHaveBeenCalledWith({
+      firstName: 'Maria',
+      lastName: 'Officer',
+      phone: '+63123456789',
+      userId: 7,
+    })
+  })
+
+  it('rejects creation when the authenticated user already has a person profile', async () => {
+    const user = { id: 7, email: 'receiving@example.test', role: { id: 4, name: 'receiving_officer' } }
+    const person = { id: 'person-7', userId: 7, firstName: 'Receiving', lastName: 'Officer' }
+    mocks.findUserWithRole.mockResolvedValue(user)
+    mocks.getByUserId.mockResolvedValue(person)
+
+    await expect(service.createMyProfile(7, {
+      firstName: 'Maria',
+      lastName: 'Officer',
+    })).rejects.toThrow('Profile already exists.')
+    expect(mocks.create).not.toHaveBeenCalled()
   })
 
   it('updates only the authenticated user person profile', async () => {
