@@ -151,6 +151,15 @@ export default function ApplicationFormPage() {
     setSaveMessage('')
   }
 
+  const handlePermitTypeChange = (value) => {
+    if (editing) return
+    setPermitTypeId(value ?? '')
+    setFormValues({})
+    setFormErrors({})
+    setIsDirty(true)
+    setSaveMessage('')
+  }
+
   const handleProfessionalChange = (value) => {
     setProfessionalId(value ?? '')
     setIsDirty(true)
@@ -166,6 +175,12 @@ export default function ApplicationFormPage() {
       const result = editing
         ? await updateMutation.mutateAsync({ id: applicationId, ...payload })
         : await createMutation.mutateAsync({ permitTypeId: effectivePermitTypeId, ...payload })
+
+      if (editing) {
+        if (result?.professionalId != null) setProfessionalId(String(result.professionalId))
+        if (result?.formValues && typeof result.formValues === 'object') setFormValues(result.formValues)
+      }
+
       setIsDirty(false)
       setSaveMessage('Draft saved.')
       if (!editing && result?.id) navigate(`/app/applications/${result.id}/edit`)
@@ -195,11 +210,11 @@ export default function ApplicationFormPage() {
     {Object.keys(formErrors).length > 0 && <Alert color="red" title="Check the application form">Correct the highlighted fields and save the draft again.</Alert>}
     <Box className="obo-panel" p="lg">
       <Stack gap="lg">
-        <Select label="Permit type" required data={permitTypeOptions} value={effectivePermitTypeId || null} onChange={(value) => setPermitTypeId(value ?? '')} disabled={editing} searchable placeholder="Select a permit type" />
+        <Select label="Permit type" required data={permitTypeOptions} value={effectivePermitTypeId || null} onChange={handlePermitTypeChange} disabled={editing} searchable placeholder="Select a permit type" />
         {effectivePermitTypeId && !permitType && editing && <Alert color="yellow">The permit type for this application is not present in the current active permit type list.</Alert>}
         <Select label="Verified professional" required data={professionalOptions} value={effectiveProfessionalId || null} onChange={handleProfessionalChange} searchable placeholder="Select a verified professional" nothingFoundMessage="No verified professionals are available" />
         {effectivePermitTypeId && form && <Box><Text fw={700}>{form.name ?? 'Application information'}</Text><Text size="sm" c="dimmed" mt={3}>{form.description ?? 'Complete the required application fields.'}</Text></Box>}
-        {!effectivePermitTypeId && <Alert color="gray">Select a permit type to load its published application form.</Alert>}
+        {!effectivePermitTypeId && <Alert color="gray">Select a permit type to load the published application form.</Alert>}
         {effectivePermitTypeId && !form && <Alert color="yellow">No published form is configured for this permit type. The application can still be saved if the backend permits a form-less application.</Alert>}
         {form && <Stack gap="xl">{sectionFields.map((section, sectionIndex) => <Box key={section.id ?? section.key ?? sectionIndex}><Text fw={650}>{section.title ?? section.name ?? section.label ?? `Section ${sectionIndex + 1}`}</Text>{section.description && <Text size="sm" c="dimmed" mt={3} mb="md">{section.description}</Text>}<SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="md">{section.fields.map((field, index) => <FormField key={field.id ?? field.key ?? index} field={field} value={formValues[fieldKey(field)]} error={formErrors[fieldKey(field)]} onChange={(value) => setFieldValue(fieldKey(field), value)} />)}</SimpleGrid>{!section.fields.length && <Text size="sm" c="dimmed" mt="sm">No fields configured in this section.</Text>}</Box>)}</Stack>}
         <Group justify="flex-end">
