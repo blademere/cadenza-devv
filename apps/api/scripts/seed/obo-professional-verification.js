@@ -7,6 +7,7 @@ const OBO_PROFESSIONAL_VERIFICATION_FIXTURES = [
     registrationNumber: 'DEV-OBO-VERIFY-ACCEPT-0001',
     prcId: 'DEV-PRC-VERIFY-ACCEPT-0001',
     ptrNumber: 'DEV-PTR-VERIFY-ACCEPT-0001',
+    professionalRole: 'ARCHITECT',
   },
   {
     email: 'obo-professional-verify-decline@example.test',
@@ -16,6 +17,7 @@ const OBO_PROFESSIONAL_VERIFICATION_FIXTURES = [
     registrationNumber: 'DEV-OBO-VERIFY-DECLINE-0001',
     prcId: 'DEV-PRC-VERIFY-DECLINE-0001',
     ptrNumber: 'DEV-PTR-VERIFY-DECLINE-0001',
+    professionalRole: 'CIVIL_ENGINEER',
   },
 ]
 
@@ -58,6 +60,7 @@ const ensurePendingProfessional = async (prisma, fixture, { roleId, passwordHash
       userId: user.id,
       prcId: fixture.prcId,
       ptrNumber: fixture.ptrNumber,
+      professionalRole: fixture.professionalRole,
       status: 'PENDING_VERIFICATION',
       verifiedByUserId: null,
       verifiedAt: null,
@@ -69,6 +72,7 @@ const ensurePendingProfessional = async (prisma, fixture, { roleId, passwordHash
       registrationNumber: fixture.registrationNumber,
       prcId: fixture.prcId,
       ptrNumber: fixture.ptrNumber,
+      professionalRole: fixture.professionalRole,
       status: 'PENDING_VERIFICATION',
     },
   })
@@ -104,6 +108,7 @@ async function verifyOboProfessionalVerificationFixtures(prisma) {
         userId: true,
         prcId: true,
         ptrNumber: true,
+        professionalRole: true,
         verifiedByUserId: true,
         verifiedAt: true,
         verificationReason: true,
@@ -122,6 +127,9 @@ async function verifyOboProfessionalVerificationFixtures(prisma) {
     }
     if (professional.prcId !== fixture.prcId || professional.ptrNumber !== fixture.ptrNumber) {
       throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' has inconsistent credentials.`)
+    }
+    if (professional.professionalRole !== fixture.professionalRole) {
+      throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' must have role '${fixture.professionalRole}'.`)
     }
     if (professional.verifiedByUserId !== null || professional.verifiedAt !== null || professional.verificationReason !== null) {
       throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' must not contain a prior verification decision.`)
