@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
-const apiRoot = path.resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
+const apiRoot = path.resolve(fileURLToPath(new URL('../../../../..', import.meta.url)))
 const seedRoot = path.join(apiRoot, 'scripts', 'seed')
 
 const readSeed = (name) => readFile(path.join(seedRoot, name), 'utf8')
