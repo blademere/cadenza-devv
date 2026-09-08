@@ -5,17 +5,11 @@ import * as service from './permit-type.service.js'
 const getVersion = (value) => {
   if (value == null || value === '') return undefined
   const version = Number(value)
-  if (!Number.isInteger(version) || version < 1) {
-    throw new BadRequestError('Form version must be a positive integer.')
-  }
+  if (!Number.isInteger(version) || version < 1) throw new BadRequestError('Form version must be a positive integer.')
   return version
 }
 
-const list = async (_req, res) => successResponse(
-  res,
-  'Permit types retrieved successfully.',
-  await service.listPermitTypes(),
-)
+const list = async (_req, res) => successResponse(res, 'Permit types retrieved successfully.', await service.listPermitTypes())
 
 const getForm = async (req, res) => successResponse(
   res,
@@ -23,56 +17,54 @@ const getForm = async (req, res) => successResponse(
   await service.getPermitTypeForm(req.params.permitTypeId, getVersion(req.query.version)),
 )
 
+const getFormVersion = async (req, res) => successResponse(
+  res,
+  'Permit type form version retrieved successfully.',
+  await service.getPermitTypeFormVersion(req.validated.params.permitTypeId, req.validated.params.version),
+)
+
 const create = async (req, res) => successResponse(
   res,
   'Permit type created successfully.',
-  await service.createPermitType({
-    actorId: req.user.id,
-    data: req.validated.body,
-  }),
+  await service.createPermitType({ actorId: req.user.id, data: req.validated.body }),
   201,
 )
 
 const update = async (req, res) => successResponse(
   res,
   'Permit type updated successfully.',
-  await service.updatePermitType({
-    actorId: req.user.id,
-    id: req.validated.params.permitTypeId,
-    data: req.validated.body,
-  }),
+  await service.updatePermitType({ actorId: req.user.id, id: req.validated.params.permitTypeId, data: req.validated.body }),
 )
 
 const createForm = async (req, res) => successResponse(
   res,
   'Permit type form created successfully.',
-  await service.createPermitTypeForm({
-    actorId: req.user.id,
-    permitTypeId: req.validated.params.permitTypeId,
-    data: req.validated.body,
-  }),
+  await service.createPermitTypeForm({ actorId: req.user.id, permitTypeId: req.validated.params.permitTypeId, data: req.validated.body }),
   201,
 )
 
 const createFormVersion = async (req, res) => successResponse(
   res,
   'Permit type form version created successfully.',
-  await service.createPermitTypeFormVersion({
+  await service.createPermitTypeFormVersion({ actorId: req.user.id, permitTypeId: req.validated.params.permitTypeId, data: req.validated.body }),
+  201,
+)
+
+const updateFormVersion = async (req, res) => successResponse(
+  res,
+  'Permit type form draft updated successfully.',
+  await service.updatePermitTypeFormVersion({
     actorId: req.user.id,
     permitTypeId: req.validated.params.permitTypeId,
+    version: req.validated.params.version,
     data: req.validated.body,
   }),
-  201,
 )
 
 const publishFormVersion = async (req, res) => successResponse(
   res,
   'Permit type form version published successfully.',
-  await service.publishPermitTypeFormVersion({
-    actorId: req.user.id,
-    permitTypeId: req.validated.params.permitTypeId,
-    version: req.validated.params.version,
-  }),
+  await service.publishPermitTypeFormVersion({ actorId: req.user.id, permitTypeId: req.validated.params.permitTypeId, version: req.validated.params.version }),
 )
 
-export { list, getForm, create, update, createForm, createFormVersion, publishFormVersion }
+export { list, getForm, getFormVersion, create, update, createForm, createFormVersion, updateFormVersion, publishFormVersion }
