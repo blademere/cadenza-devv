@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialFormDefinition, createVersionPayload, hasConfiguredForm, resolvePermitTypeId, toPayload } from './PermitTypeFormBuilderPage'
+import { createInitialFormDefinition, createVersionPayload, hasConfiguredForm, hasConfiguredPermitTypeForm, resolvePermitTypeId, toPayload } from './PermitTypeFormBuilderPage'
 
 describe('PermitTypeFormBuilderPage create-form to draft-version flow', () => {
   it('uses the same non-empty payload for create form and first draft version', () => {
@@ -46,6 +46,13 @@ describe('PermitTypeFormBuilderPage create-form to draft-version flow', () => {
     expect(hasConfiguredForm({ formId: 'form-1' })).toBe(true)
     expect(hasConfiguredForm(null)).toBe(false)
     expect(hasConfiguredForm({})).toBe(false)
+  })
+
+  it('detects an attached permit type form even when no published form response is available', () => {
+    expect(hasConfiguredPermitTypeForm({ formId: 'form-1' }, null)).toBe(true)
+    expect(hasConfiguredPermitTypeForm({ form: { id: 'form-1' } }, null)).toBe(true)
+    expect(hasConfiguredPermitTypeForm({ formId: null }, null)).toBe(false)
+    expect(hasConfiguredPermitTypeForm(null, null)).toBe(false)
   })
 
   it('prefers the current permitTypeId route param and supports the legacy id param', () => {
