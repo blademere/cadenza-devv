@@ -7,7 +7,9 @@ import { getNotificationContext } from '../notification-context.js'
 
 const getSubmissionAppointment = async ({ applicationId, userId }) => {
   const application = await planPermitService.getMine({ id: applicationId, userId })
-  return application.submissionAppointment
+  const submissionAppointment = application.submissionAppointment
+  if (!submissionAppointment) return null
+  return appointmentService.getAppointmentWithRelations(submissionAppointment.appointmentId)
 }
 const createSubmissionAppointment = async ({ applicationId, userId, appointmentTypeId, slotId, notes }) => {
   const application = await planPermitService.getMine({ id: applicationId, userId })
