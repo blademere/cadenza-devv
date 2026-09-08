@@ -21,15 +21,14 @@ const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumb
   const normalizedPrcId = normalizeCredential(prcId)
   const normalizedPtrNumber = normalizeCredential(ptrNumber)
   const normalizedProfessionalRole = normalizeProfessionalRole(professionalRole)
+  const person = await repository.findPersonByUserId(userId)
+  if (!person) throw new ConflictError('User does not have a person profile. Complete your person profile before applying for professional verification.')
   if (!normalizedRegistrationNumber) throw new BadRequestError('registrationNumber is required.')
   if (!normalizedPrcId) throw new BadRequestError('prcId is required.')
   if (!normalizedPtrNumber) throw new BadRequestError('ptrNumber is required.')
-  if (!normalizedProfessionalRole) throw new BadRequestError('professionalRole is required.')
-  const person = await repository.findPersonByUserId(userId)
-  if (!person) throw new ConflictError('User does not have a person profile. Complete your person profile before applying for professional verification.')
   const existing = await repository.findByPersonId(person.id)
   if (existing) throw new ConflictError('A professional application already exists for this person.')
-  return repository.create({ personId: person.id, userId, registrationNumber: normalizedRegistrationNumber, prcId: normalizedPrcId, ptrNumber: normalizedPtrNumber, professionalRole: normalizedProfessionalRole })
+  return repository.create({ personId: person.id, userId, registrationNumber: normalizedRegistrationNumber, prcId: normalizedPrcId, ptrNumber: normalizedPtrNumber, ...(normalizedProfessionalRole ? { professionalRole: normalizedProfessionalRole } : {}) })
 }
 const getMine = async ({ userId }) => {
   const professional = await repository.findByUserId(userId)
