@@ -13,7 +13,6 @@ model OboProfessional {
   person                Person                                @relation(fields: [personId], references: [id], onDelete: Restrict)
   user                  User?                                 @relation("OboProfessionalUser", fields: [userId], references: [id], onDelete: SetNull)
   verifiedBy            User?                                 @relation("OboProfessionalVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
-  applications          OboPermitApplication[]
   verificationDecisions OboProfessionalVerificationDecision[]
   createdAt             DateTime                              @default(now())
   updatedAt             DateTime                              @updatedAt
