@@ -27,7 +27,6 @@ const receiveHardcopy = async ({ id, actorId }) => {
   if (!appointment) throw new ConflictError('The submission appointment no longer exists.')
   if (appointment.status === 'CANCELLED' || appointment.status === 'NO_SHOW') throw new ConflictError('The submission appointment is not valid for receiving.')
   if (appointment.slot.startsAt > new Date()) throw new ConflictError('The hardcopy submission appointment has not started yet.')
-  if (application.professional.status !== 'VERIFIED') throw new ConflictError('The associated professional is not verified.')
   const submittedAt = application.submittedAt || new Date()
   await repository.withTransaction(async (tx) => {
     const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
