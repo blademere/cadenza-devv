@@ -32,6 +32,7 @@ describe('OBO plan permit form resolution', () => {
       formKey: 'building-permit',
       version: 2,
       values: { floorArea: 120 },
+      requireRequired: false,
     })
   })
 
