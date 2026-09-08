@@ -25,24 +25,22 @@ const service = await import('../../../src/modules/obo/professionals/professiona
 afterEach(() => vi.clearAllMocks())
 
 describe('OBO professional service', () => {
-  it('applies for verification with credentials and a normalized professional role', async () => {
+  it('applies for verification with PRC and PTR credentials and normalizes them', async () => {
     mocks.repository.findPersonByUserId.mockResolvedValue({ id: 'person-1' })
     mocks.repository.findByPersonId.mockResolvedValue(null)
-    mocks.repository.create.mockResolvedValue({ id: 'professional-1', status: 'PENDING_VERIFICATION', professionalRole: 'ARCHITECT' })
+    mocks.repository.create.mockResolvedValue({ id: 'professional-1', status: 'PENDING_VERIFICATION' })
     await expect(service.applyForVerification({
       userId: 'user-1',
       registrationNumber: '  REG-123  ',
       prcId: '  PRC-123  ',
       ptrNumber: '  PTR-2026-123  ',
-      professionalRole: '  ARCHITECT  ',
-    })).resolves.toMatchObject({ status: 'PENDING_VERIFICATION', professionalRole: 'ARCHITECT' })
+    })).resolves.toMatchObject({ status: 'PENDING_VERIFICATION' })
     expect(mocks.repository.create).toHaveBeenCalledWith({
       personId: 'person-1',
       userId: 'user-1',
       registrationNumber: 'REG-123',
       prcId: 'PRC-123',
       ptrNumber: 'PTR-2026-123',
-      professionalRole: 'ARCHITECT',
     })
   })
 
@@ -50,7 +48,6 @@ describe('OBO professional service', () => {
     await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: ' ', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('registrationNumber is required.')
     await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: ' ', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('prcId is required.')
     await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: ' ', professionalRole: 'ARCHITECT' })).rejects.toThrow('ptrNumber is required.')
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: ' ' })).rejects.toThrow('professionalRole is required.')
     mocks.repository.findPersonByUserId.mockResolvedValue(null)
     await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('does not have a person profile')
     mocks.repository.findPersonByUserId.mockResolvedValue({ id: 'person-1' })
@@ -66,11 +63,7 @@ describe('OBO professional service', () => {
 
   it('rejects a professional from deciding their own application', async () => {
     mocks.repository.findById.mockResolvedValue({ id: 'professional-1', userId: 1, status: 'PENDING_VERIFICATION' })
-    await expect(service.decideVerification({
-      id: 'professional-1',
-      actorId: 1,
-      decision: 'ACCEPTED',
-    })).rejects.toThrow('cannot approve or decline their own application')
+    await expect(service.decideVerification({ id: 'professional-1', actorId: 1, decision: 'ACCEPTED' })).rejects.toThrow('cannot approve or decline their own application')
     expect(mocks.repository.update).not.toHaveBeenCalled()
     expect(mocks.repository.addDecision).not.toHaveBeenCalled()
     expect(mocks.publish).not.toHaveBeenCalled()
