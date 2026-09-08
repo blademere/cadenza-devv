@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../../../src/modules/obo/permit-types/permit-type.repository.js')
+vi.mock('../../../../../src/modules/obo/permit-types/permit-type.repository.js')
 
-const repository = await import('../../../../src/modules/obo/permit-types/permit-type.repository.js')
-const service = await import('../../../../src/modules/obo/permit-types/permit-type.service.js')
+const repository = await import('../../../../../src/modules/obo/permit-types/permit-type.repository.js')
+const service = await import('../../../../../src/modules/obo/permit-types/permit-type.service.js')
 
 afterEach(() => vi.clearAllMocks())
 beforeEach(() => {
