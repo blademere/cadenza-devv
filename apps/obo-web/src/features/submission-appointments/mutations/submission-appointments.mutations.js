@@ -8,6 +8,14 @@ import { submissionAppointmentQueryKey } from '../queries/submission-appointment
 
 const unwrap = (value) => value?.data ?? value
 
+const invalidate = async (queryClient, applicationId) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: submissionAppointmentQueryKey(applicationId) }),
+    queryClient.invalidateQueries({ queryKey: planPermitApplicationQueryKey(applicationId) }),
+    queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey }),
+  ])
+}
+
 export function useScheduleSubmissionAppointment(applicationId, options = {}) {
   const queryClient = useQueryClient()
 
@@ -16,16 +24,23 @@ export function useScheduleSubmissionAppointment(applicationId, options = {}) {
     ...options,
     onSuccess: async (data, variables, context) => {
       const appointment = unwrap(data)
+      if (appointment) queryClient.setQueryData(submissionAppointmentQueryKey(applicationId), appointment)
+      await invalidate(queryClient, applicationId)
+      await options.onSuccess?.(data, variables, context)
+    },
+  })
+}
 
-      if (appointment) {
-        queryClient.setQueryData(submissionAppointmentQueryKey(applicationId), appointment)
-      }
+export function useRescheduleSubmissionAppointment(applicationId, options = {}) {
+  const queryClient = useQueryClient()
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: submissionAppointmentQueryKey(applicationId) }),
-        queryClient.invalidateQueries({ queryKey: planPermitApplicationQueryKey(applicationId) }),
-        queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey }),
-      ])
+  return useMutation({
+    mutationFn: (data) => submissionAppointmentsApi.replaceApplicationAppointment(applicationId, data),
+    ...options,
+    onSuccess: async (data, variables, context) => {
+      const appointment = unwrap(data)
+      if (appointment) queryClient.setQueryData(submissionAppointmentQueryKey(applicationId), appointment)
+      await invalidate(queryClient, applicationId)
       await options.onSuccess?.(data, variables, context)
     },
   })
