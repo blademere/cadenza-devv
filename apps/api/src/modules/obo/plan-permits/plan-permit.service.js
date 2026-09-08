@@ -1,4 +1,6 @@
+import { isDeepStrictEqual } from 'node:util'
 import { ConflictError, NotFoundError, ValidationError } from '../../../common/errors/appError.js'
+import { recordAudit } from '../../../platform/audit/audit.service.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import * as repository from './plan-permit.repository.js'
 import { resolveAndValidateForm } from './plan-permit.form.js'
@@ -120,6 +122,11 @@ const listMine = async ({ userId }) => {
   return Promise.all(applications.map(withWorkflowState))
 }
 
+const getChangedFormFields = (before = {}, after = {}) => {
+  const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})])
+  return [...keys].filter((key) => !isDeepStrictEqual(before?.[key], after?.[key]))
+}
+
 const updateDraft = async ({ id, userId, formVersionId, formValues }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) {
@@ -132,10 +139,33 @@ const updateDraft = async ({ id, userId, formVersionId, formValues }) => {
     formValues,
   })
 
-  return withWorkflowState(await repository.update(id, {
-    formVersionId: resolvedForm.formVersionId,
-    formValues,
-  }))
+  const updated = await repository.withTransaction(async (tx) => {
+    const result = await repository.update(id, {
+      formVersionId: resolvedForm.formVersionId,
+      formValues,
+    }, tx)
+
+    for (const fieldKey of getChangedFormFields(application.formValues, formValues)) {
+      await recordAudit({
+        actorId: userId,
+        action: 'OBO_PERMIT_APPLICATION_FORM_FIELD_UPDATED',
+        entityType: SUBJECT_TYPE,
+        entityId: id,
+        before: application.formValues?.[fieldKey] ?? null,
+        after: formValues?.[fieldKey] ?? null,
+        metadata: {
+          formVersionId: resolvedForm.formVersionId,
+          fieldKey,
+          referenceNumber: application.referenceNumber || null,
+        },
+        db: tx,
+      })
+    }
+
+    return result
+  })
+
+  return withWorkflowState(updated)
 }
 
 const validateSubmissionProfessionals = async (application) => {
@@ -199,6 +229,27 @@ const submit = async ({ id, userId }) => {
         referenceNumber: application.referenceNumber,
         permitTypeName: application.permitType.name,
         ...notificationContext,
+      },
+      db: tx,
+    })
+
+    await recordAudit({
+      actorId: userId,
+      action: 'OBO_PERMIT_APPLICATION_SUBMITTED',
+      entityType: SUBJECT_TYPE,
+      entityId: id,
+      before: {
+        formVersionId: application.formVersionId || null,
+        formValues: application.formValues || {},
+      },
+      after: {
+        formVersionId: application.formVersionId || null,
+        formValues: application.formValues || {},
+        professionalSnapshots: professionalSnapshots || application.professionalSnapshots || null,
+      },
+      metadata: {
+        formVersionId: application.formVersionId || null,
+        referenceNumber: application.referenceNumber || null,
       },
       db: tx,
     })
