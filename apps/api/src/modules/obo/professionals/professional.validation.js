@@ -32,6 +32,7 @@ const applyValidator = async (req) => ({
     professionalRole,
   }).strict().parse(req.body || {}),
 })
+
 const decisionValidator = async (req) => ({
   params: z.object({ id }),
   body: z.object({
@@ -42,4 +43,12 @@ const decisionValidator = async (req) => ({
   }).parse(req.body || {}),
 })
 
-export { profileValidator, profileUpdateValidator, applyValidator, decisionValidator }
+const professionalLookupValidator = async (req) => ({
+  query: z.object({
+    status: z.enum(['VERIFIED']).default('VERIFIED'),
+    role: professionalRole.optional(),
+    search: z.string().trim().max(100).optional(),
+  }).strict().parse(req.query || {}),
+})
+
+export { profileValidator, profileUpdateValidator, applyValidator, decisionValidator, professionalLookupValidator }
