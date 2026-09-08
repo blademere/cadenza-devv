@@ -7,12 +7,14 @@ import {
   listUsersController,
   assignUserRoleController,
   getMyProfileController,
+  createMyProfileController,
   updateMyProfileController,
 } from './user.controller.js'
 import {
   createUserValidator,
   listUsersValidator,
   assignUserRoleValidator,
+  createMyProfileValidator,
   updateMyProfileValidator,
 } from './user.validation.js'
 
@@ -20,6 +22,7 @@ const userRouter = express.Router()
 const requireIdempotency = idempotency({ scope: 'users', required: true })
 
 userRouter.get('/me/profile', authenticate, asyncHandler(getMyProfileController))
+userRouter.post('/me/profile', authenticate, requireIdempotency, validate(createMyProfileValidator), asyncHandler(createMyProfileController))
 userRouter.patch('/me/profile', authenticate, validate(updateMyProfileValidator), asyncHandler(updateMyProfileController))
 userRouter.get('/', authenticate, authorize('users', 'read'), validate(listUsersValidator), asyncHandler(listUsersController))
 userRouter.post('/', authenticate, authorize('users', 'create'), requireIdempotency, validate(createUserValidator), asyncHandler(createUserController))
