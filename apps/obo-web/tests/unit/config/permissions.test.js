@@ -13,6 +13,19 @@ describe('OBO permission configuration', () => {
       inspect: 'obo_plan_permits:inspect',
     })
 
+    expect(permissions.permitTypes).toEqual({
+      read: 'obo_permit_types:read',
+      create: 'obo_permit_types:create',
+      update: 'obo_permit_types:update',
+    })
+
+    expect(permissions.forms).toEqual({
+      read: 'obo_forms:read',
+      create: 'obo_forms:create',
+      update: 'obo_forms:update',
+      publish: 'obo_forms:publish',
+    })
+
     expect(permissions.appointments).toEqual({
       read: 'appointments:read',
       create: 'appointments:create',
@@ -32,6 +45,8 @@ describe('OBO permission configuration', () => {
   it('contains each permission exactly once', () => {
     expect(new Set(permissionList).size).toBe(permissionList.length)
     expect(permissionList).toContain(permissions.planPermits.receive)
+    expect(permissionList).toContain(permissions.permitTypes.create)
+    expect(permissionList).toContain(permissions.forms.publish)
     expect(permissionList).toContain(permissions.professionals.review)
     expect(permissionList).toContain(permissions.users.manage)
     expect(permissionList).toContain(permissions.authorization.manage)
