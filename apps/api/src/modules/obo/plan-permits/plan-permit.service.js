@@ -42,19 +42,11 @@ const resolveReplacement = async ({ replacesApplicationId, personId }) => {
   return originalWithStatus
 }
 
-const createApplication = async ({ userId, permitTypeId, professionalId, formVersionId, formValues, replacesApplicationId }) => {
+const createApplication = async ({ userId, permitTypeId, formVersionId, formValues, replacesApplicationId }) => {
   const person = await getClientPerson(userId)
   const permitType = await repository.findPermitType(permitTypeId)
   if (!permitType) {
     throw new NotFoundError('Active permit type not found.')
-  }
-
-  const professional = await repository.findProfessional(professionalId)
-  if (!professional) {
-    throw new NotFoundError('Professional registration not found.')
-  }
-  if (professional.status !== 'VERIFIED') {
-    throw new ConflictError('The selected professional is not verified.')
   }
 
   const replacement = await resolveReplacement({
@@ -71,7 +63,6 @@ const createApplication = async ({ userId, permitTypeId, professionalId, formVer
     const created = await repository.create({
       clientPersonId: person.id,
       permitTypeId,
-      professionalId,
       formVersionId: resolvedForm.formVersionId,
       formValues,
       userId,
@@ -80,9 +71,6 @@ const createApplication = async ({ userId, permitTypeId, professionalId, formVer
 
     if (!created) {
       throw new NotFoundError('Active permit type not found.')
-    }
-    if (created.notFound === 'professional') {
-      throw new NotFoundError('Professional registration not found.')
     }
 
     const notificationContext = await getNotificationContext({
@@ -130,19 +118,10 @@ const listMine = async ({ userId }) => {
   return Promise.all(applications.map(withWorkflowState))
 }
 
-const updateDraft = async ({ id, userId, professionalId, formVersionId, formValues }) => {
+const updateDraft = async ({ id, userId, formVersionId, formValues }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) {
     throw new ConflictError('Only draft applications can be updated.')
-  }
-
-  const selectedProfessionalId = professionalId || application.professionalId
-  const professional = await repository.findProfessional(selectedProfessionalId)
-  if (!professional) {
-    throw new NotFoundError('Professional registration not found.')
-  }
-  if (professional.status !== 'VERIFIED') {
-    throw new ConflictError('The selected professional is not verified.')
   }
 
   const resolvedForm = await resolveAndValidateForm({
@@ -152,7 +131,6 @@ const updateDraft = async ({ id, userId, professionalId, formVersionId, formValu
   })
 
   return withWorkflowState(await repository.update(id, {
-    professionalId: selectedProfessionalId,
     formVersionId: resolvedForm.formVersionId,
     formValues,
   }))
