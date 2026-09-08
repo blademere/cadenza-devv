@@ -22,6 +22,10 @@ export const appointmentsApi = {
     return unwrap(await apiClient.post('/appointments/types', data))
   },
 
+  async listSchedules({ appointmentTypeId, active } = {}) {
+    return unwrap(await apiClient.get(`/appointments/schedules${buildQuery({ appointmentTypeId, active })}`))
+  },
+
   async createSchedule(data) {
     return unwrap(await apiClient.post('/appointments/schedules', data))
   },
@@ -36,6 +40,10 @@ export const appointmentsApi = {
 
   async generateSlots(data) {
     return unwrap(await apiClient.post('/appointments/slots/generate', data))
+  },
+
+  async listManagement({ appointmentTypeId, status, from, to } = {}) {
+    return unwrap(await apiClient.get(`/appointments/management${buildQuery({ appointmentTypeId, status, from, to })}`))
   },
 
   async listMine() {
