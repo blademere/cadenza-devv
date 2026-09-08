@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../../../src/modules/obo/permit-types/permit-type.repository.js')
 vi.mock('../../../../../src/platform/forms/form.service.js')
+vi.mock('../../../../../src/platform/audit/audit.service.js')
 
 const repository = await import('../../../../../src/modules/obo/permit-types/permit-type.repository.js')
 const formService = await import('../../../../../src/platform/forms/form.service.js')
+const auditService = await import('../../../../../src/platform/audit/audit.service.js')
 const service = await import('../../../../../src/modules/obo/permit-types/permit-type.service.js')
 
 afterEach(() => vi.clearAllMocks())
@@ -33,6 +35,7 @@ beforeEach(() => {
     fields: [{ id: 'field-2' }],
     documentRequirements: [],
   })
+  auditService.recordAudit.mockResolvedValue(undefined)
 })
 
 describe('OBO permit type form service', () => {
@@ -107,5 +110,111 @@ describe('OBO permit type form service', () => {
     })).rejects.toThrow('already has a form')
 
     expect(formService.createForm).not.toHaveBeenCalled()
+  })
+
+  it('creates a new draft form version through the platform forms service', async () => {
+    const permitType = {
+      id: 'permit-1',
+      isActive: true,
+      form: { id: 'form-1', key: 'building-permit-form' },
+    }
+    const version = {
+      id: 'form-version-2',
+      version: 2,
+      status: 'DRAFT',
+      sections: [],
+      fields: [{ id: 'field-1' }],
+    }
+
+    repository.findByIdWithForm.mockResolvedValue(permitType)
+    formService.createFormVersion.mockResolvedValue(version)
+
+    await expect(service.createPermitTypeFormVersion({
+      actorId: 'user-1',
+      permitTypeId: 'permit-1',
+      data: {
+        sections: [{ key: 'applicant', title: 'Applicant Information' }],
+        fields: [{ key: 'name', label: 'Applicant Name', type: 'text', required: true, sectionKey: 'applicant' }],
+      },
+    })).resolves.toEqual(version)
+
+    expect(formService.createFormVersion).toHaveBeenCalledWith({
+      formKey: 'building-permit-form',
+      sections: [{ key: 'applicant', title: 'Applicant Information' }],
+      fields: [{ key: 'name', label: 'Applicant Name', type: 'text', required: true, sectionKey: 'applicant' }],
+      actorId: 'user-1',
+    })
+    expect(auditService.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'OBO_FORM_VERSION_CREATED',
+      entityType: 'FormVersion',
+      entityId: 'form-version-2',
+    }))
+  })
+
+  it('rejects version creation when the permit type has no form', async () => {
+    repository.findByIdWithForm.mockResolvedValue({
+      id: 'permit-1',
+      isActive: true,
+      form: null,
+    })
+
+    await expect(service.createPermitTypeFormVersion({
+      actorId: 'user-1',
+      permitTypeId: 'permit-1',
+      data: { sections: [], fields: [{ key: 'name', label: 'Name', type: 'text' }] },
+    })).rejects.toThrow('Permit type form not found')
+
+    expect(formService.createFormVersion).not.toHaveBeenCalled()
+  })
+
+  it('publishes a draft form version through the platform forms service', async () => {
+    const permitType = {
+      id: 'permit-1',
+      isActive: true,
+      form: { id: 'form-1', key: 'building-permit-form' },
+    }
+    const published = {
+      id: 'form-version-2',
+      version: 2,
+      status: 'PUBLISHED',
+      sections: [],
+      fields: [],
+    }
+
+    repository.findByIdWithForm.mockResolvedValue(permitType)
+    formService.publishFormVersion.mockResolvedValue(published)
+
+    await expect(service.publishPermitTypeFormVersion({
+      actorId: 'user-1',
+      permitTypeId: 'permit-1',
+      version: 2,
+    })).resolves.toEqual(published)
+
+    expect(formService.publishFormVersion).toHaveBeenCalledWith({
+      formKey: 'building-permit-form',
+      version: 2,
+      actorId: 'user-1',
+    })
+    expect(auditService.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'OBO_FORM_VERSION_PUBLISHED',
+      entityType: 'FormVersion',
+      entityId: 'form-version-2',
+    }))
+  })
+
+  it('rejects publishing when the permit type has no form', async () => {
+    repository.findByIdWithForm.mockResolvedValue({
+      id: 'permit-1',
+      isActive: true,
+      form: null,
+    })
+
+    await expect(service.publishPermitTypeFormVersion({
+      actorId: 'user-1',
+      permitTypeId: 'permit-1',
+      version: 2,
+    })).rejects.toThrow('Permit type form not found')
+
+    expect(formService.publishFormVersion).not.toHaveBeenCalled()
   })
 })
