@@ -5,7 +5,7 @@ import {
 } from '../../../src/modules/obo/permit-types/permit-type.form.validation.js'
 
 const validRequest = (config = {}) => ({
-  params: { permitTypeId: '00000000-0000-0000-0000-000000000001' },
+  params: { permitTypeId: '00000000-0000-4000-8000-000000000001' },
   body: {
     fields: [{
       key: 'architect',
