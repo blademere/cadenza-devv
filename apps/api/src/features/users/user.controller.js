@@ -4,6 +4,7 @@ import {
   registerUser,
   assignUserRole,
   getMyProfile,
+  createMyProfile,
   updateMyProfile,
 } from './user.service.js'
 
@@ -39,6 +40,11 @@ const getMyProfileController = async (req, res) => {
   return successResponse(res, 'Profile retrieved successfully.', profile)
 }
 
+const createMyProfileController = async (req, res) => {
+  const profile = await createMyProfile(req.user.id, req.validated.body)
+  return successResponse(res, 'Profile created successfully.', profile, 201)
+}
+
 const updateMyProfileController = async (req, res) => {
   const profile = await updateMyProfile(req.user.id, req.validated.body)
   return successResponse(res, 'Profile updated successfully.', profile)
@@ -49,5 +55,6 @@ export {
   createUserController,
   assignUserRoleController,
   getMyProfileController,
+  createMyProfileController,
   updateMyProfileController,
 }
