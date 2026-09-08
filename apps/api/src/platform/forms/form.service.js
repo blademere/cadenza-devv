@@ -237,7 +237,7 @@ const getPublishedForm = async (formKey) => {
   return { ...form, versions: [version] }
 }
 
-const validateFormValues = async ({ formKey, version, values }) => {
+const validateFormValues = async ({ formKey, version, values, requireRequired = true }) => {
   if (values === null || typeof values !== 'object' || Array.isArray(values)) {
     throw new BadRequestError('Form values must be an object.')
   }
@@ -251,7 +251,9 @@ const validateFormValues = async ({ formKey, version, values }) => {
       : form.versions.find((item) => item.version === version)
   if (!formVersion) throw new NotFoundError('Form version was not found.')
 
-  const errors = formVersion.fields.flatMap((field) => validateFieldValue(field, values[field.key], values))
+  const errors = formVersion.fields.flatMap((field) =>
+    validateFieldValue(field, values[field.key], values, { requireRequired })
+  )
   return { valid: errors.length === 0, errors, formVersionId: formVersion.id }
 }
 
