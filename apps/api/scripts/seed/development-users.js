@@ -6,6 +6,12 @@ const ensureUser = async (prisma, { email, roleId, passwordHash }) => prisma.use
   create: { email, roleId, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
 })
 
+const ensurePerson = async (prisma, { userId, firstName, lastName, email, phone }) => prisma.person.upsert({
+  where: { userId },
+  update: { firstName, lastName, email, phone, isActive: true },
+  create: { userId, firstName, lastName, email, phone },
+})
+
 async function seedDevelopmentUsers(prisma, { roles }) {
   const demoPasswordHash = process.env.SEED_DEMO_PASSWORD
     ? await bcrypt.hash(process.env.SEED_DEMO_PASSWORD, 12)
@@ -20,8 +26,15 @@ async function seedDevelopmentUsers(prisma, { roles }) {
 
   const passwordHash = await bcrypt.hash(adminPassword, 12)
   const admin = await ensureUser(prisma, { email: adminEmail, roleId: roles.admin.id, passwordHash })
+  await ensurePerson(prisma, {
+    userId: admin.id,
+    firstName: 'System',
+    lastName: 'Administrator',
+    email: admin.email,
+    phone: '+630000000000',
+  })
   console.log(`Development admin ensured: ${adminEmail}`)
   return { admin, demoPasswordHash }
 }
 
-export { seedDevelopmentUsers }
+export { seedDevelopmentUsers, ensureUser, ensurePerson }
