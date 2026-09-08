@@ -125,8 +125,8 @@ const getMyAppointment = async ({ id, userId }) => {
 }
 const listMyAppointments = ({ userId }) => repository.listUserAppointments(userId)
 
-const cancelAppointment = async ({ id, userId }) =>
-  repository.withTransaction(async (tx) => {
+const cancelAppointment = async ({ id, userId, db }) => {
+  const execute = async (tx) => {
     const appointment = await repository.findUserAppointment({ id, userId }, tx)
     if (!appointment) throw new NotFoundError('Appointment not found.')
     if (![APPOINTMENT_STATUS.PENDING, APPOINTMENT_STATUS.CONFIRMED].includes(appointment.status))
@@ -143,7 +143,9 @@ const cancelAppointment = async ({ id, userId }) =>
       db: tx,
     })
     return updated
-  })
+  }
+  return db ? execute(db) : repository.withTransaction(execute)
+}
 
 const updateAppointmentStatus = async ({ id, actorId, fromStatus, status, timestampField }) =>
   repository.withTransaction(async (tx) => {
