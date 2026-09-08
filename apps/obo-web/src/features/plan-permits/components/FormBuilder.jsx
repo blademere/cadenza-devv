@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import {
   ActionIcon,
+  Alert,
   Badge,
   Box,
   Button,
@@ -25,12 +26,14 @@ export const FIELD_TYPES = [
   ['boolean', 'Boolean'],
   ['select', 'Select'],
   ['multiselect', 'Multi-select'],
+  ['reference', 'Reference'],
   ['date', 'Date'],
   ['datetime', 'Date & time'],
 ]
 
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100)
 const clone = (value) => JSON.parse(JSON.stringify(value))
+const isProfessionalReference = (field) => field.type === 'reference' && field.config?.referenceType === 'obo_professional'
 
 export const createField = (index = 0) => ({
   key: `field-${index + 1}`,
@@ -67,7 +70,28 @@ export const normalizeDefinition = (form) => ({
 function FieldEditor({ field, sections, onChange, onRemove, onMoveUp, onMoveDown }) {
   const update = (patch) => onChange({ ...field, ...patch })
   const needsOptions = field.type === 'select' || field.type === 'multiselect'
+  const isReference = field.type === 'reference'
+  const professionalReference = isProfessionalReference(field)
   const options = field.options ?? []
+
+  const changeType = (value) => {
+    const nextType = value ?? 'text'
+    update({
+      type: nextType,
+      options: ['select', 'multiselect'].includes(nextType) ? options : [],
+      config: nextType === 'reference' ? { referenceType: 'obo_professional', professionalRole: '', multiple: false } : undefined,
+    })
+  }
+
+  const updateReferenceConfig = (patch) => update({
+    config: {
+      referenceType: 'obo_professional',
+      professionalRole: '',
+      multiple: false,
+      ...(field.config ?? {}),
+      ...patch,
+    },
+  })
 
   return (
     <Card withBorder padding="md">
@@ -77,6 +101,7 @@ function FieldEditor({ field, sections, onChange, onRemove, onMoveUp, onMoveDown
             <Group gap="xs">
               <Text fw={700}>{field.label || 'Untitled field'}</Text>
               <Badge variant="light">{field.type}</Badge>
+              {professionalReference ? <Badge color="blue" variant="light">professional reference</Badge> : null}
               {field.required ? <Badge color="red" variant="light">required</Badge> : null}
             </Group>
             <Text size="xs" c="dimmed">{field.key}</Text>
@@ -91,9 +116,40 @@ function FieldEditor({ field, sections, onChange, onRemove, onMoveUp, onMoveDown
         <TextInput label="Key" value={field.key} onChange={(event) => update({ key: slugify(event.currentTarget.value) })} />
         <TextInput label="Label" value={field.label} onChange={(event) => update({ label: event.currentTarget.value })} />
         <Textarea label="Description" value={field.description ?? ''} onChange={(event) => update({ description: event.currentTarget.value || null })} autosize minRows={2} />
-        <Select label="Type" data={FIELD_TYPES.map(([value, label]) => ({ value, label }))} value={field.type} onChange={(value) => update({ type: value, options: ['select', 'multiselect'].includes(value) ? options : [] })} allowDeselect={false} />
+        <Select label="Type" data={FIELD_TYPES.map(([value, label]) => ({ value, label }))} value={field.type} onChange={changeType} allowDeselect={false} />
         <Select label="Section" data={sections.map((section) => ({ value: section.key, label: section.title }))} value={field.sectionKey} onChange={(value) => update({ sectionKey: value })} clearable />
         <Checkbox label="Required" checked={Boolean(field.required)} onChange={(event) => update({ required: event.currentTarget.checked })} />
+
+        {isReference ? (
+          <Box className="obo-subtle-panel" p="sm">
+            <Stack gap="sm">
+              <Text fw={600} size="sm">Reference configuration</Text>
+              <Text size="xs" c="dimmed">Reference fields store IDs in form values. OBO resolves professional references against the verified professional directory during validation and submission.</Text>
+              <TextInput
+                label="Professional role"
+                description="Required. Use the exact OBO professionalRole value, for example ARCHITECT or CIVIL_ENGINEER."
+                placeholder="ARCHITECT"
+                value={field.config?.professionalRole ?? ''}
+                onChange={(event) => updateReferenceConfig({ professionalRole: event.currentTarget.value.trim().toUpperCase() })}
+                error={professionalReference && !field.config?.professionalRole ? 'Professional role is required.' : undefined}
+              />
+              <Checkbox
+                label="Allow multiple professionals"
+                checked={Boolean(field.config?.multiple)}
+                onChange={(event) => updateReferenceConfig({ multiple: event.currentTarget.checked })}
+              />
+              {professionalReference ? (
+                <Alert color="blue" variant="light">
+                  This field will appear in the applicant form as a verified-professional selector. The application stores the selected professional ID(s) inside formValues; it does not create an application-level professional relationship.
+                </Alert>
+              ) : (
+                <Alert color="yellow" variant="light">
+                  This reference type is not currently supported by the OBO application workflow. Choose the professional reference configuration before publishing.
+                </Alert>
+              )}
+            </Stack>
+          </Box>
+        ) : null}
 
         {needsOptions ? (
           <Stack gap="xs">
@@ -166,7 +222,7 @@ export default function FormBuilder({ definition, onChange }) {
           <Stack>
             <Text fw={700}>Fields</Text>
             {fields.map((field, index) => !field.sectionKey ? (
-              <FieldEditor key={`${field.key}-${index}`} field={field} sections={sections} onChange={(value) => updateField(index, value)} onRemove={() => removeField(index)} onMoveUp={() => moveField(index, -1)} onMoveDown={() => moveField(index, 1)} />
+              <FieldEditor key={`${field.key}-${index}`} field={field} sections={sections} onChange={(value) => updateField(index, value)} onRemove={() => removeField(index)} onMoveUp={() => moveField(index, 1)} onMoveDown={() => moveField(index, 1)} />
             ) : null)}
             <Button variant="light" onClick={() => addField()}>+ Add Field</Button>
           </Stack>
