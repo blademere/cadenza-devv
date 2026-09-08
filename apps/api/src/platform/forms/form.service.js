@@ -89,23 +89,29 @@ const createForm = async ({
   sections = [],
   fields,
   actorId = null,
+  db = prisma,
 }) => {
   if (!key || !name) throw new BadRequestError('Form key and name are required.')
   validateDefinition({ sections, fields })
-  if (await prisma.form.findUnique({ where: { key } })) {
+  if (await db.form.findUnique({ where: { key } })) {
     throw new ConflictError(`Form '${key}' already exists.`)
   }
 
-  const form = await prisma.$transaction(async (tx) => {
+  const create = async (tx) => {
     const created = await tx.form.create({ data: { key, name, description, entityType } })
     const version = await tx.formVersion.create({
       data: { formId: created.id, version: 1, status: FORM_STATUS.DRAFT },
     })
     await createDefinitionRecords(tx, version.id, sections, fields)
     return tx.form.findUnique({ where: { id: created.id }, include: includeDefinition })
-  })
+  }
 
-  await recordAudit({ actorId, action: 'FORM_CREATED', entityType: 'Form', entityId: form.id, after: form })
+  const form = db === prisma ? await db.$transaction(create) : await create(db)
+
+  if (db === prisma) {
+    await recordAudit({ actorId, action: 'FORM_CREATED', entityType: 'Form', entityId: form.id, after: form })
+  }
+
   return form
 }
 
