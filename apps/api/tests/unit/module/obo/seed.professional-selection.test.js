@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
-const apiRoot = path.resolve(fileURLToPath(new URL('../../../../..', import.meta.url)))
+const apiRoot = path.resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
 const seedRoot = path.join(apiRoot, 'scripts', 'seed')
 
 const readSeed = (name) => readFile(path.join(seedRoot, name), 'utf8')
@@ -23,15 +23,15 @@ describe('OBO professional seed architecture', () => {
     expect(content).toContain("professionalFieldKey: 'architect'")
     expect(content).toContain("type !== 'reference'")
     expect(content).toContain("referenceType !== 'obo_professional'")
-    expect(content).toContain("[OBO_DEVELOPMENT_FIXTURE.professionalFieldKey]: professional.id")
+    expect(content).toContain('[OBO_DEVELOPMENT_FIXTURE.professionalFieldKey]: professional.id')
     expect(content).toContain('professionalSnapshots')
   })
 
   it('does not retain the removed application-level professional relation in the active seed', async () => {
     const content = await readSeed('obo-development.js')
 
-    expect(content).not.toContain('professionalId: professional.id,\n      workflowInstanceId')
-    expect(content).not.toContain('professionalId: professional.id,\n      formVersionId')
+    expect(content).not.toContain('professionalId: professional.id')
+    expect(content).not.toContain('professionalId,')
     expect(content).toContain('professionalSnapshots')
     expect(content).toContain('formVersionId: formVersion.id')
     expect(content).toContain('formValues,')
