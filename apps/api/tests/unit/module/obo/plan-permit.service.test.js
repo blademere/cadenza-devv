@@ -209,14 +209,14 @@ describe('OBO plan permit service', () => {
     expect(spies.update.mock.calls[0][1]).not.toHaveProperty('permitTypeId')
   })
 
-  it('requires a declined application when creating a replacement', async () =>
+  it('requires a declined application when creating a replacement', async () => {
     await arrangeClient()
     spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-old', referenceNumber: 'OBO-OLD' })
     spies.findWorkflowInstance.mockResolvedValueOnce({ id: 'workflow-old', currentStep: { key: 'DRAFT' } })
     await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', professionalId: 'professional-1', formValues: {}, replacesApplicationId: 'application-1' })).rejects.toThrow('Only a declined permit application can be replaced')
   })
 
-  it('creates a new draft linked to the declined application', async () =>
+  it('creates a new draft linked to the declined application', async () => {
     await arrangeClient()
     spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-old', referenceNumber: 'OBO-OLD' })
     spies.findWorkflowInstance.mockResolvedValueOnce({ id: 'workflow-old', currentStep: { key: 'DECLINED' } }).mockResolvedValueOnce({ id: 'workflow-new', currentStep: { key: 'DRAFT' } })
@@ -230,11 +230,28 @@ describe('OBO plan permit service', () => {
 
   it('submits a draft through the platform workflow transition', async () => {
     spies.findPersonByUserId.mockResolvedValue(person)
-    spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', referenceNumber: 'BP-1', permitType })
+    spies.findOwnedByClient.mockResolvedValue({
+      id: 'application-1',
+      workflowInstanceId: 'workflow-1',
+      clientPersonId: 'person-1',
+      referenceNumber: 'BP-1',
+      permitType,
+    })
     spies.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1' })
-    spies.findWorkflowInstance.mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'DRAFT' } }).mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
-    spies.transitionWorkflow.mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
-    await expect(service.submit({ id: 'application-1', userId: 'user-1' })).resolves.toMatchObject({ status: 'READY_FOR_SUBMISSION' })
-    expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'SUBMIT_FOR_SUBMISSION' }))
+    spies.findWorkflowInstance
+      .mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
+      .mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
+    spies.transitionWorkflow.mockResolvedValueOnce({
+      id: 'workflow-1',
+      currentStep: { key: 'READY_FOR_SUBMISSION' },
+    })
+
+    await expect(
+      service.submit({ id: 'application-1', userId: 'user-1' }),
+    ).resolves.toMatchObject({ status: 'READY_FOR_SUBMISSION' })
+
+    expect(spies.transitionWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ transitionKey: 'SUBMIT_FOR_SUBMISSION' }),
+    )
   })
-})
+});
