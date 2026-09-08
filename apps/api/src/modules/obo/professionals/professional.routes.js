@@ -12,7 +12,7 @@ const requireIdempotency = idempotency({ scope: 'obo-professionals', required: t
 const loadProfessional = (id) => repository.findById(id)
 
 router.get('/profile', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getProfile))
-router.put('/profile', authenticate, authorize('obo_professionals', 'update'), requireIdempotency, validate(validation.profileValidator), asyncHandler(controller.updateProfile))
+router.patch('/profile', authenticate, authorize('obo_professionals', 'update'), requireIdempotency, validate(validation.profileUpdateValidator), asyncHandler(controller.updateProfile))
 router.post('/', authenticate, authorize('obo_professionals', 'create'), requireIdempotency, validate(validation.applyValidator), asyncHandler(controller.apply))
 router.get('/mine', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getMine))
 router.get('/verified', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.listVerified))
