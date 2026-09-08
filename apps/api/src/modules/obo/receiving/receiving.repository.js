@@ -1,10 +1,9 @@
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
-const formVersionInclude = { include: { fields: { orderBy: { sortOrder: 'asc' } }, sections: { orderBy: { sortOrder: 'asc' } } } }
+const formVersionInclude = { fields: { orderBy: { sortOrder: 'asc' } }, sections: { orderBy: { sortOrder: 'asc' } } }
 const applicationInclude = {
   permitType: true,
-  formVersion: formVersionInclude,
   clientPerson: {
     select: {
       id: true,
@@ -35,9 +34,24 @@ const attachAppointment = async (application, db = prisma) => {
   }
 }
 
+const attachFormVersion = async (application, db = prisma) => {
+  if (!application?.formVersionId) return { ...application, formVersion: null }
+  const formVersion = await db.formVersion.findUnique({
+    where: { id: application.formVersionId },
+    include: formVersionInclude,
+  })
+  return { ...application, formVersion }
+}
+
+const hydrateApplication = async (application, db = prisma) => {
+  if (!application) return application
+  const withForm = await attachFormVersion(application, db)
+  return attachAppointment(withForm, db)
+}
+
 const findApplication = async (id, db = prisma) => {
   const application = await db.oboPermitApplication.findUnique({ where: { id }, include: applicationInclude })
-  return attachAppointment(application, db)
+  return hydrateApplication(application, db)
 }
 const findWorkflowInstance = (id, db = prisma) => db.workflowInstance.findUnique({ where: { id }, include: { currentStep: true } })
 const findSubmissionAppointment = (appointmentId, db = prisma) => db.appointment.findUnique({ where: { id: appointmentId }, include: { appointmentType: true, slot: true } })
@@ -48,7 +62,6 @@ const listApplications = async (status, db = prisma) => {
     where: { workflowInstanceId: { not: null } },
     include: {
       permitType: true,
-      formVersion: formVersionInclude,
       clientPerson: {
         select: {
           id: true,
@@ -74,21 +87,24 @@ const listApplications = async (status, db = prisma) => {
   const stateById = new Map(instances.map((instance) => [instance.id, instance.currentStep.key]))
   const appointmentById = new Map(appointments.map((appointment) => [appointment.id, appointment]))
 
-  return applications
-    .map((application) => {
-      const workflowStatus = stateById.get(application.workflowInstanceId)
-      if (!workflowStatus) return null
-      const appointmentId = application.submissionAppointment?.appointmentId
-      return {
-        ...application,
-        status: workflowStatus,
-        submissionAppointment: application.submissionAppointment
-          ? { ...application.submissionAppointment, appointment: appointmentById.get(appointmentId) || null }
-          : null,
-      }
-    })
-    .filter(Boolean)
-    .filter((application) => application.status === (status || 'SUBMISSION_SCHEDULED'))
+  const hydrated = await Promise.all(applications.map(async (application) => {
+    const formVersion = application.formVersionId
+      ? await db.formVersion.findUnique({ where: { id: application.formVersionId }, include: formVersionInclude })
+      : null
+    const workflowStatus = stateById.get(application.workflowInstanceId)
+    if (!workflowStatus) return null
+    const appointmentId = application.submissionAppointment?.appointmentId
+    return {
+      ...application,
+      formVersion,
+      status: workflowStatus,
+      submissionAppointment: application.submissionAppointment
+        ? { ...application.submissionAppointment, appointment: appointmentById.get(appointmentId) || null }
+        : null,
+    }
+  }))
+
+  return hydrated.filter(Boolean).filter((application) => application.status === (status || 'SUBMISSION_SCHEDULED'))
 }
 
 const updateApplication = (id, data, db = prisma) => db.oboPermitApplication.update({ where: { id }, data, include: applicationInclude })
