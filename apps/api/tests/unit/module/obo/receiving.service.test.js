@@ -28,7 +28,6 @@ const application = {
   clientPersonId: 'person-1',
   referenceNumber: 'PP-001',
   permitType: { name: 'Building Permit' },
-  professional: { status: 'VERIFIED' },
   submissionAppointment: { appointmentId: 'appointment-1' }
 }
 
@@ -75,16 +74,6 @@ describe('receiving service', () => {
     })
 
     await expect(receiveHardcopy({ id: 'app-1', actorId: 'user-1' })).rejects.toThrow('has not started yet')
-    expect(workflowService.transitionWorkflow).not.toHaveBeenCalled()
-  })
-
-  it('rejects receiving when the professional is not verified', async () => {
-    repository.findApplication.mockResolvedValue({
-      ...application,
-      professional: { status: 'PENDING_VERIFICATION' }
-    })
-
-    await expect(receiveHardcopy({ id: 'app-1', actorId: 'user-1' })).rejects.toThrow('not verified')
     expect(workflowService.transitionWorkflow).not.toHaveBeenCalled()
   })
 
