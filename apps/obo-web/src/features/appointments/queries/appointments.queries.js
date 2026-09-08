@@ -13,7 +13,7 @@ export const appointmentManagementMineQueryKey = ['appointments', 'management', 
 export function useAppointmentManagementTypes(options = {}) {
   return useQuery({
     queryKey: appointmentManagementTypesQueryKey,
-    queryFn: () => appointmentsApi.listTypes(options.activeParams),
+    queryFn: appointmentsApi.listTypes,
     ...options,
   })
 }
