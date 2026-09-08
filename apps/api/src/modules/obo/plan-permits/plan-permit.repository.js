@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
+const formVersionInclude = { include: { fields: { orderBy: { sortOrder: 'asc' } }, sections: { orderBy: { sortOrder: 'asc' } } } }
 const reference = () => `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 
 const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where: { userId } })
@@ -10,14 +11,16 @@ const findPermitType = (id, db = prisma) => db.oboPermitType.findFirst({ where: 
 const findFormById = (id, db = prisma) => db.form.findUnique({ where: { id } })
 const findFormVersionById = (id, db = prisma) => db.formVersion.findUnique({ where: { id }, include: { form: true } })
 const findWorkflowInstance = (id, db = prisma) => db.workflowInstance.findUnique({ where: { id }, include: { currentStep: true } })
-const findById = (id, db = prisma) => db.oboPermitApplication.findUnique({
-  where: { id },
-  include: { permitType: true, formVersion: true, submissionAppointment: true, replacedApplication: true, replacementApplications: { orderBy: { createdAt: 'asc' } }, decisions: { orderBy: { decidedAt: 'desc' } } },
-})
-const findOwnedByClient = (id, personId, db = prisma) => db.oboPermitApplication.findFirst({
-  where: { id, clientPersonId: personId },
-  include: { permitType: true, formVersion: true, submissionAppointment: true, replacedApplication: true, replacementApplications: { orderBy: { createdAt: 'asc' } }, decisions: { orderBy: { decidedAt: 'desc' } } },
-})
+const applicationInclude = {
+  permitType: true,
+  formVersion: formVersionInclude,
+  submissionAppointment: true,
+  replacedApplication: true,
+  replacementApplications: { orderBy: { createdAt: 'asc' } },
+  decisions: { orderBy: { decidedAt: 'desc' } },
+}
+const findById = (id, db = prisma) => db.oboPermitApplication.findUnique({ where: { id }, include: applicationInclude })
+const findOwnedByClient = (id, personId, db = prisma) => db.oboPermitApplication.findFirst({ where: { id, clientPersonId: personId }, include: applicationInclude })
 const listByClient = (personId, db = prisma) => db.oboPermitApplication.findMany({
   where: { clientPersonId: personId },
   include: { permitType: true, formVersion: true, submissionAppointment: true, replacedApplication: true },
@@ -40,11 +43,7 @@ const create = async ({ clientPersonId, permitTypeId, formVersionId, formValues,
     include: { permitType: true, formVersion: true, replacedApplication: true },
   })
 }
-const update = (id, data, db = prisma) => db.oboPermitApplication.update({
-  where: { id },
-  data,
-  include: { permitType: true, formVersion: true, submissionAppointment: true, replacedApplication: true },
-})
+const update = (id, data, db = prisma) => db.oboPermitApplication.update({ where: { id }, data, include: applicationInclude })
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
 const createSubmissionAppointment = (data, db = prisma) => db.oboSubmissionAppointment.create({ data })
 const findSubmissionAppointmentByApplicationId = (applicationId, db = prisma) => db.oboSubmissionAppointment.findUnique({ where: { applicationId } })
