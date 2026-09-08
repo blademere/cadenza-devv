@@ -40,7 +40,9 @@ const hasPermission = async (userId, resource, action) => {
   if (AUTHORIZATION_CACHE_ENABLED) {
     try {
       const cachedPermission = await hasCachedPermission(userId, resource, action)
-      if (cachedPermission !== null) return cachedPermission
+      if (cachedPermission === true) return true
+      // A cached denial can be stale after a permission grant. Refresh from
+      // PostgreSQL instead of treating a negative cache entry as authoritative.
     } catch {
       // Fall through to PostgreSQL.
     }
