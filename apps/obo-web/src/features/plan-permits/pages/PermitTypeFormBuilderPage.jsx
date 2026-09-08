@@ -37,6 +37,8 @@ export const createVersionPayload = (form, fallbackDefinition) => {
   return payload.fields.length > 0 ? payload : null
 }
 
+export const hasConfiguredForm = (form) => Boolean(form?.id || form?.formId)
+
 export default function PermitTypeFormBuilderPage() {
   const params = useParams()
   const permitTypeId = resolvePermitTypeId(params)
@@ -80,12 +82,19 @@ export default function PermitTypeFormBuilderPage() {
   }
 
   const createDraftFrom = (form) => {
+    if (!hasConfiguredForm(form)) {
+      setOperationError(new Error('This permit type does not have a configured form. Create the form before creating a new version.'))
+      return
+    }
     const draftPayload = createVersionPayload(form, definition)
     createDraftFromPayload(draftPayload)
   }
 
   const startNewVersion = () => {
-    if (!publishedForm) return
+    if (!publishedForm) {
+      setOperationError(new Error('This permit type does not have a configured form. Create the form before creating a new version.'))
+      return
+    }
     createDraftFrom(publishedForm)
   }
 
@@ -113,7 +122,13 @@ export default function PermitTypeFormBuilderPage() {
 
     setOperationError(null)
     createForm.mutate({ id: permitTypeId, key: meta.key, name: meta.name, description: meta.description || null, entityType: 'OboPermitApplication', ...initialPayload }, {
-      onSuccess: () => {
+      onSuccess: async () => {
+        const result = await published.refetch()
+        const attachedForm = unwrap(result.data)
+        if (!hasConfiguredForm(attachedForm)) {
+          setOperationError(new Error('The form was created but is not attached to this permit type. Refresh and try again.'))
+          return
+        }
         setModalOpen(false)
         createDraftFromPayload(initialPayload)
       },
