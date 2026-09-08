@@ -14,7 +14,7 @@ vi.mock('../../../src/features/people/people.service.js', () => ({
 const repository =
   await import('../../../src/modules/obo/professionals/professional.repository.js')
 const peopleService = peopleMocks
-const { getProfile, updateProfile, applyForVerification } =
+const { getProfile, createProfile, updateProfile, applyForVerification } =
   await import('../../../src/modules/obo/professionals/professional.service.js')
 const repositorySpies = { findPersonByUserId: repository.findPersonByUserId }
 const peopleSpies = peopleService
@@ -30,11 +30,12 @@ describe('professional person profile workflow', () => {
     })
     expect(peopleSpies.getByUserId).toHaveBeenCalledWith(7)
   })
-  it('creates the person profile before professional application when no profile exists', async () => {
+
+  it('creates the person profile independently when no profile exists', async () => {
     repositorySpies.findPersonByUserId.mockResolvedValue(null)
     peopleSpies.create.mockResolvedValue({ id: 'person-1', userId: 7 })
     await expect(
-      updateProfile({ userId: 7, firstName: 'Jane', lastName: 'Doe' })
+      createProfile({ userId: 7, firstName: 'Jane', lastName: 'Doe' })
     ).resolves.toMatchObject({ id: 'person-1', userId: 7 })
     expect(peopleSpies.create).toHaveBeenCalledWith({
       userId: 7,
@@ -42,7 +43,19 @@ describe('professional person profile workflow', () => {
       lastName: 'Doe',
     })
   })
-  it('updates the existing person profile instead of creating a duplicate', async () => {
+
+  it('rejects profile creation when a person profile already exists', async () => {
+    repositorySpies.findPersonByUserId.mockResolvedValue({
+      id: 'person-1',
+      userId: 7,
+    })
+    await expect(
+      createProfile({ userId: 7, firstName: 'Jane', lastName: 'Doe' })
+    ).rejects.toThrow('Professional person profile already exists.')
+    expect(peopleSpies.create).not.toHaveBeenCalled()
+  })
+
+  it('updates the existing person profile without creating a duplicate', async () => {
     repositorySpies.findPersonByUserId.mockResolvedValue({
       id: 'person-1',
       userId: 7,
@@ -62,6 +75,16 @@ describe('professional person profile workflow', () => {
     })
     expect(peopleSpies.create).not.toHaveBeenCalled()
   })
+
+  it('rejects profile updates when no person profile exists', async () => {
+    repositorySpies.findPersonByUserId.mockResolvedValue(null)
+    await expect(
+      updateProfile({ userId: 7, firstName: 'Jane', lastName: 'Doe' })
+    ).rejects.toThrow('Professional person profile not found.')
+    expect(peopleSpies.create).not.toHaveBeenCalled()
+    expect(peopleSpies.update).not.toHaveBeenCalled()
+  })
+
   it('blocks professional verification application without a person profile', async () => {
     repositorySpies.findPersonByUserId.mockResolvedValue(null)
     await expect(
