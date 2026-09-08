@@ -1,4 +1,4 @@
-import { ConflictError } from '../../../common/errors/appError.js'
+import { ConflictError, ValidationError } from '../../../common/errors/appError.js'
 import * as formService from '../../../platform/forms/form.service.js'
 import * as repository from './plan-permit.repository.js'
 
@@ -25,7 +25,7 @@ const resolveAndValidateForm = async ({ permitType, formVersionId, formValues })
     })
 
     if (!validation.valid) {
-      throw new ConflictError('Permit form validation failed.')
+      throw new ValidationError('Permit form validation failed.', validation.errors)
     }
 
     return { formVersionId: version.id }
@@ -37,7 +37,7 @@ const resolveAndValidateForm = async ({ permitType, formVersionId, formValues })
   })
 
   if (!validation.valid) {
-    throw new ConflictError('Permit form validation failed.')
+    throw new ValidationError('Permit form validation failed.', validation.errors)
   }
 
   return { formVersionId: validation.formVersionId }
