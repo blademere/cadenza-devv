@@ -47,10 +47,13 @@ const createDefinitionRecords = async (tx, versionId, sections, fields) => {
   }
 
   for (const [index, field] of fields.entries()) {
+    const section = field.sectionKey ? sectionByKey.get(field.sectionKey) : null
+    if (field.sectionKey && !section) throw new BadRequestError(`Field '${field.key}' references an unknown section.`)
+
     const created = await tx.formField.create({
       data: {
         formVersionId: versionId,
-        sectionId: field.sectionKey ? sectionByKey.get(field.sectionKey).id : null,
+        sectionId: section?.id ?? null,
         key: field.key,
         label: field.label,
         description: field.description || null,
@@ -134,6 +137,55 @@ const createFormVersion = async ({ formKey, sections = [], fields, actorId = nul
     after: version,
   })
   return version
+}
+
+const getFormVersion = async ({ formKey, version }) => {
+  const form = await prisma.form.findUnique({ where: { key: formKey } })
+  if (!form) throw new NotFoundError(`Form '${formKey}' was not found.`)
+  const formVersion = await prisma.formVersion.findUnique({
+    where: { formId_version: { formId: form.id, version } },
+    include: {
+      sections: { orderBy: { sortOrder: 'asc' } },
+      fields: { include: { options: { orderBy: { sortOrder: 'asc' } } }, orderBy: { sortOrder: 'asc' } },
+      documentRequirements: { include: { documentType: true }, orderBy: { sortOrder: 'asc' } },
+    },
+  })
+  if (!formVersion) throw new NotFoundError(`Form version ${version} was not found.`)
+  return formVersion
+}
+
+const updateFormVersion = async ({ formKey, version, sections = [], fields, actorId = null }) => {
+  const form = await prisma.form.findUnique({ where: { key: formKey } })
+  if (!form) throw new NotFoundError(`Form '${formKey}' was not found.`)
+
+  validateDefinition({ sections, fields })
+  const updated = await prisma.$transaction(async (tx) => {
+    const target = await tx.formVersion.findUnique({ where: { formId_version: { formId: form.id, version } } })
+    if (!target) throw new NotFoundError(`Form version ${version} was not found.`)
+    if (target.status !== FORM_STATUS.DRAFT) throw new ConflictError('Only draft form versions can be updated.')
+
+    await tx.formField.deleteMany({ where: { formVersionId: target.id } })
+    await tx.formSection.deleteMany({ where: { formVersionId: target.id } })
+    await createDefinitionRecords(tx, target.id, sections, fields)
+
+    return tx.formVersion.findUnique({
+      where: { id: target.id },
+      include: {
+        sections: { orderBy: { sortOrder: 'asc' } },
+        fields: { include: { options: { orderBy: { sortOrder: 'asc' } } }, orderBy: { sortOrder: 'asc' } },
+        documentRequirements: { include: { documentType: true }, orderBy: { sortOrder: 'asc' } },
+      },
+    })
+  })
+
+  await recordAudit({
+    actorId,
+    action: 'FORM_VERSION_UPDATED',
+    entityType: 'FormVersion',
+    entityId: updated.id,
+    after: updated,
+  })
+  return updated
 }
 
 const publishFormVersion = async ({ formKey, version, actorId = null }) => {
@@ -247,6 +299,8 @@ const submitForm = async ({
 export {
   createForm,
   createFormVersion,
+  getFormVersion,
+  updateFormVersion,
   publishFormVersion,
   getPublishedForm,
   validateFormValues,
