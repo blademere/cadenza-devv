@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialFormDefinition, toPayload } from './PermitTypeFormBuilderPage'
+import { createInitialFormDefinition, resolvePermitTypeId, toPayload } from './PermitTypeFormBuilderPage'
 
 describe('PermitTypeFormBuilderPage create-form to draft-version flow', () => {
   it('uses the same non-empty payload for create form and first draft version', () => {
@@ -38,5 +38,11 @@ describe('PermitTypeFormBuilderPage create-form to draft-version flow', () => {
 
     expect(createFormResponse.versions[0].fields).toBeUndefined()
     expect(draftVersionRequest.fields).toHaveLength(1)
+  })
+
+  it('prefers the current permitTypeId route param and supports the legacy id param', () => {
+    expect(resolvePermitTypeId({ permitTypeId: 'current-id', id: 'legacy-id' })).toBe('current-id')
+    expect(resolvePermitTypeId({ id: 'legacy-id' })).toBe('legacy-id')
+    expect(resolvePermitTypeId({})).toBeNull()
   })
 })
