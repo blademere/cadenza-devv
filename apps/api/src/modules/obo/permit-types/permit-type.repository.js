@@ -39,14 +39,40 @@ const listActive = () => prisma.oboPermitType.findMany({
   orderBy: { name: 'asc' },
 })
 
-const findActiveById = (id) => prisma.oboPermitType.findFirst({
+const findActiveById = (id, db = prisma) => db.oboPermitType.findFirst({
   where: { id, isActive: true },
   include: { form: { include: publishedFormInclude } },
 })
+
+const findById = (id, db = prisma) => db.oboPermitType.findUnique({
+  where: { id },
+})
+
+const findByKey = (key, db = prisma) => db.oboPermitType.findUnique({
+  where: { key },
+})
+
+const create = (data, db = prisma) => db.oboPermitType.create({ data })
+
+const update = (id, data, db = prisma) => db.oboPermitType.update({
+  where: { id },
+  data,
+})
+
+const withTransaction = (callback) => prisma.$transaction(callback)
 
 const findPublishedFormVersion = (formId, version) => prisma.formVersion.findFirst({
   where: { formId, version, status: 'PUBLISHED' },
   include: formVersionInclude,
 })
 
-export { listActive, findActiveById, findPublishedFormVersion }
+export {
+  listActive,
+  findActiveById,
+  findById,
+  findByKey,
+  create,
+  update,
+  withTransaction,
+  findPublishedFormVersion,
+}
