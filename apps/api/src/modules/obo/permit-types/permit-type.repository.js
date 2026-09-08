@@ -33,25 +33,38 @@ const formVersionInclude = {
   },
 }
 
-const listActive = () => prisma.oboPermitType.findMany({
-  where: { isActive: true },
-  include: { form: { include: publishedFormInclude } },
-  orderBy: { name: 'asc' },
+const getForm = (formId, db = prisma, include = publishedFormInclude) => formId
+  ? db.form.findUnique({ where: { id: formId }, include })
+  : Promise.resolve(null)
+
+const withForm = async (permitType, db = prisma, include = publishedFormInclude) => ({
+  ...permitType,
+  form: await getForm(permitType.formId, db, include),
 })
 
-const findActiveById = (id, db = prisma) => db.oboPermitType.findFirst({
-  where: { id, isActive: true },
-  include: { form: { include: publishedFormInclude } },
-})
+const listActive = async (db = prisma) => {
+  const permitTypes = await db.oboPermitType.findMany({
+    where: { isActive: true },
+    orderBy: { name: 'asc' },
+  })
+  return Promise.all(permitTypes.map((permitType) => withForm(permitType, db)))
+}
+
+const findActiveById = async (id, db = prisma) => {
+  const permitType = await db.oboPermitType.findFirst({
+    where: { id, isActive: true },
+  })
+  return permitType ? withForm(permitType, db) : null
+}
 
 const findById = (id, db = prisma) => db.oboPermitType.findUnique({
   where: { id },
 })
 
-const findByIdWithForm = (id, db = prisma) => db.oboPermitType.findUnique({
-  where: { id },
-  include: { form: true },
-})
+const findByIdWithForm = async (id, db = prisma) => {
+  const permitType = await findById(id, db)
+  return permitType ? withForm(permitType, db, { versions: true }) : null
+}
 
 const findByKey = (key, db = prisma) => db.oboPermitType.findUnique({
   where: { key },
@@ -64,20 +77,22 @@ const update = (id, data, db = prisma) => db.oboPermitType.update({
   data,
 })
 
-const attachForm = (id, formId, db = prisma) => db.oboPermitType.update({
-  where: { id },
-  data: { formId },
-  include: { form: true },
-})
+const attachForm = async (id, formId, db = prisma) => {
+  const permitType = await db.oboPermitType.update({
+    where: { id },
+    data: { formId },
+  })
+  return withForm(permitType, db, { versions: true })
+}
 
 const withTransaction = (callback) => prisma.$transaction(callback)
 
-const findPublishedFormVersion = (formId, version) => prisma.formVersion.findFirst({
+const findPublishedFormVersion = (formId, version, db = prisma) => db.formVersion.findFirst({
   where: { formId, version, status: 'PUBLISHED' },
   include: formVersionInclude,
 })
 
-const findLatestDraftFormVersion = (formId) => prisma.formVersion.findFirst({
+const findLatestDraftFormVersion = (formId, db = prisma) => db.formVersion.findFirst({
   where: { formId, status: 'DRAFT' },
   orderBy: { version: 'desc' },
   include: formVersionInclude,
