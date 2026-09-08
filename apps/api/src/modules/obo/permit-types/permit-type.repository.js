@@ -53,7 +53,7 @@ const findByIdWithForm = (id, db = prisma) => db.oboPermitType.findUnique({
   include: { form: true },
 })
 
-const findByKey = (key, db = prisma) => db.form.findUnique({
+const findByKey = (key, db = prisma) => db.oboPermitType.findUnique({
   where: { key },
 })
 
