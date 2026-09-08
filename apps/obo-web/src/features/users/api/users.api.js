@@ -18,6 +18,10 @@ export const usersApi = {
     return unwrap(await apiClient.get('/users/me/profile'))
   },
 
+  async createMyProfile(data) {
+    return unwrap(await apiClient.post('/users/me/profile', data))
+  },
+
   async updateMyProfile(data) {
     return unwrap(await apiClient.patch('/users/me/profile', data))
   },
