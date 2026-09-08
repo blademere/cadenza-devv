@@ -5,6 +5,7 @@ import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
 import RolesPage from '../features/authorization/pages/RolesPage'
 import UsersPage from '../features/users/pages/UsersPage'
+import ProfilePage from '../features/users/pages/ProfilePage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import OAuthCallbackPage from '../features/auth/pages/OAuthCallbackPage'
 import ApplicationsPage from '../features/plan-permits/pages/ApplicationsPage'
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
     { path: 'app', element: <ProtectedRoute><OBOLayout /></ProtectedRoute>, children: [
       { index: true, element: <Navigate to="dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'profile', element: <ProfilePage /> },
       protectedPage('applications', <ApplicationsPage />, permissions.planPermits.read),
       protectedPage('applications/new', <ApplicationFormPage />, permissions.planPermits.create),
       protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.planPermits.read),
