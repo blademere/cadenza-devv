@@ -36,6 +36,7 @@ describe('OBO permission configuration', () => {
     expect(permissions.professionals).toEqual({
       read: 'obo_professionals:read',
       create: 'obo_professionals:create',
+      update: 'obo_professionals:update',
       review: 'obo_professionals:review',
     })
 
@@ -48,6 +49,7 @@ describe('OBO permission configuration', () => {
     expect(permissionList).toContain(permissions.planPermits.receive)
     expect(permissionList).toContain(permissions.permitTypes.create)
     expect(permissionList).toContain(permissions.forms.publish)
+    expect(permissionList).toContain(permissions.professionals.update)
     expect(permissionList).toContain(permissions.professionals.review)
     expect(permissionList).toContain(permissions.users.manage)
     expect(permissionList).toContain(permissions.authorization.manage)
