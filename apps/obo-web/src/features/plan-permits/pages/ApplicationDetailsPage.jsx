@@ -16,7 +16,7 @@ const snapshotEntries = (snapshots) => {
   if (!snapshots || typeof snapshots !== 'object' || Array.isArray(snapshots)) return []
   return Object.entries(snapshots).flatMap(([fieldKey, value]) => {
     const values = Array.isArray(value) ? value : [value]
-    return values.filter(Boolean).map((professional, index) => ({
+    return values.filter((professional) => professional && typeof professional === 'object').map((professional, index) => ({
       fieldKey,
       key: `${fieldKey}-${professional.professionalId ?? index}`,
       professional,
@@ -26,14 +26,22 @@ const snapshotEntries = (snapshots) => {
 
 function ProfessionalReferences({ application }) {
   const entries = snapshotEntries(application.professionalSnapshots)
-  if (!entries.length) {
-    const values = application.formValues && typeof application.formValues === 'object' ? application.formValues : {}
-    const references = Object.entries(values).filter(([, value]) => typeof value === 'string' && value.length > 0)
-    if (!references.length) return <Text size="sm" c="dimmed">No professional references recorded.</Text>
-    return <Stack gap="sm">{references.map(([fieldKey, value]) => <Box key={fieldKey}><Text size="xs" c="dimmed">{humanizeKey(fieldKey)}</Text><Text size="sm" fw={600}>{value}</Text><Text size="xs" c="dimmed">Professional reference</Text></Box>)}</Stack>
-  }
+  if (!entries.length) return <Text size="sm" c="dimmed">No professional selections have been submitted for this application.</Text>
 
-  return <Stack gap="md">{entries.map(({ fieldKey, key, professional }) => <Box key={key} p="sm" style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 8 }}><Group justify="space-between" align="flex-start"><Box><Text size="xs" c="dimmed">{humanizeKey(fieldKey)}</Text><Text fw={600}>{professional.name ?? '—'}</Text></Box><Badge variant="light">{professional.role ?? 'Professional'}</Badge></Group><SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs" mt="sm"><Box><Text size="xs" c="dimmed">Registration</Text><Text size="sm">{professional.registrationNumber ?? '—'}</Text></Box><Box><Text size="xs" c="dimmed">PRC ID</Text><Text size="sm">{professional.prcId ?? '—'}</Text></Box><Box><Text size="xs" c="dimmed">PTR</Text><Text size="sm">{professional.ptrNumber ?? '—'}</Text></Box></SimpleGrid></Box>)}</Stack>
+  return <Stack gap="md">
+    <Text size="sm" c="dimmed">These professionals were selected through professional-reference fields in the permit form. Submitted snapshots are retained for historical accuracy.</Text>
+    {entries.map(({ fieldKey, key, professional }) => <Box key={key} p="sm" style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 8 }}>
+      <Group justify="space-between" align="flex-start">
+        <Box><Text size="xs" c="dimmed">Form field</Text><Text size="sm" fw={600}>{humanizeKey(fieldKey)}</Text><Text size="md" fw={700} mt={3}>{professional.name ?? '—'}</Text></Box>
+        <Badge variant="light">{professional.role ?? 'Professional'}</Badge>
+      </Group>
+      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs" mt="sm">
+        <Box><Text size="xs" c="dimmed">Registration</Text><Text size="sm">{professional.registrationNumber ?? '—'}</Text></Box>
+        <Box><Text size="xs" c="dimmed">PRC ID</Text><Text size="sm">{professional.prcId ?? '—'}</Text></Box>
+        <Box><Text size="xs" c="dimmed">PTR</Text><Text size="sm">{professional.ptrNumber ?? '—'}</Text></Box>
+      </SimpleGrid>
+    </Box>)}
+  </Stack>
 }
 
 export default function ApplicationDetailsPage() {
@@ -88,7 +96,7 @@ export default function ApplicationDetailsPage() {
         <Box><Text size="xs" c="dimmed">Submission appointment</Text><Text size="sm" fw={600}>{submissionAppointment ? 'Scheduled' : 'Not scheduled'}</Text></Box>
       </SimpleGrid>
     </Box>
-    <Box className="obo-panel" p="lg"><Text fw={700}>Professionals</Text><Text size="sm" c="dimmed" mt={3}>{application.professionalSnapshots ? 'Submitted professional information preserved with the application.' : 'Professional references recorded in the application form.'}</Text><Box mt="lg"><ProfessionalReferences application={application} /></Box></Box>
+    <Box className="obo-panel" p="lg"><Text fw={700}>Selected professionals</Text><Box mt="lg"><ProfessionalReferences application={application} /></Box></Box>
     {(isForInspection || isDeclined) && latestDecision && <Box className="obo-panel" p="lg"><Text fw={700}>Receiving outcome</Text><Group mt="md" justify="space-between"><Group gap="sm"><StatusChip status={latestDecision.decision ?? latestDecision.status} label={latestDecision.decision ?? latestDecision.status} /><Text size="sm" fw={600}>{latestDecision.reason ?? (isForInspection ? 'Accepted for inspection' : 'Application declined')}</Text></Group><Text size="xs" c="dimmed">{formatDate(latestDecision.decidedAt)}</Text></Group></Box>}
     {isDeclined && <Box className="obo-panel" p="lg"><Text fw={700}>Start a new application</Text><Text size="sm" c="dimmed" mt={3}>The declined application cannot be edited, resubmitted, or scheduled. Start a new application to begin again.</Text><PermissionGate permission={permissions.planPermits.create}><Button mt="md" component={Link} to="/app/applications/new">Start New Application</Button></PermissionGate></Box>}
     <Box className="obo-panel" p="lg"><Text fw={700}>Application history</Text><Text size="sm" c="dimmed" mt={3}>Recorded receiving decisions and workflow outcomes.</Text><Stack mt="lg" gap="md">{decisions.length ? decisions.map((decision, index) => <Box key={decision.id ?? index}><Group justify="space-between"><Group gap="sm"><StatusChip status={decision.decision ?? decision.status} label={decision.decision ?? decision.status} /><Text size="sm" fw={600}>{decision.reason ?? 'Decision recorded'}</Text></Group><Text size="xs" c="dimmed">{formatDate(decision.decidedAt)}</Text></Group>{index < decisions.length - 1 && <Divider mt="md" />}</Box>) : <Text size="sm" c="dimmed">No decisions have been recorded.</Text>}</Stack></Box>
