@@ -40,9 +40,9 @@ describe('OBO permit type form service', () => {
     expect(formService.getFormVersion).toHaveBeenCalledWith({ formKey: 'building-permit-form', version: 4 })
   })
 
-  it('creates and attaches a form to a permit type', async () => {
+  it('creates and attaches a form to a permit type with version one as draft', async () => {
     const permitType = { id: 'permit-1', key: 'building-permit', name: 'Building Permit', isActive: true, formId: null }
-    const form = { id: 'form-1', key: 'building-permit-form', name: 'Building Permit Application', versions: [{ version: 1, status: 'PUBLISHED' }] }
+    const form = { id: 'form-1', key: 'building-permit-form', name: 'Building Permit Application', versions: [{ version: 1, status: 'DRAFT' }] }
     repository.findById.mockResolvedValue(permitType)
     repository.attachForm.mockResolvedValue({ ...permitType, formId: form.id })
     formService.createForm.mockResolvedValue(form)
@@ -50,6 +50,7 @@ describe('OBO permit type form service', () => {
     await expect(service.createPermitTypeForm({ actorId: 'user-1', permitTypeId: 'permit-1', data: { key: 'building-permit-form', name: 'Building Permit Application', description: 'Building permit form', sections: [{ key: 'applicant', title: 'Applicant Information' }], fields: [{ key: 'name', label: 'Applicant Name', type: 'text', required: true, sectionKey: 'applicant' }] } })).resolves.toEqual(form)
     expect(formService.createForm).toHaveBeenCalledWith(expect.objectContaining({ key: 'building-permit-form', entityType: 'OboPermitApplication' }))
     expect(repository.attachForm).toHaveBeenCalledWith('permit-1', 'form-1')
+    expect(form.versions[0]).toMatchObject({ version: 1, status: 'DRAFT' })
   })
 
   it('rejects form creation when the permit type already has a form', async () => {
