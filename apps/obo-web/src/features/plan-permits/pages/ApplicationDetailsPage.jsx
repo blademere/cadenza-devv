@@ -10,6 +10,16 @@ import { usePlanPermitApplication, useSubmitPlanPermitApplication } from '../que
 
 const unwrap = (value) => value?.data ?? value
 const formatDate = (value) => value ? new Date(value).toLocaleString() : '—'
+const professionalName = (professional) => {
+  if (!professional) return '—'
+  const name = [
+    professional.person?.firstName,
+    professional.person?.middleName,
+    professional.person?.lastName,
+    professional.person?.suffix,
+  ].filter(Boolean).join(' ')
+  return name || professional.registrationNumber || professional.email || professional.id || '—'
+}
 
 export default function ApplicationDetailsPage() {
   const { applicationId } = useParams()
@@ -72,7 +82,7 @@ export default function ApplicationDetailsPage() {
       <Divider my="lg" />
       <Group grow align="flex-start">
         <Box><Text size="xs" c="dimmed">Permit type</Text><Text size="sm" fw={600}>{application.permitType?.name ?? '—'}</Text></Box>
-        <Box><Text size="xs" c="dimmed">Professional</Text><Text size="sm" fw={600}>{application.professional?.name ?? application.professional?.email ?? '—'}</Text></Box>
+        <Box><Text size="xs" c="dimmed">Professional</Text><Text size="sm" fw={600}>{professionalName(application.professional)}</Text>{application.professional?.registrationNumber && <Text size="xs" c="dimmed" mt={3}>Reg. no. {application.professional.registrationNumber}</Text>}</Box>
         <Box><Text size="xs" c="dimmed">Submission appointment</Text><Text size="sm" fw={600}>{submissionAppointment ? 'Scheduled' : 'Not scheduled'}</Text></Box>
       </Group>
     </Box>
