@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Alert, Badge, Button, Divider, Group, NumberInput, Select, SimpleGrid, Stack, Tabs, Text, TextInput } from '@mantine/core'
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
@@ -44,7 +44,15 @@ const toIso = (value) => {
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
+const isCheckInWindowOpen = (appointment, now) => {
+  const startsAt = appointment?.slot?.startsAt ? new Date(appointment.slot.startsAt) : null
+  const endsAt = appointment?.slot?.endsAt ? new Date(appointment.slot.endsAt) : null
+  if (!startsAt || !endsAt || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return false
+  return now >= startsAt && now <= endsAt
+}
+
 export default function AppointmentsPage() {
+  const [now, setNow] = useState(() => new Date())
   const [typeForm, setTypeForm] = useState({ key: '', name: '', description: '', defaultDurationMinutes: 30, defaultCapacity: 1 })
   const [schedule, setSchedule] = useState({ appointmentTypeId: '', dayOfWeek: '1', startTime: '08:00', endTime: '17:00', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', slotDurationMinutes: 30, capacity: 1 })
   const [slot, setSlot] = useState({ appointmentTypeId: '', scheduleId: '', startsAt: '', endsAt: '', capacity: 1 })
@@ -52,6 +60,11 @@ export default function AppointmentsPage() {
   const [slotStatus, setSlotStatus] = useState('')
   const [appointmentTypeFilter, setAppointmentTypeFilter] = useState('')
   const [appointmentStatus, setAppointmentStatus] = useState('')
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const typesQuery = useAppointmentManagementTypes()
   const scheduleQuery = useAppointmentManagementSchedules({ appointmentTypeId: schedule.appointmentTypeId || undefined })
@@ -200,18 +213,32 @@ export default function AppointmentsPage() {
               </SimpleGrid>
               {appointmentsQuery.isLoading ? <LoadingState label="Loading appointments…" /> : null}
               {!appointmentsQuery.isLoading && appointments.length === 0 ? <Alert color="gray" title="No appointments">No appointments match the current filters.</Alert> : null}
-              {appointments.map((item) => (
-                <Stack key={item.id} className="obo-panel" p="md" gap="xs">
-                  <Group justify="space-between"><div><Text fw={700}>{item.referenceNumber ?? item.id}</Text><Text size="sm" c="dimmed">User ID: {item.userId ?? '—'}</Text></div><StatusChip status={item.status} /></Group>
-                  <Text size="sm">{item.appointmentType?.name ?? 'Appointment'} · {formatDateTime(item.slot?.startsAt)} – {formatDateTime(item.slot?.endsAt)}</Text>
-                  {item.notes ? <Text size="sm" c="dimmed">{item.notes}</Text> : null}
-                  <Group>
-                    {['PENDING', 'CONFIRMED'].includes(item.status) ? <Button size="xs" variant="default" onClick={() => action(cancel, item.id)} loading={cancel.isPending}>Cancel</Button> : null}
-                    {item.status === 'CONFIRMED' ? <><Button size="xs" onClick={() => action(checkIn, item.id)} loading={checkIn.isPending}>Check in</Button><Button size="xs" variant="default" onClick={() => action(noShow, item.id)} loading={noShow.isPending}>No-show</Button></> : null}
-                    {item.status === 'CHECKED_IN' ? <Button size="xs" onClick={() => action(complete, item.id)} loading={complete.isPending}>Complete</Button> : null}
-                  </Group>
-                </Stack>
-              ))}
+              {appointments.map((item) => {
+                const checkInAvailable = item.status === 'CONFIRMED' && isCheckInWindowOpen(item, now)
+                const startsAt = item.slot?.startsAt ? new Date(item.slot.startsAt) : null
+                const endsAt = item.slot?.endsAt ? new Date(item.slot.endsAt) : null
+                const hasValidWindow = startsAt && endsAt && !Number.isNaN(startsAt.getTime()) && !Number.isNaN(endsAt.getTime())
+                const checkInMessage = !hasValidWindow
+                  ? 'Check-in unavailable: appointment slot time is missing.'
+                  : now < startsAt
+                    ? `Check-in available at ${formatDateTime(item.slot.startsAt)}.`
+                    : now > endsAt
+                      ? 'Check-in window ended.'
+                      : 'Check-in is available now.'
+
+                return (
+                  <Stack key={item.id} className="obo-panel" p="md" gap="xs">
+                    <Group justify="space-between"><div><Text fw={700}>{item.referenceNumber ?? item.id}</Text><Text size="sm" c="dimmed">User ID: {item.userId ?? '—'}</Text></div><StatusChip status={item.status} /></Group>
+                    <Text size="sm">{item.appointmentType?.name ?? 'Appointment'} · {formatDateTime(item.slot?.startsAt)} – {formatDateTime(item.slot?.endsAt)}</Text>
+                    {item.notes ? <Text size="sm" c="dimmed">{item.notes}</Text> : null}
+                    <Group>
+                      {['PENDING', 'CONFIRMED'].includes(item.status) ? <Button size="xs" variant="default" onClick={() => action(cancel, item.id)} loading={cancel.isPending}>Cancel</Button> : null}
+                      {item.status === 'CONFIRMED' ? <><Button size="xs" onClick={() => action(checkIn, item.id)} loading={checkIn.isPending} disabled={!checkInAvailable} title={checkInMessage}>Check in</Button><Text size="xs" c="dimmed" lh={1.4}>{checkInMessage}</Text><Button size="xs" variant="default" onClick={() => action(noShow, item.id)} loading={noShow.isPending}>No-show</Button></> : null}
+                      {item.status === 'CHECKED_IN' ? <Button size="xs" onClick={() => action(complete, item.id)} loading={complete.isPending}>Complete</Button> : null}
+                    </Group>
+                  </Stack>
+                )
+              })}
             </Stack>
           </Tabs.Panel>
         </Tabs>
@@ -226,8 +253,4 @@ function BoxedSection({ title, description }) {
 
 function DividerLabel({ label }) {
   return <Group gap="sm" mt="md"><Text size="sm" fw={700}>{label}</Text><Divider flex={1} /></Group>
-}
-
-function BoxedRow({ children }) {
-  return <Group justify="space-between" align="center" p="sm" style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 'var(--mantine-radius-sm)' }}>{children}</Group>
 }
