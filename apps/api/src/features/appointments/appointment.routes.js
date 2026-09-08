@@ -24,6 +24,7 @@ router.post('/slots/generate', authenticate, authorize(APPOINTMENT_MODULE, APPOI
 router.get('/slots', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.READ), validate(listSlotsValidator), asyncHandler(controller.listSlotsController))
 router.get('/mine', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.READ), asyncHandler(controller.listMyAppointmentsController))
 router.get('/management', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.READ), validate(listAppointmentsValidator), asyncHandler(controller.listAppointmentsController))
+router.post('/management/:id/cancel', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.CANCEL), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.cancelManagedAppointmentController))
 router.post('/', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.CREATE), requireIdempotency, validate(createAppointmentValidator), asyncHandler(controller.createAppointmentController))
 router.get('/:id', authenticate, authorizeOwnedAppointment(APPOINTMENT_ACTIONS.READ), validate(appointmentIdValidator), asyncHandler(controller.getMyAppointmentController))
 router.post('/:id/cancel', authenticate, authorizeOwnedAppointment(APPOINTMENT_ACTIONS.CANCEL), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.cancelAppointmentController))
