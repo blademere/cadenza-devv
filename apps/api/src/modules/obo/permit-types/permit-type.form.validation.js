@@ -59,6 +59,14 @@ const createPermitTypeFormVersionValidator = async (req) => ({
   body: formDefinition.parse(req.body || {}),
 })
 
+const updatePermitTypeFormVersionValidator = async (req) => ({
+  params: z.object({
+    permitTypeId: z.string().uuid(),
+    version: z.coerce.number().int().positive(),
+  }).parse(req.params || {}),
+  body: formDefinition.parse(req.body || {}),
+})
+
 const publishPermitTypeFormVersionValidator = async (req) => ({
   params: z.object({
     permitTypeId: z.string().uuid(),
@@ -69,5 +77,6 @@ const publishPermitTypeFormVersionValidator = async (req) => ({
 export {
   createPermitTypeFormValidator,
   createPermitTypeFormVersionValidator,
+  updatePermitTypeFormVersionValidator,
   publishPermitTypeFormVersionValidator,
 }
