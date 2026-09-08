@@ -12,11 +12,12 @@ const requireIdempotency = idempotency({ scope: 'obo-professionals', required: t
 const loadProfessional = (id) => repository.findById(id)
 
 router.get('/profile', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getProfile))
-router.post('/profile', authenticate, authorize('obo_professionals', 'create'), requireIdempotency, validate(validation.applyValidator), asyncHandler(controller.apply))
+router.post('/profile', authenticate, authorize('obo_professionals', 'create'), requireIdempotency, validate(validation.profileValidator), asyncHandler(controller.createProfile))
 router.patch('/profile', authenticate, authorize('obo_professionals', 'update'), requireIdempotency, validate(validation.profileUpdateValidator), asyncHandler(controller.updateProfile))
-router.get('/mine', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getMine))
-router.get('/verified', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.listVerified))
-router.get('/pending', authenticate, authorize('obo_professionals', 'review'), asyncHandler(controller.listPending))
-router.post('/:id/verification', authenticate, authorizeResource({ resource: 'obo_professionals', action: 'review', loadResource: loadProfessional, getResourceId: (req) => req.params.id }), requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
+router.post('/applications', authenticate, authorize('obo_professionals', 'create'), requireIdempotency, validate(validation.applyValidator), asyncHandler(controller.apply))
+router.get('/applications/mine', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getMine))
+router.get('/applications/pending', authenticate, authorize('obo_professionals', 'review'), asyncHandler(controller.listPending))
+router.get('/applications/verified', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.listVerified))
+router.post('/applications/:id/decision', authenticate, authorizeResource({ resource: 'obo_professionals', action: 'review', loadResource: loadProfessional, getResourceId: (req) => req.params.id }), requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
 
 export default router
