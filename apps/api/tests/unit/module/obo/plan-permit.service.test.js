@@ -25,6 +25,8 @@ const spies = {
   startWorkflow: workflowService.startWorkflow,
   transitionWorkflow: workflowService.transitionWorkflow,
   validateFormValues: formService.validateFormValues,
+  getFormVersion: formService.getFormVersion,
+  evaluateCondition: formService.evaluateCondition,
 }
 
 afterEach(() => vi.clearAllMocks())
@@ -34,6 +36,8 @@ beforeEach(() => {
   spies.startWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
   spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
   spies.validateFormValues.mockResolvedValue({ valid: true, formVersionId: null })
+  spies.getFormVersion.mockResolvedValue({ id: 'form-version-1', version: 1, fields: [] })
+  spies.evaluateCondition.mockReturnValue(true)
   spies.findPersonNotificationContext.mockResolvedValue(null)
 })
 
@@ -234,6 +238,8 @@ describe('OBO plan permit service', () => {
       clientPersonId: 'person-1',
       referenceNumber: 'BP-1',
       permitType,
+      formVersion: null,
+      formValues: {},
     })
     spies.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1' })
     spies.findWorkflowInstance
@@ -246,5 +252,41 @@ describe('OBO plan permit service', () => {
     expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({
       transitionKey: 'SUBMIT_FOR_SUBMISSION',
     }))
+  })
+
+  it('validates configured professional references before submitting', async () => {
+    const professionalId = '00000000-0000-4000-8000-000000000001'
+    const form = { id: 'form-1', key: 'building-permit', isActive: true }
+    const version = {
+      id: 'form-version-1',
+      version: 3,
+      fields: [{
+        key: 'architect',
+        label: 'Architect',
+        type: 'reference',
+        required: true,
+        visibility: null,
+        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false },
+      }],
+    }
+
+    spies.findPersonByUserId.mockResolvedValue(person)
+    spies.findOwnedByClient.mockResolvedValue({
+      id: 'application-1',
+      workflowInstanceId: 'workflow-1',
+      clientPersonId: 'person-1',
+      referenceNumber: 'BP-1',
+      permitType: { ...permitType, formId: form.id },
+      formVersion: { id: version.id, version: version.version },
+      formValues: { architect: professionalId },
+    })
+    spies.findFormById.mockResolvedValue(form)
+    spies.getFormVersion.mockResolvedValue(version)
+    spies.findWorkflowInstance
+      .mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
+      .mockResolvedValueOnce({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
+
+    await expect(service.submit({ id: 'application-1', userId: 'user-1' })).rejects.toThrow('Professional reference validation failed')
+    expect(spies.transitionWorkflow).not.toHaveBeenCalled()
   })
 })
