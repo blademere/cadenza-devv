@@ -6,7 +6,6 @@ model Form {
   entityType     String?
   isActive       Boolean         @default(true)
   versions       FormVersion[]
-  oboPermitTypes OboPermitType[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
