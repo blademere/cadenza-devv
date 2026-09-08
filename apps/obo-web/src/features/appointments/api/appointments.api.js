@@ -46,6 +46,10 @@ export const appointmentsApi = {
     return unwrap(await apiClient.get(`/appointments/management${buildQuery({ appointmentTypeId, status, from, to })}`))
   },
 
+  async cancelManagement(id) {
+    return unwrap(await apiClient.post(`/appointments/management/${encodeId(id)}/cancel`, {}))
+  },
+
   async listMine() {
     return unwrap(await apiClient.get('/appointments/mine'))
   },
