@@ -21,6 +21,34 @@ export const planPermitsApi = {
     return unwrap(await apiClient.get(`/obo/permit-types/${encodeId(id)}/form${query}`))
   },
 
+  async getPermitTypeFormVersion(id, version) {
+    return unwrap(await apiClient.get(`/obo/permit-types/${encodeId(id)}/form/versions/${encodeURIComponent(version)}`))
+  },
+
+  async createPermitType(data) {
+    return unwrap(await apiClient.post('/obo/permit-types', data))
+  },
+
+  async updatePermitType(id, data) {
+    return unwrap(await apiClient.patch(`/obo/permit-types/${encodeId(id)}`, data))
+  },
+
+  async createPermitTypeForm(id, data) {
+    return unwrap(await apiClient.post(`/obo/permit-types/${encodeId(id)}/form`, data))
+  },
+
+  async createPermitTypeFormVersion(id, data) {
+    return unwrap(await apiClient.post(`/obo/permit-types/${encodeId(id)}/form/versions`, data))
+  },
+
+  async updatePermitTypeFormVersion(id, version, data) {
+    return unwrap(await apiClient.patch(`/obo/permit-types/${encodeId(id)}/form/versions/${encodeURIComponent(version)}`, data))
+  },
+
+  async publishPermitTypeFormVersion(id, version) {
+    return unwrap(await apiClient.post(`/obo/permit-types/${encodeId(id)}/form/versions/${encodeURIComponent(version)}/publish`, {}))
+  },
+
   async createApplication(data) {
     return unwrap(await apiClient.post('/obo/applications', data))
   },
