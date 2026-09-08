@@ -100,6 +100,71 @@ describe('OBO professional reference validation', () => {
     expect(mocks.repository.findById).toHaveBeenCalledTimes(2)
   })
 
+  it('rejects a scalar value when multiple selection is enabled', async () => {
+    await expect(service.validateProfessionalReferences({
+      formVersion: formVersion({
+        key: 'architects',
+        label: 'Architects',
+        type: 'reference',
+        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true },
+      }),
+      formValues: { architects: professional().id },
+    })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'TYPE' })] })
+
+    expect(mocks.repository.findById).not.toHaveBeenCalled()
+  })
+
+  it('rejects an array when single selection is configured', async () => {
+    await expect(service.validateProfessionalReferences({
+      formVersion: formVersion({
+        key: 'architect',
+        label: 'Architect',
+        type: 'reference',
+        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false },
+      }),
+      formValues: { architect: [professional().id] },
+    })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'TYPE' })] })
+
+    expect(mocks.repository.findById).not.toHaveBeenCalled()
+  })
+
+  it('rejects duplicate professional references in a multiple field', async () => {
+    const id = professional().id
+    mocks.repository.findById.mockResolvedValue(professional())
+
+    await expect(service.validateProfessionalReferences({
+      formVersion: formVersion({
+        key: 'architects',
+        label: 'Architects',
+        type: 'reference',
+        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true },
+      }),
+      formValues: { architects: [id, id] },
+    })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'DUPLICATE' })] })
+
+    expect(mocks.repository.findById).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not query a professional for invalid reference values', async () => {
+    await expect(service.validateProfessionalReferences({
+      formVersion: formVersion({
+        key: 'architects',
+        label: 'Architects',
+        type: 'reference',
+        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true },
+      }),
+      formValues: { architects: ['invalid-id', 'also-invalid'] },
+    })).rejects.toMatchObject({
+      statusCode: 422,
+      errors: [
+        expect.objectContaining({ code: 'REFERENCE', reference: 'invalid-id' }),
+        expect.objectContaining({ code: 'REFERENCE', reference: 'also-invalid' }),
+      ],
+    })
+
+    expect(mocks.repository.findById).not.toHaveBeenCalled()
+  })
+
   it('rejects a missing required professional reference', async () => {
     await expect(service.validateProfessionalReferences({
       formVersion: formVersion({
