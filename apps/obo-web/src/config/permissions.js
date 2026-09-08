@@ -28,6 +28,7 @@ export const permissions = Object.freeze({
   professionals: Object.freeze({
     read: 'obo_professionals:read',
     create: 'obo_professionals:create',
+    update: 'obo_professionals:update',
     review: 'obo_professionals:review',
   }),
   users: Object.freeze({
