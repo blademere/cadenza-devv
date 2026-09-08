@@ -12,7 +12,8 @@ const unwrap = (value) => value?.data ?? value
 const normalizeAppointment = (value) => {
   let current = unwrap(value)
   if (current?.appointment && typeof current.appointment === 'object') current = unwrap(current.appointment)
-  return current && typeof current === 'object' ? current : null
+  if (!current || typeof current !== 'object' || !current.id) return null
+  return current
 }
 const formatDate = (value) => value ? new Date(value).toLocaleString() : '—'
 
