@@ -23,12 +23,12 @@ const getPermitTypeForm = async (id, version) => {
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) return null
 
-  const publishedVersion = version == null
-    ? permitType.form.versions[0]
+  const formVersion = version == null
+    ? await repository.findLatestDraftFormVersion(permitType.form.id) ?? permitType.form.versions[0]
     : await repository.findPublishedFormVersion(permitType.form.id, version)
 
-  if (!publishedVersion) return null
-  return toFormResponse(permitType, publishedVersion)
+  if (!formVersion) return null
+  return toFormResponse(permitType, formVersion)
 }
 
 const getPermitTypeFormVersion = async (id, version) => {
