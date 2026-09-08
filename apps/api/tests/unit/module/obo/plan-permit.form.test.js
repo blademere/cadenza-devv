@@ -35,6 +35,24 @@ describe('OBO plan permit form resolution', () => {
     })
   })
 
+  it('returns field validation errors to the API error response', async () => {
+    const errors = [
+      { field: 'floorArea', code: 'VALIDATION', message: 'Floor Area must be greater than 0.' },
+      { field: 'projectAddress', code: 'REQUIRED', message: 'Project Address is required.' },
+    ]
+    formService.validateFormValues.mockResolvedValue({ valid: false, errors })
+
+    await expect(resolveAndValidateForm({
+      permitType: { id: 'permit-1', formId: 'form-1' },
+      formVersionId: 'form-version-2',
+      formValues: {},
+    })).rejects.toMatchObject({
+      statusCode: 422,
+      errors,
+      message: 'Permit form validation failed.',
+    })
+  })
+
   it('rejects a stored version that does not belong to the permit type form', async () => {
     repository.findFormVersionById.mockResolvedValue({
       id: 'form-version-2',
