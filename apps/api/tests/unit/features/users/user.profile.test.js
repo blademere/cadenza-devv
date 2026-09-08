@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   findUserWithRole: vi.fn(),
   getByUserId: vi.fn(),
+  create: vi.fn(),
   update: vi.fn(),
   toUserResponse: vi.fn((user) => ({ id: user.id, email: user.email, role: user.role })),
 }))
@@ -22,6 +23,7 @@ vi.mock('../../../../src/features/auth/auth.repository.js', () => ({
 }))
 vi.mock('../../../../src/features/people/people.service.js', () => ({
   getByUserId: mocks.getByUserId,
+  create: mocks.create,
   update: mocks.update,
 }))
 vi.mock('../../../../src/platform/authorization/access-control.repository.js', () => ({
@@ -48,6 +50,20 @@ describe('authenticated person profile service', () => {
       person,
     })
     expect(mocks.getByUserId).toHaveBeenCalledWith(7)
+  })
+
+  it('creates a platform person profile for the authenticated user when missing', async () => {
+    const user = { id: 7, email: 'receiving@example.test', role: { id: 4, name: 'receiving_officer' } }
+    const person = { id: 'person-7', userId: 7, firstName: 'Maria', lastName: 'Officer' }
+    mocks.findUserWithRole.mockResolvedValue(user)
+    mocks.getByUserId.mockRejectedValue(new Error('Person not found.'))
+    mocks.create.mockResolvedValue(person)
+
+    await expect(service.createMyProfile(7, {
+      firstName: 'Maria',
+      lastName: 'Officer',
+      phone: '+63123456789',
+    })).rejects.toThrow('Person not found.')
   })
 
   it('updates only the authenticated user person profile', async () => {
