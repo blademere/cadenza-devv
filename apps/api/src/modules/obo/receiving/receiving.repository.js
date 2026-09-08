@@ -3,7 +3,6 @@ import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 const prisma = getPrismaClient()
 const applicationInclude = {
   permitType: true,
-  professional: true,
   clientPerson: {
     select: {
       id: true,
@@ -47,7 +46,6 @@ const listApplications = async (status, db = prisma) => {
     where: { workflowInstanceId: { not: null } },
     include: {
       permitType: true,
-      professional: true,
       clientPerson: {
         select: {
           id: true,
@@ -84,7 +82,7 @@ const listApplications = async (status, db = prisma) => {
         submissionAppointment: application.submissionAppointment
           ? { ...application.submissionAppointment, appointment: appointmentById.get(appointmentId) || null }
           : null,
-    }
+      }
     })
     .filter(Boolean)
     .filter((application) => application.status === (status || 'SUBMISSION_SCHEDULED'))
