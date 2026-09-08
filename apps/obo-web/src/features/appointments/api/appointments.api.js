@@ -11,16 +11,54 @@ const buildQuery = (params = {}) => {
   return query ? `?${query}` : ''
 }
 
+const encodeId = (id) => encodeURIComponent(id)
+
 export const appointmentsApi = {
-  async listTypes() {
-    return unwrap(await apiClient.get('/appointments/types?active=true'))
+  async listTypes({ active } = {}) {
+    return unwrap(await apiClient.get(`/appointments/types${buildQuery({ active })}`))
   },
 
-  async listSlots({ appointmentTypeId, from, to, status = 'OPEN' } = {}) {
+  async createType(data) {
+    return unwrap(await apiClient.post('/appointments/types', data))
+  },
+
+  async createSchedule(data) {
+    return unwrap(await apiClient.post('/appointments/schedules', data))
+  },
+
+  async listSlots({ appointmentTypeId, from, to, status } = {}) {
     return unwrap(await apiClient.get(`/appointments/slots${buildQuery({ appointmentTypeId, from, to, status })}`))
   },
 
   async createSlot(data) {
     return unwrap(await apiClient.post('/appointments/slots', data))
+  },
+
+  async generateSlots(data) {
+    return unwrap(await apiClient.post('/appointments/slots/generate', data))
+  },
+
+  async listMine() {
+    return unwrap(await apiClient.get('/appointments/mine'))
+  },
+
+  async get(id) {
+    return unwrap(await apiClient.get(`/appointments/${encodeId(id)}`))
+  },
+
+  async cancel(id) {
+    return unwrap(await apiClient.post(`/appointments/${encodeId(id)}/cancel`, {}))
+  },
+
+  async checkIn(id) {
+    return unwrap(await apiClient.post(`/appointments/${encodeId(id)}/check-in`, {}))
+  },
+
+  async noShow(id) {
+    return unwrap(await apiClient.post(`/appointments/${encodeId(id)}/no-show`, {}))
+  },
+
+  async complete(id) {
+    return unwrap(await apiClient.post(`/appointments/${encodeId(id)}/complete`, {}))
   },
 }
