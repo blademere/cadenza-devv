@@ -53,7 +53,7 @@ const findByIdWithForm = (id, db = prisma) => db.oboPermitType.findUnique({
   include: { form: true },
 })
 
-const findByKey = (key, db = prisma) => db.oboPermitType.findUnique({
+const findByKey = (key, db = prisma) => db.form.findUnique({
   where: { key },
 })
 
@@ -77,6 +77,12 @@ const findPublishedFormVersion = (formId, version) => prisma.formVersion.findFir
   include: formVersionInclude,
 })
 
+const findLatestDraftFormVersion = (formId) => prisma.formVersion.findFirst({
+  where: { formId, status: 'DRAFT' },
+  orderBy: { version: 'desc' },
+  include: formVersionInclude,
+})
+
 export {
   listActive,
   findActiveById,
@@ -88,4 +94,5 @@ export {
   attachForm,
   withTransaction,
   findPublishedFormVersion,
+  findLatestDraftFormVersion,
 }
