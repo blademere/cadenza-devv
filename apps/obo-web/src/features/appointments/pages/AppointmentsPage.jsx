@@ -214,18 +214,10 @@ export default function AppointmentsPage() {
               {appointmentsQuery.isLoading ? <LoadingState label="Loading appointments…" /> : null}
               {!appointmentsQuery.isLoading && appointments.length === 0 ? <Alert color="gray" title="No appointments">No appointments match the current filters.</Alert> : null}
               {appointments.map((item) => {
-                const checkInAvailable = item.status === 'CONFIRMED' && isCheckInWindowOpen(item, now)
+                const checkInOpen = item.status === 'CONFIRMED' && isCheckInWindowOpen(item, now)
                 const startsAt = item.slot?.startsAt ? new Date(item.slot.startsAt) : null
                 const endsAt = item.slot?.endsAt ? new Date(item.slot.endsAt) : null
                 const hasValidWindow = startsAt && endsAt && !Number.isNaN(startsAt.getTime()) && !Number.isNaN(endsAt.getTime())
-                const checkInMessage = !hasValidWindow
-                  ? 'Check-in unavailable: appointment slot time is missing.'
-                  : now < startsAt
-                    ? `Check-in available at ${formatDateTime(item.slot.startsAt)}.`
-                    : now > endsAt
-                      ? 'Check-in window ended.'
-                      : 'Check-in is available now.'
-
                 return (
                   <Stack key={item.id} className="obo-panel" p="md" gap="xs">
                     <Group justify="space-between"><div><Text fw={700}>{item.referenceNumber ?? item.id}</Text><Text size="sm" c="dimmed">User ID: {item.userId ?? '—'}</Text></div><StatusChip status={item.status} /></Group>
@@ -233,7 +225,7 @@ export default function AppointmentsPage() {
                     {item.notes ? <Text size="sm" c="dimmed">{item.notes}</Text> : null}
                     <Group>
                       {['PENDING', 'CONFIRMED'].includes(item.status) ? <Button size="xs" variant="default" onClick={() => action(cancel, item.id)} loading={cancel.isPending}>Cancel</Button> : null}
-                      {item.status === 'CONFIRMED' ? <><Button size="xs" onClick={() => action(checkIn, item.id)} loading={checkIn.isPending} disabled={!checkInAvailable} title={checkInMessage}>Check in</Button><Text size="xs" c="dimmed" lh={1.4}>{checkInMessage}</Text><Button size="xs" variant="default" onClick={() => action(noShow, item.id)} loading={noShow.isPending}>No-show</Button></> : null}
+                      {item.status === 'CONFIRMED' ? <><Button size="xs" onClick={() => action(checkIn, item.id)} loading={checkIn.isPending} disabled={!checkInOpen}>{checkInOpen ? 'Check in' : hasValidWindow && now < startsAt ? `Check in at ${formatDateTime(startsAt)}` : 'Check-in window ended'}</Button><Button size="xs" variant="default" onClick={() => action(noShow, item.id)} disabled={hasValidWindow && now > endsAt} loading={noShow.isPending}>No-show</Button></> : null}
                       {item.status === 'CHECKED_IN' ? <Button size="xs" onClick={() => action(complete, item.id)} loading={complete.isPending}>Complete</Button> : null}
                     </Group>
                   </Stack>
@@ -253,4 +245,8 @@ function BoxedSection({ title, description }) {
 
 function DividerLabel({ label }) {
   return <Group gap="sm" mt="md"><Text size="sm" fw={700}>{label}</Text><Divider flex={1} /></Group>
+}
+
+function BoxedRow({ children }) {
+  return <Group justify="space-between" align="center" className="obo-panel" p="md">{children}</Group>
 }
