@@ -155,6 +155,7 @@ const validateSubmissionProfessionals = async (application) => {
     formKey: form.key,
     version: formVersion.version,
     values: application.formValues,
+    requireRequired: true,
   })
   if (!validation.valid) {
     throw new ValidationError('Permit form validation failed.', validation.errors)
