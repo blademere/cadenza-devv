@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Alert, Badge, Box, Button, Divider, Group, Select, Stack, Text, Textarea } from '@mantine/core'
+import { Alert, Badge, Box, Button, Divider, Group, Select, SimpleGrid, Stack, Text, Textarea } from '@mantine/core'
 import { ArrowLeft, CheckCircle } from '@phosphor-icons/react'
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
@@ -12,7 +12,17 @@ import { useDecideReceivingApplication, useReceiveApplication } from '../mutatio
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—')
 const personName = (person) => [person?.firstName, person?.middleName, person?.lastName, person?.suffix].filter(Boolean).join(' ') || person?.email || '—'
-const professionalName = (professional) => professional?.name || [professional?.firstName, professional?.lastName].filter(Boolean).join(' ') || professional?.email || '—'
+const humanizeKey = (key) => String(key ?? '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/^./, (value) => value.toUpperCase())
+const snapshotEntries = (snapshots) => {
+  if (!snapshots || typeof snapshots !== 'object' || Array.isArray(snapshots)) return []
+  return Object.entries(snapshots).flatMap(([fieldKey, value]) => (Array.isArray(value) ? value : [value]).filter(Boolean).map((professional, index) => ({ fieldKey, key: `${fieldKey}-${professional.professionalId ?? index}`, professional })))
+}
+
+function ProfessionalReferences({ application }) {
+  const entries = snapshotEntries(application.professionalSnapshots)
+  if (!entries.length) return <Text size="sm" c="dimmed">No submitted professional snapshot is available.</Text>
+  return <Stack gap="md">{entries.map(({ fieldKey, key, professional }) => <Box key={key} p="sm" style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 8 }}><Group justify="space-between" align="flex-start"><Box><Text size="xs" c="dimmed">{humanizeKey(fieldKey)}</Text><Text fw={600}>{professional.name ?? '—'}</Text></Box><Badge variant="light">{professional.role ?? 'Professional'}</Badge></Group><SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs" mt="sm"><Box><Text size="xs" c="dimmed">Registration</Text><Text size="sm">{professional.registrationNumber ?? '—'}</Text></Box><Box><Text size="xs" c="dimmed">PRC ID</Text><Text size="sm">{professional.prcId ?? '—'}</Text></Box><Box><Text size="xs" c="dimmed">PTR</Text><Text size="sm">{professional.ptrNumber ?? '—'}</Text></Box></SimpleGrid></Box>)}</Stack>
+}
 
 export default function ReceivingApplicationPage() {
   const { applicationId } = useParams()
@@ -55,7 +65,7 @@ export default function ReceivingApplicationPage() {
       <Stack gap="md">
         <Box><Text size="xs" c="dimmed">Applicant</Text><Text fw={600}>{personName(application.clientPerson)}</Text><Text size="sm" c="dimmed">{application.clientPerson?.email ?? '—'}{application.clientPerson?.phone ? ` · ${application.clientPerson.phone}` : ''}</Text></Box>
         <Box><Text size="xs" c="dimmed">Permit type</Text><Text fw={600}>{application.permitType?.name ?? '—'}</Text></Box>
-        <Box><Text size="xs" c="dimmed">Professional</Text><Text fw={600}>{professionalName(application.professional)}</Text><Text size="sm" c="dimmed">Verification: {application.professional?.status ?? '—'}</Text></Box>
+        <Box><Text size="xs" c="dimmed">Professionals</Text><Box mt="xs"><ProfessionalReferences application={application} /></Box></Box>
         <Box><Text size="xs" c="dimmed">Submission appointment</Text><Text fw={600}>{appointment?.slot?.startsAt ? `${formatDate(appointment.slot.startsAt)} – ${formatDate(appointment.slot.endsAt)}` : '—'}</Text><Text size="sm" c="dimmed">{appointment?.appointmentType?.name ?? 'OBO hardcopy submission'} · {appointment?.status ?? '—'}</Text>{appointment?.notes && <Text size="sm" mt={4}>{appointment.notes}</Text>}</Box>
         <Box><Text size="xs" c="dimmed">Hard-copy received</Text><Text fw={600}>{formatDate(application.submittedAt)}</Text></Box>
       </Stack>
