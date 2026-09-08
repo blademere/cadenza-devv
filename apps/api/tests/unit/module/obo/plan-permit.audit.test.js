@@ -97,6 +97,33 @@ describe('OBO plan permit auditability', () => {
     }))
   })
 
+  it('audits a draft form-version change even when form values are unchanged', async () => {
+    spies.findFormVersionById.mockResolvedValue({
+      id: 'form-version-2',
+      formId: 'form-1',
+      version: 3,
+      status: 'PUBLISHED',
+    })
+
+    await service.updateDraft({
+      id: 'application-1',
+      userId: 'user-1',
+      formVersionId: 'form-version-2',
+      formValues: { architect: 'professional-a', projectAddress: 'Old address' },
+    })
+
+    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: 'user-1',
+      action: 'OBO_PERMIT_APPLICATION_FORM_VERSION_CHANGED',
+      entityType: 'OboPermitApplication',
+      entityId: 'application-1',
+      before: 'form-version-1',
+      after: 'form-version-2',
+      metadata: expect.objectContaining({ referenceNumber: 'BP-1' }),
+      db: { tx: true },
+    }))
+  })
+
   it('does not create audit records for unchanged draft fields', async () => {
     await service.updateDraft({
       id: 'application-1',
@@ -175,6 +202,7 @@ describe('OBO plan permit auditability', () => {
       metadata: expect.objectContaining({
         formVersionId: 'form-version-1',
         referenceNumber: 'BP-1',
+        professionalFieldKeys: ['architect'],
       }),
       db: { tx: true },
     }))
