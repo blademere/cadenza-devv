@@ -18,6 +18,7 @@ beforeEach(() => {
     },
   })
   repository.findPublishedFormVersion.mockResolvedValue({ id: 'form-version-2', version: 2, status: 'PUBLISHED', sections: [{ id: 'section-2' }], fields: [{ id: 'field-2' }], documentRequirements: [] })
+  repository.withTransaction.mockImplementation(async (callback) => callback({ name: 'transaction-client' }))
   auditService.recordAudit.mockResolvedValue(undefined)
 })
 
@@ -40,16 +41,19 @@ describe('OBO permit type form service', () => {
     expect(formService.getFormVersion).toHaveBeenCalledWith({ formKey: 'building-permit-form', version: 4 })
   })
 
-  it('creates and attaches a form to a permit type with version one as draft', async () => {
+  it('creates and atomically attaches a form to a permit type with version one as draft', async () => {
     const permitType = { id: 'permit-1', key: 'building-permit', name: 'Building Permit', isActive: true, formId: null }
     const form = { id: 'form-1', key: 'building-permit-form', name: 'Building Permit Application', versions: [{ version: 1, status: 'DRAFT' }] }
-    repository.findById.mockResolvedValue(permitType)
+    const tx = { name: 'transaction-client' }
+    repository.findById.mockResolvedValueOnce(permitType).mockResolvedValueOnce(permitType)
     repository.attachForm.mockResolvedValue({ ...permitType, formId: form.id })
     formService.createForm.mockResolvedValue(form)
 
     await expect(service.createPermitTypeForm({ actorId: 'user-1', permitTypeId: 'permit-1', data: { key: 'building-permit-form', name: 'Building Permit Application', description: 'Building permit form', sections: [{ key: 'applicant', title: 'Applicant Information' }], fields: [{ key: 'name', label: 'Applicant Name', type: 'text', required: true, sectionKey: 'applicant' }] } })).resolves.toEqual(form)
-    expect(formService.createForm).toHaveBeenCalledWith(expect.objectContaining({ key: 'building-permit-form', entityType: 'OboPermitApplication' }))
-    expect(repository.attachForm).toHaveBeenCalledWith('permit-1', 'form-1')
+    expect(repository.withTransaction).toHaveBeenCalled()
+    expect(formService.createForm).toHaveBeenCalledWith(expect.objectContaining({ key: 'building-permit-form', entityType: 'OboPermitApplication', db: tx }))
+    expect(repository.attachForm).toHaveBeenCalledWith('permit-1', 'form-1', tx)
+    expect(auditService.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'OBO_PERMIT_TYPE_FORM_ATTACHED', entityId: 'permit-1', db: tx }))
     expect(form.versions[0]).toMatchObject({ version: 1, status: 'DRAFT' })
   })
 
