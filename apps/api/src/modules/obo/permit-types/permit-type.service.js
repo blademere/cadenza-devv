@@ -9,6 +9,7 @@ const toFormResponse = (permitType, formVersion) => ({
   name: permitType.form.name,
   description: permitType.form.description,
   version: formVersion.version,
+  status: formVersion.status,
   formVersionId: formVersion.id,
   sections: formVersion.sections,
   fields: formVersion.fields,
@@ -30,6 +31,14 @@ const getPermitTypeForm = async (id, version) => {
   return toFormResponse(permitType, publishedVersion)
 }
 
+const getPermitTypeFormVersion = async (id, version) => {
+  const permitType = await repository.findByIdWithForm(id)
+  if (!permitType) throw new NotFoundError('Permit type not found.')
+  if (!permitType.form) throw new NotFoundError('Permit type form not found.')
+  const formVersion = await formService.getFormVersion({ formKey: permitType.form.key, version })
+  return toFormResponse(permitType, formVersion)
+}
+
 const createPermitType = async ({ actorId, data }) => {
   try {
     return await repository.withTransaction(async (tx) => {
@@ -49,9 +58,7 @@ const createPermitType = async ({ actorId, data }) => {
       return created
     })
   } catch (error) {
-    if (error?.code === 'P2002') {
-      throw new ConflictError('A permit type with this key already exists.')
-    }
+    if (error?.code === 'P2002') throw new ConflictError('A permit type with this key already exists.')
     throw error
   }
 }
@@ -64,9 +71,7 @@ const updatePermitType = async ({ actorId, id, data }) => {
 
       if (data.key && data.key !== before.key) {
         const existing = await repository.findByKey(data.key, tx)
-        if (existing && existing.id !== id) {
-          throw new ConflictError('A permit type with this key already exists.')
-        }
+        if (existing && existing.id !== id) throw new ConflictError('A permit type with this key already exists.')
       }
 
       const updated = await repository.update(id, data, tx)
@@ -82,9 +87,7 @@ const updatePermitType = async ({ actorId, id, data }) => {
       return updated
     })
   } catch (error) {
-    if (error?.code === 'P2002') {
-      throw new ConflictError('A permit type with this key already exists.')
-    }
+    if (error?.code === 'P2002') throw new ConflictError('A permit type with this key already exists.')
     throw error
   }
 }
@@ -146,6 +149,32 @@ const createPermitTypeFormVersion = async ({ actorId, permitTypeId, data }) => {
   return version
 }
 
+const updatePermitTypeFormVersion = async ({ actorId, permitTypeId, version, data }) => {
+  const permitType = await repository.findByIdWithForm(permitTypeId)
+  if (!permitType) throw new NotFoundError('Permit type not found.')
+  if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot update form versions.')
+  if (!permitType.form) throw new NotFoundError('Permit type form not found.')
+
+  const updated = await formService.updateFormVersion({
+    formKey: permitType.form.key,
+    version,
+    sections: data.sections ?? [],
+    fields: data.fields,
+    actorId,
+  })
+
+  await recordAudit({
+    actorId,
+    action: 'OBO_FORM_VERSION_UPDATED',
+    entityType: 'FormVersion',
+    entityId: updated.id,
+    before: null,
+    after: updated,
+  })
+
+  return updated
+}
+
 const publishPermitTypeFormVersion = async ({ actorId, permitTypeId, version }) => {
   const permitType = await repository.findByIdWithForm(permitTypeId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
@@ -173,9 +202,11 @@ const publishPermitTypeFormVersion = async ({ actorId, permitTypeId, version }) 
 export {
   listPermitTypes,
   getPermitTypeForm,
+  getPermitTypeFormVersion,
   createPermitType,
   updatePermitType,
   createPermitTypeForm,
   createPermitTypeFormVersion,
+  updatePermitTypeFormVersion,
   publishPermitTypeFormVersion,
 }
