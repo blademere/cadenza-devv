@@ -106,7 +106,35 @@ const updateAppointmentStatus = async ({ id, actorId, fromStatus, status, timest
     return after
   })
 
-const checkInAppointment = ({ id, actorId }) => updateAppointmentStatus({ id, actorId, fromStatus: APPOINTMENT_STATUS.CONFIRMED, status: APPOINTMENT_STATUS.CHECKED_IN, timestampField: 'checkedInAt' })
+const checkInAppointment = async ({ id, actorId }) =>
+  repository.withTransaction(async (tx) => {
+    const appointment = await repository.getAppointmentWithRelations(id, tx)
+    if (!appointment) throw new NotFoundError('Appointment not found.')
+    if (appointment.status !== APPOINTMENT_STATUS.CONFIRMED) {
+      throw new ConflictError('Only confirmed appointments can be checked in.')
+    }
+
+    const now = new Date()
+    if (now < appointment.slot.startsAt) {
+      throw new ConflictError('The appointment check-in window has not started yet.')
+    }
+    if (now > appointment.slot.endsAt) {
+      throw new ConflictError('The appointment check-in window has already ended.')
+    }
+
+    const updated = await repository.transitionAppointment({
+      id,
+      fromStatus: APPOINTMENT_STATUS.CONFIRMED,
+      status: APPOINTMENT_STATUS.CHECKED_IN,
+      timestampField: 'checkedInAt',
+    }, tx)
+    if (updated.count !== 1) throw new ConflictError('Only confirmed appointments can be checked in.')
+
+    const after = await repository.getAppointmentWithRelations(id, tx)
+    await recordAudit({ actorId, action: `APPOINTMENT_${APPOINTMENT_STATUS.CHECKED_IN}`, entityType: 'Appointment', entityId: id, before: appointment, after, db: tx })
+    return after
+  })
+
 const completeAppointment = ({ id, actorId }) => updateAppointmentStatus({ id, actorId, fromStatus: APPOINTMENT_STATUS.CHECKED_IN, status: APPOINTMENT_STATUS.COMPLETED, timestampField: 'completedAt' })
 const markNoShow = ({ id, actorId }) => updateAppointmentStatus({ id, actorId, fromStatus: APPOINTMENT_STATUS.CONFIRMED, status: APPOINTMENT_STATUS.NO_SHOW, timestampField: 'noShowAt' })
 
