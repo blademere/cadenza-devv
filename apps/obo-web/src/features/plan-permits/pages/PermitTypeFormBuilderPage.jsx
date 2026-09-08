@@ -11,7 +11,7 @@ import { useCreatePermitTypeForm, useCreatePermitTypeFormVersion, usePermitTypeF
 
 const unwrap = (value) => value?.data ?? value
 
-const toPayload = (definition) => ({
+export const toPayload = (definition) => ({
   sections: (definition.sections ?? []).map((section, index) => ({ key: section.key, title: section.title, description: section.description ?? null, sortOrder: index })),
   fields: (definition.fields ?? []).map((field, index) => ({
     key: field.key, label: field.label, description: field.description ?? null, type: field.type, sortOrder: index, required: Boolean(field.required), sectionKey: field.sectionKey ?? null,
