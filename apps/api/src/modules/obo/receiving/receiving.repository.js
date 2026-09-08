@@ -1,8 +1,10 @@
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
+const formVersionInclude = { include: { fields: { orderBy: { sortOrder: 'asc' } }, sections: { orderBy: { sortOrder: 'asc' } } } }
 const applicationInclude = {
   permitType: true,
+  formVersion: formVersionInclude,
   clientPerson: {
     select: {
       id: true,
@@ -46,6 +48,7 @@ const listApplications = async (status, db = prisma) => {
     where: { workflowInstanceId: { not: null } },
     include: {
       permitType: true,
+      formVersion: formVersionInclude,
       clientPerson: {
         select: {
           id: true,
