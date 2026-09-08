@@ -12,6 +12,7 @@ import ApplicationFormPage from '../features/plan-permits/pages/ApplicationFormP
 import ApplicationDetailsPage from '../features/plan-permits/pages/ApplicationDetailsPage'
 import PermitTypesPage from '../features/plan-permits/pages/PermitTypesPage'
 import PermitTypeDetailsPage from '../features/plan-permits/pages/PermitTypeDetailsPage'
+import PermitTypeFormEditPage from '../features/plan-permits/pages/PermitTypeFormEditPage'
 import SubmissionAppointmentPage from '../features/submission-appointments/pages/SubmissionAppointmentPage'
 import ReceivingPage from '../features/receiving/pages/ReceivingPage'
 import ReceivingApplicationPage from '../features/receiving/pages/ReceivingApplicationPage'
@@ -24,7 +25,6 @@ import GuestRoute from './router/GuestRoute'
 import AuthorizationRoute from './router/AuthorizationRoute'
 import { permissions } from '../config/permissions'
 
-const route = (path, title, permission) => ({ element: <AuthorizationRoute requiredPermission={permission} />, children: [{ path, element: <RoutePlaceholder title={title} /> }] })
 const protectedPage = (path, element, permission) => ({ element: <AuthorizationRoute requiredPermission={permission} />, children: [{ path, element }] })
 
 export const router = createBrowserRouter([
@@ -39,8 +39,9 @@ export const router = createBrowserRouter([
       protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.planPermits.read),
       protectedPage('applications/:applicationId/edit', <ApplicationFormPage />, permissions.planPermits.update),
       protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.planPermits.read),
-      protectedPage('permit-types', <PermitTypesPage />, permissions.planPermits.read),
-      protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.planPermits.read),
+      protectedPage('permit-types', <PermitTypesPage />, permissions.permitTypes.read),
+      protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.permitTypes.read),
+      protectedPage('permit-types/:permitTypeId/form/edit', <PermitTypeFormEditPage />, permissions.forms.update),
       protectedPage('receiving', <ReceivingPage />, permissions.planPermits.receive),
       protectedPage('receiving/:applicationId', <ReceivingApplicationPage />, permissions.planPermits.receive),
       protectedPage('professionals', <ProfessionalsPage />, permissions.professionals.read),
