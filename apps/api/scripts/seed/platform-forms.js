@@ -8,6 +8,7 @@ const PLAN_PERMIT_FORM = {
     { key: 'project', title: 'Project Information', sortOrder: 0 },
     { key: 'site', title: 'Project Site', sortOrder: 1 },
     { key: 'construction', title: 'Construction Details', sortOrder: 2 },
+    { key: 'professionals', title: 'Professionals', sortOrder: 3 },
   ],
   fields: [
     { key: 'projectName', label: 'Project Name', type: 'text', required: true, sectionKey: 'project', sortOrder: 0 },
@@ -33,6 +34,19 @@ const PLAN_PERMIT_FORM = {
     { key: 'estimatedCost', label: 'Estimated Construction Cost', type: 'number', required: true, sectionKey: 'construction', sortOrder: 3, validation: [
       { operator: 'min', value: 1, message: 'Estimated construction cost must be greater than 0.' },
     ] },
+    {
+      key: 'architect',
+      label: 'Architect',
+      type: 'reference',
+      required: true,
+      sectionKey: 'professionals',
+      sortOrder: 0,
+      config: {
+        referenceType: 'obo_professional',
+        professionalRole: 'ARCHITECT',
+        multiple: false,
+      },
+    },
   ],
 }
 
@@ -61,11 +75,12 @@ async function seedPlatformForms(prisma) {
   })
 
   for (const section of PLAN_PERMIT_FORM.sections) {
-    await prisma.formSection.upsert({
+    const sectionRecord = await prisma.formSection.upsert({
       where: { formVersionId_key: { formVersionId: version.id, key: section.key } },
       update: { title: section.title, sortOrder: section.sortOrder },
       create: { formVersionId: version.id, ...section },
     })
+    void sectionRecord
   }
 
   const sections = await prisma.formSection.findMany({ where: { formVersionId: version.id } })
@@ -82,6 +97,7 @@ async function seedPlatformForms(prisma) {
         required: field.required,
         sortOrder: field.sortOrder,
         validation: field.validation || undefined,
+        config: field.config || undefined,
       },
       create: {
         formVersionId: version.id,
@@ -92,6 +108,7 @@ async function seedPlatformForms(prisma) {
         required: field.required,
         sortOrder: field.sortOrder,
         validation: field.validation || undefined,
+        config: field.config || undefined,
       },
     })
 
