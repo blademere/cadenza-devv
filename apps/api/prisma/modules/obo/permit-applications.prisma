@@ -17,7 +17,6 @@ model OboPermitApplication {
   caseRecord            CaseRecord                @relation(fields: [caseId], references: [id], onDelete: Restrict)
   permitType            OboPermitType             @relation(fields: [permitTypeId], references: [id], onDelete: Restrict)
   clientPerson          Person                    @relation("OboApplicationClient", fields: [clientPersonId], references: [id], onDelete: Restrict)
-  formVersion           FormVersion?              @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
   workflowInstance      WorkflowInstance?         @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
   acceptedBy            User?                     @relation("OboApplicationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
   replacedApplication   OboPermitApplication?     @relation("OboPermitApplicationReplacement", fields: [replacesApplicationId], references: [id], onDelete: Restrict)
@@ -30,4 +29,5 @@ model OboPermitApplication {
   @@index([clientPersonId, createdAt])
   @@index([permitTypeId])
   @@index([replacesApplicationId])
+  @@index([formVersionId])
 }
