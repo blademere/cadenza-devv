@@ -99,7 +99,7 @@ const createForm = async ({
   const form = await prisma.$transaction(async (tx) => {
     const created = await tx.form.create({ data: { key, name, description, entityType } })
     const version = await tx.formVersion.create({
-      data: { formId: created.id, version: 1, status: FORM_STATUS.PUBLISHED },
+      data: { formId: created.id, version: 1, status: FORM_STATUS.DRAFT },
     })
     await createDefinitionRecords(tx, version.id, sections, fields)
     return tx.form.findUnique({ where: { id: created.id }, include: includeDefinition })
