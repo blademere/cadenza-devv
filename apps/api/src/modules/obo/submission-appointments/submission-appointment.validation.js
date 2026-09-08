@@ -17,4 +17,9 @@ const createSubmissionAppointmentValidator = async (req) => ({
   body: createSubmissionAppointmentBody.parse(req.body || {}),
 })
 
-export { applicationParamsValidator, createSubmissionAppointmentValidator }
+const replaceSubmissionAppointmentValidator = async (req) => ({
+  params: applicationParams.parse(req.params),
+  body: createSubmissionAppointmentBody.parse(req.body || {}),
+})
+
+export { applicationParamsValidator, createSubmissionAppointmentValidator, replaceSubmissionAppointmentValidator }
