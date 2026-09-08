@@ -5,7 +5,7 @@ import { permissions } from '../../../config/permissions'
 import PermissionGate from '../../authorization/components/PermissionGate'
 import LoadingState from '../../../components/common/LoadingState'
 import { useAppointmentTypes, useAvailableAppointmentSlots } from '../queries/submission-appointments.queries'
-import { useScheduleSubmissionAppointment } from '../mutations/submission-appointments.mutations'
+import { useRescheduleSubmissionAppointment, useScheduleSubmissionAppointment } from '../mutations/submission-appointments.mutations'
 
 const SUBMISSION_APPOINTMENT_TYPE_KEY = 'obo-hardcopy-submission'
 
@@ -25,7 +25,7 @@ const dayKey = (value) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-export default function SubmissionAppointmentScheduler({ applicationId }) {
+export default function SubmissionAppointmentScheduler({ applicationId, reschedule = false }) {
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedSlotId, setSelectedSlotId] = useState(null)
   const [notes, setNotes] = useState('')
@@ -42,6 +42,8 @@ export default function SubmissionAppointmentScheduler({ applicationId }) {
     { enabled: Boolean(appointmentTypeId) },
   )
   const scheduleMutation = useScheduleSubmissionAppointment(applicationId)
+  const rescheduleMutation = useRescheduleSubmissionAppointment(applicationId)
+  const mutation = reschedule ? rescheduleMutation : scheduleMutation
 
   const slots = useMemo(
     () => asArray(slotsQuery.data)
@@ -84,7 +86,7 @@ export default function SubmissionAppointmentScheduler({ applicationId }) {
 
   const submit = async () => {
     if (!appointmentTypeId || !selectedSlotId) return
-    await scheduleMutation.mutateAsync({
+    await mutation.mutateAsync({
       appointmentTypeId,
       slotId: selectedSlotId,
       ...(notes.trim() ? { notes: notes.trim() } : {}),
@@ -99,7 +101,7 @@ export default function SubmissionAppointmentScheduler({ applicationId }) {
       <Stack className="obo-panel" p="lg" gap="lg">
         <Group justify="space-between" align="flex-start">
           <Stack gap={3}>
-            <Text fw={700}>Schedule submission appointment</Text>
+            <Text fw={700}>{reschedule ? 'Change submission appointment' : 'Schedule submission appointment'}</Text>
             <Text size="sm" c="dimmed">Choose an available date and time for your physical hardcopy submission.</Text>
           </Stack>
           <CalendarBlank size={24} weight="regular" aria-hidden />
@@ -131,7 +133,7 @@ export default function SubmissionAppointmentScheduler({ applicationId }) {
               onChange={selectDate}
               searchable
               clearable
-              disabled={scheduleMutation.isPending || slotsQuery.isLoading || dateOptions.length === 0}
+              disabled={mutation.isPending || slotsQuery.isLoading || dateOptions.length === 0}
             />
 
             {slotsQuery.isLoading ? <LoadingState label="Loading available slots…" /> : null}
@@ -153,7 +155,7 @@ export default function SubmissionAppointmentScheduler({ applicationId }) {
                         variant={selectedSlotId === slot.id ? 'filled' : 'light'}
                         leftSection={selectedSlotId === slot.id ? <CheckCircle size={16} aria-hidden /> : undefined}
                         onClick={() => setSelectedSlotId(slot.id)}
-                        disabled={scheduleMutation.isPending}
+                        disabled={mutation.isPending}
                       >
                         {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
                       </Button>
@@ -182,19 +184,19 @@ export default function SubmissionAppointmentScheduler({ applicationId }) {
           value={notes}
           onChange={(event) => setNotes(event.currentTarget.value)}
           maxLength={2000}
-          disabled={scheduleMutation.isPending}
+          disabled={mutation.isPending}
         />
 
-        {scheduleMutation.error ? <Alert color="red" title="Unable to schedule appointment">{scheduleMutation.error.message}</Alert> : null}
-        {scheduleMutation.isSuccess ? <Alert color="green" title="Appointment confirmed">Your hardcopy submission appointment has been scheduled.</Alert> : null}
+        {mutation.error ? <Alert color="red" title="Unable to change appointment">{mutation.error.message}</Alert> : null}
+        {mutation.isSuccess ? <Alert color="green" title="Appointment confirmed">Your hardcopy submission appointment has been scheduled.</Alert> : null}
 
         <Group justify="flex-end">
           <Button
             onClick={submit}
-            loading={scheduleMutation.isPending}
-            disabled={!appointmentTypeId || !selectedSlotId || slotsQuery.isLoading || Boolean(scheduleMutation.isSuccess)}
+            loading={mutation.isPending}
+            disabled={!appointmentTypeId || !selectedSlotId || slotsQuery.isLoading || Boolean(mutation.isSuccess)}
           >
-            Confirm schedule
+            {reschedule ? 'Confirm new schedule' : 'Confirm schedule'}
           </Button>
         </Group>
       </Stack>
