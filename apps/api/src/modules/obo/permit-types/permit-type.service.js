@@ -98,29 +98,40 @@ const createPermitTypeForm = async ({ actorId, permitTypeId, data }) => {
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot receive forms.')
   if (permitType.formId) throw new ConflictError('This permit type already has a form.')
 
-  const form = await formService.createForm({
-    key: data.key,
-    name: data.name,
-    description: data.description ?? null,
-    entityType: data.entityType ?? 'OboPermitApplication',
-    sections: data.sections ?? [],
-    fields: data.fields,
-    actorId,
-  })
-
   try {
-    const updated = await repository.attachForm(permitTypeId, form.id)
-    await recordAudit({
-      actorId,
-      action: 'OBO_PERMIT_TYPE_FORM_ATTACHED',
-      entityType: 'OboPermitType',
-      entityId: permitTypeId,
-      before: permitType,
-      after: updated,
+    return await repository.withTransaction(async (tx) => {
+      const existing = await repository.findById(permitTypeId, tx)
+      if (!existing) throw new NotFoundError('Permit type not found.')
+      if (!existing.isActive) throw new ConflictError('Inactive permit types cannot receive forms.')
+      if (existing.formId) throw new ConflictError('This permit type already has a form.')
+
+      const form = await formService.createForm({
+        key: data.key,
+        name: data.name,
+        description: data.description ?? null,
+        entityType: data.entityType ?? 'OboPermitApplication',
+        sections: data.sections ?? [],
+        fields: data.fields,
+        actorId,
+        db: tx,
+      })
+
+      const updated = await repository.attachForm(permitTypeId, form.id, tx)
+      await recordAudit({
+        actorId,
+        action: 'OBO_PERMIT_TYPE_FORM_ATTACHED',
+        entityType: 'OboPermitType',
+        entityId: permitTypeId,
+        before: existing,
+        after: updated,
+        db: tx,
+      })
+
+      return form
     })
-    return form
   } catch (error) {
-    throw new ConflictError('The form was created but could not be attached to the permit type.')
+    if (error?.code === 'P2002') throw new ConflictError('A form with this key already exists.')
+    throw error
   }
 }
 
