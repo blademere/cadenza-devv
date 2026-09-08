@@ -27,7 +27,7 @@ const ReceivingIcon = createIcon(Archive)
 const ProfessionalsIcon = createIcon(UsersThree)
 const VerificationIcon = createIcon(UserCheck)
 const InspectionsIcon = createIcon(MagnifyingGlass)
-const AppointmentSlotsIcon = createIcon(CalendarPlus)
+const AppointmentsIcon = createIcon(CalendarPlus)
 const UsersIcon = createIcon(UsersThree)
 const RolesIcon = createIcon(ShieldCheck)
 const ProfileIcon = createIcon(UserCircle)
@@ -54,7 +54,7 @@ export const navigation = Object.freeze([
     name: 'Operations',
     items: [
       { key: 'receiving', name: 'Receiving', route: '/app/receiving', requiredPermissions: [permissions.planPermits.receive], icon: ReceivingIcon },
-      { key: 'appointment-slots', name: 'Appointment Slots', route: '/app/appointments/slots', requiredPermissions: [permissions.appointments.manage], icon: AppointmentSlotsIcon },
+      { key: 'appointments', name: 'Appointments', route: '/app/appointments', requiredPermissions: [permissions.appointments.manage], icon: AppointmentsIcon },
       { key: 'professionals', name: 'Professionals', route: '/app/professionals', requiredPermissions: [permissions.professionals.read], icon: ProfessionalsIcon },
       { key: 'professional-verification', name: 'Professional Verification', route: '/app/professionals/verification', requiredPermissions: [permissions.professionals.review], icon: VerificationIcon },
       { key: 'professional-verification-apply', name: 'Apply for Verification', route: '/app/professionals/verification/apply', requiredPermissions: [permissions.professionals.create], icon: VerificationIcon },
