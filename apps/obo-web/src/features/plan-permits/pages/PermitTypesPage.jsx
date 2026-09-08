@@ -16,6 +16,11 @@ export default function PermitTypesPage() {
   const [opened, setOpened] = useState(false)
   const [form, setForm] = useState({ key: '', name: '', description: '' })
 
+  const updateForm = (field) => (event) => {
+    const value = event.currentTarget.value
+    setForm((current) => ({ ...current, [field]: value }))
+  }
+
   const submit = () => {
     createPermitType.mutate({ ...form, description: form.description || null }, {
       onSuccess: (created) => {
@@ -48,9 +53,9 @@ export default function PermitTypesPage() {
 
       <Modal opened={opened} onClose={() => setOpened(false)} title="Add Permit Type" centered>
         <Stack>
-          <TextInput label="Name" required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.currentTarget.value }))} />
-          <TextInput label="Key" required description="Use lowercase letters, numbers, hyphens, or underscores." value={form.key} onChange={(event) => setForm((current) => ({ ...current, key: event.currentTarget.value }))} />
-          <Textarea label="Description" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.currentTarget.value }))} autosize minRows={3} />
+          <TextInput label="Name" required value={form.name} onChange={updateForm('name')} />
+          <TextInput label="Key" required description="Use lowercase letters, numbers, hyphens, or underscores." value={form.key} onChange={updateForm('key')} />
+          <Textarea label="Description" value={form.description} onChange={updateForm('description')} autosize minRows={3} />
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setOpened(false)}>Cancel</Button>
             <Button onClick={submit} loading={createPermitType.isPending}>Create</Button>
