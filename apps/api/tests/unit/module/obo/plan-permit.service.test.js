@@ -87,14 +87,136 @@ describe('OBO plan permit service', () => {
     await expect(service.updateDraft({ id: 'application-1', userId: 'user-1', formValues: {} })).rejects.toThrow('Only draft applications can be updated')
   })
 
-  it('requires a declined application when creating a replacement', async () => {
+  it('rejects updates when the application is not owned by the client', async () => {
+    spies.findPersonByUserId.mockResolvedValue(person)
+    spies.findOwnedByClient.mockResolvedValue(null)
+
+    await expect(service.updateDraft({
+      id: 'application-other',
+      userId: 'user-1',
+      formValues: { projectAddress: 'Other address' },
+    })).rejects.toThrow('Permit application not found')
+
+    expect(spies.findProfessional).not.toHaveBeenCalled()
+    expect(spies.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects updates with an unverified professional', async () => {
+    spies.findPersonByUserId.mockResolvedValue(person)
+    spies.findOwnedByClient.mockResolvedValue({
+      id: 'application-1',
+      workflowInstanceId: 'workflow-1',
+      professionalId: 'professional-1',
+      formVersionId: null,
+      permitType,
+    })
+    spies.findProfessional.mockResolvedValue({ id: 'professional-1', status: 'PENDING_VERIFICATION' })
+
+    await expect(service.updateDraft({
+      id: 'application-1',
+      userId: 'user-1',
+      professionalId: 'professional-1',
+      formValues: {},
+    })).rejects.toThrow('not verified')
+
+    expect(spies.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects invalid form values before persisting an update', async () => {
+    const form = { id: 'form-1', key: 'plan-permit', isActive: true }
+    spies.findPersonByUserId.mockResolvedValue(person)
+    spies.findOwnedByClient.mockResolvedValue({
+      id: 'application-1',
+      workflowInstanceId: 'workflow-1',
+      professionalId: 'professional-1',
+      formVersionId: 'form-version-1',
+      permitType: { ...permitType, formId: form.id },
+    })
+    spies.findProfessional.mockResolvedValue(professional)
+    spies.findFormById.mockResolvedValue(form)
+    spies.findFormVersionById.mockResolvedValue({ id: 'form-version-1', formId: 'form-1', version: 2, status: 'PUBLISHED' })
+    spies.validateFormValues.mockResolvedValue({
+      valid: false,
+      errors: [{ field: 'projectAddress', message: 'Project Address is required.' }],
+    })
+
+    await expect(service.updateDraft({
+      id: 'application-1',
+      userId: 'user-1',
+      formVersionId: 'form-version-1',
+      formValues: {},
+    })).rejects.toThrow('Permit form validation failed')
+
+    expect(spies.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid form version before persisting an update', async () => {
+    const form = { id: 'form-1', key: 'plan-permit', isActive: true }
+    spies.findPersonByUserId.mockResolvedValue(person)
+    spies.findOwnedByClient.mockResolvedValue({
+      id: 'application-1',
+      workflowInstanceId: 'workflow-1',
+      professionalId: 'professional-1',
+      formVersionId: 'form-version-1',
+      permitType: { ...permitType, formId: form.id },
+    })
+    spies.findProfessional.mockResolvedValue(professional)
+    spies.findFormById.mockResolvedValue(form)
+    spies.findFormVersionById.mockResolvedValue({ id: 'form-version-other', formId: 'form-other', version: 1, status: 'PUBLISHED' })
+
+    await expect(service.updateDraft({
+      id: 'application-1',
+      userId: 'user-1',
+      formVersionId: 'form-version-other',
+      formValues: {},
+    })).rejects.toThrow('not a published version for this permit type')
+
+    expect(spies.validateFormValues).not.toHaveBeenCalled()
+    expect(spies.update).not.toHaveBeenCalled()
+  })
+
+  it('preserves the selected form version and permit type while updating the draft', async () => {
+    const form = { id: 'form-1', key: 'plan-permit', isActive: true }
+    const application = {
+      id: 'application-1',
+      workflowInstanceId: 'workflow-1',
+      professionalId: 'professional-1',
+      formVersionId: 'form-version-1',
+      permitTypeId: 'permit-1',
+      permitType: { ...permitType, formId: form.id },
+    }
+    spies.findPersonByUserId.mockResolvedValue(person)
+    spies.findOwnedByClient.mockResolvedValue(application)
+    spies.findProfessional.mockResolvedValue(professional)
+    spies.findFormById.mockResolvedValue(form)
+    spies.findFormVersionById.mockResolvedValue({ id: 'form-version-1', formId: 'form-1', version: 2, status: 'PUBLISHED' })
+    spies.validateFormValues.mockResolvedValue({ valid: true })
+    spies.update.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1' })
+
+    await expect(service.updateDraft({
+      id: 'application-1',
+      userId: 'user-1',
+      professionalId: 'professional-1',
+      formVersionId: 'form-version-1',
+      formValues: { projectAddress: '123 Main Street', floorArea: 120 },
+    })).resolves.toMatchObject({ status: 'DRAFT' })
+
+    expect(spies.update).toHaveBeenCalledWith('application-1', {
+      professionalId: 'professional-1',
+      formVersionId: 'form-version-1',
+      formValues: { projectAddress: '123 Main Street', floorArea: 120 },
+    })
+    expect(spies.update.mock.calls[0][1]).not.toHaveProperty('permitTypeId')
+  })
+
+  it('requires a declined application when creating a replacement', async () =>
     await arrangeClient()
     spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-old', referenceNumber: 'OBO-OLD' })
     spies.findWorkflowInstance.mockResolvedValueOnce({ id: 'workflow-old', currentStep: { key: 'DRAFT' } })
     await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', professionalId: 'professional-1', formValues: {}, replacesApplicationId: 'application-1' })).rejects.toThrow('Only a declined permit application can be replaced')
   })
 
-  it('creates a new draft linked to the declined application', async () => {
+  it('creates a new draft linked to the declined application', async () =>
     await arrangeClient()
     spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-old', referenceNumber: 'OBO-OLD' })
     spies.findWorkflowInstance.mockResolvedValueOnce({ id: 'workflow-old', currentStep: { key: 'DECLINED' } }).mockResolvedValueOnce({ id: 'workflow-new', currentStep: { key: 'DRAFT' } })
