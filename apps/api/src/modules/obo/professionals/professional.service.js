@@ -4,6 +4,7 @@ import * as peopleService from '../../../features/people/people.service.js'
 import * as repository from './professional.repository.js'
 
 const normalizeCredential = (value) => value?.trim() || ''
+const normalizeProfessionalRole = (value) => value?.trim() || ''
 const getProfile = async ({ userId }) => peopleService.getByUserId(userId)
 const createProfile = async ({ userId, ...data }) => {
   const existing = await repository.findPersonByUserId(userId)
@@ -15,18 +16,20 @@ const updateProfile = async ({ userId, ...data }) => {
   if (!existing) throw new NotFoundError('Professional person profile not found.')
   return peopleService.update(existing.id, data)
 }
-const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumber }) => {
+const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumber, professionalRole }) => {
   const normalizedRegistrationNumber = normalizeCredential(registrationNumber)
   const normalizedPrcId = normalizeCredential(prcId)
   const normalizedPtrNumber = normalizeCredential(ptrNumber)
+  const normalizedProfessionalRole = normalizeProfessionalRole(professionalRole)
   if (!normalizedRegistrationNumber) throw new BadRequestError('registrationNumber is required.')
   if (!normalizedPrcId) throw new BadRequestError('prcId is required.')
   if (!normalizedPtrNumber) throw new BadRequestError('ptrNumber is required.')
+  if (!normalizedProfessionalRole) throw new BadRequestError('professionalRole is required.')
   const person = await repository.findPersonByUserId(userId)
   if (!person) throw new ConflictError('User does not have a person profile. Complete your person profile before applying for professional verification.')
   const existing = await repository.findByPersonId(person.id)
   if (existing) throw new ConflictError('A professional application already exists for this person.')
-  return repository.create({ personId: person.id, userId, registrationNumber: normalizedRegistrationNumber, prcId: normalizedPrcId, ptrNumber: normalizedPtrNumber })
+  return repository.create({ personId: person.id, userId, registrationNumber: normalizedRegistrationNumber, prcId: normalizedPrcId, ptrNumber: normalizedPtrNumber, professionalRole: normalizedProfessionalRole })
 }
 const getMine = async ({ userId }) => {
   const professional = await repository.findByUserId(userId)
@@ -42,12 +45,12 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   if (Number(professional.userId) === Number(actorId)) throw new ConflictError('A professional cannot approve or decline their own application.')
   const accepted = decision === 'ACCEPTED'
   const cleanReason = reason?.trim() || null
-  if (!accepted && !cleanReason) throw new BadRequestError('A reason is required when declining a professional application.')
+  if (!accepted && !cleanReason) throw new BadRequestError('A reason is required when declining a professional verification application.')
   return repository.withTransaction(async (tx) => {
     const updated = await repository.update(id, { status: accepted ? 'VERIFIED' : 'DECLINED', verifiedByUserId: actorId, verifiedAt: new Date(), verificationReason: cleanReason }, tx)
     await repository.addDecision({ professionalId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
     const person = await repository.findPersonById(professional.personId, tx)
-    await publish({ db: tx, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', entityId: id, actorId, context: { professionalUserId: person?.userId || professional.userId || null, professionalEmail: person?.user?.email || person?.email || null, registrationNumber: professional.registrationNumber, prcId: professional.prcId, ptrNumber: professional.ptrNumber, decision, reason: cleanReason, status: updated.status }, idempotencyKey: `obo:professional:${id}:verification:${updated.verifiedAt?.toISOString() || Date.now()}` })
+    await publish({ db: tx, event: 'obo.professional.verification.decided', entityType: 'OboProfessional', entityId: id, actorId, context: { professionalUserId: person?.userId || professional.userId || null, professionalEmail: person?.user?.email || person?.email || null, registrationNumber: professional.registrationNumber, prcId: professional.prcId, ptrNumber: professional.ptrNumber, professionalRole: professional.professionalRole || null, decision, reason: cleanReason, status: updated.status }, idempotencyKey: `obo:professional:${id}:verification:${updated.verifiedAt?.toISOString() || Date.now()}` })
     return updated
   })
 }
