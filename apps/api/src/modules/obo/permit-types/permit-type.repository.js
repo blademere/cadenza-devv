@@ -48,6 +48,11 @@ const findById = (id, db = prisma) => db.oboPermitType.findUnique({
   where: { id },
 })
 
+const findByIdWithForm = (id, db = prisma) => db.oboPermitType.findUnique({
+  where: { id },
+  include: { form: true },
+})
+
 const findByKey = (key, db = prisma) => db.oboPermitType.findUnique({
   where: { key },
 })
@@ -76,6 +81,7 @@ export {
   listActive,
   findActiveById,
   findById,
+  findByIdWithForm,
   findByKey,
   create,
   update,
