@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Box, Button, Checkbox, Group, Select, SimpleGrid, Stack, Text, TextInput, Textarea } from '@mantine/core'
 import PageHeader from '../../../components/common/PageHeader'
@@ -26,20 +26,35 @@ const fieldKey = (field) => field.key ?? field.id
 const fieldLabel = (field) => field.label ?? field.name ?? field.key ?? 'Field'
 const optionItems = (field) => (field.options ?? []).map((option) => ({ value: String(option.value), label: option.label ?? String(option.value) }))
 
-function FormField({ field, value, onChange }) {
+function FormField({ field, value, error, onChange }) {
   const type = fieldType(field)
   const label = fieldLabel(field)
   const description = field.description ?? undefined
   const required = Boolean(field.required)
-  const common = { label, description, required, value: value ?? '', onChange: (event) => onChange(event.currentTarget.value) }
+  const common = {
+    label,
+    description,
+    required,
+    value: value ?? '',
+    error,
+    onChange: (event) => onChange(event.currentTarget.value),
+  }
 
   if (type === 'textarea' || type === 'longtext') return <Textarea {...common} minRows={4} />
-  if (type === 'select' || type === 'dropdown') return <Select label={label} description={description} required={required} data={optionItems(field)} value={value == null ? null : String(value)} onChange={onChange} clearable={!required} />
-  if (type === 'checkbox' || type === 'boolean') return <Checkbox label={label} description={description} checked={Boolean(value)} onChange={(event) => onChange(event.currentTarget.checked)} />
+  if (type === 'select' || type === 'dropdown') return <Select label={label} description={description} required={required} error={error} data={optionItems(field)} value={value == null ? null : String(value)} onChange={onChange} clearable={!required} />
+  if (type === 'checkbox' || type === 'boolean') return <Checkbox label={label} description={description} error={error} checked={Boolean(value)} onChange={(event) => onChange(event.currentTarget.checked)} />
   if (type === 'number' || type === 'integer' || type === 'decimal') return <TextInput {...common} type="number" />
   if (type === 'date') return <TextInput {...common} type="date" />
   if (type === 'email') return <TextInput {...common} type="email" />
   return <TextInput {...common} />
+}
+
+const getErrorMessage = (error) => error?.message ?? error?.error?.message ?? 'The application could not be saved.'
+
+const extractFieldErrors = (error) => {
+  const source = error?.details?.fieldErrors ?? error?.fieldErrors ?? error?.errors
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return {}
+  return Object.fromEntries(Object.entries(source).map(([key, value]) => [key, Array.isArray(value) ? value.join(', ') : String(value)]))
 }
 
 export default function ApplicationFormPage() {
@@ -55,20 +70,22 @@ export default function ApplicationFormPage() {
   const [permitTypeId, setPermitTypeId] = useState('')
   const [professionalId, setProfessionalId] = useState('')
   const [formValues, setFormValues] = useState({})
-  const [initialized, setInitialized] = useState(false)
-  const [professionalTouched, setProfessionalTouched] = useState(false)
+  const [formErrors, setFormErrors] = useState({})
+  const [initializedApplicationId, setInitializedApplicationId] = useState(null)
+  const [isDirty, setIsDirty] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
   const createMutation = useCreatePlanPermitApplication()
   const updateMutation = useUpdatePlanPermitDraft()
   const submitMutation = useSubmitPlanPermitApplication()
+
   const effectivePermitTypeId = editing ? String(application?.permitTypeId ?? '') : permitTypeId
-  const effectiveProfessionalId = editing && !professionalTouched ? String(application?.professionalId ?? '') : professionalId
+  const effectiveProfessionalId = editing ? professionalId : professionalId
   const formVersion = editing ? application?.formVersion?.version : undefined
   const formQuery = usePermitTypeForm(effectivePermitTypeId, formVersion)
   const form = asForm(formQuery.data)
   const fields = form?.fields ?? []
   const sections = form?.sections ?? []
   const permitType = permitTypes.find((item) => String(item.id) === effectivePermitTypeId)
-  const effectiveFormValues = editing && !initialized ? (application?.formValues ?? {}) : formValues
   const sectionFields = useMemo(() => {
     if (!sections.length) return [{ key: 'default', title: 'Application information', description: null, fields }]
     return sections.map((section) => ({
@@ -76,6 +93,22 @@ export default function ApplicationFormPage() {
       fields: fields.filter((field) => field.sectionId === section.id || field.sectionKey === section.key),
     }))
   }, [sections, fields])
+
+  useEffect(() => {
+    if (!editing || !application || initializedApplicationId === application.id) return
+    setPermitTypeId(String(application.permitTypeId ?? ''))
+    setProfessionalId(String(application.professionalId ?? ''))
+    setFormValues(application.formValues ?? {})
+    setFormErrors({})
+    setIsDirty(false)
+    setSaveMessage('')
+    setInitializedApplicationId(application.id)
+  }, [editing, application, initializedApplicationId])
+
+  useEffect(() => {
+    if (!editing) return
+    setFormErrors({})
+  }, [formVersion, editing])
 
   if (editing && applicationQuery.isLoading) return <Stack className="obo-page"><LoadingState label="Loading application…" /></Stack>
   if (editing && applicationQuery.error) return <Stack className="obo-page"><Alert color="red" title="Unable to load application">{applicationQuery.error.message}</Alert></Stack>
@@ -88,20 +121,40 @@ export default function ApplicationFormPage() {
     value: String(item.id),
     label: [item.person?.firstName, item.person?.middleName, item.person?.lastName, item.person?.suffix].filter(Boolean).join(' ') || item.registrationNumber || String(item.id),
   }))
+
   const setFieldValue = (key, value) => {
-    if (editing && !initialized) setInitialized(true)
-    setFormValues((current) => ({ ...(editing && !initialized ? effectiveFormValues : current), [key]: value }))
+    setFormValues((current) => ({ ...current, [key]: value }))
+    setFormErrors((current) => {
+      if (!(key in current)) return current
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
+    setIsDirty(true)
+    setSaveMessage('')
   }
-  const mutationError = createMutation.error ?? updateMutation.error ?? submitMutation.error
-  const saving = createMutation.isPending || updateMutation.isPending
+
+  const handleProfessionalChange = (value) => {
+    setProfessionalId(value ?? '')
+    setIsDirty(true)
+    setSaveMessage('')
+  }
 
   const handleSave = async () => {
     if (!effectiveProfessionalId || !effectivePermitTypeId) return
-    const payload = { professionalId: effectiveProfessionalId, formValues: effectiveFormValues }
-    const result = editing
-      ? await updateMutation.mutateAsync({ id: applicationId, ...payload })
-      : await createMutation.mutateAsync({ permitTypeId: effectivePermitTypeId, ...payload })
-    if (result?.id) navigate(`/app/applications/${result.id}`)
+    setFormErrors({})
+    setSaveMessage('')
+    try {
+      const payload = { professionalId: effectiveProfessionalId, formValues }
+      const result = editing
+        ? await updateMutation.mutateAsync({ id: applicationId, ...payload })
+        : await createMutation.mutateAsync({ permitTypeId: effectivePermitTypeId, ...payload })
+      setIsDirty(false)
+      setSaveMessage('Draft saved.')
+      if (!editing && result?.id) navigate(`/app/applications/${result.id}/edit`)
+    } catch (error) {
+      setFormErrors(extractFieldErrors(error))
+    }
   }
 
   const handleSubmit = async () => {
@@ -110,6 +163,9 @@ export default function ApplicationFormPage() {
     navigate(`/app/applications/${applicationId}`)
   }
 
+  const mutationError = createMutation.error ?? updateMutation.error
+  const saving = createMutation.isPending || updateMutation.isPending
+
   return <Stack className="obo-page">
     <PageHeader
       eyebrow="Plan Permits / Application"
@@ -117,22 +173,24 @@ export default function ApplicationFormPage() {
       description={editing ? 'Update the draft application before submitting it for hardcopy submission.' : 'Create a Plan Permit application using the currently published permit form.'}
       actions={<Button component={Link} to={editing ? `/app/applications/${applicationId}` : '/app/applications'} variant="default">Cancel</Button>}
     />
-    {mutationError && <Alert color="red" title="Unable to save application">{mutationError.message ?? 'The application could not be saved.'}</Alert>}
+    {mutationError && !Object.keys(formErrors).length && <Alert color="red" title="Unable to save application">{getErrorMessage(mutationError)}</Alert>}
+    {saveMessage && <Alert color="green">{saveMessage}</Alert>}
+    {Object.keys(formErrors).length > 0 && <Alert color="red" title="Check the application form">Correct the highlighted fields and save the draft again.</Alert>}
     <Box className="obo-panel" p="lg">
       <Stack gap="lg">
         <Select label="Permit type" required data={permitTypeOptions} value={effectivePermitTypeId || null} onChange={(value) => setPermitTypeId(value ?? '')} disabled={editing} searchable placeholder="Select a permit type" />
         {effectivePermitTypeId && !permitType && editing && <Alert color="yellow">The permit type for this application is not present in the current active permit type list.</Alert>}
-        <Select label="Verified professional" required data={professionalOptions} value={effectiveProfessionalId || null} onChange={(value) => { setProfessionalTouched(true); setProfessionalId(value ?? '') }} searchable placeholder="Select a verified professional" nothingFoundMessage="No verified professionals are available" />
+        <Select label="Verified professional" required data={professionalOptions} value={effectiveProfessionalId || null} onChange={handleProfessionalChange} searchable placeholder="Select a verified professional" nothingFoundMessage="No verified professionals are available" />
         {effectivePermitTypeId && form && <Box><Text fw={700}>{form.name ?? 'Application information'}</Text><Text size="sm" c="dimmed" mt={3}>{form.description ?? 'Complete the required application fields.'}</Text></Box>}
         {!effectivePermitTypeId && <Alert color="gray">Select a permit type to load its published application form.</Alert>}
         {effectivePermitTypeId && !form && <Alert color="yellow">No published form is configured for this permit type. The application can still be saved if the backend permits a form-less application.</Alert>}
-        {form && <Stack gap="xl">{sectionFields.map((section, sectionIndex) => <Box key={section.id ?? section.key ?? sectionIndex}><Text fw={650}>{section.title ?? section.name ?? section.label ?? `Section ${sectionIndex + 1}`}</Text>{section.description && <Text size="sm" c="dimmed" mt={3} mb="md">{section.description}</Text>}<SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="md">{section.fields.map((field, index) => <FormField key={field.id ?? field.key ?? index} field={field} value={effectiveFormValues[fieldKey(field)]} onChange={(value) => setFieldValue(fieldKey(field), value)} />)}</SimpleGrid>{!section.fields.length && <Text size="sm" c="dimmed" mt="sm">No fields configured in this section.</Text>}</Box>)}</Stack>}
+        {form && <Stack gap="xl">{sectionFields.map((section, sectionIndex) => <Box key={section.id ?? section.key ?? sectionIndex}><Text fw={650}>{section.title ?? section.name ?? section.label ?? `Section ${sectionIndex + 1}`}</Text>{section.description && <Text size="sm" c="dimmed" mt={3} mb="md">{section.description}</Text>}<SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="md">{section.fields.map((field, index) => <FormField key={field.id ?? field.key ?? index} field={field} value={formValues[fieldKey(field)]} error={formErrors[fieldKey(field)]} onChange={(value) => setFieldValue(fieldKey(field), value)} />)}</SimpleGrid>{!section.fields.length && <Text size="sm" c="dimmed" mt="sm">No fields configured in this section.</Text>}</Box>)}</Stack>}
         <Group justify="flex-end">
           <Button variant="default" component={Link} to={editing ? `/app/applications/${applicationId}` : '/app/applications'}>Cancel</Button>
           <PermissionGate permission={editing ? permissions.planPermits.update : permissions.planPermits.create}>
             <Button onClick={handleSave} loading={saving} disabled={!effectivePermitTypeId || !effectiveProfessionalId}>Save draft</Button>
           </PermissionGate>
-          {editing && <PermissionGate permission={permissions.planPermits.submit}><Button onClick={handleSubmit} loading={submitMutation.isPending} disabled={saving}>Submit for submission</Button></PermissionGate>}
+          {editing && <PermissionGate permission={permissions.planPermits.submit}><Button onClick={handleSubmit} loading={submitMutation.isPending} disabled={saving || isDirty}>Submit for submission</Button></PermissionGate>}
         </Group>
       </Stack>
     </Box>
