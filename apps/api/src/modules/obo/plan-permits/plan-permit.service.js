@@ -1,4 +1,4 @@
-import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
+import { ConflictError, NotFoundError, ValidationError } from '../../../common/errors/appError.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import * as repository from './plan-permit.repository.js'
 import { resolveAndValidateForm } from './plan-permit.form.js'
@@ -150,6 +150,15 @@ const validateSubmissionProfessionals = async (application) => {
     formKey: form.key,
     version: application.formVersion.version,
   })
+
+  const validation = await formService.validateFormValues({
+    formKey: form.key,
+    version: formVersion.version,
+    values: application.formValues,
+  })
+  if (!validation.valid) {
+    throw new ValidationError('Permit form validation failed.', validation.errors)
+  }
 
   await validateProfessionalReferences({
     formVersion,
