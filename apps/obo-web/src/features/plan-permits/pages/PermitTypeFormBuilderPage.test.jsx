@@ -46,6 +46,25 @@ describe('PermitTypeFormBuilderPage form version lifecycle', () => {
     expect(payload).toBeNull()
   })
 
+  it('omits null validation and config values that the API treats as optional', () => {
+    const payload = toPayload({
+      sections: [],
+      fields: [{
+        key: 'field-1',
+        label: 'Field 1',
+        type: 'text',
+        validation: null,
+        config: null,
+        visibility: null,
+        options: [],
+      }],
+    })
+
+    expect(payload.fields[0]).not.toHaveProperty('validation')
+    expect(payload.fields[0]).not.toHaveProperty('config')
+    expect(payload.fields[0]).toHaveProperty('visibility', null)
+  })
+
   it('detects whether a permit type form is actually configured', () => {
     expect(hasConfiguredForm({ id: 'form-1' })).toBe(true)
     expect(hasConfiguredForm({ formId: 'form-1' })).toBe(true)
