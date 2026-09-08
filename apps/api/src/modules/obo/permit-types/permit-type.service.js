@@ -121,10 +121,61 @@ const createPermitTypeForm = async ({ actorId, permitTypeId, data }) => {
   }
 }
 
+const createPermitTypeFormVersion = async ({ actorId, permitTypeId, data }) => {
+  const permitType = await repository.findByIdWithForm(permitTypeId)
+  if (!permitType) throw new NotFoundError('Permit type not found.')
+  if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot receive form versions.')
+  if (!permitType.form) throw new NotFoundError('Permit type form not found.')
+
+  const version = await formService.createFormVersion({
+    formKey: permitType.form.key,
+    sections: data.sections ?? [],
+    fields: data.fields,
+    actorId,
+  })
+
+  await recordAudit({
+    actorId,
+    action: 'OBO_FORM_VERSION_CREATED',
+    entityType: 'FormVersion',
+    entityId: version.id,
+    before: null,
+    after: version,
+  })
+
+  return version
+}
+
+const publishPermitTypeFormVersion = async ({ actorId, permitTypeId, version }) => {
+  const permitType = await repository.findByIdWithForm(permitTypeId)
+  if (!permitType) throw new NotFoundError('Permit type not found.')
+  if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot publish form versions.')
+  if (!permitType.form) throw new NotFoundError('Permit type form not found.')
+
+  const published = await formService.publishFormVersion({
+    formKey: permitType.form.key,
+    version,
+    actorId,
+  })
+
+  await recordAudit({
+    actorId,
+    action: 'OBO_FORM_VERSION_PUBLISHED',
+    entityType: 'FormVersion',
+    entityId: published.id,
+    before: null,
+    after: published,
+  })
+
+  return published
+}
+
 export {
   listPermitTypes,
   getPermitTypeForm,
   createPermitType,
   updatePermitType,
   createPermitTypeForm,
+  createPermitTypeFormVersion,
+  publishPermitTypeFormVersion,
 }
