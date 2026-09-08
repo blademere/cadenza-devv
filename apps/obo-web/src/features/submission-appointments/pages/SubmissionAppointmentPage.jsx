@@ -8,6 +8,15 @@ import { useSubmissionAppointment } from '../queries/submission-appointments.que
 import SubmissionAppointmentScheduler from '../components/SubmissionAppointmentScheduler'
 
 const unwrap = (value) => value?.data ?? value
+const normalizeAppointment = (value) => {
+  let current = unwrap(value)
+
+  if (current?.appointment && typeof current.appointment === 'object') {
+    current = unwrap(current.appointment)
+  }
+
+  return current && typeof current === 'object' ? current : null
+}
 const formatDate = (value) => value ? new Date(value).toLocaleString() : '—'
 
 export default function SubmissionAppointmentPage() {
@@ -15,7 +24,7 @@ export default function SubmissionAppointmentPage() {
   const applicationQuery = usePlanPermitApplication(applicationId)
   const appointmentQuery = useSubmissionAppointment(applicationId)
   const application = unwrap(applicationQuery.data)
-  const appointment = unwrap(appointmentQuery.data)
+  const appointment = normalizeAppointment(appointmentQuery.data)
 
   if (applicationQuery.isLoading || appointmentQuery.isLoading) {
     return <Stack className="obo-page"><LoadingState label="Loading submission appointment…" /></Stack>
@@ -35,6 +44,9 @@ export default function SubmissionAppointmentPage() {
 
   const scheduled = Boolean(appointment)
   const canSchedule = application.status === 'READY_FOR_SUBMISSION' && !scheduled
+  const slot = appointment?.slot
+  const slotStart = slot?.startsAt ?? appointment?.startsAt
+  const slotEnd = slot?.endsAt ?? appointment?.endsAt
 
   return (
     <Stack className="obo-page">
@@ -61,9 +73,22 @@ export default function SubmissionAppointmentPage() {
           <Text fw={700}>Appointment confirmed</Text>
           <Text size="sm" c="dimmed">Your hardcopy submission appointment has been booked.</Text>
           <Group gap="xl" mt="sm">
-            <Stack gap={2}><Text size="xs" c="dimmed">Reference</Text><Text fw={600}>{appointment.referenceNumber ?? '—'}</Text></Stack>
-            <Stack gap={2}><Text size="xs" c="dimmed">Status</Text><StatusChip status={appointment.status} /></Stack>
-            <Stack gap={2}><Text size="xs" c="dimmed">Slot</Text><Text fw="600">{appointment.slot?.startsAt ? `${formatDate(appointment.slot.startsAt)} – ${formatDate(appointment.slot.endsAt)}` : 'See appointment details'}</Text></Stack>
+            <Stack gap={2}>
+              <Text size="xs" c="dimmed">Reference</Text>
+              <Text fw={600}>{appointment.referenceNumber ?? appointment.reference ?? '—'}</Text>
+            </Stack>
+            <Stack gap={2}>
+              <Text size="xs" c="dimmed">Status</Text>
+              <StatusChip status={appointment.status ?? 'CONFIRMED'} />
+            </Stack>
+            <Stack gap={2}>
+              <Text size="xs" c="dimmed">Slot</Text>
+              <Text fw={600}>
+                {slotStart
+                  ? `${formatDate(slotStart)}${slotEnd ? ` – ${formatDate(slotEnd)}` : ''}`
+                  : 'See appointment details'}
+              </Text>
+            </Stack>
           </Group>
         </Stack>
       ) : canSchedule ? (
