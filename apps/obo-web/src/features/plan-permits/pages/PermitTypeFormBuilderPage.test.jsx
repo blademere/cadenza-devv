@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialFormDefinition, resolvePermitTypeId, toPayload } from './PermitTypeFormBuilderPage'
+import { createInitialFormDefinition, createVersionPayload, resolvePermitTypeId, toPayload } from './PermitTypeFormBuilderPage'
 
 describe('PermitTypeFormBuilderPage create-form to draft-version flow', () => {
   it('uses the same non-empty payload for create form and first draft version', () => {
@@ -38,6 +38,23 @@ describe('PermitTypeFormBuilderPage create-form to draft-version flow', () => {
 
     expect(createFormResponse.versions[0].fields).toBeUndefined()
     expect(draftVersionRequest.fields).toHaveLength(1)
+  })
+
+  it('reuses the current valid definition when the published form response has no fields', () => {
+    const fallbackDefinition = createInitialFormDefinition()
+    const publishedForm = { id: 'form-1', version: 1, status: 'PUBLISHED', sections: [], fields: [] }
+
+    const payload = createVersionPayload(publishedForm, fallbackDefinition)
+
+    expect(payload).not.toBeNull()
+    expect(payload.fields).toHaveLength(1)
+    expect(payload.fields[0].key).toBe('field-1')
+  })
+
+  it('returns null instead of allowing an empty version payload', () => {
+    const payload = createVersionPayload({ sections: [], fields: [] }, { sections: [], fields: [] })
+
+    expect(payload).toBeNull()
   })
 
   it('prefers the current permitTypeId route param and supports the legacy id param', () => {
