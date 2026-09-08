@@ -29,6 +29,7 @@ describe('OBO permission configuration', () => {
     expect(permissions.appointments).toEqual({
       read: 'appointments:read',
       create: 'appointments:create',
+      manage: 'appointments:manage',
       cancel: 'appointments:cancel',
     })
 
@@ -50,5 +51,6 @@ describe('OBO permission configuration', () => {
     expect(permissionList).toContain(permissions.professionals.review)
     expect(permissionList).toContain(permissions.users.manage)
     expect(permissionList).toContain(permissions.authorization.manage)
+    expect(permissionList).toContain(permissions.appointments.manage)
   })
 })
