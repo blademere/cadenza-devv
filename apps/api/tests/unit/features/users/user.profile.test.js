@@ -7,32 +7,32 @@ const mocks = vi.hoisted(() => ({
   toUserResponse: vi.fn((user) => ({ id: user.id, email: user.email, role: user.role })),
 }))
 
-vi.mock('../../../../../src/features/users/user.repository.js', () => ({
+vi.mock('../../../../src/features/users/user.repository.js', () => ({
   findAllUsers: vi.fn(),
   createUser: vi.fn(),
   findUserWithRole: mocks.findUserWithRole,
   findRoleForAssignment: vi.fn(),
   updateUserRole: vi.fn(),
 }))
-vi.mock('../../../../../src/features/users/user.mapper.js', () => ({
+vi.mock('../../../../src/features/users/user.mapper.js', () => ({
   toUserResponse: mocks.toUserResponse,
 }))
-vi.mock('../../../../../src/features/auth/auth.repository.js', () => ({
+vi.mock('../../../../src/features/auth/auth.repository.js', () => ({
   findUserByEmail: vi.fn(),
 }))
-vi.mock('../../../../../src/features/people/people.service.js', () => ({
+vi.mock('../../../../src/features/people/people.service.js', () => ({
   getByUserId: mocks.getByUserId,
   update: mocks.update,
 }))
-vi.mock('../../../../../src/platform/authorization/access-control.repository.js', () => ({
+vi.mock('../../../../src/platform/authorization/access-control.repository.js', () => ({
   findRoleById: vi.fn(),
   getUserAuthorizationContext: vi.fn(),
 }))
-vi.mock('../../../../../src/platform/authorization/access-control.service.js', () => ({
+vi.mock('../../../../src/platform/authorization/access-control.service.js', () => ({
   clearUserPermissionCache: vi.fn(),
 }))
 
-const service = await import('../../../../../src/features/users/user.service.js')
+const service = await import('../../../../src/features/users/user.service.js')
 
 afterEach(() => vi.clearAllMocks())
 
