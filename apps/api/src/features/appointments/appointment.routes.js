@@ -6,7 +6,7 @@ import authorizeResource from '../../platform/authorization/authorization-resour
 import { ownershipPolicy } from '../../platform/authorization/access-control.policy.js'
 import * as repository from './appointment.repository.js'
 import { APPOINTMENT_MODULE, APPOINTMENT_ACTIONS } from './appointment.constants.js'
-import { listTypesValidator, createTypeValidator, createScheduleValidator, createSlotValidator, generateSlotsValidator, listSlotsValidator, createAppointmentValidator, appointmentIdValidator } from './appointment.validation.js'
+import { listTypesValidator, createTypeValidator, createScheduleValidator, listSchedulesValidator, createSlotValidator, generateSlotsValidator, listSlotsValidator, listAppointmentsValidator, createAppointmentValidator, appointmentIdValidator } from './appointment.validation.js'
 import controller from './appointment.controller.js'
 
 const router = express.Router()
@@ -18,10 +18,12 @@ const authorizeAppointmentResource = (action) => authorizeResource({ resource: A
 router.get('/types', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.READ), validate(listTypesValidator), asyncHandler(controller.listTypesController))
 router.post('/types', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.MANAGE), requireIdempotency, validate(createTypeValidator), asyncHandler(controller.createTypeController))
 router.post('/schedules', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.MANAGE), requireIdempotency, validate(createScheduleValidator), asyncHandler(controller.createScheduleController))
+router.get('/schedules', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.READ), validate(listSchedulesValidator), asyncHandler(controller.listSchedulesController))
 router.post('/slots', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.MANAGE), requireIdempotency, validate(createSlotValidator), asyncHandler(controller.createSlotController))
 router.post('/slots/generate', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.MANAGE), requireIdempotency, validate(generateSlotsValidator), asyncHandler(controller.generateSlotsController))
 router.get('/slots', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.READ), validate(listSlotsValidator), asyncHandler(controller.listSlotsController))
 router.get('/mine', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.READ), asyncHandler(controller.listMyAppointmentsController))
+router.get('/management', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.READ), validate(listAppointmentsValidator), asyncHandler(controller.listAppointmentsController))
 router.post('/', authenticate, authorize(APPOINTMENT_MODULE, APPOINTMENT_ACTIONS.CREATE), requireIdempotency, validate(createAppointmentValidator), asyncHandler(controller.createAppointmentController))
 router.get('/:id', authenticate, authorizeOwnedAppointment(APPOINTMENT_ACTIONS.READ), validate(appointmentIdValidator), asyncHandler(controller.getMyAppointmentController))
 router.post('/:id/cancel', authenticate, authorizeOwnedAppointment(APPOINTMENT_ACTIONS.CANCEL), requireIdempotency, validate(appointmentIdValidator), asyncHandler(controller.cancelAppointmentController))
