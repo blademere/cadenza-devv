@@ -55,7 +55,8 @@ export default function PermitTypeFormBuilderPage() {
 
   useEffect(() => { if (activeForm) setDefinition(normalizeDefinition(activeForm)) }, [activeForm?.formVersionId])
 
-  const createDraftFrom = (form) => createVersion.mutate({ id: permitTypeId, ...toPayload(normalizeDefinition(form)) }, { onSuccess: (created) => setSearchParams({ version: String(created.version) }) })
+  const createDraftFromPayload = (draftPayload) => createVersion.mutate(draftPayload, { onSuccess: (created) => setSearchParams({ version: String(created.version) }) })
+  const createDraftFrom = (form) => createDraftFromPayload(toPayload(normalizeDefinition(form)))
   const startNewVersion = () => { if (publishedForm) createDraftFrom(publishedForm) }
   const saveDraft = () => { if (activeVersion) updateVersion.mutate({ id: permitTypeId, version: activeVersion, ...payload }) }
   const publish = () => { if (activeVersion) publishVersion.mutate({ id: permitTypeId, version: activeVersion }, { onSuccess: () => navigate(`/app/permit-types/${permitTypeId}`) }) }
@@ -67,7 +68,7 @@ export default function PermitTypeFormBuilderPage() {
     createForm.mutate({ id: permitTypeId, key: meta.key, name: meta.name, description: meta.description || null, entityType: 'OboPermitApplication', ...initialPayload }, {
       onSuccess: () => {
         setModalOpen(false)
-        createDraftFrom(initialDefinition)
+        createDraftFromPayload({ id: permitTypeId, ...initialPayload })
       },
     })
   }
