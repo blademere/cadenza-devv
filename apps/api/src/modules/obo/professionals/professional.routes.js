@@ -11,6 +11,7 @@ const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-professionals', required: true })
 const loadProfessional = (id) => repository.findById(id)
 
+router.get('/', authenticate, authorize('obo_professionals', 'read'), validate(validation.professionalLookupValidator), asyncHandler(controller.listDirectory))
 router.get('/profile', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getProfile))
 router.post('/profile', authenticate, authorize('obo_professionals', 'create'), requireIdempotency, validate(validation.profileValidator), asyncHandler(controller.createProfile))
 router.patch('/profile', authenticate, authorize('obo_professionals', 'update'), requireIdempotency, validate(validation.profileUpdateValidator), asyncHandler(controller.updateProfile))
