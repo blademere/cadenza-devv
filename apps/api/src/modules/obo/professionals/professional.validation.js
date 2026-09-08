@@ -4,6 +4,7 @@ const id = z.string().uuid()
 const requiredName = (name) => z.string().trim().min(1, `${name} is required.`).max(100)
 const optionalText = z.string().trim().max(255).optional().nullable()
 const credential = (name) => z.string().trim().min(1, `${name} is required.`).max(100)
+const professionalRole = z.string().trim().min(1, 'professionalRole is required.').max(100).regex(/^[A-Z][A-Z0-9_]*$/, 'professionalRole must use an uppercase identifier.')
 
 const profileFields = {
   firstName: requiredName('firstName'),
@@ -28,7 +29,8 @@ const applyValidator = async (req) => ({
     registrationNumber: credential('registrationNumber'),
     prcId: credential('prcId'),
     ptrNumber: credential('ptrNumber'),
-  }).parse(req.body || {}),
+    professionalRole,
+  }).strict().parse(req.body || {}),
 })
 const decisionValidator = async (req) => ({
   params: z.object({ id }),
