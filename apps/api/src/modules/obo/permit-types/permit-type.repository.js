@@ -21,6 +21,18 @@ const publishedFormInclude = {
   },
 }
 
+const formVersionInclude = {
+  sections: { orderBy: { sortOrder: 'asc' } },
+  fields: {
+    include: { options: { orderBy: { sortOrder: 'asc' } } },
+    orderBy: { sortOrder: 'asc' },
+  },
+  documentRequirements: {
+    include: { documentType: true },
+    orderBy: { sortOrder: 'asc' },
+  },
+}
+
 const listActive = () => prisma.oboPermitType.findMany({
   where: { isActive: true },
   include: { form: { include: publishedFormInclude } },
@@ -32,4 +44,9 @@ const findActiveById = (id) => prisma.oboPermitType.findFirst({
   include: { form: { include: publishedFormInclude } },
 })
 
-export { listActive, findActiveById }
+const findPublishedFormVersion = (formId, version) => prisma.formVersion.findFirst({
+  where: { formId, version, status: 'PUBLISHED' },
+  include: formVersionInclude,
+})
+
+export { listActive, findActiveById, findPublishedFormVersion }
