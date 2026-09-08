@@ -16,9 +16,9 @@ export const toPayload = (definition) => ({
   fields: (definition.fields ?? []).map((field, index) => ({
     key: field.key, label: field.label, description: field.description ?? null, type: field.type, sortOrder: index, required: Boolean(field.required), sectionKey: field.sectionKey ?? null,
     ...(field.defaultValue !== undefined ? { defaultValue: field.defaultValue } : {}),
-    ...(field.validation !== undefined ? { validation: field.validation } : {}),
+    ...(field.validation != null ? { validation: field.validation } : {}),
     ...(field.visibility !== undefined ? { visibility: field.visibility } : {}),
-    ...(field.config !== undefined ? { config: field.config } : {}),
+    ...(field.config != null ? { config: field.config } : {}),
     options: (field.options ?? []).map((option, optionIndex) => ({ value: option.value, label: option.label, sortOrder: optionIndex, ...(option.metadata !== undefined ? { metadata: option.metadata } : {}) })),
   })),
 })
