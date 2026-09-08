@@ -3,6 +3,15 @@ import { apiClient } from '../../../services/api/client'
 const unwrap = (response) => response?.data ?? response
 const encodeId = (id) => encodeURIComponent(id)
 
+const buildQuery = ({ status = 'VERIFIED', role, search } = {}) => {
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  if (role) params.set('role', role)
+  if (search?.trim()) params.set('search', search.trim())
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
 export const professionalsApi = {
   async getProfile() {
     return unwrap(await apiClient.get('/obo/professionals/profile'))
@@ -31,6 +40,10 @@ export const professionalsApi = {
 
   async listVerified() {
     return unwrap(await apiClient.get('/obo/professionals/applications/verified'))
+  },
+
+  async listDirectory(filters = {}) {
+    return unwrap(await apiClient.get(`/obo/professionals${buildQuery(filters)}`))
   },
 
   async listPendingVerification() {
