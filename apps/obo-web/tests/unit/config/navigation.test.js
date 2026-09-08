@@ -6,13 +6,14 @@ const visibleKeys = (permissionValues) =>
   normalizeNavigation(navigation, permissionValues).flatMap((section) => section.items.map((item) => item.key))
 
 describe('OBO navigation authorization', () => {
-  it('keeps dashboard available without operational permissions', () => {
-    expect(visibleKeys([])).toEqual(['dashboard'])
+  it('keeps dashboard and profile available without operational permissions', () => {
+    expect(visibleKeys([])).toEqual(['dashboard', 'profile'])
   })
 
   it('shows plan permit navigation only with plan permit read access', () => {
     expect(visibleKeys([permissions.planPermits.read])).toEqual([
       'dashboard',
+      'profile',
       'applications',
       'permit-types',
     ])
