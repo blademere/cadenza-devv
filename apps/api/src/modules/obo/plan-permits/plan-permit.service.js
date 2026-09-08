@@ -145,6 +145,21 @@ const updateDraft = async ({ id, userId, formVersionId, formValues }) => {
       formValues,
     }, tx)
 
+    if (application.formVersionId !== resolvedForm.formVersionId) {
+      await recordAudit({
+        actorId: userId,
+        action: 'OBO_PERMIT_APPLICATION_FORM_VERSION_CHANGED',
+        entityType: SUBJECT_TYPE,
+        entityId: id,
+        before: application.formVersionId || null,
+        after: resolvedForm.formVersionId || null,
+        metadata: {
+          referenceNumber: application.referenceNumber || null,
+        },
+        db: tx,
+      })
+    }
+
     for (const fieldKey of getChangedFormFields(application.formValues, formValues)) {
       await recordAudit({
         actorId: userId,
@@ -250,6 +265,7 @@ const submit = async ({ id, userId }) => {
       metadata: {
         formVersionId: application.formVersionId || null,
         referenceNumber: application.referenceNumber || null,
+        professionalFieldKeys: Object.keys(professionalSnapshots || {}),
       },
       db: tx,
     })
