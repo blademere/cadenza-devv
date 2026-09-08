@@ -2,6 +2,8 @@ import { ConflictError, NotFoundError } from '../../../common/errors/appError.js
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import * as repository from './plan-permit.repository.js'
 import { resolveAndValidateForm } from './plan-permit.form.js'
+import { validateProfessionalReferences } from './professional-reference.service.js'
+import * as formService from '../../../platform/forms/form.service.js'
 import { getWorkflowState, withWorkflowState } from './plan-permit.workflow.js'
 import { getNotificationContext } from '../notification-context.js'
 
@@ -136,11 +138,32 @@ const updateDraft = async ({ id, userId, formVersionId, formValues }) => {
   }))
 }
 
+const validateSubmissionProfessionals = async (application) => {
+  if (!application.formVersion || !application.permitType.formId) return
+
+  const form = await repository.findFormById(application.permitType.formId)
+  if (!form || !form.isActive) {
+    throw new ConflictError('The permit type is linked to an inactive form.')
+  }
+
+  const formVersion = await formService.getFormVersion({
+    formKey: form.key,
+    version: application.formVersion.version,
+  })
+
+  await validateProfessionalReferences({
+    formVersion,
+    formValues: application.formValues,
+  })
+}
+
 const submit = async ({ id, userId }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) {
     throw new ConflictError('Only draft applications can be submitted.')
   }
+
+  await validateSubmissionProfessionals(application)
 
   const notificationContext = await getNotificationContext({
     personId: application.clientPersonId,
