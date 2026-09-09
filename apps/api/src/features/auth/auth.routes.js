@@ -6,8 +6,6 @@ import {
   requestPasswordResetController,
   resetPasswordController,
   currentUserController,
-  selfProfileController,
-  updateSelfProfileController,
   changePasswordController,
   listSessionsController,
   revokeSessionController,
@@ -25,7 +23,6 @@ import {
   passwordResetValidator,
   emailVerificationValidator,
   sessionIdValidator,
-  selfProfileValidator,
 } from './auth.validation.js'
 import authenticate from './authenticate.secure.js'
 import {
@@ -60,8 +57,6 @@ authRouter.post('/password/reset/request', loginRateLimiter, validate(passwordRe
 authRouter.post('/password/reset', loginRateLimiter, validate(passwordResetValidator), requirePasswordResetIdempotency, asyncHandler(resetPasswordController))
 authRouter.post('/email/verify', loginRateLimiter, validate(emailVerificationValidator), requireEmailVerificationIdempotency, asyncHandler(verifyEmailController))
 authRouter.get('/me', authenticate, asyncHandler(currentUserController))
-authRouter.get('/me/profile', authenticate, asyncHandler(selfProfileController))
-authRouter.patch('/me/profile', authenticate, csrfProtection, validate(selfProfileValidator), requireAuthIdempotency, asyncHandler(updateSelfProfileController))
 authRouter.post('/email/verification/request', authenticate, csrfProtection, requireEmailVerificationIdempotency, asyncHandler(requestEmailVerificationController))
 authRouter.post('/password/change', authenticate, csrfProtection, validate(passwordChangeValidator), requireAuthIdempotency, asyncHandler(changePasswordController))
 authRouter.get('/sessions', authenticate, asyncHandler(listSessionsController))
