@@ -13,17 +13,20 @@ export default function OBOLayout() {
   const { context, isLoading: authorizationLoading } = useAuthorization()
   const desktop = useMatches({ base: false, [layout.breakpoint]: true })
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const visibleNavigation = useMemo(
     () => normalizeNavigation(navigation, context?.permissions),
-    [context?.permissions]
+    [context?.permissions],
   )
 
-  const sidebar = (
+  const sidebar = (collapsed = false) => (
     <Sidebar
       navigation={visibleNavigation}
       navigationLoading={authorizationLoading}
       user={user}
       role={context?.role?.name}
+      collapsed={collapsed}
+      onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
       onNavigate={() => setMobileOpen(false)}
       onLogout={() => void logout()}
     />
@@ -33,13 +36,13 @@ export default function OBOLayout() {
     <AppShell
       className="obo-app"
       navbar={{
-        width: layout.sidebarWidth,
+        width: sidebarCollapsed ? layout.sidebarCollapsedWidth : layout.sidebarWidth,
         breakpoint: layout.breakpoint,
         collapsed: { mobile: true, desktop: false },
       }}
       header={{
         height: layout.headerHeight,
-        collapsed: { mobile: false, desktop: true },
+        collapsed: { mobile: false, desktop: false },
       }}
       padding={0}
     >
@@ -48,20 +51,30 @@ export default function OBOLayout() {
           onMenu={() => setMobileOpen(true)}
           user={user}
           role={context?.role?.name}
+          navigation={visibleNavigation}
+          onNavigate={() => setMobileOpen(false)}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
         />
       </AppShell.Header>
-      <AppShell.Navbar className="obo-sidebar">{sidebar}</AppShell.Navbar>
+
+      <AppShell.Navbar className="obo-sidebar">
+        {sidebar(sidebarCollapsed)}
+      </AppShell.Navbar>
+
       {!desktop && (
         <Drawer
           opened={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          size={layout.sidebarWidth}
-          title="Navigation"
-          classNames={{ content: 'obo-mobile-nav', header: 'obo-mobile-nav' }}
+          size={Math.min(layout.sidebarWidth + 24, 320)}
+          withCloseButton={false}
+          padding={0}
+          classNames={{ content: 'obo-mobile-nav', body: 'obo-mobile-nav-body' }}
         >
-          {sidebar}
+          {sidebar(false)}
         </Drawer>
       )}
+
       <AppShell.Main>
         <Box
           className="obo-content"
