@@ -13,7 +13,17 @@ const normalizeProfile = (response) => {
 
 export const profileApi = {
   async get() {
-    const response = await apiClient.get('/users/me/profile')
+    try {
+      const response = await apiClient.get('/users/me/profile')
+      return normalizeProfile(response)
+    } catch (error) {
+      if (error.status === 404) return null
+      throw error
+    }
+  },
+
+  async create(profile) {
+    const response = await apiClient.post('/users/me/profile', profile)
     return normalizeProfile(response)
   },
 
