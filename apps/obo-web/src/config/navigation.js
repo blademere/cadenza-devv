@@ -4,7 +4,6 @@ import {
   CalendarPlus,
   ClipboardText,
   FileText,
-  MagnifyingGlass,
   ShieldCheck,
   UserCheck,
   UsersThree,
@@ -25,7 +24,6 @@ const PermitTypesIcon = createIcon(ClipboardText)
 const ReceivingIcon = createIcon(Archive)
 const ProfessionalsIcon = createIcon(UsersThree)
 const VerificationIcon = createIcon(UserCheck)
-const InspectionsIcon = createIcon(MagnifyingGlass)
 const AppointmentsIcon = createIcon(CalendarPlus)
 const UsersIcon = createIcon(UsersThree)
 const RolesIcon = createIcon(ShieldCheck)
@@ -55,7 +53,6 @@ export const navigation = Object.freeze([
       { key: 'professionals', name: 'Professionals', route: '/app/professionals', requiredPermissions: [permissions.professionals.read], icon: ProfessionalsIcon },
       { key: 'professional-verification', name: 'Professional Verification', route: '/app/professionals/verification', requiredPermissions: [permissions.professionals.review], icon: VerificationIcon },
       { key: 'professional-verification-apply', name: 'Apply for Verification', route: '/app/professionals/verification/apply', requiredPermissions: [permissions.professionals.create], icon: VerificationIcon },
-      { key: 'inspections', name: 'Inspections', route: '/app/inspections', requiredPermissions: [permissions.planPermits.inspect], icon: InspectionsIcon },
     ],
   },
   {

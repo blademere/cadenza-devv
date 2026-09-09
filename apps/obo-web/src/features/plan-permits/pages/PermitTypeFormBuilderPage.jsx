@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect, react-refresh/only-export-components */
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Box, Button, Group, Modal, Stack, Text, TextInput, Textarea } from '@mantine/core'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'

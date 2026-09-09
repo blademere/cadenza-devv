@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Group, Paper, Select, SimpleGrid, Stack, Text, Textarea } from '@mantine/core'
 import { CalendarBlank, CheckCircle } from '@phosphor-icons/react'

@@ -4,9 +4,10 @@
   "sourceRoot": "apps/obo-web/src",
   "targets": {
     "test": {
-      "executor": "@nx/vitest:test",
+      "executor": "nx:run-commands",
       "options": {
-        "configFile": "apps/obo-web/vitest.config.js"
+        "command": "vitest run --config vitest.config.js",
+        "cwd": "apps/obo-web"
       }
     }
   }

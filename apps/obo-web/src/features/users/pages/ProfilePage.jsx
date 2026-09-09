@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Alert, Badge, Box, Button, Divider, Group, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core'

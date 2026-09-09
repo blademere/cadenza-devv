@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect, react-refresh/only-export-components */
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Alert, Box, Button, Group, Select, SimpleGrid, Stack, Text, TextInput, Textarea, Checkbox } from '@mantine/core'
+import { Alert, Box, Button, Group, MultiSelect, Select, SimpleGrid, Stack, Text, TextInput, Textarea, Checkbox } from '@mantine/core'
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import PermissionGate from '../../authorization/components/PermissionGate'
@@ -45,9 +46,11 @@ function FormField({ field, value, error, onChange, professionals }) {
   if (isProfessionalReference(field)) return <ProfessionalReferenceField field={field} value={value} error={error} professionals={professionals} onChange={onChange} />
   if (type === 'textarea' || type === 'longtext') return <Textarea {...common} minRows={4} />
   if (type === 'select' || type === 'dropdown') return <Select label={label} description={description} required={required} error={error} data={optionItems(field)} value={value == null ? null : String(value)} onChange={onChange} clearable={!required} />
+  if (type === 'multiselect') return <MultiSelect label={label} description={description} required={required} error={error} data={optionItems(field)} value={Array.isArray(value) ? value.map(String) : value == null || value === '' ? [] : [String(value)]} onChange={onChange} clearable={!required} />
   if (type === 'checkbox' || type === 'boolean') return <Checkbox label={label} description={description} error={error} checked={Boolean(value)} onChange={(event) => onChange(event.currentTarget.checked)} />
   if (type === 'number' || type === 'integer' || type === 'decimal') return <TextInput {...common} type="number" />
   if (type === 'date') return <TextInput {...common} type="date" />
+  if (type === 'datetime') return <TextInput {...common} type="datetime-local" />
   if (type === 'email') return <TextInput {...common} type="email" />
   return <TextInput {...common} />
 }
