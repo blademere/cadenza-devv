@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { AppShell, Box, Drawer, useMatches } from '@mantine/core'
+import { AppShell, Drawer, useMatches } from '@mantine/core'
 import { useAuth } from '../features/auth/components/AuthProvider'
 import { useAuthorization } from '../features/authorization/components/AuthorizationProvider'
 import { navigation, normalizeNavigation } from '../config/navigation'
 import { layout } from '../config/layout'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
+import PageContainer from './components/PageContainer'
 
 export default function OBOLayout() {
   const { user, logout } = useAuth()
@@ -34,6 +35,7 @@ export default function OBOLayout() {
   return (
     <AppShell
       className="obo-app"
+      header={{ height: layout.headerHeight }}
       navbar={{
         width: sidebarCollapsed ? layout.sidebarCollapsedWidth : layout.sidebarWidth,
         breakpoint: layout.breakpoint,
@@ -41,6 +43,16 @@ export default function OBOLayout() {
       }}
       padding={0}
     >
+      <AppShell.Header className="obo-topbar">
+        <TopBar
+          onMenu={() => setMobileOpen(true)}
+          navigation={visibleNavigation}
+          onNavigate={() => setMobileOpen(false)}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
+        />
+      </AppShell.Header>
+
       <AppShell.Navbar className="obo-sidebar">
         {sidebar(sidebarCollapsed)}
       </AppShell.Navbar>
@@ -59,28 +71,14 @@ export default function OBOLayout() {
       )}
 
       <AppShell.Main>
-        <Box component="header" className="obo-topbar">
-          <TopBar
-            onMenu={() => setMobileOpen(true)}
-            navigation={visibleNavigation}
-            onNavigate={() => setMobileOpen(false)}
-            sidebarCollapsed={sidebarCollapsed}
-            onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
-          />
-        </Box>
-
-        <Box
-          className="obo-content"
-          px={{ base: 'md', sm: 'lg', lg: 'xl' }}
-          py={{ base: 'lg', md: 'xl' }}
-        >
-          <a className="obo-skip" href="#obo-main">
-            Skip to content
-          </a>
-          <Box id="obo-main" component="main">
+        <a className="obo-skip" href="#obo-main">
+          Skip to content
+        </a>
+        <PageContainer>
+          <main id="obo-main">
             <Outlet />
-          </Box>
-        </Box>
+          </main>
+        </PageContainer>
       </AppShell.Main>
     </AppShell>
   )
