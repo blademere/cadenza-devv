@@ -39,16 +39,12 @@ export default function OBOLayout() {
         breakpoint: layout.breakpoint,
         collapsed: { mobile: true, desktop: false },
       }}
-      header={{
-        height: layout.headerHeight,
-      }}
+      header={{ height: layout.headerHeight }}
       padding={0}
     >
       <AppShell.Header className="obo-topbar">
         <TopBar
           onMenu={() => setMobileOpen(true)}
-          user={user}
-          role={context?.role?.name}
           navigation={visibleNavigation}
           onNavigate={() => setMobileOpen(false)}
           sidebarCollapsed={sidebarCollapsed}
