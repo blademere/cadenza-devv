@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Alert, Avatar, Box, Button, Divider, Group, Menu, Modal, MantineNavLink, ScrollArea, SimpleGrid, Stack, Text, TextInput, ThemeIcon, UnstyledButton, Tooltip } from '@mantine/core'
+import { Alert, Avatar, Box, Button, Divider, Group, Menu, Modal, NavLink as MantineNavLink, ScrollArea, SimpleGrid, Stack, Text, TextInput, ThemeIcon, UnstyledButton, Tooltip } from '@mantine/core'
 import { CaretDown, CheckCircle, GearSix, SignOut, SidebarSimple, UserCircle, WarningCircle } from '@phosphor-icons/react'
 import { branding } from '../../config/branding'
 import { usersApi } from '../../features/users/api/users.api'
