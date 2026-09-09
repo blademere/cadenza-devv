@@ -29,6 +29,7 @@ export default function OBOLayout() {
       collapsed={collapsed}
       onNavigate={() => setMobileOpen(false)}
       onLogout={() => void logout()}
+      onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
     />
   )
 
@@ -48,8 +49,6 @@ export default function OBOLayout() {
           onMenu={() => setMobileOpen(true)}
           navigation={visibleNavigation}
           onNavigate={() => setMobileOpen(false)}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
         />
       </AppShell.Header>
 
