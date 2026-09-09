@@ -29,12 +29,19 @@ describe('OBO professional seed architecture', () => {
 
   it('does not retain the removed application-level professional relation in the active seed', async () => {
     const content = await readSeed('obo-development.js')
+    const applicationUpsertStart = content.indexOf('const application = await prisma.oboPermitApplication.upsert(')
+    const applicationUpsertEnd = content.indexOf('\n  await prisma.workflowInstance.update(', applicationUpsertStart)
 
-    expect(content).not.toContain('professionalId: professional.id')
-    expect(content).not.toContain('professionalId,')
-    expect(content).toContain('professionalSnapshots')
-    expect(content).toContain('formVersionId: formVersion.id')
-    expect(content).toContain('formValues,')
+    expect(applicationUpsertStart).toBeGreaterThanOrEqual(0)
+    expect(applicationUpsertEnd).toBeGreaterThan(applicationUpsertStart)
+
+    const applicationUpsert = content.slice(applicationUpsertStart, applicationUpsertEnd)
+
+    expect(applicationUpsert).not.toContain('professionalId:')
+    expect(applicationUpsert).not.toContain('professionalId,')
+    expect(applicationUpsert).toContain('professionalSnapshots')
+    expect(applicationUpsert).toContain('formVersionId: formVersion.id')
+    expect(applicationUpsert).toContain('formValues,')
   })
 
   it('assigns roles to professional verification fixtures', async () => {
