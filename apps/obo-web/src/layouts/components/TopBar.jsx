@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ActionIcon, Box, Burger, Group, Kbd, Paper, Stack, Text, TextInput, ThemeIcon, UnstyledButton } from '@mantine/core'
-import { MagnifyingGlass, SidebarSimple } from '@phosphor-icons/react'
-import { branding } from '../../config/branding'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { ActionIcon, Box, Breadcrumbs, Burger, Group, Kbd, Paper, Stack, Text, TextInput, ThemeIcon, UnstyledButton } from '@mantine/core'
+import { CaretRight, MagnifyingGlass, SidebarSimple } from '@phosphor-icons/react'
 
 const flattenNavigation = (navigation = []) => navigation.flatMap((section) =>
   (section.items || []).map((item) => ({ ...item, sectionName: section.name })),
@@ -10,6 +9,7 @@ const flattenNavigation = (navigation = []) => navigation.flatMap((section) =>
 
 export default function TopBar({ onMenu, navigation = [], onNavigate, sidebarCollapsed, onToggleSidebar }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [query, setQuery] = useState('')
   const [searchOpened, setSearchOpened] = useState(false)
   const items = useMemo(() => flattenNavigation(navigation), [navigation])
@@ -18,6 +18,11 @@ export default function TopBar({ onMenu, navigation = [], onNavigate, sidebarCol
     if (!value) return items.slice(0, 6)
     return items.filter((item) => `${item.name} ${item.sectionName}`.toLowerCase().includes(value)).slice(0, 8)
   }, [items, query])
+
+  const current = useMemo(() => {
+    const matches = items.filter((item) => location.pathname === item.route || (item.route !== '/' && location.pathname.startsWith(`${item.route}/`)))
+    return matches.sort((a, b) => b.route.length - a.route.length)[0] ?? null
+  }, [items, location.pathname])
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -39,36 +44,25 @@ export default function TopBar({ onMenu, navigation = [], onNavigate, sidebarCol
   }
 
   return (
-    <Group h="100%" px={{ base: 'sm', sm: 'md', md: 'xl' }} gap="sm" wrap="nowrap">
-      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-        <ActionIcon
-          hiddenFrom="lg"
-          variant="subtle"
-          color="gray"
-          size="lg"
-          onClick={onMenu}
-          aria-label="Open navigation"
-        >
+    <Group h="100%" px={{ base: 'sm', sm: 'md', lg: 'xl' }} gap="sm" wrap="nowrap">
+      <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+        <ActionIcon hiddenFrom="lg" variant="subtle" color="gray" size="lg" onClick={onMenu} aria-label="Open navigation">
           <Burger opened={false} size="sm" aria-hidden />
         </ActionIcon>
-        <ActionIcon
-          visibleFrom="lg"
-          variant="subtle"
-          color="gray"
-          size="lg"
-          onClick={onToggleSidebar}
-          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
+        <ActionIcon visibleFrom="lg" variant="subtle" color="gray" size="lg" onClick={onToggleSidebar} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
           <SidebarSimple size={20} />
         </ActionIcon>
-
-        <Box visibleFrom="lg" style={{ minWidth: 150 }}>
-          <Text size="sm" fw={650} truncate>{branding.workspaceName}</Text>
-          <Text size="xs" c="dimmed" truncate>{branding.workspaceDescription}</Text>
+        <Box visibleFrom="sm" style={{ minWidth: 0, maxWidth: 360 }}>
+          <Breadcrumbs separator={<CaretRight size={13} aria-hidden />} separatorMargin="xs">
+            <Text size="xs" c="dimmed" truncate>Workspace</Text>
+            {current?.sectionName && current.sectionName !== 'Workspace' && <Text size="xs" c="dimmed" truncate>{current.sectionName}</Text>}
+            {current && <Text size="xs" fw={600} truncate>{current.name}</Text>}
+          </Breadcrumbs>
         </Box>
+      </Group>
 
-        <Box pos="relative" style={{ flex: 1, maxWidth: 600 }}>
+      <Box pos="relative" style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>
+        <Box w="100%" maw={560}>
           <TextInput
             value={query}
             onChange={(event) => { setQuery(event.currentTarget.value); setSearchOpened(true) }}
@@ -107,7 +101,7 @@ export default function TopBar({ onMenu, navigation = [], onNavigate, sidebarCol
             </Paper>
           )}
         </Box>
-      </Group>
+      </Box>
     </Group>
   )
 }
