@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { ActionIcon, Alert, Avatar, Box, Button, Divider, Group, Menu, Modal, NavLink as MantineNavLink, ScrollArea, SimpleGrid, Stack, Text, TextInput, UnstyledButton, Tooltip } from '@mantine/core'
+import { ActionIcon, Alert, Avatar, Box, Button, Divider, Group, Menu, Modal, NavLink as MantineNavLink, ScrollArea, SimpleGrid, Stack, Text, TextInput, ThemeIcon, UnstyledButton, Tooltip } from '@mantine/core'
 import { CaretDown, CheckCircle, GearSix, SignOut, UserCircle, WarningCircle, SidebarSimple } from '@phosphor-icons/react'
 import { usersApi } from '../../features/users/api/users.api'
+import { branding } from '../../config/branding'
 
 const emptyProfile = {
   firstName: '', middleName: '', lastName: '', suffix: '', phone: '',
@@ -118,8 +119,8 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
   }
 
   const navContent = (
-    <ScrollArea px={collapsed ? 8 : 'sm'} py="lg" style={{ flex: 1 }} scrollbarSize={4}>
-      <Stack gap="lg">
+    <ScrollArea px={collapsed ? 8 : 'sm'} py="md" style={{ flex: 1 }} scrollbarSize={4}>
+      <Stack gap="xl">
         {navigation.map((section) => (
           <Box key={section.key || section.name}>
             {!collapsed && <Text className="obo-section-label" px="sm" mb={6}>{section.name}</Text>}
@@ -127,7 +128,7 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
               {section.items.map((item) => {
                 const active = location.pathname === item.route || (item.route !== '/' && location.pathname.startsWith(`${item.route}/`))
                 const Icon = item.icon
-                const link = <MantineNavLink component={NavLink} to={item.route} label={collapsed ? undefined : item.name} leftSection={Icon ? <Icon size={19} weight={active ? 'duotone' : 'regular'} /> : null} active={active} onClick={onNavigate} variant="light" styles={{ root: { borderRadius: 9, minHeight: 42, width: collapsed ? 52 : '100%', paddingLeft: collapsed ? 0 : 10, paddingRight: collapsed ? 0 : 10, justifyContent: collapsed ? 'center' : undefined, color: active ? 'var(--mantine-color-indigo-7)' : 'var(--mantine-color-gray-7)', transition: 'background-color 140ms ease, color 140ms ease' }, label: { fontSize: 13, fontWeight: active ? 600 : 450 }, section: { marginRight: collapsed ? 0 : 10 } }} />
+                const link = <MantineNavLink component={NavLink} to={item.route} label={collapsed ? undefined : item.name} leftSection={Icon ? <Icon size={18} weight={active ? 'fill' : 'regular'} /> : null} active={active} onClick={onNavigate} variant="light" className="obo-sidebar-link" styles={{ root: { borderRadius: 8, minHeight: 40, width: collapsed ? 48 : '100%', paddingLeft: collapsed ? 0 : 10, paddingRight: collapsed ? 0 : 10, justifyContent: collapsed ? 'center' : undefined }, label: { fontSize: 13, fontWeight: active ? 650 : 500 }, section: { marginRight: collapsed ? 0 : 10 } }} />
                 return collapsed ? <Tooltip key={item.key || item.route} label={item.name} position="right" withArrow>{link}</Tooltip> : <Box key={item.key || item.route}>{link}</Box>
               })}
             </Stack>
@@ -140,12 +141,12 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
   )
 
   return (
-    <Stack h="100%" gap={0} style={{ background: 'var(--mantine-color-body)' }}>
-      <Box px={collapsed ? 'sm' : 'md'} py="sm">
+    <Stack h="100%" gap={0} className="obo-sidebar-content">
+      <Box px={collapsed ? 'sm' : 'md'} py="md">
         <Group justify={collapsed ? 'center' : 'space-between'} wrap="nowrap">
-          {!collapsed && <Text size="xs" fw={700} c="dimmed" tt="uppercase" ls="0.06em">Navigation</Text>}
+          {!collapsed && <Group gap="sm" wrap="nowrap"><ThemeIcon size={32} radius="md" variant="light" color="indigo"><Text fw={800} size="xs">{branding.shortName}</Text></ThemeIcon><Box style={{ minWidth: 0 }}><Text size="sm" fw={700} truncate>{branding.workspaceName}</Text><Text size="xs" c="dimmed" truncate>{branding.name}</Text></Box></Group>}
           <Tooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} position="right" withArrow>
-            <ActionIcon variant="subtle" color="gray" size="lg" onClick={onToggleCollapse} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            <ActionIcon visibleFrom="lg" variant="subtle" color="gray" size="lg" onClick={onToggleCollapse} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
               <SidebarSimple size={19} />
             </ActionIcon>
           </Tooltip>

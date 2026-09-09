@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ActionIcon, Box, Breadcrumbs, Burger, Group, Kbd, Paper, Stack, Text, TextInput, ThemeIcon, UnstyledButton } from '@mantine/core'
+import { ActionIcon, Box, Breadcrumbs, Burger, Group, Kbd, Paper, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
 import { CaretRight, MagnifyingGlass } from '@phosphor-icons/react'
-import { branding } from '../../config/branding'
 
 const flattenNavigation = (navigation = []) => navigation.flatMap((section) =>
   (section.items || []).map((item) => ({ ...item, sectionName: section.name })),
@@ -45,30 +44,21 @@ export default function TopBar({ onMenu, navigation = [], onNavigate }) {
   }
 
   return (
-    <Group h="100%" px={{ base: 'sm', sm: 'md', lg: 'xl' }} gap="md" wrap="nowrap">
+    <Group h="100%" px={{ base: 'sm', sm: 'lg', lg: 'xl' }} gap="md" wrap="nowrap">
       <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-        <ActionIcon hiddenFrom="lg" variant="subtle" color="gray" size="lg" onClick={onMenu} aria-label="Open navigation">
+        <ActionIcon hiddenFrom="lg" variant="subtle" color="gray" size="lg" radius="md" onClick={onMenu} aria-label="Open navigation">
           <Burger opened={false} size="sm" aria-hidden />
         </ActionIcon>
-        <Group gap="sm" wrap="nowrap" visibleFrom="sm" style={{ minWidth: 0 }}>
-          <ThemeIcon size={36} radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet', deg: 120 }}>
-            <Text fw={800} size="sm">{branding.shortName}</Text>
-          </ThemeIcon>
-          <Box style={{ minWidth: 0, maxWidth: 260 }}>
-            <Text fw={700} size="sm" lh={1.2} truncate>{branding.name}</Text>
-            <Text size="xs" c="dimmed" mt={2} truncate>{branding.workspaceName}</Text>
-          </Box>
-        </Group>
-        <Box visibleFrom="md" style={{ minWidth: 0 }}>
+        <Box style={{ minWidth: 0 }}>
           <Breadcrumbs separator={<CaretRight size={13} aria-hidden />} separatorMargin="xs">
             <Text size="xs" c="dimmed" truncate>Workspace</Text>
             {current?.sectionName && current.sectionName !== 'Workspace' && <Text size="xs" c="dimmed" truncate>{current.sectionName}</Text>}
-            {current && <Text size="xs" fw={600} truncate>{current.name}</Text>}
+            <Text size="sm" fw={650} truncate>{current?.name ?? 'Dashboard'}</Text>
           </Breadcrumbs>
         </Box>
       </Group>
 
-      <Box pos="relative" w={{ base: 240, sm: 320, lg: 380 }} style={{ flexShrink: 0 }}>
+      <Box pos="relative" w={{ base: 176, xs: 240, sm: 300, lg: 360 }} style={{ flexShrink: 0 }}>
         <TextInput
           value={query}
           onChange={(event) => { setQuery(event.currentTarget.value); setSearchOpened(true) }}
@@ -81,7 +71,7 @@ export default function TopBar({ onMenu, navigation = [], onNavigate }) {
           rightSection={<Kbd size="xs" visibleFrom="sm">Ctrl K</Kbd>}
           placeholder="Search workspace"
           size="sm"
-          radius="md"
+          radius="xl"
           aria-label="Search workspace"
         />
         {searchOpened && (
