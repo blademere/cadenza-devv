@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { Alert, Avatar, Box, Button, Divider, Group, Menu, Modal, NavLink as MantineNavLink, ScrollArea, SimpleGrid, Stack, Text, TextInput, ThemeIcon, UnstyledButton, Tooltip } from '@mantine/core'
-import { CaretDown, CheckCircle, GearSix, SignOut, UserCircle, WarningCircle } from '@phosphor-icons/react'
-import { branding } from '../../config/branding'
+import { CaretDown, CheckCircle, GearSix, SignOut, UserCircle, WarningCircle, SidebarSimple } from '@phosphor-icons/react'
 import { usersApi } from '../../features/users/api/users.api'
 
 const emptyProfile = {
@@ -43,7 +42,7 @@ const normalizeProfile = (result) => {
   return { ...(result.person ?? {}), email: result.user?.email ?? '', user: result.user ?? null }
 }
 
-export default function Sidebar({ navigation = [], navigationLoading = false, user, role, collapsed = false, onNavigate, onLogout }) {
+export default function Sidebar({ navigation = [], navigationLoading = false, user, role, collapsed = false, onNavigate, onLogout, onToggleCollapse }) {
   const location = useLocation()
   const [profileOpen, setProfileOpen] = useState(false)
   const [profile, setProfile] = useState(null)
@@ -142,10 +141,14 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
 
   return (
     <Stack h="100%" gap={0} style={{ background: 'var(--mantine-color-body)' }}>
-      <Box px={collapsed ? 'sm' : 'lg'} py="lg">
-        <Group gap="sm" wrap="nowrap" justify={collapsed ? 'center' : 'flex-start'}>
-          <ThemeIcon size={38} radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet', deg: 120 }}><Text fw={800} size="sm">{branding.shortName}</Text></ThemeIcon>
-          {!collapsed && <Box style={{ minWidth: 0 }}><Text fw={700} size="sm" lh={1.2} truncate>{branding.name}</Text><Text size="xs" c="dimmed" mt={3} truncate>{branding.workspaceName}</Text></Box>}
+      <Box px={collapsed ? 'sm' : 'md'} py="sm">
+        <Group justify={collapsed ? 'center' : 'space-between'} wrap="nowrap">
+          {!collapsed && <Text size="xs" fw={700} c="dimmed" tt="uppercase" ls="0.06em">Navigation</Text>}
+          <Tooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} position="right" withArrow>
+            <ActionIcon variant="subtle" color="gray" size="lg" onClick={onToggleCollapse} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+              <SidebarSimple size={19} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       </Box>
       <Divider color="gray.2" />
