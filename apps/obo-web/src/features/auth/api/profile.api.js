@@ -1,15 +1,24 @@
 import { apiClient } from '../../../services/api/client'
 
-const unwrapProfile = (response) => response.data?.data ?? null
+const normalizeProfile = (response) => {
+  const data = response.data?.data
+  if (!data) return null
+
+  return {
+    ...(data.person ?? {}),
+    email: data.user?.email ?? '',
+    user: data.user ?? null,
+  }
+}
 
 export const profileApi = {
   async get() {
     const response = await apiClient.get('/users/me/profile')
-    return unwrapProfile(response)
+    return normalizeProfile(response)
   },
 
   async update(profile) {
     const response = await apiClient.patch('/users/me/profile', profile)
-    return unwrapProfile(response)
+    return normalizeProfile(response)
   },
 }
