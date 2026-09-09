@@ -53,7 +53,7 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
     return user?.name || user?.email?.split('@')[0] || 'User'
   }, [profile, user])
   const initial = displayName.slice(0, 1).toUpperCase()
-  const email = user?.email || 'No email available'
+  const email = profile?.email || user?.email || 'No email available'
 
   const openProfile = async () => {
     setProfileOpen(true)
@@ -92,7 +92,10 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
     setError('')
     setSaved(false)
     try {
-      const nextProfile = await profileApi.update(toPayload(form))
+      const payload = toPayload(form)
+      const nextProfile = profile?.id
+        ? await profileApi.update(payload)
+        : await profileApi.create(payload)
       setProfile(nextProfile)
       setForm(toForm(nextProfile))
       setSaved(true)
