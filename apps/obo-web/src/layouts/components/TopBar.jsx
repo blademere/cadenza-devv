@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ActionIcon, Avatar, Box, Burger, Group, Kbd, Paper, Stack, Text, TextInput, ThemeIcon, UnstyledButton } from '@mantine/core'
+import { ActionIcon, Box, Burger, Group, Kbd, Paper, Stack, Text, TextInput, ThemeIcon, UnstyledButton } from '@mantine/core'
 import { MagnifyingGlass, SidebarSimple } from '@phosphor-icons/react'
 import { branding } from '../../config/branding'
 
@@ -8,11 +8,10 @@ const flattenNavigation = (navigation = []) => navigation.flatMap((section) =>
   (section.items || []).map((item) => ({ ...item, sectionName: section.name })),
 )
 
-export default function TopBar({ onMenu, user, role, navigation = [], onNavigate, sidebarCollapsed, onToggleSidebar }) {
+export default function TopBar({ onMenu, navigation = [], onNavigate, sidebarCollapsed, onToggleSidebar }) {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [searchOpened, setSearchOpened] = useState(false)
-  const displayName = user?.name || user?.email?.split('@')[0] || 'User'
   const items = useMemo(() => flattenNavigation(navigation), [navigation])
   const results = useMemo(() => {
     const value = query.trim().toLowerCase()
@@ -108,17 +107,6 @@ export default function TopBar({ onMenu, user, role, navigation = [], onNavigate
             </Paper>
           )}
         </Box>
-      </Group>
-
-      <Group gap="sm" wrap="nowrap">
-        <Box ta="right" visibleFrom="sm" style={{ minWidth: 0 }}>
-          <Text size="sm" fw={600} truncate>{displayName}</Text>
-          <Text size="xs" c="dimmed" truncate>{role || 'User'}</Text>
-        </Box>
-        <ThemeIcon variant="light" color="indigo" radius="xl" size={36} visibleFrom="md">
-          <Text size="xs" fw={700}>{displayName.slice(0, 1).toUpperCase()}</Text>
-        </ThemeIcon>
-        <Avatar size={34} radius="xl" color="indigo" hiddenFrom="md">{displayName.slice(0, 1).toUpperCase()}</Avatar>
       </Group>
     </Group>
   )
