@@ -40,18 +40,36 @@ export default function TopBar({ onMenu, user, role, navigation = [], onNavigate
   }
 
   return (
-    <Group h="100%" px={{ base: 'md', md: 'xl' }} gap="md" wrap="nowrap">
-      <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-        <Burger hiddenFrom="lg" onClick={onMenu} aria-label="Open navigation" size="sm" />
-        <ActionIcon visibleFrom="lg" variant="subtle" color="gray" size="md" onClick={onToggleSidebar} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+    <Group h="100%" px={{ base: 'sm', sm: 'md', md: 'xl' }} gap="sm" wrap="nowrap">
+      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <ActionIcon
+          hiddenFrom="lg"
+          variant="subtle"
+          color="gray"
+          size="lg"
+          onClick={onMenu}
+          aria-label="Open navigation"
+        >
+          <Burger opened={false} size="sm" aria-hidden />
+        </ActionIcon>
+        <ActionIcon
+          visibleFrom="lg"
+          variant="subtle"
+          color="gray"
+          size="lg"
+          onClick={onToggleSidebar}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
           <SidebarSimple size={20} />
         </ActionIcon>
-        <Box visibleFrom="lg" style={{ minWidth: 145 }}>
+
+        <Box visibleFrom="lg" style={{ minWidth: 150 }}>
           <Text size="sm" fw={650} truncate>{branding.workspaceName}</Text>
           <Text size="xs" c="dimmed" truncate>{branding.workspaceDescription}</Text>
         </Box>
 
-        <Box pos="relative" style={{ flex: 1, maxWidth: 560 }}>
+        <Box pos="relative" style={{ flex: 1, maxWidth: 600 }}>
           <TextInput
             value={query}
             onChange={(event) => { setQuery(event.currentTarget.value); setSearchOpened(true) }}
@@ -61,7 +79,7 @@ export default function TopBar({ onMenu, user, role, navigation = [], onNavigate
               if (event.key === 'Enter' && results[0]) goTo(results[0].route)
             }}
             leftSection={<MagnifyingGlass size={17} />}
-            rightSection={<Kbd size="xs">Ctrl K</Kbd>}
+            rightSection={<Kbd size="xs" visibleFrom="sm">Ctrl K</Kbd>}
             placeholder="Search workspace"
             size="sm"
             radius="md"
@@ -73,13 +91,7 @@ export default function TopBar({ onMenu, user, role, navigation = [], onNavigate
                 {results.length ? results.map((item) => {
                   const Icon = item.icon
                   return (
-                    <UnstyledButton
-                      key={item.key || item.route}
-                      onClick={() => goTo(item.route)}
-                      className="obo-search-result"
-                      p="xs"
-                      w="100%"
-                    >
+                    <UnstyledButton key={item.key || item.route} onClick={() => goTo(item.route)} className="obo-search-result" p="xs" w="100%">
                       <Group gap="sm" wrap="nowrap">
                         <ThemeIcon variant="light" color="indigo" size={32} radius="md">
                           {Icon ? <Icon size={17} /> : <MagnifyingGlass size={17} />}
@@ -103,7 +115,9 @@ export default function TopBar({ onMenu, user, role, navigation = [], onNavigate
           <Text size="sm" fw={600} truncate>{displayName}</Text>
           <Text size="xs" c="dimmed" truncate>{role || 'User'}</Text>
         </Box>
-        <ThemeIcon variant="light" color="indigo" radius="xl" size={36} visibleFrom="md"><Text size="xs" fw={700}>{displayName.slice(0, 1).toUpperCase()}</Text></ThemeIcon>
+        <ThemeIcon variant="light" color="indigo" radius="xl" size={36} visibleFrom="md">
+          <Text size="xs" fw={700}>{displayName.slice(0, 1).toUpperCase()}</Text>
+        </ThemeIcon>
         <Avatar size={34} radius="xl" color="indigo" hiddenFrom="md">{displayName.slice(0, 1).toUpperCase()}</Avatar>
       </Group>
     </Group>
