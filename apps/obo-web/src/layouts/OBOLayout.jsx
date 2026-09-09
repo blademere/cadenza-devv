@@ -39,19 +39,8 @@ export default function OBOLayout() {
         breakpoint: layout.breakpoint,
         collapsed: { mobile: true, desktop: false },
       }}
-      header={{ height: layout.headerHeight }}
       padding={0}
     >
-      <AppShell.Header className="obo-topbar">
-        <TopBar
-          onMenu={() => setMobileOpen(true)}
-          navigation={visibleNavigation}
-          onNavigate={() => setMobileOpen(false)}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
-        />
-      </AppShell.Header>
-
       <AppShell.Navbar className="obo-sidebar">
         {sidebar(sidebarCollapsed)}
       </AppShell.Navbar>
@@ -70,6 +59,16 @@ export default function OBOLayout() {
       )}
 
       <AppShell.Main>
+        <Box component="header" className="obo-topbar">
+          <TopBar
+            onMenu={() => setMobileOpen(true)}
+            navigation={visibleNavigation}
+            onNavigate={() => setMobileOpen(false)}
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
+          />
+        </Box>
+
         <Box
           className="obo-content"
           px={{ base: 'md', sm: 'lg', lg: 'xl' }}
