@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { Alert, Avatar, Box, Button, Divider, Group, Menu, Modal, NavLink as MantineNavLink, ScrollArea, SimpleGrid, Stack, Text, TextInput, ThemeIcon, UnstyledButton } from '@mantine/core'
 import { CaretDown, CheckCircle, GearSix, SignOut, UserCircle, WarningCircle } from '@phosphor-icons/react'
 import { branding } from '../../config/branding'
-import { profileApi } from '../../features/auth/api/profile.api'
+import { usersApi } from '../../features/users/api/users.api'
 
 const emptyProfile = {
   firstName: '', middleName: '', lastName: '', suffix: '', phone: '',
@@ -38,6 +38,11 @@ const toPayload = (form) => {
   }
 }
 
+const normalizeProfile = (result) => {
+  if (!result) return null
+  return { ...(result.person ?? {}), email: result.user?.email ?? '', user: result.user ?? null }
+}
+
 export default function Sidebar({ navigation = [], navigationLoading = false, user, role, onNavigate, onLogout }) {
   const location = useLocation()
   const [profileOpen, setProfileOpen] = useState(false)
@@ -61,7 +66,13 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
     setError('')
     setSaved(false)
     try {
-      const nextProfile = await profileApi.get()
+      let result = null
+      try {
+        result = await usersApi.getMyProfile()
+      } catch (requestError) {
+        if (requestError.status !== 404) throw requestError
+      }
+      const nextProfile = normalizeProfile(result)
       setProfile(nextProfile)
       setForm(toForm(nextProfile))
     } catch (requestError) {
@@ -93,9 +104,10 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
     setSaved(false)
     try {
       const payload = toPayload(form)
-      const nextProfile = profile?.id
-        ? await profileApi.update(payload)
-        : await profileApi.create(payload)
+      const result = profile?.id
+        ? await usersApi.updateMyProfile(payload)
+        : await usersApi.createMyProfile(payload)
+      const nextProfile = normalizeProfile(result)
       setProfile(nextProfile)
       setForm(toForm(nextProfile))
       setSaved(true)
