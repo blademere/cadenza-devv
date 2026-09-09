@@ -1,15 +1,118 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Avatar, Box, Divider, Group, Menu, Modal, NavLink as MantineNavLink, ScrollArea, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core'
-import { CaretDown, CheckCircle, GearSix, SignOut, UserCircle } from '@phosphor-icons/react'
+import { Alert, Avatar, Box, Button, Divider, Group, Menu, Modal, NavLink as MantineNavLink, ScrollArea, SimpleGrid, Stack, Text, TextInput, ThemeIcon, UnstyledButton } from '@mantine/core'
+import { CaretDown, CheckCircle, GearSix, SignOut, UserCircle, WarningCircle } from '@phosphor-icons/react'
 import { branding } from '../../config/branding'
+import { profileApi } from '../../features/auth/api/profile.api'
+
+const emptyProfile = {
+  firstName: '',
+  middleName: '',
+  lastName: '',
+  suffix: '',
+  phone: '',
+  address: {
+    street: '',
+    barangay: '',
+    city: '',
+    province: '',
+    postalCode: '',
+  },
+}
+
+const toForm = (profile) => ({
+  firstName: profile?.firstName ?? '',
+  middleName: profile?.middleName ?? '',
+  lastName: profile?.lastName ?? '',
+  suffix: profile?.suffix ?? '',
+  phone: profile?.phone ?? '',
+  address: {
+    street: profile?.address?.street ?? '',
+    barangay: profile?.address?.barangay ?? '',
+    city: profile?.address?.city ?? '',
+    province: profile?.address?.province ?? '',
+    postalCode: profile?.address?.postalCode ?? '',
+  },
+})
+
+const toPayload = (form) => ({
+  firstName: form.firstName.trim(),
+  middleName: form.middleName.trim() || null,
+  lastName: form.lastName.trim(),
+  suffix: form.suffix.trim() || null,
+  phone: form.phone.trim() || null,
+  address: Object.fromEntries(Object.entries(form.address).map(([key, value]) => [key, value.trim()])).some(([, value]) => value)
+    ? Object.fromEntries(Object.entries(form.address).map(([key, value]) => [key, value.trim()]))
+    : null,
+})
 
 export default function Sidebar({ navigation = [], navigationLoading = false, user, role, onNavigate, onLogout }) {
   const location = useLocation()
   const [profileOpen, setProfileOpen] = useState(false)
-  const displayName = user?.name || user?.email?.split('@')[0] || 'User'
+  const [profile, setProfile] = useState(null)
+  const [form, setForm] = useState(emptyProfile)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  const displayName = useMemo(() => {
+    if (profile?.firstName || profile?.lastName) {
+      return [profile.firstName, profile.lastName].filter(Boolean).join(' ')
+    }
+    return user?.name || user?.email?.split('@')[0] || 'User'
+  }, [profile, user])
   const initial = displayName.slice(0, 1).toUpperCase()
   const email = user?.email || 'No email available'
+
+  const openProfile = async () => {
+    setProfileOpen(true)
+    setProfileLoading(true)
+    setError('')
+    setSaved(false)
+    try {
+      const nextProfile = await profileApi.get()
+      setProfile(nextProfile)
+      setForm(toForm(nextProfile))
+    } catch (requestError) {
+      setProfile(null)
+      setForm(emptyProfile)
+      setError(requestError.message || 'Unable to load your profile.')
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  const closeProfile = () => {
+    if (saving) return
+    setProfileOpen(false)
+    setError('')
+    setSaved(false)
+  }
+
+  const updateField = (field, value) => setForm((current) => ({ ...current, [field]: value }))
+  const updateAddress = (field, value) => setForm((current) => ({ ...current, address: { ...current.address, [field]: value } }))
+
+  const saveProfile = async () => {
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      setError('First name and last name are required.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setSaved(false)
+    try {
+      const nextProfile = await profileApi.update(toPayload(form))
+      setProfile(nextProfile)
+      setForm(toForm(nextProfile))
+      setSaved(true)
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to save your profile.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <Stack h="100%" gap={0} style={{ background: 'var(--mantine-color-body)' }}>
@@ -48,14 +151,7 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
                       onClick={onNavigate}
                       variant="light"
                       styles={{
-                        root: {
-                          borderRadius: 9,
-                          minHeight: 40,
-                          paddingLeft: 10,
-                          paddingRight: 10,
-                          color: active ? 'var(--mantine-color-indigo-7)' : 'var(--mantine-color-gray-7)',
-                          transition: 'background-color 140ms ease, color 140ms ease',
-                        },
+                        root: { borderRadius: 9, minHeight: 40, paddingLeft: 10, paddingRight: 10, color: active ? 'var(--mantine-color-indigo-7)' : 'var(--mantine-color-gray-7)', transition: 'background-color 140ms ease, color 140ms ease' },
                         label: { fontSize: 13, fontWeight: active ? 600 : 450 },
                         section: { marginRight: 10 },
                       }}
@@ -88,7 +184,7 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
           </Menu.Target>
           <Menu.Dropdown>
             <Box px="sm" py={6}><Text size="xs" c="dimmed" fw={600}>ACCOUNT</Text></Box>
-            <Menu.Item leftSection={<UserCircle size={18} />} onClick={() => setProfileOpen(true)}>My Profile</Menu.Item>
+            <Menu.Item leftSection={<UserCircle size={18} />} onClick={() => void openProfile()}>My Profile</Menu.Item>
             <Menu.Item leftSection={<GearSix size={18} />} disabled>Account settings</Menu.Item>
             <Menu.Divider />
             <Menu.Item color="red" leftSection={<SignOut size={18} />} onClick={onLogout}>Sign out</Menu.Item>
@@ -96,11 +192,55 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
         </Menu>
       </Box>
 
-      <Modal opened={profileOpen} onClose={() => setProfileOpen(false)} title="My Profile" centered size="md" radius="lg">
+      <Modal opened={profileOpen} onClose={closeProfile} title="My Profile" centered size="lg" radius="lg" closeOnClickOutside={!saving} closeOnEscape={!saving}>
         <Stack gap="lg" pb="sm">
-          <Group wrap="nowrap"><Avatar size={64} radius="xl" color="indigo">{initial}</Avatar><Box style={{ minWidth: 0 }}><Text size="lg" fw={700}>{displayName}</Text><Text size="sm" c="dimmed" mt={2}>{role || 'Account'}</Text></Box></Group>
-          <Stack gap="xs"><Text size="xs" c="dimmed" fw={600} tt="uppercase">Email</Text><Text size="sm">{email}</Text></Stack>
-          <Group gap="xs"><CheckCircle size={18} weight="fill" /><Text size="sm" fw={500}>Active account</Text></Group>
+          <Group wrap="nowrap" align="center">
+            <Avatar size={64} radius="xl" color="indigo">{initial}</Avatar>
+            <Box style={{ minWidth: 0 }}>
+              <Text size="lg" fw={700}>{displayName}</Text>
+              <Text size="sm" c="dimmed" mt={2}>{role || 'Account'}</Text>
+            </Box>
+          </Group>
+
+          {error && <Alert color="red" variant="light" icon={<WarningCircle size={18} />}>{error}</Alert>}
+          {saved && <Alert color="green" variant="light" icon={<CheckCircle size={18} />}>Your personal information has been saved.</Alert>}
+
+          {profileLoading ? (
+            <Text size="sm" c="dimmed">Loading personal information…</Text>
+          ) : (
+            <>
+              <Box>
+                <Text size="sm" fw={700} mb="sm">Personal information</Text>
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                  <TextInput label="First name" required value={form.firstName} onChange={(event) => updateField('firstName', event.currentTarget.value)} />
+                  <TextInput label="Last name" required value={form.lastName} onChange={(event) => updateField('lastName', event.currentTarget.value)} />
+                  <TextInput label="Middle name" value={form.middleName} onChange={(event) => updateField('middleName', event.currentTarget.value)} />
+                  <TextInput label="Suffix" placeholder="Jr., Sr., III" value={form.suffix} onChange={(event) => updateField('suffix', event.currentTarget.value)} />
+                  <TextInput label="Phone" placeholder="09XX XXX XXXX" value={form.phone} onChange={(event) => updateField('phone', event.currentTarget.value)} />
+                  <TextInput label="Email" value={email} readOnly description="Managed by your account credentials." />
+                </SimpleGrid>
+              </Box>
+
+              <Box>
+                <Text size="sm" fw={700} mb="sm">Address</Text>
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                  <TextInput label="Street / house number" value={form.address.street} onChange={(event) => updateAddress('street', event.currentTarget.value)} />
+                  <TextInput label="Barangay" value={form.address.barangay} onChange={(event) => updateAddress('barangay', event.currentTarget.value)} />
+                  <TextInput label="City / municipality" value={form.address.city} onChange={(event) => updateAddress('city', event.currentTarget.value)} />
+                  <TextInput label="Province" value={form.address.province} onChange={(event) => updateAddress('province', event.currentTarget.value)} />
+                  <TextInput label="Postal code" value={form.address.postalCode} onChange={(event) => updateAddress('postalCode', event.currentTarget.value)} />
+                </SimpleGrid>
+              </Box>
+
+              <Group justify="space-between" pt="xs">
+                <Group gap="xs"><CheckCircle size={18} weight="fill" /><Text size="sm" fw={500}>Active account</Text></Group>
+                <Group>
+                  <Button variant="default" onClick={closeProfile} disabled={saving}>Cancel</Button>
+                  <Button onClick={() => void saveProfile()} loading={saving}>Save changes</Button>
+                </Group>
+              </Group>
+            </>
+          )}
         </Stack>
       </Modal>
     </Stack>
