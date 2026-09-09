@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { Alert, Avatar, Box, Button, Divider, Group, Menu, Modal, NavLink as MantineNavLink, ScrollArea, SimpleGrid, Stack, Text, TextInput, ThemeIcon, UnstyledButton, Tooltip } from '@mantine/core'
-import { CaretDown, CheckCircle, GearSix, SignOut, SidebarSimple, UserCircle, WarningCircle } from '@phosphor-icons/react'
+import { CaretDown, CheckCircle, GearSix, SignOut, UserCircle, WarningCircle } from '@phosphor-icons/react'
 import { branding } from '../../config/branding'
 import { usersApi } from '../../features/users/api/users.api'
 
@@ -43,7 +43,7 @@ const normalizeProfile = (result) => {
   return { ...(result.person ?? {}), email: result.user?.email ?? '', user: result.user ?? null }
 }
 
-export default function Sidebar({ navigation = [], navigationLoading = false, user, role, collapsed = false, onToggleCollapse, onNavigate, onLogout }) {
+export default function Sidebar({ navigation = [], navigationLoading = false, user, role, collapsed = false, onNavigate, onLogout }) {
   const location = useLocation()
   const [profileOpen, setProfileOpen] = useState(false)
   const [profile, setProfile] = useState(null)
@@ -171,14 +171,6 @@ export default function Sidebar({ navigation = [], navigationLoading = false, us
             <Menu.Item color="red" leftSection={<SignOut size={18} />} onClick={onLogout}>Sign out</Menu.Item>
           </Menu.Dropdown>
         </Menu>
-        {onToggleCollapse && (
-          <Tooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} position="right" withArrow>
-            <Button variant="subtle" color="gray" fullWidth={!collapsed} w={collapsed ? 52 : undefined} mt="xs" onClick={onToggleCollapse} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} px={0}>
-              <SidebarSimple size={19} />
-              {!collapsed && <Text size="xs" ml="xs">Collapse</Text>}
-            </Button>
-          </Tooltip>
-        )}
       </Box>
 
       <Modal opened={profileOpen} onClose={closeProfile} title="My Profile" centered size="lg" radius="lg" closeOnClickOutside={!saving} closeOnEscape={!saving}>
