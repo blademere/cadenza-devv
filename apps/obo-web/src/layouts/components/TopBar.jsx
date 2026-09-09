@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ActionIcon, Avatar, Box, Burger, Group, Kbd, Menu, Paper, Stack, Text, TextInput, ThemeIcon } from '@mantine/core'
+import { ActionIcon, Avatar, Box, Burger, Group, Kbd, Paper, Stack, Text, TextInput, ThemeIcon, UnstyledButton } from '@mantine/core'
 import { MagnifyingGlass, SidebarSimple } from '@phosphor-icons/react'
 import { branding } from '../../config/branding'
 
 const flattenNavigation = (navigation = []) => navigation.flatMap((section) =>
-  (section.items || []).map((item) => ({
-    ...item,
-    sectionName: section.name,
-  })),
+  (section.items || []).map((item) => ({ ...item, sectionName: section.name })),
 )
 
 export default function TopBar({ onMenu, user, role, navigation = [], onNavigate, sidebarCollapsed, onToggleSidebar }) {
@@ -64,7 +61,7 @@ export default function TopBar({ onMenu, user, role, navigation = [], onNavigate
               if (event.key === 'Enter' && results[0]) goTo(results[0].route)
             }}
             leftSection={<MagnifyingGlass size={17} />}
-            rightSection={<Kbd size="xs">⌘ K</Kbd>}
+            rightSection={<Kbd size="xs">Ctrl K</Kbd>}
             placeholder="Search workspace"
             size="sm"
             radius="md"
@@ -76,9 +73,23 @@ export default function TopBar({ onMenu, user, role, navigation = [], onNavigate
                 {results.length ? results.map((item) => {
                   const Icon = item.icon
                   return (
-                    <Menu.Item key={item.key || item.route} onClick={() => goTo(item.route)} leftSection={Icon ? <Icon size={18} /> : null}>
-                      <Box><Text size="sm">{item.name}</Text><Text size="xs" c="dimmed">{item.sectionName}</Text></Box>
-                    </Menu.Item>
+                    <UnstyledButton
+                      key={item.key || item.route}
+                      onClick={() => goTo(item.route)}
+                      className="obo-search-result"
+                      p="xs"
+                      w="100%"
+                    >
+                      <Group gap="sm" wrap="nowrap">
+                        <ThemeIcon variant="light" color="indigo" size={32} radius="md">
+                          {Icon ? <Icon size={17} /> : <MagnifyingGlass size={17} />}
+                        </ThemeIcon>
+                        <Box style={{ minWidth: 0 }}>
+                          <Text size="sm" fw={550} truncate>{item.name}</Text>
+                          <Text size="xs" c="dimmed" truncate>{item.sectionName}</Text>
+                        </Box>
+                      </Group>
+                    </UnstyledButton>
                   )
                 }) : <Text size="sm" c="dimmed" px="sm" py="md">No workspace pages found.</Text>}
               </Stack>
@@ -88,7 +99,7 @@ export default function TopBar({ onMenu, user, role, navigation = [], onNavigate
       </Group>
 
       <Group gap="sm" wrap="nowrap">
-        <Box ta="right" visibleFrom="sm">
+        <Box ta="right" visibleFrom="sm" style={{ minWidth: 0 }}>
           <Text size="sm" fw={600} truncate>{displayName}</Text>
           <Text size="xs" c="dimmed" truncate>{role || 'User'}</Text>
         </Box>
