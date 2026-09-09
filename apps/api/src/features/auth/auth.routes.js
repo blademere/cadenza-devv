@@ -67,7 +67,7 @@ authRouter.post('/password/change', authenticate, csrfProtection, validate(passw
 authRouter.get('/sessions', authenticate, asyncHandler(listSessionsController))
 authRouter.delete('/sessions/:id', authenticate, csrfProtection, validate(sessionIdValidator), requireAuthIdempotency, asyncHandler(revokeSessionController))
 authRouter.post('/sessions/revoke-all', authenticate, csrfProtection, requireAuthIdempotency, asyncHandler(revokeAllSessionsController))
-authRouter.post('/oauth/google', oauthRateLimiter, asyncHandler(startOAuth('google')))
+authRouter.get('/oauth/google', oauthRateLimiter, asyncHandler(startOAuth('google')))
 authRouter.get('/oauth/google/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('google')))
 authRouter.get('/oauth/facebook', oauthRateLimiter, asyncHandler(startOAuth('facebook')))
 authRouter.get('/oauth/facebook/callback', oauthRateLimiter, asyncHandler(handleOAuthCallback('facebook')))
