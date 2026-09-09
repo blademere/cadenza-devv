@@ -26,7 +26,6 @@ export default function OBOLayout() {
       user={user}
       role={context?.role?.name}
       collapsed={collapsed}
-      onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
       onNavigate={() => setMobileOpen(false)}
       onLogout={() => void logout()}
     />
