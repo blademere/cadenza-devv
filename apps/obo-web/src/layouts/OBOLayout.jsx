@@ -41,7 +41,6 @@ export default function OBOLayout() {
       }}
       header={{
         height: layout.headerHeight,
-        collapsed: { mobile: false, desktop: false },
       }}
       padding={0}
     >
