@@ -3,7 +3,7 @@ import * as requirementService from '../../../features/requirements/requirements
 import * as repository from './permit-type-requirement.repository.js'
 import * as permitTypeRepository from './permit-type.repository.js'
 
-const normalizeIds = (requirementIds = []) => [...new Set(requirementIds.filter(Boolean))]
+const normalizeIds = (requirementIds) => [...new Set(requirementIds.filter(Boolean))]
 
 const listRequirements = async (permitTypeId, db) => {
   const permitType = await permitTypeRepository.findById(permitTypeId, db)
