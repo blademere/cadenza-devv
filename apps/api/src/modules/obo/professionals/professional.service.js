@@ -46,6 +46,7 @@ const getMine = async ({ userId }) => {
   if (!professional) throw new NotFoundError('Professional application not found.')
   return professional
 }
+const getForAuthorization = (id) => repository.findById(id)
 const listPending = () => repository.listPending()
 const listVerified = () => repository.listVerified()
 const listDirectory = ({ status = 'VERIFIED', role, search } = {}) => repository.listLookup({ status, role, search })
@@ -66,4 +67,4 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   })
 }
 
-export { getProfile, createProfile, updateProfile, applyForVerification, getMine, listPending, listVerified, listDirectory, decideVerification }
+export { getProfile, createProfile, updateProfile, applyForVerification, getMine, getForAuthorization, listPending, listVerified, listDirectory, decideVerification }
