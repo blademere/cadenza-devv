@@ -53,27 +53,23 @@ export default function PermitTypeFormBuilderPage() {
 
   const permitTypeQuery = usePermitType(permitTypeId)
   const versionsQuery = usePermitTypeFormVersions(permitTypeId)
-  const published = usePermitTypeForm(permitTypeId, requestedVersion)
+  const permitType = unwrap(permitTypeQuery.data)
+  const versionsData = unwrap(versionsQuery.data)
+  const versions = Array.isArray(versionsData) ? versionsData : versionsData?.items ?? []
+  const selectedVersion = requestedVersion ?? versions.find((item) => item.status === 'PUBLISHED')?.version ?? versions[0]?.version ?? null
+  const formQuery = usePermitTypeForm(permitTypeId, selectedVersion, { enabled: Boolean(permitTypeId && selectedVersion) })
+  const editorForm = unwrap(formQuery.data)
+
   const createForm = useCreatePermitTypeForm()
   const createVersion = useCreatePermitTypeFormVersion()
   const updateVersion = useUpdatePermitTypeFormVersion()
   const publishVersion = usePublishPermitTypeFormVersion()
 
-  const permitType = unwrap(permitTypeQuery.data)
-  const versionsData = unwrap(versionsQuery.data)
-  const versions = Array.isArray(versionsData) ? versionsData : versionsData?.items ?? []
-  const activeVersion = requestedVersion ?? versions.find((item) => item.status === 'PUBLISHED')?.version ?? versions[0]?.version ?? null
-  const activeFormQuery = usePermitTypeForm(permitTypeId, activeVersion, { enabled: Boolean(permitTypeId && activeVersion) })
-  const publishedForm = unwrap(published.data)
-  const activeForm = unwrap(activeFormQuery.data)
-  const editorForm = requestedVersion ? activeForm : publishedForm ?? activeForm
-  const editorVersion = editorForm?.version ?? activeVersion
+  const editorVersion = editorForm?.version ?? selectedVersion
   const isDraft = editorForm?.status === 'DRAFT'
-  const hasConfiguredFormForPermitType = hasConfiguredPermitTypeForm(permitType, publishedForm ?? activeForm)
-  const loading = permitTypeQuery.isLoading || versionsQuery.isLoading || (!requestedVersion && published.isLoading) || (Boolean(activeVersion) && activeFormQuery.isLoading)
-  const error = requestedVersion
-    ? errorFromHooks(permitTypeQuery, versionsQuery, activeFormQuery, createForm, createVersion, updateVersion, publishVersion)
-    : errorFromHooks(permitTypeQuery, versionsQuery, published, activeFormQuery, createForm, createVersion, updateVersion, publishVersion)
+  const hasConfiguredFormForPermitType = Boolean(permitType?.formId || permitType?.form?.id || editorForm?.id)
+  const loading = permitTypeQuery.isLoading || versionsQuery.isLoading || formQuery.isLoading
+  const error = errorFromHooks(permitTypeQuery, versionsQuery, formQuery, createForm, createVersion, updateVersion, publishVersion)
   const payload = useMemo(() => toPayload(definition), [definition])
   const professionalReferenceErrors = useMemo(() => getProfessionalReferenceErrors(definition), [definition])
 
@@ -87,11 +83,10 @@ export default function PermitTypeFormBuilderPage() {
   const selectVersion = (value) => {
     setOperationError(null)
     if (value) setSearchParams({ version: value })
-    else setSearchParams({})
   }
 
   const createDraftFrom = (form) => {
-    if (!permitTypeId || !hasConfiguredPermitTypeForm(permitType, form)) {
+    if (!permitTypeId || !hasConfiguredFormForPermitType) {
       setOperationError(new Error('This permit type does not have a configured form. Create the form before creating a new version.'))
       return
     }
@@ -104,7 +99,7 @@ export default function PermitTypeFormBuilderPage() {
     createVersion.mutate({ id: permitTypeId, ...draftPayload }, { onSuccess: (created) => setSearchParams({ version: String(created.version) }) })
   }
 
-  const startNewVersion = () => createDraftFrom(publishedForm ?? activeForm)
+  const startNewVersion = () => createDraftFrom(editorForm)
 
   const saveDraft = () => {
     if (!permitTypeId || !editorVersion) return
@@ -153,10 +148,7 @@ export default function PermitTypeFormBuilderPage() {
     })
   }
 
-  const versionOptions = versions.map((item) => ({
-    value: String(item.version),
-    label: `Version ${item.version} · ${item.status}`,
-  }))
+  const versionOptions = versions.map((item) => ({ value: String(item.version), label: `Version ${item.version} · ${item.status}` }))
 
   return (
     <RequireAnyPermission permissions={[permissions.forms.create, permissions.forms.update]}>
@@ -164,7 +156,7 @@ export default function PermitTypeFormBuilderPage() {
         <PageHeader eyebrow="Plan Permits / Permit Type / Form" title={permitType?.name ?? 'Form management'} description="Build permit forms, inspect every version, edit drafts, and publish immutable versions." actions={(
           <Group>
             <Button component={Link} to={`/app/permit-types/${permitTypeId}`} variant="default">Back</Button>
-            {hasConfiguredFormForPermitType && !requestedVersion && publishedForm ? <PermissionGate permission={permissions.forms.update}><Button onClick={startNewVersion} loading={createVersion.isPending}>Create New Version</Button></PermissionGate> : null}
+            {hasConfiguredFormForPermitType && !requestedVersion && editorForm ? <PermissionGate permission={permissions.forms.update}><Button onClick={startNewVersion} loading={createVersion.isPending}>Create New Version</Button></PermissionGate> : null}
             {isDraft ? <PermissionGate permission={permissions.forms.update}><Button onClick={saveDraft} loading={updateVersion.isPending}>Save Draft</Button></PermissionGate> : null}
             {isDraft ? <PermissionGate permission={permissions.forms.publish}><Button onClick={publish} loading={publishVersion.isPending} disabled={professionalReferenceErrors.length > 0}>Publish</Button></PermissionGate> : null}
           </Group>
@@ -174,7 +166,7 @@ export default function PermitTypeFormBuilderPage() {
         {loading ? <LoadingState label="Loading form configuration…" /> : null}
         {formError ? <Alert color="red" title="Form management error">{formError.message ?? 'The requested operation could not be completed.'}</Alert> : null}
         {!loading && !formError && professionalReferenceErrors.length > 0 ? <Alert color="yellow" title="Professional selection needs configuration">{professionalReferenceErrors.join(' ')}</Alert> : null}
-        {!loading && !formError && !hasConfiguredFormForPermitType && !requestedVersion ? <Box className="obo-panel" p="lg"><Stack><Text fw={700}>No form configured</Text><Text size="sm" c="dimmed">Create the initial form. Version 1 starts as a draft and must be published before it is used for applications.</Text><PermissionGate permission={permissions.forms.create}><Button onClick={openCreateForm}>Create Form</Button></PermissionGate></Stack></Box> : null}
+        {!loading && !formError && !hasConfiguredFormForPermitType ? <Box className="obo-panel" p="lg"><Stack><Text fw={700}>No form configured</Text><Text size="sm" c="dimmed">Create the initial form. Version 1 starts as a draft and must be published before it is used for applications.</Text><PermissionGate permission={permissions.forms.create}><Button onClick={openCreateForm}>Create Form</Button></PermissionGate></Stack></Box> : null}
         {!loading && !formError && editorForm ? <Stack><Box className="obo-panel" p="lg"><Group justify="space-between"><Box><Text fw={700}>{editorForm.name ?? 'Application form'}</Text><Text size="sm" c="dimmed">Version {editorVersion ?? '—'} · {editorForm.status ?? 'PUBLISHED'}</Text>{editorForm.description ? <Text size="sm" mt="xs">{editorForm.description}</Text> : null}</Box><Text size="sm" c={isDraft ? 'orange' : 'dimmed'}>{isDraft ? 'Draft changes are not used until published.' : 'Published and archived versions are immutable.'}</Text></Group></Box><PermissionGate permission={permissions.forms.update}><FormBuilder definition={definition} onChange={setDefinition} /></PermissionGate></Stack> : null}
       </Stack>
       <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title="Create application form" centered><Stack><TextInput label="Form key" description="Lowercase letters, numbers, hyphens, or underscores." value={meta.key} onChange={(event) => setMeta((current) => ({ ...current, key: event.currentTarget.value }))} /><TextInput label="Form name" value={meta.name} onChange={(event) => setMeta((current) => ({ ...current, name: event.currentTarget.value }))} /><Textarea label="Description" value={meta.description} onChange={(event) => setMeta((current) => ({ ...current, description: event.currentTarget.value || null }))} autosize minRows={3} /><Group justify="flex-end"><Button variant="default" onClick={() => setModalOpen(false)}>Cancel</Button><PermissionGate permission={permissions.forms.create}><Button onClick={submitCreateForm} loading={createForm.isPending}>Create</Button></PermissionGate></Group></Stack></Modal>
