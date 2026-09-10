@@ -28,7 +28,7 @@ const getApplication = async ({ id }) => {
   const application = await repository.findApplication(id)
   if (!application) throw new NotFoundError('Permit application not found.')
   const workflow = await getWorkflowState(application)
-  return hydrateApplication({ ...application, status: workflow.currentStep.key }, undefined)
+  return hydrateApplication({ ...application, status: workflow.currentStep.key })
 }
 
 const getForAuthorization = (id) => repository.findApplication(id)
@@ -39,7 +39,7 @@ const listApplications = async ({ status }) => {
     const workflow = await getWorkflowState(application)
     if (status && workflow.currentStep.key !== status) return null
     if (!status && workflow.currentStep.key !== STATUS.SUBMISSION_SCHEDULED) return null
-    return hydrateApplication({ ...application, status: workflow.currentStep.key }, undefined)
+    return hydrateApplication({ ...application, status: workflow.currentStep.key })
   }))
   return hydrated.filter(Boolean)
 }
