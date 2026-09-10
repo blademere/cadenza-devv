@@ -53,9 +53,6 @@ const update = async (id, data, db = prisma) => {
   return attachFormVersion(application, db)
 }
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
-const createSubmissionAppointment = (data, db = prisma) => db.oboSubmissionAppointment.create({ data })
-const findSubmissionAppointmentByApplicationId = (applicationId, db = prisma) => db.oboSubmissionAppointment.findUnique({ where: { applicationId } })
-const updateSubmissionAppointment = (applicationId, appointmentId, db = prisma) => db.oboSubmissionAppointment.update({ where: { applicationId }, data: { appointmentId } })
 const withTransaction = (callback) => prisma.$transaction(callback)
 
-export { findPersonByUserId, findPersonNotificationContext, findPermitType, findFormById, findFormVersionById, findWorkflowInstance, findById, findOwnedByClient, listByClient, create, update, addDecision, createSubmissionAppointment, findSubmissionAppointmentByApplicationId, updateSubmissionAppointment, withTransaction }
+export { findPersonByUserId, findPersonNotificationContext, findPermitType, findFormById, findFormVersionById, findWorkflowInstance, findById, findOwnedByClient, listByClient, create, update, addDecision, withTransaction }
