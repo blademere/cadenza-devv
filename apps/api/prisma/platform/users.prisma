@@ -30,8 +30,8 @@ model User {
   oboApplicationsAccepted              OboPermitApplication[]                @relation("OboApplicationAcceptedBy")
   oboReceivingDecisions                OboReceivingDecision[]                @relation("OboReceivingDecisionUser")
   oboProfessionalVerificationDecisions OboProfessionalVerificationDecision[] @relation("OboProfessionalVerificationDecisionUser")
-  oboApplicationDocumentsReceived     OboPermitApplicationDocument[]        @relation("OboApplicationDocumentReceivedBy")
-  oboApplicationDocumentsVerified     OboPermitApplicationDocument[]        @relation("OboApplicationDocumentVerifiedBy")
+  oboApplicationDocumentsReceived      OboPermitApplicationDocument[]        @relation("OboApplicationDocumentReceivedBy")
+  oboApplicationDocumentsVerified      OboPermitApplicationDocument[]        @relation("OboApplicationDocumentVerifiedBy")
   createdAt                            DateTime                              @default(now())
   updatedAt                            DateTime                              @updatedAt
 
@@ -134,8 +134,4 @@ model EmailVerificationToken {
   expiresAt  DateTime
   usedAt     DateTime?
   createdAt  DateTime @default(now())
-
-  @@index([userId])
-  @@index([expiresAt])
-  @@index([usedAt])
 }
