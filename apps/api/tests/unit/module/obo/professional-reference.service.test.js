@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  repository: { findById: vi.fn() },
+  professionalService: { getForReference: vi.fn() },
   evaluateCondition: vi.fn(() => true),
 }))
 
-vi.mock('../../../../src/modules/obo/professionals/professional.repository.js', () => mocks.repository)
+vi.mock('../../../../src/modules/obo/professionals/professional.service.js', () => mocks.professionalService)
 vi.mock('../../../../src/platform/forms/form.service.js', () => ({ evaluateCondition: mocks.evaluateCondition }))
 
 const service = await import('../../../../src/modules/obo/plan-permits/professional-reference.service.js')
@@ -27,7 +27,7 @@ const professional = (overrides = {}) => ({
 
 describe('OBO professional reference validation', () => {
   it('accepts a verified active professional with the configured role', async () => {
-    mocks.repository.findById.mockResolvedValue(professional())
+    mocks.professionalService.getForReference.mockResolvedValue(professional())
 
     await expect(service.validateProfessionalReferences({
       formVersion: formVersion({
@@ -41,7 +41,7 @@ describe('OBO professional reference validation', () => {
       formValues: { architect: professional().id },
     })).resolves.toBe(true)
 
-    expect(mocks.repository.findById).toHaveBeenCalledWith(professional().id)
+    expect(mocks.professionalService.getForReference).toHaveBeenCalledWith(professional().id)
   })
 
   it('rejects an invalid professional identifier', async () => {
@@ -55,12 +55,12 @@ describe('OBO professional reference validation', () => {
       formValues: { architect: 'not-a-uuid' },
     })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'REFERENCE' })] })
 
-    expect(mocks.repository.findById).not.toHaveBeenCalled()
+    expect(mocks.professionalService.getForReference).not.toHaveBeenCalled()
   })
 
   it('rejects nonexistent, unverified, inactive, and wrong-role professionals', async () => {
     const id = professional().id
-    mocks.repository.findById
+    mocks.professionalService.getForReference
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(professional({ status: 'PENDING_VERIFICATION' }))
       .mockResolvedValueOnce(professional({ person: { id: 'person-1', isActive: false } }))
@@ -84,7 +84,7 @@ describe('OBO professional reference validation', () => {
   it('validates every selected professional when multiple is enabled', async () => {
     const first = professional({ id: '00000000-0000-4000-8000-000000000001' })
     const second = professional({ id: '00000000-0000-4000-8000-000000000002' })
-    mocks.repository.findById.mockImplementation(async (id) => id === first.id ? first : second)
+    mocks.professionalService.getForReference.mockImplementation(async (id) => id === first.id ? first : second)
 
     await expect(service.validateProfessionalReferences({
       formVersion: formVersion({
@@ -97,7 +97,7 @@ describe('OBO professional reference validation', () => {
       formValues: { architects: [first.id, second.id] },
     })).resolves.toBe(true)
 
-    expect(mocks.repository.findById).toHaveBeenCalledTimes(2)
+    expect(mocks.professionalService.getForReference).toHaveBeenCalledTimes(2)
   })
 
   it('rejects a scalar value when multiple selection is enabled', async () => {
@@ -111,7 +111,7 @@ describe('OBO professional reference validation', () => {
       formValues: { architects: professional().id },
     })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'TYPE' })] })
 
-    expect(mocks.repository.findById).not.toHaveBeenCalled()
+    expect(mocks.professionalService.getForReference).not.toHaveBeenCalled()
   })
 
   it('rejects an array when single selection is configured', async () => {
@@ -125,12 +125,12 @@ describe('OBO professional reference validation', () => {
       formValues: { architect: [professional().id] },
     })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'TYPE' })] })
 
-    expect(mocks.repository.findById).not.toHaveBeenCalled()
+    expect(mocks.professionalService.getForReference).not.toHaveBeenCalled()
   })
 
   it('rejects duplicate professional references in a multiple field', async () => {
     const id = professional().id
-    mocks.repository.findById.mockResolvedValue(professional())
+    mocks.professionalService.getForReference.mockResolvedValue(professional())
 
     await expect(service.validateProfessionalReferences({
       formVersion: formVersion({
@@ -142,7 +142,7 @@ describe('OBO professional reference validation', () => {
       formValues: { architects: [id, id] },
     })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'DUPLICATE' })] })
 
-    expect(mocks.repository.findById).toHaveBeenCalledTimes(1)
+    expect(mocks.professionalService.getForReference).toHaveBeenCalledTimes(1)
   })
 
   it('does not query a professional for invalid reference values', async () => {
@@ -162,7 +162,7 @@ describe('OBO professional reference validation', () => {
       ],
     })
 
-    expect(mocks.repository.findById).not.toHaveBeenCalled()
+    expect(mocks.professionalService.getForReference).not.toHaveBeenCalled()
   })
 
   it('rejects a missing required professional reference', async () => {
@@ -193,6 +193,6 @@ describe('OBO professional reference validation', () => {
       formValues: {},
     })).resolves.toBe(true)
 
-    expect(mocks.repository.findById).not.toHaveBeenCalled()
+    expect(mocks.professionalService.getForReference).not.toHaveBeenCalled()
   })
 })
