@@ -77,6 +77,7 @@ describe('Authorization architecture contract', () => {
     const service = await readText(authorizationContextServicePath)
 
     expect(route).toContain("./authorization-context.service.js")
+    expect(route).toContain('authenticate')
     expect(route).not.toContain('../../features/auth/')
     expect(route).not.toContain('authorization-context.repository.js')
     expect(route).not.toContain('getUserAuthorizationContext(')
