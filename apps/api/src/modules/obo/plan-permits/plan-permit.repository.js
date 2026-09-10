@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 import * as formRepository from '../../../platform/forms/form.repository.js'
+import * as workflowRepository from '../../../platform/workflow/workflow.repository.js'
 
 const prisma = getPrismaClient()
 const reference = () => `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
@@ -10,7 +11,7 @@ const findPersonNotificationContext = (personId, db = prisma) => db.person.findU
 const findPermitType = (id, db = prisma) => db.oboPermitType.findFirst({ where: { id, isActive: true } })
 const findFormById = (id, db = prisma) => formRepository.findById(id, db)
 const findFormVersionById = (id, db = prisma) => formRepository.findVersionById(id, db)
-const findWorkflowInstance = (id, db = prisma) => db.workflowInstance.findUnique({ where: { id }, include: { currentStep: true } })
+const findWorkflowInstance = (id, db = prisma) => workflowRepository.findInstance(id, db)
 
 const applicationInclude = {
   permitType: true,
