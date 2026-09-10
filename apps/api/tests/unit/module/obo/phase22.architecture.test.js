@@ -4,26 +4,34 @@ import { describe, expect, it } from 'vitest'
 const paths = {
   planPermitRepository: new URL('../../../../src/modules/obo/plan-permits/plan-permit.repository.js', import.meta.url),
   planPermitService: new URL('../../../../src/modules/obo/plan-permits/plan-permit.service.js', import.meta.url),
+  planPermitForm: new URL('../../../../src/modules/obo/plan-permits/plan-permit.form.js', import.meta.url),
+  planPermitWorkflow: new URL('../../../../src/modules/obo/plan-permits/plan-permit.workflow.js', import.meta.url),
   permitTypeService: new URL('../../../../src/modules/obo/permit-types/permit-type.service.js', import.meta.url),
   clientRepository: new URL('../../../../src/modules/obo/clients/client.repository.js', import.meta.url),
   clientService: new URL('../../../../src/modules/obo/clients/client.service.js', import.meta.url),
   casesService: new URL('../../../../src/features/cases/cases.service.js', import.meta.url),
   receivingRepository: new URL('../../../../src/modules/obo/receiving/receiving.repository.js', import.meta.url),
+  receivingService: new URL('../../../../src/modules/obo/receiving/receiving.service.js', import.meta.url),
 }
 
 const readText = (url) => readFile(url, 'utf8')
 
-describe('Phase 22 OBO separation boundary contract', () => {
+describe('OBO separation boundary contract', () => {
   it('keeps Plan Permit repository scoped to permit application persistence', async () => {
     const source = await readText(paths.planPermitRepository)
     expect(source).not.toContain('db.oboPermitType')
     expect(source).not.toContain('db.oboReceivingDecision')
     expect(source).not.toContain('db.caseRecord')
     expect(source).not.toContain('db.caseType')
+    expect(source).not.toContain('form.repository.js')
+    expect(source).not.toContain('workflow.repository.js')
+    expect(source).not.toContain('appointment.service.js')
   })
 
-  it('routes Plan Permit dependencies through domain services', async () => {
+  it('routes Plan Permit dependencies through domain and platform services', async () => {
     const planPermit = await readText(paths.planPermitService)
+    const form = await readText(paths.planPermitForm)
+    const workflow = await readText(paths.planPermitWorkflow)
     const permitTypes = await readText(paths.permitTypeService)
     const cases = await readText(paths.casesService)
 
@@ -34,13 +42,20 @@ describe('Phase 22 OBO separation boundary contract', () => {
     expect(planPermit).toContain('caseService.createRecord')
     expect(permitTypes).toContain('const getPermitTypeById')
     expect(cases).toContain('const getOrCreateType')
+    expect(form).toContain("../../../platform/forms/form.service.js")
+    expect(form).not.toContain('plan-permit.repository.js')
+    expect(workflow).toContain("../../../platform/workflow/workflow.service.js")
+    expect(workflow).not.toContain('plan-permit.repository.js')
   })
 
-  it('keeps Receiving decision persistence inside Receiving', async () => {
-    const planPermit = await readText(paths.planPermitRepository)
+  it('keeps Receiving persistence inside Receiving while services own cross-domain access', async () => {
     const receiving = await readText(paths.receivingRepository)
-    expect(planPermit).not.toContain('addDecision')
+    const service = await readText(paths.receivingService)
+    expect(receiving).not.toContain('workflow.repository.js')
+    expect(receiving).not.toContain('appointment.service.js')
     expect(receiving).toContain('db.oboReceivingDecision.create')
+    expect(service).toContain("../../../platform/workflow/workflow.service.js")
+    expect(service).toContain("../../../features/appointments/appointment.service.js")
   })
 
   it('keeps OBO Clients behind the shared People service', async () => {
