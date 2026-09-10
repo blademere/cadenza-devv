@@ -32,14 +32,6 @@ ALTER TABLE "OboPermitApplicationDocument"
   FOREIGN KEY ("applicationId") REFERENCES "OboPermitApplication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "OboPermitApplicationDocument"
-  ADD CONSTRAINT "OboPermitApplicationDocument_requirementId_fkey"
-  FOREIGN KEY ("requirementId") REFERENCES "DocumentRequirement"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
-ALTER TABLE "OboPermitApplicationDocument"
-  ADD CONSTRAINT "OboPermitApplicationDocument_documentId_fkey"
-  FOREIGN KEY ("documentId") REFERENCES "Document"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
-ALTER TABLE "OboPermitApplicationDocument"
   ADD CONSTRAINT "OboPermitApplicationDocument_receivedByUserId_fkey"
   FOREIGN KEY ("receivedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
