@@ -1,8 +1,8 @@
+import crypto from 'node:crypto'
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 import * as formRepository from '../../../platform/forms/form.repository.js'
 
 const prisma = getPrismaClient()
-const formVersionInclude = { fields: { orderBy: { sortOrder: 'asc' } }, sections: { orderBy: { sortOrder: 'asc' } } }
 const reference = () => `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 
 const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where: { userId } })
