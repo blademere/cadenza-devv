@@ -1,3 +1,5 @@
+import { getUserAuthorizationContext, listActiveModules } from './authorization-context.repository.js'
+
 const buildAuthorizationContext = ({ context, modules, capabilities }) => {
   const permissionSet = new Set(
     (context?.permissions ?? []).map(({ resource, action }) => `${resource}:${action}`),
@@ -26,4 +28,17 @@ const buildAuthorizationContext = ({ context, modules, capabilities }) => {
   }
 }
 
-export { buildAuthorizationContext }
+const getAuthorizationContextResponse = async (userId, capabilities) => {
+  const [context, modules] = await Promise.all([
+    getUserAuthorizationContext(userId),
+    listActiveModules(),
+  ])
+
+  return buildAuthorizationContext({
+    context,
+    modules,
+    capabilities,
+  })
+}
+
+export { buildAuthorizationContext, getAuthorizationContextResponse }
