@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const repository = vi.hoisted(() => ({
   findPersonByUserId: vi.fn(),
   findFormById: vi.fn(),
+  findWorkflowInstance: vi.fn(),
   findById: vi.fn(),
   findOwnedByClient: vi.fn(),
   listByClient: vi.fn(),
@@ -34,6 +35,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   repository.withTransaction.mockImplementation(async (callback) => callback({ tx: true }))
   repository.findPersonByUserId.mockResolvedValue(person)
+  repository.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
   repository.findPersonNotificationContext.mockResolvedValue(null)
   permitTypeService.getPermitTypeById.mockResolvedValue(permitType)
   caseService.getOrCreateType.mockResolvedValue({ id: 'case-type-1', key: 'obo-permit-application' })
