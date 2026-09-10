@@ -5,12 +5,14 @@ import { recordAudit } from '../../../platform/audit/audit.service.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import * as formService from '../../../platform/forms/form.service.js'
 import * as appointmentService from '../../../features/appointments/appointment.service.js'
+import * as requirementService from '../../../features/requirements/requirements.service.js'
 import participantService from '../../../features/participants/participants.service.js'
 import * as repository from './plan-permit.repository.js'
 import { resolveAndValidateForm } from './plan-permit.form.js'
 import { buildProfessionalSnapshots, validateProfessionalReferences } from '../professionals/professional-reference.service.js'
 import * as professionalService from '../professionals/professional.service.js'
 import * as permitTypeService from '../permit-types/permit-type.service.js'
+import * as permitTypeRequirementService from '../permit-types/permit-type-requirement.service.js'
 import * as caseService from '../../../features/cases/cases.service.js'
 import { getWorkflowState, withWorkflowState } from './plan-permit.workflow.js'
 import { getNotificationContext } from '../notification-context.js'
@@ -35,7 +37,7 @@ const hydrateApplication = async (application, db) => {
   }
   if (application.submissionAppointment?.appointmentId) {
     const appointment = await appointmentService.getAppointmentForReference({ id: application.submissionAppointment.appointmentId, db })
-    hydrated = { ...hydrated, submissionAppointment: { ...application.submissionAppointment, appointment } }
+    hydrated = { ...application, submissionAppointment: { ...application.submissionAppointment, appointment } }
   }
   return hydrated
 }
@@ -91,6 +93,16 @@ const addProfessionalParticipants = async ({ caseId, professionalSnapshots, db }
   }
 }
 
+const attachPermitRequirements = async ({ caseId, permitTypeId, db }) => {
+  const requirementIds = await permitTypeRequirementService.getRequirementIds(permitTypeId, db)
+  return requirementService.attachDefinitionsToCase({
+    caseId,
+    requirementIds,
+    metadata: { source: 'obo-plan-permit', permitTypeId },
+    db,
+  })
+}
+
 const createApplication = async ({ userId, permitTypeId, formVersionId, formValues, replacesApplicationId }) => {
   const person = await getClientPerson(userId)
   const permitType = await permitTypeService.getPermitTypeById(permitTypeId)
@@ -100,6 +112,7 @@ const createApplication = async ({ userId, permitTypeId, formVersionId, formValu
   const application = await repository.withTransaction(async (tx) => {
     const referenceNumber = `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
     const caseRecord = await createCaseRecord({ userId, permitTypeName: permitType.name, db: tx })
+    await attachPermitRequirements({ caseId: caseRecord.id, permitTypeId, db: tx })
     const created = await repository.create({ clientPersonId: person.id, permitTypeId, formVersionId: resolvedForm.formVersionId, formValues, replacesApplicationId: replacement?.id || null, caseId: caseRecord.id, referenceNumber }, tx)
     await addApplicantParticipant({ caseId: caseRecord.id, personId: person.id, db: tx })
     const notificationContext = await getNotificationContext({ personId: person.id, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
