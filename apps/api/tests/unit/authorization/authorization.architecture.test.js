@@ -8,6 +8,8 @@ const accessControlServicePath = new URL('../../../src/platform/authorization/ac
 const authorizeMiddlewarePath = new URL('../../../src/platform/authorization/authorize.js', import.meta.url)
 const authorizationResourceMiddlewarePath = new URL('../../../src/platform/authorization/authorization-resource.middleware.js', import.meta.url)
 const authorizationAdminRoutePath = new URL('../../../src/features/authorization-admin/authorization-admin.routes.js', import.meta.url)
+const authorizationContextRoutePath = new URL('../../../src/platform/authorization/authorization-context.routes.js', import.meta.url)
+const authorizationContextServicePath = new URL('../../../src/platform/authorization/authorization-context.service.js', import.meta.url)
 const featuresPath = new URL('../../../src/features/', import.meta.url)
 
 const readText = (url) => readFile(url, 'utf8')
@@ -68,5 +70,17 @@ describe('Authorization architecture contract', () => {
     expect(source).toContain('loadResource: getModuleById')
     expect(source).toContain('loadResource: getRoleById')
     expect(source).not.toContain("./authorization-admin.repository.js")
+  })
+
+  it('keeps authorization-context route dependent on its service and outside the Auth feature', async () => {
+    const route = await readText(authorizationContextRoutePath)
+    const service = await readText(authorizationContextServicePath)
+
+    expect(route).toContain("./authorization-context.service.js")
+    expect(route).not.toContain('../../features/auth/')
+    expect(route).not.toContain('authorization-context.repository.js')
+    expect(route).not.toContain('getUserAuthorizationContext(')
+    expect(service).toContain('authorization-context.repository.js')
+    expect(service).toContain('getAuthorizationContextResponse')
   })
 })
