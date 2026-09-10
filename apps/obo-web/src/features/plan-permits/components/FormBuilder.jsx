@@ -166,8 +166,8 @@ function FieldEditor({ field, sections, onChange, onRemove, onMoveUp, onMoveDown
 }
 
 export default function FormBuilder({ definition, onChange }) {
-  const sections = definition.sections ?? []
-  const fields = definition.fields ?? []
+  const sections = useMemo(() => definition.sections ?? [], [definition.sections])
+  const fields = useMemo(() => definition.fields ?? [], [definition.fields])
   const unsectioned = useMemo(() => fields.filter((field) => !field.sectionKey), [fields])
 
   const setSections = (next) => onChange({ ...definition, sections: next.map((section, index) => ({ ...section, sortOrder: index })) })
