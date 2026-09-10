@@ -24,10 +24,10 @@ describe('Phase 21 OBO hard-copy document checklist contract', () => {
     expect(schema).toContain('documentId')
     expect(schema).toContain('@@unique([applicationId, requirementId])')
     expect(schema).toContain('application      OboPermitApplication')
-    expect(schema).not.toContain('requirement     DocumentRequirement')
-    expect(schema).not.toContain('document        Document')
-    expect(schema).not.toContain('@relation("OboApplicationDocumentReceivedBy")')
-    expect(schema).not.toContain('@relation("OboApplicationDocumentVerifiedBy")')
+    expect(schema).not.toMatch(/^\s*requirement\s+DocumentRequirement/m)
+    expect(schema).not.toMatch(/^\s*document\s+Document\?/m)
+    expect(schema).not.toMatch(/^\s*receivedBy\s+User\?/m)
+    expect(schema).not.toMatch(/^\s*verifiedBy\s+User\?/m)
   })
 
   it('keeps platform document models independent from the OBO association', async () => {
@@ -70,8 +70,8 @@ describe('Phase 21 OBO hard-copy document checklist contract', () => {
   it('enforces required documents before accepting an application for inspection', async () => {
     const source = await readText(paths.receivingService)
 
-    expect(source).toContain('validateRequiredDocuments')
-    expect(source).toMatch(/if \(accepted\) await applicationDocumentService\.validateRequiredDocuments\(\{ applicationId: id \}\)/)
+    expect(source).toContain('applicationDocumentService.validateRequiredDocuments')
+    expect(source).toMatch(/applicationDocumentService\.validateRequiredDocuments\(\{\s*applicationId: id,\s*application,\s*db: tx,\s*\}\)/)
   })
 
   it('exposes form-version document requirements through the Platform service boundary', async () => {
