@@ -1,19 +1,35 @@
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
-const findApplication = (id, db = prisma) => db.oboPermitApplication.findUnique({ where: { id }, include: { permitType: true, professional: true, submissionAppointment: true, decisions: { orderBy: { decidedAt: 'desc' } } } })
-const findWorkflowInstance = (id, db = prisma) => db.workflowInstance.findUnique({ where: { id }, include: { currentStep: true } })
-const findSubmissionAppointment = (appointmentId, db = prisma) => db.appointment.findUnique({ where: { id: appointmentId }, include: { slot: true } })
-const findPersonNotificationContext = (personId, db = prisma) => db.person.findUnique({ where: { id: personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
-const listApplications = async (status, db = prisma) => {
-  const applications = await db.oboPermitApplication.findMany({ where: { workflowInstanceId: { not: null } }, include: { permitType: true, professional: true, submissionAppointment: true }, orderBy: { createdAt: 'asc' } })
-  const workflowIds = applications.map((application) => application.workflowInstanceId).filter(Boolean)
-  const instances = await db.workflowInstance.findMany({ where: { id: { in: workflowIds } }, include: { currentStep: true } })
-  const stateById = new Map(instances.map((instance) => [instance.id, instance.currentStep.key]))
-  return applications.map((application) => { const workflowStatus = stateById.get(application.workflowInstanceId); if (!workflowStatus) return null; return { ...application, status: workflowStatus } }).filter(Boolean).filter((application) => application.status === (status || 'SUBMISSION_SCHEDULED'))
+
+const applicationInclude = {
+  permitType: true,
+  clientPerson: { select: { id: true, firstName: true, middleName: true, lastName: true, suffix: true, email: true, phone: true } },
+  submissionAppointment: true,
+  decisions: { orderBy: { decidedAt: 'desc' } },
 }
-const updateApplication = (id, data, db = prisma) => db.oboPermitApplication.update({ where: { id }, data, include: { permitType: true, professional: true, submissionAppointment: true } })
+
+const findApplication = (id, db = prisma) =>
+  db.oboPermitApplication.findUnique({ where: { id }, include: applicationInclude })
+
+const listApplications = (status, db = prisma) =>
+  db.oboPermitApplication.findMany({
+    where: { workflowInstanceId: { not: null } },
+    include: applicationInclude,
+    orderBy: { createdAt: 'asc' },
+  })
+
+const updateApplication = (id, data, db = prisma) =>
+  db.oboPermitApplication.update({ where: { id }, data, include: applicationInclude })
+
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
+
+const findPersonNotificationContext = (personId, db = prisma) =>
+  db.person.findUnique({
+    where: { id: personId },
+    select: { userId: true, email: true, user: { select: { email: true } } },
+  })
+
 const withTransaction = (callback) => prisma.$transaction(callback)
 
-export { findApplication, findWorkflowInstance, findSubmissionAppointment, findPersonNotificationContext, listApplications, updateApplication, addDecision, withTransaction }
+export { findApplication, listApplications, updateApplication, addDecision, findPersonNotificationContext, withTransaction }

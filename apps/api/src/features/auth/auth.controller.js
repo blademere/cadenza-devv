@@ -1,6 +1,6 @@
 import { successResponse } from '../../common/responses/apiResponse.js'
 import { login, requestPasswordReset, resetPassword, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout } from './auth.service.js'
-import { registerUser } from './user-registration.js'
+import { registerUser } from './registration.service.js'
 import { issueEmailVerification, verifyEmail } from './email-verification.service.js'
 import { findUserById } from './auth.repository.js'
 import { setCsrfCookie } from '../../common/middleware/csrf.js'
@@ -19,7 +19,7 @@ const currentUserController = async (req, res) => { const user = await findUserB
 const changePasswordController = async (req, res) => { await changePassword({ userId: req.user.id, ...req.validated.body }); clearRefreshCookie(res); res.clearCookie('csrfToken', { secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/' }); return successResponse(res, 'Password changed successfully. Please sign in again.', null, 200) }
 const listSessionsController = async (req, res) => successResponse(res, 'Active sessions retrieved.', { sessions: await getSessions({ userId: req.user.id }) })
 const revokeSessionController = async (req, res) => successResponse(res, 'Session revoked successfully.', await revokeSessionById({ userId: req.user.id, sessionId: req.validated.params.id }))
-const revokeAllSessionsController = async (req, res) => { await revokeAllSessions({ userId: req.user.id }); clearRefreshCookie(res); res.clearCookie('csrfToken', { secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/' }); return successResponse(res, 'All sessions revoked successfully. Please sign in again.', null, 200) }
+const revokeAllSessionsController = async (req, res) => { await revokeAllSessions({ userId: req.user.id }); clearRefreshCookie(res); res.clearCookie('csrfToken', { secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/' }); return successResponse(res, 'All sessions revoked successfully.', null, 200) }
 const refreshAccessTokenController = async (req, res) => { const refreshToken = req.cookies?.refreshToken; if (!refreshToken) throw new UnauthorizedError('Refresh token is missing.'); const result = await refreshAccessToken({ refreshToken }); res.cookie('refreshToken', result.refreshToken, refreshCookieOptions); return successResponse(res, 'Access token refreshed.', { accessToken: result.accessToken }) }
 const logoutController = async (req, res) => { await logout({ refreshToken: req.cookies?.refreshToken }); clearRefreshCookie(res); res.clearCookie('csrfToken', { secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/' }); return successResponse(res, 'Logout successful.', null, 200) }
 const verifyEmailController = async (req, res) => { await verifyEmail(req.validated.body); return successResponse(res, 'Email address verified successfully.', null, 200) }

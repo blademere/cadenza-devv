@@ -6,6 +6,7 @@
     "dev": {
       "executor": "nx:run-commands",
       "continuous": true,
+      "dependsOn": ["prisma:generate"],
       "options": { "command": "nodemon --legacy-watch src/server.js", "cwd": "apps/api" }
     },
     "test": {
@@ -60,11 +61,11 @@
     },
     "db:seed": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.cjs", "cwd": "apps/api" }
+      "options": { "command": "node scripts/db-seed.js", "cwd": "apps/api" }
     },
     "db:setup": {
       "executor": "nx:run-commands",
-      "options": { "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.cjs", "cwd": "apps/api" }
+      "options": { "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.js", "cwd": "apps/api" }
     },
     "db:backup": {
       "executor": "nx:run-commands",

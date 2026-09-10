@@ -14,6 +14,15 @@ export const receivingApi = {
   async getApplication(id) {
     return unwrap(await apiClient.get(`/obo/receiving/applications/${encodeURIComponent(id)}`))
   },
+  async getDocumentChecklist(applicationId) {
+    return unwrap(await apiClient.get(`/obo/receiving/applications/${encodeURIComponent(applicationId)}/documents`))
+  },
+  async updateDocumentReceipt(applicationId, requirementId, status, notes) {
+    return unwrap(await apiClient.patch(
+      `/obo/receiving/applications/${encodeURIComponent(applicationId)}/documents/${encodeURIComponent(requirementId)}`,
+      { status, ...(notes?.trim() ? { notes: notes.trim() } : {}) },
+    ))
+  },
   async receiveApplication(id) {
     return unwrap(await apiClient.post(`/obo/receiving/applications/${encodeURIComponent(id)}/receive`, {}))
   },

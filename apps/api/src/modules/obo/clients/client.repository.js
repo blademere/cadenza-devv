@@ -1,5 +1,2 @@
-import { findPersonByUserId } from '../../../features/people/people.repository.js'
-
-const findByUserId = (userId) => findPersonByUserId(userId)
-
-export { findByUserId }
+// OBO clients use the shared People service as the persistence boundary.
+// Keep this module repository-free until OBO-specific client persistence exists.

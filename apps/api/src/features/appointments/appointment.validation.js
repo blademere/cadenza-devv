@@ -87,6 +87,15 @@ const createScheduleValidator = async (req) => ({
     .parse(req.body || {}),
 })
 
+const listSchedulesValidator = async (req) => ({
+  query: z
+    .object({
+      appointmentTypeId: z.string().uuid().optional(),
+      active: z.coerce.boolean().optional(),
+    })
+    .parse(req.query || {}),
+})
+
 const createSlotValidator = async (req) => ({
   body: dateRange('startsAt', 'endsAt')
     .and(
@@ -130,6 +139,26 @@ const listSlotsValidator = async (req) => ({
     .parse(req.query || {}),
 })
 
+const listAppointmentsValidator = async (req) => ({
+  query: z
+    .object({
+      appointmentTypeId: z.string().uuid().optional(),
+      status: z.string().trim().max(30).optional(),
+      from: dateTime.optional(),
+      to: dateTime.optional(),
+    })
+    .superRefine((value, ctx) => {
+      if (value.from && value.to && value.from >= value.to) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['to'],
+          message: 'to must be after from',
+        })
+      }
+    })
+    .parse(req.query || {}),
+})
+
 const createAppointmentValidator = async (req) => ({
   body: z
     .object({
@@ -149,9 +178,11 @@ export {
   listTypesValidator,
   createTypeValidator,
   createScheduleValidator,
+  listSchedulesValidator,
   createSlotValidator,
   generateSlotsValidator,
   listSlotsValidator,
+  listAppointmentsValidator,
   createAppointmentValidator,
   appointmentIdValidator,
 }

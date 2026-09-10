@@ -5,7 +5,7 @@ vi.mock('../../../src/features/auth/auth.repository.js')
 
 const bcrypt = await import('bcrypt')
 const authRepository = await import('../../../src/features/auth/auth.repository.js')
-const { registerUser } = await import('../../../src/features/auth/user-registration.js')
+const { registerUser } = await import('../../../src/features/auth/registration.service.js')
 
 beforeEach(() => {
   vi.clearAllMocks()

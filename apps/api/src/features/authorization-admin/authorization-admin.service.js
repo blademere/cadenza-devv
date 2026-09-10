@@ -16,6 +16,8 @@ const invalidateAuthorizationCache = async (...keys) => {
 
 const listModules = () => repository.listModules()
 
+const getModuleById = (moduleId) => repository.findModuleById(moduleId)
+
 const createModule = async ({ key, name, description }) => {
   const existing = await repository.findModuleByKey(key)
   if (existing) throw new ConflictError(`Module '${key}' already exists.`)
@@ -68,6 +70,8 @@ const setModuleActive = async ({ moduleId, isActive }) => {
 }
 
 const listRoles = () => repository.listRoles()
+
+const getRoleById = (roleId) => repository.findRoleById(roleId)
 
 const replaceRolePermissions = async ({
   roleId,
@@ -144,9 +148,11 @@ export {
   AUTHORIZATION_MODULES_CACHE_KEY,
   AUTHORIZATION_ROLES_CACHE_KEY,
   listModules,
+  getModuleById,
   createModule,
   addPermission,
   setModuleActive,
   listRoles,
+  getRoleById,
   replaceRolePermissions,
 }

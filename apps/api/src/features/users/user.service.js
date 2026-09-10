@@ -12,18 +12,19 @@ import {
 } from '../../common/pagination/pagination.js'
 import {
   findAllUsers,
+  findUserByEmail,
   createUser,
   findUserWithRole,
   findRoleForAssignment,
   updateUserRole,
 } from './user.repository.js'
 import { toUserResponse } from './user.mapper.js'
-import { findUserByEmail } from '../auth/auth.repository.js'
+import * as peopleService from '../people/people.service.js'
 import {
-  findRoleById,
-  getUserAuthorizationContext,
-} from '../../platform/authorization/access-control.repository.js'
-import { clearUserPermissionCache } from '../../platform/authorization/access-control.service.js'
+  getRoleById,
+  getAuthorizationContext,
+  clearUserPermissionCache,
+} from '../../platform/authorization/access-control.service.js'
 
 const permissionKey = (permission) => {
   const resource = permission.resource ?? permission.module?.key
@@ -66,13 +67,13 @@ const listUsers = async (query = {}) => {
 }
 
 const registerUser = async ({ requesterId, email, roleId, password }) => {
-  const requester = await getUserAuthorizationContext(requesterId)
+  const requester = await getAuthorizationContext(requesterId)
   if (!requester)
     throw new ForbiddenError('Your account is not authorized to create users.')
   const existingUser = await findUserByEmail(email)
   if (existingUser)
     throw new ConflictError('A user with this email already exists.')
-  const role = await findRoleById(roleId)
+  const role = await getRoleById(roleId)
   if (!role) throw new NotFoundError('Role not found.')
   if (!canAssignRole(requester.permissions, role))
     throw new ForbiddenError(
@@ -84,7 +85,7 @@ const registerUser = async ({ requesterId, email, roleId, password }) => {
 
 const assignUserRole = async ({ requesterId, userId, roleId }) => {
   const [requester, targetUser, targetRole] = await Promise.all([
-    getUserAuthorizationContext(requesterId),
+    getAuthorizationContext(requesterId),
     findUserWithRole(userId),
     findRoleForAssignment(roleId),
   ])
@@ -125,4 +126,50 @@ const assignUserRole = async ({ requesterId, userId, roleId }) => {
   return toUserResponse(updatedUser)
 }
 
-export { listUsers, registerUser, assignUserRole }
+const getMyProfile = async (userId) => {
+  const user = await findUserWithRole(Number(userId))
+  if (!user) throw new NotFoundError('User not found.')
+  const person = await peopleService.getByUserId(userId)
+
+  return {
+    user: toUserResponse(user),
+    person,
+  }
+}
+
+const createMyProfile = async (userId, data) => {
+  const user = await findUserWithRole(Number(userId))
+  if (!user) throw new NotFoundError('User not found.')
+  const existingPerson = await peopleService.getByUserId(userId).catch((error) => {
+    if (error instanceof NotFoundError) return null
+    throw error
+  })
+  if (existingPerson) throw new ConflictError('Profile already exists.')
+
+  const person = await peopleService.create({ ...data, userId })
+  return {
+    user: toUserResponse(user),
+    person,
+  }
+}
+
+const updateMyProfile = async (userId, data) => {
+  const user = await findUserWithRole(Number(userId))
+  if (!user) throw new NotFoundError('User not found.')
+  const person = await peopleService.getByUserId(userId)
+  const updatedPerson = await peopleService.update(person.id, data)
+
+  return {
+    user: toUserResponse(user),
+    person: updatedPerson,
+  }
+}
+
+export {
+  listUsers,
+  registerUser,
+  assignUserRole,
+  getMyProfile,
+  createMyProfile,
+  updateMyProfile,
+}

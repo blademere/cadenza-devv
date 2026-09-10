@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../src/features/auth/auth.repository.js')
 vi.mock('../../../src/platform/event-bus/event-bus.js')
+vi.mock('../../../src/features/auth/auth.tokens.js')
 vi.mock('bcrypt')
 
 const repository = await import('../../../src/features/auth/auth.repository.js')
 const eventBus = await import('../../../src/platform/event-bus/event-bus.js')
+const tokens = await import('../../../src/features/auth/auth.tokens.js')
 const bcrypt = await import('bcrypt')
 const { requestPasswordReset, resetPassword } = await import('../../../src/features/auth/auth.service.js')
 
@@ -13,6 +15,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   eventBus.publish.mockResolvedValue({ id: 'event-1' })
   bcrypt.default.hash.mockResolvedValue('new-password-hash')
+  tokens.hashToken.mockImplementation((value) => `hash:${value}`)
 })
 
 const getPublishedResetToken = () => {
@@ -37,10 +40,10 @@ describe('password reset security', () => {
     const encryptedToken = getPublishedResetToken()
     const publishCall = eventBus.publish.mock.calls[0][0]
     expect(encryptedToken).toBeTruthy()
-    expect(createCall.token).not.toContain('.')
-    expect(createCall.token.length).toBeGreaterThanOrEqual(32)
+    expect(createCall.tokenHash).toEqual(expect.stringMatching(/^hash:/))
+    expect(createCall.token).toBeUndefined()
     expect(publishCall.context.passwordReset.url).toContain('token=')
-    expect(publishCall.context.passwordReset.url).not.toContain(createCall.token)
+    expect(publishCall.context.passwordReset.url).not.toContain(createCall.tokenHash)
   })
 
   it('rejects malformed reset credentials before touching the repository', async () => {

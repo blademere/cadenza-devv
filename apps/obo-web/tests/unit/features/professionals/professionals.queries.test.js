@@ -11,7 +11,7 @@ describe('professional query keys', () => {
     expect(pendingProfessionalsQueryKey).toEqual(['obo', 'professionals', 'pending'])
   })
 
-  it('uses a dedicated key for the current professional profile', () => {
-    expect(professionalMineQueryKey).toEqual(['obo', 'professionals', 'mine'])
+  it('uses a dedicated key for the current professional application', () => {
+    expect(professionalMineQueryKey).toEqual(['obo', 'professional-applications', 'mine'])
   })
 })

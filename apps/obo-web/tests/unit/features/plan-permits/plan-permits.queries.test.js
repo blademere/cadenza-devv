@@ -21,13 +21,22 @@ describe('plan permit query keys', () => {
     ])
   })
 
-  it('scopes permit type forms by permit type id', () => {
+  it('separates latest and exact permit form versions', () => {
     expect(permitTypeFormQueryKey('permit-123')).toEqual([
       'obo',
       'plan-permits',
       'permit-types',
       'permit-123',
       'form',
+      'latest',
+    ])
+    expect(permitTypeFormQueryKey('permit-123', 3)).toEqual([
+      'obo',
+      'plan-permits',
+      'permit-types',
+      'permit-123',
+      'form',
+      3,
     ])
   })
 })

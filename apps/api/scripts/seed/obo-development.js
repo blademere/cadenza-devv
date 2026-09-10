@@ -1,0 +1,270 @@
+const OBO_WORKFLOW = {
+  key: 'obo_plan_permit',
+  name: 'OBO Plan Permit Application',
+  description: 'Lifecycle workflow for an OBO plan permit application.',
+  steps: [
+    { key: 'DRAFT', name: 'Draft', isInitial: true, isFinal: false, sortOrder: 0 },
+    { key: 'READY_FOR_SUBMISSION', name: 'Ready for Submission', isInitial: false, isFinal: false, sortOrder: 1 },
+    { key: 'SUBMISSION_SCHEDULED', name: 'Submission Scheduled', isInitial: false, isFinal: false, sortOrder: 2 },
+    { key: 'RECEIVING', name: 'Receiving', isInitial: false, isFinal: false, sortOrder: 3 },
+    { key: 'DECLINED', name: 'Declined', isInitial: false, isFinal: true, sortOrder: 4 },
+    { key: 'FOR_INSPECTION', name: 'For Inspection', isInitial: false, isFinal: true, sortOrder: 5 },
+  ],
+  transitions: [
+    { key: 'SUBMIT_FOR_SUBMISSION', name: 'Submit for Submission', fromStepKey: 'DRAFT', toStepKey: 'READY_FOR_SUBMISSION', permissionKey: 'obo_plan_permits:submit' },
+    { key: 'SCHEDULE_SUBMISSION', name: 'Schedule Hardcopy Submission', fromStepKey: 'READY_FOR_SUBMISSION', toStepKey: 'SUBMISSION_SCHEDULED', permissionKey: 'obo_plan_permits:schedule_submission' },
+    { key: 'RECEIVE_HARDCOPY', name: 'Receive Hardcopy', fromStepKey: 'SUBMISSION_SCHEDULED', toStepKey: 'RECEIVING', permissionKey: 'obo_plan_permits:receive' },
+    { key: 'DECLINE', name: 'Decline Application', fromStepKey: 'RECEIVING', toStepKey: 'DECLINED', permissionKey: 'obo_plan_permits:receive' },
+    { key: 'ACCEPT_FOR_INSPECTION', name: 'Accept for Inspection', fromStepKey: 'RECEIVING', toStepKey: 'FOR_INSPECTION', permissionKey: 'obo_plan_permits:receive' },
+  ],
+}
+
+const OBO_DEVELOPMENT_FIXTURE = {
+  clientEmail: 'obo-client@example.test',
+  professionalEmail: 'obo-professional@example.test',
+  receivingOfficerEmail: 'obo-receiving-officer@example.test',
+  registrationNumber: 'DEV-OBO-PRC-0001',
+  professionalRole: 'ARCHITECT',
+  referenceNumber: 'OBO-DEV-20300610-0001',
+  appointmentReferenceNumber: 'OBO-APPT-DEV-0001',
+  formKey: 'obo-building-plan-permit',
+  formVersion: 1,
+  professionalFieldKey: 'architect',
+}
+
+const ensureUser = async (prisma, { email, roleId, passwordHash }) => prisma.user.upsert({
+  where: { email },
+  update: { roleId, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
+  create: { email, roleId, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
+})
+
+async function seedOboWorkflow(prisma) {
+  const workflow = await prisma.workflow.upsert({
+    where: { key: OBO_WORKFLOW.key },
+    update: { name: OBO_WORKFLOW.name, description: OBO_WORKFLOW.description, isActive: true },
+    create: { key: OBO_WORKFLOW.key, name: OBO_WORKFLOW.name, description: OBO_WORKFLOW.description },
+  })
+  const version = await prisma.workflowVersion.upsert({
+    where: { workflowId_version: { workflowId: workflow.id, version: 1 } },
+    update: { status: 'PUBLISHED' },
+    create: { workflowId: workflow.id, version: 1, status: 'PUBLISHED' },
+  })
+  for (const step of OBO_WORKFLOW.steps) {
+    await prisma.workflowStep.upsert({
+      where: { workflowVersionId_key: { workflowVersionId: version.id, key: step.key } },
+      update: { name: step.name, isInitial: step.isInitial, isFinal: step.isFinal, sortOrder: step.sortOrder },
+      create: { workflowVersionId: version.id, ...step },
+    })
+  }
+  const steps = await prisma.workflowStep.findMany({ where: { workflowVersionId: version.id } })
+  const stepByKey = new Map(steps.map((step) => [step.key, step]))
+  for (const transition of OBO_WORKFLOW.transitions) {
+    const fromStep = stepByKey.get(transition.fromStepKey)
+    const toStep = stepByKey.get(transition.toStepKey)
+    if (!fromStep || !toStep) throw new Error(`OBO workflow transition '${transition.key}' references an unknown step.`)
+    await prisma.workflowTransition.upsert({
+      where: { workflowVersionId_key: { workflowVersionId: version.id, key: transition.key } },
+      update: { fromStepId: fromStep.id, toStepId: toStep.id, name: transition.name, permissionKey: transition.permissionKey },
+      create: { workflowVersionId: version.id, fromStepId: fromStep.id, toStepId: toStep.id, key: transition.key, name: transition.name, permissionKey: transition.permissionKey },
+    })
+  }
+  return { workflow, version, steps: stepByKey }
+}
+
+async function ensureDevelopmentProfessional(prisma, { roles, passwordHash, receivingOfficer, now }) {
+  const professionalUser = await ensureUser(prisma, { email: OBO_DEVELOPMENT_FIXTURE.professionalEmail, roleId: roles.professional.id, passwordHash })
+  const professionalPerson = await prisma.person.upsert({
+    where: { userId: professionalUser.id },
+    update: { firstName: 'OBO', lastName: 'Architect', email: professionalUser.email, phone: '+630000000002', isActive: true },
+    create: { userId: professionalUser.id, firstName: 'OBO', lastName: 'Architect', email: professionalUser.email, phone: '+630000000002', isActive: true },
+  })
+  const professional = await prisma.oboProfessional.upsert({
+    where: { registrationNumber: OBO_DEVELOPMENT_FIXTURE.registrationNumber },
+    update: {
+      personId: professionalPerson.id,
+      userId: professionalUser.id,
+      prcId: 'DEV-PRC-0001',
+      ptrNumber: 'DEV-PTR-0001',
+      professionalRole: OBO_DEVELOPMENT_FIXTURE.professionalRole,
+      status: 'VERIFIED',
+      verifiedByUserId: receivingOfficer.id,
+      verifiedAt: now,
+      verificationReason: 'Development seed verification',
+    },
+    create: {
+      personId: professionalPerson.id,
+      userId: professionalUser.id,
+      registrationNumber: OBO_DEVELOPMENT_FIXTURE.registrationNumber,
+      prcId: 'DEV-PRC-0001',
+      ptrNumber: 'DEV-PTR-0001',
+      professionalRole: OBO_DEVELOPMENT_FIXTURE.professionalRole,
+      status: 'VERIFIED',
+      verifiedByUserId: receivingOfficer.id,
+      verifiedAt: now,
+      verificationReason: 'Development seed verification',
+    },
+  })
+  const decision = await prisma.oboProfessionalVerificationDecision.findFirst({ where: { professionalId: professional.id, decision: 'ACCEPTED' }, orderBy: { decidedAt: 'desc' } })
+  if (decision) {
+    await prisma.oboProfessionalVerificationDecision.update({ where: { id: decision.id }, data: { reason: 'Development seed verification', decidedByUserId: receivingOfficer.id, decidedAt: now } })
+  } else {
+    await prisma.oboProfessionalVerificationDecision.create({ data: { professionalId: professional.id, decision: 'ACCEPTED', reason: 'Development seed verification', decidedByUserId: receivingOfficer.id, decidedAt: now } })
+  }
+  return { professionalUser, professionalPerson, professional }
+}
+
+async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }) {
+  const { version, steps } = await seedOboWorkflow(prisma)
+  const now = new Date('2030-06-10T08:00:00.000Z')
+  const appointmentStart = new Date('2030-06-14T09:00:00.000Z')
+  const appointmentEnd = new Date('2030-06-14T09:30:00.000Z')
+  const clientUser = await ensureUser(prisma, { email: OBO_DEVELOPMENT_FIXTURE.clientEmail, roleId: roles.client.id, passwordHash })
+  const receivingOfficer = await ensureUser(prisma, { email: OBO_DEVELOPMENT_FIXTURE.receivingOfficerEmail, roleId: roles.receiving_officer.id, passwordHash })
+  const { professionalUser, professionalPerson, professional } = await ensureDevelopmentProfessional(prisma, { roles, passwordHash, receivingOfficer, now })
+
+  const clientPerson = await prisma.person.upsert({
+    where: { userId: clientUser.id },
+    update: { firstName: 'OBO', lastName: 'Client', email: clientUser.email, phone: '+630000000001', isActive: true },
+    create: { userId: clientUser.id, firstName: 'OBO', lastName: 'Client', email: clientUser.email, phone: '+630000000001' },
+  })
+
+  const form = await prisma.form.findUnique({ where: { key: OBO_DEVELOPMENT_FIXTURE.formKey } })
+  if (!form) throw new Error(`OBO development form '${OBO_DEVELOPMENT_FIXTURE.formKey}' was not seeded.`)
+  const formVersion = await prisma.formVersion.findUnique({ where: { formId_version: { formId: form.id, version: OBO_DEVELOPMENT_FIXTURE.formVersion } }, include: { fields: true } })
+  if (!formVersion || formVersion.status !== 'PUBLISHED') throw new Error(`Published OBO development form '${OBO_DEVELOPMENT_FIXTURE.formKey}' v${OBO_DEVELOPMENT_FIXTURE.formVersion} was not seeded.`)
+  const professionalField = formVersion.fields.find((field) => field.key === OBO_DEVELOPMENT_FIXTURE.professionalFieldKey)
+  if (!professionalField || professionalField.type !== 'reference' || professionalField.config?.referenceType !== 'obo_professional') throw new Error(`OBO development form must define '${OBO_DEVELOPMENT_FIXTURE.professionalFieldKey}' as an OBO professional reference.`)
+  if (professionalField.config?.professionalRole !== OBO_DEVELOPMENT_FIXTURE.professionalRole) throw new Error(`OBO development professional field role must be '${OBO_DEVELOPMENT_FIXTURE.professionalRole}'.`)
+
+  const permitType = await prisma.oboPermitType.findUnique({ where: { key: 'building-plan-permit' } })
+  if (!permitType) throw new Error("OBO reference fixture 'building-plan-permit' was not seeded.")
+  const caseType = await prisma.caseType.upsert({
+    where: { key: 'obo-permit-application' },
+    update: { name: 'OBO Permit Application', isActive: true },
+    create: { key: 'obo-permit-application', name: 'OBO Permit Application', description: 'OBO permit application lifecycle' },
+  })
+  const referenceNumber = OBO_DEVELOPMENT_FIXTURE.referenceNumber
+  const caseRecord = await prisma.caseRecord.upsert({
+    where: { caseNumber: referenceNumber },
+    update: { caseTypeId: caseType.id, title: `${permitType.name} Application`, status: 'OPEN', createdByUserId: clientUser.id },
+    create: { caseNumber: referenceNumber, caseTypeId: caseType.id, title: `${permitType.name} Application`, status: 'OPEN', createdByUserId: clientUser.id, openedAt: now },
+  })
+
+  const formValues = {
+    projectName: 'Development Seed Building',
+    projectType: 'RESIDENTIAL',
+    address: 'Development Test Site',
+    occupancyClassification: 'RESIDENTIAL',
+    floorAreaSqm: 120,
+    storeys: 2,
+    scopeOfWork: 'New residential building',
+    estimatedCost: 250000,
+    [OBO_DEVELOPMENT_FIXTURE.professionalFieldKey]: professional.id,
+  }
+  const professionalSnapshots = {
+    [OBO_DEVELOPMENT_FIXTURE.professionalFieldKey]: {
+      professionalId: professional.id,
+      name: [professionalPerson.firstName, professionalPerson.lastName].filter(Boolean).join(' '),
+      registrationNumber: professional.registrationNumber,
+      prcId: professional.prcId,
+      ptrNumber: professional.ptrNumber,
+      role: professional.professionalRole,
+    },
+  }
+
+  const existingApplication = await prisma.oboPermitApplication.findUnique({ where: { referenceNumber }, select: { workflowInstanceId: true } })
+  let workflowInstance
+  if (existingApplication?.workflowInstanceId) {
+    workflowInstance = await prisma.workflowInstance.update({ where: { id: existingApplication.workflowInstanceId }, data: { workflowVersionId: version.id, currentStepId: steps.get('FOR_INSPECTION').id, completedAt: now, startedByUserId: clientUser.id } })
+  } else {
+    workflowInstance = await prisma.workflowInstance.create({ data: { workflowVersionId: version.id, currentStepId: steps.get('FOR_INSPECTION').id, subjectType: 'OboPermitApplication', subjectId: referenceNumber, startedByUserId: clientUser.id, startedAt: now, completedAt: now } })
+  }
+
+  const application = await prisma.oboPermitApplication.upsert({
+    where: { referenceNumber },
+    update: {
+      caseId: caseRecord.id,
+      permitTypeId: permitType.id,
+      clientPersonId: clientPerson.id,
+      formVersionId: formVersion.id,
+      formValues,
+      professionalSnapshots,
+      workflowInstanceId: workflowInstance.id,
+      submittedAt: now,
+      acceptedAt: now,
+      acceptedByUserId: receivingOfficer.id,
+      declinedAt: null,
+      declineReason: null,
+    },
+    create: {
+      referenceNumber,
+      caseId: caseRecord.id,
+      permitTypeId: permitType.id,
+      clientPersonId: clientPerson.id,
+      formVersionId: formVersion.id,
+      formValues,
+      professionalSnapshots,
+      workflowInstanceId: workflowInstance.id,
+      submittedAt: now,
+      acceptedAt: now,
+      acceptedByUserId: receivingOfficer.id,
+    },
+  })
+  await prisma.workflowInstance.update({ where: { id: workflowInstance.id }, data: { subjectId: application.id } })
+
+  const appointmentType = await prisma.appointmentType.findUnique({ where: { key: 'obo-hardcopy-submission' } })
+  if (!appointmentType) throw new Error("OBO reference fixture 'obo-hardcopy-submission' was not seeded.")
+  const slot = await prisma.appointmentSlot.upsert({ where: { appointmentTypeId_startsAt: { appointmentTypeId: appointmentType.id, startsAt: appointmentStart } }, update: { endsAt: appointmentEnd, capacity: 1, bookedCount: 1, status: 'BOOKED' }, create: { appointmentTypeId: appointmentType.id, startsAt: appointmentStart, endsAt: appointmentEnd, capacity: 1, bookedCount: 1, status: 'BOOKED' } })
+  const appointment = await prisma.appointment.upsert({ where: { referenceNumber: OBO_DEVELOPMENT_FIXTURE.appointmentReferenceNumber }, update: { appointmentTypeId: appointmentType.id, slotId: slot.id, userId: clientUser.id, status: 'COMPLETED', checkedInAt: appointmentStart, completedAt: appointmentEnd, metadata: { applicationId: application.id, purpose: 'hardcopy_submission' } }, create: { referenceNumber: OBO_DEVELOPMENT_FIXTURE.appointmentReferenceNumber, appointmentTypeId: appointmentType.id, slotId: slot.id, userId: clientUser.id, status: 'COMPLETED', checkedInAt: appointmentStart, completedAt: appointmentEnd, metadata: { applicationId: application.id, purpose: 'hardcopy_submission' } } })
+  await prisma.oboSubmissionAppointment.upsert({ where: { applicationId: application.id }, update: { appointmentId: appointment.id }, create: { applicationId: application.id, appointmentId: appointment.id } })
+
+  for (const [fromKey, toKey, transitionKey] of [
+    ['DRAFT', 'READY_FOR_SUBMISSION', 'SUBMIT_FOR_SUBMISSION'],
+    ['READY_FOR_SUBMISSION', 'SUBMISSION_SCHEDULED', 'SCHEDULE_SUBMISSION'],
+    ['SUBMISSION_SCHEDULED', 'RECEIVING', 'RECEIVE_HARDCOPY'],
+    ['RECEIVING', 'FOR_INSPECTION', 'ACCEPT_FOR_INSPECTION'],
+  ]) {
+    const transition = await prisma.workflowTransition.findUnique({ where: { workflowVersionId_key: { workflowVersionId: version.id, key: transitionKey } } })
+    if (!transition) throw new Error(`OBO workflow transition '${transitionKey}' was not seeded.`)
+    const existing = await prisma.workflowHistory.findFirst({ where: { instanceId: workflowInstance.id, transitionId: transition.id } })
+    if (!existing) await prisma.workflowHistory.create({ data: { instanceId: workflowInstance.id, fromStepId: steps.get(fromKey).id, toStepId: steps.get(toKey).id, transitionId: transition.id, actorId: toKey === 'FOR_INSPECTION' || toKey === 'RECEIVING' ? receivingOfficer.id : clientUser.id, createdAt: now } })
+  }
+
+  const receivingDecision = await prisma.oboReceivingDecision.findFirst({ where: { applicationId: application.id, decision: 'ACCEPTED' }, orderBy: { decidedAt: 'desc' } })
+  if (receivingDecision) await prisma.oboReceivingDecision.update({ where: { id: receivingDecision.id }, data: { reason: 'Development seed hardcopy accepted', decidedByUserId: receivingOfficer.id, decidedAt: now } })
+  else await prisma.oboReceivingDecision.create({ data: { applicationId: application.id, decision: 'ACCEPTED', reason: 'Development seed hardcopy accepted', decidedByUserId: receivingOfficer.id, decidedAt: now } })
+
+  console.log(`OBO development scenario ensured: ${referenceNumber}; professional selection is stored in formValues.${OBO_DEVELOPMENT_FIXTURE.professionalFieldKey}.`)
+  return { clientUser, professionalUser, receivingOfficer, clientPerson, professional, application, appointment, workflowInstance }
+}
+
+const requireCondition = (condition, message) => {
+  if (!condition) throw new Error(`OBO seed verification failed: ${message}`)
+}
+
+async function verifyOboDevelopmentScenario(prisma) {
+  const fixture = OBO_DEVELOPMENT_FIXTURE
+  const application = await prisma.oboPermitApplication.findUnique({ where: { referenceNumber: fixture.referenceNumber } })
+  requireCondition(application, `application '${fixture.referenceNumber}' does not exist.`)
+  requireCondition(application.formVersionId, `application '${fixture.referenceNumber}' must have a form version.`)
+  requireCondition(application.formValues?.[fixture.professionalFieldKey], `application '${fixture.referenceNumber}' must select a professional through formValues.${fixture.professionalFieldKey}.`)
+  requireCondition(application.professionalSnapshots?.[fixture.professionalFieldKey]?.professionalId === application.formValues[fixture.professionalFieldKey], 'professional snapshot must match the selected form reference.')
+
+  const professional = await prisma.oboProfessional.findUnique({ where: { registrationNumber: fixture.registrationNumber }, select: { id: true, status: true, professionalRole: true, person: { select: { isActive: true } } } })
+  requireCondition(professional, `professional '${fixture.registrationNumber}' does not exist.`)
+  requireCondition(professional.status === 'VERIFIED', `professional '${fixture.registrationNumber}' must be VERIFIED.`)
+  requireCondition(professional.professionalRole === fixture.professionalRole, `professional '${fixture.registrationNumber}' must have role '${fixture.professionalRole}'.`)
+  requireCondition(professional.person?.isActive === true, `professional '${fixture.registrationNumber}' must have an active person.`)
+  requireCondition(application.formValues[fixture.professionalFieldKey] === professional.id, 'professional form value must reference the seeded professional.')
+
+  const formVersion = await prisma.formVersion.findUnique({ where: { id: application.formVersionId }, include: { fields: true } })
+  const field = formVersion?.fields.find((item) => item.key === fixture.professionalFieldKey)
+  requireCondition(field?.type === 'reference', `form field '${fixture.professionalFieldKey}' must be a reference field.`)
+  requireCondition(field.config?.referenceType === 'obo_professional', `form field '${fixture.professionalFieldKey}' must reference OBO professionals.`)
+  requireCondition(field.config?.professionalRole === fixture.professionalRole, `form field '${fixture.professionalFieldKey}' must require role '${fixture.professionalRole}'.`)
+
+  console.log(`OBO development scenario verified: professional selection is form-owned for ${fixture.referenceNumber}.`)
+  return true
+}
+
+export { OBO_DEVELOPMENT_FIXTURE, OBO_WORKFLOW, seedOboDevelopmentScenario, seedOboWorkflow, verifyOboDevelopmentScenario }

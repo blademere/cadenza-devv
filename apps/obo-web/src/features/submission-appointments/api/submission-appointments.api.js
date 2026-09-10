@@ -20,6 +20,10 @@ export const submissionAppointmentsApi = {
     return unwrap(await apiClient.post(`/obo/applications/${encodeURIComponent(applicationId)}/submission-appointments`, data))
   },
 
+  async replaceApplicationAppointment(applicationId, data) {
+    return unwrap(await apiClient.post(`/obo/applications/${encodeURIComponent(applicationId)}/submission-appointments/reschedule`, data))
+  },
+
   async listAppointmentTypes() {
     return unwrap(await apiClient.get('/appointments/types?active=true'))
   },

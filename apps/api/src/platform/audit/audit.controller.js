@@ -1,7 +1,7 @@
 import {
   listAuditLogs,
   getEntityTimeline,
-} from '../../platform/audit/audit.query.service.js'
+} from './audit.query.service.js'
 
 const listAuditLogsController = async (req, res) => {
   const result = await listAuditLogs(req.validated.query)

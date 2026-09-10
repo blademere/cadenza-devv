@@ -1,17 +1,19 @@
 import { ConflictError } from '../../../common/errors/appError.js'
-import * as repository from './plan-permit.repository.js'
+import * as workflowService from '../../../platform/workflow/workflow.service.js'
 
 const getWorkflowState = async (application) => {
   if (!application.workflowInstanceId) {
     throw new ConflictError('Permit application is not attached to a workflow instance.')
   }
 
-  const workflow = await repository.findWorkflowInstance(application.workflowInstanceId)
-  if (!workflow) {
-    throw new ConflictError('Permit application workflow instance was not found.')
+  try {
+    return await workflowService.getWorkflowInstance(application.workflowInstanceId)
+  } catch (error) {
+    if (error?.code === 'NOT_FOUND' || error?.status === 404) {
+      throw new ConflictError('Permit application workflow instance was not found.')
+    }
+    throw error
   }
-
-  return workflow
 }
 
 const withWorkflowState = async (application) => {

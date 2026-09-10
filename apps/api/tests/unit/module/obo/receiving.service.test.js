@@ -1,22 +1,107 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-vi.mock('../../../../src/modules/obo/receiving/receiving.repository.js')
-vi.mock('../../../../src/platform/workflow/workflow.service.js')
+vi.mock('../../../../src/modules/obo/receiving/receiving.repository.js', () => ({
+  findApplication: vi.fn(),
+  withTransaction: vi.fn(),
+  updateApplication: vi.fn(),
+  addDecision: vi.fn(),
+  findPersonNotificationContext: vi.fn(),
+}))
 
-const repository = await import('../../../../src/modules/obo/receiving/receiving.repository.js')
-const workflowService = await import('../../../../src/platform/workflow/workflow.service.js')
-const service = await import('../../../../src/modules/obo/receiving/receiving.service.js')
-const spies = { findApplication: repository.findApplication, findWorkflowInstance: repository.findWorkflowInstance, findSubmissionAppointment: repository.findSubmissionAppointment, findPersonNotificationContext: repository.findPersonNotificationContext, listApplications: repository.listApplications, updateApplication: repository.updateApplication, addDecision: repository.addDecision, withTransaction: repository.withTransaction, transitionWorkflow: workflowService.transitionWorkflow }
-afterEach(() => vi.clearAllMocks())
-beforeEach(() => { spies.withTransaction.mockImplementation(async (callback) => callback({})); spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'SUBMISSION_SCHEDULED' } }); spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } }); spies.findPersonNotificationContext.mockResolvedValue(null) })
-const scheduled = { id: 'application-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', referenceNumber: 'BP-1', permitType: { name: 'Building Permit' }, submittedAt: null, professional: { status: 'VERIFIED' }, submissionAppointment: { appointmentId: 'appointment-1' } }
+vi.mock('../../../../src/modules/obo/application-documents/application-document.service.js', () => ({
+  ensureChecklist: vi.fn(),
+  validateRequiredDocuments: vi.fn()
+}))
 
-describe('OBO receiving service', () => {
-  it('gets an application with workflow status', async () => { spies.findApplication.mockResolvedValue(scheduled); spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } }); await expect(service.getApplication({ id: 'application-1' })).resolves.toMatchObject({ id: 'application-1', status: 'RECEIVING' }) })
-  it('rejects missing application detail', async () => { spies.findApplication.mockResolvedValue(null); await expect(service.getApplication({ id: 'missing' })).rejects.toThrow('not found') })
-  it('lists applications awaiting receiving', async () => { spies.listApplications.mockResolvedValue([{ id: 'application-1', status: 'SUBMISSION_SCHEDULED' }]); await expect(service.listApplications({ status: 'SUBMISSION_SCHEDULED' })).resolves.toEqual([{ id: 'application-1', status: 'SUBMISSION_SCHEDULED' }]) })
-  it('receives valid hardcopy submissions through the workflow engine', async () => { spies.findApplication.mockResolvedValueOnce(scheduled).mockResolvedValueOnce({ ...scheduled, submittedAt: new Date() }); spies.findSubmissionAppointment.mockResolvedValue({ status: 'SCHEDULED', slot: { startsAt: new Date(Date.now() - 60000) } }); spies.updateApplication.mockResolvedValue({ id: 'application-1' }); await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).resolves.toMatchObject({ id: 'application-1' }); expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ instanceId: 'workflow-1', transitionKey: 'RECEIVE_HARDCOPY', actorId: 'officer-1' })); expect(spies.updateApplication).toHaveBeenCalledWith('application-1', expect.objectContaining({ submittedAt: expect.any(Date) }), expect.any(Object)) })
-  it('rejects invalid receiving conditions', async () => { spies.findApplication.mockResolvedValue(null); await expect(service.receiveHardcopy({ id: 'missing', actorId: 'officer-1' })).rejects.toThrow('not found'); spies.findApplication.mockResolvedValue(scheduled); spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } }); await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).rejects.toThrow('Only scheduled applications'); spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'SUBMISSION_SCHEDULED' } }); spies.findApplication.mockResolvedValue({ ...scheduled, submissionAppointment: null }); await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).rejects.toThrow('appointment is required'); spies.findApplication.mockResolvedValue(scheduled); spies.findSubmissionAppointment.mockResolvedValue(null); await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).rejects.toThrow('no longer exists'); spies.findSubmissionAppointment.mockResolvedValue({ status: 'CANCELLED', slot: { startsAt: new Date(Date.now() - 60000) } }); await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).rejects.toThrow('not valid for receiving'); spies.findSubmissionAppointment.mockResolvedValue({ status: 'SCHEDULED', slot: { startsAt: new Date(Date.now() + 60000) } }); await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).rejects.toThrow('has not started'); spies.findSubmissionAppointment.mockResolvedValue({ status: 'SCHEDULED', slot: { startsAt: new Date(Date.now() - 60000) } }); spies.findApplication.mockResolvedValue({ ...scheduled, professional: { status: 'PENDING_VERIFICATION' } }); await expect(service.receiveHardcopy({ id: 'application-1', actorId: 'officer-1' })).rejects.toThrow('professional is not verified') })
-  it('accepts a received application and moves it to inspection', async () => { spies.findApplication.mockResolvedValue({ ...scheduled, submissionAppointment: null }); spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } }); spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'FOR_INSPECTION' } }); spies.updateApplication.mockResolvedValue({ id: 'application-1' }); spies.addDecision.mockResolvedValue({ id: 'decision-1' }); await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'ACCEPTED' })).resolves.toMatchObject({ status: 'FOR_INSPECTION' }); expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'ACCEPT_FOR_INSPECTION' })); expect(spies.addDecision).toHaveBeenCalledWith(expect.objectContaining({ decision: 'ACCEPTED', decidedByUserId: 'officer-1' }), expect.any(Object)) })
-  it('declines a received application only with a reason', async () => { spies.findApplication.mockResolvedValue({ ...scheduled, submissionAppointment: null }); spies.findWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } }); spies.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DECLINED' } }); spies.updateApplication.mockResolvedValue({ id: 'application-1' }); spies.addDecision.mockResolvedValue({ id: 'decision-1' }); await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED' })).rejects.toThrow('reason is required'); await expect(service.decide({ id: 'application-1', actorId: 'officer-1', decision: 'DECLINED', reason: 'Missing documents' })).resolves.toMatchObject({ status: 'DECLINED' }); expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'DECLINE' })); expect(spies.addDecision).toHaveBeenCalledWith(expect.objectContaining({ decision: 'DECLINED', reason: 'Missing documents', decidedByUserId: 'officer-1' }), expect.any(Object)) })
+vi.mock('../../../../src/platform/workflow/workflow.service.js', () => ({
+  getWorkflowInstance: vi.fn(),
+  transitionWorkflow: vi.fn()
+}))
+
+vi.mock('../../../../src/features/appointments/appointment.service.js', () => ({
+  getAppointmentForReference: vi.fn(),
+}))
+
+vi.mock('../../../../src/modules/obo/notification-context.js', () => ({
+  getNotificationContext: vi.fn().mockResolvedValue({})
+}))
+
+import * as repository from '../../../../src/modules/obo/receiving/receiving.repository.js'
+import * as applicationDocumentService from '../../../../src/modules/obo/application-documents/application-document.service.js'
+import * as workflowService from '../../../../src/platform/workflow/workflow.service.js'
+import * as appointmentService from '../../../../src/features/appointments/appointment.service.js'
+import { receiveHardcopy, decide } from '../../../../src/modules/obo/receiving/receiving.service.js'
+
+const application = {
+  id: 'app-1',
+  workflowInstanceId: 'workflow-1',
+  clientPersonId: 'person-1',
+  referenceNumber: 'PP-001',
+  permitType: { name: 'Building Permit' },
+  submissionAppointment: { appointmentId: 'appointment-1' }
+}
+
+const workflow = {
+  id: 'workflow-1',
+  currentStep: { key: 'SUBMISSION_SCHEDULED' }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  repository.findApplication.mockResolvedValue(application)
+  workflowService.getWorkflowInstance.mockResolvedValue(workflow)
+  appointmentService.getAppointmentForReference.mockResolvedValue({ id: 'appointment-1', status: 'SCHEDULED', slot: { startsAt: new Date(Date.now() - 60_000) } })
+  repository.withTransaction.mockImplementation((callback) => callback({}))
+  repository.updateApplication.mockResolvedValue({ ...application, submittedAt: new Date() })
+  applicationDocumentService.ensureChecklist.mockResolvedValue([])
+  applicationDocumentService.validateRequiredDocuments.mockResolvedValue(true)
+})
+
+describe('receiving service', () => {
+  it('receives a scheduled hardcopy submission and transitions to receiving', async () => {
+    workflowService.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
+    await receiveHardcopy({ id: 'app-1', actorId: 'user-1' })
+    expect(applicationDocumentService.ensureChecklist).toHaveBeenCalledWith(application, expect.anything())
+    expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ instanceId: 'workflow-1', transitionKey: 'RECEIVE_HARDCOPY', actorId: 'user-1' }))
+    expect(repository.updateApplication).toHaveBeenCalledWith('app-1', expect.objectContaining({ submittedAt: expect.any(Date) }), expect.anything())
+  })
+
+  it('rejects receiving before the appointment starts', async () => {
+    appointmentService.getAppointmentForReference.mockResolvedValue({ id: 'appointment-1', status: 'SCHEDULED', slot: { startsAt: new Date(Date.now() + 60_000) } })
+    await expect(receiveHardcopy({ id: 'app-1', actorId: 'user-1' })).rejects.toThrow('has not started yet')
+    expect(workflowService.transitionWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('rejects a receiving decision before the application is received', async () => {
+    await expect(decide({ id: 'app-1', actorId: 'user-1', decision: 'ACCEPTED' })).rejects.toThrow('must be received')
+  })
+
+  it('requires a reason for a declined application', async () => {
+    workflowService.getWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
+    await expect(decide({ id: 'app-1', actorId: 'user-1', decision: 'DECLINED' })).rejects.toThrow('reason is required')
+    expect(workflowService.transitionWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('accepts a received application and transitions it for inspection', async () => {
+    workflowService.getWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
+    workflowService.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'FOR_INSPECTION' } })
+    repository.updateApplication.mockResolvedValue({ ...application })
+    repository.addDecision.mockResolvedValue({ id: 'decision-1' })
+    const result = await decide({ id: 'app-1', actorId: 'user-1', decision: 'ACCEPTED' })
+    expect(applicationDocumentService.validateRequiredDocuments).toHaveBeenCalledWith({ applicationId: 'app-1', application, db: expect.anything() })
+    expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'ACCEPT_FOR_INSPECTION', metadata: expect.objectContaining({ decision: 'ACCEPTED' }) }))
+    expect(repository.addDecision).toHaveBeenCalledWith(expect.objectContaining({ applicationId: 'app-1', decision: 'ACCEPTED', reason: null, decidedByUserId: 'user-1' }), expect.anything())
+    expect(result.status).toBe('FOR_INSPECTION')
+  })
+
+  it('declines a received application with a required reason', async () => {
+    workflowService.getWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'RECEIVING' } })
+    workflowService.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DECLINED' } })
+    repository.updateApplication.mockResolvedValue({ ...application })
+    repository.addDecision.mockResolvedValue({ id: 'decision-1' })
+    const result = await decide({ id: 'app-1', actorId: 'user-1', decision: 'DECLINED', reason: 'Incomplete hardcopy documents' })
+    expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'DECLINE', metadata: expect.objectContaining({ decision: 'DECLINED', reason: 'Incomplete hardcopy documents' }) }))
+    expect(repository.addDecision).toHaveBeenCalledWith(expect.objectContaining({ decision: 'DECLINED', reason: 'Incomplete hardcopy documents' }), expect.anything())
+    expect(result.status).toBe('DECLINED')
+  })
 })
