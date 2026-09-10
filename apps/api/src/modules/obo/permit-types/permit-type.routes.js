@@ -17,7 +17,7 @@ router.post('/:permitTypeId/form', authenticate, authorize('obo_forms', 'create'
 router.get('/:permitTypeId/form/versions', authenticate, authorize('obo_forms', 'read'), validate(permitTypeIdValidator), asyncHandler(controller.listFormVersions))
 router.post('/:permitTypeId/form/versions', authenticate, authorize('obo_forms', 'update'), requireIdempotency, validate(createPermitTypeFormVersionValidator), asyncHandler(controller.createFormVersion))
 router.get('/:permitTypeId/form/versions/:version', authenticate, authorize('obo_forms', 'read'), validate(publishPermitTypeFormVersionValidator), asyncHandler(controller.getFormVersion))
-router.patch('/:permitTypeId/form/versions/:version', authenticate, authorize('obo_forms', 'update'), requireIdempotency, validate(updateFormVersionValidator), asyncHandler(controller.updateFormVersion))
+router.patch('/:permitTypeId/form/versions/:version', authenticate, authorize('obo_forms', 'update'), requireIdempotency, validate(updatePermitTypeFormVersionValidator), asyncHandler(controller.updateFormVersion))
 router.post('/:permitTypeId/form/versions/:version/publish', authenticate, authorize('obo_forms', 'publish'), requireIdempotency, validate(publishPermitTypeFormVersionValidator), asyncHandler(controller.publishFormVersion))
 router.get('/:permitTypeId/form', authenticate, authorize('obo_forms', 'read'), validate(getPermitTypeFormValidator), asyncHandler(controller.getForm))
 
