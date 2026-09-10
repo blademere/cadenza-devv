@@ -5,15 +5,20 @@ import * as permitTypeRepository from './permit-type.repository.js'
 
 const normalizeIds = (requirementIds = []) => [...new Set(requirementIds.filter(Boolean))]
 
-const listRequirements = async (permitTypeId) => {
-  const permitType = await permitTypeRepository.findById(permitTypeId)
+const listRequirements = async (permitTypeId, db) => {
+  const permitType = await permitTypeRepository.findById(permitTypeId, db)
   if (!permitType) throw new NotFoundError('Permit type not found.')
-  return repository.listByPermitTypeId(permitTypeId)
+  return repository.listByPermitTypeId(permitTypeId, db)
+}
+
+const getRequirementIds = async (permitTypeId, db) => {
+  const associations = await listRequirements(permitTypeId, db)
+  return associations.map(({ requirementId }) => requirementId)
 }
 
 const setRequirements = async ({ permitTypeId, requirementIds }) => {
-  const ids = normalizeIds(requirementIds)
   if (!Array.isArray(requirementIds)) throw new BadRequestError('requirementIds must be an array.')
+  const ids = normalizeIds(requirementIds)
 
   const permitType = await permitTypeRepository.findById(permitTypeId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
@@ -40,4 +45,4 @@ const setRequirements = async ({ permitTypeId, requirementIds }) => {
   })
 }
 
-export { listRequirements, setRequirements }
+export { listRequirements, getRequirementIds, setRequirements }
