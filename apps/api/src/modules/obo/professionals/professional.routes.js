@@ -3,13 +3,13 @@ import { asyncHandler, validate, idempotency } from '../../../common/middleware/
 import authenticate from '../../../features/auth/authenticate.secure.js'
 import authorize from '../../../platform/authorization/authorize.js'
 import authorizeResource from '../../../platform/authorization/authorization-resource.middleware.js'
-import * as repository from './professional.repository.js'
+import * as service from './professional.service.js'
 import * as controller from './professional.controller.js'
 import * as validation from './professional.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-professionals', required: true })
-const loadProfessional = (id) => repository.findById(id)
+const loadProfessional = (id) => service.getForAuthorization(id)
 
 router.get('/', authenticate, authorize('obo_professionals', 'read'), validate(validation.professionalLookupValidator), asyncHandler(controller.listDirectory))
 router.get('/profile', authenticate, authorize('obo_professionals', 'read'), asyncHandler(controller.getProfile))
