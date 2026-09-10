@@ -7,9 +7,9 @@ const applicationSchemaPath = new URL('../../../../prisma/modules/obo/permit-app
 const permitTypeMigrationPath = new URL('../../../../prisma/migrations/20260908150000_decouple_obo_permit_type_form_relation/migration.sql', import.meta.url)
 const applicationMigrationPath = new URL('../../../../prisma/migrations/20260908151000_decouple_obo_application_form_version/migration.sql', import.meta.url)
 const permitTypeRepositoryPath = new URL('../../../../src/modules/obo/permit-types/permit-type.repository.js', import.meta.url)
-const permitApplicationRepositoryPath = new URL('../../../../src/modules/obo/plan-permits/plan-permit.repository.js', import.meta.url)
-const receivingRepositoryPath = new URL('../../../../src/modules/obo/receiving/receiving.repository.js', import.meta.url)
 const platformFormRepositoryPath = new URL('../../../../src/platform/forms/form.repository.js', import.meta.url)
+const platformFormServicePath = new URL('../../../../src/platform/forms/form.service.js', import.meta.url)
+const planPermitFormPath = new URL('../../../../src/modules/obo/plan-permits/plan-permit.form.js', import.meta.url)
 
 const readText = (url) => readFile(url, 'utf8')
 
@@ -44,10 +44,8 @@ describe('Phase 15 form architecture contract', () => {
     expect(`${permitTypeMigration}\n${applicationMigration}`).not.toContain('CREATE TABLE "ApplicationProfessional"')
   })
 
-  it('resolves Platform Forms through the Platform repository boundary', async () => {
+  it('keeps Platform Forms persistence inside the Platform Forms repository', async () => {
     const permitTypeRepository = await readText(permitTypeRepositoryPath)
-    const permitApplicationRepository = await readText(permitApplicationRepositoryPath)
-    const receivingRepository = await readText(receivingRepositoryPath)
     const platformFormRepository = await readText(platformFormRepositoryPath)
 
     expect(permitTypeRepository).toContain("../../../platform/forms/form.repository.js")
@@ -56,16 +54,17 @@ describe('Phase 15 form architecture contract', () => {
     expect(permitTypeRepository).toContain('formRepository.findLatestDraftVersion')
     expect(permitTypeRepository).not.toMatch(/db\.form(?:Version)?\s*\./)
 
-    expect(permitApplicationRepository).toContain("../../../platform/forms/form.repository.js")
-    expect(permitApplicationRepository).toContain('formRepository.findById')
-    expect(permitApplicationRepository).toContain('formRepository.findVersionById')
-    expect(permitApplicationRepository).not.toMatch(/db\.form(?:Version)?\s*\./)
-
-    expect(receivingRepository).toContain("../../../platform/forms/form.repository.js")
-    expect(receivingRepository).toContain('formRepository.findVersionById')
-    expect(receivingRepository).not.toMatch(/db\.form(?:Version)?\s*\./)
-
     expect(platformFormRepository).toContain('db.form.findUnique')
     expect(platformFormRepository).toContain('db.formVersion.findUnique')
+  })
+
+  it('keeps OBO form resolution behind the Platform Forms service', async () => {
+    const source = await readText(planPermitFormPath)
+    const service = await readText(platformFormServicePath)
+
+    expect(source).toContain("../../../platform/forms/form.service.js")
+    expect(source).not.toContain('plan-permit.repository.js')
+    expect(service).toContain('const getFormById')
+    expect(service).toContain('const getFormVersionById')
   })
 })
