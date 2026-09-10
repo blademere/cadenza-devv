@@ -34,15 +34,16 @@ const formVersionInclude = {
 }
 
 const findById = (id, db = prisma) => db.form.findUnique({ where: { id } })
+const findByKey = (key, db = prisma) => db.form.findUnique({ where: { key } })
 
-const findByIdWithPublishedVersion = (id, db = prisma) => db.form.findUnique({
+const findByIdWithDefinition = (id, db = prisma) => db.form.findUnique({
   where: { id },
   include: publishedFormInclude,
 })
 
 const findVersionById = (id, db = prisma) => db.formVersion.findUnique({
   where: { id },
-  include: formVersionInclude,
+  include: { form: true },
 })
 
 const findVersion = (formId, version, db = prisma) => db.formVersion.findUnique({
@@ -63,7 +64,8 @@ const findLatestDraftVersion = (formId, db = prisma) => db.formVersion.findFirst
 
 export {
   findById,
-  findByIdWithPublishedVersion,
+  findByKey,
+  findByIdWithDefinition,
   findVersionById,
   findVersion,
   findPublishedVersion,
