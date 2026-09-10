@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-const { getAuthorizationContextResponse } = require('../../../../src/platform/authorization/authorization-context.service')
 
 vi.mock('../../../../src/platform/authorization/authorization-context.repository.js', () => ({
   getUserAuthorizationContext: vi.fn(),
   listActiveModules: vi.fn(),
 }))
 
-const repository = require('../../../../src/platform/authorization/authorization-context.repository.js')
+const repository = await import('../../../../src/platform/authorization/authorization-context.repository.js')
+const { getAuthorizationContextResponse } = await import('../../../../src/platform/authorization/authorization-context.service.js')
 
 describe('authorization context service', () => {
   it('returns only authorization state and leaves capability composition to consumers', async () => {
