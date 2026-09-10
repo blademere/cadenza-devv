@@ -36,11 +36,13 @@ describe('email verification security', () => {
     const result = await issueEmailVerification({ userId: 7 })
     expect(publish).toHaveBeenCalledTimes(1)
     const event = publish.mock.calls[0][0]
+    const createCall = createEmailVerificationToken.mock.calls[0][0]
     expect(result.success).toBe(true)
-    expect(createEmailVerificationToken).toHaveBeenCalledWith(expect.objectContaining({ userId: 7, token: expect.any(String) }))
+    expect(createCall).toEqual(expect.objectContaining({ userId: 7, tokenHash: expect.any(String) }))
+    expect(createCall.tokenHash).not.toHaveLength(0)
     expect(event.event).toBe('auth.user.email_verification_requested')
     expect(event.idempotencyKey).toBe('auth.email-verification.requested:verification-record-1')
-    expect(event.context.emailVerification.url).not.toContain(createEmailVerificationToken.mock.calls[0][0].token)
+    expect(event.context.emailVerification.url).not.toContain(createCall.tokenHash)
   })
 
   it('rejects replayed, expired, inactive, and already-used verification tokens', async () => {
