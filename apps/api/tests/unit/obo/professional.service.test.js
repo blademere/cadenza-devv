@@ -29,30 +29,53 @@ describe('OBO professional service', () => {
     mocks.repository.findPersonByUserId.mockResolvedValue({ id: 'person-1' })
     mocks.repository.findByPersonId.mockResolvedValue(null)
     mocks.repository.create.mockResolvedValue({ id: 'professional-1', status: 'PENDING_VERIFICATION' })
+
     await expect(service.applyForVerification({
       userId: 'user-1',
-      registrationNumber: '  REG-123  ',
       prcId: '  PRC-123  ',
       ptrNumber: '  PTR-2026-123  ',
     })).resolves.toMatchObject({ status: 'PENDING_VERIFICATION' })
-    expect(mocks.repository.create).toHaveBeenCalledWith({
+
+    expect(mocks.repository.create).toHaveBeenCalledWith(expect.objectContaining({
       personId: 'person-1',
       userId: 'user-1',
-      registrationNumber: 'REG-123',
       prcId: 'PRC-123',
       ptrNumber: 'PTR-2026-123',
-    })
+      registrationNumber: expect.stringMatching(/^PRO-\d{8}-[A-F0-9]{8}$/),
+    }))
   })
 
   it('rejects invalid or duplicate verification applications', async () => {
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: ' ', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('registrationNumber is required.')
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: ' ', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('prcId is required.')
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: ' ', professionalRole: 'ARCHITECT' })).rejects.toThrow('ptrNumber is required.')
+    await expect(service.applyForVerification({
+      userId: 'user-1',
+      prcId: ' ',
+      ptrNumber: 'PTR-123',
+      professionalRole: 'ARCHITECT',
+    })).rejects.toThrow('prcId is required.')
+
+    await expect(service.applyForVerification({
+      userId: 'user-1',
+      prcId: 'PRC-123',
+      ptrNumber: ' ',
+      professionalRole: 'ARCHITECT',
+    })).rejects.toThrow('ptrNumber is required.')
+
     mocks.repository.findPersonByUserId.mockResolvedValue(null)
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('does not have a person profile')
+    await expect(service.applyForVerification({
+      userId: 'user-1',
+      prcId: 'PRC-123',
+      ptrNumber: 'PTR-123',
+      professionalRole: 'ARCHITECT',
+    })).rejects.toThrow('does not have a person profile')
+
     mocks.repository.findPersonByUserId.mockResolvedValue({ id: 'person-1' })
     mocks.repository.findByPersonId.mockResolvedValue({ id: 'professional-1' })
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('already exists')
+    await expect(service.applyForVerification({
+      userId: 'user-1',
+      prcId: 'PRC-123',
+      ptrNumber: 'PTR-123',
+      professionalRole: 'ARCHITECT',
+    })).rejects.toThrow('already exists')
   })
 
   it('returns the authenticated professional verification record', async () => {
