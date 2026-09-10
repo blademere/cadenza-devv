@@ -1,4 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -11,14 +12,15 @@ const featuresPath = new URL('../../../src/features/', import.meta.url)
 
 const readText = (url) => readFile(url, 'utf8')
 
-const collectSourceFiles = async (directory) => {
+const collectSourceFiles = async (directoryUrl) => {
+  const directory = fileURLToPath(directoryUrl)
   const entries = await readdir(directory, { withFileTypes: true })
   const files = []
 
   for (const entry of entries) {
     const entryPath = join(directory, entry.name)
     if (entry.isDirectory()) {
-      files.push(...(await collectSourceFiles(entryPath)))
+      files.push(...(await collectSourceFiles(new URL(`./${entry.name}/`, directoryUrl))))
     } else if (entry.isFile() && /\.(js|cjs|mjs)$/.test(entry.name)) {
       files.push(entryPath)
     }
