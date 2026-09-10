@@ -15,14 +15,7 @@ import { getNotificationContext } from '../notification-context.js'
 
 const WORKFLOW_KEY = 'obo_plan_permit'
 const SUBJECT_TYPE = 'OboPermitApplication'
-const STATUS = Object.freeze({
-  DRAFT: 'DRAFT',
-  READY_FOR_SUBMISSION: 'READY_FOR_SUBMISSION',
-  SUBMISSION_SCHEDULED: 'SUBMISSION_SCHEDULED',
-  RECEIVING: 'RECEIVING',
-  DECLINED: 'DECLINED',
-  FOR_INSPECTION: 'FOR_INSPECTION',
-})
+const STATUS = Object.freeze({ DRAFT: 'DRAFT', READY_FOR_SUBMISSION: 'READY_FOR_SUBMISSION', SUBMISSION_SCHEDULED: 'SUBMISSION_SCHEDULED', RECEIVING: 'RECEIVING', DECLINED: 'DECLINED', FOR_INSPECTION: 'FOR_INSPECTION' })
 
 const getClientPerson = async (userId) => {
   const person = await repository.findPersonByUserId(userId)
@@ -33,7 +26,10 @@ const getClientPerson = async (userId) => {
 const hydrateApplication = async (application, db) => {
   if (!application) return application
   let hydrated = application
-  if (application.formVersionId) hydrated = { ...hydrated, formVersion: await formService.getFormVersionById(application.formVersionId, db) }
+  if (application.formVersionId) {
+    const formVersion = await formService.getFormVersionById(application.formVersionId, db)
+    hydrated = { ...hydrated, formVersion }
+  }
   if (application.submissionAppointment?.appointmentId) {
     const appointment = await appointmentService.getAppointmentForReference({ id: application.submissionAppointment.appointmentId, db })
     hydrated = { ...hydrated, submissionAppointment: { ...application.submissionAppointment, appointment } }
