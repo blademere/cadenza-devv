@@ -8,7 +8,6 @@ vi.mock('../../../src/features/users/user.mapper.js')
 
 const bcrypt = await import('bcrypt')
 const users = await import('../../../src/features/users/user.repository.js')
-const auth = await import('../../../src/features/auth/auth.repository.js')
 const accessControl = await import('../../../src/platform/authorization/access-control.repository.js')
 const mapper = await import('../../../src/features/users/user.mapper.js')
 const { registerUser } = await import('../../../src/features/users/user.service.js')
@@ -16,7 +15,7 @@ const { registerUser } = await import('../../../src/features/users/user.service.
 beforeEach(() => {
   vi.clearAllMocks()
   bcrypt.default.hash.mockResolvedValue('hashed-password')
-  auth.findUserByEmail.mockResolvedValue(null)
+  users.findUserByEmail.mockResolvedValue(null)
   users.createUser.mockResolvedValue({ id: 100, email: 'new@example.com', roleId: 2 })
   mapper.toUserResponse.mockImplementation((user) => user)
 })
