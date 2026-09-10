@@ -17,7 +17,7 @@ const toFormResponse = (permitType, formVersion) => ({
 })
 
 const listPermitTypes = () => repository.listActive()
-const getPermitTypeById = async (id) => repository.findById(id)
+const getPermitTypeById = async (id) => repository.findActiveById(id)
 const getPermitTypeByKey = async (key) => repository.findByKey(key)
 
 const getPermitTypeForm = async (id, version) => {
