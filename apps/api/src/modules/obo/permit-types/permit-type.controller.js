@@ -1,7 +1,14 @@
+import { NotFoundError } from '../../../common/errors/appError.js'
 import { successResponse } from '../../../common/responses/apiResponse.js'
 import * as service from './permit-type.service.js'
 
 const list = async (_req, res) => successResponse(res, 'Permit types retrieved successfully.', await service.listPermitTypes())
+
+const get = async (req, res) => {
+  const permitType = await service.getPermitTypeById(req.validated.params.permitTypeId)
+  if (!permitType) throw new NotFoundError('Permit type not found.')
+  return successResponse(res, 'Permit type retrieved successfully.', permitType)
+}
 
 const getForm = async (req, res) => successResponse(
   res,
@@ -59,4 +66,4 @@ const publishFormVersion = async (req, res) => successResponse(
   await service.publishPermitTypeFormVersion({ actorId: req.user.id, permitTypeId: req.validated.params.permitTypeId, version: req.validated.params.version }),
 )
 
-export { list, getForm, getFormVersion, create, update, createForm, createFormVersion, updateFormVersion, publishFormVersion }
+export { list, get, getForm, getFormVersion, create, update, createForm, createFormVersion, updateFormVersion, publishFormVersion }
