@@ -45,7 +45,7 @@ describe('OBO separation boundary contract', () => {
     expect(form).toContain("../../../platform/forms/form.service.js")
     expect(form).not.toContain('plan-permit.repository.js')
     expect(form).toContain('formService.getFormById')
-    expect(form).toContain('formService.getPublishedForm')
+    expect(form).toContain('formService.getFormVersionById')
     expect(workflow).toContain("../../../platform/workflow/workflow.service.js")
     expect(workflow).not.toContain('plan-permit.repository.js')
     expect(workflow).toContain('workflowService.getWorkflowInstance')
