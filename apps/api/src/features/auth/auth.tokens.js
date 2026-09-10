@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { env } from '../../config/index.js'
 
@@ -8,5 +9,6 @@ const createAccessToken = (user) => jwt.sign({ type: 'access', authVersion: Numb
 const createRefreshToken = (user, tokenId) => jwt.sign({ type: 'refresh', tokenId, authVersion: Number(user.authVersion ?? 0) }, env.JWT_REFRESH_SECRET, { subject: String(user.id), expiresIn: env.JWT_REFRESH_EXPIRES_IN, issuer: JWT_ISSUER, audience: JWT_AUDIENCE })
 const verifyAccessToken = (token) => jwt.verify(token, env.JWT_ACCESS_SECRET, { issuer: JWT_ISSUER, audience: JWT_AUDIENCE })
 const verifyRefreshToken = (token) => jwt.verify(token, env.JWT_REFRESH_SECRET, { issuer: JWT_ISSUER, audience: JWT_AUDIENCE })
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex')
 
-export { createAccessToken, createRefreshToken, verifyAccessToken, verifyRefreshToken }
+export { createAccessToken, createRefreshToken, verifyAccessToken, verifyRefreshToken, hashToken }
