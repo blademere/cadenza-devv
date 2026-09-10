@@ -10,9 +10,6 @@ import {
   publishPermitTypeFormVersionValidator,
 } from './permit-type.form.validation.js'
 import {
-  createPermitTypeFormValidator as _,
-} from './permit-type.form.validation.js'
-import {
   createPermitTypeValidator,
   getPermitTypeFormValidator,
   permitTypeIdValidator,
