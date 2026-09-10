@@ -2,16 +2,18 @@ ALTER TABLE "OboPermitApplicationDocument"
   ADD COLUMN "caseRequirementId" TEXT;
 
 UPDATE "OboPermitApplicationDocument" AS opd
-SET "caseRequirementId" = cr.id
-FROM "OboPermitApplication" AS app
-JOIN "CaseRequirement" AS cr
-  ON cr."caseId" = app."caseId"
-JOIN "DocumentRequirement" AS dr
-  ON dr.id = opd."requirementId"
-JOIN "RequirementDefinition" AS rd
-  ON rd.id = cr."requirementId"
-WHERE opd."applicationId" = app.id
-  AND rd.name = dr.name;
+SET "caseRequirementId" = (
+  SELECT cr.id
+  FROM "OboPermitApplication" AS app
+  JOIN "CaseRequirement" AS cr
+    ON cr."caseId" = app."caseId"
+  JOIN "DocumentRequirement" AS dr
+    ON dr.id = opd."requirementId"
+  JOIN "RequirementDefinition" AS rd
+    ON rd.id = cr."requirementId"
+  WHERE app.id = opd."applicationId"
+    AND rd.name = dr.name
+);
 
 DO $$
 BEGIN
