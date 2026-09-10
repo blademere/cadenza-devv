@@ -41,7 +41,7 @@ export const navigation = Object.freeze([
     name: 'Plan Permits',
     items: [
       { key: 'applications', name: 'Applications', route: '/app/applications', requiredPermissions: [permissions.planPermits.read], icon: ApplicationsIcon },
-      { key: 'permit-types', name: 'Permit Types', route: '/app/permit-types', requiredPermissions: [permissions.planPermits.read], icon: PermitTypesIcon },
+      { key: 'permit-types', name: 'Permit Types', route: '/app/permit-types', requiredPermissions: [permissions.permitTypes.read], icon: PermitTypesIcon },
     ],
   },
   {
