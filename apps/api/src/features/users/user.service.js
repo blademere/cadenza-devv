@@ -12,13 +12,13 @@ import {
 } from '../../common/pagination/pagination.js'
 import {
   findAllUsers,
+  findUserByEmail,
   createUser,
   findUserWithRole,
   findRoleForAssignment,
   updateUserRole,
 } from './user.repository.js'
 import { toUserResponse } from './user.mapper.js'
-import { findUserByEmail } from '../auth/auth.repository.js'
 import * as peopleService from '../people/people.service.js'
 import {
   findRoleById,
