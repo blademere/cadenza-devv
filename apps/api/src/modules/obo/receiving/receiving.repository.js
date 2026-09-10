@@ -1,5 +1,7 @@
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 import * as formRepository from '../../../platform/forms/form.repository.js'
+import * as workflowRepository from '../../../platform/workflow/workflow.repository.js'
+import * as appointmentRepository from '../../../features/appointments/appointment.repository.js'
 
 const prisma = getPrismaClient()
 const applicationInclude = {
@@ -11,7 +13,7 @@ const applicationInclude = {
 
 const attachAppointment = async (application, db = prisma) => {
   if (!application?.submissionAppointment?.appointmentId) return application
-  const appointment = await db.appointment.findUnique({ where: { id: application.submissionAppointment.appointmentId }, include: { appointmentType: true, slot: true } })
+  const appointment = await appointmentRepository.getAppointmentWithRelations(application.submissionAppointment.appointmentId, db)
   return { ...application, submissionAppointment: { ...application.submissionAppointment, appointment } }
 }
 const attachFormVersion = async (application, db = prisma) => {
@@ -27,8 +29,8 @@ const findApplication = async (id, db = prisma) => {
   const application = await db.oboPermitApplication.findUnique({ where: { id }, include: applicationInclude })
   return hydrateApplication(application, db)
 }
-const findWorkflowInstance = (id, db = prisma) => db.workflowInstance.findUnique({ where: { id }, include: { currentStep: true } })
-const findSubmissionAppointment = (appointmentId, db = prisma) => db.appointment.findUnique({ where: { id: appointmentId }, include: { appointmentType: true, slot: true } })
+const findWorkflowInstance = (id, db = prisma) => workflowRepository.findInstance(id, db)
+const findSubmissionAppointment = (appointmentId, db = prisma) => appointmentRepository.getAppointmentWithRelations(appointmentId, db)
 const findPersonNotificationContext = (personId, db = prisma) => db.person.findUnique({ where: { id: personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
 
 const listApplications = async (status, db = prisma) => {
@@ -38,9 +40,9 @@ const listApplications = async (status, db = prisma) => {
     orderBy: { createdAt: 'asc' },
   })
   const workflowIds = applications.map((application) => application.workflowInstanceId).filter(Boolean)
-  const instances = await db.workflowInstance.findMany({ where: { id: { in: workflowIds } }, include: { currentStep: true } })
+  const instances = workflowIds.length ? await workflowRepository.findInstancesByIds(workflowIds, db) : []
   const appointmentIds = applications.map((application) => application.submissionAppointment?.appointmentId).filter(Boolean)
-  const appointments = await db.appointment.findMany({ where: { id: { in: appointmentIds } }, include: { appointmentType: true, slot: true } })
+  const appointments = appointmentIds.length ? await appointmentRepository.findAppointmentsByIds(appointmentIds, db) : []
   const stateById = new Map(instances.map((instance) => [instance.id, instance.currentStep.key]))
   const appointmentById = new Map(appointments.map((appointment) => [appointment.id, appointment]))
 
