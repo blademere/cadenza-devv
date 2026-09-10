@@ -30,6 +30,19 @@ const listPermitTypes = async () => {
 const getPermitTypeById = async (id) => hydratePermitType(await repository.findActiveById(id))
 const getPermitTypeByKey = async (key) => repository.findByKey(key)
 
+const getPermitTypeFormVersions = async (id) => {
+  const permitType = await hydratePermitType(await repository.findById(id))
+  if (!permitType) throw new NotFoundError('Permit type not found.')
+  if (!permitType.form) return []
+
+  const form = await formService.getFormByIdWithVersions(permitType.form.id)
+  return (form?.versions ?? []).map(({ id: formVersionId, version, status }) => ({
+    id: formVersionId,
+    version,
+    status,
+  }))
+}
+
 const getPermitTypeForm = async (id, version) => {
   const permitType = await hydratePermitType(await repository.findActiveById(id))
   if (!permitType) throw new NotFoundError('Permit type not found.')
@@ -48,7 +61,7 @@ const getPermitTypeForm = async (id, version) => {
 
   try {
     const formVersion = await formService.getFormVersion({ formKey: permitType.form.key, version })
-    return formVersion.status === 'PUBLISHED' ? toFormResponse(permitType, formVersion) : null
+    return toFormResponse(permitType, formVersion)
   } catch (error) {
     if (error?.status === 404 || error?.code === 'NOT_FOUND') return null
     throw error
@@ -149,4 +162,4 @@ const publishPermitTypeFormVersion = async ({ actorId, permitTypeId, version }) 
   return published
 }
 
-export { listPermitTypes, getPermitTypeById, getPermitTypeByKey, getPermitTypeForm, getPermitTypeFormVersion, createPermitType, updatePermitType, createPermitTypeForm, createPermitTypeFormVersion, updatePermitTypeFormVersion, publishPermitTypeFormVersion }
+export { listPermitTypes, getPermitTypeById, getPermitTypeByKey, getPermitTypeFormVersions, getPermitTypeForm, getPermitTypeFormVersion, createPermitType, updatePermitType, createPermitTypeForm, createPermitTypeFormVersion, updatePermitTypeFormVersion, publishPermitTypeFormVersion }
