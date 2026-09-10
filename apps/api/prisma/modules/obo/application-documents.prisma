@@ -1,0 +1,24 @@
+model OboPermitApplicationDocument {
+  id              String               @id @default(uuid())
+  applicationId   String
+  requirementId   String
+  documentId      String?
+  status          String               @default("PENDING")
+  receivedAt      DateTime?
+  receivedByUserId Int?
+  verifiedAt      DateTime?
+  verifiedByUserId Int?
+  notes           String?
+  application     OboPermitApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  requirement     DocumentRequirement  @relation(fields: [requirementId], references: [id], onDelete: Restrict)
+  document        Document?            @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  receivedBy      User?                @relation("OboApplicationDocumentReceivedBy", fields: [receivedByUserId], references: [id], onDelete: SetNull)
+  verifiedBy      User?                @relation("OboApplicationDocumentVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([applicationId, requirementId])
+  @@index([applicationId, status])
+  @@index([requirementId])
+  @@index([documentId])
+}
