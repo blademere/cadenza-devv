@@ -30,11 +30,3 @@ CREATE INDEX "OboPermitApplicationDocument_documentId_idx"
 ALTER TABLE "OboPermitApplicationDocument"
   ADD CONSTRAINT "OboPermitApplicationDocument_applicationId_fkey"
   FOREIGN KEY ("applicationId") REFERENCES "OboPermitApplication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-ALTER TABLE "OboPermitApplicationDocument"
-  ADD CONSTRAINT "OboPermitApplicationDocument_receivedByUserId_fkey"
-  FOREIGN KEY ("receivedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
-ALTER TABLE "OboPermitApplicationDocument"
-  ADD CONSTRAINT "OboPermitApplicationDocument_verifiedByUserId_fkey"
-  FOREIGN KEY ("verifiedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
