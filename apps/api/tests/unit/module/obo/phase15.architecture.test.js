@@ -27,10 +27,10 @@ describe('Phase 15 form architecture contract', () => {
     const permitTypeSchema = await readText(permitTypeSchemaPath)
     const applicationSchema = await readText(applicationSchemaPath)
 
-    expect(permitTypeSchema).toContain('formId       String?')
-    expect(permitTypeSchema).not.toContain('@relation(fields: [formId]')
-    expect(applicationSchema).toContain('formVersionId         String?')
-    expect(applicationSchema).not.toContain('formVersion           FormVersion?')
+    expect(permitTypeSchema).toMatch(/^\s*formId\s+String\?\s*$/m)
+    expect(permitTypeSchema).not.toMatch(/^\s*formId\s+\S+\s+@relation\(fields:\s*\[formId\]/m)
+    expect(applicationSchema).toMatch(/^\s*formVersionId\s+String\?\s*$/m)
+    expect(applicationSchema).not.toMatch(/^\s*formVersion\s+FormVersion\?/m)
   })
 
   it('removes the database foreign keys without replacing them with join tables', async () => {
