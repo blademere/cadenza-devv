@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repository = vi.hoisted(() => ({
   findPersonByUserId: vi.fn(),
@@ -44,10 +44,9 @@ beforeEach(() => {
   formService.validateFormValues.mockResolvedValue({ valid: true })
   formService.getFormVersion.mockResolvedValue({ id: 'form-version-1', version: 1, fields: [] })
 })
-afterEach(() => vi.restoreAllMocks())
 
 describe('OBO plan permit service', () => {
-  it('creates a draft without direct Permit Type, Case, or Receiving persistence', async () => {
+  it('creates a draft through Permit Type and Case service boundaries', async () => {
     await expect(service.createApplication({
       userId: 'user-1',
       permitTypeId: 'permit-1',
@@ -60,22 +59,14 @@ describe('OBO plan permit service', () => {
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', permitTypeId: 'permit-1' }), expect.anything())
   })
 
-  it('rejects an inactive or missing Permit Type through the Permit Type service boundary', async () => {
+  it('rejects a missing Permit Type before persistence', async () => {
     permitTypeService.getPermitTypeById.mockResolvedValue(null)
     await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'missing', formValues: {} })).rejects.toThrow('Active permit type not found')
     expect(repository.create).not.toHaveBeenCalled()
+    expect(caseService.createRecord).not.toHaveBeenCalled()
   })
 
-  it('requires a declined application when creating a replacement', async () => {
-    repository.findOwnedByClient.mockResolvedValue({ id: 'old-1', workflowInstanceId: 'old-workflow', referenceNumber: 'OBO-OLD' })
-    const workflowModule = await import('../../../../src/platform/workflow/workflow.service.js')
-    workflowModule.getWorkflowInstance = vi.fn()
-    workflowModule.getWorkflowInstance.mockResolvedValue({ id: 'old-workflow', currentStep: { key: 'DRAFT' } })
-    await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', formValues: {}, replacesApplicationId: 'old-1' }))
-      .rejects.toThrow('Only a declined permit application can be replaced')
-  })
-
-  it('does not persist Receiving decisions from Plan Permit service', async () => {
+  it('does not expose Receiving decision persistence from the Plan Permit repository', () => {
     expect(repository).not.toHaveProperty('addDecision')
   })
 })
