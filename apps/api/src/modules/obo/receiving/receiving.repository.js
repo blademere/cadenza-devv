@@ -1,7 +1,7 @@
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 import * as formRepository from '../../../platform/forms/form.repository.js'
 import * as workflowRepository from '../../../platform/workflow/workflow.repository.js'
-import * as appointmentRepository from '../../../features/appointments/appointment.repository.js'
+import * as appointmentService from '../../../features/appointments/appointment.service.js'
 
 const prisma = getPrismaClient()
 const applicationInclude = {
@@ -13,7 +13,7 @@ const applicationInclude = {
 
 const attachAppointment = async (application, db = prisma) => {
   if (!application?.submissionAppointment?.appointmentId) return application
-  const appointment = await appointmentRepository.getAppointmentWithRelations(application.submissionAppointment.appointmentId, db)
+  const appointment = await appointmentService.getAppointmentForReference({ id: application.submissionAppointment.appointmentId, db })
   return { ...application, submissionAppointment: { ...application.submissionAppointment, appointment } }
 }
 const attachFormVersion = async (application, db = prisma) => {
@@ -30,7 +30,7 @@ const findApplication = async (id, db = prisma) => {
   return hydrateApplication(application, db)
 }
 const findWorkflowInstance = (id, db = prisma) => workflowRepository.findInstance(id, db)
-const findSubmissionAppointment = (appointmentId, db = prisma) => appointmentRepository.getAppointmentWithRelations(appointmentId, db)
+const findSubmissionAppointment = (appointmentId, db = prisma) => appointmentService.getAppointmentForReference({ id: appointmentId, db })
 const findPersonNotificationContext = (personId, db = prisma) => db.person.findUnique({ where: { id: personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
 
 const listApplications = async (status, db = prisma) => {
@@ -42,7 +42,7 @@ const listApplications = async (status, db = prisma) => {
   const workflowIds = applications.map((application) => application.workflowInstanceId).filter(Boolean)
   const instances = workflowIds.length ? await workflowRepository.findInstancesByIds(workflowIds, db) : []
   const appointmentIds = applications.map((application) => application.submissionAppointment?.appointmentId).filter(Boolean)
-  const appointments = appointmentIds.length ? await appointmentRepository.findAppointmentsByIds(appointmentIds, db) : []
+  const appointments = appointmentIds.length ? await appointmentService.listAppointmentsForReferences({ ids: appointmentIds, db }) : []
   const stateById = new Map(instances.map((instance) => [instance.id, instance.currentStep.key]))
   const appointmentById = new Map(appointments.map((appointment) => [appointment.id, appointment]))
 
