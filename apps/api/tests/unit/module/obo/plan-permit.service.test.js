@@ -11,6 +11,8 @@ const repository = vi.hoisted(() => ({
   withTransaction: vi.fn(),
 }))
 const permitTypeService = vi.hoisted(() => ({ getPermitTypeById: vi.fn() }))
+const permitTypeRequirementService = vi.hoisted(() => ({ getRequirementIds: vi.fn() }))
+const requirementService = vi.hoisted(() => ({ attachDefinitionsToCase: vi.fn() }))
 const caseService = vi.hoisted(() => ({ getOrCreateType: vi.fn(), createRecord: vi.fn() }))
 const participantService = vi.hoisted(() => ({ add: vi.fn(), list: vi.fn(), remove: vi.fn() }))
 const professionalService = vi.hoisted(() => ({ getForReference: vi.fn() }))
@@ -21,6 +23,8 @@ const appointmentService = vi.hoisted(() => ({ getAppointmentForReference: vi.fn
 
 vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js', () => repository)
 vi.mock('../../../../src/modules/obo/permit-types/permit-type.service.js', () => permitTypeService)
+vi.mock('../../../../src/modules/obo/permit-types/permit-type-requirement.service.js', () => permitTypeRequirementService)
+vi.mock('../../../../src/features/requirements/requirements.service.js', () => requirementService)
 vi.mock('../../../../src/features/cases/cases.service.js', () => caseService)
 vi.mock('../../../../src/features/participants/participants.service.js', () => ({ default: participantService }))
 vi.mock('../../../../src/modules/obo/professionals/professional.service.js', () => professionalService)
@@ -43,6 +47,8 @@ beforeEach(() => {
   repository.findPersonNotificationContext.mockResolvedValue(null)
   repository.findById.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', permitType })
   permitTypeService.getPermitTypeById.mockResolvedValue(permitType)
+  permitTypeRequirementService.getRequirementIds.mockResolvedValue(['requirement-1', 'requirement-2'])
+  requirementService.attachDefinitionsToCase.mockResolvedValue([])
   caseService.getOrCreateType.mockResolvedValue({ id: 'case-type-1', key: 'obo-permit-application' })
   caseService.createRecord.mockResolvedValue({ id: 'case-1', caseNumber: 'CASE-20260910-ABC12345' })
   participantService.add.mockResolvedValue({ id: 'participant-1' })
@@ -59,9 +65,11 @@ beforeEach(() => {
 })
 
 describe('OBO plan permit service', () => {
-  it('creates a draft through Permit Type, Case, and Participant service boundaries', async () => {
+  it('creates a draft through Permit Type, Case, requirements, and Participant service boundaries', async () => {
     await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', formValues: { projectAddress: 'Manila' } })).resolves.toMatchObject({ id: 'application-1', status: 'DRAFT', workflowInstanceId: 'workflow-1' })
     expect(permitTypeService.getPermitTypeById).toHaveBeenCalledWith('permit-1')
+    expect(permitTypeRequirementService.getRequirementIds).toHaveBeenCalledWith('permit-1', expect.anything())
+    expect(requirementService.attachDefinitionsToCase).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', requirementIds: ['requirement-1', 'requirement-2'], metadata: { source: 'obo-plan-permit', permitTypeId: 'permit-1' }, db: expect.anything() }))
     expect(caseService.getOrCreateType).toHaveBeenCalledWith(expect.objectContaining({ key: 'obo-permit-application', db: expect.anything() }))
     expect(caseService.createRecord).toHaveBeenCalledWith(expect.objectContaining({ caseTypeId: 'case-type-1', title: 'Building Permit Application', status: 'OPEN', createdByUserId: 'user-1' }), { db: expect.anything() })
     expect(caseService.createRecord.mock.calls[0][0]).not.toHaveProperty('caseNumber')
