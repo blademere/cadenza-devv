@@ -38,7 +38,6 @@ describe('OBO professional credentials', () => {
     await expect(
       service.applyForVerification({
         userId: 'user-1',
-        registrationNumber: 'REG-1',
         prcId: '',
         ptrNumber: 'PTR-1',
       })
@@ -46,14 +45,13 @@ describe('OBO professional credentials', () => {
     await expect(
       service.applyForVerification({
         userId: 'user-1',
-        registrationNumber: 'REG-1',
         prcId: 'PRC-1',
         ptrNumber: '',
       })
     ).rejects.toThrow('ptrNumber is required.')
   })
 
-  it('persists normalized PRC and PTR credentials', async () => {
+  it('persists normalized PRC and PTR credentials and auto-generates registration number', async () => {
     spies.findPersonByUserId.mockResolvedValue({ id: 'person-1' })
     spies.findByPersonId.mockResolvedValue(null)
     spies.create.mockResolvedValue({
@@ -68,13 +66,13 @@ describe('OBO professional credentials', () => {
       ptrNumber: ' PTR-1 ',
     })
 
-    expect(spies.create).toHaveBeenCalledWith({
+    expect(spies.create).toHaveBeenCalledWith(expect.objectContaining({
       personId: 'person-1',
       userId: 'user-1',
-      registrationNumber: 'REG-1',
       prcId: 'PRC-1',
       ptrNumber: 'PTR-1',
-    })
+    }))
+    expect(spies.create.mock.calls[0][0].registrationNumber).toMatch(/^PRO-\d{8}-[0-9A-F]{8}$/)
   })
 
   it('allows the professional to retrieve their verification record', async () => {
