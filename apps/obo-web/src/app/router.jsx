@@ -24,9 +24,11 @@ import ProfessionalVerificationApplyPage from '../features/professionals/pages/P
 import ProtectedRoute from './router/ProtectedRoute'
 import GuestRoute from './router/GuestRoute'
 import AuthorizationRoute from './router/AuthorizationRoute'
+import RequireAnyPermission from '../features/authorization/components/RequireAnyPermission'
 import { permissions } from '../config/permissions'
 
 const protectedPage = (path, element, permission) => ({ element: <AuthorizationRoute requiredPermission={permission} />, children: [{ path, element }] })
+const protectedPageWithAnyPermission = (path, element, requiredPermissions) => ({ element: <RequireAnyPermission permissions={requiredPermissions} />, children: [{ path, element }] })
 
 export const router = createBrowserRouter([
   { path: '/', element: <App />, children: [
@@ -44,7 +46,7 @@ export const router = createBrowserRouter([
       protectedPage('appointments', <AppointmentsPage />, permissions.appointments.manage),
       protectedPage('permit-types', <PermitTypesPage />, permissions.permitTypes.read),
       protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.permitTypes.read),
-      protectedPage('permit-types/:permitTypeId/form/edit', <PermitTypeFormBuilderPage />, permissions.forms.update),
+      protectedPageWithAnyPermission('permit-types/:permitTypeId/form/edit', <PermitTypeFormBuilderPage />, [permissions.forms.create, permissions.forms.update]),
       protectedPage('receiving', <ReceivingPage />, permissions.planPermits.receive),
       protectedPage('receiving/:applicationId', <ReceivingApplicationPage />, permissions.planPermits.receive),
       protectedPage('professionals', <ProfessionalsPage />, permissions.professionals.read),
