@@ -16,21 +16,47 @@ const toFormResponse = (permitType, formVersion) => ({
   documentRequirements: formVersion.documentRequirements,
 })
 
-const listPermitTypes = () => repository.listActive()
-const getPermitTypeById = async (id) => repository.findActiveById(id)
+const hydratePermitType = async (permitType) => {
+  if (!permitType) return permitType
+  const form = permitType.formId ? await formService.getFormById(permitType.formId) : null
+  return { ...permitType, form }
+}
+
+const listPermitTypes = async () => {
+  const permitTypes = await repository.listActive()
+  return Promise.all(permitTypes.map(hydratePermitType))
+}
+
+const getPermitTypeById = async (id) => hydratePermitType(await repository.findActiveById(id))
 const getPermitTypeByKey = async (key) => repository.findByKey(key)
 
 const getPermitTypeForm = async (id, version) => {
-  const permitType = await repository.findActiveById(id)
+  const permitType = await hydratePermitType(await repository.findActiveById(id))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) return null
-  const formVersion = version == null ? permitType.form.versions[0] : await repository.findPublishedFormVersion(permitType.form.id, version)
-  if (!formVersion) return null
-  return toFormResponse(permitType, formVersion)
+
+  if (version == null) {
+    try {
+      const publishedForm = await formService.getPublishedForm(permitType.form.key)
+      const publishedVersion = publishedForm.versions[0]
+      return publishedVersion ? toFormResponse({ ...permitType, form: publishedForm }, publishedVersion) : null
+    } catch (error) {
+      if (error?.status === 404 || error?.code === 'NOT_FOUND') return null
+      throw error
+    }
+  }
+
+  try {
+    const formVersion = await formService.getFormVersion({ formKey: permitType.form.key, version })
+    return formVersion.status === 'PUBLISHED' ? toFormResponse(permitType, formVersion) : null
+  } catch (error) {
+    if (error?.status === 404 || error?.code === 'NOT_FOUND') return null
+    throw error
+  }
 }
 
 const getPermitTypeFormVersion = async (id, version) => {
-  const permitType = await repository.findByIdWithForm(id)
+  const permitType = await hydratePermitType(await repository.findById(id))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
   const formVersion = await formService.getFormVersion({ formKey: permitType.form.key, version })
@@ -94,7 +120,7 @@ const createPermitTypeForm = async ({ actorId, permitTypeId, data }) => {
 }
 
 const createPermitTypeFormVersion = async ({ actorId, permitTypeId, data }) => {
-  const permitType = await repository.findByIdWithForm(permitTypeId)
+  const permitType = await hydratePermitType(await repository.findById(permitTypeId))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot receive form versions.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
@@ -104,7 +130,7 @@ const createPermitTypeFormVersion = async ({ actorId, permitTypeId, data }) => {
 }
 
 const updatePermitTypeFormVersion = async ({ actorId, permitTypeId, version, data }) => {
-  const permitType = await repository.findByIdWithForm(permitTypeId)
+  const permitType = await hydratePermitType(await repository.findById(permitTypeId))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot update form versions.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
@@ -114,7 +140,7 @@ const updatePermitTypeFormVersion = async ({ actorId, permitTypeId, version, dat
 }
 
 const publishPermitTypeFormVersion = async ({ actorId, permitTypeId, version }) => {
-  const permitType = await repository.findByIdWithForm(permitTypeId)
+  const permitType = await hydratePermitType(await repository.findById(permitTypeId))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot publish form versions.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
