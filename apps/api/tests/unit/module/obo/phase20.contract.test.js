@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 const paths = {
   permitTypeRoutes: new URL('../../../../src/modules/obo/permit-types/permit-type.routes.js', import.meta.url),
-  capabilityRegistry: new URL('../../../../src/platform/authorization/capability-registry.js', import.meta.url),
+  webNavigation: new URL('../../../../../../apps/obo-web/src/config/navigation.js', import.meta.url),
   webRouter: new URL('../../../../../../apps/obo-web/src/app/router.jsx', import.meta.url),
   formBuilderPage: new URL('../../../../../../apps/obo-web/src/features/plan-permits/pages/PermitTypeFormBuilderPage.jsx', import.meta.url),
 }
@@ -19,11 +19,11 @@ describe('Phase 20 OBO authorization contract', () => {
     expect(source).not.toMatch(/router\.get\([\s\S]*?authorize\('obo_plan_permits', 'read'\)[\s\S]*?controller\.(list|getForm)/)
   })
 
-  it('keeps the Permit Types capability on its dedicated authorization resource', async () => {
-    const source = await readText(paths.capabilityRegistry)
+  it('keeps Permit Types navigation on its dedicated authorization resource', async () => {
+    const source = await readText(paths.webNavigation)
 
-    expect(source).toMatch(/key: 'permit-types',[\s\S]*?moduleKey: 'obo_permit_types',[\s\S]*?permission: 'obo_permit_types:read'/)
-    expect(source).not.toMatch(/key: 'permit-types',[\s\S]*?moduleKey: 'obo_plan_permits',[\s\S]*?permission: 'obo_plan_permits:read'/)
+    expect(source).toMatch(/key: 'permit-types',[\s\S]*?requiredPermissions: \[permissions\.permitTypes\.read\]/)
+    expect(source).not.toMatch(/key: 'permit-types',[\s\S]*?requiredPermissions: \[permissions\.planPermits\.read\]/)
   })
 
   it('allows form builder entry with create or update permission', async () => {
