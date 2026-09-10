@@ -36,23 +36,33 @@ const resolveReplacement = async ({ replacesApplicationId, personId }) => {
   if (originalWithStatus.status !== STATUS.DECLINED) throw new ConflictError('Only a declined permit application can be replaced with a new application.')
   return originalWithStatus
 }
-const createCaseRecord = async ({ userId, referenceNumber, permitTypeName }) => {
-  const existingType = await caseService.list({ limit: 1 })
-  const caseType = existingType.data?.find((item) => item.key === 'obo-permit-application')
-  const caseTypeRecord = caseType || await caseService.createType({ key: 'obo-permit-application', name: 'OBO Permit Application', description: 'OBO permit application lifecycle' })
-  return caseService.createRecord({ caseNumber: referenceNumber, caseTypeId: caseTypeRecord.id, title: `${permitTypeName} Application`, status: 'OPEN', createdByUserId: userId })
+
+const createCaseRecord = async ({ userId, referenceNumber, permitTypeName, db }) => {
+  const caseType = await caseService.getOrCreateType({
+    key: 'obo-permit-application',
+    name: 'OBO Permit Application',
+    description: 'OBO permit application lifecycle',
+    db,
+  })
+  return caseService.createRecord({
+    caseNumber: referenceNumber,
+    caseTypeId: caseType.id,
+    title: `${permitTypeName} Application`,
+    status: 'OPEN',
+    createdByUserId: userId,
+  }, { db })
 }
+
 const createApplication = async ({ userId, permitTypeId, formVersionId, formValues, replacesApplicationId }) => {
   const person = await getClientPerson(userId)
   const permitType = await permitTypeService.getPermitTypeById(permitTypeId)
-  if (!permitType || !permitType.isActive) throw new NotFoundError('Active permit type not found.')
+  if (!permitType) throw new NotFoundError('Active permit type not found.')
   const replacement = await resolveReplacement({ replacesApplicationId, personId: person.id })
   const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
   const application = await repository.withTransaction(async (tx) => {
     const referenceNumber = `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
-    const caseRecord = await createCaseRecord({ userId, referenceNumber, permitTypeName: permitType.name })
-    const created = await repository.create({ clientPersonId: person.id, permitTypeId, formVersionId: resolvedForm.formVersionId, formValues, userId, replacesApplicationId: replacement?.id || null, caseId: caseRecord.id }, tx)
-    if (!created) throw new NotFoundError('Active permit type not found.')
+    const caseRecord = await createCaseRecord({ userId, referenceNumber, permitTypeName: permitType.name, db: tx })
+    const created = await repository.create({ clientPersonId: person.id, permitTypeId, formVersionId: resolvedForm.formVersionId, formValues, replacesApplicationId: replacement?.id || null, caseId: caseRecord.id, referenceNumber }, tx)
     const notificationContext = await getNotificationContext({ personId: person.id, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     const workflow = await workflowService.startWorkflow({ workflowKey: WORKFLOW_KEY, subjectType: SUBJECT_TYPE, subjectId: created.id, actorId: userId, metadata: { source: replacement ? 'obo-plan-permit.replace-declined' : 'obo-plan-permit.create', referenceNumber: created.referenceNumber, permitTypeName: permitType.name, replacesReferenceNumber: replacement?.referenceNumber || null, ...notificationContext }, db: tx })
     return repository.update(created.id, { workflowInstanceId: workflow.id }, tx)
