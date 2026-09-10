@@ -114,7 +114,11 @@ describe('receiving service', () => {
 
     const result = await decide({ id: 'app-1', actorId: 'user-1', decision: 'ACCEPTED' })
 
-    expect(applicationDocumentService.validateRequiredDocuments).toHaveBeenCalledWith({ applicationId: 'app-1' })
+    expect(applicationDocumentService.validateRequiredDocuments).toHaveBeenCalledWith({
+      applicationId: 'app-1',
+      application,
+      db: expect.anything(),
+    })
     expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({
       transitionKey: 'ACCEPT_FOR_INSPECTION',
       metadata: expect.objectContaining({ decision: 'ACCEPTED' })
