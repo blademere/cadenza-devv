@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import PermissionGate from '../../authorization/components/PermissionGate'
-import RequirePermission from '../../authorization/components/RequirePermission'
+import RequireAnyPermission from '../../authorization/components/RequireAnyPermission'
 import { permissions } from '../../../config/permissions'
 import FormBuilder, { createField, normalizeDefinition } from '../components/FormBuilder'
 import { useCreatePermitTypeForm, useCreatePermitTypeFormVersion, usePermitTypeForm, usePermitTypeFormVersion, usePermitTypes, usePublishPermitTypeFormVersion, useUpdatePermitTypeFormVersion } from '../queries/plan-permits.queries'
@@ -153,13 +153,13 @@ export default function PermitTypeFormBuilderPage() {
   }
 
   return (
-    <RequirePermission permission={permissions.forms.update}>
+    <RequireAnyPermission permissions={[permissions.forms.create, permissions.forms.update]}>
       <Stack className="obo-page">
         <PageHeader eyebrow="Plan Permits / Permit Type / Form" title={permitType?.name ?? 'Form management'} description="Build the permit form, configure professional-reference fields, and publish an immutable version." actions={(
           <Group>
             <Button component={Link} to={`/app/permit-types/${permitTypeId}`} variant="default">Back</Button>
             {hasConfiguredFormForPermitType && !version && publishedForm ? <PermissionGate permission={permissions.forms.update}><Button onClick={startNewVersion} loading={createVersion.isPending}>Create New Version</Button></PermissionGate> : null}
-            {isDraft ? <Button onClick={saveDraft} loading={updateVersion.isPending}>Save Draft</Button> : null}
+            {isDraft ? <PermissionGate permission={permissions.forms.update}><Button onClick={saveDraft} loading={updateVersion.isPending}>Save Draft</Button></PermissionGate> : null}
             {isDraft ? <PermissionGate permission={permissions.forms.publish}><Button onClick={publish} loading={publishVersion.isPending} disabled={professionalReferenceErrors.length > 0}>Publish</Button></PermissionGate> : null}
           </Group>
         )} />
@@ -167,10 +167,10 @@ export default function PermitTypeFormBuilderPage() {
         {formError ? <Alert color="red" title="Form management error">{formError.message ?? 'The requested operation could not be completed.'}</Alert> : null}
         {!loading && !formError && professionalReferenceErrors.length > 0 ? <Alert color="yellow" title="Professional selection needs configuration">{professionalReferenceErrors.join(' ')}</Alert> : null}
         {!loading && !formError && !hasConfiguredFormForPermitType && !version ? <Box className="obo-panel" p="lg"><Stack><Text fw={700}>No form configured</Text><Text size="sm" c="dimmed">Create the initial form. Version 1 starts as a draft and must be published before it is used for applications.</Text><PermissionGate permission={permissions.forms.create}><Button onClick={openCreateForm}>Create Form</Button></PermissionGate></Stack></Box> : null}
-        {!loading && !formError && activeForm ? <Stack><Box className="obo-panel" p="lg"><Group justify="space-between"><Box><Text fw={700}>{activeForm.name ?? 'Application form'}</Text><Text size="sm" c="dimmed">Version {activeVersion ?? '—'} · {activeForm.status ?? 'PUBLISHED'}</Text>{activeForm.description ? <Text size="sm" mt="xs">{activeForm.description}</Text> : null}</Box><Text size="sm" c={isDraft ? 'orange' : 'dimmed'}>{isDraft ? 'Draft changes are not used until published.' : 'Published versions are immutable.'}</Text></Group></Box><FormBuilder definition={definition} onChange={setDefinition} /></Stack> : null}
+        {!loading && !formError && activeForm ? <Stack><Box className="obo-panel" p="lg"><Group justify="space-between"><Box><Text fw={700}>{activeForm.name ?? 'Application form'}</Text><Text size="sm" c="dimmed">Version {activeVersion ?? '—'} · {activeForm.status ?? 'PUBLISHED'}</Text>{activeForm.description ? <Text size="sm" mt="xs">{activeForm.description}</Text> : null}</Box><Text size="sm" c={isDraft ? 'orange' : 'dimmed'}>{isDraft ? 'Draft changes are not used until published.' : 'Published versions are immutable.'}</Text></Group></Box><PermissionGate permission={permissions.forms.update}><FormBuilder definition={definition} onChange={setDefinition} /></PermissionGate></Stack> : null}
       </Stack>
-      <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title="Create application form" centered><Stack><TextInput label="Form key" description="Lowercase letters, numbers, hyphens, or underscores." value={meta.key} onChange={(event) => setMeta((current) => ({ ...current, key: event.currentTarget.value }))} /><TextInput label="Form name" value={meta.name} onChange={(event) => setMeta((current) => ({ ...current, name: event.currentTarget.value }))} /><Textarea label="Description" value={meta.description} onChange={(event) => setMeta((current) => ({ ...current, description: event.currentTarget.value || null }))} autosize minRows={3} /><Group justify="flex-end"><Button variant="default" onClick={() => setModalOpen(false)}>Cancel</Button><Button onClick={submitCreateForm} loading={createForm.isPending}>Create</Button></Group></Stack></Modal>
-    </RequirePermission>
+      <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title="Create application form" centered><Stack><TextInput label="Form key" description="Lowercase letters, numbers, hyphens, or underscores." value={meta.key} onChange={(event) => setMeta((current) => ({ ...current, key: event.currentTarget.value }))} /><TextInput label="Form name" value={meta.name} onChange={(event) => setMeta((current) => ({ ...current, name: event.currentTarget.value }))} /><Textarea label="Description" value={meta.description} onChange={(event) => setMeta((current) => ({ ...current, description: event.currentTarget.value || null }))} autosize minRows={3} /><Group justify="flex-end"><Button variant="default" onClick={() => setModalOpen(false)}>Cancel</Button><PermissionGate permission={permissions.forms.create}><Button onClick={submitCreateForm} loading={createForm.isPending}>Create</Button></PermissionGate></Group></Stack></Modal>
+    </RequireAnyPermission>
   )
 }
 
