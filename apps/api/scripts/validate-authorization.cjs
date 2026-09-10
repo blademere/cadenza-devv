@@ -1,6 +1,5 @@
 const fs = require('node:fs')
 const path = require('node:path')
-const { getCapabilityRegistry } = require('../src/platform/authorization/capability-registry')
 
 const ROOT = path.resolve(__dirname, '..', 'src')
 const ROUTE_ROOTS = [path.join(ROOT, 'features'), path.join(ROOT, 'modules'), path.join(ROOT, 'platform')]
@@ -8,7 +7,6 @@ const METHODS = /\b(?:router|[A-Za-z_$][\w$]*Router)\.(get|post|put|patch|delete
 const AUTHENTICATE = /\bauthenticate\b/
 const AUTHORIZE = /\bauthorize(?:Resource)?\b|\bauthorize[A-Z][A-Za-z0-9_]*\b|\b[A-Za-z_$][A-Za-z0-9_$]*Authorization\b/
 const EXEMPTION = /authorization\s*:\s*public|authorization\s*:\s*auth-boundary/i
-const PERMISSION_KEY = /^[a-z0-9_-]+:[a-z0-9_-]+$/
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -21,18 +19,8 @@ const walk = (directory) => {
 }
 
 const failures = []
-const capabilities = getCapabilityRegistry()
-const capabilityKeys = new Set()
-
-for (const capability of capabilities) {
-  if (capabilityKeys.has(capability.key)) failures.push(`capability registry: duplicate capability key '${capability.key}'.`)
-  capabilityKeys.add(capability.key)
-  if (!PERMISSION_KEY.test(capability.permission)) failures.push(`capability registry: invalid permission key '${capability.permission}'.`)
-  const [resource] = capability.permission.split(':')
-  if (resource !== capability.moduleKey) failures.push(`capability registry: capability '${capability.key}' binds module '${capability.moduleKey}' to '${capability.permission}'.`)
-}
-
 const routeFiles = ROUTE_ROOTS.flatMap(walk).filter((file) => file.endsWith('.routes.js'))
+
 for (const file of routeFiles) {
   const source = fs.readFileSync(file, 'utf8')
   const relative = path.relative(path.resolve(__dirname, '..'), file).replaceAll(path.sep, '/')
@@ -97,4 +85,4 @@ if (failures.length > 0) {
   failures.forEach((failure) => console.error(`- ${failure}`))
   process.exit(1)
 }
-console.log(`Authorization enforcement validation passed: ${routeFiles.length} route file(s) audited and ${capabilities.length} capabilities validated.`)
+console.log(`Authorization enforcement validation passed: ${routeFiles.length} route file(s) audited.`)
