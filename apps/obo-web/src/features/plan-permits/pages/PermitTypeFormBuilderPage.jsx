@@ -78,7 +78,7 @@ export default function PermitTypeFormBuilderPage() {
   const payload = useMemo(() => toPayload(definition), [definition])
   const professionalReferenceErrors = useMemo(() => getProfessionalReferenceErrors(definition), [definition])
 
-  useEffect(() => { if (activeForm) setDefinition(normalizeDefinition(activeForm)) }, [activeForm?.formVersionId])
+  useEffect(() => { if (activeForm) setDefinition(normalizeDefinition(activeForm)) }, [activeForm])
 
   const missingPermitTypeIdError = !permitTypeId ? new Error('Permit type ID is missing from the route.') : null
   const formError = operationError || error || missingPermitTypeIdError
