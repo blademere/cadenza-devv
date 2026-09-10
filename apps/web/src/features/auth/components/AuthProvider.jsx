@@ -1,1 +1,3 @@
-export { AuthProvider, useAuth } from '../AuthProvider.jsx'
+export { AuthProvider } from '../AuthProvider.jsx'
+
+export { useAuth } from '../AuthProvider.jsx'
