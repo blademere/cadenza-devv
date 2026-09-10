@@ -15,16 +15,16 @@ const getApplicableRequirements = async (application, db) => {
   return requirements.filter((requirement) => formService.evaluateCondition(requirement.condition, application.formValues || {}))
 }
 
-const ensureChecklist = async (application, db) => {
-  const requirements = await getApplicableRequirements(application, db)
-  if (requirements.length) {
-    await repository.createMany(requirements.map((requirement) => ({
+const ensureChecklist = async (application, db, requirements = null) => {
+  const applicableRequirements = requirements ?? await getApplicableRequirements(application, db)
+  if (applicableRequirements.length) {
+    await repository.createMany(applicableRequirements.map((requirement) => ({
       applicationId: application.id,
       requirementId: requirement.id,
       status: STATUS.PENDING,
     })), db)
   }
-  return requirements
+  return applicableRequirements
 }
 
 const normalizeChecklist = (rows, requirements) => {
@@ -46,8 +46,7 @@ const normalizeChecklist = (rows, requirements) => {
 
 const getChecklist = async ({ applicationId }) => {
   const application = await getApplication(applicationId)
-  const requirements = await getApplicableRequirements(application)
-  await ensureChecklist(application)
+  const requirements = await ensureChecklist(application)
   const rows = await repository.listByApplicationId(application.id)
   return normalizeChecklist(rows, requirements)
 }
