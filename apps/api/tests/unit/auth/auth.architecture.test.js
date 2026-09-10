@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
-const authRepositoryPath = new URL('../../../../src/features/auth/auth.repository.js', import.meta.url)
-const authTokensPath = new URL('../../../../src/features/auth/auth.tokens.js', import.meta.url)
-const authMaintenancePath = new URL('../../../../src/infrastructure/maintenance/auth-token.js', import.meta.url)
-const userServicePath = new URL('../../../../src/features/users/user.service.js', import.meta.url)
-const oauthServicePath = new URL('../../../../src/features/auth/oauth/oauth.service.js', import.meta.url)
+const authRepositoryPath = new URL('../../../src/features/auth/auth.repository.js', import.meta.url)
+const authTokensPath = new URL('../../../src/features/auth/auth.tokens.js', import.meta.url)
+const authMaintenancePath = new URL('../../../src/infrastructure/maintenance/auth-token.js', import.meta.url)
+const userServicePath = new URL('../../../src/features/users/user.service.js', import.meta.url)
+const oauthServicePath = new URL('../../../src/features/auth/oauth/oauth.service.js', import.meta.url)
 
 const readText = (url) => readFile(url, 'utf8')
 
