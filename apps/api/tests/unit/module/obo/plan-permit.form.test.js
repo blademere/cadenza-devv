@@ -8,11 +8,11 @@ const { resolveAndValidateForm } = await import('../../../../src/modules/obo/pla
 afterEach(() => vi.clearAllMocks())
 beforeEach(() => {
   formService.getFormById.mockResolvedValue({ id: 'form-1', key: 'building-permit', isActive: true })
-  formService.getPublishedForm.mockResolvedValue({
-    id: 'form-1',
-    key: 'building-permit',
-    isActive: true,
-    versions: [{ id: 'form-version-2', formId: 'form-1', version: 2, status: 'PUBLISHED' }],
+  formService.getFormVersionById.mockResolvedValue({
+    id: 'form-version-2',
+    formId: 'form-1',
+    version: 2,
+    status: 'PUBLISHED',
   })
   formService.validateFormValues.mockResolvedValue({ valid: true })
 })
@@ -26,7 +26,7 @@ describe('OBO plan permit form resolution', () => {
     })).resolves.toEqual({ formVersionId: 'form-version-2' })
 
     expect(formService.getFormById).toHaveBeenCalledWith('form-1')
-    expect(formService.getPublishedForm).toHaveBeenCalledWith('building-permit')
+    expect(formService.getFormVersionById).toHaveBeenCalledWith('form-version-2')
     expect(formService.validateFormValues).toHaveBeenCalledWith({
       formKey: 'building-permit',
       version: 2,
@@ -50,11 +50,11 @@ describe('OBO plan permit form resolution', () => {
   })
 
   it('rejects a stored version that does not belong to the permit type form', async () => {
-    formService.getPublishedForm.mockResolvedValue({
-      id: 'form-1',
-      key: 'building-permit',
-      isActive: true,
-      versions: [{ id: 'form-version-2', formId: 'different-form', version: 2, status: 'PUBLISHED' }],
+    formService.getFormVersionById.mockResolvedValue({
+      id: 'form-version-2',
+      formId: 'different-form',
+      version: 2,
+      status: 'PUBLISHED',
     })
 
     await expect(resolveAndValidateForm({
@@ -66,11 +66,11 @@ describe('OBO plan permit form resolution', () => {
   })
 
   it('rejects a stored version that is not published', async () => {
-    formService.getPublishedForm.mockResolvedValue({
-      id: 'form-1',
-      key: 'building-permit',
-      isActive: true,
-      versions: [{ id: 'form-version-2', formId: 'form-1', version: 2, status: 'DRAFT' }],
+    formService.getFormVersionById.mockResolvedValue({
+      id: 'form-version-2',
+      formId: 'form-1',
+      version: 2,
+      status: 'DRAFT',
     })
 
     await expect(resolveAndValidateForm({
