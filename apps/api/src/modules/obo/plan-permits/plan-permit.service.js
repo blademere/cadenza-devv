@@ -37,7 +37,7 @@ const hydrateApplication = async (application, db) => {
   }
   if (application.submissionAppointment?.appointmentId) {
     const appointment = await appointmentService.getAppointmentForReference({ id: application.submissionAppointment.appointmentId, db })
-    hydrated = { ...application, submissionAppointment: { ...application.submissionAppointment, appointment } }
+    hydrated = { ...hydrated, submissionAppointment: { ...hydrated.submissionAppointment, appointment } }
   }
   return hydrated
 }
