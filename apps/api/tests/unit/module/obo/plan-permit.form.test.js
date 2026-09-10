@@ -1,20 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 vi.mock('../../../../src/platform/forms/form.service.js')
 
-const repository = await import('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 const formService = await import('../../../../src/platform/forms/form.service.js')
 const { resolveAndValidateForm } = await import('../../../../src/modules/obo/plan-permits/plan-permit.form.js')
 
 afterEach(() => vi.clearAllMocks())
 beforeEach(() => {
-  repository.findFormById.mockResolvedValue({ id: 'form-1', key: 'building-permit', isActive: true })
-  repository.findFormVersionById.mockResolvedValue({
-    id: 'form-version-2',
-    formId: 'form-1',
-    version: 2,
-    status: 'PUBLISHED',
+  formService.getFormById.mockResolvedValue({ id: 'form-1', key: 'building-permit', isActive: true })
+  formService.getPublishedForm.mockResolvedValue({
+    id: 'form-1',
+    key: 'building-permit',
+    isActive: true,
+    versions: [{ id: 'form-version-2', formId: 'form-1', version: 2, status: 'PUBLISHED' }],
   })
   formService.validateFormValues.mockResolvedValue({ valid: true })
 })
@@ -27,7 +25,8 @@ describe('OBO plan permit form resolution', () => {
       formValues: { floorArea: 120 },
     })).resolves.toEqual({ formVersionId: 'form-version-2' })
 
-    expect(repository.findFormVersionById).toHaveBeenCalledWith('form-version-2')
+    expect(formService.getFormById).toHaveBeenCalledWith('form-1')
+    expect(formService.getPublishedForm).toHaveBeenCalledWith('building-permit')
     expect(formService.validateFormValues).toHaveBeenCalledWith({
       formKey: 'building-permit',
       version: 2,
@@ -47,19 +46,15 @@ describe('OBO plan permit form resolution', () => {
       permitType: { id: 'permit-1', formId: 'form-1' },
       formVersionId: 'form-version-2',
       formValues: {},
-    })).rejects.toMatchObject({
-      statusCode: 422,
-      errors,
-      message: 'Permit form validation failed.',
-    })
+    })).rejects.toMatchObject({ statusCode: 422, errors, message: 'Permit form validation failed.' })
   })
 
   it('rejects a stored version that does not belong to the permit type form', async () => {
-    repository.findFormVersionById.mockResolvedValue({
-      id: 'form-version-2',
-      formId: 'different-form',
-      version: 2,
-      status: 'PUBLISHED',
+    formService.getPublishedForm.mockResolvedValue({
+      id: 'form-1',
+      key: 'building-permit',
+      isActive: true,
+      versions: [{ id: 'form-version-2', formId: 'different-form', version: 2, status: 'PUBLISHED' }],
     })
 
     await expect(resolveAndValidateForm({
@@ -71,11 +66,11 @@ describe('OBO plan permit form resolution', () => {
   })
 
   it('rejects a stored version that is not published', async () => {
-    repository.findFormVersionById.mockResolvedValue({
-      id: 'form-version-2',
-      formId: 'form-1',
-      version: 2,
-      status: 'DRAFT',
+    formService.getPublishedForm.mockResolvedValue({
+      id: 'form-1',
+      key: 'building-permit',
+      isActive: true,
+      versions: [{ id: 'form-version-2', formId: 'form-1', version: 2, status: 'DRAFT' }],
     })
 
     await expect(resolveAndValidateForm({
