@@ -119,6 +119,7 @@ const createFormVersion = async ({ formKey, sections = [], fields, actorId = nul
 }
 
 const getFormById = async (id) => prisma.form.findUnique({ where: { id } })
+const getFormByIdWithVersions = async (id) => prisma.form.findUnique({ where: { id }, include: { versions: { select: { id: true, version: true, status: true }, orderBy: { version: 'desc' } } } })
 const getFormVersionById = async (id) => prisma.formVersion.findUnique({ where: { id }, include: formVersionDefinition })
 
 const getFormVersion = async ({ formKey, version }) => {
@@ -195,6 +196,7 @@ export {
   createForm,
   createFormVersion,
   getFormById,
+  getFormByIdWithVersions,
   getFormVersionById,
   getFormVersion,
   updateFormVersion,
