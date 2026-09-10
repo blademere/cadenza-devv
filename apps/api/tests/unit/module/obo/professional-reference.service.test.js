@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../../src/modules/obo/professionals/professional.service.js', () => mocks.professionalService)
 vi.mock('../../../../src/platform/forms/form.service.js', () => ({ evaluateCondition: mocks.evaluateCondition }))
 
-const service = await import('../../../../src/modules/obo/plan-permits/professional-reference.service.js')
+const service = await import('../../../../src/modules/obo/professionals/professional-reference.service.js')
 
 afterEach(() => vi.clearAllMocks())
 
@@ -31,11 +31,7 @@ describe('OBO professional reference validation', () => {
 
     await expect(service.validateProfessionalReferences({
       formVersion: formVersion({
-        key: 'architect',
-        label: 'Architect',
-        type: 'reference',
-        required: true,
-        visibility: null,
+        key: 'architect', label: 'Architect', type: 'reference', required: true, visibility: null,
         config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false },
       }),
       formValues: { architect: professional().id },
@@ -46,12 +42,7 @@ describe('OBO professional reference validation', () => {
 
   it('rejects an invalid professional identifier', async () => {
     await expect(service.validateProfessionalReferences({
-      formVersion: formVersion({
-        key: 'architect',
-        label: 'Architect',
-        type: 'reference',
-        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT' },
-      }),
+      formVersion: formVersion({ key: 'architect', label: 'Architect', type: 'reference', config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT' } }),
       formValues: { architect: 'not-a-uuid' },
     })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'REFERENCE' })] })
 
@@ -66,18 +57,10 @@ describe('OBO professional reference validation', () => {
       .mockResolvedValueOnce(professional({ person: { id: 'person-1', isActive: false } }))
       .mockResolvedValueOnce(professional({ professionalRole: 'CIVIL_ENGINEER' }))
 
-    const field = {
-      key: 'architect',
-      label: 'Architect',
-      type: 'reference',
-      config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT' },
-    }
-
+    const field = { key: 'architect', label: 'Architect', type: 'reference', config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT' } }
     for (const expectedCode of ['NOT_FOUND', 'NOT_VERIFIED', 'INACTIVE', 'ROLE']) {
-      await expect(service.validateProfessionalReferences({
-        formVersion: formVersion(field),
-        formValues: { architect: id },
-      })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: expectedCode })] })
+      await expect(service.validateProfessionalReferences({ formVersion: formVersion(field), formValues: { architect: id } }))
+        .rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: expectedCode })] })
     }
   })
 
@@ -87,13 +70,7 @@ describe('OBO professional reference validation', () => {
     mocks.professionalService.getForReference.mockImplementation(async (id) => id === first.id ? first : second)
 
     await expect(service.validateProfessionalReferences({
-      formVersion: formVersion({
-        key: 'architects',
-        label: 'Architects',
-        type: 'reference',
-        required: true,
-        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true },
-      }),
+      formVersion: formVersion({ key: 'architects', label: 'Architects', type: 'reference', required: true, config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true } }),
       formValues: { architects: [first.id, second.id] },
     })).resolves.toBe(true)
 
@@ -102,29 +79,17 @@ describe('OBO professional reference validation', () => {
 
   it('rejects a scalar value when multiple selection is enabled', async () => {
     await expect(service.validateProfessionalReferences({
-      formVersion: formVersion({
-        key: 'architects',
-        label: 'Architects',
-        type: 'reference',
-        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true },
-      }),
+      formVersion: formVersion({ key: 'architects', label: 'Architects', type: 'reference', config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true } }),
       formValues: { architects: professional().id },
     })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'TYPE' })] })
-
     expect(mocks.professionalService.getForReference).not.toHaveBeenCalled()
   })
 
   it('rejects an array when single selection is configured', async () => {
     await expect(service.validateProfessionalReferences({
-      formVersion: formVersion({
-        key: 'architect',
-        label: 'Architect',
-        type: 'reference',
-        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false },
-      }),
+      formVersion: formVersion({ key: 'architect', label: 'Architect', type: 'reference', config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false } }),
       formValues: { architect: [professional().id] },
     })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'TYPE' })] })
-
     expect(mocks.professionalService.getForReference).not.toHaveBeenCalled()
   })
 
@@ -133,47 +98,23 @@ describe('OBO professional reference validation', () => {
     mocks.professionalService.getForReference.mockResolvedValue(professional())
 
     await expect(service.validateProfessionalReferences({
-      formVersion: formVersion({
-        key: 'architects',
-        label: 'Architects',
-        type: 'reference',
-        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true },
-      }),
+      formVersion: formVersion({ key: 'architects', label: 'Architects', type: 'reference', config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true } }),
       formValues: { architects: [id, id] },
     })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'DUPLICATE' })] })
-
     expect(mocks.professionalService.getForReference).toHaveBeenCalledTimes(1)
   })
 
   it('does not query a professional for invalid reference values', async () => {
     await expect(service.validateProfessionalReferences({
-      formVersion: formVersion({
-        key: 'architects',
-        label: 'Architects',
-        type: 'reference',
-        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true },
-      }),
+      formVersion: formVersion({ key: 'architects', label: 'Architects', type: 'reference', config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: true } }),
       formValues: { architects: ['invalid-id', 'also-invalid'] },
-    })).rejects.toMatchObject({
-      statusCode: 422,
-      errors: [
-        expect.objectContaining({ code: 'REFERENCE', reference: 'invalid-id' }),
-        expect.objectContaining({ code: 'REFERENCE', reference: 'also-invalid' }),
-      ],
-    })
-
+    })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'REFERENCE', reference: 'invalid-id' }), expect.objectContaining({ code: 'REFERENCE', reference: 'also-invalid' })] })
     expect(mocks.professionalService.getForReference).not.toHaveBeenCalled()
   })
 
   it('rejects a missing required professional reference', async () => {
     await expect(service.validateProfessionalReferences({
-      formVersion: formVersion({
-        key: 'architect',
-        label: 'Architect',
-        type: 'reference',
-        required: true,
-        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT' },
-      }),
+      formVersion: formVersion({ key: 'architect', label: 'Architect', type: 'reference', required: true, config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT' } }),
       formValues: {},
     })).rejects.toMatchObject({ statusCode: 422, errors: [expect.objectContaining({ code: 'REQUIRED' })] })
   })
@@ -182,17 +123,9 @@ describe('OBO professional reference validation', () => {
     mocks.evaluateCondition.mockReturnValue(false)
 
     await expect(service.validateProfessionalReferences({
-      formVersion: formVersion({
-        key: 'architect',
-        label: 'Architect',
-        type: 'reference',
-        required: true,
-        visibility: { field: 'permitKind', operator: 'equals', value: 'none' },
-        config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT' },
-      }),
+      formVersion: formVersion({ key: 'architect', label: 'Architect', type: 'reference', required: true, visibility: { field: 'permitKind', operator: 'equals', value: 'none' }, config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT' } }),
       formValues: {},
     })).resolves.toBe(true)
-
     expect(mocks.professionalService.getForReference).not.toHaveBeenCalled()
   })
 })
