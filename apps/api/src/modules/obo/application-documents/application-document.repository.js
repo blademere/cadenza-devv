@@ -25,9 +25,12 @@ const update = (id, data, db = prisma) =>
     include: { caseRequirement: { include: { requirement: true } }, document: true },
   })
 
+const withTransaction = (callback) => prisma.$transaction(callback)
+
 export {
   listByApplicationId,
   findByApplicationAndCaseRequirement,
   createMany,
   update,
+  withTransaction,
 }
