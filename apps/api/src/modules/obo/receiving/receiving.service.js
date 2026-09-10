@@ -16,6 +16,7 @@ const getApplication = async ({ id }) => {
   const workflow = await getWorkflowState(application)
   return { ...application, status: workflow.currentStep.key }
 }
+const getForAuthorization = (id) => repository.findApplication(id)
 const listApplications = ({ status }) => repository.listApplications(status)
 const receiveHardcopy = async ({ id, actorId }) => {
   const application = await repository.findApplication(id)
@@ -53,4 +54,4 @@ const decide = async ({ id, actorId, decision, reason }) => {
   })
 }
 
-export { STATUS, getApplication, listApplications, receiveHardcopy, decide, getWorkflowState }
+export { STATUS, getApplication, getForAuthorization, listApplications, receiveHardcopy, decide, getWorkflowState }
