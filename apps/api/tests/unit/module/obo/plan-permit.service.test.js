@@ -40,7 +40,7 @@ beforeEach(() => {
   repository.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', permitType })
   permitTypeService.getPermitTypeById.mockResolvedValue(permitType)
   caseService.getOrCreateType.mockResolvedValue({ id: 'case-type-1', key: 'obo-permit-application' })
-  caseService.createRecord.mockResolvedValue({ id: 'case-1' })
+  caseService.createRecord.mockResolvedValue({ id: 'case-1', caseNumber: 'CASE-20260910-ABC12345' })
   repository.create.mockResolvedValue({ id: 'application-1', referenceNumber: 'OBO-20260910-ABC12345', status: 'DRAFT', permitType, workflowInstanceId: 'workflow-1' })
   repository.update.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', status: 'DRAFT', permitType })
   workflowService.getWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
@@ -56,7 +56,8 @@ describe('OBO plan permit service', () => {
     await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', formValues: { projectAddress: 'Manila' } })).resolves.toMatchObject({ id: 'application-1', status: 'DRAFT', workflowInstanceId: 'workflow-1' })
     expect(permitTypeService.getPermitTypeById).toHaveBeenCalledWith('permit-1')
     expect(caseService.getOrCreateType).toHaveBeenCalledWith(expect.objectContaining({ key: 'obo-permit-application', db: expect.anything() }))
-    expect(caseService.createRecord).toHaveBeenCalledWith(expect.objectContaining({ caseTypeId: 'case-type-1', caseNumber: expect.any(String) }), { db: expect.anything() })
+    expect(caseService.createRecord).toHaveBeenCalledWith(expect.objectContaining({ caseTypeId: 'case-type-1', title: 'Building Permit Application', status: 'OPEN', createdByUserId: 'user-1' }), { db: expect.anything() })
+    expect(caseService.createRecord.mock.calls[0][0]).not.toHaveProperty('caseNumber')
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', permitTypeId: 'permit-1' }), expect.anything())
   })
 
