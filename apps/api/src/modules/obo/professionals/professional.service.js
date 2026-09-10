@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { BadRequestError, ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
 import * as peopleService from '../../../features/people/people.service.js'
@@ -5,6 +6,8 @@ import * as repository from './professional.repository.js'
 
 const normalizeCredential = (value) => value?.trim() || ''
 const normalizeProfessionalRole = (value) => value?.trim() || ''
+const createRegistrationNumber = () =>
+  `PRO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 const getProfile = async ({ userId }) => peopleService.getByUserId(userId)
 const createProfile = async ({ userId, ...data }) => {
   const existing = await repository.findPersonByUserId(userId)
@@ -16,13 +19,11 @@ const updateProfile = async ({ userId, ...data }) => {
   if (!existing) throw new NotFoundError('Professional person profile not found.')
   return peopleService.update(existing.id, data)
 }
-const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumber, professionalRole }) => {
-  const normalizedRegistrationNumber = normalizeCredential(registrationNumber)
+const applyForVerification = async ({ userId, prcId, ptrNumber, professionalRole }) => {
   const normalizedPrcId = normalizeCredential(prcId)
   const normalizedPtrNumber = normalizeCredential(ptrNumber)
   const normalizedProfessionalRole = normalizeProfessionalRole(professionalRole)
 
-  if (!normalizedRegistrationNumber) throw new BadRequestError('registrationNumber is required.')
   if (!normalizedPrcId) throw new BadRequestError('prcId is required.')
   if (!normalizedPtrNumber) throw new BadRequestError('ptrNumber is required.')
 
@@ -32,14 +33,22 @@ const applyForVerification = async ({ userId, registrationNumber, prcId, ptrNumb
   const existing = await repository.findByPersonId(person.id)
   if (existing) throw new ConflictError('A professional application already exists for this person.')
 
-  return repository.create({
-    personId: person.id,
-    userId,
-    registrationNumber: normalizedRegistrationNumber,
-    prcId: normalizedPrcId,
-    ptrNumber: normalizedPtrNumber,
-    ...(normalizedProfessionalRole ? { professionalRole: normalizedProfessionalRole } : {}),
-  })
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return await repository.create({
+        personId: person.id,
+        userId,
+        registrationNumber: createRegistrationNumber(),
+        prcId: normalizedPrcId,
+        ptrNumber: normalizedPtrNumber,
+        ...(normalizedProfessionalRole ? { professionalRole: normalizedProfessionalRole } : {}),
+      })
+    } catch (error) {
+      if (error?.code !== 'P2002' || attempt === 4) throw error
+    }
+  }
+
+  throw new ConflictError('Unable to generate a unique professional registration number.')
 }
 const getMine = async ({ userId }) => {
   const professional = await repository.findByUserId(userId)
