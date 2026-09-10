@@ -1,6 +1,7 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import * as repository from './receiving.repository.js'
+import * as applicationDocumentService from '../application-documents/application-document.service.js'
 import { getNotificationContext } from '../notification-context.js'
 
 const STATUS = Object.freeze({ SUBMISSION_SCHEDULED: 'SUBMISSION_SCHEDULED', RECEIVING: 'RECEIVING', DECLINED: 'DECLINED', FOR_INSPECTION: 'FOR_INSPECTION' })
@@ -30,6 +31,7 @@ const receiveHardcopy = async ({ id, actorId }) => {
   if (appointment.slot.startsAt > new Date()) throw new ConflictError('The hardcopy submission appointment has not started yet.')
   const submittedAt = application.submittedAt || new Date()
   await repository.withTransaction(async (tx) => {
+    await applicationDocumentService.ensureChecklist(application, tx)
     const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey: 'RECEIVE_HARDCOPY', actorId, metadata: { source: 'obo-receiving.receive', appointmentId: appointment.id, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
     await repository.updateApplication(id, { submittedAt }, tx)
@@ -45,6 +47,7 @@ const decide = async ({ id, actorId, decision, reason }) => {
   if (decision === 'DECLINED' && !cleanReason) throw new ConflictError('A reason is required when declining an application.')
   const accepted = decision === 'ACCEPTED'
   const transitionKey = accepted ? 'ACCEPT_FOR_INSPECTION' : 'DECLINE'
+  if (accepted) await applicationDocumentService.validateRequiredDocuments({ applicationId: id })
   return repository.withTransaction(async (tx) => {
     const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     const nextWorkflow = await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey, actorId, metadata: { source: 'obo-receiving.decide', decision, reason: cleanReason, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
