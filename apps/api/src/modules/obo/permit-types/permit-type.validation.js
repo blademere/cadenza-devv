@@ -39,9 +39,17 @@ const updatePermitTypeValidator = async (req) => ({
   ).parse(req.body || {}),
 })
 
+const setPermitTypeRequirementsValidator = async (req) => ({
+  params: z.object({ permitTypeId: z.string().uuid() }).parse(req.params || {}),
+  body: z.object({
+    requirementIds: z.array(z.string().uuid()).max(100),
+  }).strict().parse(req.body || {}),
+})
+
 export {
   permitTypeIdValidator,
   getPermitTypeFormValidator,
   createPermitTypeValidator,
   updatePermitTypeValidator,
+  setPermitTypeRequirementsValidator,
 }
