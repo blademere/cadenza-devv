@@ -9,6 +9,7 @@ const applicationMigrationPath = new URL('../../../../prisma/migrations/20260908
 const permitTypeRepositoryPath = new URL('../../../../src/modules/obo/permit-types/permit-type.repository.js', import.meta.url)
 const platformFormRepositoryPath = new URL('../../../../src/platform/forms/form.repository.js', import.meta.url)
 const platformFormServicePath = new URL('../../../../src/platform/forms/form.service.js', import.meta.url)
+const permitTypeServicePath = new URL('../../../../src/modules/obo/permit-types/permit-type.service.js', import.meta.url)
 const planPermitFormPath = new URL('../../../../src/modules/obo/plan-permits/plan-permit.form.js', import.meta.url)
 
 const readText = (url) => readFile(url, 'utf8')
@@ -44,26 +45,30 @@ describe('Phase 15 form architecture contract', () => {
     expect(`${permitTypeMigration}\n${applicationMigration}`).not.toContain('CREATE TABLE "ApplicationProfessional"')
   })
 
-  it('keeps Platform Forms persistence inside the Platform Forms repository', async () => {
+  it('keeps OBO permit type persistence separate from Platform Forms persistence', async () => {
     const permitTypeRepository = await readText(permitTypeRepositoryPath)
     const platformFormRepository = await readText(platformFormRepositoryPath)
 
-    expect(permitTypeRepository).toContain("../../../platform/forms/form.repository.js")
-    expect(permitTypeRepository).toContain('formRepository.findByIdWithDefinition')
-    expect(permitTypeRepository).toContain('formRepository.findPublishedVersion')
-    expect(permitTypeRepository).toContain('formRepository.findLatestDraftVersion')
+    expect(permitTypeRepository).not.toContain("../../../platform/forms/form.repository.js")
+    expect(permitTypeRepository).not.toContain('formRepository.')
     expect(permitTypeRepository).not.toMatch(/db\.form(?:Version)?\s*\./)
 
     expect(platformFormRepository).toContain('db.form.findUnique')
     expect(platformFormRepository).toContain('db.formVersion.findUnique')
   })
 
-  it('keeps OBO form resolution behind the Platform Forms service', async () => {
-    const source = await readText(planPermitFormPath)
+  it('keeps OBO form access behind the Platform Forms service', async () => {
+    const permitTypeService = await readText(permitTypeServicePath)
+    const planPermitForm = await readText(planPermitFormPath)
     const service = await readText(platformFormServicePath)
 
-    expect(source).toContain("../../../platform/forms/form.service.js")
-    expect(source).not.toContain('plan-permit.repository.js')
+    expect(permitTypeService).toContain("../../../platform/forms/form.service.js")
+    expect(permitTypeService).toContain('formService.getFormById')
+    expect(permitTypeService).toContain('formService.getFormVersion')
+    expect(permitTypeService).toContain('formService.getPublishedForm')
+
+    expect(planPermitForm).toContain("../../../platform/forms/form.service.js")
+    expect(planPermitForm).not.toContain('plan-permit.repository.js')
     expect(service).toContain('const getFormById')
     expect(service).toContain('const getFormVersionById')
   })
