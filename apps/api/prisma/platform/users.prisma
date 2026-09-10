@@ -37,13 +37,16 @@ model User {
 }
 
 model OAuthAccount {
-  id                String   @id @default(uuid())
+  id                String   @id
   provider          String
   providerAccountId String
   userId            Int
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Role {
@@ -63,6 +66,7 @@ model Module {
   description String?
   isActive    Boolean      @default(true)
   permissions Permission[]
+  roles       RolePermission[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -112,7 +116,7 @@ model PasswordResetToken {
   tokenHash  String   @unique
   userId     Int
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt  DateTime
+  expiresAt  DateTime?
   usedAt     DateTime?
   createdAt  DateTime @default(now())
 
@@ -122,11 +126,11 @@ model PasswordResetToken {
 }
 
 model EmailVerificationToken {
-  id         String   @id @default(uuid())
+  id         String   @id
   userId     Int
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash  String   @unique
   expiresAt  DateTime
-  usedAt      DateTime?
-  createdAt   DateTime @default(now())
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
 }
