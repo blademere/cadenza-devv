@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../../../src/modules/obo/professionals/professional.repository.js')
+vi.mock('../../../../src/modules/obo/professionals/professional.service.js')
 vi.mock('../../../../src/platform/forms/form.service.js')
 
-const professionalRepository = await import('../../../../src/modules/obo/professionals/professional.repository.js')
+const professionalService = await import('../../../../src/modules/obo/professionals/professional.service.js')
 const formService = await import('../../../../src/platform/forms/form.service.js')
-const { buildProfessionalSnapshots } = await import('../../../../src/modules/obo/plan-permits/professional-reference.service.js')
+const { buildProfessionalSnapshots } = await import('../../../../src/modules/obo/professionals/professional-reference.service.js')
 
 const professional = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -26,7 +26,7 @@ const professional = {
 beforeEach(() => {
   vi.clearAllMocks()
   formService.evaluateCondition.mockReturnValue(true)
-  professionalRepository.findById.mockResolvedValue(professional)
+  professionalService.getForReference.mockResolvedValue(professional)
 })
 
 afterEach(() => vi.clearAllMocks())
@@ -66,7 +66,7 @@ describe('professional submission snapshots', () => {
       registrationNumber: 'REG-456',
       person: { ...professional.person, firstName: 'Jane', middleName: null, lastName: 'Smith' },
     }
-    professionalRepository.findById
+    professionalService.getForReference
       .mockResolvedValueOnce(professional)
       .mockResolvedValueOnce(second)
 
@@ -110,6 +110,6 @@ describe('professional submission snapshots', () => {
       formVersion,
       formValues: {},
     })).resolves.toEqual({})
-    expect(professionalRepository.findById).not.toHaveBeenCalled()
+    expect(professionalService.getForReference).not.toHaveBeenCalled()
   })
 })
