@@ -102,8 +102,8 @@ export default function ApplicationFormPage() {
   const formVersion = editing ? application?.formVersion?.version : undefined
   const formQuery = usePermitTypeForm(effectivePermitTypeId, formVersion)
   const form = asForm(formQuery.data)
-  const fields = form?.fields ?? []
-  const sections = form?.sections ?? []
+  const fields = useMemo(() => form?.fields ?? [], [form?.fields])
+  const sections = useMemo(() => form?.sections ?? [], [form?.sections])
   const hasProfessionalReferenceFields = useMemo(() => fields.some(isProfessionalReference), [fields])
   const professionalsQuery = useVerifiedProfessionals({ enabled: hasProfessionalReferenceFields })
   const professionals = asArray(professionalsQuery.data)
