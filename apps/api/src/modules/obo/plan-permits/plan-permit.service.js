@@ -3,10 +3,11 @@ import { isDeepStrictEqual } from 'node:util'
 import { ConflictError, NotFoundError, ValidationError } from '../../../common/errors/appError.js'
 import { recordAudit } from '../../../platform/audit/audit.service.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
+import * as formService from '../../../platform/forms/form.service.js'
+import * as appointmentService from '../../../features/appointments/appointment.service.js'
 import * as repository from './plan-permit.repository.js'
 import { resolveAndValidateForm } from './plan-permit.form.js'
 import { buildProfessionalSnapshots, validateProfessionalReferences } from '../professionals/professional-reference.service.js'
-import * as formService from '../../../platform/forms/form.service.js'
 import * as permitTypeService from '../permit-types/permit-type.service.js'
 import * as caseService from '../../../features/cases/cases.service.js'
 import { getWorkflowState, withWorkflowState } from './plan-permit.workflow.js'
@@ -28,6 +29,18 @@ const getClientPerson = async (userId) => {
   if (!person) throw new ConflictError('The authenticated user does not have a person profile.')
   return person
 }
+
+const hydrateApplication = async (application, db) => {
+  if (!application) return application
+  let hydrated = application
+  if (application.formVersionId) hydrated = { ...hydrated, formVersion: await formService.getFormVersionById(application.formVersionId, db) }
+  if (application.submissionAppointment?.appointmentId) {
+    const appointment = await appointmentService.getAppointmentForReference({ id: application.submissionAppointment.appointmentId, db })
+    hydrated = { ...hydrated, submissionAppointment: { ...application.submissionAppointment, appointment } }
+  }
+  return hydrated
+}
+
 const resolveReplacement = async ({ replacesApplicationId, personId }) => {
   if (!replacesApplicationId) return null
   const original = await repository.findOwnedByClient(replacesApplicationId, personId)
@@ -38,19 +51,8 @@ const resolveReplacement = async ({ replacesApplicationId, personId }) => {
 }
 
 const createCaseRecord = async ({ userId, referenceNumber, permitTypeName, db }) => {
-  const caseType = await caseService.getOrCreateType({
-    key: 'obo-permit-application',
-    name: 'OBO Permit Application',
-    description: 'OBO permit application lifecycle',
-    db,
-  })
-  return caseService.createRecord({
-    caseNumber: referenceNumber,
-    caseTypeId: caseType.id,
-    title: `${permitTypeName} Application`,
-    status: 'OPEN',
-    createdByUserId: userId,
-  }, { db })
+  const caseType = await caseService.getOrCreateType({ key: 'obo-permit-application', name: 'OBO Permit Application', description: 'OBO permit application lifecycle', db })
+  return caseService.createRecord({ caseNumber: referenceNumber, caseTypeId: caseType.id, title: `${permitTypeName} Application`, status: 'OPEN', createdByUserId: userId }, { db })
 }
 
 const createApplication = async ({ userId, permitTypeId, formVersionId, formValues, replacesApplicationId }) => {
@@ -67,34 +69,40 @@ const createApplication = async ({ userId, permitTypeId, formVersionId, formValu
     const workflow = await workflowService.startWorkflow({ workflowKey: WORKFLOW_KEY, subjectType: SUBJECT_TYPE, subjectId: created.id, actorId: userId, metadata: { source: replacement ? 'obo-plan-permit.replace-declined' : 'obo-plan-permit.create', referenceNumber: created.referenceNumber, permitTypeName: permitType.name, replacesReferenceNumber: replacement?.referenceNumber || null, ...notificationContext }, db: tx })
     return repository.update(created.id, { workflowInstanceId: workflow.id }, tx)
   })
-  return withWorkflowState(application)
+  return withWorkflowState(await hydrateApplication(application))
 }
+
 const getMine = async ({ id, userId }) => {
   const person = await getClientPerson(userId)
   const application = await repository.findOwnedByClient(id, person.id)
   if (!application) throw new NotFoundError('Permit application not found.')
-  return withWorkflowState(application)
+  return withWorkflowState(await hydrateApplication(application))
 }
+
 const getForReceiving = async (id) => {
   const application = await repository.findById(id)
   if (!application) throw new NotFoundError('Permit application not found.')
-  return withWorkflowState(application)
+  return withWorkflowState(await hydrateApplication(application))
 }
+
 const getForApplicationDocuments = async (id) => {
   const application = await repository.findById(id)
   if (!application) throw new NotFoundError('Permit application not found.')
-  return application
+  return hydrateApplication(application)
 }
+
 const listMine = async ({ userId }) => {
   const person = await repository.findPersonByUserId(userId)
   if (!person) return []
   const applications = await repository.listByClient(person.id)
-  return Promise.all(applications.map(withWorkflowState))
+  return Promise.all(applications.map(async (application) => withWorkflowState(await hydrateApplication(application))))
 }
+
 const getChangedFormFields = (before = {}, after = {}) => {
   const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})])
   return [...keys].filter((key) => !isDeepStrictEqual(before?.[key], after?.[key]))
 }
+
 const updateDraft = async ({ id, userId, formVersionId, formValues }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be updated.')
@@ -105,18 +113,20 @@ const updateDraft = async ({ id, userId, formVersionId, formValues }) => {
     for (const fieldKey of getChangedFormFields(application.formValues, formValues)) await recordAudit({ actorId: userId, action: 'OBO_PERMIT_APPLICATION_FORM_FIELD_UPDATED', entityType: SUBJECT_TYPE, entityId: id, before: application.formValues?.[fieldKey] ?? null, after: formValues?.[fieldKey] ?? null, metadata: { formVersionId: resolvedForm.formVersionId, fieldKey, referenceNumber: application.referenceNumber || null }, db: tx })
     return result
   })
-  return withWorkflowState(updated)
+  return withWorkflowState(await hydrateApplication(updated))
 }
+
 const validateSubmissionProfessionals = async (application) => {
   if (!application.formVersion || !application.permitType.formId) return null
-  const form = await repository.findFormById(application.permitType.formId)
+  const form = await formService.getFormById(application.permitType.formId)
   if (!form || !form.isActive) throw new ConflictError('The permit type is linked to an inactive form.')
-  const formVersion = await formService.getFormVersion({ formKey: form.key, version: application.formVersion.version })
+  const formVersion = application.formVersion
   const validation = await formService.validateFormValues({ formKey: form.key, version: formVersion.version, values: application.formValues, requireRequired: true })
   if (!validation.valid) throw new ValidationError('Permit form validation failed.', validation.errors)
   await validateProfessionalReferences({ formVersion, formValues: application.formValues })
   return buildProfessionalSnapshots({ formVersion, formValues: application.formValues })
 }
+
 const submit = async ({ id, userId }) => {
   const application = await getMine({ id, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be submitted.')
@@ -128,6 +138,7 @@ const submit = async ({ id, userId }) => {
     await recordAudit({ actorId: userId, action: 'OBO_PERMIT_APPLICATION_SUBMITTED', entityType: SUBJECT_TYPE, entityId: id, before: { formVersionId: application.formVersionId || null, formValues: application.formValues || {} }, after: { formVersionId: application.formVersionId || null, formValues: application.formValues || {}, professionalSnapshots: professionalSnapshots || application.professionalSnapshots || null }, metadata: { formVersionId: application.formVersionId || null, referenceNumber: application.referenceNumber || null, professionalFieldKeys: Object.keys(professionalSnapshots || {}) }, db: tx })
     return repository.findById(id, tx)
   })
-  return withWorkflowState(updated)
+  return withWorkflowState(await hydrateApplication(updated))
 }
+
 export { STATUS, WORKFLOW_KEY, SUBJECT_TYPE, createApplication, getMine, getForReceiving, getForApplicationDocuments, listMine, updateDraft, submit, getWorkflowState, withWorkflowState }
