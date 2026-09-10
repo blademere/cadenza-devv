@@ -28,7 +28,7 @@ const requireIdempotency = idempotency({
 router.get(
   '/',
   authenticate,
-  authorize('obo_plan_permits', 'read'),
+  authorize('obo_permit_types', 'read'),
   asyncHandler(controller.list)
 )
 router.post(
@@ -89,7 +89,7 @@ router.post(
 router.get(
   '/:permitTypeId/form',
   authenticate,
-  authorize('obo_plan_permits', 'read'),
+  authorize('obo_forms', 'read'),
   validate(getPermitTypeFormValidator),
   asyncHandler(controller.getForm)
 )
