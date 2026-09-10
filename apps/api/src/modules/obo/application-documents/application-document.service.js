@@ -76,69 +76,72 @@ const updateReceiptStatus = async ({ applicationId, requirementId, actorId, stat
     throw new ConflictError('Document receipt can only be recorded while the application is in receiving.')
   }
 
-  const requirements = await ensureChecklist(application)
-  const caseRequirement = requirements.find((item) => item.id === requirementId)
-  if (!caseRequirement) throw new NotFoundError('Case requirement not found for this application.')
+  return repository.withTransaction(async (tx) => {
+    const requirements = await ensureChecklist(application, tx)
+    const caseRequirement = requirements.find((item) => item.id === requirementId)
+    if (!caseRequirement) throw new NotFoundError('Case requirement not found for this application.')
 
-  const existing = await repository.findByApplicationAndCaseRequirement(application.id, caseRequirement.id)
-  if (!existing) throw new NotFoundError('Application document checklist item not found.')
+    const existing = await repository.findByApplicationAndCaseRequirement(application.id, caseRequirement.id, tx)
+    if (!existing) throw new NotFoundError('Application document checklist item not found.')
 
-  if (![STATUS.RECEIVED, STATUS.VERIFIED, STATUS.REJECTED].includes(status)) {
-    throw new ConflictError('Unsupported document receipt status.')
-  }
+    if (![STATUS.RECEIVED, STATUS.VERIFIED, STATUS.REJECTED].includes(status)) {
+      throw new ConflictError('Unsupported document receipt status.')
+    }
 
-  let attachedDocument = existing.document
-  if (documentId !== undefined) {
-    attachedDocument = documentId === null
-      ? null
-      : await documentService.getOwnedDocument({ userId: actorId, id: documentId })
-  }
+    let attachedDocument = existing.document
+    if (documentId !== undefined) {
+      attachedDocument = documentId === null
+        ? null
+        : await documentService.getOwnedDocument({ userId: actorId, id: documentId })
+    }
 
-  if ([STATUS.RECEIVED, STATUS.VERIFIED].includes(status) && !(documentId || existing.documentId)) {
-    throw new ConflictError('A shared document must be attached before a document can be received or verified.')
-  }
+    if ([STATUS.RECEIVED, STATUS.VERIFIED].includes(status) && !(documentId || existing.documentId)) {
+      throw new ConflictError('A shared document must be attached before a document can be received or verified.')
+    }
 
-  if (status === STATUS.VERIFIED && existing.status !== STATUS.RECEIVED) {
-    throw new ConflictError('A document must be received before it can be verified.')
-  }
+    if (status === STATUS.VERIFIED && existing.status !== STATUS.RECEIVED) {
+      throw new ConflictError('A document must be received before it can be verified.')
+    }
 
-  const cleanNotes = notes?.trim() || null
-  const updated = await repository.update(existing.id, {
-    ...(documentId !== undefined ? { documentId } : {}),
-    status,
-    notes: cleanNotes,
-    ...(status === STATUS.RECEIVED
-      ? { receivedAt: existing.receivedAt || new Date(), receivedByUserId: existing.receivedByUserId || actorId, verifiedAt: null, verifiedByUserId: null }
-      : status === STATUS.VERIFIED
-        ? { verifiedAt: existing.verifiedAt || new Date(), verifiedByUserId: existing.verifiedByUserId || actorId }
-        : { receivedAt: null, receivedByUserId: null, verifiedAt: null, verifiedByUserId: null }),
+    const cleanNotes = notes?.trim() || null
+    const updated = await repository.update(existing.id, {
+      ...(documentId !== undefined ? { documentId } : {}),
+      status,
+      notes: cleanNotes,
+      ...(status === STATUS.RECEIVED
+        ? { receivedAt: existing.receivedAt || new Date(), receivedByUserId: existing.receivedByUserId || actorId, verifiedAt: null, verifiedByUserId: null }
+        : status === STATUS.VERIFIED
+          ? { verifiedAt: existing.verifiedAt || new Date(), verifiedByUserId: existing.verifiedByUserId || actorId }
+          : { receivedAt: null, receivedByUserId: null, verifiedAt: null, verifiedByUserId: null }),
+    }, tx)
+
+    await updateCaseRequirementFulfillment({ caseRequirementId: caseRequirement.id, status, notes: cleanNotes, db: tx })
+
+    await recordAudit({
+      actorId,
+      action: `OBO_PERMIT_APPLICATION_DOCUMENT_${status}`,
+      entityType: 'OboPermitApplicationDocument',
+      entityId: updated.id,
+      before: existing,
+      after: updated,
+      metadata: {
+        applicationId: application.id,
+        referenceNumber: application.referenceNumber,
+        caseRequirementId: caseRequirement.id,
+        requirementId: caseRequirement.requirementId,
+        requirementName: caseRequirement.requirement.name,
+        documentId: updated.documentId,
+      },
+      db: tx,
+    })
+
+    return {
+      ...updated,
+      caseRequirement,
+      requirement: normalizeRequirement(caseRequirement),
+      document: attachedDocument,
+    }
   })
-
-  await updateCaseRequirementFulfillment({ caseRequirementId: caseRequirement.id, status, notes: cleanNotes, db: undefined })
-
-  await recordAudit({
-    actorId,
-    action: `OBO_PERMIT_APPLICATION_DOCUMENT_${status}`,
-    entityType: 'OboPermitApplicationDocument',
-    entityId: updated.id,
-    before: existing,
-    after: updated,
-    metadata: {
-      applicationId: application.id,
-      referenceNumber: application.referenceNumber,
-      caseRequirementId: caseRequirement.id,
-      requirementId: caseRequirement.requirementId,
-      requirementName: caseRequirement.requirement.name,
-      documentId: updated.documentId,
-    },
-  })
-
-  return {
-    ...updated,
-    caseRequirement,
-    requirement: normalizeRequirement(caseRequirement),
-    document: attachedDocument,
-  }
 }
 
 const validateRequiredDocuments = async ({ applicationId, application = null, db }) => {
