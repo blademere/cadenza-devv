@@ -16,17 +16,17 @@ const spies = {
 afterEach(() => vi.clearAllMocks())
 
 describe('OBO professional service', () => {
-  it('applies for verification with PRC and PTR credentials and normalizes them', async () => {
+  it('applies for verification with PRC and PTR credentials, normalizes them, and auto-generates registration number', async () => {
     spies.findPersonByUserId.mockResolvedValue({ id: 'person-1' }); spies.findByPersonId.mockResolvedValue(null); spies.create.mockResolvedValue({ id: 'professional-1', status: 'PENDING_VERIFICATION' })
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: '  REG-123  ', prcId: '  PRC-123  ', ptrNumber: '  PTR-2026-123  ' })).resolves.toMatchObject({ status: 'PENDING_VERIFICATION' })
-    expect(spies.create).toHaveBeenCalledWith({ personId: 'person-1', userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-2026-123' })
+    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: '  PRC-123  ', ptrNumber: '  PTR-2026-123  ' })).resolves.toMatchObject({ status: 'PENDING_VERIFICATION' })
+    expect(spies.create).toHaveBeenCalledWith(expect.objectContaining({ personId: 'person-1', userId: 'user-1', prcId: 'PRC-123', ptrNumber: 'PTR-2026-123' }))
+    expect(spies.create.mock.calls[0][0].registrationNumber).toMatch(/^PRO-\d{8}-[0-9A-F]{8}$/)
   })
   it('rejects invalid or duplicate verification applications', async () => {
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: ' ', prcId: 'PRC-123', ptrNumber: 'PTR-123' })).rejects.toThrow('registrationNumber is required.')
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: ' ', ptrNumber: 'PTR-123' })).rejects.toThrow('prcId is required.')
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: ' ' })).rejects.toThrow('ptrNumber is required.')
-    spies.findPersonByUserId.mockResolvedValue(null); await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' })).rejects.toThrow('Complete your person profile before applying for professional verification.')
-    spies.findPersonByUserId.mockResolvedValue({ id: 'person-1' }); spies.findByPersonId.mockResolvedValue({ id: 'professional-1' }); await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' })).rejects.toThrow('already exists')
+    await expect(service.applyForVerification({ userId: 'user-1', prcId: ' ', ptrNumber: 'PTR-123' })).rejects.toThrow('prcId is required.')
+    await expect(service.applyForVerification({ userId: 'user-1', prcId: 'PRC-123', ptrNumber: ' ' })).rejects.toThrow('ptrNumber is required.')
+    spies.findPersonByUserId.mockResolvedValue(null); await expect(service.applyForVerification({ userId: 'user-1', prcId: 'PRC-123', ptrNumber: 'PTR-123' })).rejects.toThrow('Complete your person profile before applying for professional verification.')
+    spies.findPersonByUserId.mockResolvedValue({ id: 'person-1' }); spies.findByPersonId.mockResolvedValue({ id: 'professional-1' }); await expect(service.applyForVerification({ userId: 'user-1', prcId: 'PRC-123', ptrNumber: 'PTR-123' })).rejects.toThrow('already exists')
   })
   it('returns the authenticated professional verification record', async () => { spies.findByUserId.mockResolvedValue({ id: 'professional-1', status: 'VERIFIED', prcId: 'PRC-123', ptrNumber: 'PTR-123' }); await expect(service.getMine({ userId: 'user-1' })).resolves.toMatchObject({ id: 'professional-1', status: 'VERIFIED' }); expect(spies.findByUserId).toHaveBeenCalledWith('user-1') })
   it('lists professionals through the filtered directory lookup', async () => {
