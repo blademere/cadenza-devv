@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 const { getAuthorizationContextResponse } = require('../../../../src/platform/authorization/authorization-context.service')
 
 vi.mock('../../../../src/platform/authorization/authorization-context.repository.js', () => ({
