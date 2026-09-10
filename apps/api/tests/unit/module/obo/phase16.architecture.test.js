@@ -5,6 +5,8 @@ const planPermitRepositoryPath = new URL('../../../../src/modules/obo/plan-permi
 const receivingRepositoryPath = new URL('../../../../src/modules/obo/receiving/receiving.repository.js', import.meta.url)
 const workflowRepositoryPath = new URL('../../../../src/platform/workflow/workflow.repository.js', import.meta.url)
 const appointmentRepositoryPath = new URL('../../../../src/features/appointments/appointment.repository.js', import.meta.url)
+const appointmentServicePath = new URL('../../../../src/features/appointments/appointment.service.js', import.meta.url)
+const submissionAppointmentServicePath = new URL('../../../../src/modules/obo/submission-appointments/submission-appointment.service.js', import.meta.url)
 
 const readText = (url) => readFile(url, 'utf8')
 
@@ -28,9 +30,11 @@ describe('Phase 16 shared persistence boundary contract', () => {
     expect(workflowRepository).toContain('db.workflowInstance.findMany')
   })
 
-  it('keeps OBO Receiving appointment persistence behind the appointment repository', async () => {
+  it('keeps OBO Receiving appointment persistence behind the appointment feature boundary', async () => {
     const receivingRepository = await readText(receivingRepositoryPath)
     const appointmentRepository = await readText(appointmentRepositoryPath)
+    const appointmentService = await readText(appointmentServicePath)
+    const submissionAppointmentService = await readText(submissionAppointmentServicePath)
 
     expect(receivingRepository).toContain("../../../features/appointments/appointment.repository.js")
     expect(receivingRepository).toContain('appointmentRepository.getAppointmentWithRelations')
@@ -39,5 +43,11 @@ describe('Phase 16 shared persistence boundary contract', () => {
 
     expect(appointmentRepository).toContain('db.appointment.findUnique')
     expect(appointmentRepository).toContain('db.appointment.findMany')
+
+    expect(submissionAppointmentService).toContain("../../../features/appointments/appointment.service.js")
+    expect(submissionAppointmentService).toContain('appointmentService.bookAppointment')
+    expect(submissionAppointmentService).toContain('appointmentService.getMyAppointment')
+    expect(appointmentService).toContain('const getAppointmentForReference')
+    expect(appointmentService).toContain('const listAppointmentsForReferences')
   })
 })
