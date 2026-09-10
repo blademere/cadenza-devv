@@ -1,7 +1,6 @@
 import express from 'express'
 import { asyncHandler } from '../../common/middleware/index.js'
 import { successResponse } from '../../common/responses/apiResponse.js'
-import { getCapabilityRegistry } from './capability-registry.js'
 import { getAuthorizationContextResponse } from './authorization-context.service.js'
 
 const createAuthorizationContextRouter = ({ authenticate }) => {
@@ -18,10 +17,7 @@ const createAuthorizationContextRouter = ({ authenticate }) => {
     res.set('Pragma', 'no-cache')
     res.set('Expires', '0')
 
-    const authorizationContext = await getAuthorizationContextResponse(
-      req.user.id,
-      getCapabilityRegistry(),
-    )
+    const authorizationContext = await getAuthorizationContextResponse(req.user.id)
 
     return successResponse(
       res,
