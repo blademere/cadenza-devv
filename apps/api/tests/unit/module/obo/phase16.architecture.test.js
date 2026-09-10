@@ -30,24 +30,24 @@ describe('Phase 16 shared persistence boundary contract', () => {
     expect(workflowRepository).toContain('db.workflowInstance.findMany')
   })
 
-  it('keeps OBO Receiving appointment persistence behind the appointment feature boundary', async () => {
+  it('keeps OBO appointment persistence behind the Appointment feature service', async () => {
     const receivingRepository = await readText(receivingRepositoryPath)
     const appointmentRepository = await readText(appointmentRepositoryPath)
     const appointmentService = await readText(appointmentServicePath)
     const submissionAppointmentService = await readText(submissionAppointmentServicePath)
 
-    expect(receivingRepository).toContain("../../../features/appointments/appointment.repository.js")
-    expect(receivingRepository).toContain('appointmentRepository.getAppointmentWithRelations')
-    expect(receivingRepository).toContain('appointmentRepository.findAppointmentsByIds')
+    expect(receivingRepository).toContain("../../../features/appointments/appointment.service.js")
+    expect(receivingRepository).toContain('appointmentService.getAppointmentForReference')
+    expect(receivingRepository).toContain('appointmentService.listAppointmentsForReferences')
     expect(receivingRepository).not.toMatch(/db\.appointment(?:Type|Slot)?\s*\./)
-
-    expect(appointmentRepository).toContain('db.appointment.findUnique')
-    expect(appointmentRepository).toContain('db.appointment.findMany')
 
     expect(submissionAppointmentService).toContain("../../../features/appointments/appointment.service.js")
     expect(submissionAppointmentService).toContain('appointmentService.bookAppointment')
     expect(submissionAppointmentService).toContain('appointmentService.getMyAppointment')
+
     expect(appointmentService).toContain('const getAppointmentForReference')
     expect(appointmentService).toContain('const listAppointmentsForReferences')
+    expect(appointmentRepository).toContain('db.appointment.findUnique')
+    expect(appointmentRepository).toContain('db.appointment.findMany')
   })
 })
