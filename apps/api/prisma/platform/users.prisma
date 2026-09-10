@@ -30,8 +30,6 @@ model User {
   oboApplicationsAccepted              OboPermitApplication[]                @relation("OboApplicationAcceptedBy")
   oboReceivingDecisions                OboReceivingDecision[]                @relation("OboReceivingDecisionUser")
   oboProfessionalVerificationDecisions OboProfessionalVerificationDecision[] @relation("OboProfessionalVerificationDecisionUser")
-  oboApplicationDocumentsReceived      OboPermitApplicationDocument[]        @relation("OboApplicationDocumentReceivedBy")
-  oboApplicationDocumentsVerified      OboPermitApplicationDocument[]        @relation("OboApplicationDocumentVerifiedBy")
   createdAt                            DateTime                              @default(now())
   updatedAt                            DateTime                              @updatedAt
 
@@ -46,9 +44,6 @@ model OAuthAccount {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-
-  @@unique([provider, providerAccountId])
-  @@index([userId])
 }
 
 model Role {
@@ -97,15 +92,15 @@ model RolePermission {
 
 model RefreshToken {
   id                String        @id
-  tokenHash         String        @unique
+  tokenHash         String         @unique
   userId            Int
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt         DateTime
   revokedAt         DateTime?
-  replacedByTokenId String?       @unique
-  replacedByToken   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
-  replacesToken     RefreshToken? @relation("RefreshTokenReplacement")
-  createdAt         DateTime      @default(now())
+  replacedByTokenId String?        @unique
+  replacedByToken   RefreshToken?  @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
+  replacesToken     RefreshToken?  @relation("RefreshTokenReplacement")
+  createdAt         DateTime       @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -132,6 +127,6 @@ model EmailVerificationToken {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash  String   @unique
   expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime @default(now())
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
 }
