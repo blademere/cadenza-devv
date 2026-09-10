@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ValidationError } from '../../../common/errors/appError.js'
 import * as formService from '../../../platform/forms/form.service.js'
-import * as professionalRepository from '../professionals/professional.repository.js'
+import * as professionalService from '../professionals/professional.service.js'
 
 const professionalId = z.string().uuid()
 
@@ -22,7 +22,7 @@ const getProfessionalReferenceFields = (formVersion) =>
     return field.config?.referenceType === 'obo_professional'
   })
 
-const validateProfessionalReferences = async ({ formVersion, formValues, repository = professionalRepository }) => {
+const validateProfessionalReferences = async ({ formVersion, formValues, getProfessional = professionalService.getForReference }) => {
   const errors = []
 
   for (const field of getProfessionalReferenceFields(formVersion)) {
@@ -71,7 +71,7 @@ const validateProfessionalReferences = async ({ formVersion, formValues, reposit
       }
       seenReferences.add(parsedId.data)
 
-      const professional = await repository.findById(parsedId.data)
+      const professional = await getProfessional(parsedId.data)
       if (!professional) {
         errors.push({
           field: field.key,
@@ -134,7 +134,7 @@ const professionalSnapshot = (professional) => ({
   role: professional.professionalRole ?? null,
 })
 
-const buildProfessionalSnapshots = async ({ formVersion, formValues, repository = professionalRepository }) => {
+const buildProfessionalSnapshots = async ({ formVersion, formValues, getProfessional = professionalService.getForReference }) => {
   const snapshots = {}
 
   for (const field of getProfessionalReferenceFields(formVersion)) {
@@ -149,7 +149,7 @@ const buildProfessionalSnapshots = async ({ formVersion, formValues, repository 
       const parsedId = professionalId.safeParse(reference)
       if (!parsedId.success) continue
 
-      const professional = await repository.findById(parsedId.data)
+      const professional = await getProfessional(parsedId.data)
       if (!professional) continue
       resolved.push(professionalSnapshot(professional))
     }
