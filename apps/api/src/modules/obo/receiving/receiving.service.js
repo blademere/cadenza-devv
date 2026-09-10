@@ -47,8 +47,14 @@ const decide = async ({ id, actorId, decision, reason }) => {
   if (decision === 'DECLINED' && !cleanReason) throw new ConflictError('A reason is required when declining an application.')
   const accepted = decision === 'ACCEPTED'
   const transitionKey = accepted ? 'ACCEPT_FOR_INSPECTION' : 'DECLINE'
-  if (accepted) await applicationDocumentService.validateRequiredDocuments({ applicationId: id })
   return repository.withTransaction(async (tx) => {
+    if (accepted) {
+      await applicationDocumentService.validateRequiredDocuments({
+        applicationId: id,
+        application,
+        db: tx,
+      })
+    }
     const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     const nextWorkflow = await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey, actorId, metadata: { source: 'obo-receiving.decide', decision, reason: cleanReason, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
     const updated = await repository.updateApplication(id, { acceptedAt: accepted ? new Date() : null, acceptedByUserId: accepted ? actorId : null, declinedAt: accepted ? null : new Date(), declineReason: accepted ? null : cleanReason }, tx)
