@@ -112,6 +112,12 @@ const getMine = async ({ id, userId }) => {
   return withWorkflowState(application)
 }
 
+const getForReceiving = async (id) => {
+  const application = await repository.findById(id)
+  if (!application) throw new NotFoundError('Permit application not found.')
+  return withWorkflowState(application)
+}
+
 const listMine = async ({ userId }) => {
   const person = await repository.findPersonByUserId(userId)
   if (!person) {
@@ -282,6 +288,7 @@ export {
   SUBJECT_TYPE,
   createApplication,
   getMine,
+  getForReceiving,
   listMine,
   updateDraft,
   submit,
