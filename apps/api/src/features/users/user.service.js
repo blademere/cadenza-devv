@@ -21,10 +21,10 @@ import {
 import { toUserResponse } from './user.mapper.js'
 import * as peopleService from '../people/people.service.js'
 import {
-  findRoleById,
-  getUserAuthorizationContext,
-} from '../../platform/authorization/access-control.repository.js'
-import { clearUserPermissionCache } from '../../platform/authorization/access-control.service.js'
+  getRoleById,
+  getAuthorizationContext,
+  clearUserPermissionCache,
+} from '../../platform/authorization/access-control.service.js'
 
 const permissionKey = (permission) => {
   const resource = permission.resource ?? permission.module?.key
@@ -67,13 +67,13 @@ const listUsers = async (query = {}) => {
 }
 
 const registerUser = async ({ requesterId, email, roleId, password }) => {
-  const requester = await getUserAuthorizationContext(requesterId)
+  const requester = await getAuthorizationContext(requesterId)
   if (!requester)
     throw new ForbiddenError('Your account is not authorized to create users.')
   const existingUser = await findUserByEmail(email)
   if (existingUser)
     throw new ConflictError('A user with this email already exists.')
-  const role = await findRoleById(roleId)
+  const role = await getRoleById(roleId)
   if (!role) throw new NotFoundError('Role not found.')
   if (!canAssignRole(requester.permissions, role))
     throw new ForbiddenError(
@@ -85,7 +85,7 @@ const registerUser = async ({ requesterId, email, roleId, password }) => {
 
 const assignUserRole = async ({ requesterId, userId, roleId }) => {
   const [requester, targetUser, targetRole] = await Promise.all([
-    getUserAuthorizationContext(requesterId),
+    getAuthorizationContext(requesterId),
     findUserWithRole(userId),
     findRoleForAssignment(roleId),
   ])
