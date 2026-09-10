@@ -29,19 +29,24 @@ const ensureChecklist = async (application, db, requirements = null) => {
 
 const normalizeChecklist = (rows, requirements) => {
   const byRequirement = new Map(rows.map((row) => [row.requirementId, row]))
-  return requirements.map((requirement) => byRequirement.get(requirement.id) || {
-    id: null,
-    applicationId: null,
-    requirementId: requirement.id,
-    status: STATUS.PENDING,
-    receivedAt: null,
-    receivedBy: null,
-    verifiedAt: null,
-    verifiedBy: null,
-    notes: null,
+  return requirements.map((requirement) => ({
+    ...(byRequirement.get(requirement.id) || {
+      id: null,
+      applicationId: null,
+      requirementId: requirement.id,
+      status: STATUS.PENDING,
+      receivedAt: null,
+      receivedByUserId: null,
+      verifiedAt: null,
+      verifiedByUserId: null,
+      notes: null,
+      documentId: null,
+    }),
     requirement,
     document: null,
-  })
+    receivedBy: null,
+    verifiedBy: null,
+  }))
 }
 
 const getChecklist = async ({ applicationId }) => {
@@ -92,7 +97,13 @@ const updateReceiptStatus = async ({ applicationId, requirementId, actorId, stat
     },
   })
 
-  return updated
+  return {
+    ...updated,
+    requirement,
+    document: null,
+    receivedBy: null,
+    verifiedBy: null,
+  }
 }
 
 const validateRequiredDocuments = async ({ applicationId, db }) => {
