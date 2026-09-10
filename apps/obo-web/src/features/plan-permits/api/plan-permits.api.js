@@ -20,6 +20,10 @@ export const planPermitsApi = {
     return unwrap(await apiClient.get(`/obo/permit-types/${encodeId(id)}`))
   },
 
+  async getPermitTypeFormVersions(id) {
+    return unwrap(await apiClient.get(`/obo/permit-types/${encodeId(id)}/form/versions`))
+  },
+
   async getPermitTypeForm(id, version) {
     const query = version == null ? '' : `?version=${encodeURIComponent(version)}`
     return unwrap(await apiClient.get(`/obo/permit-types/${encodeId(id)}/form${query}`))
