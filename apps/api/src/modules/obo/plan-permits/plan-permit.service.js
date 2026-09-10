@@ -1,4 +1,3 @@
-import crypto from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import { ConflictError, NotFoundError, ValidationError } from '../../../common/errors/appError.js'
 import { recordAudit } from '../../../platform/audit/audit.service.js'
@@ -46,9 +45,9 @@ const resolveReplacement = async ({ replacesApplicationId, personId }) => {
   return originalWithStatus
 }
 
-const createCaseRecord = async ({ userId, referenceNumber, permitTypeName, db }) => {
+const createCaseRecord = async ({ userId, permitTypeName, db }) => {
   const caseType = await caseService.getOrCreateType({ key: 'obo-permit-application', name: 'OBO Permit Application', description: 'OBO permit application lifecycle', db })
-  return caseService.createRecord({ caseNumber: referenceNumber, caseTypeId: caseType.id, title: `${permitTypeName} Application`, status: 'OPEN', createdByUserId: userId }, { db })
+  return caseService.createRecord({ caseTypeId: caseType.id, title: `${permitTypeName} Application`, status: 'OPEN', createdByUserId: userId }, { db })
 }
 
 const createApplication = async ({ userId, permitTypeId, formVersionId, formValues, replacesApplicationId }) => {
@@ -58,8 +57,8 @@ const createApplication = async ({ userId, permitTypeId, formVersionId, formValu
   const replacement = await resolveReplacement({ replacesApplicationId, personId: person.id })
   const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
   const application = await repository.withTransaction(async (tx) => {
-    const referenceNumber = `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
-    const caseRecord = await createCaseRecord({ userId, referenceNumber, permitTypeName: permitType.name, db: tx })
+    const referenceNumber = `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${Math.random().toString(16).slice(2, 10).toUpperCase()}`
+    const caseRecord = await createCaseRecord({ userId, permitTypeName: permitType.name, db: tx })
     const created = await repository.create({ clientPersonId: person.id, permitTypeId, formVersionId: resolvedForm.formVersionId, formValues, replacesApplicationId: replacement?.id || null, caseId: caseRecord.id, referenceNumber }, tx)
     const notificationContext = await getNotificationContext({ personId: person.id, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     const workflow = await workflowService.startWorkflow({ workflowKey: WORKFLOW_KEY, subjectType: SUBJECT_TYPE, subjectId: created.id, actorId: userId, metadata: { source: replacement ? 'obo-plan-permit.replace-declined' : 'obo-plan-permit.create', referenceNumber: created.referenceNumber, permitTypeName: permitType.name, replacesReferenceNumber: replacement?.referenceNumber || null, ...notificationContext }, db: tx })
