@@ -6,13 +6,13 @@ const resolveAndValidateForm = async ({ permitType, formVersionId, formValues })
     return { formVersionId: formVersionId || null }
   }
 
-  const form = await formService.getFormById(permitType.formId)
+  const form = await formService.getPublishedForm(permitType.formId)
   if (!form || !form.isActive) {
     throw new ConflictError('The permit type is linked to an inactive form.')
   }
 
   if (formVersionId) {
-    const version = await formService.getFormVersionById(formVersionId)
+    const version = await formService.getFormVersion({ formKey: form.key, version: formVersionId })
     if (!version || version.formId !== form.id || version.status !== 'PUBLISHED') {
       throw new ConflictError('The selected form version is not a published version for this permit type.')
     }
