@@ -1,14 +1,28 @@
 model OboPermitType {
-  id           String                 @id @default(uuid())
-  key          String                 @unique
-  name         String
-  description  String?
-  formId       String?
-  isActive     Boolean                @default(true)
-  applications OboPermitApplication[]
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
+  id                      String                     @id @default(uuid())
+  key                     String                     @unique
+  name                    String
+  description             String?
+  formId                  String?
+  isActive                Boolean                    @default(true)
+  applications            OboPermitApplication[]
+  requirementAssociations OboPermitTypeRequirement[]
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
 
   @@index([isActive])
   @@index([formId])
+}
+
+model OboPermitTypeRequirement {
+  id            String                @id @default(uuid())
+  permitTypeId  String
+  requirementId String
+  permitType    OboPermitType        @relation(fields: [permitTypeId], references: [id], onDelete: Cascade)
+  requirement   RequirementDefinition @relation(fields: [requirementId], references: [id], onDelete: Restrict)
+  createdAt     DateTime              @default(now())
+
+  @@unique([permitTypeId, requirementId])
+  @@index([permitTypeId])
+  @@index([requirementId])
 }
