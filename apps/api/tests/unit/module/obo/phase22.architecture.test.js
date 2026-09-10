@@ -44,8 +44,11 @@ describe('OBO separation boundary contract', () => {
     expect(cases).toContain('const getOrCreateType')
     expect(form).toContain("../../../platform/forms/form.service.js")
     expect(form).not.toContain('plan-permit.repository.js')
+    expect(form).toContain('formService.getFormById')
+    expect(form).toContain('formService.getPublishedForm')
     expect(workflow).toContain("../../../platform/workflow/workflow.service.js")
     expect(workflow).not.toContain('plan-permit.repository.js')
+    expect(workflow).toContain('workflowService.getWorkflowInstance')
   })
 
   it('keeps Receiving persistence inside Receiving while services own cross-domain access', async () => {
@@ -56,6 +59,8 @@ describe('OBO separation boundary contract', () => {
     expect(receiving).toContain('db.oboReceivingDecision.create')
     expect(service).toContain("../../../platform/workflow/workflow.service.js")
     expect(service).toContain("../../../features/appointments/appointment.service.js")
+    expect(service).toContain('workflowService.getWorkflowInstance')
+    expect(service).toContain('appointmentService.getAppointmentForReference')
   })
 
   it('keeps OBO Clients behind the shared People service', async () => {
