@@ -71,7 +71,7 @@ describe('Phase 21 OBO hard-copy document checklist contract', () => {
     const source = await readText(paths.receivingService)
 
     expect(source).toContain('applicationDocumentService.validateRequiredDocuments')
-    expect(source).toMatch(/applicationDocumentService\.validateRequiredDocuments\(\{\s*applicationId: id,\s*application,\s*db: tx,\s*\}\)/)
+    expect(source).toMatch(/validateRequiredDocuments\(\{\s*applicationId: id, application, db: tx\s*\}\)/)
   })
 
   it('exposes form-version document requirements through the Platform service boundary', async () => {
