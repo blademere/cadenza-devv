@@ -10,7 +10,11 @@ import {
   publishPermitTypeFormVersionValidator,
 } from './permit-type.form.validation.js'
 import {
+  createPermitTypeFormValidator as _,
+} from './permit-type.form.validation.js'
+import {
   createPermitTypeValidator,
+  getPermitTypeFormValidator,
   permitTypeIdValidator,
   updatePermitTypeValidator,
 } from './permit-type.validation.js'
@@ -26,6 +30,6 @@ router.post('/:permitTypeId/form/versions', authenticate, authorize('obo_forms',
 router.get('/:permitTypeId/form/versions/:version', authenticate, authorize('obo_forms', 'read'), validate(publishPermitTypeFormVersionValidator), asyncHandler(controller.getFormVersion))
 router.patch('/:permitTypeId/form/versions/:version', authenticate, authorize('obo_forms', 'update'), requireIdempotency, validate(updatePermitTypeFormVersionValidator), asyncHandler(controller.updateFormVersion))
 router.post('/:permitTypeId/form/versions/:version/publish', authenticate, authorize('obo_forms', 'publish'), requireIdempotency, validate(publishPermitTypeFormVersionValidator), asyncHandler(controller.publishFormVersion))
-router.get('/:permitTypeId/form', authenticate, authorize('obo_plan_permits', 'read'), validate(permitTypeIdValidator), asyncHandler(controller.getForm))
+router.get('/:permitTypeId/form', authenticate, authorize('obo_plan_permits', 'read'), validate(getPermitTypeFormValidator), asyncHandler(controller.getForm))
 
 export default router
