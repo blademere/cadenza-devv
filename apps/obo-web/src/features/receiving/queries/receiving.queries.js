@@ -3,6 +3,7 @@ import { receivingApi } from '../api/receiving.api'
 
 export const receivingApplicationsQueryKey = (status = 'SUBMISSION_SCHEDULED') => ['obo', 'receiving', 'applications', status]
 export const receivingApplicationQueryKey = (applicationId) => ['obo', 'receiving', 'applications', applicationId]
+export const receivingDocumentChecklistQueryKey = (applicationId) => ['obo', 'receiving', 'applications', applicationId, 'documents']
 
 function normalizeStatus(status) {
   if (status === undefined || status === null || status === '') return 'SUBMISSION_SCHEDULED'
@@ -22,4 +23,8 @@ export function useReceivingApplications(status = 'SUBMISSION_SCHEDULED', option
 
 export function useReceivingApplication(applicationId, options = {}) {
   return useQuery({ queryKey: receivingApplicationQueryKey(applicationId), queryFn: () => receivingApi.getApplication(applicationId), enabled: Boolean(applicationId) && options.enabled !== false, ...options })
+}
+
+export function useReceivingDocumentChecklist(applicationId, options = {}) {
+  return useQuery({ queryKey: receivingDocumentChecklistQueryKey(applicationId), queryFn: () => receivingApi.getDocumentChecklist(applicationId), enabled: Boolean(applicationId) && options.enabled !== false, ...options })
 }
