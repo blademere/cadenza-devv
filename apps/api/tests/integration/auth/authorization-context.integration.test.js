@@ -72,7 +72,7 @@ describe('Authorization context integration', () => {
     expect(response.body.success).toBe(false)
   })
 
-  it('returns the authenticated user effective authorization context', async () => {
+  it('returns authorization state without frontend capabilities', async () => {
     const token = createAccessToken(user)
     const response = await request(app)
       .get('/api/v1/me/authorization')
@@ -80,36 +80,37 @@ describe('Authorization context integration', () => {
 
     expect(response.status).toBe(200)
     expect(response.body.success).toBe(true)
-    expect(response.body.data.role).toEqual({ id: 3, name: 'receiving_officer' })
-    expect(response.body.data.permissions).toEqual([
-      'obo_plan_permits:read',
-      'obo_professionals:review',
-    ])
-
-    const applications = response.body.data.navigation.find(
-      (item) => item.key === 'applications',
-    )
-    const verification = response.body.data.navigation.find(
-      (item) => item.key === 'verification',
-    )
-
-    expect(applications.visible).toBe(false)
-    expect(verification.visible).toBe(true)
+    expect(response.body.data).toEqual({
+      role: { id: 3, name: 'receiving_officer' },
+      permissions: [
+        'obo_plan_permits:read',
+        'obo_professionals:review',
+      ],
+      modules: [
+        {
+          key: 'obo_plan_permits',
+          name: 'Plan Permits',
+          description: null,
+          isActive: true,
+        },
+        {
+          key: 'obo_professionals',
+          name: 'Professionals',
+          description: null,
+          isActive: true,
+        },
+      ],
+    })
+    expect(response.body.data).not.toHaveProperty('navigation')
   })
 
-  it('hides capabilities for inactive modules even if the role has the permission', async () => {
+  it('returns only active modules while preserving effective permissions', async () => {
     mocks.listActiveModules.mockResolvedValue([
       {
         key: 'obo_plan_permits',
         name: 'Plan Permits',
         description: null,
         isActive: true,
-      },
-      {
-        key: 'obo_professionals',
-        name: 'Professionals',
-        description: null,
-        isActive: false,
       },
     ])
 
@@ -119,11 +120,17 @@ describe('Authorization context integration', () => {
       .set('Authorization', `Bearer ${token}`)
 
     expect(response.status).toBe(200)
-    expect(
-      response.body.data.navigation.find((item) => item.key === 'applications').visible,
-    ).toBe(false)
-    expect(
-      response.body.data.navigation.find((item) => item.key === 'verification').visible,
-    ).toBe(false)
+    expect(response.body.data.permissions).toEqual([
+      'obo_plan_permits:read',
+      'obo_professionals:review',
+    ])
+    expect(response.body.data.modules).toEqual([
+      {
+        key: 'obo_plan_permits',
+        name: 'Plan Permits',
+        description: null,
+        isActive: true,
+      },
+    ])
   })
 })
