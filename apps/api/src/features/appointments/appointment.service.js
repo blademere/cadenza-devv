@@ -14,6 +14,12 @@ const listAppointmentTypes = ({ active }) => repository.listAppointmentTypes({ a
 const listAvailabilitySchedules = ({ appointmentTypeId, active }) => repository.listAvailabilitySchedules({ appointmentTypeId, active })
 const listAppointmentSlots = ({ appointmentTypeId, from, to, status }) => repository.listAppointmentSlots({ appointmentTypeId, from, to, status })
 const listAppointments = ({ appointmentTypeId, status, from, to }) => repository.listAppointments({ appointmentTypeId, status, from, to })
+const getAppointmentForReference = async ({ id, db }) => {
+  const appointment = await repository.getAppointmentWithRelations(id, db)
+  if (!appointment) throw new NotFoundError('Appointment not found.')
+  return appointment
+}
+const listAppointmentsForReferences = ({ ids, db }) => repository.findAppointmentsByIds(ids, db)
 
 const createAppointmentType = async ({ actorId, data }) =>
   repository.withTransaction(async (tx) => {
@@ -149,6 +155,8 @@ export {
   bookAppointment,
   getMyAppointment,
   listMyAppointments,
+  getAppointmentForReference,
+  listAppointmentsForReferences,
   cancelAppointment,
   cancelManagedAppointment,
   checkInAppointment,
