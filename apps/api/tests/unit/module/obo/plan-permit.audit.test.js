@@ -3,18 +3,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 vi.mock('../../../../src/modules/obo/permit-types/permit-type.service.js')
 vi.mock('../../../../src/modules/obo/professionals/professional-reference.service.js')
+vi.mock('../../../../src/modules/obo/professionals/professional.service.js')
 vi.mock('../../../../src/platform/forms/form.service.js')
 vi.mock('../../../../src/platform/workflow/workflow.service.js')
 vi.mock('../../../../src/platform/audit/audit.service.js')
 vi.mock('../../../../src/features/appointments/appointment.service.js')
+vi.mock('../../../../src/features/participants/participants.service.js')
 
 const repository = await import('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 const permitTypeService = await import('../../../../src/modules/obo/permit-types/permit-type.service.js')
 const professionalReferenceService = await import('../../../../src/modules/obo/professionals/professional-reference.service.js')
+const professionalService = await import('../../../../src/modules/obo/professionals/professional.service.js')
 const formService = await import('../../../../src/platform/forms/form.service.js')
 const workflowService = await import('../../../../src/platform/workflow/workflow.service.js')
 const auditService = await import('../../../../src/platform/audit/audit.service.js')
 const appointmentService = await import('../../../../src/features/appointments/appointment.service.js')
+const participantService = await import('../../../../src/features/participants/participants.service.js')
 const service = await import('../../../../src/modules/obo/plan-permits/plan-permit.service.js')
 
 const spies = {
@@ -33,7 +37,9 @@ const spies = {
   recordAudit: auditService.recordAudit,
   validateProfessionalReferences: professionalReferenceService.validateProfessionalReferences,
   buildProfessionalSnapshots: professionalReferenceService.buildProfessionalSnapshots,
+  getForReference: professionalService.getForReference,
   getAppointmentForReference: appointmentService.getAppointmentForReference,
+  addParticipant: participantService.default?.add,
 }
 
 const person = { id: 'person-1', userId: 'user-1' }
@@ -55,7 +61,9 @@ beforeEach(() => {
   spies.recordAudit.mockResolvedValue({ id: 'audit-1' })
   spies.validateProfessionalReferences.mockResolvedValue(true)
   spies.buildProfessionalSnapshots.mockResolvedValue({ architect: { professionalId: 'professional-a', name: 'John Doe', registrationNumber: 'REG-1', prcId: 'PRC-1', ptrNumber: 'PTR-1', role: 'ARCHITECT' } })
+  spies.getForReference.mockResolvedValue({ id: 'professional-a', personId: 'professional-person-a', professionalRole: 'ARCHITECT' })
   spies.getAppointmentForReference.mockResolvedValue(null)
+  spies.addParticipant?.mockResolvedValue({ id: 'participant-1' })
 })
 
 afterEach(() => vi.clearAllMocks())
@@ -80,7 +88,7 @@ describe('OBO plan permit auditability', () => {
   })
 
   it('audits final submission with the submitted form version, values, and professional snapshots', async () => {
-    spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', referenceNumber: 'BP-1', formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', version: 2 }, permitType: { ...permitType, formId: 'form-1' }, formValues: { architect: 'professional-a' }, professionalSnapshots: null })
+    spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', referenceNumber: 'BP-1', formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', version: 2 }, permitType: { ...permitType, formId: 'form-1' }, formValues: { architect: 'professional-a' }, professionalSnapshots: null })
     spies.getFormVersionById.mockResolvedValue({ id: 'form-version-1', formId: 'form-1', version: 2, status: 'PUBLISHED', fields: [{ key: 'architect', type: 'reference', required: true, visibility: null, config: { referenceType: 'obo_professional', professionalRole: 'ARCHITECT', multiple: false } }] })
     await service.submit({ id: 'application-1', userId: 'user-1' })
     expect(spies.validateProfessionalReferences).toHaveBeenCalledWith(expect.objectContaining({ formVersion: expect.objectContaining({ id: 'form-version-1' }), formValues: { architect: 'professional-a' } }))
