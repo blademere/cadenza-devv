@@ -16,6 +16,12 @@ const getForm = async (req, res) => successResponse(
   await service.getPermitTypeForm(req.validated.params.permitTypeId, req.validated.query.version),
 )
 
+const listFormVersions = async (req, res) => successResponse(
+  res,
+  'Permit type form versions retrieved successfully.',
+  await service.getPermitTypeFormVersions(req.validated.params.permitTypeId),
+)
+
 const getFormVersion = async (req, res) => successResponse(
   res,
   'Permit type form version retrieved successfully.',
@@ -66,4 +72,4 @@ const publishFormVersion = async (req, res) => successResponse(
   await service.publishPermitTypeFormVersion({ actorId: req.user.id, permitTypeId: req.validated.params.permitTypeId, version: req.validated.params.version }),
 )
 
-export { list, get, getForm, getFormVersion, create, update, createForm, createFormVersion, updateFormVersion, publishFormVersion }
+export { list, get, getForm, listFormVersions, getFormVersion, create, update, createForm, createFormVersion, updateFormVersion, publishFormVersion }
