@@ -35,7 +35,7 @@ describe('OBO professional relationship migration contract', () => {
 
     expect(schema).not.toMatch(/^\s*professionalId\s+/m)
     expect(schema).not.toMatch(/^\s*professional\s+OboProfessional/m)
-    expect(schema).toContain('formValues            Json')
-    expect(schema).toContain('professionalSnapshots Json?')
+    expect(schema).toMatch(/^\s*formValues\s+Json\s*$/m)
+    expect(schema).toMatch(/^\s*professionalSnapshots\s+Json\?\s*$/m)
   })
 })
