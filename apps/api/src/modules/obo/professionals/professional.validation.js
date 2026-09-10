@@ -26,7 +26,6 @@ const profileUpdateValidator = async (req) => ({
 
 const applyValidator = async (req) => ({
   body: z.object({
-    registrationNumber: credential('registrationNumber'),
     prcId: credential('prcId'),
     ptrNumber: credential('ptrNumber'),
     professionalRole,
