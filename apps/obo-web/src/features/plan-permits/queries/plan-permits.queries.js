@@ -5,6 +5,7 @@ export const planPermitApplicationsQueryKey = ['obo', 'plan-permits', 'applicati
 export const planPermitApplicationQueryKey = (id) => ['obo', 'plan-permits', 'applications', id]
 export const permitTypesQueryKey = ['obo', 'plan-permits', 'permit-types']
 export const permitTypeQueryKey = (id) => ['obo', 'plan-permits', 'permit-types', id]
+export const permitTypeFormVersionsQueryKey = (id) => ['obo', 'plan-permits', 'permit-types', id, 'form-versions']
 export const permitTypeFormQueryKey = (id, version) => ['obo', 'plan-permits', 'permit-types', id, 'form', version ?? 'latest']
 export const permitTypeFormVersionQueryKey = (id, version) => ['obo', 'plan-permits', 'permit-types', id, 'form-version', version]
 
@@ -24,6 +25,10 @@ export function usePermitType(id, options = {}) {
   return useQuery({ queryKey: permitTypeQueryKey(id), queryFn: () => planPermitsApi.getPermitType(id), enabled: Boolean(id) && options.enabled !== false, ...options })
 }
 
+export function usePermitTypeFormVersions(id, options = {}) {
+  return useQuery({ queryKey: permitTypeFormVersionsQueryKey(id), queryFn: () => planPermitsApi.getPermitTypeFormVersions(id), enabled: Boolean(id) && options.enabled !== false, ...options })
+}
+
 export function usePermitTypeForm(id, version, options = {}) {
   return useQuery({ queryKey: permitTypeFormQueryKey(id, version), queryFn: () => planPermitsApi.getPermitTypeForm(id, version), enabled: Boolean(id) && options.enabled !== false, ...options })
 }
@@ -34,18 +39,12 @@ export function usePermitTypeFormVersion(id, version, options = {}) {
 
 export function useCreatePermitType() {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: planPermitsApi.createPermitType,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: permitTypesQueryKey }),
-  })
+  return useMutation({ mutationFn: planPermitsApi.createPermitType, onSuccess: () => queryClient.invalidateQueries({ queryKey: permitTypesQueryKey }) })
 }
 
 export function useUpdatePermitType() {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, ...data }) => planPermitsApi.updatePermitType(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: permitTypesQueryKey }),
-  })
+  return useMutation({ mutationFn: ({ id, ...data }) => planPermitsApi.updatePermitType(id, data), onSuccess: () => queryClient.invalidateQueries({ queryKey: permitTypesQueryKey }) })
 }
 
 export function useCreatePermitTypeForm() {
@@ -56,6 +55,7 @@ export function useCreatePermitTypeForm() {
       queryClient.invalidateQueries({ queryKey: permitTypesQueryKey })
       queryClient.invalidateQueries({ queryKey: permitTypeQueryKey(variables.id) })
       queryClient.invalidateQueries({ queryKey: permitTypeFormQueryKey(variables.id) })
+      queryClient.invalidateQueries({ queryKey: permitTypeFormVersionsQueryKey(variables.id) })
     },
   })
 }
@@ -67,6 +67,7 @@ export function useCreatePermitTypeFormVersion() {
     onSuccess: (version, variables) => {
       queryClient.setQueryData(permitTypeFormVersionQueryKey(variables.id, version?.version), version)
       queryClient.invalidateQueries({ queryKey: permitTypeFormQueryKey(variables.id) })
+      queryClient.invalidateQueries({ queryKey: permitTypeFormVersionsQueryKey(variables.id) })
     },
   })
 }
@@ -77,7 +78,8 @@ export function useUpdatePermitTypeFormVersion() {
     mutationFn: ({ id, version, ...data }) => planPermitsApi.updatePermitTypeFormVersion(id, version, data),
     onSuccess: (updated, variables) => {
       queryClient.setQueryData(permitTypeFormVersionQueryKey(variables.id, variables.version), updated)
-      queryClient.invalidateQueries({ queryKey: permitTypeFormQueryKey(variables.id) })
+      queryClient.invalidateQueries({ queryKey: permitTypeFormQueryKey(variables.id, variables.version) })
+      queryClient.invalidateQueries({ queryKey: permitTypeFormVersionsQueryKey(variables.id) })
     },
   })
 }
@@ -91,6 +93,7 @@ export function usePublishPermitTypeFormVersion() {
       queryClient.invalidateQueries({ queryKey: permitTypeQueryKey(variables.id) })
       queryClient.invalidateQueries({ queryKey: permitTypeFormQueryKey(variables.id) })
       queryClient.invalidateQueries({ queryKey: permitTypeFormVersionQueryKey(variables.id, variables.version) })
+      queryClient.invalidateQueries({ queryKey: permitTypeFormVersionsQueryKey(variables.id) })
     },
   })
 }
