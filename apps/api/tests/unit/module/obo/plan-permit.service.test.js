@@ -35,7 +35,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   repository.withTransaction.mockImplementation(async (callback) => callback({ tx: true }))
   repository.findPersonByUserId.mockResolvedValue(person)
-  repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType, formValues: {} })
+  repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType, formValues: {}, submissionAppointment: { appointmentId: 'appointment-1' } })
   repository.findPersonNotificationContext.mockResolvedValue(null)
   repository.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', permitType })
   permitTypeService.getPermitTypeById.mockResolvedValue(permitType)
@@ -48,7 +48,7 @@ beforeEach(() => {
   formService.getFormById.mockResolvedValue({ id: 'form-1', key: 'building-permit', isActive: true })
   formService.getFormVersionById.mockResolvedValue({ id: 'form-version-1', formId: 'form-1', version: 1, status: 'PUBLISHED', fields: [] })
   formService.validateFormValues.mockResolvedValue({ valid: true, formVersionId: 'form-version-1' })
-  appointmentService.getAppointmentForReference.mockResolvedValue(null)
+  appointmentService.getAppointmentForReference.mockResolvedValue({ id: 'appointment-1', status: 'SCHEDULED' })
 })
 
 describe('OBO plan permit service', () => {
@@ -70,7 +70,7 @@ describe('OBO plan permit service', () => {
   it('uses Platform Workflow and Appointment services for hydration', async () => {
     await service.getMine({ id: 'application-1', userId: 'user-1' })
     expect(workflowService.getWorkflowInstance).toHaveBeenCalledWith('workflow-1')
-    expect(appointmentService.getAppointmentForReference).toHaveBeenCalled()
+    expect(appointmentService.getAppointmentForReference).toHaveBeenCalledWith({ id: 'appointment-1', db: undefined })
   })
 
   it('does not expose Receiving decision persistence from the Plan Permit repository', () => {
