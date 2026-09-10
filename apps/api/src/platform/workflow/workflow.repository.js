@@ -43,6 +43,12 @@ const findInstance = (id, db = prisma) =>
     },
   })
 
+const findInstancesByIds = (ids, db = prisma) =>
+  db.workflowInstance.findMany({
+    where: { id: { in: ids } },
+    include: { currentStep: true },
+  })
+
 const findInstanceWithHistory = (id, db = prisma) =>
   db.workflowInstance.findUnique({
     where: { id },
@@ -66,5 +72,6 @@ export {
   findWorkflowByKey,
   findPublishedVersion,
   findInstance,
+  findInstancesByIds,
   findInstanceWithHistory,
 }
