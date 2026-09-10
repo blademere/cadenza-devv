@@ -10,12 +10,14 @@ describe('OBO navigation authorization', () => {
     expect(visibleKeys([])).toEqual(['dashboard'])
   })
 
-  it('shows plan permit navigation only with plan permit read access', () => {
-    expect(visibleKeys([permissions.planPermits.read])).toEqual([
-      'dashboard',
-      'applications',
-      'permit-types',
-    ])
+  it('shows applications only with plan permit read access', () => {
+    expect(visibleKeys([permissions.planPermits.read])).toContain('applications')
+    expect(visibleKeys([permissions.planPermits.read])).not.toContain('permit-types')
+  })
+
+  it('shows permit types only with permit type read access', () => {
+    expect(visibleKeys([permissions.permitTypes.read])).toContain('permit-types')
+    expect(visibleKeys([permissions.permitTypes.read])).not.toContain('applications')
   })
 
   it('shows receiving only with receiving permission', () => {
