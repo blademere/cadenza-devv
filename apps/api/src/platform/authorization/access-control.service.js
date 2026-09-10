@@ -61,6 +61,8 @@ const getAuthorizationContext = async (userId) => {
   }
 }
 
+const getRoleById = async (roleId) => findRoleById(roleId)
+
 const can = async ({ userId, resource, action }) =>
   hasPermission(userId, resource, action)
 
@@ -104,10 +106,10 @@ export {
   getPermissionKey,
   hasPermission,
   getAuthorizationContext,
+  getRoleById,
   can,
   canAny,
   canOwn,
   clearUserPermissionCache,
   clearRolePermissionCache,
-  findRoleById,
 }
