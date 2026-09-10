@@ -11,24 +11,25 @@ model DocumentType {
 }
 
 model DocumentRequirement {
-  id                String           @id @default(uuid())
-  documentTypeId    String
-  formVersionId     String?
-  workflowVersionId String?
-  fieldKey          String?
-  name              String
-  description       String?
-  required          Boolean          @default(true)
-  allowedFileTypes  String[]
-  maxSizeBytes      BigInt?
-  condition         Json?
-  source            String           @default("CLIENT")
-  sortOrder         Int              @default(0)
-  documentType      DocumentType     @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
-  formVersion       FormVersion?     @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
-  workflowVersion   WorkflowVersion? @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id                        String                         @id @default(uuid())
+  documentTypeId            String
+  formVersionId             String?
+  workflowVersionId         String?
+  fieldKey                  String?
+  name                      String
+  description               String?
+  required                  Boolean                        @default(true)
+  allowedFileTypes          String[]
+  maxSizeBytes              BigInt?
+  condition                 Json?
+  source                    String                         @default("CLIENT")
+  sortOrder                 Int                            @default(0)
+  documentType              DocumentType                   @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
+  formVersion               FormVersion?                   @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  workflowVersion           WorkflowVersion?               @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  oboApplicationDocuments  OboPermitApplicationDocument[]
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime                       @updatedAt
 
   @@index([documentTypeId])
   @@index([formVersionId, sortOrder])
@@ -36,20 +37,21 @@ model DocumentRequirement {
 }
 
 model Document {
-  id              String        @id @default(uuid())
-  documentTypeId  String?
-  ownerId         Int?
-  originalName    String
-  storageKey      String        @unique
-  storageProvider String        @default("local")
-  mimeType        String
-  sizeBytes       BigInt
-  checksumSha256  String
-  documentType    DocumentType? @relation(fields: [documentTypeId], references: [id], onDelete: SetNull)
-  owner           User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  deletedAt       DateTime?
+  id                       String                         @id @default(uuid())
+  documentTypeId           String?
+  ownerId                  Int?
+  originalName             String
+  storageKey               String                         @unique
+  storageProvider          String                         @default("local")
+  mimeType                 String
+  sizeBytes                BigInt
+  checksumSha256           String
+  documentType             DocumentType?                  @relation(fields: [documentTypeId], references: [id], onDelete: SetNull)
+  owner                    User?                          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  oboApplicationDocuments  OboPermitApplicationDocument[]
+  createdAt                DateTime                       @default(now())
+  updatedAt                DateTime                       @updatedAt
+  deletedAt                DateTime?
 
   @@index([ownerId, createdAt])
   @@index([documentTypeId])
