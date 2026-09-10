@@ -8,7 +8,8 @@ import * as validation from './client.validation.js'
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-clients', required: true })
 
-router.post('/me', authenticate, authorize('obo_clients', 'create'), requireIdempotency, validate(validation.registrationValidator), asyncHandler(controller.createMine))
-router.get('/me', authenticate, authorize('obo_clients', 'read'), asyncHandler(controller.getMine))
+router.post('/profile', authenticate, authorize('obo_clients', 'create'), requireIdempotency, validate(validation.registrationValidator), asyncHandler(controller.createProfile))
+router.get('/profile', authenticate, authorize('obo_clients', 'read'), asyncHandler(controller.getProfile))
+router.patch('/profile', authenticate, authorize('obo_clients', 'update'), requireIdempotency, validate(validation.profileUpdateValidator), asyncHandler(controller.updateProfile))
 
 export default router

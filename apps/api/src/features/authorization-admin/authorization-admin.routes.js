@@ -3,7 +3,6 @@ import { asyncHandler, validate, idempotency, cache } from '../../common/middlew
 import authenticate from '../auth/authenticate.secure.js'
 import authorize from '../../platform/authorization/authorize.js'
 import authorizeResource from '../../platform/authorization/authorization-resource.middleware.js'
-import repository from './authorization-admin.repository.js'
 import {
   listModulesController,
   createModuleController,
@@ -15,6 +14,8 @@ import {
 import {
   AUTHORIZATION_MODULES_CACHE_KEY,
   AUTHORIZATION_ROLES_CACHE_KEY,
+  getModuleById,
+  getRoleById,
 } from './authorization-admin.service.js'
 import {
   createModuleValidator,
@@ -29,13 +30,13 @@ const requireIdempotency = idempotency({ scope: 'authorization-admin', required:
 const authorizeModuleResource = authorizeResource({
   resource: 'authorization',
   action: 'manage',
-  loadResource: repository.findModuleById,
+  loadResource: getModuleById,
   getResourceId: (req) => Number(req.params.moduleId),
 })
 const authorizeRoleResource = authorizeResource({
   resource: 'authorization',
   action: 'manage',
-  loadResource: repository.findRoleById,
+  loadResource: getRoleById,
   getResourceId: (req) => Number(req.params.roleId),
 })
 

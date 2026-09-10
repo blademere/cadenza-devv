@@ -1,36 +1,32 @@
 import express from 'express'
 import { asyncHandler } from '../../common/middleware/index.js'
-import authenticate from '../../features/auth/authenticate.secure.js'
 import { successResponse } from '../../common/responses/apiResponse.js'
-import { getUserAuthorizationContext, listActiveModules } from './authorization-context.repository.js'
-import { getCapabilityRegistry } from './capability-registry.js'
-import { buildAuthorizationContext } from './authorization-context.service.js'
+import { getAuthorizationContextResponse } from './authorization-context.service.js'
 
-const router = express.Router()
+const createAuthorizationContextRouter = ({ authenticate }) => {
+  if (typeof authenticate !== 'function') {
+    throw new TypeError('createAuthorizationContextRouter requires authenticate middleware.')
+  }
 
-router.get('/me/authorization', authenticate, asyncHandler(async (req, res) => {
-  // Authorization state changes independently of the application shell, so a
-  // previously cached GET response must never keep old navigation/permissions.
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-  res.set('Pragma', 'no-cache')
-  res.set('Expires', '0')
+  const router = express.Router()
 
-  const [context, modules] = await Promise.all([
-    getUserAuthorizationContext(req.user.id),
-    listActiveModules(),
-  ])
+  router.get('/me/authorization', authenticate, asyncHandler(async (req, res) => {
+    // Authorization state changes independently of the application shell, so a
+    // previously cached GET response must never keep old navigation/permissions.
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.set('Pragma', 'no-cache')
+    res.set('Expires', '0')
 
-  const authorizationContext = buildAuthorizationContext({
-    context,
-    modules,
-    capabilities: getCapabilityRegistry(),
-  })
+    const authorizationContext = await getAuthorizationContextResponse(req.user.id)
 
-  return successResponse(
-    res,
-    'Authorization context retrieved successfully.',
-    authorizationContext,
-  )
-}))
+    return successResponse(
+      res,
+      'Authorization context retrieved successfully.',
+      authorizationContext,
+    )
+  }))
 
-export default router
+  return router
+}
+
+export default createAuthorizationContextRouter

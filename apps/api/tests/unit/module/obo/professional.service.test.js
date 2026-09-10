@@ -10,7 +10,7 @@ const eventBus = await import('../../../../src/platform/event-bus/event-bus.js')
 const service = await import('../../../../src/modules/obo/professionals/professional.service.js')
 
 const spies = {
-  findPersonByUserId: repository.findPersonByUserId, findByPersonId: repository.findByPersonId, findByUserId: repository.findByUserId, findPersonById: repository.findPersonById, create: repository.create, listPending: repository.listPending, listVerified: repository.listVerified, findById: repository.findById, update: repository.update, addDecision: repository.addDecision, withTransaction: repository.withTransaction,
+  findPersonByUserId: repository.findPersonByUserId, findByPersonId: repository.findByPersonId, findByUserId: repository.findByUserId, findPersonById: repository.findPersonById, create: repository.create, listPending: repository.listPending, listVerified: repository.listVerified, listLookup: repository.listLookup, findById: repository.findById, update: repository.update, addDecision: repository.addDecision, withTransaction: repository.withTransaction,
 }
 
 afterEach(() => vi.clearAllMocks())
@@ -29,6 +29,11 @@ describe('OBO professional service', () => {
     spies.findPersonByUserId.mockResolvedValue({ id: 'person-1' }); spies.findByPersonId.mockResolvedValue({ id: 'professional-1' }); await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' })).rejects.toThrow('already exists')
   })
   it('returns the authenticated professional verification record', async () => { spies.findByUserId.mockResolvedValue({ id: 'professional-1', status: 'VERIFIED', prcId: 'PRC-123', ptrNumber: 'PTR-123' }); await expect(service.getMine({ userId: 'user-1' })).resolves.toMatchObject({ id: 'professional-1', status: 'VERIFIED' }); expect(spies.findByUserId).toHaveBeenCalledWith('user-1') })
+  it('lists professionals through the filtered directory lookup', async () => {
+    spies.listLookup.mockResolvedValue([{ id: 'professional-1', professionalRole: 'ARCHITECT', status: 'VERIFIED' }])
+    await expect(service.listDirectory({ status: 'VERIFIED', role: 'ARCHITECT', search: 'John' })).resolves.toEqual([{ id: 'professional-1', professionalRole: 'ARCHITECT', status: 'VERIFIED' }])
+    expect(spies.listLookup).toHaveBeenCalledWith({ status: 'VERIFIED', role: 'ARCHITECT', search: 'John' })
+  })
   it('records an accepted verification decision transactionally', async () => {
     spies.withTransaction.mockImplementation(async (callback) => callback({}))
     spies.findById.mockResolvedValue({ id: 'professional-1', personId: 'person-1', status: 'PENDING_VERIFICATION', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' }); spies.update.mockResolvedValue({ id: 'professional-1', status: 'VERIFIED' }); spies.addDecision.mockResolvedValue({ id: 'decision-1' }); spies.findPersonById.mockResolvedValue({ userId: 'professional-user-1', email: 'professional@example.com' })

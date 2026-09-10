@@ -1,5 +1,6 @@
 export const layout = {
-  sidebarWidth: 252,
-  headerHeight: 68,
+  sidebarWidth: 272,
+  sidebarCollapsedWidth: 72,
+  headerHeight: 64,
   breakpoint: 'lg',
 }

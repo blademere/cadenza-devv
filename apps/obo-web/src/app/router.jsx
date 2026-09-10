@@ -5,25 +5,30 @@ import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
 import RolesPage from '../features/authorization/pages/RolesPage'
 import UsersPage from '../features/users/pages/UsersPage'
+import ProfilePage from '../features/users/pages/ProfilePage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import OAuthCallbackPage from '../features/auth/pages/OAuthCallbackPage'
 import ApplicationsPage from '../features/plan-permits/pages/ApplicationsPage'
+import ApplicationFormPage from '../features/plan-permits/pages/ApplicationFormPage'
 import ApplicationDetailsPage from '../features/plan-permits/pages/ApplicationDetailsPage'
 import PermitTypesPage from '../features/plan-permits/pages/PermitTypesPage'
 import PermitTypeDetailsPage from '../features/plan-permits/pages/PermitTypeDetailsPage'
+import PermitTypeFormBuilderPage from '../features/plan-permits/pages/PermitTypeFormBuilderPage'
 import SubmissionAppointmentPage from '../features/submission-appointments/pages/SubmissionAppointmentPage'
+import AppointmentsPage from '../features/appointments/pages/AppointmentsPage'
 import ReceivingPage from '../features/receiving/pages/ReceivingPage'
 import ReceivingApplicationPage from '../features/receiving/pages/ReceivingApplicationPage'
 import ProfessionalsPage from '../features/professionals/pages/ProfessionalsPage'
 import ProfessionalVerificationPage from '../features/professionals/pages/ProfessionalVerificationPage'
-import RoutePlaceholder from './router/RoutePlaceholder'
+import ProfessionalVerificationApplyPage from '../features/professionals/pages/ProfessionalVerificationApplyPage'
 import ProtectedRoute from './router/ProtectedRoute'
 import GuestRoute from './router/GuestRoute'
 import AuthorizationRoute from './router/AuthorizationRoute'
+import RequireAnyPermission from '../features/authorization/components/RequireAnyPermission'
 import { permissions } from '../config/permissions'
 
-const route = (path, title, permission) => ({ element: <AuthorizationRoute requiredPermission={permission} />, children: [{ path, element: <RoutePlaceholder title={title} /> }] })
 const protectedPage = (path, element, permission) => ({ element: <AuthorizationRoute requiredPermission={permission} />, children: [{ path, element }] })
+const protectedPageWithAnyPermission = (path, element, requiredPermissions) => ({ element: <RequireAnyPermission permissions={requiredPermissions} />, children: [{ path, element }] })
 
 export const router = createBrowserRouter([
   { path: '/', element: <App />, children: [
@@ -32,16 +37,21 @@ export const router = createBrowserRouter([
     { path: 'app', element: <ProtectedRoute><OBOLayout /></ProtectedRoute>, children: [
       { index: true, element: <Navigate to="dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'profile', element: <ProfilePage /> },
       protectedPage('applications', <ApplicationsPage />, permissions.planPermits.read),
+      protectedPage('applications/new', <ApplicationFormPage />, permissions.planPermits.create),
       protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.planPermits.read),
+      protectedPage('applications/:applicationId/edit', <ApplicationFormPage />, permissions.planPermits.update),
       protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.planPermits.read),
-      protectedPage('permit-types', <PermitTypesPage />, permissions.planPermits.read),
-      protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.planPermits.read),
+      protectedPage('appointments', <AppointmentsPage />, permissions.appointments.manage),
+      protectedPage('permit-types', <PermitTypesPage />, permissions.permitTypes.read),
+      protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.permitTypes.read),
+      protectedPageWithAnyPermission('permit-types/:permitTypeId/form/edit', <PermitTypeFormBuilderPage />, [permissions.forms.create, permissions.forms.update]),
       protectedPage('receiving', <ReceivingPage />, permissions.planPermits.receive),
       protectedPage('receiving/:applicationId', <ReceivingApplicationPage />, permissions.planPermits.receive),
       protectedPage('professionals', <ProfessionalsPage />, permissions.professionals.read),
       protectedPage('professionals/verification', <ProfessionalVerificationPage />, permissions.professionals.review),
-      route('inspections', 'Inspections', permissions.planPermits.inspect),
+      protectedPage('professionals/verification/apply', <ProfessionalVerificationApplyPage />, permissions.professionals.create),
       { element: <AuthorizationRoute requiredPermission={permissions.users.manage} />, children: [{ path: 'users', element: <UsersPage /> }] },
       { element: <AuthorizationRoute requiredPermission={permissions.authorization.manage} />, children: [{ path: 'roles', element: <RolesPage /> }] },
     ] },

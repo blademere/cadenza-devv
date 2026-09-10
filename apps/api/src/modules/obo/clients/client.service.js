@@ -1,11 +1,7 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import * as peopleService from '../../../features/people/people.service.js'
-import * as repository from './client.repository.js'
 
-const createMine = async ({ userId, ...data }) => {
-  const existing = await repository.findByUserId(userId)
-  if (existing) throw new ConflictError('An OBO client profile already exists for this account.')
-
+const createProfile = async ({ userId, ...data }) => {
   try {
     return await peopleService.create({ ...data, userId })
   } catch (error) {
@@ -16,7 +12,7 @@ const createMine = async ({ userId, ...data }) => {
   }
 }
 
-const getMine = async ({ userId }) => {
+const getProfile = async ({ userId }) => {
   try {
     return await peopleService.getByUserId(userId)
   } catch (error) {
@@ -25,4 +21,9 @@ const getMine = async ({ userId }) => {
   }
 }
 
-export { createMine, getMine }
+const updateProfile = async ({ userId, ...data }) => {
+  const person = await peopleService.getByUserId(userId)
+  return peopleService.update(person.id, data)
+}
+
+export { createProfile, getProfile, updateProfile }

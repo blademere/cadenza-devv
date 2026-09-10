@@ -7,6 +7,22 @@ import {
   verifiedProfessionalsQueryKey,
 } from '../queries/professionals.queries'
 
+export function useApplyProfessionalVerification(options = {}) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data) => professionalsApi.applyVerification(data),
+    ...options,
+    onSuccess: async (data, variables, context) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: professionalMineQueryKey }),
+        queryClient.invalidateQueries({ queryKey: pendingProfessionalsQueryKey }),
+      ])
+      await options.onSuccess?.(data, variables, context)
+    },
+  })
+}
+
 export function useDecideProfessionalVerification(options = {}) {
   const queryClient = useQueryClient()
 

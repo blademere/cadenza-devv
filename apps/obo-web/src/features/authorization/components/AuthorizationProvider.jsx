@@ -49,11 +49,6 @@ export function AuthorizationProvider({ children }) {
     [query.data],
   )
 
-  const isNavigationVisible = useCallback(
-    (key) => query.data?.navigation?.some((item) => item.key === key && item.visible) ?? false,
-    [query.data],
-  )
-
   const value = useMemo(
     () => ({
       context: query.data ?? null,
@@ -61,9 +56,8 @@ export function AuthorizationProvider({ children }) {
       error: query.error,
       load,
       can,
-      isNavigationVisible,
     }),
-    [query.data, query.isLoading, query.error, load, can, isNavigationVisible],
+    [query.data, query.isLoading, query.error, load, can],
   )
 
   return <AuthorizationContext.Provider value={value}>{children}</AuthorizationContext.Provider>

@@ -1,7 +1,7 @@
 import express from 'express'
 import { asyncHandler, validate } from '../../common/middleware/index.js'
-import authenticate from '../auth/authenticate.secure.js'
-import authorize from '../../platform/authorization/authorize.js'
+import authenticate from '../../features/auth/authenticate.secure.js'
+import authorize from '../authorization/authorize.js'
 import { listAuditLogsController, timelineController } from './audit.controller.js'
 import { listAuditLogsValidator, timelineValidator } from './audit.validation.js'
 

@@ -1,80 +1,83 @@
 import { useMemo, useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { AppShell, Box, Drawer, useMatches } from '@mantine/core'
+import { AppShell, Drawer, useMatches } from '@mantine/core'
 import { useAuth } from '../features/auth/components/AuthProvider'
 import { useAuthorization } from '../features/authorization/components/AuthorizationProvider'
 import { navigation, normalizeNavigation } from '../config/navigation'
 import { layout } from '../config/layout'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
+import PageContainer from './components/PageContainer'
 
 export default function OBOLayout() {
   const { user, logout } = useAuth()
   const { context, isLoading: authorizationLoading } = useAuthorization()
   const desktop = useMatches({ base: false, [layout.breakpoint]: true })
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const visibleNavigation = useMemo(
     () => normalizeNavigation(navigation, context?.permissions),
-    [context?.permissions]
+    [context?.permissions],
   )
 
-  const sidebar = (
+  const sidebar = (collapsed = false) => (
     <Sidebar
       navigation={visibleNavigation}
       navigationLoading={authorizationLoading}
       user={user}
       role={context?.role?.name}
+      collapsed={collapsed}
       onNavigate={() => setMobileOpen(false)}
       onLogout={() => void logout()}
+      onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
     />
   )
 
   return (
     <AppShell
       className="obo-app"
+      header={{ height: layout.headerHeight }}
       navbar={{
-        width: layout.sidebarWidth,
+        width: sidebarCollapsed ? layout.sidebarCollapsedWidth : layout.sidebarWidth,
         breakpoint: layout.breakpoint,
         collapsed: { mobile: true, desktop: false },
-      }}
-      header={{
-        height: layout.headerHeight,
-        collapsed: { mobile: false, desktop: true },
       }}
       padding={0}
     >
       <AppShell.Header className="obo-topbar">
         <TopBar
           onMenu={() => setMobileOpen(true)}
-          user={user}
-          role={context?.role?.name}
+          navigation={visibleNavigation}
+          onNavigate={() => setMobileOpen(false)}
         />
       </AppShell.Header>
-      <AppShell.Navbar className="obo-sidebar">{sidebar}</AppShell.Navbar>
+
+      <AppShell.Navbar className="obo-sidebar">
+        {sidebar(sidebarCollapsed)}
+      </AppShell.Navbar>
+
       {!desktop && (
         <Drawer
           opened={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          size={layout.sidebarWidth}
-          title="Navigation"
-          classNames={{ content: 'obo-mobile-nav', header: 'obo-mobile-nav' }}
+          size={Math.min(layout.sidebarWidth + 24, 320)}
+          withCloseButton={false}
+          padding={0}
+          classNames={{ content: 'obo-mobile-nav', body: 'obo-mobile-nav-body' }}
         >
-          {sidebar}
+          {sidebar(false)}
         </Drawer>
       )}
+
       <AppShell.Main>
-        <Box
-          className="obo-content"
-          px={{ base: 'md', sm: 'lg', lg: 'xl' }}
-          py={{ base: 'lg', md: 'xl' }}
-        >
-          <a className="obo-skip" href="#obo-main">
-            Skip to content
-          </a>
-          <Box id="obo-main" component="main">
+        <a className="obo-skip" href="#obo-main">
+          Skip to content
+        </a>
+        <PageContainer>
+          <main id="obo-main">
             <Outlet />
-          </Box>
-        </Box>
+          </main>
+        </PageContainer>
       </AppShell.Main>
     </AppShell>
   )

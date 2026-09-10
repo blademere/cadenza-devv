@@ -10,7 +10,7 @@ Keep OBO frontend concerns inside `apps/obo-web` until a domain has enough code 
 src/
 ├── app/             # application bootstrap, providers, router, theme
 ├── layouts/         # application-level shells
-├── config/          # application configuration and permission vocabulary
+├── config/          # application configuration, capabilities, and permission vocabulary
 ├── features/        # business/domain capabilities
 ├── components/      # reusable UI not owned by one domain
 ├── services/        # cross-feature application services
@@ -34,7 +34,7 @@ features/
 └── users/
 ```
 
-Do not create role-specific feature or layout folders such as `administrator/`, `receiving-officer/`, or `inspector/`. Roles are represented by server-issued permissions and capabilities.
+Do not create role-specific feature or layout folders such as `administrator/`, `receiving-officer/`, or `inspector/`. Roles are represented by server-issued permissions and application-owned capabilities.
 
 ## Dependency direction
 
@@ -52,11 +52,15 @@ A feature owns its domain API/data-access and UI. Shared components must not con
 
 ## Authorization
 
-The server is authoritative. The frontend uses the authorization context to control navigation, routes, page capabilities, and action visibility.
+The server is authoritative for effective authorization state. The frontend owns application capabilities and uses the server-issued authorization context to control navigation, routes, page capabilities, and action visibility.
 
 ```text
-User → Role → Permissions → Navigation → Route → Page → Action → Backend
+Server: User → Role → Effective Permissions + Modules
+                                  ↓
+OBO Web:                    Capabilities → Navigation → Route → Page → Action
 ```
+
+The API authorization platform must remain UI-agnostic. It must not define frontend routes, navigation entries, icons, labels, or capability registries. OBO-specific capability definitions belong under `apps/obo-web/src/config/` and are evaluated against the server-issued permission set.
 
 Frontend code must not branch on role names when a permission/capability can express the requirement.
 

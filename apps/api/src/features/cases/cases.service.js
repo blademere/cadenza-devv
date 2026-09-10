@@ -9,6 +9,7 @@ import {
 } from '../../common/pagination/pagination.js'
 import {
   createCaseType,
+  findCaseTypeByKey,
   createCase,
   findCaseById,
   findCaseTypeById,
@@ -18,31 +19,26 @@ import {
 } from './cases.repository.js'
 import { CASE_STATUS } from './cases.constants.js'
 
-const createType = async (data) => {
-  if (!data.key?.trim() || !data.name?.trim()) {
-    throw new BadRequestError('key and name are required.')
-  }
-  return createCaseType({
-    ...data,
-    key: data.key.trim(),
-    name: data.name.trim(),
-  })
+const createType = async (data, { db } = {}) => {
+  if (!data.key?.trim() || !data.name?.trim()) throw new BadRequestError('key and name are required.')
+  return createCaseType({ ...data, key: data.key.trim(), name: data.name.trim() }, db)
 }
 
-const createRecord = async (data) => {
-  if (!data.caseNumber?.trim() || !data.caseTypeId || !data.title?.trim()) {
-    throw new BadRequestError('caseNumber, caseTypeId, and title are required.')
+const getOrCreateType = async ({ key, name, description = null, isActive = true, db }) => {
+  if (!key?.trim() || !name?.trim()) throw new BadRequestError('key and name are required.')
+  const existing = await findCaseTypeByKey(key.trim(), db)
+  if (existing) {
+    if (!existing.isActive) throw new ConflictError('The requested case type is inactive.')
+    return existing
   }
-  const caseType = await findCaseTypeById(data.caseTypeId)
-  if (!caseType || !caseType.isActive) {
-    throw new NotFoundError('Active case type not found.')
-  }
-  return createCase({
-    ...data,
-    caseNumber: data.caseNumber.trim(),
-    title: data.title.trim(),
-    status: data.status?.trim() || CASE_STATUS.DRAFT,
-  })
+  return createType({ key: key.trim(), name: name.trim(), description, isActive }, { db })
+}
+
+const createRecord = async (data, { db } = {}) => {
+  if (!data.caseNumber?.trim() || !data.caseTypeId || !data.title?.trim()) throw new BadRequestError('caseNumber, caseTypeId, and title are required.')
+  const caseType = await findCaseTypeById(data.caseTypeId, db)
+  if (!caseType || !caseType.isActive) throw new NotFoundError('Active case type not found.')
+  return createCase({ ...data, caseNumber: data.caseNumber.trim(), title: data.title.trim(), status: data.status?.trim() || CASE_STATUS.DRAFT }, db)
 }
 
 const getById = async (id, options = {}) => {
@@ -53,50 +49,19 @@ const getById = async (id, options = {}) => {
 
 const list = async (query = {}) => {
   const pagination = normalizePagination(query)
-  const where = {
-    ...(query.caseTypeId ? { caseTypeId: query.caseTypeId } : {}),
-    ...(query.status ? { status: query.status } : {}),
-  }
-  const [cases, total] = await Promise.all([
-    listCases({ skip: pagination.skip, take: pagination.take, where }),
-    countCases(where),
-  ])
-  return {
-    data: cases,
-    pagination: createPaginationMeta({
-      page: pagination.page,
-      limit: pagination.limit,
-      total,
-    }),
-  }
+  const where = { ...(query.caseTypeId ? { caseTypeId: query.caseTypeId } : {}), ...(query.status ? { status: query.status } : {}) }
+  const [cases, total] = await Promise.all([listCases({ skip: pagination.skip, take: pagination.take, where }), countCases(where)])
+  return { data: cases, pagination: createPaginationMeta({ page: pagination.page, limit: pagination.limit, total }) }
 }
 
-const transition = async ({
-  id,
-  toStatus,
-  changedByUserId,
-  reason,
-  metadata,
-}) => {
+const transition = async ({ id, toStatus, changedByUserId, reason, metadata }) => {
   if (!toStatus?.trim()) throw new BadRequestError('toStatus is required.')
   const current = await getById(id, { includeDetails: false })
   const normalizedStatus = toStatus.trim()
-  if (current.status === normalizedStatus) {
-    throw new BadRequestError('Case is already in the requested status.')
-  }
-  const updated = await transitionCase(
-    id,
-    current.status,
-    normalizedStatus,
-    changedByUserId,
-    reason,
-    metadata
-  )
-  if (!updated)
-    throw new ConflictError(
-      'Case status changed before this transition could be completed.'
-    )
+  if (current.status === normalizedStatus) throw new BadRequestError('Case is already in the requested status.')
+  const updated = await transitionCase(id, current.status, normalizedStatus, changedByUserId, reason, metadata)
+  if (!updated) throw new ConflictError('Case status changed before this transition could be completed.')
   return updated
 }
 
-export { createType, createRecord, getById, list, transition }
+export { createType, getOrCreateType, createRecord, getById, list, transition }

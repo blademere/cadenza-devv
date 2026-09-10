@@ -45,14 +45,14 @@ describe('OBO professional service', () => {
   })
 
   it('rejects invalid or duplicate verification applications', async () => {
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: ' ', prcId: 'PRC-123', ptrNumber: 'PTR-123' })).rejects.toThrow('registrationNumber is required.')
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: ' ', ptrNumber: 'PTR-123' })).rejects.toThrow('prcId is required.')
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: ' ' })).rejects.toThrow('ptrNumber is required.')
+    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: ' ', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('registrationNumber is required.')
+    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: ' ', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('prcId is required.')
+    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: ' ', professionalRole: 'ARCHITECT' })).rejects.toThrow('ptrNumber is required.')
     mocks.repository.findPersonByUserId.mockResolvedValue(null)
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' })).rejects.toThrow('does not have a person profile')
+    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('does not have a person profile')
     mocks.repository.findPersonByUserId.mockResolvedValue({ id: 'person-1' })
     mocks.repository.findByPersonId.mockResolvedValue({ id: 'professional-1' })
-    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' })).rejects.toThrow('already exists')
+    await expect(service.applyForVerification({ userId: 'user-1', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })).rejects.toThrow('already exists')
   })
 
   it('returns the authenticated professional verification record', async () => {
@@ -61,13 +61,9 @@ describe('OBO professional service', () => {
     expect(mocks.repository.findByUserId).toHaveBeenCalledWith('user-1')
   })
 
-  it('rejects a professional from deciding their own verification', async () => {
+  it('rejects a professional from deciding their own application', async () => {
     mocks.repository.findById.mockResolvedValue({ id: 'professional-1', userId: 1, status: 'PENDING_VERIFICATION' })
-    await expect(service.decideVerification({
-      id: 'professional-1',
-      actorId: 1,
-      decision: 'ACCEPTED',
-    })).rejects.toThrow('cannot approve or decline their own verification')
+    await expect(service.decideVerification({ id: 'professional-1', actorId: 1, decision: 'ACCEPTED' })).rejects.toThrow('cannot approve or decline their own application')
     expect(mocks.repository.update).not.toHaveBeenCalled()
     expect(mocks.repository.addDecision).not.toHaveBeenCalled()
     expect(mocks.publish).not.toHaveBeenCalled()
@@ -75,7 +71,7 @@ describe('OBO professional service', () => {
 
   it('records an accepted verification decision transactionally', async () => {
     const tx = { name: 'transaction' }
-    mocks.repository.findById.mockResolvedValue({ id: 'professional-1', userId: 2, personId: 'person-1', status: 'PENDING_VERIFICATION', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123' })
+    mocks.repository.findById.mockResolvedValue({ id: 'professional-1', userId: 2, personId: 'person-1', status: 'PENDING_VERIFICATION', registrationNumber: 'REG-123', prcId: 'PRC-123', ptrNumber: 'PTR-123', professionalRole: 'ARCHITECT' })
     mocks.repository.update.mockResolvedValue({ id: 'professional-1', status: 'VERIFIED', verifiedAt: new Date('2026-08-17T07:00:00.000Z') })
     mocks.repository.addDecision.mockResolvedValue({ id: 'decision-1' })
     mocks.repository.findPersonById.mockResolvedValue({ userId: 2, email: 'professional@example.com' })

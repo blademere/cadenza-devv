@@ -5,7 +5,6 @@ model OboPermitType {
   description  String?
   formId       String?
   isActive     Boolean                @default(true)
-  form         Form?                  @relation(fields: [formId], references: [id], onDelete: SetNull)
   applications OboPermitApplication[]
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt

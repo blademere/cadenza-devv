@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { receivingApi } from '../api/receiving.api'
 import { planPermitApplicationQueryKey, planPermitApplicationsQueryKey } from '../../plan-permits/queries/plan-permits.queries'
-import { receivingApplicationQueryKey } from '../queries/receiving.queries'
+import { receivingApplicationQueryKey, receivingDocumentChecklistQueryKey } from '../queries/receiving.queries'
 
 function useReceivingMutation(mutationFn, options = {}) {
   const queryClient = useQueryClient()
@@ -14,6 +14,7 @@ function useReceivingMutation(mutationFn, options = {}) {
       if (variables?.applicationId) {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: receivingApplicationQueryKey(variables.applicationId) }),
+          queryClient.invalidateQueries({ queryKey: receivingDocumentChecklistQueryKey(variables.applicationId) }),
           queryClient.invalidateQueries({ queryKey: planPermitApplicationQueryKey(variables.applicationId) }),
           queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey }),
         ])
@@ -29,4 +30,11 @@ export function useReceiveApplication(options = {}) {
 
 export function useDecideReceivingApplication(options = {}) {
   return useReceivingMutation(({ applicationId, decision, reason }) => receivingApi.decideApplication(applicationId, decision, reason), options)
+}
+
+export function useUpdateDocumentReceipt(options = {}) {
+  return useReceivingMutation(
+    ({ applicationId, requirementId, status, notes }) => receivingApi.updateDocumentReceipt(applicationId, requirementId, status, notes),
+    options,
+  )
 }
