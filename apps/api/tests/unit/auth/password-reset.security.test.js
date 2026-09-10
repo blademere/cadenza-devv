@@ -40,7 +40,7 @@ describe('password reset security', () => {
     const encryptedToken = getPublishedResetToken()
     const publishCall = eventBus.publish.mock.calls[0][0]
     expect(encryptedToken).toBeTruthy()
-    expect(createCall.tokenHash).toBe('hash:' + expect.any(String))
+    expect(createCall.tokenHash).toEqual(expect.stringMatching(/^hash:/))
     expect(createCall.token).toBeUndefined()
     expect(publishCall.context.passwordReset.url).toContain('token=')
     expect(publishCall.context.passwordReset.url).not.toContain(createCall.tokenHash)
