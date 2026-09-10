@@ -3,7 +3,7 @@ import * as appointmentService from '../../../features/appointments/appointment.
 import { mapAppointment } from '../../../features/appointments/appointment.mapper.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import * as planPermitService from '../plan-permits/plan-permit.service.js'
-import * as repository from '../plan-permits/plan-permit.repository.js'
+import * as repository from './submission-appointment.repository.js'
 import { getNotificationContext } from '../notification-context.js'
 
 const getSubmissionAppointment = async ({ applicationId, userId }) => {
