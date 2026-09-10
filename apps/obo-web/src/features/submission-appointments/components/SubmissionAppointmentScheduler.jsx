@@ -72,7 +72,10 @@ export default function SubmissionAppointmentScheduler({ applicationId, reschedu
     [groupedSlots],
   )
 
-  const selectedDateSlots = selectedDate ? (groupedSlots[selectedDate] ?? []) : []
+  const selectedDateSlots = useMemo(
+    () => (selectedDate ? groupedSlots[selectedDate] ?? [] : []),
+    [groupedSlots, selectedDate],
+  )
   const selectedSlot = selectedDateSlots.find((slot) => slot.id === selectedSlotId) ?? null
 
   useEffect(() => {
