@@ -6,6 +6,7 @@ import {
 import {
   createDefinition,
   findDefinitionById,
+  findDefinitionsByIds,
   createCaseRequirement,
   findCaseRequirement,
   findCase,
@@ -13,7 +14,7 @@ import {
   updateCaseRequirement,
 } from './requirements.repository.js'
 
-const createRequirementDefinition = async (data) => {
+const createRequirementDefinition = async (data, db) => {
   if (!data.key?.trim() || !data.name?.trim()) {
     throw new BadRequestError('key and name are required.')
   }
@@ -21,30 +22,60 @@ const createRequirementDefinition = async (data) => {
     ...data,
     key: data.key.trim(),
     name: data.name.trim(),
-  })
+  }, db)
 }
 
-const attachToCase = async ({ caseId, requirementId, dueAt, metadata }) => {
+const getDefinitionById = (id, db) => findDefinitionById(id, db)
+
+const attachToCase = async ({ caseId, requirementId, dueAt, metadata, db }) => {
   const [caseRecord, requirement] = await Promise.all([
-    findCase(caseId),
-    findDefinitionById(requirementId),
+    findCase(caseId, db),
+    findDefinitionById(requirementId, db),
   ])
   if (!caseRecord) throw new NotFoundError('Case not found.')
   if (!requirement || !requirement.isActive)
     throw new NotFoundError('Active requirement definition not found.')
-  const existing = await findCaseRequirement(caseId, requirementId)
+  const existing = await findCaseRequirement(caseId, requirementId, db)
   if (existing)
     throw new ConflictError('Requirement is already attached to this case.')
-  return createCaseRequirement({ caseId, requirementId, dueAt, metadata })
+  return createCaseRequirement({ caseId, requirementId, dueAt, metadata }, db)
 }
 
-const listForCase = async (caseId) => {
-  const caseRecord = await findCase(caseId)
+const attachDefinitionsToCase = async ({ caseId, requirementIds = [], metadata, db }) => {
+  const ids = [...new Set(requirementIds.filter(Boolean))]
+  if (!ids.length) return []
+
+  const caseRecord = await findCase(caseId, db)
   if (!caseRecord) throw new NotFoundError('Case not found.')
-  return listCaseRequirements(caseId)
+
+  const definitions = await findDefinitionsByIds(ids, db)
+  const activeById = new Map(definitions.filter((definition) => definition.isActive).map((definition) => [definition.id, definition]))
+  const missing = ids.filter((id) => !activeById.has(id))
+  if (missing.length) throw new NotFoundError('One or more active requirement definitions were not found.')
+
+  const attached = []
+  for (const requirementId of ids) {
+    const existing = await findCaseRequirement(caseId, requirementId, db)
+    if (existing) {
+      attached.push(existing)
+      continue
+    }
+    attached.push(await createCaseRequirement({
+      caseId,
+      requirementId,
+      metadata,
+    }, db))
+  }
+  return attached
 }
 
-const updateStatus = async ({ id, status, notes, submittedAt, verifiedAt }) => {
+const listForCase = async (caseId, db) => {
+  const caseRecord = await findCase(caseId, db)
+  if (!caseRecord) throw new NotFoundError('Case not found.')
+  return listCaseRequirements(caseId, db)
+}
+
+const updateStatus = async ({ id, status, notes, submittedAt, verifiedAt, db }) => {
   if (!status?.trim()) throw new BadRequestError('status is required.')
   try {
     return await updateCaseRequirement(id, {
@@ -52,7 +83,7 @@ const updateStatus = async ({ id, status, notes, submittedAt, verifiedAt }) => {
       ...(notes !== undefined ? { notes } : {}),
       ...(submittedAt !== undefined ? { submittedAt } : {}),
       ...(verifiedAt !== undefined ? { verifiedAt } : {}),
-    })
+    }, db)
   } catch (error) {
     if (error?.code === 'P2025')
       throw new NotFoundError('Case requirement not found.')
@@ -60,4 +91,11 @@ const updateStatus = async ({ id, status, notes, submittedAt, verifiedAt }) => {
   }
 }
 
-export { createRequirementDefinition, attachToCase, listForCase, updateStatus }
+export {
+  createRequirementDefinition,
+  getDefinitionById,
+  attachToCase,
+  attachDefinitionsToCase,
+  listForCase,
+  updateStatus,
+}
