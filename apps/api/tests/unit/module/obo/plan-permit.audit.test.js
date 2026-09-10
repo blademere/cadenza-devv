@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js')
 vi.mock('../../../../src/modules/obo/professionals/professional.repository.js')
 vi.mock(
-  '../../../../src/modules/obo/plan-permits/professional-reference.service.js'
+  '../../../../src/modules/obo/professionals/professional-reference.service.js'
 )
 vi.mock('../../../../src/platform/forms/form.service.js')
 vi.mock('../../../../src/platform/workflow/workflow.service.js')
