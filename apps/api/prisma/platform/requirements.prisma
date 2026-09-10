@@ -1,13 +1,14 @@
 model RequirementDefinition {
-  id               String            @id @default(uuid())
-  key              String            @unique
-  name             String
-  description      String?
-  isActive         Boolean           @default(true)
-  metadata         Json?
-  caseRequirements CaseRequirement[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                        String                        @id @default(uuid())
+  key                       String                        @unique
+  name                      String
+  description               String?
+  isActive                  Boolean                       @default(true)
+  metadata                  Json?
+  caseRequirements          CaseRequirement[]
+  oboPermitTypeRequirements OboPermitTypeRequirement[]
+  createdAt                 DateTime                      @default(now())
+  updatedAt                 DateTime                      @updatedAt
 
   @@index([isActive])
 }
