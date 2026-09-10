@@ -12,6 +12,8 @@ const repository = vi.hoisted(() => ({
 }))
 const permitTypeService = vi.hoisted(() => ({ getPermitTypeById: vi.fn() }))
 const caseService = vi.hoisted(() => ({ getOrCreateType: vi.fn(), createRecord: vi.fn() }))
+const participantService = vi.hoisted(() => ({ add: vi.fn(), list: vi.fn(), remove: vi.fn() }))
+const professionalService = vi.hoisted(() => ({ getForReference: vi.fn() }))
 const formService = vi.hoisted(() => ({ getFormById: vi.fn(), getFormVersionById: vi.fn(), validateFormValues: vi.fn() }))
 const workflowService = vi.hoisted(() => ({ getWorkflowInstance: vi.fn(), startWorkflow: vi.fn(), transitionWorkflow: vi.fn() }))
 const auditService = vi.hoisted(() => ({ recordAudit: vi.fn() }))
@@ -20,6 +22,8 @@ const appointmentService = vi.hoisted(() => ({ getAppointmentForReference: vi.fn
 vi.mock('../../../../src/modules/obo/plan-permits/plan-permit.repository.js', () => repository)
 vi.mock('../../../../src/modules/obo/permit-types/permit-type.service.js', () => permitTypeService)
 vi.mock('../../../../src/features/cases/cases.service.js', () => caseService)
+vi.mock('../../../../src/features/participants/participants.service.js', () => ({ default: participantService }))
+vi.mock('../../../../src/modules/obo/professionals/professional.service.js', () => professionalService)
 vi.mock('../../../../src/platform/forms/form.service.js', () => formService)
 vi.mock('../../../../src/platform/workflow/workflow.service.js', () => workflowService)
 vi.mock('../../../../src/platform/audit/audit.service.js', () => auditService)
@@ -35,16 +39,19 @@ beforeEach(() => {
   vi.clearAllMocks()
   repository.withTransaction.mockImplementation(async (callback) => callback({ tx: true }))
   repository.findPersonByUserId.mockResolvedValue(person)
-  repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType, formValues: {}, submissionAppointment: { appointmentId: 'appointment-1' } })
+  repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType, formValues: {}, submissionAppointment: { appointmentId: 'appointment-1' } })
   repository.findPersonNotificationContext.mockResolvedValue(null)
-  repository.findById.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', permitType })
+  repository.findById.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', permitType })
   permitTypeService.getPermitTypeById.mockResolvedValue(permitType)
   caseService.getOrCreateType.mockResolvedValue({ id: 'case-type-1', key: 'obo-permit-application' })
   caseService.createRecord.mockResolvedValue({ id: 'case-1', caseNumber: 'CASE-20260910-ABC12345' })
-  repository.create.mockResolvedValue({ id: 'application-1', referenceNumber: 'OBO-20260910-ABC12345', status: 'DRAFT', permitType, workflowInstanceId: 'workflow-1' })
-  repository.update.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', status: 'DRAFT', permitType })
+  participantService.add.mockResolvedValue({ id: 'participant-1' })
+  professionalService.getForReference.mockResolvedValue({ id: 'professional-1', personId: 'professional-person-1', professionalRole: 'ARCHITECT' })
+  repository.create.mockResolvedValue({ id: 'application-1', referenceNumber: 'OBO-20260910-ABC12345', status: 'DRAFT', permitType, workflowInstanceId: 'workflow-1', caseId: 'case-1' })
+  repository.update.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', status: 'DRAFT', permitType, caseId: 'case-1' })
   workflowService.getWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
   workflowService.startWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
+  workflowService.transitionWorkflow.mockResolvedValue({ id: 'workflow-1' })
   formService.getFormById.mockResolvedValue({ id: 'form-1', key: 'building-permit', isActive: true })
   formService.getFormVersionById.mockResolvedValue({ id: 'form-version-1', formId: 'form-1', version: 1, status: 'PUBLISHED', fields: [] })
   formService.validateFormValues.mockResolvedValue({ valid: true, formVersionId: 'form-version-1' })
@@ -52,13 +59,14 @@ beforeEach(() => {
 })
 
 describe('OBO plan permit service', () => {
-  it('creates a draft through Permit Type and Case service boundaries', async () => {
+  it('creates a draft through Permit Type, Case, and Participant service boundaries', async () => {
     await expect(service.createApplication({ userId: 'user-1', permitTypeId: 'permit-1', formValues: { projectAddress: 'Manila' } })).resolves.toMatchObject({ id: 'application-1', status: 'DRAFT', workflowInstanceId: 'workflow-1' })
     expect(permitTypeService.getPermitTypeById).toHaveBeenCalledWith('permit-1')
     expect(caseService.getOrCreateType).toHaveBeenCalledWith(expect.objectContaining({ key: 'obo-permit-application', db: expect.anything() }))
     expect(caseService.createRecord).toHaveBeenCalledWith(expect.objectContaining({ caseTypeId: 'case-type-1', title: 'Building Permit Application', status: 'OPEN', createdByUserId: 'user-1' }), { db: expect.anything() })
     expect(caseService.createRecord.mock.calls[0][0]).not.toHaveProperty('caseNumber')
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', permitTypeId: 'permit-1' }), expect.anything())
+    expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', personId: 'person-1', roleKey: 'APPLICANT', isPrimary: true, db: expect.anything() }))
   })
 
   it('rejects a missing Permit Type before persistence', async () => {
@@ -72,6 +80,40 @@ describe('OBO plan permit service', () => {
     await service.getMine({ id: 'application-1', userId: 'user-1' })
     expect(workflowService.getWorkflowInstance).toHaveBeenCalledWith('workflow-1')
     expect(appointmentService.getAppointmentForReference).toHaveBeenCalledWith({ id: 'appointment-1', db: undefined })
+  })
+
+  it('associates verified professionals from form references as case participants', async () => {
+    const professionalReferenceService = await import('../../../../src/modules/obo/professionals/professional-reference.service.js')
+    professionalReferenceService.buildProfessionalSnapshots.mockResolvedValue({
+      architect: { professionalId: 'professional-1', name: 'John Doe', professionalRole: 'ARCHITECT' },
+      engineers: [
+        { professionalId: 'professional-2', name: 'Jane Doe', professionalRole: 'CIVIL_ENGINEER' },
+        { professionalId: 'professional-1', name: 'John Doe', professionalRole: 'ARCHITECT' },
+      ],
+    })
+    professionalService.getForReference
+      .mockResolvedValueOnce({ id: 'professional-1', personId: 'professional-person-1', professionalRole: 'ARCHITECT' })
+      .mockResolvedValueOnce({ id: 'professional-2', personId: 'professional-person-2', professionalRole: 'CIVIL_ENGINEER' })
+      .mockResolvedValueOnce({ id: 'professional-1', personId: 'professional-person-1', professionalRole: 'ARCHITECT' })
+
+    repository.findOwnedByClient.mockResolvedValue({
+      id: 'application-1',
+      caseId: 'case-1',
+      workflowInstanceId: 'workflow-1',
+      clientPersonId: 'person-1',
+      permitType: { ...permitType, formId: 'form-1' },
+      formVersionId: 'form-version-1',
+      formVersion: { id: 'form-version-1', formId: 'form-1', version: 1, fields: [] },
+      formValues: { architect: 'professional-1', engineers: ['professional-2', 'professional-1'] },
+      submissionAppointment: null,
+    })
+    repository.update.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', status: 'DRAFT', permitType })
+
+    await service.submit({ id: 'application-1', userId: 'user-1' })
+
+    expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', personId: 'professional-person-1', roleKey: 'PROFESSIONAL', db: expect.anything() }))
+    expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', personId: 'professional-person-2', roleKey: 'PROFESSIONAL', db: expect.anything() }))
+    expect(participantService.add.mock.calls.filter(([args]) => args.roleKey === 'PROFESSIONAL')).toHaveLength(2)
   })
 
   it('does not expose Receiving decision persistence from the Plan Permit repository', () => {
