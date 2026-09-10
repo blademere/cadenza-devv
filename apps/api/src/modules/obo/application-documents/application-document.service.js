@@ -7,7 +7,7 @@ import * as repository from './application-document.repository.js'
 
 const STATUS = Object.freeze({ PENDING: 'PENDING', RECEIVED: 'RECEIVED', REJECTED: 'REJECTED' })
 
-const getApplication = (id) => planPermitService.getForReceiving(id)
+const getApplication = (id) => planPermitService.getForApplicationDocuments(id)
 
 const getApplicableRequirements = async (application, db) => {
   if (!application.formVersionId) return []
@@ -106,10 +106,10 @@ const updateReceiptStatus = async ({ applicationId, requirementId, actorId, stat
   }
 }
 
-const validateRequiredDocuments = async ({ applicationId, db }) => {
-  const application = await getApplication(applicationId)
-  const requirements = await ensureChecklist(application, db)
-  const rows = await repository.listByApplicationId(application.id, db)
+const validateRequiredDocuments = async ({ applicationId, application = null, db }) => {
+  const targetApplication = application ?? await getApplication(applicationId)
+  const requirements = await ensureChecklist(targetApplication, db)
+  const rows = await repository.listByApplicationId(targetApplication.id, db)
   const rowByRequirement = new Map(rows.map((row) => [row.requirementId, row]))
   const missing = requirements
     .filter((requirement) => requirement.required)
