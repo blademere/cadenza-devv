@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  planPermit: { getForReceiving: vi.fn() },
+  planPermit: { getForApplicationDocuments: vi.fn() },
   requirements: { listForFormVersion: vi.fn() },
   forms: { evaluateCondition: vi.fn() },
   repository: {
@@ -36,7 +36,7 @@ describe('OBO application document checklist service', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.planPermit.getForReceiving.mockResolvedValue(application)
+    mocks.planPermit.getForApplicationDocuments.mockResolvedValue(application)
     mocks.requirements.listForFormVersion.mockResolvedValue(requirements)
     mocks.forms.evaluateCondition.mockReturnValue(true)
     mocks.repository.createMany.mockResolvedValue({ count: requirements.length })
@@ -49,6 +49,7 @@ describe('OBO application document checklist service', () => {
   it('builds the checklist from the application form version requirements', async () => {
     const result = await getChecklist({ applicationId: application.id })
 
+    expect(mocks.planPermit.getForApplicationDocuments).toHaveBeenCalledWith(application.id)
     expect(mocks.requirements.listForFormVersion).toHaveBeenCalledWith(application.formVersionId, undefined)
     expect(mocks.repository.createMany).toHaveBeenCalled()
     expect(result).toHaveLength(2)
