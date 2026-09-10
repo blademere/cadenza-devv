@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import { ConflictError, NotFoundError, ValidationError } from '../../../common/errors/appError.js'
 import { recordAudit } from '../../../platform/audit/audit.service.js'
@@ -57,7 +58,7 @@ const createApplication = async ({ userId, permitTypeId, formVersionId, formValu
   const replacement = await resolveReplacement({ replacesApplicationId, personId: person.id })
   const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
   const application = await repository.withTransaction(async (tx) => {
-    const referenceNumber = `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${Math.random().toString(16).slice(2, 10).toUpperCase()}`
+    const referenceNumber = `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
     const caseRecord = await createCaseRecord({ userId, permitTypeName: permitType.name, db: tx })
     const created = await repository.create({ clientPersonId: person.id, permitTypeId, formVersionId: resolvedForm.formVersionId, formValues, replacesApplicationId: replacement?.id || null, caseId: caseRecord.id, referenceNumber }, tx)
     const notificationContext = await getNotificationContext({ personId: person.id, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
