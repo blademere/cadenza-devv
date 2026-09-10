@@ -10,6 +10,11 @@ vi.mock('../../../../src/modules/obo/receiving/receiving.repository.js', () => (
   findPersonNotificationContext: vi.fn()
 }))
 
+vi.mock('../../../../src/modules/obo/application-documents/application-document.service.js', () => ({
+  ensureChecklist: vi.fn(),
+  validateRequiredDocuments: vi.fn()
+}))
+
 vi.mock('../../../../src/platform/workflow/workflow.service.js', () => ({
   transitionWorkflow: vi.fn()
 }))
@@ -19,6 +24,7 @@ vi.mock('../../../../src/modules/obo/notification-context.js', () => ({
 }))
 
 import * as repository from '../../../../src/modules/obo/receiving/receiving.repository.js'
+import * as applicationDocumentService from '../../../../src/modules/obo/application-documents/application-document.service.js'
 import * as workflowService from '../../../../src/platform/workflow/workflow.service.js'
 import { receiveHardcopy, decide } from '../../../../src/modules/obo/receiving/receiving.service.js'
 
@@ -47,6 +53,8 @@ beforeEach(() => {
   })
   repository.withTransaction.mockImplementation((callback) => callback({}))
   repository.updateApplication.mockResolvedValue({ ...application, submittedAt: new Date() })
+  applicationDocumentService.ensureChecklist.mockResolvedValue([])
+  applicationDocumentService.validateRequiredDocuments.mockResolvedValue(true)
 })
 
 describe('receiving service', () => {
@@ -58,6 +66,7 @@ describe('receiving service', () => {
 
     await receiveHardcopy({ id: 'app-1', actorId: 'user-1' })
 
+    expect(applicationDocumentService.ensureChecklist).toHaveBeenCalledWith(application, expect.anything())
     expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({
       instanceId: 'workflow-1',
       transitionKey: 'RECEIVE_HARDCOPY',
@@ -105,6 +114,7 @@ describe('receiving service', () => {
 
     const result = await decide({ id: 'app-1', actorId: 'user-1', decision: 'ACCEPTED' })
 
+    expect(applicationDocumentService.validateRequiredDocuments).toHaveBeenCalledWith({ applicationId: 'app-1' })
     expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({
       transitionKey: 'ACCEPT_FOR_INSPECTION',
       metadata: expect.objectContaining({ decision: 'ACCEPTED' })
