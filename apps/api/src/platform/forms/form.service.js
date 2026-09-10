@@ -11,8 +11,14 @@ const includeDefinition = {
   versions: {
     include: {
       sections: { orderBy: { sortOrder: 'asc' } },
-      fields: { include: { options: { orderBy: { sortOrder: 'asc' } }, orderBy: { sortOrder: 'asc' } },
-      documentRequirements: { include: { documentType: true }, orderBy: { sortOrder: 'asc' } },
+      fields: {
+        include: { options: { orderBy: { sortOrder: 'asc' } } },
+        orderBy: { sortOrder: 'asc' },
+      },
+      documentRequirements: {
+        include: { documentType: true },
+        orderBy: { sortOrder: 'asc' },
+      },
     },
     orderBy: { version: 'desc' },
   },
@@ -20,21 +26,64 @@ const includeDefinition = {
 
 const formVersionDefinition = {
   sections: { orderBy: { sortOrder: 'asc' } },
-  fields: { include: { options: { orderBy: { sortOrder: 'asc' } }, orderBy: { sortOrder: 'asc' } },
-  documentRequirements: { include: { documentType: true }, orderBy: { sortOrder: 'asc' } },
+  fields: {
+    include: { options: { orderBy: { sortOrder: 'asc' } } },
+    orderBy: { sortOrder: 'asc' },
+  },
+  documentRequirements: {
+    include: { documentType: true },
+    orderBy: { sortOrder: 'asc' },
+  },
 }
 
 const createDefinitionRecords = async (tx, versionId, sections, fields) => {
   const sectionByKey = new Map()
   for (const [index, section] of sections.entries()) {
-    const created = await tx.formSection.create({ data: { formVersionId: versionId, key: section.key, title: section.title, description: section.description || null, sortOrder: section.sortOrder ?? index, visibility: section.visibility || undefined } })
+    const created = await tx.formSection.create({
+      data: {
+        formVersionId: versionId,
+        key: section.key,
+        title: section.title,
+        description: section.description || null,
+        sortOrder: section.sortOrder ?? index,
+        visibility: section.visibility || undefined,
+      },
+    })
     sectionByKey.set(section.key, created)
   }
+
   for (const [index, field] of fields.entries()) {
     const section = field.sectionKey ? sectionByKey.get(field.sectionKey) : null
     if (field.sectionKey && !section) throw new BadRequestError(`Field '${field.key}' references an unknown section.`)
-    const created = await tx.formField.create({ data: { formVersionId: versionId, sectionId: section?.id ?? null, key: field.key, label: field.label, description: field.description || null, type: field.type, sortOrder: field.sortOrder ?? index, required: Boolean(field.required), defaultValue: field.defaultValue ?? undefined, validation: field.validation || undefined, visibility: field.visibility || undefined, config: field.config || undefined } })
-    if (field.options?.length) await tx.formOption.createMany({ data: field.options.map((option, optionIndex) => ({ fieldId: created.id, value: String(option.value), label: option.label, sortOrder: option.sortOrder ?? optionIndex, metadata: option.metadata || undefined })) })
+
+    const created = await tx.formField.create({
+      data: {
+        formVersionId: versionId,
+        sectionId: section?.id ?? null,
+        key: field.key,
+        label: field.label,
+        description: field.description || null,
+        type: field.type,
+        sortOrder: field.sortOrder ?? index,
+        required: Boolean(field.required),
+        defaultValue: field.defaultValue ?? undefined,
+        validation: field.validation || undefined,
+        visibility: field.visibility || undefined,
+        config: field.config || undefined,
+      },
+    })
+
+    if (field.options?.length) {
+      await tx.formOption.createMany({
+        data: field.options.map((option, optionIndex) => ({
+          fieldId: created.id,
+          value: String(option.value),
+          label: option.label,
+          sortOrder: option.sortOrder ?? optionIndex,
+          metadata: option.metadata || undefined,
+        })),
+      })
+    }
   }
 }
 
@@ -42,12 +91,14 @@ const createForm = async ({ key, name, description = null, entityType = null, se
   if (!key || !name) throw new BadRequestError('Form key and name are required.')
   validateDefinition({ sections, fields })
   if (await db.form.findUnique({ where: { key } })) throw new ConflictError(`Form '${key}' already exists.`)
+
   const create = async (tx) => {
     const created = await tx.form.create({ data: { key, name, description, entityType } })
     const version = await tx.formVersion.create({ data: { formId: created.id, version: 1, status: FORM_STATUS.DRAFT } })
     await createDefinitionRecords(tx, version.id, sections, fields)
     return tx.form.findUnique({ where: { id: created.id }, include: includeDefinition })
   }
+
   const form = db === prisma ? await db.$transaction(create) : await create(db)
   if (db === prisma) await recordAudit({ actorId, action: 'FORM_CREATED', entityType: 'Form', entityId: form.id, after: form })
   return form
