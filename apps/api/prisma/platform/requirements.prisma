@@ -14,19 +14,20 @@ model RequirementDefinition {
 }
 
 model CaseRequirement {
-  id            String                @id @default(uuid())
-  caseId        String
-  requirementId String
-  status        String                @default("PENDING")
-  dueAt         DateTime?
-  submittedAt   DateTime?
-  verifiedAt    DateTime?
-  notes         String?
-  metadata      Json?
-  caseRecord    CaseRecord            @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  requirement   RequirementDefinition @relation(fields: [requirementId], references: [id], onDelete: Restrict)
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  id                   String                         @id @default(uuid())
+  caseId               String
+  requirementId        String
+  status               String                         @default("PENDING")
+  dueAt                DateTime?
+  submittedAt          DateTime?
+  verifiedAt           DateTime?
+  notes                String?
+  metadata             Json?
+  caseRecord           CaseRecord                     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  requirement          RequirementDefinition          @relation(fields: [requirementId], references: [id], onDelete: Restrict)
+  applicationDocuments OboPermitApplicationDocument[]
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @updatedAt
 
   @@unique([caseId, requirementId])
   @@index([caseId, status])
