@@ -16,6 +16,7 @@ import {
 import {
   createPermitTypeValidator,
   getPermitTypeFormValidator,
+  permitTypeIdValidator,
   updatePermitTypeValidator,
 } from './permit-type.validation.js'
 
@@ -38,6 +39,13 @@ router.post(
   requireIdempotency,
   validate(createPermitTypeValidator),
   asyncHandler(controller.create)
+)
+router.get(
+  '/:permitTypeId',
+  authenticate,
+  authorize('obo_permit_types', 'read'),
+  validate(permitTypeIdValidator),
+  asyncHandler(controller.get)
 )
 router.patch(
   '/:permitTypeId',
