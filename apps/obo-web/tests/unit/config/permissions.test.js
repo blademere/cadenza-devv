@@ -10,7 +10,6 @@ describe('OBO permission configuration', () => {
       submit: 'obo_plan_permits:submit',
       scheduleSubmission: 'obo_plan_permits:schedule_submission',
       receive: 'obo_plan_permits:receive',
-      inspect: 'obo_plan_permits:inspect',
     })
 
     expect(permissions.permitTypes).toEqual({
@@ -54,5 +53,6 @@ describe('OBO permission configuration', () => {
     expect(permissionList).toContain(permissions.users.manage)
     expect(permissionList).toContain(permissions.authorization.manage)
     expect(permissionList).toContain(permissions.appointments.manage)
+    expect(permissionList).not.toContain('obo_plan_permits:inspect')
   })
 })
