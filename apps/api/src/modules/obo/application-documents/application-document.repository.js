@@ -5,26 +5,29 @@ const prisma = getPrismaClient()
 const listByApplicationId = (applicationId, db = prisma) =>
   db.oboPermitApplicationDocument.findMany({
     where: { applicationId },
+    include: { caseRequirement: { include: { requirement: true } }, document: true },
     orderBy: { createdAt: 'asc' },
   })
 
-const findByApplicationAndRequirement = (applicationId, requirementId, db = prisma) =>
+const findByApplicationAndCaseRequirement = (applicationId, caseRequirementId, db = prisma) =>
   db.oboPermitApplicationDocument.findUnique({
-    where: { applicationId_requirementId: { applicationId, requirementId } },
+    where: { applicationId_caseRequirementId: { applicationId, caseRequirementId } },
+    include: { caseRequirement: { include: { requirement: true } }, document: true },
   })
 
 const createMany = (data, db = prisma) =>
   db.oboPermitApplicationDocument.createMany({ data, skipDuplicates: true })
 
-const updateStatus = (id, data, db = prisma) =>
+const update = (id, data, db = prisma) =>
   db.oboPermitApplicationDocument.update({
     where: { id },
     data,
+    include: { caseRequirement: { include: { requirement: true } }, document: true },
   })
 
 export {
   listByApplicationId,
-  findByApplicationAndRequirement,
+  findByApplicationAndCaseRequirement,
   createMany,
-  updateStatus,
+  update,
 }
