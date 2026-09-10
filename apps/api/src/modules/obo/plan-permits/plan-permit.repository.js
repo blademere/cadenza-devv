@@ -8,7 +8,6 @@ const reference = () => `OBO-${new Date().toISOString().slice(0, 10).replaceAll(
 
 const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where: { userId } })
 const findPersonNotificationContext = (personId, db = prisma) => db.person.findUnique({ where: { id: personId }, select: { userId: true, email: true, user: { select: { email: true } } } })
-const findPermitType = (id, db = prisma) => db.oboPermitType.findFirst({ where: { id, isActive: true } })
 const findFormById = (id, db = prisma) => formRepository.findById(id, db)
 const findFormVersionById = (id, db = prisma) => formRepository.findVersionById(id, db)
 const findWorkflowInstance = (id, db = prisma) => workflowRepository.findInstance(id, db)
@@ -39,20 +38,18 @@ const listByClient = async (personId, db = prisma) => {
   const applications = await db.oboPermitApplication.findMany({ where: { clientPersonId: personId }, include: { permitType: true, submissionAppointment: true, replacedApplication: true }, orderBy: { createdAt: 'desc' } })
   return Promise.all(applications.map((application) => attachFormVersion(application, db)))
 }
-const create = async ({ clientPersonId, permitTypeId, formVersionId, formValues, userId, replacesApplicationId }, db = prisma) => {
+const create = async ({ clientPersonId, permitTypeId, formVersionId, formValues, userId, replacesApplicationId, caseId }, db = prisma) => {
+  if (!caseId) throw new Error('caseId is required when creating a permit application.')
   const permitType = await db.oboPermitType.findFirst({ where: { id: permitTypeId, isActive: true } })
   if (!permitType) return null
-  const caseType = await db.caseType.upsert({ where: { key: 'obo-permit-application' }, update: { name: 'OBO Permit Application', isActive: true }, create: { key: 'obo-permit-application', name: 'OBO Permit Application', description: 'OBO permit application lifecycle' } })
   const referenceNumber = reference()
-  const caseRecord = await db.caseRecord.create({ data: { caseNumber: referenceNumber, caseTypeId: caseType.id, title: `${permitType.name} Application`, status: 'OPEN', createdByUserId: userId } })
-  const application = await db.oboPermitApplication.create({ data: { referenceNumber, caseId: caseRecord.id, clientPersonId, permitTypeId, formVersionId, replacesApplicationId: replacesApplicationId || null, formValues }, include: { permitType: true, replacedApplication: true } })
+  const application = await db.oboPermitApplication.create({ data: { referenceNumber, caseId, clientPersonId, permitTypeId, formVersionId, replacesApplicationId: replacesApplicationId || null, formValues }, include: { permitType: true, replacedApplication: true } })
   return attachFormVersion(application, db)
 }
 const update = async (id, data, db = prisma) => {
   const application = await db.oboPermitApplication.update({ where: { id }, data, include: applicationInclude })
   return attachFormVersion(application, db)
 }
-const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
 const withTransaction = (callback) => prisma.$transaction(callback)
 
-export { findPersonByUserId, findPersonNotificationContext, findPermitType, findFormById, findFormVersionById, findWorkflowInstance, findById, findOwnedByClient, listByClient, create, update, addDecision, withTransaction }
+export { findPersonByUserId, findPersonNotificationContext, findFormById, findFormVersionById, findWorkflowInstance, findById, findOwnedByClient, listByClient, create, update, withTransaction }
