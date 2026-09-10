@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ActionIcon, Box, Breadcrumbs, Burger, Group, Kbd, Paper, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
+import { ActionIcon, Box, Breadcrumbs, Burger, Group, Kbd, Paper, Stack, Text, TextInput, ThemeIcon, UnstyledButton } from '@mantine/core'
 import { CaretRight, MagnifyingGlass } from '@phosphor-icons/react'
 
 const flattenNavigation = (navigation = []) => navigation.flatMap((section) =>
