@@ -1,21 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useMemo } from 'react'
-import {
-  ActionIcon,
-  Alert,
-  Badge,
-  Box,
-  Button,
-  Card,
-  Checkbox,
-  Divider,
-  Group,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-  Textarea,
-} from '@mantine/core'
+import { ActionIcon, Alert, Badge, Box, Button, Card, Checkbox, Divider, Group, Select, Stack, Text, TextInput, Textarea } from '@mantine/core'
 
 export const FIELD_TYPES = [
   ['text', 'Text'],
@@ -68,7 +53,7 @@ export const normalizeDefinition = (form) => ({
   })),
 })
 
-function FieldEditor({ field, sections, onChange, onRemove, onMoveUp, onMoveDown }) {
+function FieldEditor({ field, sections, onChange, onRemove, onMoveUp, onMoveDown, readOnly }) {
   const update = (patch) => onChange({ ...field, ...patch })
   const needsOptions = field.type === 'select' || field.type === 'multiselect'
   const isReference = field.type === 'reference'
@@ -107,55 +92,36 @@ function FieldEditor({ field, sections, onChange, onRemove, onMoveUp, onMoveDown
             </Group>
             <Text size="xs" c="dimmed">{field.key}</Text>
           </Box>
-          <Group gap={4}>
-            <ActionIcon variant="subtle" onClick={onMoveUp} aria-label="Move field up">↑</ActionIcon>
-            <ActionIcon variant="subtle" onClick={onMoveDown} aria-label="Move field down">↓</ActionIcon>
-            <ActionIcon color="red" variant="subtle" onClick={onRemove} aria-label="Remove field">×</ActionIcon>
-          </Group>
+          {!readOnly ? <Group gap={4}><ActionIcon variant="subtle" onClick={onMoveUp} aria-label="Move field up">↑</ActionIcon><ActionIcon variant="subtle" onClick={onMoveDown} aria-label="Move field down">↓</ActionIcon><ActionIcon color="red" variant="subtle" onClick={onRemove} aria-label="Remove field">×</ActionIcon></Group> : null}
         </Group>
 
-        <TextInput label="Key" value={field.key} onChange={(event) => update({ key: slugify(event.currentTarget.value) })} />
-        <TextInput label="Label" value={field.label} onChange={(event) => update({ label: event.currentTarget.value })} />
-        <Textarea label="Description" value={field.description ?? ''} onChange={(event) => update({ description: event.currentTarget.value || null })} autosize minRows={2} />
-        <Select label="Type" data={FIELD_TYPES.map(([value, label]) => ({ value, label }))} value={field.type} onChange={changeType} allowDeselect={false} />
-        <Select label="Section" data={sections.map((section) => ({ value: section.key, label: section.title }))} value={field.sectionKey} onChange={(value) => update({ sectionKey: value })} clearable />
-        <Checkbox label="Required" checked={Boolean(field.required)} onChange={(event) => update({ required: event.currentTarget.checked })} />
+        <TextInput label="Key" value={field.key} readOnly={readOnly} onChange={(event) => update({ key: slugify(event.currentTarget.value) })} />
+        <TextInput label="Label" value={field.label} readOnly={readOnly} onChange={(event) => update({ label: event.currentTarget.value })} />
+        <Textarea label="Description" value={field.description ?? ''} readOnly={readOnly} onChange={(event) => update({ description: event.currentTarget.value || null })} autosize minRows={2} />
+        <Select label="Type" data={FIELD_TYPES.map(([value, label]) => ({ value, label }))} value={field.type} onChange={changeType} allowDeselect={false} disabled={readOnly} />
+        <Select label="Section" data={sections.map((section) => ({ value: section.key, label: section.title }))} value={field.sectionKey} onChange={(value) => update({ sectionKey: value })} clearable disabled={readOnly} />
+        <Checkbox label="Required" checked={Boolean(field.required)} disabled={readOnly} onChange={(event) => update({ required: event.currentTarget.checked })} />
 
         {isReference ? (
           <Box className="obo-subtle-panel" p="sm">
             <Stack gap="sm">
               <Text fw={600} size="sm">Reference configuration</Text>
               <Text size="xs" c="dimmed">Reference fields store IDs in form values. OBO resolves professional references against the verified professional directory during validation and submission.</Text>
-              <TextInput
-                label="Professional role"
-                description="Required. Use the exact OBO professionalRole value, for example ARCHITECT or CIVIL_ENGINEER."
-                placeholder="ARCHITECT"
-                value={field.config?.professionalRole ?? ''}
-                onChange={(event) => updateReferenceConfig({ professionalRole: event.currentTarget.value.trim().toUpperCase() })}
-                error={professionalReference && !field.config?.professionalRole ? 'Professional role is required.' : undefined}
-              />
-              <Checkbox
-                label="Allow multiple professionals"
-                checked={Boolean(field.config?.multiple)}
-                onChange={(event) => updateReferenceConfig({ multiple: event.currentTarget.checked })}
-              />
-              {professionalReference ? (
-                <Alert color="blue" variant="light">
-                  This field will appear in the applicant form as a verified-professional selector. The application stores the selected professional ID(s) inside formValues; it does not create an application-level professional relationship.
-                </Alert>
-              ) : null}
+              <TextInput label="Professional role" description="Required. Use the exact OBO professionalRole value, for example ARCHITECT or CIVIL_ENGINEER." placeholder="ARCHITECT" value={field.config?.professionalRole ?? ''} readOnly={readOnly} onChange={(event) => updateReferenceConfig({ professionalRole: event.currentTarget.value.trim().toUpperCase() })} error={professionalReference && !field.config?.professionalRole ? 'Professional role is required.' : undefined} />
+              <Checkbox label="Allow multiple professionals" checked={Boolean(field.config?.multiple)} disabled={readOnly} onChange={(event) => updateReferenceConfig({ multiple: event.currentTarget.checked })} />
+              {professionalReference ? <Alert color="blue" variant="light">This field will appear in the applicant form as a verified-professional selector. The application stores the selected professional ID(s) inside formValues; it does not create an application-level professional relationship.</Alert> : null}
             </Stack>
           </Box>
         ) : null}
 
         {needsOptions ? (
           <Stack gap="xs">
-            <Group justify="space-between"><Text fw={600} size="sm">Options</Text><Button size="xs" variant="light" onClick={() => update({ options: [...options, { value: `option-${options.length + 1}`, label: `Option ${options.length + 1}`, sortOrder: options.length }] })}>Add option</Button></Group>
+            <Group justify="space-between"><Text fw={600} size="sm">Options</Text>{!readOnly ? <Button size="xs" variant="light" onClick={() => update({ options: [...options, { value: `option-${options.length + 1}`, label: `Option ${options.length + 1}`, sortOrder: options.length }] })}>Add option</Button> : null}</Group>
             {options.map((option, index) => (
               <Group key={`${option.value}-${index}`} align="flex-end">
-                <TextInput flex={1} label={index === 0 ? 'Value' : undefined} value={String(option.value ?? '')} onChange={(event) => update({ options: options.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.currentTarget.value } : item) })} />
-                <TextInput flex={1} label={index === 0 ? 'Label' : undefined} value={option.label ?? ''} onChange={(event) => update({ options: options.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.currentTarget.value } : item) })} />
-                <ActionIcon color="red" variant="subtle" onClick={() => update({ options: options.filter((_, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })) })} aria-label="Remove option">×</ActionIcon>
+                <TextInput flex={1} label={index === 0 ? 'Value' : undefined} value={String(option.value ?? '')} readOnly={readOnly} onChange={(event) => update({ options: options.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.currentTarget.value } : item) })} />
+                <TextInput flex={1} label={index === 0 ? 'Label' : undefined} value={option.label ?? ''} readOnly={readOnly} onChange={(event) => update({ options: options.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.currentTarget.value } : item) })} />
+                {!readOnly ? <ActionIcon color="red" variant="subtle" onClick={() => update({ options: options.filter((_, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })) })} aria-label="Remove option">×</ActionIcon> : null}
               </Group>
             ))}
           </Stack>
@@ -165,14 +131,13 @@ function FieldEditor({ field, sections, onChange, onRemove, onMoveUp, onMoveDown
   )
 }
 
-export default function FormBuilder({ definition, onChange }) {
+export default function FormBuilder({ definition, onChange, readOnly = false }) {
   const sections = useMemo(() => definition.sections ?? [], [definition.sections])
   const fields = useMemo(() => definition.fields ?? [], [definition.fields])
   const unsectioned = useMemo(() => fields.filter((field) => !field.sectionKey), [fields])
 
   const setSections = (next) => onChange({ ...definition, sections: next.map((section, index) => ({ ...section, sortOrder: index })) })
   const setFields = (next) => onChange({ ...definition, fields: next.map((field, index) => ({ ...field, sortOrder: index })) })
-
   const addSection = () => setSections([...sections, createSection(sections.length)])
   const addField = (sectionKey = null) => setFields([...fields, { ...createField(fields.length), sectionKey }])
   const updateField = (index, value) => setFields(fields.map((field, fieldIndex) => fieldIndex === index ? value : field))
@@ -196,20 +161,18 @@ export default function FormBuilder({ definition, onChange }) {
           <Stack>
             <Group justify="space-between" align="flex-start">
               <Box flex={1}>
-                <TextInput label="Section title" value={section.title} onChange={(event) => setSections(sections.map((item) => item.key === section.key ? { ...item, title: event.currentTarget.value } : item))} />
-                <TextInput mt="xs" label="Section key" value={section.key} onChange={(event) => {
+                <TextInput label="Section title" value={section.title} readOnly={readOnly} onChange={(event) => setSections(sections.map((item) => item.key === section.key ? { ...item, title: event.currentTarget.value } : item))} />
+                <TextInput mt="xs" label="Section key" value={section.key} readOnly={readOnly} onChange={(event) => {
                   const nextKey = slugify(event.currentTarget.value)
                   setSections(sections.map((item) => item.key === section.key ? { ...item, key: nextKey } : item))
                   setFields(fields.map((field) => field.sectionKey === section.key ? { ...field, sectionKey: nextKey } : field))
                 }} />
               </Box>
-              <ActionIcon color="red" variant="subtle" onClick={() => removeSection(section.key)} aria-label="Remove section">×</ActionIcon>
+              {!readOnly ? <ActionIcon color="red" variant="subtle" onClick={() => removeSection(section.key)} aria-label="Remove section">×</ActionIcon> : null}
             </Group>
-            <Textarea label="Section description" value={section.description ?? ''} onChange={(event) => setSections(sections.map((item) => item.key === section.key ? { ...item, description: event.currentTarget.value || null } : item))} autosize minRows={2} />
-            {fields.map((field, index) => field.sectionKey === section.key ? (
-              <FieldEditor key={`${field.key}-${index}`} field={field} sections={sections} onChange={(value) => updateField(index, value)} onRemove={() => removeField(index)} onMoveUp={() => moveField(index, -1)} onMoveDown={() => moveField(index, 1)} />
-            ) : null)}
-            <Button variant="light" onClick={() => addField(section.key)}>+ Add Field</Button>
+            <Textarea label="Section description" value={section.description ?? ''} readOnly={readOnly} onChange={(event) => setSections(sections.map((item) => item.key === section.key ? { ...item, description: event.currentTarget.value || null } : item))} autosize minRows={2} />
+            {fields.map((field, index) => field.sectionKey === section.key ? <FieldEditor key={`${field.key}-${index}`} field={field} sections={sections} onChange={(value) => updateField(index, value)} onRemove={() => removeField(index)} onMoveUp={() => moveField(index, -1)} onMoveDown={() => moveField(index, 1)} readOnly={readOnly} /> : null)}
+            {!readOnly ? <Button variant="light" onClick={() => addField(section.key)}>+ Add Field</Button> : null}
           </Stack>
         </Card>
       ))}
@@ -218,16 +181,13 @@ export default function FormBuilder({ definition, onChange }) {
         <Card withBorder padding="lg">
           <Stack>
             <Text fw={700}>Fields</Text>
-            {fields.map((field, index) => !field.sectionKey ? (
-              <FieldEditor key={`${field.key}-${index}`} field={field} sections={sections} onChange={(value) => updateField(index, value)} onRemove={() => removeField(index)} onMoveUp={() => moveField(index, -1)} onMoveDown={() => moveField(index, 1)} />
-            ) : null)}
-            <Button variant="light" onClick={() => addField()}>+ Add Field</Button>
+            {fields.map((field, index) => !field.sectionKey ? <FieldEditor key={`${field.key}-${index}`} field={field} sections={sections} onChange={(value) => updateField(index, value)} onRemove={() => removeField(index)} onMoveUp={() => moveField(index, -1)} onMoveDown={() => moveField(index, 1)} readOnly={readOnly} /> : null)}
+            {!readOnly ? <Button variant="light" onClick={() => addField()}>+ Add Field</Button> : null}
           </Stack>
         </Card>
       ) : null}
 
-      <Divider />
-      <Button variant="default" onClick={addSection}>+ Add Section</Button>
+      {!readOnly ? <><Divider /><Button variant="default" onClick={addSection}>+ Add Section</Button></> : null}
     </Stack>
   )
 }
