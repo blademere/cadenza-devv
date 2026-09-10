@@ -9,6 +9,7 @@ const applicationMigrationPath = new URL('../../../../prisma/migrations/20260908
 const permitTypeRepositoryPath = new URL('../../../../src/modules/obo/permit-types/permit-type.repository.js', import.meta.url)
 const permitApplicationRepositoryPath = new URL('../../../../src/modules/obo/plan-permits/plan-permit.repository.js', import.meta.url)
 const receivingRepositoryPath = new URL('../../../../src/modules/obo/receiving/receiving.repository.js', import.meta.url)
+const platformFormRepositoryPath = new URL('../../../../src/platform/forms/form.repository.js', import.meta.url)
 
 const readText = (url) => readFile(url, 'utf8')
 
@@ -43,16 +44,28 @@ describe('Phase 15 form architecture contract', () => {
     expect(`${permitTypeMigration}\n${applicationMigration}`).not.toContain('CREATE TABLE "ApplicationProfessional"')
   })
 
-  it('resolves Platform Forms explicitly from OBO repositories', async () => {
+  it('resolves Platform Forms through the Platform repository boundary', async () => {
     const permitTypeRepository = await readText(permitTypeRepositoryPath)
     const permitApplicationRepository = await readText(permitApplicationRepositoryPath)
     const receivingRepository = await readText(receivingRepositoryPath)
+    const platformFormRepository = await readText(platformFormRepositoryPath)
 
-    expect(permitTypeRepository).toContain('db.form.findUnique')
-    expect(permitTypeRepository).not.toContain('include: { form:')
-    expect(permitApplicationRepository).toContain('db.formVersion.findUnique')
-    expect(permitApplicationRepository).not.toContain('formVersion: formVersionInclude')
-    expect(receivingRepository).toContain('db.formVersion.findUnique')
-    expect(receivingRepository).not.toContain('formVersion: formVersionInclude')
+    expect(permitTypeRepository).toContain("../../../platform/forms/form.repository.js")
+    expect(permitTypeRepository).toContain('formRepository.findByIdWithDefinition')
+    expect(permitTypeRepository).toContain('formRepository.findPublishedVersion')
+    expect(permitTypeRepository).toContain('formRepository.findLatestDraftVersion')
+    expect(permitTypeRepository).not.toMatch(/db\.form(?:Version)?\s*\./)
+
+    expect(permitApplicationRepository).toContain("../../../platform/forms/form.repository.js")
+    expect(permitApplicationRepository).toContain('formRepository.findById')
+    expect(permitApplicationRepository).toContain('formRepository.findVersionById')
+    expect(permitApplicationRepository).not.toMatch(/db\.form(?:Version)?\s*\./)
+
+    expect(receivingRepository).toContain("../../../platform/forms/form.repository.js")
+    expect(receivingRepository).toContain('formRepository.findVersionById')
+    expect(receivingRepository).not.toMatch(/db\.form(?:Version)?\s*\./)
+
+    expect(platformFormRepository).toContain('db.form.findUnique')
+    expect(platformFormRepository).toContain('db.formVersion.findUnique')
   })
 })
