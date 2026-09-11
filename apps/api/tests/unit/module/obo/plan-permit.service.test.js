@@ -1,14 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repository = vi.hoisted(() => ({
-  findPersonByUserId: vi.fn(),
-  findById: vi.fn(),
-  findOwnedByClient: vi.fn(),
-  listByClient: vi.fn(),
-  create: vi.fn(),
-  update: vi.fn(),
-  findPersonNotificationContext: vi.fn(),
-  withTransaction: vi.fn(),
+  findPersonByUserId: vi.fn(), findById: vi.fn(), findOwnedByClient: vi.fn(), listByClient: vi.fn(), create: vi.fn(), update: vi.fn(), findPersonNotificationContext: vi.fn(), withTransaction: vi.fn(),
 }))
 const permitTypeService = vi.hoisted(() => ({ getPermitTypeById: vi.fn() }))
 const permitTypeRequirementService = vi.hoisted(() => ({ getRequirementIds: vi.fn() }))
@@ -19,6 +12,7 @@ const professionalService = vi.hoisted(() => ({ getForReference: vi.fn() }))
 const formService = vi.hoisted(() => ({ getFormById: vi.fn(), getFormVersionById: vi.fn(), validateFormValues: vi.fn() }))
 const workflowService = vi.hoisted(() => ({ getWorkflowInstance: vi.fn(), startWorkflow: vi.fn(), transitionWorkflow: vi.fn() }))
 const auditService = vi.hoisted(() => ({ recordAudit: vi.fn() }))
+const eventBus = vi.hoisted(() => ({ publish: vi.fn() }))
 const appointmentService = vi.hoisted(() => ({ getAppointmentForReference: vi.fn() }))
 const taskService = vi.hoisted(() => ({ create: vi.fn(), list: vi.fn(), update: vi.fn() }))
 
@@ -32,6 +26,7 @@ vi.mock('../../../../src/modules/obo/professionals/professional.service.js', () 
 vi.mock('../../../../src/platform/forms/form.service.js', () => formService)
 vi.mock('../../../../src/platform/workflow/workflow.service.js', () => workflowService)
 vi.mock('../../../../src/platform/audit/audit.service.js', () => auditService)
+vi.mock('../../../../src/platform/event-bus/event-bus.js', () => eventBus)
 vi.mock('../../../../src/features/appointments/appointment.service.js', () => appointmentService)
 vi.mock('../../../../src/features/tasks/tasks.service.js', () => taskService)
 vi.mock('../../../../src/modules/obo/professionals/professional-reference.service.js', () => ({ validateProfessionalReferences: vi.fn(), buildProfessionalSnapshots: vi.fn() }))
@@ -65,6 +60,7 @@ beforeEach(() => {
   formService.validateFormValues.mockResolvedValue({ valid: true, formVersionId: 'form-version-1' })
   appointmentService.getAppointmentForReference.mockResolvedValue({ id: 'appointment-1', status: 'SCHEDULED' })
   taskService.create.mockResolvedValue({ id: 'task-1' })
+  eventBus.publish.mockResolvedValue(undefined)
 })
 
 describe('OBO plan permit service', () => {
@@ -78,6 +74,7 @@ describe('OBO plan permit service', () => {
     expect(caseService.createRecord.mock.calls[0][0]).not.toHaveProperty('caseNumber')
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', permitTypeId: 'permit-1' }), expect.anything())
     expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', personId: 'person-1', roleKey: 'APPLICANT', isPrimary: true, db: expect.anything() }))
+    expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ event: 'obo.permit_application.created', entityType: 'OboPermitApplication', entityId: 'application-1', db: expect.anything() }))
   })
 
   it('rejects a missing Permit Type before persistence', async () => {
@@ -108,15 +105,7 @@ describe('OBO plan permit service', () => {
       .mockResolvedValueOnce({ id: 'professional-1', personId: 'professional-person-1', professionalRole: 'ARCHITECT' })
 
     repository.findOwnedByClient.mockResolvedValue({
-      id: 'application-1',
-      caseId: 'case-1',
-      workflowInstanceId: 'workflow-1',
-      clientPersonId: 'person-1',
-      permitType: { ...permitType, formId: 'form-1' },
-      formVersionId: 'form-version-1',
-      formVersion: { id: 'form-version-1', formId: 'form-1', version: 1, fields: [] },
-      formValues: { architect: 'professional-1', engineers: ['professional-2', 'professional-1'] },
-      submissionAppointment: null,
+      id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', formId: 'form-1', version: 1, fields: [] }, formValues: { architect: 'professional-1', engineers: ['professional-2', 'professional-1'] }, submissionAppointment: null,
     })
     repository.update.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', status: 'DRAFT', permitType })
 
@@ -125,6 +114,8 @@ describe('OBO plan permit service', () => {
     expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', personId: 'professional-person-1', roleKey: 'PROFESSIONAL', db: expect.anything() }))
     expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', personId: 'professional-person-2', roleKey: 'PROFESSIONAL', db: expect.anything() }))
     expect(participantService.add.mock.calls.filter(([args]) => args.roleKey === 'PROFESSIONAL')).toHaveLength(2)
+    expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ event: 'obo.permit_application.professional.associated', entityId: 'application-1', db: expect.anything() }))
+    expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ event: 'obo.permit_application.submitted', entityId: 'application-1', db: expect.anything() }))
     expect(taskService.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', title: 'Review permit application', metadata: expect.objectContaining({ taskType: 'REVIEW_APPLICATION', applicationId: 'application-1' }) }), { db: expect.anything() })
   })
 
