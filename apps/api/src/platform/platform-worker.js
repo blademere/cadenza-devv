@@ -15,6 +15,7 @@ import {
   closeQueues,
 } from '../infrastructure/queue/bullmq.js'
 import { logger } from '../config/index.js'
+import { withContext } from './context/context.service.js'
 
 const EVENT_QUEUE = 'platform-events'
 
@@ -43,7 +44,23 @@ const publishOutbox = async ({ batchSize = 50, leaseSeconds } = {}) => {
   return { claimed: claimed.length, published, failed }
 }
 
-const startEventWorker = async (options = {}) => registerWorker(EVENT_QUEUE, async (job) => processEvent(job.data), { concurrency: options.concurrency || 10 })
+const startEventWorker = async (options = {}) =>
+  registerWorker(
+    EVENT_QUEUE,
+    async (job) => {
+      const event = job.data
+      const context = {
+        requestId: event?.context?._platformContext?.requestId || null,
+        correlationId: event?.correlationId || null,
+        actorId: event?.actorId || null,
+        actorType: event?.context?._platformContext?.actorType || null,
+        organizationId: event?.context?._platformContext?.organizationId || null,
+      }
+      return withContext(context, () => processEvent(event))
+    },
+    { concurrency: options.concurrency || 10 },
+  )
+
 const processOutbox = publishOutbox
 const runWorkerCycle = async (options = {}) => ({ maintenance: await runPlatformMaintenance(options), outbox: await publishOutbox(options) })
 
