@@ -34,6 +34,17 @@ const buildEnvelope = ({
     actorId: resolvedActorId,
     context: {
       ...(executionContext?.metadata || {}),
+      ...(executionContext
+        ? {
+            _platformContext: {
+              requestId: executionContext.requestId,
+              correlationId: resolvedCorrelationId,
+              actorId: resolvedActorId,
+              actorType: executionContext.actorType,
+              organizationId: executionContext.organizationId,
+            },
+          }
+        : {}),
       ...context,
     },
     correlationId: resolvedCorrelationId,
