@@ -46,7 +46,7 @@ features/
 
 ### `apps/api/src/platform/`
 
-Platform provides reusable mechanisms such as authorization, workflow, forms, configurable custom fields, rules, event/outbox infrastructure, jobs, generic scheduling primitives, notification mechanisms, and storage boundaries.
+Platform provides reusable mechanisms such as authorization, workflow, forms, configurable custom fields, rules, event/outbox infrastructure, jobs, generic scheduling primitives, notification mechanisms, configuration, and storage boundaries.
 
 Platform code must be provider-neutral and domain-neutral. It provides mechanisms, not application-specific business decisions.
 
@@ -83,6 +83,7 @@ Infrastructure contains concrete technology integrations and persistence impleme
 9. New platform services must use repositories rather than direct Prisma access.
 10. Repositories own persistence queries and persistence-specific composition.
 11. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
+12. Platform-owned configuration must be consumed through `platform/configuration`; domain-specific configuration remains owned by the domain/module.
 
 The architecture validator enforces these boundaries where they can be checked statically. See [`docs/api/platform/architecture-rules.md`](platform/architecture-rules.md) for the Phase 9 enforcement contract and the explicitly tracked legacy persistence exceptions.
 
@@ -109,6 +110,24 @@ Repositories may access Prisma because persistence is their responsibility.
 A limited set of pre-existing platform services still accesses Prisma directly. Phase 9 records these files as explicit technical-debt exceptions in `apps/api/scripts/architecture-rules.cjs`.
 
 Those exceptions are not permission to add more direct Prisma access. New platform services are rejected by architecture validation if they access Prisma directly. When an existing exception is migrated to a repository, remove its path from the exception list in the same change.
+
+## Configuration boundary
+
+Application configuration is parsed and validated centrally in `apps/api/src/config/env.js`. Platform-owned runtime settings are exposed through `apps/api/src/platform/configuration/`.
+
+```text
+Environment / deployment
+          ↓
+      config/env.js
+          ↓
+platform/configuration
+          ↓
+platform services
+```
+
+Platform configuration must remain generic. It may contain system, operational, and platform mechanism settings, but must not encode domain rules such as OBO permit requirements. Domain-specific configuration remains owned by the relevant module or feature.
+
+Do not introduce a database-backed configuration store unless the application requires runtime-managed, tenant-scoped, versioned, or transactional settings. If persistence becomes necessary, keep it behind a configuration repository.
 
 ## Shared business modeling
 
