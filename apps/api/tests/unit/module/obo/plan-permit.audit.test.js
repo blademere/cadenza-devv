@@ -7,7 +7,11 @@ vi.mock('../../../../src/modules/obo/professionals/professional.service.js')
 vi.mock('../../../../src/platform/forms/form.service.js')
 vi.mock('../../../../src/platform/workflow/workflow.service.js')
 vi.mock('../../../../src/platform/audit/audit.service.js')
-vi.mock('../../../../src/platform/event-bus/event-bus.js')
+vi.mock('../../../../src/platform/event-bus/event-bus.js', () => ({
+  publish: vi.fn(),
+  processEvent: vi.fn(),
+  buildEnvelope: vi.fn(),
+}))
 vi.mock('../../../../src/features/appointments/appointment.service.js')
 vi.mock('../../../../src/features/participants/participants.service.js')
 vi.mock('../../../../src/features/tasks/tasks.service.js')
