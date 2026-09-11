@@ -8,10 +8,12 @@ const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8')
 describe('phase 10 platform security hardening', () => {
   it('keeps PostgreSQL authoritative for positive authorization decisions by default', () => {
     const source = read('src/platform/authorization/access-control.service.js')
+    const configuration = read('src/platform/configuration/configuration.constants.js')
 
-    expect(source).toContain("process.env.AUTHORIZATION_CACHE_TRUST_POSITIVE === 'true'")
+    expect(source).toContain('getConfiguration(PLATFORM_CONFIGURATION_KEYS.AUTHORIZATION_CACHE_TRUST_POSITIVE)')
     expect(source).toContain('AUTHORIZATION_CACHE_ENABLED && AUTHORIZATION_CACHE_TRUST_POSITIVE')
     expect(source).toContain('const { permissions } = await loadUserPermissions(userId)')
+    expect(configuration).toContain("AUTHORIZATION_CACHE_TRUST_POSITIVE: 'authorization.cache.trustPositive'")
   })
 
   it('fails closed when authorization cache access is unavailable', () => {
