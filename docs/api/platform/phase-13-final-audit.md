@@ -11,7 +11,7 @@ The audit covers the platform hardening phases, dependency boundaries, reliabili
 | Capability | Generic | Repository boundary | Transaction boundary | Idempotency / retry | Tests | Final status |
 | --- | :---: | :---: | :---: | :---: | :---: | --- |
 | Authorization | ✓ | ✓ | — | — | ✓ | Hardened |
-| Workflow | ✓ | Existing repository boundary + tracked legacy Prisma debt | ✓ | Optimistic concurrency | ✓ | Hardened |
+| Workflow | ✓ | ✓ | ✓ | Optimistic concurrency | ✓ | Hardened |
 | Event Bus | ✓ | Outbox persistence boundary | ✓ when caller supplies transaction client | Outbox dedupe + bounded delivery retry | ✓ | Hardened |
 | Jobs | ✓ | Queue infrastructure | — | Bounded attempts + exponential backoff | ✓ | Hardened |
 | Notifications | ✓ | Existing repository boundary | Existing service behavior | Existing delivery idempotency + retry | Existing + hardening coverage | Hardened |
@@ -20,9 +20,9 @@ The audit covers the platform hardening phases, dependency boundaries, reliabili
 | Rules | ✓ | Existing platform persistence boundary | N/A | N/A | Existing | Audited |
 | Configuration | ✓ | Not persisted; environment boundary | N/A | N/A | ✓ | Hardened |
 | Observability | ✓ | N/A | N/A | N/A | ✓ | Hardened |
-| Audit | ✓ | Existing persistence boundary | Caller-controlled | N/A | Existing + security contract coverage | Hardened |
+| Audit | ✓ | ✓ | Caller-controlled | N/A | Existing + security contract coverage | Hardened |
 
-`Repository boundary` reflects the current implementation and intentionally does not claim that every legacy platform service has already been migrated. Phase 9 tracks remaining direct-Prisma platform services explicitly as technical debt.
+The workflow and audit services no longer access Prisma directly. Their repositories own the infrastructure dependency, while services retain business orchestration and transaction boundaries.
 
 ## Dependency audit
 
@@ -43,7 +43,7 @@ The architecture validator enforces:
 - mutation routes must use shared idempotency middleware unless explicitly exempted;
 - resource routes must use resource authorization or an explicit authorization helper.
 
-The validator contains a bounded legacy exception list for pre-existing platform Prisma access. New exceptions are not part of the architecture contract.
+The validator contains a bounded legacy exception list only for pre-existing platform services that still require repository extraction. `audit.service.js` and `workflow.service.js` have been removed from that list after their persistence boundaries were migrated.
 
 ## Reliability audit
 
@@ -71,7 +71,7 @@ HTTP idempotency uses atomic Redis claims and ownership-safe completion/release.
 
 ### Workflow
 
-Workflow transitions use conditional state updates, transactional history/outbox persistence, correlation-aware history, and a database-enforced single published-version invariant.
+Workflow transitions use conditional state updates, transactional history/outbox persistence, correlation-aware history, and a database-enforced single published-version invariant. Workflow persistence is isolated in `workflow.repository.js`; the service does not import Prisma.
 
 ### Events and jobs
 
@@ -92,6 +92,8 @@ Audit
 ```
 
 Authorization defaults to PostgreSQL as the authoritative permission source unless positive-cache trust is explicitly enabled. Authorization and resource-policy denials are audited without allowing audit failures to turn a denial into an allow decision.
+
+Audit persistence is isolated in `audit.repository.js`; the audit service owns sanitization, audit semantics, and fail-safe behavior.
 
 ## Configuration audit
 
@@ -127,26 +129,15 @@ docs/api/platform/
 
 ## Verification status
 
-The branch comparison shows `chore/platform-hardening` is ahead of `development` with no commits behind at the time of this audit.
+The repository's runtime test suite was subsequently reported passing after the hardening changes. The architecture contract was additionally updated so the resolved workflow and audit services are no longer treated as Prisma exceptions.
 
-Static architecture tests and platform contract tests have been added throughout the hardening phases. The GitHub connector does not execute the repository's local Vitest, PostgreSQL, or Redis test environment, and there are no corresponding GitHub Actions workflow runs available for the latest hardening commits. Therefore this audit distinguishes static/code-level verification from runtime test execution.
+Before merge, CI should still run the normal repository validation in the target environment, including Prisma validation/generation, architecture validation, unit tests, and applicable PostgreSQL/Redis integration tests.
 
-Runtime verification remains required before merging:
+## Remaining technical debt
 
-1. install dependencies from the branch;
-2. run Prisma generation/validation and applicable migrations in a controlled environment;
-3. run the architecture validator;
-4. run platform unit tests;
-5. run event/outbox integration tests with PostgreSQL;
-6. run idempotency/job tests with Redis/BullMQ;
-7. run the complete API test suite;
-8. inspect CI results before merge.
+The remaining legacy platform Prisma exceptions are explicit candidates for repository extraction. They are not permissions for new platform services to access Prisma directly.
 
-## Known remaining technical debt
-
-The hardening work does not claim to have completed every platform persistence migration. The explicitly listed legacy platform services with direct Prisma access remain candidates for future repository extraction.
-
-The workflow version publication path also has a follow-up consideration: configuration publication events should be reviewed if the application requires strict database-state/event atomicity for those lifecycle operations.
+The remaining workflow-specific follow-up is the publication path in `workflow-version.service.js`: configuration publication events should be reviewed if the application requires strict database-state/event atomicity for those lifecycle operations.
 
 These are follow-up hardening items, not reasons to introduce domain-specific platform modules.
 
@@ -157,7 +148,9 @@ Platform remains a reusable mechanism layer:
 ```text
 Module / Feature
       ↓
-Platform mechanism
+Platform service
+      ↓
+Platform repository
       ↓
 Infrastructure
 ```
