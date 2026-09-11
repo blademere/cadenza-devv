@@ -267,7 +267,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
       WHERE "id" = ${created.id}
     `
 
-    const recovered = await recoverStale({ timeoutSeconds: 60 })
+    const recovered = await recoverStale({ timeoutSeconds: 60, event: 'integration.stale-dead' })
     expect(recovered).toBe(0)
 
     const stored = await prisma.$queryRaw`
