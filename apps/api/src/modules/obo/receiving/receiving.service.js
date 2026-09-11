@@ -1,5 +1,6 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
+import { publish } from '../../../platform/event-bus/event-bus.js'
 import * as appointmentService from '../../../features/appointments/appointment.service.js'
 import * as taskService from '../../../features/tasks/tasks.service.js'
 import * as repository from './receiving.repository.js'
@@ -87,6 +88,22 @@ const receiveHardcopy = async ({ id, actorId }) => {
     await completeOpenTasks({ caseId: application.caseId, applicationId: id, taskTypes: [TASK_TYPE.REVIEW_APPLICATION, TASK_TYPE.RECEIVE_HARD_COPY], db: tx })
     await createTask({ caseId: application.caseId, applicationId: id, title: 'Verify permit documents', description: `Verify the received documents for ${application.referenceNumber}.`, taskType: TASK_TYPE.VERIFY_DOCUMENTS, db: tx })
     await createTask({ caseId: application.caseId, applicationId: id, title: 'Evaluate permit application', description: `Evaluate ${application.referenceNumber} after receiving and reviewing the submitted documents.`, taskType: TASK_TYPE.EVALUATE_APPLICATION, db: tx })
+    await publish({
+      db: tx,
+      event: 'obo.permit_application.hardcopy.received',
+      entityType: 'OboPermitApplication',
+      entityId: id,
+      actorId,
+      context: {
+        caseId: application.caseId,
+        appointmentId: appointment.id,
+        referenceNumber: application.referenceNumber,
+        permitTypeId: application.permitTypeId,
+        submittedAt,
+        workflowTransition: 'RECEIVE_HARDCOPY',
+      },
+      idempotencyKey: `obo:permit-application:${id}:hardcopy-received:${submittedAt.toISOString()}`,
+    })
   })
   return getApplication({ id })
 }
@@ -107,6 +124,24 @@ const decide = async ({ id, actorId, decision, reason }) => {
     const updated = await repository.updateApplication(id, { acceptedAt: accepted ? new Date() : null, acceptedByUserId: accepted ? actorId : null, declinedAt: accepted ? null : new Date(), declineReason: accepted ? null : cleanReason }, tx)
     await repository.addDecision({ applicationId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
     await completeOpenTasks({ caseId: application.caseId, applicationId: id, taskTypes: [TASK_TYPE.VERIFY_DOCUMENTS, TASK_TYPE.EVALUATE_APPLICATION], db: tx })
+    await publish({
+      db: tx,
+      event: accepted ? 'obo.permit_application.accepted' : 'obo.permit_application.declined',
+      entityType: 'OboPermitApplication',
+      entityId: id,
+      actorId,
+      context: {
+        caseId: application.caseId,
+        referenceNumber: application.referenceNumber,
+        permitTypeId: application.permitTypeId,
+        permitTypeName: application.permitType.name,
+        decision,
+        reason: cleanReason,
+        workflowTransition: transitionKey,
+        nextStatus: nextWorkflow.currentStep.key,
+      },
+      idempotencyKey: `obo:permit-application:${id}:decision:${nextWorkflow.currentStep.key}`,
+    })
     return { ...updated, status: nextWorkflow.currentStep.key, workflowInstanceId: nextWorkflow.id }
   })
 }
