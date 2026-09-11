@@ -7,6 +7,7 @@ import {
 } from "../../common/errors/appError.js"
 import { recordAudit } from "../audit/audit.service.js"
 import { can } from "../authorization/access-control.service.js"
+import { getContext } from "../context/context.service.js"
 import { publish } from "../event-bus/event-bus.js"
 import {
   findWorkflowByKey,
@@ -163,6 +164,8 @@ const assertTransitionPermission = async ({ transition, actorId }) => {
   }
 }
 
+const resolveCorrelationId = () => getContext()?.correlationId || null
+
 const createWorkflow = async ({
   key,
   name,
@@ -274,6 +277,7 @@ const startWorkflow = async ({
   }
 
   const normalizedSubjectId = String(subjectId)
+  const correlationId = resolveCorrelationId()
 
   const createInstance = async (tx) => {
     const created = await tx.workflowInstance.create({
@@ -291,6 +295,7 @@ const startWorkflow = async ({
         instanceId: created.id,
         toStepId: initialStep.id,
         actorId,
+        correlationId,
         metadata: metadata || undefined,
       },
     })
@@ -328,6 +333,7 @@ const startWorkflow = async ({
       workflowKey,
       subjectType,
       subjectId: normalizedSubjectId,
+      correlationId,
     },
     db: db === prisma ? undefined : db,
   })
@@ -369,6 +375,8 @@ const transitionWorkflow = async ({
 
   await assertTransitionPermission({ transition, actorId })
 
+  const correlationId = resolveCorrelationId()
+
   const executeTransition = async (tx) => {
     const result = await tx.workflowInstance.updateMany({
       where: {
@@ -395,6 +403,7 @@ const transitionWorkflow = async ({
         toStepId: transition.toStepId,
         transitionId: transition.id,
         actorId,
+        correlationId,
         metadata: metadata || undefined,
       },
     })
@@ -450,6 +459,7 @@ const transitionWorkflow = async ({
     metadata: {
       transitionKey,
       transitionId: transition.id,
+      correlationId,
       ...metadata,
     },
     db: db === prisma ? undefined : db,
