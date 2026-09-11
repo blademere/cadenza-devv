@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import {
   BadRequestError,
   ConflictError,
@@ -19,6 +20,12 @@ import {
 } from './cases.repository.js'
 import { CASE_STATUS } from './cases.constants.js'
 
+const generateCaseNumber = () => {
+  const date = new Date().toISOString().slice(0, 10).replaceAll('-', '')
+  const suffix = crypto.randomBytes(4).toString('hex').toUpperCase()
+  return `CASE-${date}-${suffix}`
+}
+
 const createType = async (data, { db } = {}) => {
   if (!data.key?.trim() || !data.name?.trim()) throw new BadRequestError('key and name are required.')
   return createCaseType({ ...data, key: data.key.trim(), name: data.name.trim() }, db)
@@ -35,10 +42,10 @@ const getOrCreateType = async ({ key, name, description = null, isActive = true,
 }
 
 const createRecord = async (data, { db } = {}) => {
-  if (!data.caseNumber?.trim() || !data.caseTypeId || !data.title?.trim()) throw new BadRequestError('caseNumber, caseTypeId, and title are required.')
+  if (!data.caseTypeId || !data.title?.trim()) throw new BadRequestError('caseTypeId and title are required.')
   const caseType = await findCaseTypeById(data.caseTypeId, db)
   if (!caseType || !caseType.isActive) throw new NotFoundError('Active case type not found.')
-  return createCase({ ...data, caseNumber: data.caseNumber.trim(), title: data.title.trim(), status: data.status?.trim() || CASE_STATUS.DRAFT }, db)
+  return createCase({ ...data, caseNumber: data.caseNumber?.trim() || generateCaseNumber(), title: data.title.trim(), status: data.status?.trim() || CASE_STATUS.DRAFT }, db)
 }
 
 const getById = async (id, options = {}) => {
@@ -64,4 +71,4 @@ const transition = async ({ id, toStatus, changedByUserId, reason, metadata }) =
   return updated
 }
 
-export { createType, getOrCreateType, createRecord, getById, list, transition }
+export { generateCaseNumber, createType, getOrCreateType, createRecord, getById, list, transition }

@@ -15,6 +15,26 @@ const applicationInclude = {
       phone: true,
     },
   },
+  caseRecord: {
+    select: {
+      id: true,
+      caseNumber: true,
+      status: true,
+      participants: {
+        include: { person: true },
+        orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+      },
+      requirements: {
+        include: {
+          requirement: true,
+          applicationDocuments: {
+            include: { document: true },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  },
   submissionAppointment: true,
   decisions: { orderBy: { decidedAt: 'desc' } },
 }

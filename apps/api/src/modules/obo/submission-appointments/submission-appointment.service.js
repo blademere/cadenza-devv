@@ -1,10 +1,14 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import * as appointmentService from '../../../features/appointments/appointment.service.js'
 import { mapAppointment } from '../../../features/appointments/appointment.mapper.js'
+import * as taskService from '../../../features/tasks/tasks.service.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
+import { publish } from '../../../platform/event-bus/event-bus.js'
 import * as planPermitService from '../plan-permits/plan-permit.service.js'
 import * as repository from './submission-appointment.repository.js'
 import { getNotificationContext } from '../notification-context.js'
+
+const TASK_TYPE = Object.freeze({ RECEIVE_HARD_COPY: 'RECEIVE_HARD_COPY' })
 
 const getSubmissionAppointment = async ({ applicationId, userId }) => {
   const application = await planPermitService.getMine({ id: applicationId, userId })
@@ -55,6 +59,36 @@ const createSubmissionAppointment = async ({ applicationId, userId, appointmentT
       db: tx,
     })
 
+    await taskService.create({
+      caseId: application.caseId,
+      title: 'Receive hard-copy documents',
+      description: `Receive the hard-copy documents for ${application.referenceNumber} at the scheduled appointment.`,
+      status: 'OPEN',
+      priority: 'HIGH',
+      dueAt: appointment.slot?.startsAt || null,
+      metadata: { source: 'obo-submission-appointments', taskType: TASK_TYPE.RECEIVE_HARD_COPY, applicationId, workflowTransition: 'SCHEDULE_SUBMISSION', appointmentId: appointment.id },
+    }, { db: tx })
+
+    await publish({
+      db: tx,
+      event: 'obo.permit_application.appointment.booked',
+      entityType: 'OboPermitApplication',
+      entityId: applicationId,
+      actorId: userId,
+      context: {
+        caseId: application.caseId,
+        appointmentId: appointment.id,
+        referenceNumber: application.referenceNumber,
+        permitTypeId: application.permitTypeId,
+        appointmentTypeId,
+        slotId,
+        startsAt: appointment.slot?.startsAt || null,
+        endsAt: appointment.slot?.endsAt || null,
+        purpose: 'OBO_HARDCOPY_SUBMISSION',
+      },
+      idempotencyKey: `obo:permit-application:${applicationId}:appointment:booked:${appointment.id}`,
+    })
+
     return mapAppointment(appointment)
   })
 }
@@ -65,8 +99,9 @@ const replaceSubmissionAppointment = async ({ applicationId, userId, appointment
   if (!application.submissionAppointment) throw new NotFoundError('Submission appointment not found.')
 
   return repository.withTransaction(async (tx) => {
+    const previousAppointmentId = application.submissionAppointment.appointmentId
     await appointmentService.cancelAppointment({
-      id: application.submissionAppointment.appointmentId,
+      id: previousAppointmentId,
       userId,
       db: tx,
     })
@@ -81,6 +116,39 @@ const replaceSubmissionAppointment = async ({ applicationId, userId, appointment
     })
 
     await repository.updateSubmissionAppointment(applicationId, appointment.id, tx)
+
+    const tasks = await taskService.list({ caseId: application.caseId, status: 'OPEN' }, { db: tx })
+    const receivingTask = tasks.find((task) => {
+      const metadata = task.metadata || {}
+      return metadata.applicationId === applicationId && metadata.taskType === TASK_TYPE.RECEIVE_HARD_COPY
+    })
+    if (receivingTask) {
+      await taskService.update(receivingTask.id, {
+        dueAt: appointment.slot?.startsAt || null,
+        metadata: { ...(receivingTask.metadata || {}), appointmentId: appointment.id },
+      }, { db: tx })
+    }
+
+    await publish({
+      db: tx,
+      event: 'obo.permit_application.appointment.rescheduled',
+      entityType: 'OboPermitApplication',
+      entityId: applicationId,
+      actorId: userId,
+      context: {
+        caseId: application.caseId,
+        previousAppointmentId,
+        appointmentId: appointment.id,
+        referenceNumber: application.referenceNumber,
+        permitTypeId: application.permitTypeId,
+        appointmentTypeId,
+        slotId,
+        startsAt: appointment.slot?.startsAt || null,
+        endsAt: appointment.slot?.endsAt || null,
+        purpose: 'OBO_HARDCOPY_SUBMISSION',
+      },
+      idempotencyKey: `obo:permit-application:${applicationId}:appointment:rescheduled:${previousAppointmentId}:${appointment.id}`,
+    })
 
     return mapAppointment(appointment)
   })

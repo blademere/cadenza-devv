@@ -3,80 +3,97 @@ import { describe, expect, it } from 'vitest'
 
 const paths = {
   schema: new URL('../../../../prisma/modules/obo/application-documents.prisma', import.meta.url),
-  platformDocuments: new URL('../../../../prisma/platform/documents.prisma', import.meta.url),
-  platformUsers: new URL('../../../../prisma/platform/users.prisma', import.meta.url),
-  migration: new URL('../../../../prisma/migrations/20260910110000_add_obo_application_documents/migration.sql', import.meta.url),
+  requirements: new URL('../../../../prisma/platform/requirements.prisma', import.meta.url),
+  documents: new URL('../../../../prisma/platform/documents.prisma', import.meta.url),
+  migration: new URL('../../../../prisma/migrations/20260910120000_link_obo_documents_to_case_requirements/migration.sql', import.meta.url),
   receivingService: new URL('../../../../src/modules/obo/receiving/receiving.service.js', import.meta.url),
   applicationDocumentService: new URL('../../../../src/modules/obo/application-documents/application-document.service.js', import.meta.url),
   applicationDocumentRepository: new URL('../../../../src/modules/obo/application-documents/application-document.repository.js', import.meta.url),
-  documentRequirementService: new URL('../../../../src/platform/documents/document-requirement.service.js', import.meta.url),
+  requirementService: new URL('../../../../src/features/requirements/requirements.service.js', import.meta.url),
+  documentService: new URL('../../../../src/features/documents/document.service.js', import.meta.url),
 }
 
 const readText = (url) => readFile(url, 'utf8')
 
-describe('Phase 21 OBO hard-copy document checklist contract', () => {
-  it('stores application-document associations separately from generic documents', async () => {
+describe('OBO hard-copy document checklist architecture', () => {
+  it('links the OBO receiving record to a shared CaseRequirement and Document', async () => {
     const schema = await readText(paths.schema)
 
     expect(schema).toContain('model OboPermitApplicationDocument')
-    expect(schema).toContain('applicationId')
-    expect(schema).toContain('requirementId')
+    expect(schema).toContain('caseRequirementId')
     expect(schema).toContain('documentId')
-    expect(schema).toContain('@@unique([applicationId, requirementId])')
-    expect(schema).toContain('application      OboPermitApplication')
-    expect(schema).not.toMatch(/^\s*requirement\s+DocumentRequirement/m)
-    expect(schema).not.toMatch(/^\s*document\s+Document\?/m)
-    expect(schema).not.toMatch(/^\s*receivedBy\s+User\?/m)
-    expect(schema).not.toMatch(/^\s*verifiedBy\s+User\?/m)
+    expect(schema).toContain('@@unique([applicationId, caseRequirementId])')
+    expect(schema).toContain('caseRequirement   CaseRequirement')
+    expect(schema).toContain('document          Document?')
+    expect(schema).not.toContain('requirementId    String')
+    expect(schema).not.toContain('requirement      DocumentRequirement')
   })
 
-  it('keeps platform document models independent from the OBO association', async () => {
-    const documents = await readText(paths.platformDocuments)
-    const users = await readText(paths.platformUsers)
+  it('defines the reverse relations on the shared requirement and document models', async () => {
+    const requirements = await readText(paths.requirements)
+    const documents = await readText(paths.documents)
 
-    expect(documents).not.toContain('OboPermitApplicationDocument')
-    expect(users).not.toContain('OboPermitApplicationDocument')
+    expect(requirements).toContain('applicationDocuments OboPermitApplicationDocument[]')
+    expect(documents).toContain('oboApplicationDocuments OboPermitApplicationDocument[]')
   })
 
-  it('does not create cross-context foreign keys for platform document or user references', async () => {
+  it('migrates legacy checklist associations into CaseRequirement associations and adds the shared Document FK', async () => {
     const migration = await readText(paths.migration)
 
-    expect(migration).toContain('OboPermitApplicationDocument_applicationId_fkey')
-    expect(migration).not.toContain('OboPermitApplicationDocument_requirementId_fkey')
-    expect(migration).not.toContain('OboPermitApplicationDocument_documentId_fkey')
-    expect(migration).not.toContain('OboPermitApplicationDocument_receivedByUserId_fkey')
-    expect(migration).not.toContain('OboPermitApplicationDocument_verifiedByUserId_fkey')
+    expect(migration).toContain('ADD COLUMN "caseRequirementId" TEXT')
+    expect(migration).toContain('DocumentRequirement')
+    expect(migration).toContain('RequirementDefinition')
+    expect(migration).toContain('OboPermitApplicationDocument_caseRequirementId_fkey')
+    expect(migration).toContain('OboPermitApplicationDocument_documentId_fkey')
+    expect(migration).toContain('DROP COLUMN "requirementId"')
   })
 
-  it('keeps requirement resolution behind the Platform document requirement service', async () => {
+  it('resolves checklist requirements through the shared Requirements feature', async () => {
+    const source = await readText(paths.applicationDocumentService)
+    const requirementService = await readText(paths.requirementService)
+
+    expect(source).toContain("features/requirements/requirements.service.js")
+    expect(source).toContain('requirementService.listForCase')
+    expect(source).not.toContain('document-requirement.service.js')
+    expect(requirementService).toContain('listForCase')
+  })
+
+  it('uses the shared Documents feature to validate attached documents', async () => {
+    const source = await readText(paths.applicationDocumentService)
+    const documentService = await readText(paths.documentService)
+
+    expect(source).toContain("features/documents/document.service.js")
+    expect(source).toContain('documentService.getOwnedDocument')
+    expect(documentService).toContain('uploadDocument')
+  })
+
+  it('keeps OBO receiving state in the OBO association record', async () => {
+    const schema = await readText(paths.schema)
+    const source = await readText(paths.applicationDocumentService)
+
+    expect(schema).toContain('status            String')
+    expect(source).toContain('RECEIVED')
+    expect(source).toContain('VERIFIED')
+    expect(source).toContain('REJECTED')
+  })
+
+  it('keeps checklist persistence behind the OBO repository boundary', async () => {
     const source = await readText(paths.applicationDocumentService)
     const repository = await readText(paths.applicationDocumentRepository)
-
-    expect(source).toContain("document-requirement.service.js")
-    expect(source).not.toContain('db.documentRequirement.')
-    expect(repository).not.toContain('documentRequirement')
-    expect(repository).not.toContain('include:')
-  })
-
-  it('keeps checklist persistence in its own OBO repository', async () => {
-    const source = await readText(paths.applicationDocumentService)
     const receiving = await readText(paths.receivingService)
 
     expect(source).toContain("./application-document.repository.js")
     expect(receiving).toContain("../application-documents/application-document.service.js")
     expect(receiving).not.toContain("../application-documents/application-document.repository.js")
+    expect(repository).toContain('withTransaction')
   })
 
-  it('enforces required documents before accepting an application for inspection', async () => {
+  it('enforces verified required documents before accepting an application for inspection', async () => {
     const source = await readText(paths.receivingService)
+    const documentService = await readText(paths.applicationDocumentService)
 
     expect(source).toContain('applicationDocumentService.validateRequiredDocuments')
     expect(source).toMatch(/validateRequiredDocuments\(\{\s*applicationId: id, application, db: tx\s*\}\)/)
-  })
-
-  it('exposes form-version document requirements through the Platform service boundary', async () => {
-    const source = await readText(paths.documentRequirementService)
-
-    expect(source).toContain('listForFormVersion')
+    expect(documentService).toContain("status !== STATUS.VERIFIED")
   })
 })

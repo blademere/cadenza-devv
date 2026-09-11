@@ -1,11 +1,15 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
+import { publish } from '../../../platform/event-bus/event-bus.js'
 import * as appointmentService from '../../../features/appointments/appointment.service.js'
+import * as taskService from '../../../features/tasks/tasks.service.js'
 import * as repository from './receiving.repository.js'
 import * as applicationDocumentService from '../application-documents/application-document.service.js'
 import { getNotificationContext } from '../notification-context.js'
+import { hasReceivingTaskAccess } from './receiving.authorization.js'
 
 const STATUS = Object.freeze({ SUBMISSION_SCHEDULED: 'SUBMISSION_SCHEDULED', RECEIVING: 'RECEIVING', DECLINED: 'DECLINED', FOR_INSPECTION: 'FOR_INSPECTION' })
+const TASK_TYPE = Object.freeze({ REVIEW_APPLICATION: 'REVIEW_APPLICATION', RECEIVE_HARD_COPY: 'RECEIVE_HARD_COPY', VERIFY_DOCUMENTS: 'VERIFY_DOCUMENTS', EVALUATE_APPLICATION: 'EVALUATE_APPLICATION' })
 
 const getWorkflowState = async (application) => {
   if (!application.workflowInstanceId) throw new ConflictError('Permit application is not attached to a workflow instance.')
@@ -33,16 +37,37 @@ const getApplication = async ({ id }) => {
 
 const getForAuthorization = (id) => repository.findApplication(id)
 
-const listApplications = async ({ status }) => {
+const listApplications = async ({ status, userId }) => {
   const applications = await repository.listApplications(status)
   const hydrated = await Promise.all(applications.map(async (application) => {
     const workflow = await getWorkflowState(application)
     if (status && workflow.currentStep.key !== status) return null
     if (!status && workflow.currentStep.key !== STATUS.SUBMISSION_SCHEDULED) return null
+    if (userId && !(await hasReceivingTaskAccess({ user: { id: userId }, resource: application }))) return null
     return hydrateApplication({ ...application, status: workflow.currentStep.key })
   }))
   return hydrated.filter(Boolean)
 }
+
+const completeOpenTasks = async ({ caseId, applicationId, taskTypes, db }) => {
+  const tasks = await taskService.list({ caseId, status: 'OPEN' }, { db })
+  for (const task of tasks) {
+    const metadata = task.metadata || {}
+    if (metadata.applicationId !== applicationId || !taskTypes.includes(metadata.taskType)) continue
+    await taskService.update(task.id, { status: 'DONE', completedAt: new Date() }, { db })
+  }
+}
+
+const createTask = ({ caseId, applicationId, title, description, taskType, dueAt = null, db }) =>
+  taskService.create({
+    caseId,
+    title,
+    description,
+    status: 'OPEN',
+    priority: 'HIGH',
+    dueAt,
+    metadata: { source: 'obo-receiving', taskType, applicationId },
+  }, { db })
 
 const receiveHardcopy = async ({ id, actorId }) => {
   const application = await repository.findApplication(id)
@@ -60,6 +85,25 @@ const receiveHardcopy = async ({ id, actorId }) => {
     const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey: 'RECEIVE_HARDCOPY', actorId, metadata: { source: 'obo-receiving.receive', appointmentId: appointment.id, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
     await repository.updateApplication(id, { submittedAt }, tx)
+    await completeOpenTasks({ caseId: application.caseId, applicationId: id, taskTypes: [TASK_TYPE.REVIEW_APPLICATION, TASK_TYPE.RECEIVE_HARD_COPY], db: tx })
+    await createTask({ caseId: application.caseId, applicationId: id, title: 'Verify permit documents', description: `Verify the received documents for ${application.referenceNumber}.`, taskType: TASK_TYPE.VERIFY_DOCUMENTS, db: tx })
+    await createTask({ caseId: application.caseId, applicationId: id, title: 'Evaluate permit application', description: `Evaluate ${application.referenceNumber} after receiving and reviewing the submitted documents.`, taskType: TASK_TYPE.EVALUATE_APPLICATION, db: tx })
+    await publish({
+      db: tx,
+      event: 'obo.permit_application.hardcopy.received',
+      entityType: 'OboPermitApplication',
+      entityId: id,
+      actorId,
+      context: {
+        caseId: application.caseId,
+        appointmentId: appointment.id,
+        referenceNumber: application.referenceNumber,
+        permitTypeId: application.permitTypeId,
+        submittedAt,
+        workflowTransition: 'RECEIVE_HARDCOPY',
+      },
+      idempotencyKey: `obo:permit-application:${id}:hardcopy-received:${submittedAt.toISOString()}`,
+    })
   })
   return getApplication({ id })
 }
@@ -79,8 +123,27 @@ const decide = async ({ id, actorId, decision, reason }) => {
     const nextWorkflow = await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey, actorId, metadata: { source: 'obo-receiving.decide', decision, reason: cleanReason, referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
     const updated = await repository.updateApplication(id, { acceptedAt: accepted ? new Date() : null, acceptedByUserId: accepted ? actorId : null, declinedAt: accepted ? null : new Date(), declineReason: accepted ? null : cleanReason }, tx)
     await repository.addDecision({ applicationId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
+    await completeOpenTasks({ caseId: application.caseId, applicationId: id, taskTypes: [TASK_TYPE.VERIFY_DOCUMENTS, TASK_TYPE.EVALUATE_APPLICATION], db: tx })
+    await publish({
+      db: tx,
+      event: accepted ? 'obo.permit_application.accepted' : 'obo.permit_application.declined',
+      entityType: 'OboPermitApplication',
+      entityId: id,
+      actorId,
+      context: {
+        caseId: application.caseId,
+        referenceNumber: application.referenceNumber,
+        permitTypeId: application.permitTypeId,
+        permitTypeName: application.permitType.name,
+        decision,
+        reason: cleanReason,
+        workflowTransition: transitionKey,
+        nextStatus: nextWorkflow.currentStep.key,
+      },
+      idempotencyKey: `obo:permit-application:${id}:decision:${nextWorkflow.currentStep.key}`,
+    })
     return { ...updated, status: nextWorkflow.currentStep.key, workflowInstanceId: nextWorkflow.id }
   })
 }
 
-export { STATUS, getApplication, getForAuthorization, listApplications, receiveHardcopy, decide, getWorkflowState }
+export { STATUS, TASK_TYPE, getApplication, getForAuthorization, listApplications, receiveHardcopy, decide, getWorkflowState }

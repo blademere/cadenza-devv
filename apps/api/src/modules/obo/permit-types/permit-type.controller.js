@@ -1,6 +1,7 @@
 import { NotFoundError } from '../../../common/errors/appError.js'
 import { successResponse } from '../../../common/responses/apiResponse.js'
 import * as service from './permit-type.service.js'
+import * as requirementService from './permit-type-requirement.service.js'
 
 const list = async (_req, res) => successResponse(res, 'Permit types retrieved successfully.', await service.listPermitTypes())
 
@@ -41,6 +42,18 @@ const update = async (req, res) => successResponse(
   await service.updatePermitType({ actorId: req.user.id, id: req.validated.params.permitTypeId, data: req.validated.body }),
 )
 
+const listRequirements = async (req, res) => successResponse(
+  res,
+  'Permit type requirements retrieved successfully.',
+  await requirementService.listRequirements(req.validated.params.permitTypeId),
+)
+
+const setRequirements = async (req, res) => successResponse(
+  res,
+  'Permit type requirements updated successfully.',
+  await requirementService.setRequirements({ permitTypeId: req.validated.params.permitTypeId, requirementIds: req.validated.body.requirementIds }),
+)
+
 const createForm = async (req, res) => successResponse(
   res,
   'Permit type form created successfully.',
@@ -72,4 +85,4 @@ const publishFormVersion = async (req, res) => successResponse(
   await service.publishPermitTypeFormVersion({ actorId: req.user.id, permitTypeId: req.validated.params.permitTypeId, version: req.validated.params.version }),
 )
 
-export { list, get, getForm, listFormVersions, getFormVersion, create, update, createForm, createFormVersion, updateFormVersion, publishFormVersion }
+export { list, get, getForm, listFormVersions, getFormVersion, create, update, listRequirements, setRequirements, createForm, createFormVersion, updateFormVersion, publishFormVersion }

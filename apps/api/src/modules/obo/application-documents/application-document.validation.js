@@ -9,7 +9,8 @@ const applicationDocumentsParamsValidator = async (req) => ({
 const updateDocumentReceiptValidator = async (req) => ({
   params: z.object({ id: uuid, requirementId: uuid }).parse(req.params),
   body: z.object({
-    status: z.enum(['RECEIVED', 'REJECTED']),
+    status: z.enum(['RECEIVED', 'VERIFIED', 'REJECTED']),
+    documentId: uuid.nullable().optional(),
     notes: z.string().trim().max(2000).optional(),
   }).parse(req.body || {}),
 })

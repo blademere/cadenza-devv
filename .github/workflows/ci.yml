@@ -169,6 +169,8 @@ jobs:
       - run: npm run prisma:migrate:deploy
       - name: Test affected projects
         run: npm exec -- nx affected -t test --base="$NX_BASE" --head="$NX_HEAD"
+      - name: Run API integration tests
+        run: npm exec -- nx run api:test:integration
       - name: Build affected projects
         run: npm exec -- nx affected -t build --base="$NX_BASE" --head="$NX_HEAD"
       - name: Generate API coverage
