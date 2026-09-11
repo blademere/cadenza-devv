@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createJobService } from '../../../../src/platform/jobs/job.service.js'
+import { createJobService, MAX_ATTEMPTS, MAX_BACKOFF_DELAY } from '../../../../src/platform/jobs/job.service.js'
 import { runWithContext } from '../../../../src/platform/context/context.service.js'
 
 describe('job service', () => {
@@ -65,5 +65,30 @@ describe('job service', () => {
       name: 'test',
       data: {},
     })).rejects.toThrow('Unknown job queue: missing')
+  })
+
+  it('rejects unsafe retry policies', async () => {
+    const { enqueueJob } = createJobService({ enqueue: vi.fn() })
+
+    await expect(enqueueJob({
+      queue: 'notifications',
+      name: 'test',
+      data: {},
+      attempts: MAX_ATTEMPTS + 1,
+    })).rejects.toThrow(`attempts must be an integer between 1 and ${MAX_ATTEMPTS}`)
+
+    await expect(enqueueJob({
+      queue: 'notifications',
+      name: 'test',
+      data: {},
+      backoffDelay: MAX_BACKOFF_DELAY + 1,
+    })).rejects.toThrow(`backoffDelay must be an integer between 0 and ${MAX_BACKOFF_DELAY}`)
+
+    await expect(enqueueJob({
+      queue: 'notifications',
+      name: 'test',
+      data: {},
+      delay: -1,
+    })).rejects.toThrow(`delay must be an integer between 0 and ${MAX_BACKOFF_DELAY}`)
   })
 })
