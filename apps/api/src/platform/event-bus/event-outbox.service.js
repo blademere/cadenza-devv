@@ -147,6 +147,7 @@ const markFailed = async (id, error, lockToken) => {
 
 const recoverStale = async ({
   timeoutSeconds = DEFAULT_LEASE_SECONDS,
+  event = null,
 } = {}) => {
   if (
     !Number.isInteger(timeoutSeconds) ||
@@ -154,11 +155,14 @@ const recoverStale = async ({
     timeoutSeconds > 86400
   )
     throw new Error('timeoutSeconds must be an integer between 1 and 86400.')
+  if (event !== null && (typeof event !== 'string' || event.length === 0))
+    throw new Error('event must be null or a non-empty string.')
   return prisma.$executeRaw`
     UPDATE "EventOutbox"
     SET "status" = 'RETRY', "lockedAt" = NULL, "leaseUntil" = NULL, "lockToken" = NULL, "availableAt" = CURRENT_TIMESTAMP, "lastError" = COALESCE("lastError", 'Recovered stale event lease'), "updatedAt" = CURRENT_TIMESTAMP
     WHERE "status" = 'PROCESSING'
       AND "attempts" < ${MAX_ATTEMPTS}
+      AND (${event}::text IS NULL OR "event" = ${event})
       AND ("leaseUntil" IS NOT NULL AND "leaseUntil" < CURRENT_TIMESTAMP OR "leaseUntil" IS NULL AND "lockedAt" < CURRENT_TIMESTAMP - (${timeoutSeconds} * INTERVAL '1 second'))
   `
 }
