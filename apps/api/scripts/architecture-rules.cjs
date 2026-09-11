@@ -5,8 +5,7 @@ const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_INFRASTRUCTURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform|modules)\//
 const PRISMA_IMPORT = /(?:\.\.\/)+infrastructure\/database\/prisma(?:['"/]|$)/
-const PRISMA_CLIENT_ACCESS = /\b(?:getPrismaClient|PrismaClient)\s*\(/
-
+const PRISMA_CLIENT_ACCESS = /\b(?:getPrismaClient|PrismaClient)\s*\(/\n
 // Existing platform services that predate Phase 9 and still contain direct
 // persistence access. They are explicit technical-debt exceptions. New or
 // modified platform services must not add to this list.
@@ -14,14 +13,12 @@ const PLATFORM_PRISMA_LEGACY_EXCEPTIONS = new Set([
   'apps/api/src/platform/approvals/approval.service.js',
   'apps/api/src/platform/audit/audit.query.service.js',
   'apps/api/src/platform/dashboards/dashboard.service.js',
-  'apps/api/src/platform/event-bus/event-outbox.service.js',
   'apps/api/src/platform/forms/form.service.js',
   'apps/api/src/platform/integrations/integration.service.js',
   'apps/api/src/platform/notifications/notification.service.js',
   'apps/api/src/platform/notifications/notification.send.service.js',
   'apps/api/src/platform/rules/rule.service.js',
   'apps/api/src/platform/rules/rule-execution.service.js',
-  'apps/api/src/platform/workflow/workflow-version.service.js',
 ])
 
 const normalizeRelativePath = (file) =>
