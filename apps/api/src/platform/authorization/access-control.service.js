@@ -3,6 +3,10 @@ import { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCach
 import { increment } from '../observability/metrics/metrics.service.js'
 
 const AUTHORIZATION_CACHE_ENABLED = process.env.AUTHORIZATION_CACHE_ENABLED !== 'false'
+// Positive permission cache entries can become stale after a role/permission
+// revocation. Keep PostgreSQL authoritative by default; explicitly opt in only
+// when the deployment guarantees timely cache invalidation.
+const AUTHORIZATION_CACHE_TRUST_POSITIVE = process.env.AUTHORIZATION_CACHE_TRUST_POSITIVE === 'true'
 
 const getPermissionKey = (resource, action) => {
   if (typeof resource !== 'string' || !resource.trim()) {
@@ -38,12 +42,10 @@ const loadUserPermissions = async (userId) => {
 const hasPermission = async (userId, resource, action) => {
   const permissionKey = getPermissionKey(resource, action)
 
-  if (AUTHORIZATION_CACHE_ENABLED) {
+  if (AUTHORIZATION_CACHE_ENABLED && AUTHORIZATION_CACHE_TRUST_POSITIVE) {
     try {
       const cachedPermission = await hasCachedPermission(userId, resource, action)
       if (cachedPermission === true) return true
-      // A cached denial can be stale after a permission grant. Refresh from
-      // PostgreSQL instead of treating a negative cache entry as authoritative.
     } catch {
       // Fall through to PostgreSQL.
     }
@@ -108,6 +110,8 @@ const clearRolePermissionCache = async (roleId) => {
 }
 
 export {
+  AUTHORIZATION_CACHE_ENABLED,
+  AUTHORIZATION_CACHE_TRUST_POSITIVE,
   getPermissionKey,
   hasPermission,
   getAuthorizationContext,
