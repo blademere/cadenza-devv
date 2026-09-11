@@ -1,6 +1,7 @@
 import { Queue, QueueEvents, Worker } from 'bullmq'
 import { connectRedis, getRedisClient } from '../cache/redis.js'
 import { logger } from '../../config/index.js'
+import { increment } from '../../platform/observability/metrics/metrics.service.js'
 
 const createBullMqInfrastructure = ({
   Queue: QueueClass = Queue,
@@ -57,6 +58,7 @@ const createBullMqInfrastructure = ({
     const job = await queue.getJob(jobId)
     if (!job) throw new Error(`BullMQ job ${jobId} was not found.`)
     await job.retry('failed')
+    increment('platform.job.retries', { queue: queueName, jobType: job.name })
     return job
   }
 
@@ -78,6 +80,7 @@ const createBullMqInfrastructure = ({
           ? job.finishedOn - job.processedOn
           : undefined
       const platformContext = job?.data?._platformContext
+      increment('platform.job.completed', { queue: queueName, jobType: job?.name })
       loggerInstance.info(
         {
           queue: queueName,
@@ -99,6 +102,10 @@ const createBullMqInfrastructure = ({
           ? job.finishedOn - job.processedOn
           : undefined
       const platformContext = job?.data?._platformContext
+      increment('platform.job.failed', { queue: queueName, jobType: job?.name })
+      if ((job?.attemptsMade || 0) < (job?.opts?.attempts || 0)) {
+        increment('platform.job.retries', { queue: queueName, jobType: job?.name })
+      }
       loggerInstance.error(
         {
           queue: queueName,
