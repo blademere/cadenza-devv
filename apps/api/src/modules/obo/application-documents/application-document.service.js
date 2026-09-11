@@ -1,6 +1,7 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import { recordAudit } from '../../../platform/audit/audit.service.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
+import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import * as requirementService from '../../../features/requirements/requirements.service.js'
 import * as documentService from '../../../features/documents/document.service.js'
 import * as planPermitService from '../plan-permits/plan-permit.service.js'
@@ -8,12 +9,12 @@ import * as repository from './application-document.repository.js'
 
 const STATUS = Object.freeze({ PENDING: 'PENDING', RECEIVED: 'RECEIVED', VERIFIED: 'VERIFIED', REJECTED: 'REJECTED' })
 
-const getApplication = (id) => planPermitService.getForApplicationDocuments(id)
-
-const normalizeRequirement = (caseRequirement) => ({
-  ...caseRequirement.requirement,
-  required: caseRequirement.requirement.metadata?.required !== false,
-})
+const getApplication = async (id) => {
+  const application = await planPermitService.getForApplicationDocuments(id)
+  if (!application?.workflowInstanceId) return application
+  const workflow = await workflowService.getWorkflowInstance(application.workflowInstanceId)
+  return { ...application, status: workflow.currentStep.key }
+}
 
 const getApplicableRequirements = async (application, db) => {
   if (!application.caseRecord?.id) return []
@@ -52,6 +53,11 @@ const normalizeChecklist = (rows, requirements) => {
     requirement: normalizeRequirement(caseRequirement),
   }))
 }
+
+const normalizeRequirement = (caseRequirement) => ({
+  ...caseRequirement.requirement,
+  required: caseRequirement.requirement.metadata?.required !== false,
+})
 
 const getChecklist = async ({ applicationId }) => {
   const application = await getApplication(applicationId)

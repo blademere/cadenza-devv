@@ -71,9 +71,12 @@ describe('access-control service', () => {
   })
 
   it('canAny allows access when any candidate action is granted', async () => {
-    cache.hasCachedPermission
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true)
+    repository.getUserAuthorizationContext.mockResolvedValue({
+      role: 'operator',
+      permissions: [
+        { resource: 'applications', action: 'review' },
+      ],
+    })
 
     await expect(
       canAny({
@@ -97,7 +100,12 @@ describe('access-control service', () => {
   })
 
   it('canAny remains backward compatible with a scalar action', async () => {
-    cache.hasCachedPermission.mockResolvedValue(true)
+    repository.getUserAuthorizationContext.mockResolvedValue({
+      role: 'operator',
+      permissions: [
+        { resource: 'users', action: 'create' },
+      ],
+    })
 
     await expect(
       canAny({ userId: 7, resource: 'users', action: 'create' }),
@@ -105,7 +113,12 @@ describe('access-control service', () => {
   })
 
   it('canOwn requires both ownership and permission', async () => {
-    cache.hasCachedPermission.mockResolvedValue(true)
+    repository.getUserAuthorizationContext.mockResolvedValue({
+      role: 'operator',
+      permissions: [
+        { resource: 'users', action: 'update' },
+      ],
+    })
 
     await expect(
       canOwn({

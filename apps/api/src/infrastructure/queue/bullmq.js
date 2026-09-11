@@ -1,6 +1,7 @@
 import { Queue, QueueEvents, Worker } from 'bullmq'
 import { connectRedis, getRedisClient } from '../cache/redis.js'
 import { logger } from '../../config/index.js'
+import { increment } from '../../platform/observability/metrics/metrics.service.js'
 
 const createBullMqInfrastructure = ({
   Queue: QueueClass = Queue,
@@ -57,6 +58,7 @@ const createBullMqInfrastructure = ({
     const job = await queue.getJob(jobId)
     if (!job) throw new Error(`BullMQ job ${jobId} was not found.`)
     await job.retry('failed')
+    increment('platform.job.retries', { queue: queueName, jobType: job.name })
     return job
   }
 
@@ -73,15 +75,51 @@ const createBullMqInfrastructure = ({
     })
 
     worker.on('completed', (job) => {
+      const duration =
+        Number.isFinite(job?.finishedOn) && Number.isFinite(job?.processedOn)
+          ? job.finishedOn - job.processedOn
+          : undefined
+      const platformContext = job?.data?._platformContext
+      increment('platform.job.completed', { queue: queueName, jobType: job?.name })
       loggerInstance.info(
-        { queue: queueName, jobId: job.id },
-        'BullMQ job completed'
+        {
+          queue: queueName,
+          jobId: job.id,
+          jobType: job.name,
+          attempts: job.attemptsMade,
+          maxAttempts: job.opts?.attempts,
+          duration,
+          requestId: platformContext?.requestId,
+          correlationId: platformContext?.correlationId,
+          actorId: platformContext?.actorId,
+        },
+        'Platform job completed'
       )
     })
     worker.on('failed', (job, error) => {
+      const duration =
+        Number.isFinite(job?.finishedOn) && Number.isFinite(job?.processedOn)
+          ? job.finishedOn - job.processedOn
+          : undefined
+      const platformContext = job?.data?._platformContext
+      increment('platform.job.failed', { queue: queueName, jobType: job?.name })
+      if ((job?.attemptsMade || 0) < (job?.opts?.attempts || 0)) {
+        increment('platform.job.retries', { queue: queueName, jobType: job?.name })
+      }
       loggerInstance.error(
-        { queue: queueName, jobId: job?.id, err: error },
-        'BullMQ job failed'
+        {
+          queue: queueName,
+          jobId: job?.id,
+          jobType: job?.name,
+          attempts: job?.attemptsMade,
+          maxAttempts: job?.opts?.attempts,
+          duration,
+          requestId: platformContext?.requestId,
+          correlationId: platformContext?.correlationId,
+          actorId: platformContext?.actorId,
+          err: error,
+        },
+        'Platform job failed'
       )
     })
     worker.on('error', (error) => {

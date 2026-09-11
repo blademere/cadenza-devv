@@ -11,6 +11,7 @@ const errorHandler = (error, req, res, _next) => {
         method: req.method,
         path: req.originalUrl,
         requestId: req.requestId,
+        correlationId: req.correlationId,
       },
     })
   }
@@ -20,6 +21,7 @@ const errorHandler = (error, req, res, _next) => {
       {
         err: error,
         requestId: req.requestId,
+        correlationId: req.correlationId,
         statusCode: error.statusCode,
         errors: error.errors,
       },
@@ -33,6 +35,7 @@ const errorHandler = (error, req, res, _next) => {
     {
       err: error,
       requestId: req.requestId,
+      correlationId: req.correlationId,
       errorName: error?.name,
       errorCode: error?.code,
       errorMeta: error?.meta,

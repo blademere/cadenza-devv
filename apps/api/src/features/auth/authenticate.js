@@ -1,4 +1,5 @@
 import { UnauthorizedError } from '../../common/errors/appError.js'
+import { setActorContext } from '../../platform/context/index.js'
 import { verifyAccessToken } from './auth.tokens.js'
 
 const authenticate = (req, _res, next) => {
@@ -29,6 +30,7 @@ const authenticate = (req, _res, next) => {
     req.user = {
       id: userId,
     }
+    setActorContext({ actorId: userId, actorType: 'user' })
 
     return next()
   } catch (_error) {

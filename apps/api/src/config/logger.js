@@ -1,6 +1,8 @@
 import pino from 'pino'
 import pinoHttp from 'pino-http'
 
+import { getContext } from '../platform/context/context.service.js'
+
 const isProduction = process.env.NODE_ENV === 'production'
 
 const logger = pino({
@@ -40,9 +42,16 @@ const requestLogger = pinoHttp({
   logger,
   autoLogging: true,
   genReqId: (req) => req.requestId,
-  customProps: (req) => ({
-    requestId: req.requestId,
-  }),
+  customProps: (req, res) => {
+    const context = getContext() || {}
+    return {
+      operation: `${req.method} ${req.originalUrl || req.url}`,
+      requestId: req.requestId || context.requestId || null,
+      correlationId: req.correlationId || context.correlationId || null,
+      actorId: context.actorId || null,
+      duration: res.responseTime ?? null,
+    }
+  },
   serializers: {
     req: () => undefined,
     res: () => undefined,

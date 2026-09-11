@@ -1,7 +1,14 @@
 import { getUserAuthorizationContext, findRoleById, findUserIdsByRoleId } from './access-control.repository.js'
 import { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } from './access-control.cache.js'
+import { increment } from '../observability/metrics/metrics.service.js'
+import { getConfiguration } from '../configuration/configuration.service.js'
+import { PLATFORM_CONFIGURATION_KEYS } from '../configuration/configuration.constants.js'
 
-const AUTHORIZATION_CACHE_ENABLED = process.env.AUTHORIZATION_CACHE_ENABLED !== 'false'
+const AUTHORIZATION_CACHE_ENABLED = getConfiguration(PLATFORM_CONFIGURATION_KEYS.AUTHORIZATION_CACHE_ENABLED)
+// Positive permission cache entries can become stale after a role/permission
+// revocation. Keep PostgreSQL authoritative by default; explicitly opt in only
+// when the deployment guarantees timely cache invalidation.
+const AUTHORIZATION_CACHE_TRUST_POSITIVE = getConfiguration(PLATFORM_CONFIGURATION_KEYS.AUTHORIZATION_CACHE_TRUST_POSITIVE)
 
 const getPermissionKey = (resource, action) => {
   if (typeof resource !== 'string' || !resource.trim()) {
@@ -37,19 +44,21 @@ const loadUserPermissions = async (userId) => {
 const hasPermission = async (userId, resource, action) => {
   const permissionKey = getPermissionKey(resource, action)
 
-  if (AUTHORIZATION_CACHE_ENABLED) {
+  if (AUTHORIZATION_CACHE_ENABLED && AUTHORIZATION_CACHE_TRUST_POSITIVE) {
     try {
       const cachedPermission = await hasCachedPermission(userId, resource, action)
       if (cachedPermission === true) return true
-      // A cached denial can be stale after a permission grant. Refresh from
-      // PostgreSQL instead of treating a negative cache entry as authoritative.
     } catch {
       // Fall through to PostgreSQL.
     }
   }
 
   const { permissions } = await loadUserPermissions(userId)
-  return permissions.includes(permissionKey)
+  const allowed = permissions.includes(permissionKey)
+  if (!allowed) {
+    increment('platform.authorization.denied', { resource, action })
+  }
+  return allowed
 }
 
 const getAuthorizationContext = async (userId) => {
@@ -103,6 +112,8 @@ const clearRolePermissionCache = async (roleId) => {
 }
 
 export {
+  AUTHORIZATION_CACHE_ENABLED,
+  AUTHORIZATION_CACHE_TRUST_POSITIVE,
   getPermissionKey,
   hasPermission,
   getAuthorizationContext,

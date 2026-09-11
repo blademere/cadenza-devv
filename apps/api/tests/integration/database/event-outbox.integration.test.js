@@ -7,6 +7,7 @@ const {
   markProcessed,
   markFailed,
   recoverStale,
+  MAX_ATTEMPTS,
 } = require('../../../src/platform/event-bus/event-outbox.service')
 
 const prisma = getPrismaClient()
@@ -39,10 +40,14 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
       }
     }
     if (createdUserIds.length) {
-      await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } })
+      for (const id of createdUserIds) {
+        await prisma.user.deleteMany({ where: { id } })
+      }
     }
     if (createdRoleIds.length) {
-      await prisma.role.deleteMany({ where: { id: { in: createdRoleIds } } })
+      for (const id of createdRoleIds) {
+        await prisma.role.deleteMany({ where: { id } })
+      }
     }
     await prisma.$disconnect()
   })
@@ -117,7 +122,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
 
     const user = await prisma.user.findUnique({ where: { id: result.user.id } })
     const event = await prisma.$queryRaw`
-      SELECT "id", "status", "entityId", "idempotencyKey"
+      SELECT "id", "status", "entityId", "idempotencyKey", "deadAt"
       FROM "EventOutbox"
       WHERE "id" = ${result.event.id}
     `
@@ -129,6 +134,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
       status: 'PENDING',
       entityId: String(result.user.id),
       idempotencyKey,
+      deadAt: null,
     })
   })
 
@@ -154,8 +160,8 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     createdEventIds.push(...events.map((event) => event.id))
 
     const [first, second] = await Promise.all([
-      claimBatch({ batchSize: 1, leaseSeconds: 60 }),
-      claimBatch({ batchSize: 1, leaseSeconds: 60 }),
+      claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.claim' }),
+      claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.claim' }),
     ])
 
     const claimedIds = [...first, ...second].map((event) => event.id)
@@ -168,7 +174,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     const idempotencyKey = `ownership:${Date.now()}:${Math.random().toString(36).slice(2)}`
     const created = await enqueueEvent({ event: 'integration.ownership', idempotencyKey })
     createdEventIds.push(created.id)
-    const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
+    const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.ownership' })
 
     expect(claimed.id).toBe(created.id)
     await expect(markProcessed(claimed.id, 'wrong-token')).rejects.toThrow(/no longer owned/)
@@ -176,11 +182,11 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
 
     await markFailed(claimed.id, new Error('expected failure'), claimed.lockToken)
     const stored = await prisma.$queryRaw`
-      SELECT "status", "lastError", "lockToken"
+      SELECT "status", "lastError", "lockToken", "deadAt"
       FROM "EventOutbox"
       WHERE "id" = ${claimed.id}
     `
-    expect(stored[0]).toMatchObject({ status: 'RETRY', lastError: 'expected failure', lockToken: null })
+    expect(stored[0]).toMatchObject({ status: 'RETRY', lastError: 'expected failure', lockToken: null, deadAt: null })
   })
 
   it('retries a failed event and allows a later claim to complete it', async () => {
@@ -188,7 +194,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     const created = await enqueueEvent({ event: 'integration.retry', idempotencyKey })
     createdEventIds.push(created.id)
 
-    const [firstClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
+    const [firstClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.retry' })
     expect(firstClaim.id).toBe(created.id)
     expect(firstClaim.attempts).toBe(1)
 
@@ -200,7 +206,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
       WHERE "id" = ${created.id}
     `
 
-    const [secondClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
+    const [secondClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.retry' })
     expect(secondClaim.id).toBe(created.id)
     expect(secondClaim.attempts).toBe(2)
     expect(secondClaim.lockToken).not.toBe(firstClaim.lockToken)
@@ -208,7 +214,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     await markProcessed(secondClaim.id, secondClaim.lockToken)
 
     const stored = await prisma.$queryRaw`
-      SELECT "status", "attempts", "lastError", "lockToken", "leaseUntil", "processedAt"
+      SELECT "status", "attempts", "lastError", "lockToken", "leaseUntil", "processedAt", "deadAt"
       FROM "EventOutbox"
       WHERE "id" = ${created.id}
     `
@@ -218,31 +224,57 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
       lastError: null,
       lockToken: null,
       leaseUntil: null,
+      deadAt: null,
     })
     expect(stored[0].processedAt).not.toBeNull()
   })
 
-  it('recovers stale processing leases for retry', async () => {
-    const idempotencyKey = `stale:${Date.now()}:${Math.random().toString(36).slice(2)}`
-    const created = await enqueueEvent({ event: 'integration.stale', idempotencyKey })
+  it('moves an exhausted event to DEAD and records deadAt', async () => {
+    const idempotencyKey = `dead:${Date.now()}:${Math.random().toString(36).slice(2)}`
+    const created = await enqueueEvent({ event: 'integration.dead', idempotencyKey })
     createdEventIds.push(created.id)
-    const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 1 })
 
-    expect(claimed.id).toBe(created.id)
     await prisma.$executeRaw`
       UPDATE "EventOutbox"
-      SET "leaseUntil" = CURRENT_TIMESTAMP - INTERVAL '1 second'
-      WHERE "id" = ${claimed.id}
+      SET "attempts" = ${MAX_ATTEMPTS - 1}, "availableAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${created.id}
     `
 
-    const recovered = await recoverStale({ timeoutSeconds: 60 })
-    expect(recovered).toBeGreaterThanOrEqual(1)
+    const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.dead' })
+    expect(claimed.attempts).toBe(MAX_ATTEMPTS)
+
+    await markFailed(claimed.id, new Error('permanent integration failure'), claimed.lockToken)
 
     const stored = await prisma.$queryRaw`
-      SELECT "status", "availableAt", "lockToken", "leaseUntil"
+      SELECT "status", "attempts", "lastError", "deadAt", "availableAt"
       FROM "EventOutbox"
-      WHERE "id" = ${claimed.id}
+      WHERE "id" = ${created.id}
     `
-    expect(stored[0]).toMatchObject({ status: 'RETRY', lockToken: null, leaseUntil: null })
+    expect(stored[0].status).toBe('DEAD')
+    expect(stored[0].attempts).toBe(MAX_ATTEMPTS)
+    expect(stored[0].lastError).toBe('permanent integration failure')
+    expect(stored[0].deadAt).not.toBeNull()
+  })
+
+  it('does not recover a processing event after the retry budget is exhausted', async () => {
+    const idempotencyKey = `stale-dead:${Date.now()}:${Math.random().toString(36).slice(2)}`
+    const created = await enqueueEvent({ event: 'integration.stale-dead', idempotencyKey })
+    createdEventIds.push(created.id)
+
+    await prisma.$executeRaw`
+      UPDATE "EventOutbox"
+      SET "status" = 'PROCESSING', "attempts" = ${MAX_ATTEMPTS}, "lockedAt" = CURRENT_TIMESTAMP - INTERVAL '2 minutes', "leaseUntil" = CURRENT_TIMESTAMP - INTERVAL '1 minute', "lockToken" = 'stale-dead-token'
+      WHERE "id" = ${created.id}
+    `
+
+    const recovered = await recoverStale({ timeoutSeconds: 60, event: 'integration.stale-dead' })
+    expect(recovered).toBe(0)
+
+    const stored = await prisma.$queryRaw`
+      SELECT "status", "attempts", "lockToken"
+      FROM "EventOutbox"
+      WHERE "id" = ${created.id}
+    `
+    expect(stored[0]).toMatchObject({ status: 'PROCESSING', attempts: MAX_ATTEMPTS, lockToken: 'stale-dead-token' })
   })
 })

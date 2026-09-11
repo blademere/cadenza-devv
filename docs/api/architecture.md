@@ -46,7 +46,7 @@ features/
 
 ### `apps/api/src/platform/`
 
-Platform provides reusable mechanisms such as authorization, workflow, forms, configurable custom fields, rules, event/outbox infrastructure, jobs, generic scheduling primitives, notification mechanisms, and storage boundaries.
+Platform provides reusable mechanisms such as authorization, workflow, forms, configurable custom fields, rules, event/outbox infrastructure, jobs, generic scheduling primitives, notification mechanisms, configuration, and storage boundaries.
 
 Platform code must be provider-neutral and domain-neutral. It provides mechanisms, not application-specific business decisions.
 
@@ -73,16 +73,19 @@ Infrastructure contains concrete technology integrations and persistence impleme
 ## Mandatory dependency rules
 
 1. Shared `features` must not import `modules`.
-2. `platform` must not import `modules`.
+2. `platform` must not import `modules` or feature implementations.
 3. `platform/authorization` must not import `features/admin`.
 4. `infrastructure` must not import `modules`.
-5. Domain-specific behavior belongs in `modules`, not `platform`.
-6. Administrative behavior belongs under `features/admin` only when it is genuinely application administration; do not use `admin` as a catch-all for domain behavior.
-7. Services must not query Prisma directly when a repository boundary exists.
-8. Repositories own persistence queries and persistence-specific composition.
-9. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
+5. `common` must not import `features`, `platform`, or `modules`.
+6. Domain-specific behavior belongs in `modules`, not `platform`.
+7. Administrative behavior belongs under `features/admin` only when it is genuinely application administration; do not use `admin` as a catch-all for domain behavior.
+8. Services must not query Prisma directly when a repository boundary exists.
+9. New platform services must use repositories rather than direct Prisma access.
+10. Repositories own persistence queries and persistence-specific composition.
+11. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
+12. Platform-owned configuration must be consumed through `platform/configuration`; domain-specific configuration remains owned by the domain/module.
 
-The architecture validator enforces these boundaries where they can be checked statically.
+The architecture validator enforces these boundaries where they can be checked statically. See [`docs/api/platform/architecture-rules.md`](platform/architecture-rules.md) for the Phase 9 enforcement contract and the explicitly tracked legacy persistence exceptions.
 
 ## Service and repository boundary
 
@@ -101,6 +104,49 @@ Services own validation, authorization decisions, orchestration, and business be
 A service should not call `getPrismaClient()`, `prisma.$transaction()`, or Prisma models directly when the operation belongs to its repository. Transactions spanning multiple repository operations should be coordinated through an explicit transaction boundary without exposing Prisma to business services.
 
 Repositories may access Prisma because persistence is their responsibility.
+
+### Platform persistence migration rule
+
+A limited set of pre-existing platform services still accesses Prisma directly. Phase 9 records these files as explicit technical-debt exceptions in `apps/api/scripts/architecture-rules.cjs`.
+
+Those exceptions are not permission to add more direct Prisma access. New platform services are rejected by architecture validation if they access Prisma directly. When an existing exception is migrated to a repository, remove its path from the exception list in the same change.
+
+## Configuration boundary
+
+Application configuration is parsed and validated centrally in `apps/api/src/config/env.js`. Platform-owned runtime settings are exposed through `apps/api/src/platform/configuration/`.
+
+```text
+Environment / deployment
+          ↓
+      config/env.js
+          ↓
+platform/configuration
+          ↓
+platform services
+```
+
+Platform configuration must remain generic. It may contain system, operational, and platform mechanism settings, but must not encode domain rules such as OBO permit requirements. Domain-specific configuration remains owned by the relevant module or feature.
+
+Do not introduce a database-backed configuration store unless the application requires runtime-managed, tenant-scoped, versioned, or transactional settings. If persistence becomes necessary, keep it behind a configuration repository.
+
+## Platform documentation
+
+The platform capability contracts are maintained under `docs/api/platform/`:
+
+```text
+docs/api/platform/
+├── overview.md
+├── context.md
+├── events.md
+├── jobs.md
+├── workflow.md
+├── idempotency.md
+├── observability.md
+├── architecture-rules.md
+└── phase-11-configuration.md
+```
+
+`overview.md` provides the platform-level entry point. Individual documents define the detailed reliability and architecture contracts for each capability.
 
 ## Shared business modeling
 

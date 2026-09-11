@@ -70,19 +70,19 @@ model WorkflowTransition {
 }
 
 model WorkflowInstance {
-  id                   String                  @id @default(uuid())
-  workflowVersionId    String
-  currentStepId        String
-  subjectType          String
-  subjectId            String
-  startedByUserId      Int?
-  startedAt            DateTime                @default(now())
-  completedAt          DateTime?
-  workflowVersion      WorkflowVersion         @relation(fields: [workflowVersionId], references: [id])
-  currentStep          WorkflowStep            @relation(fields: [currentStepId], references: [id])
-  startedBy            User?                   @relation("WorkflowInstanceStartedBy", fields: [startedByUserId], references: [id], onDelete: SetNull)
+  id                  String                 @id @default(uuid())
+  workflowVersionId   String
+  currentStepId       String
+  subjectType         String
+  subjectId           String
+  startedByUserId     Int?
+  startedAt           DateTime               @default(now())
+  completedAt         DateTime?
+  workflowVersion     WorkflowVersion        @relation(fields: [workflowVersionId], references: [id])
+  currentStep         WorkflowStep           @relation(fields: [currentStepId], references: [id])
+  startedBy            User?                 @relation("WorkflowInstanceStartedBy", fields: [startedByUserId], references: [id], onDelete: SetNull)
   history              WorkflowHistory[]
-  oboPermitApplication  OboPermitApplication?
+  oboPermitApplication OboPermitApplication?
 
   @@index([subjectType, subjectId])
   @@index([workflowVersionId])
@@ -96,6 +96,7 @@ model WorkflowHistory {
   toStepId     String
   transitionId String?
   actorId      Int?
+  correlationId String?
   metadata     Json?
   createdAt    DateTime            @default(now())
   instance     WorkflowInstance    @relation(fields: [instanceId], references: [id], onDelete: Cascade)
@@ -106,4 +107,5 @@ model WorkflowHistory {
 
   @@index([instanceId, createdAt])
   @@index([actorId])
+  @@index([correlationId])
 }
