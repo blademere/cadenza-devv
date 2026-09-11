@@ -1,12 +1,14 @@
 import { getUserAuthorizationContext, findRoleById, findUserIdsByRoleId } from './access-control.repository.js'
 import { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } from './access-control.cache.js'
 import { increment } from '../observability/metrics/metrics.service.js'
+import { getConfiguration } from '../configuration/configuration.service.js'
+import { PLATFORM_CONFIGURATION_KEYS } from '../configuration/configuration.constants.js'
 
-const AUTHORIZATION_CACHE_ENABLED = process.env.AUTHORIZATION_CACHE_ENABLED !== 'false'
+const AUTHORIZATION_CACHE_ENABLED = getConfiguration(PLATFORM_CONFIGURATION_KEYS.AUTHORIZATION_CACHE_ENABLED)
 // Positive permission cache entries can become stale after a role/permission
 // revocation. Keep PostgreSQL authoritative by default; explicitly opt in only
 // when the deployment guarantees timely cache invalidation.
-const AUTHORIZATION_CACHE_TRUST_POSITIVE = process.env.AUTHORIZATION_CACHE_TRUST_POSITIVE === 'true'
+const AUTHORIZATION_CACHE_TRUST_POSITIVE = getConfiguration(PLATFORM_CONFIGURATION_KEYS.AUTHORIZATION_CACHE_TRUST_POSITIVE)
 
 const getPermissionKey = (resource, action) => {
   if (typeof resource !== 'string' || !resource.trim()) {
