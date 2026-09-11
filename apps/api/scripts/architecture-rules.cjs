@@ -4,7 +4,7 @@ const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:features|modules)\//
 const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_INFRASTRUCTURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform|modules)\//
-const PRISMA_IMPORT = /(?:\.\.\/)+infrastructure\/database\/prisma(?:['"/]|$)/
+const PRISMA_IMPORT = /(?:\.\.\/)+infrastructure\/database\/prisma(?:['"]|\/|$)/
 const PRISMA_CLIENT_ACCESS = /\b(?:getPrismaClient|PrismaClient)\s*\(/\n
 const PLATFORM_PRISMA_LEGACY_EXCEPTIONS = new Set([
   'apps/api/src/platform/audit/audit.query.service.js',
