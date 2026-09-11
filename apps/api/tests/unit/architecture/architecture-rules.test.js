@@ -48,25 +48,28 @@ describe('architecture rules', () => {
     )
   })
 
-  it('keeps explicit legacy Prisma exceptions bounded', () => {
-    const legacyPath = 'apps/api/src/platform/workflow/workflow.service.js'
-
-    expect(rules.isPlatformPrismaLegacyException(legacyPath)).toBe(true)
-    expect(rules.getLayerViolations(
-      legacyPath,
-      "import { getPrismaClient } from '../../infrastructure/database/prisma.js'\nconst prisma = getPrismaClient()",
-    )).not.toContain(
-      `${legacyPath}: platform services must not access Prisma directly; use a repository or explicit infrastructure boundary.`,
-    )
+  it('removes resolved workflow and audit services from the legacy exception list', () => {
+    expect(rules.isPlatformPrismaLegacyException(
+      'apps/api/src/platform/workflow/workflow.service.js',
+    )).toBe(false)
 
     expect(rules.isPlatformPrismaLegacyException(
-      'apps/api/src/platform/workflow/new-workflow.service.js',
+      'apps/api/src/platform/audit/audit.service.js',
     )).toBe(false)
+
+    expect(rules.isPlatformPrismaLegacyException(
+      'apps/api/src/platform/workflow/workflow-version.service.js',
+    )).toBe(true)
   })
 
   it('allows repositories to own direct Prisma access', () => {
     expect(rules.getLayerViolations(
       'apps/api/src/platform/workflow/workflow.repository.js',
+      "import { getPrismaClient } from '../../infrastructure/database/prisma.js'\nconst prisma = getPrismaClient()",
+    )).toEqual([])
+
+    expect(rules.getLayerViolations(
+      'apps/api/src/platform/audit/audit.repository.js',
       "import { getPrismaClient } from '../../infrastructure/database/prisma.js'\nconst prisma = getPrismaClient()",
     )).toEqual([])
   })
