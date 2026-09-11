@@ -3,6 +3,7 @@ import * as appointmentService from '../../../features/appointments/appointment.
 import { mapAppointment } from '../../../features/appointments/appointment.mapper.js'
 import * as taskService from '../../../features/tasks/tasks.service.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
+import { publish } from '../../../platform/event-bus/event-bus.js'
 import * as planPermitService from '../plan-permits/plan-permit.service.js'
 import * as repository from './submission-appointment.repository.js'
 import { getNotificationContext } from '../notification-context.js'
@@ -68,6 +69,26 @@ const createSubmissionAppointment = async ({ applicationId, userId, appointmentT
       metadata: { source: 'obo-submission-appointments', taskType: TASK_TYPE.RECEIVE_HARD_COPY, applicationId, workflowTransition: 'SCHEDULE_SUBMISSION', appointmentId: appointment.id },
     }, { db: tx })
 
+    await publish({
+      db: tx,
+      event: 'obo.permit_application.appointment.booked',
+      entityType: 'OboPermitApplication',
+      entityId: applicationId,
+      actorId: userId,
+      context: {
+        caseId: application.caseId,
+        appointmentId: appointment.id,
+        referenceNumber: application.referenceNumber,
+        permitTypeId: application.permitTypeId,
+        appointmentTypeId,
+        slotId,
+        startsAt: appointment.slot?.startsAt || null,
+        endsAt: appointment.slot?.endsAt || null,
+        purpose: 'OBO_HARDCOPY_SUBMISSION',
+      },
+      idempotencyKey: `obo:permit-application:${applicationId}:appointment:booked:${appointment.id}`,
+    })
+
     return mapAppointment(appointment)
   })
 }
@@ -78,8 +99,9 @@ const replaceSubmissionAppointment = async ({ applicationId, userId, appointment
   if (!application.submissionAppointment) throw new NotFoundError('Submission appointment not found.')
 
   return repository.withTransaction(async (tx) => {
+    const previousAppointmentId = application.submissionAppointment.appointmentId
     await appointmentService.cancelAppointment({
-      id: application.submissionAppointment.appointmentId,
+      id: previousAppointmentId,
       userId,
       db: tx,
     })
@@ -106,6 +128,27 @@ const replaceSubmissionAppointment = async ({ applicationId, userId, appointment
         metadata: { ...(receivingTask.metadata || {}), appointmentId: appointment.id },
       }, { db: tx })
     }
+
+    await publish({
+      db: tx,
+      event: 'obo.permit_application.appointment.rescheduled',
+      entityType: 'OboPermitApplication',
+      entityId: applicationId,
+      actorId: userId,
+      context: {
+        caseId: application.caseId,
+        previousAppointmentId,
+        appointmentId: appointment.id,
+        referenceNumber: application.referenceNumber,
+        permitTypeId: application.permitTypeId,
+        appointmentTypeId,
+        slotId,
+        startsAt: appointment.slot?.startsAt || null,
+        endsAt: appointment.slot?.endsAt || null,
+        purpose: 'OBO_HARDCOPY_SUBMISSION',
+      },
+      idempotencyKey: `obo:permit-application:${applicationId}:appointment:rescheduled:${previousAppointmentId}:${appointment.id}`,
+    })
 
     return mapAppointment(appointment)
   })
