@@ -5,6 +5,8 @@ const prisma = getPrismaClient()
 const MAX_EVENT_DEPTH = 10
 const MAX_ATTEMPTS = 10
 const DEFAULT_LEASE_SECONDS = 300
+const RETRY_BASE_SECONDS = 5
+const RETRY_MAX_SECONDS = 300
 
 const enqueueEvent = async ({
   db = prisma,
@@ -106,7 +108,7 @@ const markProcessed = async (id, lockToken) => {
     throw new Error('lockToken is required to complete an outbox event.')
   const result = await prisma.$executeRaw`
     UPDATE "EventOutbox"
-    SET "status" = 'PROCESSED', "processedAt" = CURRENT_TIMESTAMP, "lockedAt" = NULL, "leaseUntil" = NULL, "lockToken" = NULL, "lastError" = NULL, "updatedAt" = CURRENT_TIMESTAMP
+    SET "status" = 'PROCESSED', "processedAt" = CURRENT_TIMESTAMP, "deadAt" = NULL, "lockedAt" = NULL, "leaseUntil" = NULL, "lockToken" = NULL, "lastError" = NULL, "updatedAt" = CURRENT_TIMESTAMP
     WHERE "id" = ${id} AND "status" = 'PROCESSING' AND "lockToken" = ${lockToken}
   `
   if (result !== 1)
@@ -121,7 +123,13 @@ const markFailed = async (id, error, lockToken) => {
     UPDATE "EventOutbox"
     SET
       "status" = CASE WHEN "attempts" >= ${MAX_ATTEMPTS} THEN 'DEAD' ELSE 'RETRY' END,
-      "availableAt" = CURRENT_TIMESTAMP + (LEAST("attempts", 8) * INTERVAL '10 seconds'),
+      "availableAt" = CASE
+        WHEN "attempts" >= ${MAX_ATTEMPTS} THEN "availableAt"
+        ELSE CURRENT_TIMESTAMP + (
+          LEAST(${RETRY_MAX_SECONDS}, ${RETRY_BASE_SECONDS} * POWER(2, GREATEST("attempts" - 1, 0))) * INTERVAL '1 second'
+        )
+      END,
+      "deadAt" = CASE WHEN "attempts" >= ${MAX_ATTEMPTS} THEN CURRENT_TIMESTAMP ELSE NULL END,
       "lockedAt" = NULL,
       "leaseUntil" = NULL,
       "lockToken" = NULL,
@@ -146,6 +154,7 @@ const recoverStale = async ({
     UPDATE "EventOutbox"
     SET "status" = 'RETRY', "lockedAt" = NULL, "leaseUntil" = NULL, "lockToken" = NULL, "availableAt" = CURRENT_TIMESTAMP, "lastError" = COALESCE("lastError", 'Recovered stale event lease'), "updatedAt" = CURRENT_TIMESTAMP
     WHERE "status" = 'PROCESSING'
+      AND "attempts" < ${MAX_ATTEMPTS}
       AND ("leaseUntil" IS NOT NULL AND "leaseUntil" < CURRENT_TIMESTAMP OR "leaseUntil" IS NULL AND "lockedAt" < CURRENT_TIMESTAMP - (${timeoutSeconds} * INTERVAL '1 second'))
   `
 }
@@ -154,6 +163,8 @@ export {
   MAX_EVENT_DEPTH,
   MAX_ATTEMPTS,
   DEFAULT_LEASE_SECONDS,
+  RETRY_BASE_SECONDS,
+  RETRY_MAX_SECONDS,
   enqueueEvent,
   claimBatch,
   markProcessed,
