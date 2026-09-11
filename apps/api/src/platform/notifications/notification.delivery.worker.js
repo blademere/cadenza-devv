@@ -2,6 +2,7 @@ import { registerJobWorker } from '../jobs/job.worker.js'
 import { JOB_NAMES, JOB_QUEUES } from '../jobs/job.constants.js'
 import * as notificationService from './notification.service.js'
 import * as notificationTransport from './notification.transport.js'
+import { increment } from '../observability/metrics/metrics.service.js'
 
 async function processNotificationDelivery(job, dependencies = {}) {
   const { claimDelivery, markDeliverySent, markDeliveryFailed } = { ...notificationService, ...dependencies }
@@ -15,13 +16,17 @@ async function processNotificationDelivery(job, dependencies = {}) {
   if (!transport) {
     const error = new Error(`No transport registered for notification channel: ${delivery.channel}`)
     await markDeliveryFailed(delivery.id, error)
+    increment('platform.notification.delivery.failed', { channel: delivery.channel })
     throw error
   }
   try {
     await transport.send({ delivery, recipient: delivery.recipient, payload: delivery.payload })
-    return await markDeliverySent(delivery.id)
+    const sent = await markDeliverySent(delivery.id)
+    increment('platform.notification.delivery.sent', { channel: delivery.channel })
+    return sent
   } catch (error) {
     await markDeliveryFailed(delivery.id, error)
+    increment('platform.notification.delivery.failed', { channel: delivery.channel })
     throw error
   }
 }
