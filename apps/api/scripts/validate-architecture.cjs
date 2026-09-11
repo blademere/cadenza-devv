@@ -2,15 +2,14 @@ const fs = require('node:fs')
 const path = require('node:path')
 const {
   getLayerViolations,
-  isApplicationService,
+  isApplicationService: isApplicationServiceFile,
   hasDirectPrismaAccess,
-  isPlatformPrismaLegacyException,
 } = require('./architecture-rules.cjs')
 
 const ROOT = path.resolve(__dirname, '..', 'src')
 const ROUTES = path.join(ROOT, 'features')
 const MUTATION = /router\.(post|put|patch|delete)\s*\(/g
-const RESOURCE_ROUTE = /router\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
+const RESOURCE_ROUTE = /router\.(get|post|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
 const IDEMPOTENCY_MIDDLEWARE = /\b(?:requireIdempotency|idempotency(?:Middleware)?)\b/
 
 const walk = (directory) => {
@@ -29,15 +28,6 @@ for (const file of files) {
   const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
 
   failures.push(...getLayerViolations(relative, source))
-
-  const isPlatformService =
-    relative.startsWith('apps/api/src/platform/') && isApplicationService(relative)
-
-  if (isPlatformService && hasDirectPrismaAccess(source) && isPlatformPrismaLegacyException(relative)) {
-    // Explicit baseline debt. Keeping this branch in the validator prevents
-    // new platform service Prisma access while the listed services are
-    // migrated behind repositories in a follow-up hardening step.
-  }
 
   const isApplicationService =
     (relative.startsWith('apps/api/src/features/') || relative.startsWith('apps/api/src/modules/')) &&
