@@ -42,6 +42,7 @@ const requestLogger = pinoHttp({
   genReqId: (req) => req.requestId,
   customProps: (req) => ({
     requestId: req.requestId,
+    correlationId: req.correlationId,
   }),
   serializers: {
     req: () => undefined,
