@@ -29,13 +29,8 @@ const listUsers = userService.listUsers
 const registerUser = userService.registerUser
 
 const contextMocks = vi.hoisted(() => ({
-  findUserAuthState: vi.fn(),
   getUserAuthorizationContext: vi.fn(),
   listActiveModules: vi.fn(),
-}))
-
-vi.mock('../../../src/features/auth/auth.repository.js', () => ({
-  findUserAuthState: contextMocks.findUserAuthState,
 }))
 
 vi.mock('../../../src/platform/authorization/authorization-context.repository.js', () => ({
@@ -43,7 +38,6 @@ vi.mock('../../../src/platform/authorization/authorization-context.repository.js
   listActiveModules: contextMocks.listActiveModules,
 }))
 
-const contextFindUserAuthState = contextMocks.findUserAuthState
 const getUserAuthorizationContext = contextMocks.getUserAuthorizationContext
 const listActiveModules = contextMocks.listActiveModules
 
@@ -118,7 +112,7 @@ describe('authorization context', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    contextFindUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
+    findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
     getUserAuthorizationContext.mockResolvedValue({
       userId: 42,
       role: { id: 3, name: 'receiving_officer' },
