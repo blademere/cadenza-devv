@@ -35,7 +35,9 @@ const enqueueEvent = async ({
     )
 
   const id = randomUUID()
+  const occurredAt = new Date().toISOString()
   const payload = {
+    eventId: id,
     event,
     entityType,
     entityId: entityId == null ? null : String(entityId),
@@ -44,7 +46,7 @@ const enqueueEvent = async ({
     correlationId,
     causationId,
     depth,
-    occurredAt: new Date().toISOString(),
+    occurredAt,
   }
 
   const rows = await db.$queryRaw`
