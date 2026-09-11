@@ -7,6 +7,7 @@ vi.mock('../../../../src/modules/obo/professionals/professional.service.js')
 vi.mock('../../../../src/platform/forms/form.service.js')
 vi.mock('../../../../src/platform/workflow/workflow.service.js')
 vi.mock('../../../../src/platform/audit/audit.service.js')
+vi.mock('../../../../src/platform/event-bus/event-bus.js')
 vi.mock('../../../../src/features/appointments/appointment.service.js')
 vi.mock('../../../../src/features/participants/participants.service.js')
 vi.mock('../../../../src/features/tasks/tasks.service.js')
@@ -18,6 +19,7 @@ const professionalService = await import('../../../../src/modules/obo/profession
 const formService = await import('../../../../src/platform/forms/form.service.js')
 const workflowService = await import('../../../../src/platform/workflow/workflow.service.js')
 const auditService = await import('../../../../src/platform/audit/audit.service.js')
+const eventBus = await import('../../../../src/platform/event-bus/event-bus.js')
 const appointmentService = await import('../../../../src/features/appointments/appointment.service.js')
 const participantService = await import('../../../../src/features/participants/participants.service.js')
 const taskService = await import('../../../../src/features/tasks/tasks.service.js')
@@ -37,6 +39,7 @@ const spies = {
   getWorkflowInstance: workflowService.getWorkflowInstance,
   transitionWorkflow: workflowService.transitionWorkflow,
   recordAudit: auditService.recordAudit,
+  publish: eventBus.publish,
   validateProfessionalReferences: professionalReferenceService.validateProfessionalReferences,
   buildProfessionalSnapshots: professionalReferenceService.buildProfessionalSnapshots,
   getForReference: professionalService.getForReference,
@@ -49,7 +52,7 @@ const person = { id: 'person-1', userId: 'user-1' }
 const permitType = { id: 'permit-1', name: 'Building Permit', isActive: true, formId: null }
 
 beforeEach(() => {
-  spies.withTransaction.mockImplementation(async (callback) => callback({ tx: true }))
+  spies.withTransaction.mockImplementation(async (callback) => callback({ tx: true, $queryRaw: vi.fn() }))
   spies.findPersonByUserId.mockResolvedValue(person)
   spies.getPermitTypeById.mockResolvedValue(permitType)
   spies.findOwnedByClient.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', referenceNumber: 'BP-1', formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', version: 2 }, permitType, formValues: { architect: 'professional-a', projectAddress: 'Old address' } })
@@ -62,6 +65,7 @@ beforeEach(() => {
   spies.findPersonNotificationContext.mockResolvedValue(null)
   spies.update.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', status: 'DRAFT', formVersionId: 'form-version-1', permitType })
   spies.recordAudit.mockResolvedValue({ id: 'audit-1' })
+  spies.publish.mockResolvedValue({ id: 'event-1' })
   spies.validateProfessionalReferences.mockResolvedValue(true)
   spies.buildProfessionalSnapshots.mockResolvedValue({ architect: { professionalId: 'professional-a', name: 'John Doe', registrationNumber: 'REG-1', prcId: 'PRC-1', ptrNumber: 'PTR-1', role: 'ARCHITECT' } })
   spies.getForReference.mockResolvedValue({ id: 'professional-a', personId: 'professional-person-a', professionalRole: 'ARCHITECT' })
@@ -76,14 +80,14 @@ describe('OBO plan permit auditability', () => {
   it('audits each changed draft field with form version and actor context', async () => {
     await service.updateDraft({ id: 'application-1', userId: 'user-1', formValues: { architect: 'professional-b', projectAddress: 'New address' } })
     expect(spies.recordAudit).toHaveBeenCalledTimes(2)
-    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'user-1', action: 'OBO_PERMIT_APPLICATION_FORM_FIELD_UPDATED', entityType: 'OboPermitApplication', entityId: 'application-1', before: 'professional-a', after: 'professional-b', metadata: expect.objectContaining({ formVersionId: 'form-version-1', fieldKey: 'architect' }), db: { tx: true } }))
+    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'user-1', action: 'OBO_PERMIT_APPLICATION_FORM_FIELD_UPDATED', entityType: 'OboPermitApplication', entityId: 'application-1', before: 'professional-a', after: 'professional-b', metadata: expect.objectContaining({ formVersionId: 'form-version-1', fieldKey: 'architect' }), db: { tx: true, $queryRaw: expect.any(Function) }))
     expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ before: 'Old address', after: 'New address', metadata: expect.objectContaining({ fieldKey: 'projectAddress' }) }))
   })
 
   it('audits a draft form-version change even when form values are unchanged', async () => {
     spies.getFormVersionById.mockResolvedValue({ id: 'form-version-2', formId: 'form-1', version: 3, status: 'PUBLISHED', fields: [] })
     await service.updateDraft({ id: 'application-1', userId: 'user-1', formVersionId: 'form-version-2', formValues: { architect: 'professional-a', projectAddress: 'Old address' } })
-    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'user-1', action: 'OBO_PERMIT_APPLICATION_FORM_VERSION_CHANGED', entityType: 'OboPermitApplication', entityId: 'application-1', before: 'form-version-1', after: 'form-version-2', metadata: expect.objectContaining({ referenceNumber: 'BP-1' }), db: { tx: true } }))
+    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'user-1', action: 'OBO_PERMIT_APPLICATION_FORM_VERSION_CHANGED', entityType: 'OboPermitApplication', entityId: 'application-1', before: 'form-version-1', after: 'form-version-2', metadata: expect.objectContaining({ referenceNumber: 'BP-1' }), db: { tx: true, $queryRaw: expect.any(Function) }))
   })
 
   it('does not create audit records for unchanged draft fields', async () => {
@@ -97,8 +101,8 @@ describe('OBO plan permit auditability', () => {
     await service.submit({ id: 'application-1', userId: 'user-1' })
     expect(spies.validateProfessionalReferences).toHaveBeenCalledWith(expect.objectContaining({ formVersion: expect.objectContaining({ id: 'form-version-1' }), formValues: { architect: 'professional-a' } }))
     expect(spies.buildProfessionalSnapshots).toHaveBeenCalledWith(expect.objectContaining({ formVersion: expect.objectContaining({ id: 'form-version-1' }), formValues: { architect: 'professional-a' } }))
-    expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'user-1', transitionKey: 'SUBMIT_FOR_SUBMISSION', db: { tx: true } }))
-    expect(spies.createTask).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', metadata: expect.objectContaining({ taskType: 'REVIEW_APPLICATION', applicationId: 'application-1' }) }), { db: { tx: true } })
-    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'user-1', action: 'OBO_PERMIT_APPLICATION_SUBMITTED', entityType: 'OboPermitApplication', entityId: 'application-1', before: { formVersionId: 'form-version-1', formValues: { architect: 'professional-a' } }, after: expect.objectContaining({ formVersionId: 'form-version-1', formValues: { architect: 'professional-a' }, professionalSnapshots: expect.objectContaining({ architect: expect.objectContaining({ professionalId: 'professional-a', name: 'John Doe', role: 'ARCHITECT' }) }) }), metadata: expect.objectContaining({ formVersionId: 'form-version-1', referenceNumber: 'BP-1', professionalFieldKeys: ['architect'] }), db: { tx: true } }))
+    expect(spies.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'user-1', transitionKey: 'SUBMIT_FOR_SUBMISSION', db: { tx: true, $queryRaw: expect.any(Function) } }))
+    expect(spies.createTask).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', metadata: expect.objectContaining({ taskType: 'REVIEW_APPLICATION', applicationId: 'application-1' }) }), { db: { tx: true, $queryRaw: expect.any(Function) } })
+    expect(spies.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'user-1', action: 'OBO_PERMIT_APPLICATION_SUBMITTED', entityType: 'OboPermitApplication', entityId: 'application-1', before: { formVersionId: 'form-version-1', formValues: { architect: 'professional-a' } }, after: expect.objectContaining({ formVersionId: 'form-version-1', formValues: { architect: 'professional-a' }, professionalSnapshots: expect.objectContaining({ architect: expect.objectContaining({ professionalId: 'professional-a', name: 'John Doe', role: 'ARCHITECT' }) }) }), metadata: expect.objectContaining({ formVersionId: 'form-version-1', referenceNumber: 'BP-1', professionalFieldKeys: ['architect'] }), db: { tx: true, $queryRaw: expect.any(Function) }))
   })
 })
