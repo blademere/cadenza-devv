@@ -4,6 +4,7 @@ import authenticate from '../../../features/auth/authenticate.secure.js'
 import authorize from '../../../platform/authorization/authorize.js'
 import authorizeResource from '../../../platform/authorization/authorization-resource.middleware.js'
 import * as service from './receiving.service.js'
+import { hasReceivingTaskAccess } from './receiving.authorization.js'
 import * as applicationDocumentController from '../application-documents/application-document.controller.js'
 import * as controller from './receiving.controller.js'
 import * as validation from './receiving.validation.js'
@@ -19,6 +20,7 @@ const authorizeReceivingApplication = authorizeResource({
   resource: 'obo_plan_permits',
   action: 'receive',
   loadResource: loadApplication,
+  policy: hasReceivingTaskAccess,
   getResourceId: (req) => req.params.id,
 })
 
