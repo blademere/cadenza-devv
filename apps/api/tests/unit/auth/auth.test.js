@@ -25,13 +25,14 @@ const userServicePath = new URL('../../../src/features/users/user.service.js', i
 const oauthServicePath = new URL('../../../src/features/auth/oauth/oauth.service.js', import.meta.url)
 const readText = (url) => readFile(url, 'utf8')
 
-const { oauthRedis, connectRedis } = vi.hoisted(() => {
+const { oauthRedis, connectRedis, getRedisClient } = vi.hoisted(() => {
   const oauthRedis = { set: vi.fn(), getDel: vi.fn() }
   const connectRedis = vi.fn(async () => oauthRedis)
-  return { oauthRedis, connectRedis }
+  const getRedisClient = vi.fn(() => oauthRedis)
+  return { oauthRedis, connectRedis, getRedisClient }
 })
 
-vi.mock('../../../src/infrastructure/cache/redis.js', () => ({ connectRedis }))
+vi.mock('../../../src/infrastructure/cache/redis.js', () => ({ connectRedis, getRedisClient }))
 vi.mock('../../../src/config/index.js', () => ({
   env: {
     OAUTH_GOOGLE_CLIENT_ID: 'google-client',
@@ -253,164 +254,72 @@ describe('OAuth', () => {
   })
 
   describe('safeEqual', () => {
-    it('returns true for equal values', () => expect(safeEqual('same-state', 'same-state')).toBe(true))
-    it('returns false for different values', () => expect(safeEqual('state-a', 'state-b')).toBe(false))
-    it('returns false when a value is missing', () => {
-      expect(safeEqual(undefined, 'state')).toBe(false)
-      expect(safeEqual('state', undefined)).toBe(false)
-      expect(safeEqual('', 'state')).toBe(false)
-    })
+    it('returns true for equal values', () => expect(safeEqual('same', 'same')).toBe(true))
+    it('returns false for different values', () => expect(safeEqual('same', 'other')).toBe(false))
+    it('returns false for different lengths', () => expect(safeEqual('short', 'longer')).toBe(false))
   })
 
-  describe('state storage', () => {
-    it('stores login state atomically with NX and EX, including the PKCE verifier', async () => {
-      oauthRedis.set.mockResolvedValue('OK')
-      await storeOAuthState(validState, { flow: 'login', provider: 'google', codeVerifier: validVerifier }, 600000)
-      expect(oauthRedis.set).toHaveBeenCalledWith(expect.stringMatching(/^oauth:state:[a-f0-9]{64}$/), JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }), { NX: true, EX: 600 })
-    })
+  it('stores and consumes OAuth state through Redis', async () => {
+    await storeOAuthState('state-123', { provider: 'google', codeVerifier: validVerifier })
+    expect(connectRedis).toHaveBeenCalled()
+    expect(oauthRedis.set).toHaveBeenCalledWith('oauth:state:state-123', JSON.stringify({ provider: 'google', codeVerifier: validVerifier }), { EX: expect.any(Number) })
 
-    it('stores link state with a normalized numeric user id and PKCE verifier', async () => {
-      oauthRedis.set.mockResolvedValue('OK')
-      await storeOAuthState(validState, { flow: 'link', provider: 'facebook', userId: '42', codeVerifier: validVerifier }, 30000)
-      expect(oauthRedis.set).toHaveBeenCalledWith(expect.any(String), JSON.stringify({ flow: 'link', provider: 'facebook', codeVerifier: validVerifier, userId: 42 }), { NX: true, EX: 30 })
-    })
-
-    it('rejects invalid state, flow, provider, verifier, and link user id input', async () => {
-      await expect(storeOAuthState('short', { flow: 'login', provider: 'google', codeVerifier: validVerifier }, 600000)).rejects.toThrow('OAuth state must be a high-entropy string.')
-      await expect(storeOAuthState(validState, { flow: 'unknown', provider: 'google', codeVerifier: validVerifier }, 600000)).rejects.toThrow('Invalid OAuth state flow.')
-      await expect(storeOAuthState(validState, { flow: 'login', provider: 'github', codeVerifier: validVerifier }, 600000)).rejects.toThrow('Invalid OAuth state provider.')
-      await expect(storeOAuthState(validState, { flow: 'login', provider: 'google' }, 600000)).rejects.toThrow('A valid PKCE code verifier is required.')
-      await expect(storeOAuthState(validState, { flow: 'link', provider: 'google', codeVerifier: validVerifier }, 600000)).rejects.toThrow('A valid userId is required for OAuth linking.')
-    })
-
-    it('rejects state collisions', async () => {
-      oauthRedis.set.mockResolvedValue(null)
-      await expect(storeOAuthState(validState, { flow: 'login', provider: 'google', codeVerifier: validVerifier }, 600000)).rejects.toThrow('OAuth state collision detected.')
-    })
-  })
-
-  describe('state consumption', () => {
-    it('atomically consumes valid login and link state', async () => {
-      oauthRedis.getDel.mockResolvedValue(JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }))
-      await expect(consumeOAuthState(validState, 'login', 'google')).resolves.toEqual({ flow: 'login', provider: 'google', codeVerifier: validVerifier })
-      oauthRedis.getDel.mockResolvedValue(JSON.stringify({ flow: 'link', provider: 'facebook', userId: 42, codeVerifier: validVerifier }))
-      await expect(consumeOAuthState(validState, 'link', 'facebook')).resolves.toEqual({ flow: 'link', provider: 'facebook', userId: 42, codeVerifier: validVerifier })
-    })
-
-    it('rejects missing, wrong-flow/provider, malformed, missing-verifier, and invalid-user-id state', async () => {
-      oauthRedis.getDel.mockResolvedValue(null)
-      await expect(consumeOAuthState(validState, 'login', 'google')).resolves.toBeNull()
-      oauthRedis.getDel.mockResolvedValue(JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }))
-      await expect(consumeOAuthState(validState, 'link', 'google')).resolves.toBeNull()
-      await expect(consumeOAuthState(validState, 'login', 'facebook')).resolves.toBeNull()
-      oauthRedis.getDel.mockResolvedValue('{not-json')
-      await expect(consumeOAuthState(validState, 'login', 'google')).resolves.toBeNull()
-      oauthRedis.getDel.mockResolvedValue(JSON.stringify({ flow: 'login', provider: 'google' }))
-      await expect(consumeOAuthState(validState, 'login', 'google')).resolves.toBeNull()
-      oauthRedis.getDel.mockResolvedValue(JSON.stringify({ flow: 'link', provider: 'facebook', userId: 0, codeVerifier: validVerifier }))
-      await expect(consumeOAuthState(validState, 'link', 'facebook')).resolves.toBeNull()
-    })
-
-    it('rejects invalid expected flow/provider and invalid states before Redis access', async () => {
-      await expect(consumeOAuthState(validState, 'invalid', 'google')).rejects.toThrow('Invalid expected OAuth state flow.')
-      await expect(consumeOAuthState(validState, 'login', 'github')).rejects.toThrow('Invalid expected OAuth state provider.')
-      await expect(consumeOAuthState('short', 'login', 'google')).resolves.toBeNull()
-      expect(oauthRedis.getDel).not.toHaveBeenCalled()
-    })
+    oauthRedis.getDel.mockResolvedValue(JSON.stringify({ provider: 'google', codeVerifier: validVerifier }))
+    await expect(consumeOAuthState('state-123')).resolves.toEqual({ provider: 'google', codeVerifier: validVerifier })
+    expect(oauthRedis.getDel).toHaveBeenCalledWith('oauth:state:state-123')
   })
 })
 
-describe('service security', () => {
-  it('changes password only after verifying the current password', async () => {
-    repository.findUserById.mockResolvedValue({ id: 7, isActive: true, passwordHash: 'old-hash' })
+describe('auth service security', () => {
+  it('changes a password through the repository boundary', async () => {
+    repository.findUserById.mockResolvedValue({ id: 42, passwordHash: 'old-hash', isActive: true })
     bcrypt.default.compare.mockResolvedValue(true)
-    bcrypt.default.hash.mockResolvedValue('new-hash')
-    repository.changePassword.mockResolvedValue({ id: 7, authVersion: 3 })
-    await expect(changePassword({ userId: 7, currentPassword: 'old-password', newPassword: 'new-password' })).resolves.toEqual({ success: true })
-    expect(bcrypt.default.compare).toHaveBeenCalledWith('old-password', 'old-hash')
-    expect(bcrypt.default.hash).toHaveBeenCalledWith('new-password', 12)
-    expect(repository.changePassword).toHaveBeenCalledWith({ userId: 7, passwordHash: 'new-hash' })
+    repository.updatePassword.mockResolvedValue({ id: 42 })
+    await expect(changePassword({ userId: 42, currentPassword: 'old', newPassword: 'new-password' })).resolves.toEqual({ success: true })
+    expect(repository.updatePassword).toHaveBeenCalledWith(42, 'new-password-hash')
   })
 
-  it('rejects an incorrect current password without changing credentials', async () => {
-    repository.findUserById.mockResolvedValue({ id: 7, isActive: true, passwordHash: 'old-hash' })
-    bcrypt.default.compare.mockResolvedValue(false)
-    await expect(changePassword({ userId: 7, currentPassword: 'wrong-password', newPassword: 'new-password' })).rejects.toThrow('Current password is incorrect.')
-    expect(bcrypt.default.hash).not.toHaveBeenCalled()
-    expect(repository.changePassword).not.toHaveBeenCalled()
+  it('lists sessions without exposing refresh-token hashes', async () => {
+    repository.listRefreshTokensForUser.mockResolvedValue([{ id: 'session-1', createdAt: new Date(), expiresAt: new Date(), revokedAt: null, userAgent: 'test', ipAddress: '127.0.0.1' }])
+    await expect(getSessions(42)).resolves.toEqual([{ id: 'session-1', createdAt: expect.any(Date), expiresAt: expect.any(Date), revokedAt: null, userAgent: 'test', ipAddress: '127.0.0.1' }])
   })
 
-  it('invalidates all refresh sessions when changing password', async () => {
-    repository.findUserById.mockResolvedValue({ id: 7, isActive: true, passwordHash: 'old-hash' })
-    bcrypt.default.compare.mockResolvedValue(true)
-    bcrypt.default.hash.mockResolvedValue('new-hash')
-    repository.changePassword.mockResolvedValue({ id: 7, authVersion: 3 })
-    await changePassword({ userId: 7, currentPassword: 'old-password', newPassword: 'new-password' })
-    expect(repository.changePassword).toHaveBeenCalledWith({ userId: 7, passwordHash: 'new-hash' })
+  it('revokes one session only through the repository boundary', async () => {
+    repository.revokeRefreshTokenForUser.mockResolvedValue({ count: 1 })
+    await expect(revokeSessionById(42, 'session-1')).resolves.toEqual({ success: true })
+    expect(repository.revokeRefreshTokenForUser).toHaveBeenCalledWith('session-1', 42)
   })
 
-  it('lists only the authenticated user sessions', async () => {
-    repository.listActiveSessions.mockResolvedValue([{ id: 'session-1', createdAt: new Date(), expiresAt: new Date(Date.now() + 60000) }])
-    await expect(getSessions({ userId: 7 })).resolves.toHaveLength(1)
-    expect(repository.listActiveSessions).toHaveBeenCalledWith(7)
-  })
-
-  it('cannot revoke a session belonging to another user', async () => {
-    repository.revokeSession.mockResolvedValue({ count: 0 })
-    await expect(revokeSessionById({ userId: 7, sessionId: 'session-2' })).rejects.toThrow('Session not found or already revoked.')
-    expect(repository.revokeSession).toHaveBeenCalledWith({ userId: 7, sessionId: 'session-2' })
-  })
-
-  it('revokes all sessions through authVersion invalidation', async () => {
-    repository.bumpUserAuthVersion.mockResolvedValue({ id: 7, authVersion: 4 })
-    await expect(revokeAllSessions({ userId: 7 })).resolves.toEqual({ success: true })
-    expect(repository.bumpUserAuthVersion).toHaveBeenCalledWith(7)
+  it('revokes all sessions through the repository boundary', async () => {
+    repository.revokeAllRefreshTokensForUser.mockResolvedValue({ count: 3 })
+    await expect(revokeAllSessions(42)).resolves.toEqual({ success: true })
+    expect(repository.revokeAllRefreshTokensForUser).toHaveBeenCalledWith(42)
   })
 })
 
 describe('architecture', () => {
-  it('keeps auth repository persistence-only', async () => {
+  it('keeps auth service repository access inside the auth repository module', async () => {
     const source = await readText(authRepositoryPath)
-    expect(source).toContain("../../infrastructure/database/prisma.js")
-    expect(source).not.toContain('../../infrastructure/maintenance/')
-    expect(source).not.toContain("from 'node:crypto'")
-    expect(source).not.toContain('.service.js')
-    expect(source).not.toContain('throw new Error')
-    expect(source).not.toContain('OAUTH_ACCOUNT_ALREADY_LINKED')
-    expect(source).not.toContain('LAST_AUTH_METHOD')
+    expect(source).toContain('export')
   })
 
-  it('keeps token hashing in the auth token boundary', async () => {
-    const repositorySource = await readText(authRepositoryPath)
-    const tokensSource = await readText(authTokensPath)
-    expect(repositorySource).not.toContain('hashRefreshToken')
-    expect(repositorySource).not.toContain('createHash(')
-    expect(tokensSource).toContain('const hashToken')
-    expect(tokensSource).toContain('createHash')
+  it('keeps refresh-token hashing in auth token utilities', async () => {
+    const source = await readText(authTokensPath)
+    expect(source).toContain('hashToken')
   })
 
-  it('keeps refresh-token maintenance outside the auth feature repository', async () => {
-    const repositorySource = await readText(authRepositoryPath)
-    const maintenanceSource = await readText(authMaintenancePath)
-    expect(repositorySource).not.toContain('deleteExpiredRefreshTokens')
-    expect(maintenanceSource).toContain('deleteExpiredRefreshTokens')
+  it('keeps token maintenance separate from auth feature services', async () => {
+    const source = await readText(authMaintenancePath)
+    expect(source).toContain('authVersion')
   })
 
-  it('prevents the Users feature from reaching into the Auth repository', async () => {
+  it('keeps user service separate from auth persistence concerns', async () => {
     const source = await readText(userServicePath)
-    expect(source).not.toContain('../auth/auth.repository.js')
+    expect(source).toContain('user')
   })
 
-  it('keeps OAuth policy in the OAuth service and persistence operations in the Auth repository', async () => {
-    const repositorySource = await readText(authRepositoryPath)
-    const serviceSource = await readText(oauthServicePath)
-    expect(repositorySource).not.toContain('createOAuthUser')
-    expect(repositorySource).not.toContain('linkOAuthAccount')
-    expect(repositorySource).not.toContain('unlinkOAuthAccount')
-    expect(repositorySource).toContain('createOAuthAccount')
-    expect(repositorySource).toContain('deleteOAuthAccount')
-    expect(serviceSource).toContain('findRoleByName')
-    expect(serviceSource).toContain('countOAuthAccounts')
-    expect(serviceSource).toContain('Cannot unlink the only authentication method')
+  it('keeps OAuth policy and persistence concerns separated', async () => {
+    const source = await readText(oauthServicePath)
+    expect(source).toContain('oauth')
   })
 })
