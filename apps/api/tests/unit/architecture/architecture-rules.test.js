@@ -3,7 +3,6 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const rules = require('../../../scripts/architecture-rules.cjs')
-const routeValidator = require('../../../scripts/validate-architecture.cjs')
 
 describe('architecture rules', () => {
   it('blocks platform imports from features and modules', () => {
@@ -66,12 +65,12 @@ describe('architecture rules', () => {
   })
 
   it('enforces idempotency on multiline feature mutations', () => {
-    expect(routeValidator.getRouteViolations(
+    expect(rules.getRouteViolations(
       'apps/api/src/features/example/example.routes.js',
       `router.post(\n  '/example',\n  authenticate,\n  requireIdempotency,\n  controller.create,\n)`,
     )).toEqual([])
 
-    expect(routeValidator.getRouteViolations(
+    expect(rules.getRouteViolations(
       'apps/api/src/features/example/example.routes.js',
       `router.post(\n  '/example',\n  authenticate,\n  controller.create,\n)`,
     )).toContain(
@@ -82,7 +81,7 @@ describe('architecture rules', () => {
   it('enforces idempotency and authorization on module resource routes', () => {
     const source = `router.patch(\n  '/applications/:id',\n  authenticate,\n  authorizeResource,\n  requireIdempotency,\n  controller.update,\n)`
 
-    expect(routeValidator.getRouteViolations(
+    expect(rules.getRouteViolations(
       'apps/api/src/modules/obo/example.routes.js',
       source,
     )).toEqual([])
@@ -91,7 +90,7 @@ describe('architecture rules', () => {
   it('rejects unprotected multiline module mutations and resource routes', () => {
     const source = `router.patch(\n  '/applications/:id',\n  authenticate,\n  controller.update,\n)`
 
-    const violations = routeValidator.getRouteViolations(
+    const violations = rules.getRouteViolations(
       'apps/api/src/modules/obo/example.routes.js',
       source,
     )
