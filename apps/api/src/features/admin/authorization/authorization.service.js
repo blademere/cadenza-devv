@@ -2,10 +2,10 @@ import {
   ConflictError,
   NotFoundError,
   ValidationError,
-} from '../../common/errors/appError.js'
-import { cache } from '../../common/middleware/cache.js'
-import repository from './authorization-admin.repository.js'
-import { clearRolePermissionCache } from '../../platform/authorization/access-control.service.js'
+} from '../../../common/errors/appError.js'
+import { cache } from '../../../common/middleware/cache.js'
+import repository from './authorization.repository.js'
+import { clearRolePermissionCache } from '../../../platform/authorization/access-control.service.js'
 
 const AUTHORIZATION_MODULES_CACHE_KEY = 'authorization:modules'
 const AUTHORIZATION_ROLES_CACHE_KEY = 'authorization:roles'
