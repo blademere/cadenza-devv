@@ -1,5 +1,6 @@
 import { JOB_QUEUES } from './job.constants.js'
 import { enqueueJob as enqueueBullMqJob } from '../../infrastructure/queue/bullmq.js'
+import { getContext } from '../context/context.service.js'
 
 const DEFAULT_ATTEMPTS = 5
 const DEFAULT_BACKOFF_DELAY = 1000
@@ -9,6 +10,24 @@ function normalizeJobId(jobId) {
   if (jobId === undefined || jobId === null) return undefined
   const normalized = String(jobId).replace(/:/g, '-')
   return normalized || undefined
+}
+
+function buildJobData(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return data
+
+  const context = getContext()
+  if (!context?.correlationId && !context?.requestId) return data
+
+  return {
+    ...data,
+    _platformContext: {
+      requestId: context.requestId,
+      correlationId: context.correlationId,
+      actorId: context.actorId,
+      actorType: context.actorType,
+      organizationId: context.organizationId,
+    },
+  }
 }
 
 function createJobService({ enqueue = enqueueBullMqJob } = {}) {
@@ -24,7 +43,7 @@ function createJobService({ enqueue = enqueueBullMqJob } = {}) {
     if (!queue || !name) throw new Error('queue and name are required')
     if (!SUPPORTED_QUEUES.has(queue)) throw new Error(`Unknown job queue: ${queue}`)
 
-    return enqueue(queue, name, data, {
+    return enqueue(queue, name, buildJobData(data), {
       jobId: normalizeJobId(jobId),
       delay,
       attempts,
@@ -42,4 +61,5 @@ const { enqueueJob } = createJobService()
 export {
   createJobService,
   enqueueJob,
+  buildJobData,
 }
