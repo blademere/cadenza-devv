@@ -7,13 +7,7 @@ const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform|modules)\//
 const PRISMA_IMPORT = new RegExp(String.raw`(?:\.\./)+infrastructure/database/prisma(?:['"]|/|$)`)
 const PRISMA_CLIENT_ACCESS = /\b(?:getPrismaClient|PrismaClient)\s*\(/
 
-const PLATFORM_PRISMA_LEGACY_EXCEPTIONS = new Set([
-  'apps/api/src/platform/audit/audit.query.service.js',
-  'apps/api/src/platform/dashboards/dashboard.service.js',
-  'apps/api/src/platform/integrations/integration.service.js',
-  'apps/api/src/platform/notifications/notification.service.js',
-  'apps/api/src/platform/notifications/notification.send.service.js',
-])
+const PLATFORM_PRISMA_LEGACY_EXCEPTIONS = new Set()
 
 const normalizeRelativePath = (file) => path.relative(process.cwd(), file).replaceAll(path.sep, '/')
 const isApplicationService = (relative) => (relative.startsWith('apps/api/src/features/') || relative.startsWith('apps/api/src/modules/') || relative.startsWith('apps/api/src/platform/')) && /(?:^|\/)\w+(?:\.query)?\.service\.(?:js|cjs|mjs)$/.test(relative)
