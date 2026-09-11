@@ -18,6 +18,8 @@ import { logger } from '../config/index.js'
 import { withContext } from './context/context.service.js'
 
 const EVENT_QUEUE = 'platform-events'
+const EVENT_JOB_ATTEMPTS = 5
+const EVENT_JOB_BACKOFF_DELAY = 1000
 
 const runPlatformMaintenance = async ({ staleLeaseSeconds } = {}) => {
   const recovered = await recoverStale({ timeoutSeconds: staleLeaseSeconds })
@@ -31,12 +33,30 @@ const publishOutbox = async ({ batchSize = 50, leaseSeconds } = {}) => {
   let failed = 0
   for (const item of claimed) {
     try {
-      await enqueueJob(EVENT_QUEUE, 'platform-event', item.payload, { jobId: item.id, attempts: 5, backoff: { type: 'exponential', delay: 1000 } })
+      await enqueueJob(EVENT_QUEUE, 'platform-event', item.payload, {
+        jobId: item.id,
+        attempts: EVENT_JOB_ATTEMPTS,
+        backoff: { type: 'exponential', delay: EVENT_JOB_BACKOFF_DELAY },
+      })
       await markProcessed(item.id, item.lockToken)
       published += 1
+      logger.info(
+        {
+          eventId: item.id,
+          eventType: item.event,
+          correlationId: item.correlationId,
+          attempts: item.attempts,
+        },
+        'Platform event queued'
+      )
     } catch (error) {
-      try { await markFailed(item.id, error, item.lockToken) } catch (ownershipError) {
-        logger.error({ err: ownershipError, originalError: error, eventId: item.id }, 'Failed to mark outbox event after publish error')
+      try {
+        await markFailed(item.id, error, item.lockToken)
+      } catch (ownershipError) {
+        logger.error(
+          { err: ownershipError, originalError: error, eventId: item.id },
+          'Failed to mark outbox event after publish error'
+        )
       }
       failed += 1
     }
@@ -56,7 +76,40 @@ const startEventWorker = async (options = {}) =>
         actorType: event?.context?._platformContext?.actorType || null,
         organizationId: event?.context?._platformContext?.organizationId || null,
       }
-      return withContext(context, () => processEvent(event))
+      const startedAt = Date.now()
+      try {
+        const result = await withContext(context, () => processEvent(event))
+        logger.info(
+          {
+            eventId: event?.eventId || job.id,
+            eventType: event?.event,
+            jobId: job.id,
+            attempts: job.attemptsMade,
+            duration: Date.now() - startedAt,
+            requestId: context.requestId,
+            correlationId: context.correlationId,
+            actorId: context.actorId,
+          },
+          'Platform event processed'
+        )
+        return result
+      } catch (error) {
+        logger.error(
+          {
+            eventId: event?.eventId || job.id,
+            eventType: event?.event,
+            jobId: job.id,
+            attempts: job.attemptsMade,
+            duration: Date.now() - startedAt,
+            requestId: context.requestId,
+            correlationId: context.correlationId,
+            actorId: context.actorId,
+            err: error,
+          },
+          'Platform event processing failed'
+        )
+        throw error
+      }
     },
     { concurrency: options.concurrency || 10 },
   )
@@ -95,6 +148,8 @@ if (isMainModule) {
 
 export {
   EVENT_QUEUE,
+  EVENT_JOB_ATTEMPTS,
+  EVENT_JOB_BACKOFF_DELAY,
   runPlatformMaintenance,
   processOutbox,
   publishOutbox,
