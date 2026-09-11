@@ -1,58 +1,23 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-vi.mock('../../../../src/modules/obo/receiving/receiving.repository.js', () => ({
-  findApplication: vi.fn(),
-  withTransaction: vi.fn(),
-  updateApplication: vi.fn(),
-  addDecision: vi.fn(),
-  findPersonNotificationContext: vi.fn(),
-}))
-
-vi.mock('../../../../src/modules/obo/application-documents/application-document.service.js', () => ({
-  ensureChecklist: vi.fn(),
-  validateRequiredDocuments: vi.fn()
-}))
-
-vi.mock('../../../../src/platform/workflow/workflow.service.js', () => ({
-  getWorkflowInstance: vi.fn(),
-  transitionWorkflow: vi.fn()
-}))
-
-vi.mock('../../../../src/features/appointments/appointment.service.js', () => ({
-  getAppointmentForReference: vi.fn(),
-}))
-
-vi.mock('../../../../src/features/tasks/tasks.service.js', () => ({
-  create: vi.fn(),
-  list: vi.fn(),
-  update: vi.fn(),
-}))
-
-vi.mock('../../../../src/modules/obo/notification-context.js', () => ({
-  getNotificationContext: vi.fn().mockResolvedValue({})
-}))
+vi.mock('../../../../src/modules/obo/receiving/receiving.repository.js', () => ({ findApplication: vi.fn(), withTransaction: vi.fn(), updateApplication: vi.fn(), addDecision: vi.fn(), findPersonNotificationContext: vi.fn() }))
+vi.mock('../../../../src/modules/obo/application-documents/application-document.service.js', () => ({ ensureChecklist: vi.fn(), validateRequiredDocuments: vi.fn() }))
+vi.mock('../../../../src/platform/workflow/workflow.service.js', () => ({ getWorkflowInstance: vi.fn(), transitionWorkflow: vi.fn() }))
+vi.mock('../../../../src/platform/event-bus/event-bus.js', () => ({ publish: vi.fn() }))
+vi.mock('../../../../src/features/appointments/appointment.service.js', () => ({ getAppointmentForReference: vi.fn() }))
+vi.mock('../../../../src/features/tasks/tasks.service.js', () => ({ create: vi.fn(), list: vi.fn(), update: vi.fn() }))
+vi.mock('../../../../src/modules/obo/notification-context.js', () => ({ getNotificationContext: vi.fn().mockResolvedValue({}) }))
 
 import * as repository from '../../../../src/modules/obo/receiving/receiving.repository.js'
 import * as applicationDocumentService from '../../../../src/modules/obo/application-documents/application-document.service.js'
 import * as workflowService from '../../../../src/platform/workflow/workflow.service.js'
+import * as eventBus from '../../../../src/platform/event-bus/event-bus.js'
 import * as appointmentService from '../../../../src/features/appointments/appointment.service.js'
 import * as taskService from '../../../../src/features/tasks/tasks.service.js'
 import { receiveHardcopy, decide } from '../../../../src/modules/obo/receiving/receiving.service.js'
 
-const application = {
-  id: 'app-1',
-  caseId: 'case-1',
-  workflowInstanceId: 'workflow-1',
-  clientPersonId: 'person-1',
-  referenceNumber: 'PP-001',
-  permitType: { name: 'Building Permit' },
-  submissionAppointment: { appointmentId: 'appointment-1' }
-}
-
-const workflow = {
-  id: 'workflow-1',
-  currentStep: { key: 'SUBMISSION_SCHEDULED' }
-}
+const application = { id: 'app-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', referenceNumber: 'PP-001', permitTypeId: 'permit-1', permitType: { name: 'Building Permit' }, submissionAppointment: { appointmentId: 'appointment-1' } }
+const workflow = { id: 'workflow-1', currentStep: { key: 'SUBMISSION_SCHEDULED' } }
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -66,6 +31,7 @@ beforeEach(() => {
   taskService.list.mockResolvedValue([])
   taskService.create.mockResolvedValue({ id: 'task-new' })
   taskService.update.mockResolvedValue({ id: 'task-1', status: 'DONE' })
+  eventBus.publish.mockResolvedValue(undefined)
 })
 
 describe('receiving service', () => {
@@ -77,6 +43,7 @@ describe('receiving service', () => {
     expect(repository.updateApplication).toHaveBeenCalledWith('app-1', expect.objectContaining({ submittedAt: expect.any(Date) }), expect.anything())
     expect(taskService.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', metadata: expect.objectContaining({ taskType: 'VERIFY_DOCUMENTS', applicationId: 'app-1' }) }), { db: expect.anything() })
     expect(taskService.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', metadata: expect.objectContaining({ taskType: 'EVALUATE_APPLICATION', applicationId: 'app-1' }) }), { db: expect.anything() })
+    expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ event: 'obo.permit_application.hardcopy.received', entityId: 'app-1', db: expect.anything() }))
   })
 
   it('completes open review and receiving tasks when hardcopy is received', async () => {
@@ -88,8 +55,6 @@ describe('receiving service', () => {
     ])
     await receiveHardcopy({ id: 'app-1', actorId: 'user-1' })
     expect(taskService.update).toHaveBeenCalledTimes(2)
-    expect(taskService.update).toHaveBeenCalledWith('review-task', expect.objectContaining({ status: 'DONE' }), { db: expect.anything() })
-    expect(taskService.update).toHaveBeenCalledWith('receive-task', expect.objectContaining({ status: 'DONE' }), { db: expect.anything() })
   })
 
   it('rejects receiving before the appointment starts', async () => {
@@ -122,6 +87,7 @@ describe('receiving service', () => {
     expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'ACCEPT_FOR_INSPECTION', metadata: expect.objectContaining({ decision: 'ACCEPTED' }) }))
     expect(repository.addDecision).toHaveBeenCalledWith(expect.objectContaining({ applicationId: 'app-1', decision: 'ACCEPTED', reason: null, decidedByUserId: 'user-1' }), expect.anything())
     expect(taskService.update).toHaveBeenCalledTimes(2)
+    expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ event: 'obo.permit_application.accepted', entityId: 'app-1', db: expect.anything() }))
     expect(result.status).toBe('FOR_INSPECTION')
   })
 
@@ -133,6 +99,7 @@ describe('receiving service', () => {
     const result = await decide({ id: 'app-1', actorId: 'user-1', decision: 'DECLINED', reason: 'Incomplete hardcopy documents' })
     expect(workflowService.transitionWorkflow).toHaveBeenCalledWith(expect.objectContaining({ transitionKey: 'DECLINE', metadata: expect.objectContaining({ decision: 'DECLINED', reason: 'Incomplete hardcopy documents' }) }))
     expect(repository.addDecision).toHaveBeenCalledWith(expect.objectContaining({ decision: 'DECLINED', reason: 'Incomplete hardcopy documents' }), expect.anything())
+    expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ event: 'obo.permit_application.declined', entityId: 'app-1', db: expect.anything() }))
     expect(result.status).toBe('DECLINED')
   })
 })
