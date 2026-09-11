@@ -3,7 +3,11 @@ import { recordAudit } from '../audit/audit.service.js'
 import { evaluateRules } from '../rules/rule.service.js'
 import { dispatchActions } from '../rules/action-dispatcher.js'
 import { queueNotifications } from '../notifications/notification.service.js'
+import { getContext } from '../context/context.service.js'
 import { enqueueEvent, MAX_EVENT_DEPTH } from './event-outbox.service.js'
+
+const resolveCorrelationId = (correlationId) =>
+  correlationId || getContext()?.correlationId || randomUUID()
 
 const buildEnvelope = ({
   event,
@@ -11,7 +15,7 @@ const buildEnvelope = ({
   entityId = null,
   actorId = null,
   context = {},
-  correlationId = randomUUID(),
+  correlationId,
   causationId = null,
   depth = 0,
 }) => {
@@ -19,13 +23,20 @@ const buildEnvelope = ({
   if (depth > MAX_EVENT_DEPTH)
     throw new Error(`Maximum event depth of ${MAX_EVENT_DEPTH} exceeded.`)
 
+  const executionContext = getContext()
+  const resolvedCorrelationId = resolveCorrelationId(correlationId)
+  const resolvedActorId = actorId ?? executionContext?.actorId ?? null
+
   return {
     event,
     entityType,
     entityId: entityId == null ? null : String(entityId),
-    actorId,
-    context,
-    correlationId,
+    actorId: resolvedActorId,
+    context: {
+      ...(executionContext?.metadata || {}),
+      ...context,
+    },
+    correlationId: resolvedCorrelationId,
     causationId,
     depth,
     occurredAt: new Date().toISOString(),
@@ -103,4 +114,4 @@ const processEvent = async (envelope) => {
   }
 }
 
-export { publish, processEvent, buildEnvelope }
+export { publish, processEvent, buildEnvelope, resolveCorrelationId }
