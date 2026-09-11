@@ -57,7 +57,7 @@ describe('idempotency middleware', () => {
   it('requires a key by default', async () => {
     const redis = { set: vi.fn(), get: vi.fn(), eval: vi.fn() }
     connectRedis.mockResolvedValue(redis)
-    const req = createRequest({ key: undefined })
+    const req = createRequest({ key: null })
     const res = createResponse()
     const next = vi.fn()
 
