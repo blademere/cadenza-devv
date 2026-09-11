@@ -1,5 +1,6 @@
 import { getUserAuthorizationContext, findRoleById, findUserIdsByRoleId } from './access-control.repository.js'
 import { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } from './access-control.cache.js'
+import { increment } from '../observability/metrics/metrics.service.js'
 
 const AUTHORIZATION_CACHE_ENABLED = process.env.AUTHORIZATION_CACHE_ENABLED !== 'false'
 
@@ -49,7 +50,11 @@ const hasPermission = async (userId, resource, action) => {
   }
 
   const { permissions } = await loadUserPermissions(userId)
-  return permissions.includes(permissionKey)
+  const allowed = permissions.includes(permissionKey)
+  if (!allowed) {
+    increment('platform.authorization.denied', { resource, action })
+  }
+  return allowed
 }
 
 const getAuthorizationContext = async (userId) => {
