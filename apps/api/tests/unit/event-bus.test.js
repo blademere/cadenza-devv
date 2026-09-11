@@ -29,6 +29,38 @@ describe('event bus envelope', () => {
     expect(envelope.occurredAt).toEqual(expect.any(String))
   })
 
+  it('protects reserved platform context from caller overrides', async () => {
+    await runWithContext({
+      requestId: 'req-1',
+      correlationId: 'corr-1',
+      actorId: 42,
+      actorType: 'user',
+      organizationId: 7,
+      metadata: { source: 'request' },
+    }, async () => {
+      const envelope = buildEnvelope({
+        event: 'application.submitted',
+        context: {
+          source: 'event',
+          _platformContext: {
+            requestId: 'spoofed',
+            correlationId: 'spoofed',
+            actorId: 999,
+          },
+        },
+      })
+
+      expect(envelope.context.source).toBe('event')
+      expect(envelope.context._platformContext).toEqual({
+        requestId: 'req-1',
+        correlationId: 'corr-1',
+        actorId: 42,
+        actorType: 'user',
+        organizationId: 7,
+      })
+    })
+  })
+
   it('uses the active execution context correlation id when one is not supplied', async () => {
     await runWithContext({ requestId: 'req-1', correlationId: 'corr-1' }, async () => {
       expect(resolveCorrelationId()).toBe('corr-1')
