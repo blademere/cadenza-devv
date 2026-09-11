@@ -1,8 +1,16 @@
 import { registerWorker } from '../../infrastructure/queue/bullmq.js'
 import { JOB_QUEUES } from './job.constants.js'
+import { withContext } from '../context/context.service.js'
+
+const executeWithJobContext = async (job, processor) => {
+  const context = job?.data?._platformContext
+  if (!context) return processor(job)
+
+  return withContext(context, () => processor(job))
+}
 
 function createJobWorker({ queue, processor, concurrency = 5 }) {
-  return registerWorker(queue, processor, { concurrency })
+  return registerWorker(queue, (job) => executeWithJobContext(job, processor), { concurrency })
 }
 
 function registerJobWorker({ queue, name, processor, concurrency }) {
@@ -20,4 +28,5 @@ export {
   JOB_QUEUES,
   createJobWorker,
   registerJobWorker,
+  executeWithJobContext,
 }
