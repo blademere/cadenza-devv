@@ -73,15 +73,46 @@ const createBullMqInfrastructure = ({
     })
 
     worker.on('completed', (job) => {
+      const duration =
+        Number.isFinite(job?.finishedOn) && Number.isFinite(job?.processedOn)
+          ? job.finishedOn - job.processedOn
+          : undefined
+      const platformContext = job?.data?._platformContext
       loggerInstance.info(
-        { queue: queueName, jobId: job.id },
-        'BullMQ job completed'
+        {
+          queue: queueName,
+          jobId: job.id,
+          jobType: job.name,
+          attempts: job.attemptsMade,
+          maxAttempts: job.opts?.attempts,
+          duration,
+          requestId: platformContext?.requestId,
+          correlationId: platformContext?.correlationId,
+          actorId: platformContext?.actorId,
+        },
+        'Platform job completed'
       )
     })
     worker.on('failed', (job, error) => {
+      const duration =
+        Number.isFinite(job?.finishedOn) && Number.isFinite(job?.processedOn)
+          ? job.finishedOn - job.processedOn
+          : undefined
+      const platformContext = job?.data?._platformContext
       loggerInstance.error(
-        { queue: queueName, jobId: job?.id, err: error },
-        'BullMQ job failed'
+        {
+          queue: queueName,
+          jobId: job?.id,
+          jobType: job?.name,
+          attempts: job?.attemptsMade,
+          maxAttempts: job?.opts?.attempts,
+          duration,
+          requestId: platformContext?.requestId,
+          correlationId: platformContext?.correlationId,
+          actorId: platformContext?.actorId,
+          err: error,
+        },
+        'Platform job failed'
       )
     })
     worker.on('error', (error) => {
