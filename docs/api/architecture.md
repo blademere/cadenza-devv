@@ -129,6 +129,25 @@ Platform configuration must remain generic. It may contain system, operational, 
 
 Do not introduce a database-backed configuration store unless the application requires runtime-managed, tenant-scoped, versioned, or transactional settings. If persistence becomes necessary, keep it behind a configuration repository.
 
+## Platform documentation
+
+The platform capability contracts are maintained under `docs/api/platform/`:
+
+```text
+docs/api/platform/
+├── overview.md
+├── context.md
+├── events.md
+├── jobs.md
+├── workflow.md
+├── idempotency.md
+├── observability.md
+├── architecture-rules.md
+└── phase-11-configuration.md
+```
+
+`overview.md` provides the platform-level entry point. Individual documents define the detailed reliability and architecture contracts for each capability.
+
 ## Shared business modeling
 
 Use relational models for stable concepts such as identity, cases, participants, requirements, tasks, lifecycle state, and stable business relationships. Use dynamic forms and configurable custom fields for genuinely variable, configuration-driven attributes.
