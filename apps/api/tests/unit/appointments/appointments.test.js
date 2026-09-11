@@ -3,7 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../../src/platform/audit/audit.service.js', () => ({
   recordAudit: vi.fn().mockResolvedValue({ id: 'audit-1' }),
 }))
-vi.mock('../../../src/features/appointments/appointment.repository.js')
+vi.mock('../../../src/features/appointments/appointment.repository.js', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    withTransaction: vi.fn(),
+    findSlot: vi.fn(),
+    findActiveUserAppointmentForSlot: vi.fn(),
+    claimSlot: vi.fn(),
+    createAppointment: vi.fn(),
+    getAppointmentWithRelations: vi.fn(),
+    transitionAppointment: vi.fn(),
+  }
+})
 
 const {
   APPOINTMENT_ACTIONS,
