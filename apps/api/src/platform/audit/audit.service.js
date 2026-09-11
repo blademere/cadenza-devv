@@ -1,6 +1,4 @@
-import { getPrismaClient } from '../../infrastructure/database/prisma.js'
-
-const prisma = getPrismaClient()
+import { createAuditLog } from './audit.repository.js'
 
 const SENSITIVE_KEYS = new Set([
   'password',
@@ -43,25 +41,23 @@ const recordAudit = async ({
   metadata,
   ipAddress,
   userAgent,
-  db = prisma,
+  db,
 }) => {
   if (!action || !entityType || !entityId) {
     throw new TypeError('Audit action, entityType, and entityId are required.')
   }
 
-  return db.auditLog.create({
-    data: {
-      actorId,
-      action,
-      entityType,
-      entityId: String(entityId),
-      before: sanitizeJson(before),
-      after: sanitizeJson(after),
-      metadata: sanitizeJson(metadata),
-      ipAddress: ipAddress || null,
-      userAgent: userAgent || null,
-    },
-  })
+  return createAuditLog({
+    actorId,
+    action,
+    entityType,
+    entityId: String(entityId),
+    before: sanitizeJson(before),
+    after: sanitizeJson(after),
+    metadata: sanitizeJson(metadata),
+    ipAddress: ipAddress || null,
+    userAgent: userAgent || null,
+  }, db)
 }
 
 const recordAuthorizationDenied = async ({
