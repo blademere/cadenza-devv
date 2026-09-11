@@ -1,4 +1,6 @@
 import { ForbiddenError } from '../../common/errors/appError.js'
+import { getContext } from '../context/context.service.js'
+import { recordAuthorizationDenied } from '../audit/audit.service.js'
 import * as accessControlService from './access-control.service.js'
 
 const authorize = (resourceOrPermission, action) => {
@@ -40,6 +42,18 @@ const authorize = (resourceOrPermission, action) => {
       })
 
       if (!allowed) {
+        const context = getContext()
+        await recordAuthorizationDenied({
+          actorId: req.user.id,
+          resource: resource.trim(),
+          action: resolvedAction.trim(),
+          resourceId: req.params?.id,
+          ipAddress: req.ip,
+          userAgent: req.get?.('user-agent'),
+          requestId: context?.requestId || req.requestId || null,
+          correlationId: context?.correlationId || req.correlationId || null,
+        })
+
         return next(
           new ForbiddenError(
             'You do not have permission to perform this action.'
