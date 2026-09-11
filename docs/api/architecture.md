@@ -29,11 +29,42 @@ Features are reusable business capabilities that can support multiple applicatio
 
 Features must remain domain-neutral. Appointments are a business feature: availability, slots, capacity, booking, and appointment lifecycle belong here. Generic background scheduling is a platform mechanism and is not the appointment implementation.
 
+Administrative capabilities belong under the `admin` feature boundary when they manage application-wide administration rather than owning a domain's business rules. For example:
+
+```text
+features/
+└── admin/
+    └── authorization/
+        ├── authorization.controller.js
+        ├── authorization.repository.js
+        ├── authorization.routes.js
+        ├── authorization.service.js
+        └── authorization.validation.js
+```
+
+`admin` is an administrative feature boundary, not a replacement for domain features. Administrative APIs may orchestrate domain capabilities, but the domain feature or module remains the owner of its business rules. Do not move `users`, `forms`, `appointments`, `documents`, or other domain behavior into `features/admin` merely because administrators use those capabilities.
+
 ### `apps/api/src/platform/`
 
 Platform provides reusable mechanisms such as authorization, workflow, forms, configurable custom fields, rules, event/outbox infrastructure, jobs, generic scheduling primitives, notification mechanisms, and storage boundaries.
 
 Platform code must be provider-neutral and domain-neutral. It provides mechanisms, not application-specific business decisions.
+
+Authorization is a platform capability. `platform/authorization` owns permission evaluation, authorization middleware, resource authorization, authorization context, enforcement, and authorization-related caching. It must not depend on `features/admin`.
+
+The administrative authorization feature consumes the platform authorization capability to protect administrative operations:
+
+```text
+features/admin/authorization
+          │
+          ▼
+platform/authorization
+          │
+          ▼
+authorization engine
+```
+
+The administrative feature owns management operations such as authorization-module management, permission management, module activation, role listing, and role-permission management. It does not replace or duplicate the authorization engine.
 
 ### `apps/api/src/infrastructure/`
 
@@ -43,11 +74,13 @@ Infrastructure contains concrete technology integrations and persistence impleme
 
 1. Shared `features` must not import `modules`.
 2. `platform` must not import `modules`.
-3. `infrastructure` must not import `modules`.
-4. Domain-specific behavior belongs in `modules`, not `platform`.
-5. Services must not query Prisma directly when a repository boundary exists.
-6. Repositories own persistence queries and persistence-specific composition.
-7. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
+3. `platform/authorization` must not import `features/admin`.
+4. `infrastructure` must not import `modules`.
+5. Domain-specific behavior belongs in `modules`, not `platform`.
+6. Administrative behavior belongs under `features/admin` only when it is genuinely application administration; do not use `admin` as a catch-all for domain behavior.
+7. Services must not query Prisma directly when a repository boundary exists.
+8. Repositories own persistence queries and persistence-specific composition.
+9. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
 
 The architecture validator enforces these boundaries where they can be checked statically.
 
@@ -88,6 +121,8 @@ For domain-specific forms, the module associates its business entity with a plat
 `apps/api/src/routes/index.js` is the API composition root. It should mount application-owned APIs rather than every reusable capability in the repository.
 
 Generic feature or platform services should not automatically become public CRUD endpoints. When a module needs a shared capability, its domain-owned route should compose that capability internally.
+
+Administrative authorization management is exposed through the canonical `/admin/authorization` API namespace. The authorization permission remains `authorization:manage`; the API namespace and feature boundary do not introduce an `admin:manage` replacement permission.
 
 `apps/api/openapi/openapi.yaml` is the public API contract and should match routes actually exposed by the application.
 

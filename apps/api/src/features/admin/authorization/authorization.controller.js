@@ -1,5 +1,5 @@
-import { successResponse } from '../../common/responses/apiResponse.js'
-import * as service from './authorization-admin.service.js'
+import { successResponse } from '../../../common/responses/apiResponse.js'
+import * as service from './authorization.service.js'
 
 const listModulesController = async (_req, res) => {
   const modules = await service.listModules()

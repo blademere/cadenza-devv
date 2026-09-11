@@ -7,7 +7,7 @@ const accessControlRepositoryPath = new URL('../../../src/platform/authorization
 const accessControlServicePath = new URL('../../../src/platform/authorization/access-control.service.js', import.meta.url)
 const authorizeMiddlewarePath = new URL('../../../src/platform/authorization/authorize.js', import.meta.url)
 const authorizationResourceMiddlewarePath = new URL('../../../src/platform/authorization/authorization-resource.middleware.js', import.meta.url)
-const authorizationAdminRoutePath = new URL('../../../src/features/authorization-admin/authorization-admin.routes.js', import.meta.url)
+const authorizationRoutePath = new URL('../../../src/features/admin/authorization/authorization.routes.js', import.meta.url)
 const authorizationContextRoutePath = new URL('../../../src/platform/authorization/authorization-context.routes.js', import.meta.url)
 const authorizationContextServicePath = new URL('../../../src/platform/authorization/authorization-context.service.js', import.meta.url)
 const featuresPath = new URL('../../../src/features/', import.meta.url)
@@ -63,13 +63,13 @@ describe('Authorization architecture contract', () => {
     }
   })
 
-  it('keeps authorization-admin route resource loading behind its service', async () => {
-    const source = await readText(authorizationAdminRoutePath)
+  it('keeps admin authorization route resource loading behind its service', async () => {
+    const source = await readText(authorizationRoutePath)
 
-    expect(source).toContain("./authorization-admin.service.js")
+    expect(source).toContain("./authorization.service.js")
     expect(source).toContain('loadResource: getModuleById')
     expect(source).toContain('loadResource: getRoleById')
-    expect(source).not.toContain("./authorization-admin.repository.js")
+    expect(source).not.toContain("./authorization.repository.js")
   })
 
   it('keeps authorization-context route dependent on its service and outside the Auth feature', async () => {

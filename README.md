@@ -2,7 +2,7 @@
 
 A CommonJS Express 5 API foundation using PostgreSQL/Prisma, Redis, authentication, authorization, shared business capabilities, and reusable platform services.
 
-This README is the **formal entry point** for the repository. It describes the current application and engineering surface. API architecture rules live in [`docs/server/architecture.md`](docs/server/architecture.md). Domain-specific documentation lives under [`docs/server/modules/`](docs/server/modules/).
+This README is the **formal entry point** for the repository. It describes the current application and engineering surface. API architecture rules live in [`docs/api/architecture.md`](docs/api/architecture.md). Domain-specific documentation lives under [`docs/api/modules/`](docs/api/modules/).
 
 ## Current capabilities
 
@@ -26,9 +26,11 @@ The API composition root currently mounts:
 ```text
 /api/v1/auth
 /api/v1/users
-/api/v1/authorization
+/api/v1/admin/authorization
 /api/v1/obo
 ```
+
+The authorization administration API is an administrative capability under the `admin` feature boundary. The authorization capability itself remains a platform concern. The management permission remains `authorization:manage`; the administrative namespace does not introduce an `admin:manage` replacement.
 
 Appointments and other reusable capabilities are not automatically public API roots; they are composed by application routes when required.
 
@@ -53,13 +55,25 @@ modules → features → platform → infrastructure
 ```
 
 - `modules` contain application/domain-specific behavior.
-- `features` contain reusable business capabilities.
+- `features` contain reusable business capabilities and application administration.
 - `platform` contains reusable engines and mechanisms.
 - `infrastructure` contains concrete technical adapters/providers and persistence.
 
-Services use repositories for persistence. Platform and shared features must remain independent of application modules. Do not introduce parallel layers such as `domains/`, `core/`, `application/`, or `adapters/`.
+The `admin` directory is an administrative feature boundary, not a replacement for domain features. Administrative capabilities can orchestrate domain features, but domain business rules remain owned by their domain feature or module. Do not move users, forms, appointments, documents, or other domain behavior into `features/admin` merely because administrators use those capabilities.
 
-See [`docs/server/architecture.md`](docs/server/architecture.md) for the complete architectural contract.
+Authorization follows the same separation:
+
+```text
+features/admin/authorization
+          ↓
+platform/authorization
+          ↓
+authorization engine
+```
+
+`features/admin/authorization` owns administrative authorization management. `platform/authorization` owns authorization infrastructure and enforcement and must remain independent of `features/admin`.
+
+See [`docs/api/architecture.md`](docs/api/architecture.md) for the complete architectural contract.
 
 ## Repository structure
 
@@ -70,7 +84,8 @@ apps/
 │  ├─ src/
 │  │  ├─ common/             # Cross-cutting HTTP and utility helpers
 │  │  ├─ config/             # API configuration
-│  │  ├─ features/           # Shared business capabilities
+│  │  ├─ features/           # Shared business capabilities and admin capabilities
+│  │  │  └─ admin/           # Application administration boundary
 │  │  ├─ platform/           # Reusable engines and mechanisms
 │  │  ├─ infrastructure/     # Technical adapters/providers
 │  │  ├─ modules/             # Application/domain modules
@@ -81,7 +96,7 @@ apps/
 ├─ web/                       # React/Vite frontend application
 └─ obo-web/                   # React/Vite/Mantine OBO application
 
-docs/server/                  # API architecture and engineering documentation
+docs/api/                    # API architecture and engineering documentation
 scripts/                      # Monorepo/project utilities
 packages/                     # Shared contracts/code when needed
 package.json                  # npm workspace orchestration
@@ -147,13 +162,13 @@ Never commit production secrets. Keep `.env.example` as the configuration templa
 
 | Document | Purpose |
 |---|---|
-| [`docs/server/architecture.md`](docs/server/architecture.md) | Stable API architecture and dependency contract |
-| [`docs/server/modules/`](docs/server/modules/) | Domain/module-specific API documentation |
-| [`docs/server/dynamic-forms.md`](docs/server/dynamic-forms.md) | Reusable dynamic forms and configurable fields |
-| [`docs/server/event-infrastructure.md`](docs/server/event-infrastructure.md) | Event/outbox infrastructure |
-| [`docs/server/workflow-engine.md`](docs/server/workflow-engine.md) | Generic workflow mechanism |
-| [`docs/server/enforcement-contracts.md`](docs/server/enforcement-contracts.md) | Enforceable repository contracts |
-| [`docs/server/security/security-and-api-contracts.md`](docs/server/security/security-and-api-contracts.md) | Security and API contracts |
+| [`docs/api/architecture.md`](docs/api/architecture.md) | Stable API architecture and dependency contract |
+| [`docs/api/modules/`](docs/api/modules/) | Domain/module-specific API documentation |
+| [`docs/api/dynamic-forms.md`](docs/api/dynamic-forms.md) | Reusable dynamic forms and configurable fields |
+| [`docs/api/event-infrastructure.md`](docs/api/event-infrastructure.md) | Event/outbox infrastructure |
+| [`docs/api/workflow-engine.md`](docs/api/workflow-engine.md) | Generic workflow/versioning mechanism |
+| [`docs/api/enforcement-contracts.md`](docs/api/enforcement-contracts.md) | Enforceable repository contracts |
+| [`docs/api/security/security-and-api-contracts.md`](docs/api/security/security-and-api-contracts.md) | Security and API contracts |
 | [`apps/api/openapi/openapi.yaml`](apps/api/openapi/openapi.yaml) | Public API contract |
 
-General documentation describes current implementation and stable engineering contracts. Historical implementation phases and temporary migration plans do not belong in the README or architecture contract. Domain workflows and domain-specific requirements belong under `docs/server/modules/<module>/`.
+General documentation describes current implementation and stable engineering contracts. Historical implementation phases and temporary migration plans do not belong in the README or architecture contract. Domain workflows and domain-specific requirements belong under `docs/api/modules/<module>/`. 
