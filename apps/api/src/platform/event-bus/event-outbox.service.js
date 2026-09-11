@@ -67,6 +67,7 @@ const claimBatch = async ({
   batchSize = 50,
   now = new Date(),
   leaseSeconds = DEFAULT_LEASE_SECONDS,
+  event = null,
 } = {}) => {
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 1000)
     throw new Error('batchSize must be an integer between 1 and 1000.')
@@ -76,6 +77,8 @@ const claimBatch = async ({
     leaseSeconds > 86400
   )
     throw new Error('leaseSeconds must be an integer between 1 and 86400.')
+  if (event !== null && (typeof event !== 'string' || event.length === 0))
+    throw new Error('event must be null or a non-empty string.')
 
   const rows = await prisma.$queryRaw`
     WITH candidates AS (
@@ -84,6 +87,7 @@ const claimBatch = async ({
       WHERE "status" IN ('PENDING', 'RETRY')
         AND "availableAt" <= ${now}
         AND "attempts" < ${MAX_ATTEMPTS}
+        AND (${event}::text IS NULL OR "event" = ${event})
       ORDER BY "createdAt" ASC
       FOR UPDATE SKIP LOCKED
       LIMIT ${batchSize}
