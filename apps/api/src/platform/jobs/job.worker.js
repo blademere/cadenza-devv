@@ -17,6 +17,7 @@ const executeWithJobContext = async (job, processor) => {
     {
       metric: 'platform.job.execution',
       labels,
+      log: false,
     },
   )
 
