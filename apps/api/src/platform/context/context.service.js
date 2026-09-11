@@ -23,6 +23,17 @@ const requireContext = () => {
   return context
 }
 
+const setActorContext = ({ actorId = null, actorType = null, organizationId = null } = {}) => {
+  const context = storage.getStore()
+  if (!context) return null
+
+  context.actorId = actorId
+  context.actorType = actorType
+  context.organizationId = organizationId
+
+  return context
+}
+
 const withContext = (overrides, callback) => {
   const current = getContext() || {}
   return runWithContext(
@@ -42,5 +53,6 @@ export {
   getContext,
   requireContext,
   runWithContext,
+  setActorContext,
   withContext,
 }
