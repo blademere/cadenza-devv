@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import idempotency from '../../../src/common/middleware/idempotency.js'
 
@@ -8,6 +9,7 @@ describe('generic idempotency middleware', () => {
       method: 'POST',
       route: { path: '/orders' },
     }
+    const keyDigest = crypto.createHash('sha256').update('order-123').digest('hex')
 
     expect(
       idempotency.buildRedisKey({
@@ -15,7 +17,7 @@ describe('generic idempotency middleware', () => {
         key: 'order-123',
         scope: 'orders',
       }),
-    ).toBe('idempotency:orders:42:POST:/orders:order-123')
+    ).toBe(`idempotency:orders:global:42:POST:/orders:${keyDigest}`)
   })
 
   it('isolates anonymous requests from authenticated requests', () => {
@@ -26,7 +28,7 @@ describe('generic idempotency middleware', () => {
 
     expect(
       idempotency.buildRedisKey({ req, key: 'same-key' }),
-    ).toContain('idempotency:api:anonymous:POST:/orders:')
+    ).toContain('idempotency:api:global:anonymous:POST:/orders:')
   })
 
   it('produces the same request hash for equivalent requests', () => {
