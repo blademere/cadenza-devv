@@ -1,12 +1,27 @@
 import { registerWorker } from '../../infrastructure/queue/bullmq.js'
 import { JOB_QUEUES } from './job.constants.js'
 import { withContext } from '../context/context.service.js'
+import { instrument } from '../observability/observability.service.js'
 
 const executeWithJobContext = async (job, processor) => {
   const context = job?.data?._platformContext
-  if (!context) return processor(job)
+  const execute = () => processor(job)
+  const labels = {
+    queue: job?.queueName,
+    jobType: job?.name,
+  }
 
-  return withContext(context, () => processor(job))
+  const run = () => instrument(
+    `job.${job?.name || 'unknown'}`,
+    execute,
+    {
+      metric: 'platform.job.execution',
+      labels,
+    },
+  )
+
+  if (!context) return run()
+  return withContext(context, run)
 }
 
 function createJobWorker({ queue, processor, concurrency = 5 }) {
