@@ -1,8 +1,8 @@
 import express from 'express'
-import { asyncHandler, validate, idempotency, cache } from '../../common/middleware/index.js'
-import authenticate from '../auth/authenticate.secure.js'
-import authorize from '../../platform/authorization/authorize.js'
-import authorizeResource from '../../platform/authorization/authorization-resource.middleware.js'
+import { asyncHandler, validate, idempotency, cache } from '../../../common/middleware/index.js'
+import authenticate from '../../auth/authenticate.secure.js'
+import authorize from '../../../platform/authorization/authorize.js'
+import authorizeResource from '../../../platform/authorization/authorization-resource.middleware.js'
 import {
   listModulesController,
   createModuleController,
@@ -10,19 +10,19 @@ import {
   setModuleActiveController,
   listRolesController,
   replaceRolePermissionsController,
-} from './authorization-admin.controller.js'
+} from './authorization.controller.js'
 import {
   AUTHORIZATION_MODULES_CACHE_KEY,
   AUTHORIZATION_ROLES_CACHE_KEY,
   getModuleById,
   getRoleById,
-} from './authorization-admin.service.js'
+} from './authorization.service.js'
 import {
   createModuleValidator,
   createPermissionValidator,
   setModuleActiveValidator,
   replaceRolePermissionsValidator,
-} from './authorization-admin.validation.js'
+} from './authorization.validation.js'
 
 const router = express.Router()
 const manageAuthorization = authorize('authorization', 'manage')
