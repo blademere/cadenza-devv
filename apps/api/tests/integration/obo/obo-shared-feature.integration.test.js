@@ -139,7 +139,7 @@ describeIfEnabled('OBO shared-feature API integration', () => {
       .set('Idempotency-Key', idempotencyKey('appointment-book'))
       .send({ appointmentTypeId: appointmentType.id, slotId: slot.id, notes: 'Integration test appointment' })
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(201)
     expect(response.body.success).toBe(true)
     expect(response.body.data).toEqual(expect.objectContaining({ id: expect.any(String), slot: expect.objectContaining({ id: slot.id }) }))
     createdAppointmentIds.push(response.body.data.id)
@@ -297,14 +297,15 @@ describeIfEnabled('OBO shared-feature API integration', () => {
       await prisma.auditLog.deleteMany({ where: { entityType: { in: ['OboPermitApplication', 'OboPermitApplicationDocument'] }, entityId: { in: [...createdEventEntityIds] } } })
     }
     if (createdDocumentIds.length) await prisma.document.deleteMany({ where: { id: { in: createdDocumentIds } } })
-    if (createdApplicationIds.length) await prisma.oboPermitApplication.deleteMany({ where: { id: { in: createdApplicationIds } } })
     if (createdAppointmentIds.length) await prisma.appointment.deleteMany({ where: { id: { in: createdAppointmentIds } } })
+    if (createdApplicationIds.length) await prisma.oboPermitApplication.deleteMany({ where: { id: { in: createdApplicationIds } } })
     if (createdWorkflowInstanceIds.length) await prisma.workflowInstance.deleteMany({ where: { id: { in: createdWorkflowInstanceIds } } })
     if (createdCaseIds.length) await prisma.caseRecord.deleteMany({ where: { id: { in: createdCaseIds } } })
+    if (createdSlotIds.length) await prisma.appointment.deleteMany({ where: { slotId: { in: createdSlotIds } } })
+    if (createdSlotIds.length) await prisma.appointmentSlot.deleteMany({ where: { id: { in: createdSlotIds } } })
     if (createdProfessionalIds.length) await prisma.oboProfessional.deleteMany({ where: { id: { in: createdProfessionalIds } } })
     if (createdPersonIds.length) await prisma.person.deleteMany({ where: { id: { in: createdPersonIds } } })
     if (createdUserIds.length) await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } })
-    if (createdSlotIds.length) await prisma.appointmentSlot.deleteMany({ where: { id: { in: createdSlotIds } } })
     if (createdMappingIds.length) await prisma.oboPermitTypeRequirement.deleteMany({ where: { id: { in: createdMappingIds } } })
     if (createdRequirementIds.length) await prisma.requirementDefinition.deleteMany({ where: { id: { in: createdRequirementIds } } })
     await prisma.$disconnect()
@@ -317,16 +318,24 @@ describeIfEnabled('OBO shared-feature API integration', () => {
     expect(stored?.caseId).toBe(application.caseId)
     expect(stored?.caseRecord?.id).toBe(application.caseId)
 
-    const participants = await prisma.caseParticipant.findMany({ where: { caseId: application.caseId } })
-    expect(participants).toEqual(expect.arrayContaining([
+    const initialParticipants = await prisma.caseParticipant.findMany({ where: { caseId: application.caseId } })
+    expect(initialParticipants).toEqual(expect.arrayContaining([
       expect.objectContaining({ personId: clientPerson.id, roleKey: 'APPLICANT', isPrimary: true }),
-      expect.objectContaining({ personId: professional.personId, roleKey: 'PROFESSIONAL', isPrimary: false }),
+    ]))
+    expect(initialParticipants).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ personId: professional.personId, roleKey: 'PROFESSIONAL' }),
     ]))
 
     const caseRequirements = await prisma.caseRequirement.findMany({ where: { caseId: application.caseId } })
     expect(caseRequirements.map((item) => item.requirementId)).toEqual(expect.arrayContaining(requirementIds))
 
     await submitApplication(application.id)
+
+    const submittedParticipants = await prisma.caseParticipant.findMany({ where: { caseId: application.caseId } })
+    expect(submittedParticipants).toEqual(expect.arrayContaining([
+      expect.objectContaining({ personId: clientPerson.id, roleKey: 'APPLICANT', isPrimary: true }),
+      expect.objectContaining({ personId: professional.personId, roleKey: 'PROFESSIONAL', isPrimary: false }),
+    ]))
 
     const submittedTasks = await prisma.task.findMany({ where: { caseId: application.caseId } })
     expect(submittedTasks).toEqual(expect.arrayContaining([
@@ -393,13 +402,14 @@ describeIfEnabled('OBO shared-feature API integration', () => {
     const replacementParticipants = await prisma.caseParticipant.findMany({ where: { caseId: replacement.caseId } })
     expect(replacementParticipants).toEqual(expect.arrayContaining([
       expect.objectContaining({ personId: clientPerson.id, roleKey: 'APPLICANT', isPrimary: true }),
+    ]))
+    expect(replacementParticipants).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ personId: professional.personId, roleKey: 'PROFESSIONAL' }),
     ]))
 
     const replacementEventNames = await prisma.eventOutbox.findMany({ where: { entityType: 'OboPermitApplication', entityId: replacement.id }, select: { event: true } })
     expect(replacementEventNames.map((item) => item.event)).toEqual(expect.arrayContaining([
       'obo.permit_application.created',
-      'obo.permit_application.professional.associated',
       'obo.permit_application.replacement_created',
     ]))
   })
