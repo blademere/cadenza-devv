@@ -9,6 +9,7 @@ import { recordAudit } from "../audit/audit.service.js"
 import { can } from "../authorization/access-control.service.js"
 import { getContext } from "../context/context.service.js"
 import { publish } from "../event-bus/event-bus.js"
+import { instrument } from "../observability/observability.service.js"
 import {
   findWorkflowByKey,
   findPublishedVersion,
@@ -434,10 +435,21 @@ const transitionWorkflow = async ({
     })
   }
 
-  const updated =
-    db === prisma
-      ? await prisma.$transaction(executeTransition)
-      : await executeTransition(db)
+  const instrumentedTransition = () => instrument(
+    'workflow.transition',
+    () => db === prisma
+      ? prisma.$transaction(executeTransition)
+      : executeTransition(db),
+    {
+      metric: 'platform.workflow.transition',
+      labels: {
+        transition: transitionKey,
+        workflow: instance.workflowVersion.workflow.key,
+      },
+    },
+  )
+
+  const updated = await instrumentedTransition()
 
   const action = transition.toStep.isFinal
     ? WORKFLOW_ACTIONS.COMPLETED
