@@ -48,19 +48,8 @@ describe('architecture rules', () => {
     )
   })
 
-  it('removes resolved platform services from the legacy exception list', () => {
-    for (const service of [
-      'apps/api/src/platform/workflow/workflow.service.js',
-      'apps/api/src/platform/audit/audit.service.js',
-      'apps/api/src/platform/workflow/workflow-version.service.js',
-      'apps/api/src/platform/event-bus/event-outbox.service.js',
-      'apps/api/src/platform/forms/form.service.js',
-      'apps/api/src/platform/rules/rule.service.js',
-      'apps/api/src/platform/rules/rule-execution.service.js',
-      'apps/api/src/platform/approvals/approval.service.js',
-    ]) {
-      expect(rules.isPlatformPrismaLegacyException(service)).toBe(false)
-    }
+  it('has zero platform Prisma legacy exceptions', () => {
+    expect(rules.PLATFORM_PRISMA_LEGACY_EXCEPTIONS.size).toBe(0)
   })
 
   it('allows repositories to own direct Prisma access', () => {
