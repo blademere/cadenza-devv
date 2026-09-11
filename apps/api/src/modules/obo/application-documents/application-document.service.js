@@ -1,5 +1,6 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/appError.js'
 import { recordAudit } from '../../../platform/audit/audit.service.js'
+import { publish } from '../../../platform/event-bus/event-bus.js'
 import * as requirementService from '../../../features/requirements/requirements.service.js'
 import * as documentService from '../../../features/documents/document.service.js'
 import * as planPermitService from '../plan-permits/plan-permit.service.js'
@@ -133,6 +134,25 @@ const updateReceiptStatus = async ({ applicationId, requirementId, actorId, stat
         documentId: updated.documentId,
       },
       db: tx,
+    })
+
+    await publish({
+      db: tx,
+      event: `obo.permit_application.document.${status.toLowerCase()}`,
+      entityType: 'OboPermitApplicationDocument',
+      entityId: updated.id,
+      actorId,
+      context: {
+        applicationId: application.id,
+        caseId: application.caseId,
+        referenceNumber: application.referenceNumber,
+        caseRequirementId: caseRequirement.id,
+        requirementId: caseRequirement.requirementId,
+        requirementName: caseRequirement.requirement.name,
+        documentId: updated.documentId,
+        status,
+      },
+      idempotencyKey: `obo:application-document:${updated.id}:status:${status}:${updated.receivedAt?.toISOString() || updated.verifiedAt?.toISOString() || Date.now()}`,
     })
 
     return {
