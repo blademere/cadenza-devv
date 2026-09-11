@@ -64,7 +64,45 @@ const recordAudit = async ({
   })
 }
 
+const recordAuthorizationDenied = async ({
+  actorId,
+  resource,
+  action,
+  resourceId = null,
+  ipAddress = null,
+  userAgent = null,
+  requestId = null,
+  correlationId = null,
+  reason = 'permission_denied',
+}) => {
+  try {
+    const entityId = resourceId == null
+      ? `${String(resource)}:${String(action)}`
+      : String(resourceId)
+
+    return await recordAudit({
+      actorId,
+      action: 'AUTHORIZATION_DENIED',
+      entityType: String(resource),
+      entityId,
+      metadata: {
+        authorizationAction: String(action),
+        reason,
+        requestId,
+        correlationId,
+      },
+      ipAddress,
+      userAgent,
+    })
+  } catch {
+    // Authorization failures must remain fail-closed even when the audit store
+    // is unavailable. The denial metric/logging path remains independent.
+    return null
+  }
+}
+
 export {
   recordAudit,
+  recordAuthorizationDenied,
   sanitizeJson,
 }
