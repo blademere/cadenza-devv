@@ -25,8 +25,11 @@ const userServicePath = new URL('../../../src/features/users/user.service.js', i
 const oauthServicePath = new URL('../../../src/features/auth/oauth/oauth.service.js', import.meta.url)
 const readText = (url) => readFile(url, 'utf8')
 
-const oauthRedis = { set: vi.fn(), getDel: vi.fn() }
-const connectRedis = vi.fn(async () => oauthRedis)
+const { oauthRedis, connectRedis } = vi.hoisted(() => {
+  const oauthRedis = { set: vi.fn(), getDel: vi.fn() }
+  const connectRedis = vi.fn(async () => oauthRedis)
+  return { oauthRedis, connectRedis }
+})
 
 vi.mock('../../../src/infrastructure/cache/redis.js', () => ({ connectRedis }))
 vi.mock('../../../src/config/index.js', () => ({
