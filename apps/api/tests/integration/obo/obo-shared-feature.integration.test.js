@@ -64,6 +64,8 @@ describeIfEnabled('OBO shared-feature API integration', () => {
   const createdApplicationIds = []
   const createdCaseIds = []
   const createdSlotIds = []
+  const createdAppointmentIds = []
+  const createdWorkflowInstanceIds = []
   const createdDocumentIds = []
   const createdUserIds = []
   const createdPersonIds = []
@@ -75,20 +77,13 @@ describeIfEnabled('OBO shared-feature API integration', () => {
   const clientToken = () => createAccessToken({ id: clientUser.id, authVersion: clientUser.authVersion })
   const receivingToken = () => createAccessToken({ id: receivingOfficer.id, authVersion: receivingOfficer.authVersion })
   const auth = (token) => ({ Authorization: `Bearer ${token}` })
-
   const idempotencyKey = (scope) => `${scope}-${crypto.randomUUID()}`
 
   const createSlot = async () => {
     const startsAt = new Date(Date.now() + 30 * 60 * 1000)
     const endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000)
     const slot = await prisma.appointmentSlot.create({
-      data: {
-        appointmentTypeId: appointmentType.id,
-        startsAt,
-        endsAt,
-        capacity: 1,
-        status: 'OPEN',
-      },
+      data: { appointmentTypeId: appointmentType.id, startsAt, endsAt, capacity: 1, status: 'OPEN' },
     })
     createdSlotIds.push(slot.id)
     return slot
@@ -118,6 +113,7 @@ describeIfEnabled('OBO shared-feature API integration', () => {
     const application = response.body.data
     createdApplicationIds.push(application.id)
     createdCaseIds.push(application.caseId)
+    createdWorkflowInstanceIds.push(application.workflowInstanceId)
     createdEventEntityIds.add(application.id)
     return application
   }
@@ -140,25 +136,16 @@ describeIfEnabled('OBO shared-feature API integration', () => {
       .post(`/api/v1/obo/applications/${applicationId}/submission-appointments`)
       .set(auth(clientToken()))
       .set('Idempotency-Key', idempotencyKey('appointment-book'))
-      .send({
-        appointmentTypeId: appointmentType.id,
-        slotId: slot.id,
-        notes: 'Integration test appointment',
-      })
+      .send({ appointmentTypeId: appointmentType.id, slotId: slot.id, notes: 'Integration test appointment' })
 
     expect(response.status).toBe(200)
     expect(response.body.success).toBe(true)
-    expect(response.body.data).toEqual(expect.objectContaining({
-      id: expect.any(String),
-      slot: expect.objectContaining({ id: slot.id }),
-    }))
+    expect(response.body.data).toEqual(expect.objectContaining({ id: expect.any(String), slot: expect.objectContaining({ id: slot.id }) }))
+    createdAppointmentIds.push(response.body.data.id)
 
     await prisma.appointmentSlot.update({
       where: { id: slot.id },
-      data: {
-        startsAt: new Date(Date.now() - 60 * 1000),
-        endsAt: new Date(Date.now() + 29 * 60 * 1000),
-      },
+      data: { startsAt: new Date(Date.now() - 60 * 1000), endsAt: new Date(Date.now() + 29 * 60 * 1000) },
     })
 
     return response.body.data
@@ -191,10 +178,8 @@ describeIfEnabled('OBO shared-feature API integration', () => {
     const checklist = await getChecklist(applicationId)
 
     for (const item of checklist) {
-      const documentType = await prisma.documentType.findFirst({ where: { isActive: true } })
       const document = await prisma.document.create({
         data: {
-          documentTypeId: documentType?.id || null,
           ownerId: receivingOfficer.id,
           originalName: `${item.requirement.name.replaceAll(/[^A-Za-z0-9]+/g, '-').toLowerCase()}.pdf`,
           storageKey: unique('obo-integration-document'),
@@ -255,23 +240,13 @@ describeIfEnabled('OBO shared-feature API integration', () => {
 
     const role = await prisma.role.create({ data: { name: unique('obo-api-integration-role') } })
 
-    clientUser = await prisma.user.create({
-      data: { email: `${unique('obo-api-client')}@example.test`, roleId: role.id, isActive: true },
-    })
-    receivingOfficer = await prisma.user.create({
-      data: { email: `${unique('obo-api-receiving')}@example.test`, roleId: role.id, isActive: true },
-    })
-    const professionalUser = await prisma.user.create({
-      data: { email: `${unique('obo-api-professional')}@example.test`, roleId: role.id, isActive: true },
-    })
+    clientUser = await prisma.user.create({ data: { email: `${unique('obo-api-client')}@example.test`, roleId: role.id, isActive: true } })
+    receivingOfficer = await prisma.user.create({ data: { email: `${unique('obo-api-receiving')}@example.test`, roleId: role.id, isActive: true } })
+    const professionalUser = await prisma.user.create({ data: { email: `${unique('obo-api-professional')}@example.test`, roleId: role.id, isActive: true } })
     createdUserIds.push(clientUser.id, receivingOfficer.id, professionalUser.id)
 
-    clientPerson = await prisma.person.create({
-      data: { userId: clientUser.id, firstName: 'Integration', lastName: 'Client', email: clientUser.email },
-    })
-    const professionalPerson = await prisma.person.create({
-      data: { userId: professionalUser.id, firstName: 'Integration', lastName: 'Professional', email: professionalUser.email },
-    })
+    clientPerson = await prisma.person.create({ data: { userId: clientUser.id, firstName: 'Integration', lastName: 'Client', email: clientUser.email } })
+    const professionalPerson = await prisma.person.create({ data: { userId: professionalUser.id, firstName: 'Integration', lastName: 'Professional', email: professionalUser.email } })
     createdPersonIds.push(clientPerson.id, professionalPerson.id)
 
     professional = await prisma.oboProfessional.create({
@@ -315,15 +290,13 @@ describeIfEnabled('OBO shared-feature API integration', () => {
 
   afterAll(async () => {
     if (createdEventEntityIds.size) {
-      await prisma.eventOutbox.deleteMany({
-        where: { entityType: 'OboPermitApplication', entityId: { in: [...createdEventEntityIds] } },
-      })
-      await prisma.auditLog.deleteMany({
-        where: { entityType: { in: ['OboPermitApplication', 'OboPermitApplicationDocument'] }, entityId: { in: [...createdEventEntityIds] } },
-      })
+      await prisma.eventOutbox.deleteMany({ where: { entityType: 'OboPermitApplication', entityId: { in: [...createdEventEntityIds] } } })
+      await prisma.auditLog.deleteMany({ where: { entityType: { in: ['OboPermitApplication', 'OboPermitApplicationDocument'] }, entityId: { in: [...createdEventEntityIds] } } })
     }
     if (createdDocumentIds.length) await prisma.document.deleteMany({ where: { id: { in: createdDocumentIds } } })
     if (createdApplicationIds.length) await prisma.oboPermitApplication.deleteMany({ where: { id: { in: createdApplicationIds } } })
+    if (createdAppointmentIds.length) await prisma.appointment.deleteMany({ where: { id: { in: createdAppointmentIds } } })
+    if (createdWorkflowInstanceIds.length) await prisma.workflowInstance.deleteMany({ where: { id: { in: createdWorkflowInstanceIds } } })
     if (createdCaseIds.length) await prisma.caseRecord.deleteMany({ where: { id: { in: createdCaseIds } } })
     if (createdProfessionalIds.length) await prisma.oboProfessional.deleteMany({ where: { id: { in: createdProfessionalIds } } })
     if (createdPersonIds.length) await prisma.person.deleteMany({ where: { id: { in: createdPersonIds } } })
@@ -337,10 +310,7 @@ describeIfEnabled('OBO shared-feature API integration', () => {
   it('composes cases, participants, requirements, appointments, documents, tasks, and workflow through the API', async () => {
     const application = await createApplication()
 
-    const stored = await prisma.oboPermitApplication.findUnique({
-      where: { id: application.id },
-      include: { caseRecord: true },
-    })
+    const stored = await prisma.oboPermitApplication.findUnique({ where: { id: application.id }, include: { caseRecord: true } })
     expect(stored?.caseId).toBe(application.caseId)
     expect(stored?.caseRecord?.id).toBe(application.caseId)
 
@@ -384,13 +354,10 @@ describeIfEnabled('OBO shared-feature API integration', () => {
     expect(finalApplication?.acceptedAt).not.toBeNull()
     expect(finalApplication?.declinedAt).toBeNull()
 
-    const workflow = await prisma.workflowInstance.findUnique({ where: { id: finalApplication.workflowInstanceId } , include: { currentStep: true } })
+    const workflow = await prisma.workflowInstance.findUnique({ where: { id: finalApplication.workflowInstanceId }, include: { currentStep: true } })
     expect(workflow?.currentStep.key).toBe('FOR_INSPECTION')
 
-    const eventNames = await prisma.eventOutbox.findMany({
-      where: { entityType: 'OboPermitApplication', entityId: application.id },
-      select: { event: true },
-    })
+    const eventNames = await prisma.eventOutbox.findMany({ where: { entityType: 'OboPermitApplication', entityId: application.id }, select: { event: true } })
     expect(eventNames.map((item) => item.event)).toEqual(expect.arrayContaining([
       'obo.permit_application.created',
       'obo.permit_application.professional.associated',
@@ -426,10 +393,7 @@ describeIfEnabled('OBO shared-feature API integration', () => {
       expect.objectContaining({ personId: professional.personId, roleKey: 'PROFESSIONAL' }),
     ]))
 
-    const replacementEventNames = await prisma.eventOutbox.findMany({
-      where: { entityType: 'OboPermitApplication', entityId: replacement.id },
-      select: { event: true },
-    })
+    const replacementEventNames = await prisma.eventOutbox.findMany({ where: { entityType: 'OboPermitApplication', entityId: replacement.id }, select: { event: true } })
     expect(replacementEventNames.map((item) => item.event)).toEqual(expect.arrayContaining([
       'obo.permit_application.created',
       'obo.permit_application.professional.associated',
@@ -438,21 +402,8 @@ describeIfEnabled('OBO shared-feature API integration', () => {
   })
 
   it('registers, auto-generates a professional number, and supports receiving-officer verification', async () => {
-    const registrationUser = await prisma.user.create({
-      data: {
-        email: `${unique('obo-api-registration')}@example.test`,
-        roleId: clientUser.roleId,
-        isActive: true,
-      },
-    })
-    const registrationPerson = await prisma.person.create({
-      data: {
-        userId: registrationUser.id,
-        firstName: 'Registration',
-        lastName: 'Professional',
-        email: registrationUser.email,
-      },
-    })
+    const registrationUser = await prisma.user.create({ data: { email: `${unique('obo-api-registration')}@example.test`, roleId: clientUser.roleId, isActive: true } })
+    const registrationPerson = await prisma.person.create({ data: { userId: registrationUser.id, firstName: 'Registration', lastName: 'Professional', email: registrationUser.email } })
     createdUserIds.push(registrationUser.id)
     createdPersonIds.push(registrationPerson.id)
 
