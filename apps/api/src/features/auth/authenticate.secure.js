@@ -1,4 +1,5 @@
 import { UnauthorizedError } from '../../common/errors/appError.js'
+import { setActorContext } from '../../platform/context/index.js'
 import { verifyAccessToken } from './auth.tokens.js'
 import * as authRepository from './auth.repository.js'
 
@@ -23,6 +24,7 @@ const authenticate = async (req, _res, next) => {
     if (!user || !user.isActive || user.authVersion !== payload.authVersion)
       return next(new UnauthorizedError('Access token has been revoked.'))
     req.user = { id: userId }
+    setActorContext({ actorId: userId, actorType: 'user' })
     return next()
   } catch (_error) {
     return next(new UnauthorizedError('Access token is invalid or expired.'))
