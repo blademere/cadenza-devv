@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const rules = require('../../../scripts/architecture-rules.cjs')
+const routeValidator = require('../../../scripts/validate-architecture.cjs')
 
 describe('architecture rules', () => {
   it('blocks platform imports from features and modules', () => {
@@ -62,5 +63,44 @@ describe('architecture rules', () => {
       'apps/api/src/platform/audit/audit.repository.js',
       "import { getPrismaClient } from '../../infrastructure/database/prisma.js'\nconst prisma = getPrismaClient()",
     )).toEqual([])
+  })
+
+  it('enforces idempotency on multiline feature mutations', () => {
+    expect(routeValidator.getRouteViolations(
+      'apps/api/src/features/example/example.routes.js',
+      `router.post(\n  '/example',\n  authenticate,\n  requireIdempotency,\n  controller.create,\n)`,
+    )).toEqual([])
+
+    expect(routeValidator.getRouteViolations(
+      'apps/api/src/features/example/example.routes.js',
+      `router.post(\n  '/example',\n  authenticate,\n  controller.create,\n)`,
+    )).toContain(
+      'apps/api/src/features/example/example.routes.js: POST mutation must use shared idempotency middleware or an explicit \'idempotency: exempt\' comment with justification.',
+    )
+  })
+
+  it('enforces idempotency and authorization on module resource routes', () => {
+    const source = `router.patch(\n  '/applications/:id',\n  authenticate,\n  authorizeResource,\n  requireIdempotency,\n  controller.update,\n)`
+
+    expect(routeValidator.getRouteViolations(
+      'apps/api/src/modules/obo/example.routes.js',
+      source,
+    )).toEqual([])
+  })
+
+  it('rejects unprotected multiline module mutations and resource routes', () => {
+    const source = `router.patch(\n  '/applications/:id',\n  authenticate,\n  controller.update,\n)`
+
+    const violations = routeValidator.getRouteViolations(
+      'apps/api/src/modules/obo/example.routes.js',
+      source,
+    )
+
+    expect(violations).toContain(
+      'apps/api/src/modules/obo/example.routes.js: PATCH mutation must use shared idempotency middleware or an explicit \'idempotency: exempt\' comment with justification.',
+    )
+    expect(violations).toContain(
+      "apps/api/src/modules/obo/example.routes.js: resource route '/applications/:id' must use authorizeResource or an explicit resource-authorization helper.",
+    )
   })
 })
