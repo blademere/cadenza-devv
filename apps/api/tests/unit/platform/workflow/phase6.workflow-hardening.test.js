@@ -8,6 +8,9 @@ describe("Platform Workflow Phase 6 hardening", () => {
     const service = await readText(
       "../../../../src/platform/workflow/workflow.service.js",
     )
+    const repository = await readText(
+      "../../../../src/platform/workflow/workflow.repository.js",
+    )
     const schema = await readText(
       "../../../../prisma/platform/workflow.prisma",
     )
@@ -15,9 +18,15 @@ describe("Platform Workflow Phase 6 hardening", () => {
     expect(service).toContain("getContext")
     expect(service).toContain("const correlationId = resolveCorrelationId()")
     expect(service).toContain("correlationId,")
-    expect(service).toContain("workflowInstance.updateMany")
+    expect(service).toContain("updateInstanceStep(")
     expect(service).toContain("currentStepId: instance.currentStepId")
     expect(service).toContain("Workflow instance changed concurrently")
+
+    expect(repository).toContain("db.workflowInstance.updateMany")
+    expect(repository).toContain("currentStepId: expectedStepId")
+    expect(repository).toContain("completedAt: null")
+    expect(repository).toContain("currentStepId: toStepId")
+
     expect(schema).toContain("correlationId String?")
   })
 
