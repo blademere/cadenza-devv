@@ -24,6 +24,7 @@ import {
   errorHandler,
 } from './common/middleware/index.js'
 import originProtection from './common/middleware/originProtection.js'
+import { contextMiddleware } from './platform/context/index.js'
 
 import { env, requestLogger } from './config/index.js'
 import apiRoutes from './routes/index.js'
@@ -35,6 +36,7 @@ const allowedCorsOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.tri
 
 app.set('trust proxy', 1)
 app.use(requestId)
+app.use(contextMiddleware)
 app.use(cookieParser())
 app.use(requestLogger)
 app.use(helmet())
