@@ -12,7 +12,6 @@ const PRISMA_CLIENT_ACCESS = /\b(?:getPrismaClient|PrismaClient)\s*\(/
 // modified platform services must not add to this list.
 const PLATFORM_PRISMA_LEGACY_EXCEPTIONS = new Set([
   'apps/api/src/platform/approvals/approval.service.js',
-  'apps/api/src/platform/audit/audit.service.js',
   'apps/api/src/platform/audit/audit.query.service.js',
   'apps/api/src/platform/dashboards/dashboard.service.js',
   'apps/api/src/platform/event-bus/event-outbox.service.js',
@@ -22,7 +21,6 @@ const PLATFORM_PRISMA_LEGACY_EXCEPTIONS = new Set([
   'apps/api/src/platform/notifications/notification.send.service.js',
   'apps/api/src/platform/rules/rule.service.js',
   'apps/api/src/platform/rules/rule-execution.service.js',
-  'apps/api/src/platform/workflow/workflow.service.js',
   'apps/api/src/platform/workflow/workflow-version.service.js',
 ])
 
