@@ -33,6 +33,16 @@ const { oauthRedis, connectRedis, getRedisClient } = vi.hoisted(() => {
 })
 
 vi.mock('../../../src/infrastructure/cache/redis.js', () => ({ connectRedis, getRedisClient }))
+
+const { testLogger } = vi.hoisted(() => ({
+  testLogger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}))
+
 vi.mock('../../../src/config/index.js', () => ({
   env: {
     OAUTH_GOOGLE_CLIENT_ID: 'google-client',
@@ -46,6 +56,7 @@ vi.mock('../../../src/config/index.js', () => ({
     COOKIE_SAME_SITE: 'lax',
     COOKIE_DOMAIN: '',
   },
+  logger: testLogger,
 }))
 
 const { createState, createPkceVerifier, createPkceChallenge, createAuthorizationUrl, safeEqual, getProviderConfig, consumeOAuthState, storeOAuthState } = await import('../../../src/features/auth/oauth/oauth.providers.js')
