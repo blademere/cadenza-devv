@@ -1,11 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-vi.mock('../../../src/features/tasks/tasks.service.js', () => ({
+vi.mock('../../../../src/features/tasks/tasks.service.js', () => ({
   list: vi.fn(),
 }))
 
-const taskService = await import('../../../src/features/tasks/tasks.service.js')
-const { hasReceivingTaskAccess } = await import('../../../src/modules/obo/receiving/receiving.authorization.js')
+const taskService = await import('../../../../src/features/tasks/tasks.service.js')
+const { hasReceivingTaskAccess } = await import('../../../../src/modules/obo/receiving/receiving.authorization.js')
 
 describe('OBO receiving task authorization', () => {
   beforeEach(() => vi.clearAllMocks())
