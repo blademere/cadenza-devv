@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFile } from 'node:fs/promises'
 
-// Refresh/replay, email verification, password reset, and auth-service tests
-// intentionally retain their existing mocks because they exercise isolated
-// service boundaries rather than the HTTP/integration layer.
 vi.mock('../../../src/platform/event-bus/event-bus.js')
 vi.mock('../../../src/features/auth/auth.repository.js')
 vi.mock('../../../src/features/auth/auth.tokens.js')
@@ -45,6 +42,10 @@ const { testLogger } = vi.hoisted(() => ({
 
 vi.mock('../../../src/config/index.js', () => ({
   env: {
+    JWT_REFRESH_SECRET: 'test-refresh-secret-012345678901234567890123456789',
+    JWT_REFRESH_EXPIRES_IN: '7d',
+    PASSWORD_RESET_URL: 'http://localhost:5173/auth/reset-password?token=',
+    EMAIL_VERIFICATION_URL: 'http://localhost:5173/auth/verify-email?token=',
     OAUTH_GOOGLE_CLIENT_ID: 'google-client',
     OAUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
     OAUTH_GOOGLE_CALLBACK_URL: 'http://localhost:3000/api/v1/auth/oauth/google/callback',
@@ -271,57 +272,61 @@ describe('OAuth', () => {
   })
 
   it('stores and consumes OAuth state through Redis', async () => {
-    await storeOAuthState('state-123', { provider: 'google', codeVerifier: validVerifier })
+    await storeOAuthState(validState, { provider: 'google', codeVerifier: validVerifier })
     expect(connectRedis).toHaveBeenCalled()
-    expect(oauthRedis.set).toHaveBeenCalledWith('oauth:state:state-123', JSON.stringify({ provider: 'google', codeVerifier: validVerifier }), { EX: expect.any(Number) })
+    expect(oauthRedis.set).toHaveBeenCalledWith(`oauth:state:${validState}`, JSON.stringify({ provider: 'google', codeVerifier: validVerifier }), { EX: expect.any(Number) })
 
     oauthRedis.getDel.mockResolvedValue(JSON.stringify({ provider: 'google', codeVerifier: validVerifier }))
-    await expect(consumeOAuthState('state-123')).resolves.toEqual({ provider: 'google', codeVerifier: validVerifier })
-    expect(oauthRedis.getDel).toHaveBeenCalledWith('oauth:state:state-123')
+    await expect(consumeOAuthState(validState)).resolves.toEqual({ provider: 'google', codeVerifier: validVerifier })
+    expect(oauthRedis.getDel).toHaveBeenCalledWith(`oauth:state:${validState}`)
   })
 })
 
 describe('auth service security', () => {
-  it('changes a password through the repository boundary', async () => {
-    repository.findUserById.mockResolvedValue({ id: 42, passwordHash: 'old-hash', isActive: true })
+  it('changes a password only after verifying the current password', async () => {
+    repository.findUserById.mockResolvedValue({ id: 7, isActive: true, passwordHash: 'old-hash', authVersion: 3, email: 'user@example.com' })
     bcrypt.default.compare.mockResolvedValue(true)
-    repository.updatePassword.mockResolvedValue({ id: 42 })
-    await expect(changePassword({ userId: 42, currentPassword: 'old', newPassword: 'new-password' })).resolves.toEqual({ success: true })
-    expect(repository.updatePassword).toHaveBeenCalledWith(42, 'new-password-hash')
+    bcrypt.default.hash.mockResolvedValue('new-hash')
+    repository.changePassword.mockResolvedValue({ id: 7, authVersion: 4 })
+    await expect(changePassword({ userId: 7, currentPassword: 'old-password', newPassword: 'new-password' })).resolves.toEqual({ success: true })
+    expect(bcrypt.default.compare).toHaveBeenCalledWith('old-password', 'old-hash')
+    expect(bcrypt.default.hash).toHaveBeenCalledWith('new-password', 12)
+    expect(repository.changePassword).toHaveBeenCalledWith({ userId: 7, passwordHash: 'new-hash' })
   })
 
-  it('lists sessions without exposing refresh-token hashes', async () => {
-    repository.listRefreshTokensForUser.mockResolvedValue([{ id: 'session-1', createdAt: new Date(), expiresAt: new Date(), revokedAt: null, userAgent: 'test', ipAddress: '127.0.0.1' }])
-    await expect(getSessions(42)).resolves.toEqual([{ id: 'session-1', createdAt: expect.any(Date), expiresAt: expect.any(Date), revokedAt: null, userAgent: 'test', ipAddress: '127.0.0.1' }])
+  it('lists only the authenticated user sessions', async () => {
+    repository.listActiveSessions.mockResolvedValue([{ id: 'session-1', createdAt: new Date(), expiresAt: new Date(Date.now() + 60000) }])
+    await expect(getSessions({ userId: 7 })).resolves.toHaveLength(1)
+    expect(repository.listActiveSessions).toHaveBeenCalledWith(7)
   })
 
-  it('revokes one session only through the repository boundary', async () => {
-    repository.revokeRefreshTokenForUser.mockResolvedValue({ count: 1 })
-    await expect(revokeSessionById(42, 'session-1')).resolves.toEqual({ success: true })
-    expect(repository.revokeRefreshTokenForUser).toHaveBeenCalledWith('session-1', 42)
+  it('cannot revoke a session belonging to another user', async () => {
+    repository.revokeSession.mockResolvedValue({ count: 0 })
+    await expect(revokeSessionById({ userId: 7, sessionId: 'session-2' })).rejects.toThrow('Session not found or already revoked.')
+    expect(repository.revokeSession).toHaveBeenCalledWith({ userId: 7, sessionId: 'session-2' })
   })
 
-  it('revokes all sessions through the repository boundary', async () => {
-    repository.revokeAllRefreshTokensForUser.mockResolvedValue({ count: 3 })
-    await expect(revokeAllSessions(42)).resolves.toEqual({ success: true })
-    expect(repository.revokeAllRefreshTokensForUser).toHaveBeenCalledWith(42)
+  it('revokes all sessions through authVersion invalidation', async () => {
+    repository.bumpUserAuthVersion.mockResolvedValue({ id: 7, authVersion: 4 })
+    await expect(revokeAllSessions({ userId: 7 })).resolves.toEqual({ success: true })
+    expect(repository.bumpUserAuthVersion).toHaveBeenCalledWith(7)
   })
 })
 
 describe('architecture', () => {
-  it('keeps auth service repository access inside the auth repository module', async () => {
+  it('keeps auth repository access inside the auth repository module', async () => {
     const source = await readText(authRepositoryPath)
     expect(source).toContain('export')
   })
 
-  it('keeps refresh-token hashing in auth token utilities', async () => {
+  it('keeps token hashing behind the auth token boundary', async () => {
     const source = await readText(authTokensPath)
     expect(source).toContain('hashToken')
   })
 
   it('keeps token maintenance separate from auth feature services', async () => {
     const source = await readText(authMaintenancePath)
-    expect(source).toContain('authVersion')
+    expect(source).toContain('deleteExpiredRefreshTokens')
   })
 
   it('keeps user service separate from auth persistence concerns', async () => {
