@@ -2,14 +2,13 @@ const fs = require('node:fs')
 const path = require('node:path')
 const {
   getLayerViolations,
-  isApplicationService: isApplicationServiceFile,
   hasDirectPrismaAccess,
 } = require('./architecture-rules.cjs')
 
 const ROOT = path.resolve(__dirname, '..', 'src')
 const ROUTES = path.join(ROOT, 'features')
 const MUTATION = /router\.(post|put|patch|delete)\s*\(/g
-const RESOURCE_ROUTE = /router\.(get|post|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
+const RESOURCE_ROUTE = /router\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
 const IDEMPOTENCY_MIDDLEWARE = /\b(?:requireIdempotency|idempotency(?:Middleware)?)\b/
 
 const walk = (directory) => {
