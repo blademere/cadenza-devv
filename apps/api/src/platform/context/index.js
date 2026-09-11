@@ -2,6 +2,7 @@ export {
   getContext,
   requireContext,
   runWithContext,
+  setActorContext,
   withContext,
 } from './context.service.js'
 
