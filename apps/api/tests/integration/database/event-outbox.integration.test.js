@@ -160,8 +160,8 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     createdEventIds.push(...events.map((event) => event.id))
 
     const [first, second] = await Promise.all([
-      claimBatch({ batchSize: 1, leaseSeconds: 60 }),
-      claimBatch({ batchSize: 1, leaseSeconds: 60 }),
+      claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.claim' }),
+      claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.claim' }),
     ])
 
     const claimedIds = [...first, ...second].map((event) => event.id)
@@ -174,7 +174,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     const idempotencyKey = `ownership:${Date.now()}:${Math.random().toString(36).slice(2)}`
     const created = await enqueueEvent({ event: 'integration.ownership', idempotencyKey })
     createdEventIds.push(created.id)
-    const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
+    const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.ownership' })
 
     expect(claimed.id).toBe(created.id)
     await expect(markProcessed(claimed.id, 'wrong-token')).rejects.toThrow(/no longer owned/)
@@ -194,7 +194,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
     const created = await enqueueEvent({ event: 'integration.retry', idempotencyKey })
     createdEventIds.push(created.id)
 
-    const [firstClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
+    const [firstClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.retry' })
     expect(firstClaim.id).toBe(created.id)
     expect(firstClaim.attempts).toBe(1)
 
@@ -206,7 +206,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
       WHERE "id" = ${created.id}
     `
 
-    const [secondClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
+    const [secondClaim] = await claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.retry' })
     expect(secondClaim.id).toBe(created.id)
     expect(secondClaim.attempts).toBe(2)
     expect(secondClaim.lockToken).not.toBe(firstClaim.lockToken)
@@ -240,7 +240,7 @@ describeIfEnabled('EventOutbox transactional consistency', () => {
       WHERE "id" = ${created.id}
     `
 
-    const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 60 })
+    const [claimed] = await claimBatch({ batchSize: 1, leaseSeconds: 60, event: 'integration.dead' })
     expect(claimed.attempts).toBe(MAX_ATTEMPTS)
 
     await markFailed(claimed.id, new Error('permanent integration failure'), claimed.lockToken)
