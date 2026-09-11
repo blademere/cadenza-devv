@@ -13,6 +13,7 @@ process.env.COOKIE_SAME_SITE = 'lax'
 const mocks = vi.hoisted(() => ({
   findUserAuthState: vi.fn(),
   can: vi.fn(),
+  getAuthorizationContext: vi.fn(),
 }))
 
 vi.mock('../../../src/features/auth/auth.repository.js', () => ({
@@ -23,7 +24,7 @@ vi.mock('../../../src/platform/authorization/access-control.service.js', () => (
   can: mocks.can,
   canAny: mocks.can,
   canOwn: mocks.can,
-  getAuthorizationContext: vi.fn(),
+  getAuthorizationContext: mocks.getAuthorizationContext,
   getRoleById: vi.fn(),
 }))
 
@@ -280,12 +281,14 @@ describeIfEnabled('OBO shared-feature API integration', () => {
 
     mocks.findUserAuthState.mockImplementation(async (userId) => ({ id: Number(userId), isActive: true, authVersion: 0 }))
     mocks.can.mockResolvedValue(true)
+    mocks.getAuthorizationContext.mockResolvedValue({ role: { id: role.id, name: role.name }, permissions: new Set() })
   })
 
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.findUserAuthState.mockImplementation(async (userId) => ({ id: Number(userId), isActive: true, authVersion: 0 }))
     mocks.can.mockResolvedValue(true)
+    mocks.getAuthorizationContext.mockResolvedValue({ role: { id: clientUser.roleId, name: 'integration' }, permissions: new Set() })
   })
 
   afterAll(async () => {
