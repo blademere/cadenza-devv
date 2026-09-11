@@ -50,7 +50,15 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'Idempotency-Key'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-CSRF-Token',
+      'Idempotency-Key',
+      'X-Request-ID',
+      'X-Correlation-ID',
+    ],
+    exposedHeaders: ['X-Request-ID', 'X-Correlation-ID'],
   })
 )
 
