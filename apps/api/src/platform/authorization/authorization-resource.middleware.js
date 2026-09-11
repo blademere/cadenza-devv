@@ -1,4 +1,6 @@
 import { ForbiddenError, NotFoundError } from '../../common/errors/appError.js'
+import { getContext } from '../context/context.service.js'
+import { recordAuthorizationDenied } from '../audit/audit.service.js'
 import * as accessControlService from './access-control.service.js'
 import * as accessControlPolicy from './access-control.policy.js'
 
@@ -24,6 +26,7 @@ const authorizeResource = ({
         return next(new ForbiddenError('User context not found.'))
       }
 
+      const resourceId = getResourceId(req)
       const allowed = await accessControlService.can({
         userId: req.user.id,
         resource,
@@ -31,6 +34,18 @@ const authorizeResource = ({
       })
 
       if (!allowed) {
+        const context = getContext()
+        await recordAuthorizationDenied({
+          actorId: req.user.id,
+          resource,
+          action,
+          resourceId,
+          ipAddress: req.ip,
+          userAgent: req.get?.('user-agent'),
+          requestId: context?.requestId || req.requestId || null,
+          correlationId: context?.correlationId || req.correlationId || null,
+        })
+
         return next(
           new ForbiddenError(
             'You do not have permission to perform this action.',
@@ -38,7 +53,6 @@ const authorizeResource = ({
         )
       }
 
-      const resourceId = getResourceId(req)
       const resourceInstance = await loadResource(resourceId, req)
 
       if (!resourceInstance) {
@@ -58,11 +72,29 @@ const authorizeResource = ({
           user.ownerId = getOwnerId(resourceInstance, req)
         }
 
-        await accessControlPolicy.assertPolicy({
-          policy,
-          user,
-          resource: resourceInstance,
-        })
+        try {
+          await accessControlPolicy.assertPolicy({
+            policy,
+            user,
+            resource: resourceInstance,
+          })
+        } catch (error) {
+          if (error instanceof ForbiddenError) {
+            const context = getContext()
+            await recordAuthorizationDenied({
+              actorId: req.user.id,
+              resource,
+              action,
+              resourceId,
+              ipAddress: req.ip,
+              userAgent: req.get?.('user-agent'),
+              requestId: context?.requestId || req.requestId || null,
+              correlationId: context?.correlationId || req.correlationId || null,
+              reason: 'resource_policy_denied',
+            })
+          }
+          throw error
+        }
       }
 
       req.authorizedResource = resourceInstance
