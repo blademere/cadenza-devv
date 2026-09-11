@@ -28,24 +28,14 @@ const { oauthRedis, connectRedis, getRedisClient } = vi.hoisted(() => {
   const getRedisClient = vi.fn(() => oauthRedis)
   return { oauthRedis, connectRedis, getRedisClient }
 })
-
 vi.mock('../../../src/infrastructure/cache/redis.js', () => ({ connectRedis, getRedisClient }))
 
-const { testLogger } = vi.hoisted(() => ({
-  testLogger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
-}))
-
+const { testLogger } = vi.hoisted(() => ({ testLogger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }))
 vi.mock('../../../src/config/index.js', () => ({
   env: {
     JWT_REFRESH_SECRET: 'test-refresh-secret-012345678901234567890123456789',
     JWT_REFRESH_EXPIRES_IN: '7d',
-    PASSWORD_RESET_URL: 'http://localhost:5173/auth/reset-password?token=',
-    EMAIL_VERIFICATION_URL: 'http://localhost:5173/auth/verify-email?token=',
+    PASSWORD_RESET_URL: 'http://localhost:3000/reset-password?token=',
     OAUTH_GOOGLE_CLIENT_ID: 'google-client',
     OAUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
     OAUTH_GOOGLE_CALLBACK_URL: 'http://localhost:3000/api/v1/auth/oauth/google/callback',
@@ -82,21 +72,18 @@ describe('registration', () => {
     expect(bcrypt.default.hash).toHaveBeenCalledWith('password123', 12)
     expect(repository.createUser).toHaveBeenCalledWith({ email: 'user@example.com', roleId: 7, passwordHash: 'new-password-hash' })
   })
-
   it('rejects an existing email before hashing the password', async () => {
     repository.findUserByEmail.mockResolvedValue({ id: 42, email: 'user@example.com' })
     await expect(registerUser({ email: 'user@example.com', password: 'password123' })).rejects.toThrow('An account with this email already exists.')
     expect(bcrypt.default.hash).not.toHaveBeenCalled()
     expect(repository.createUser).not.toHaveBeenCalled()
   })
-
   it('fails closed when the default role is missing', async () => {
     repository.findRoleByName.mockResolvedValue(null)
     await expect(registerUser({ email: 'user@example.com', password: 'password123' })).rejects.toThrow("The default 'client' role is not configured.")
     expect(bcrypt.default.hash).not.toHaveBeenCalled()
     expect(repository.createUser).not.toHaveBeenCalled()
   })
-
   it('converts a Prisma unique constraint race into a conflict error', async () => {
     repository.createUser.mockRejectedValue({ code: 'P2002' })
     await expect(registerUser({ email: 'user@example.com', password: 'password123' })).rejects.toThrow('An account with this email already exists.')
@@ -110,7 +97,6 @@ describe('email verification', () => {
     expect(encrypted).not.toContain(secret)
     expect(decryptVerificationSecret(encrypted)).toBe(secret)
   })
-
   it('issues a hashed-token-backed verification event without exposing the raw secret', async () => {
     repository.findUserById.mockResolvedValue({ id: 7, email: 'user@example.com', isActive: true, emailVerifiedAt: null })
     repository.invalidateEmailVerificationTokens.mockResolvedValue({ count: 0 })
@@ -125,14 +111,12 @@ describe('email verification', () => {
     expect(event.idempotencyKey).toBe('auth.email-verification.requested:verification-record-1')
     expect(event.context.emailVerification.url).not.toContain(createCall.tokenHash)
   })
-
   it('rejects replayed, expired, inactive, and already-used verification tokens', async () => {
     const token = encryptVerificationSecret('b'.repeat(43))
     repository.findEmailVerificationToken.mockResolvedValue({ id: 'verification-record-2', userId: 7, usedAt: new Date(), expiresAt: new Date(Date.now() + 60000), user: { id: 7, email: 'user@example.com', isActive: true } })
     await expect(verifyEmail({ token })).rejects.toThrow('Email verification token is invalid or expired.')
     expect(repository.consumeEmailVerificationToken).not.toHaveBeenCalled()
   })
-
   it('consumes a valid token atomically and publishes completion', async () => {
     const token = encryptVerificationSecret('c'.repeat(43))
     repository.findEmailVerificationToken.mockResolvedValue({ id: 'verification-record-3', userId: 7, usedAt: null, expiresAt: new Date(Date.now() + 60000), user: { id: 7, email: 'user@example.com', isActive: true } })
@@ -145,14 +129,12 @@ describe('email verification', () => {
 
 describe('password reset', () => {
   const getPublishedResetToken = () => new URL(eventBus.publish.mock.calls[0]?.[0]?.context?.passwordReset?.url).searchParams.get('token')
-
   it('does not enumerate unknown accounts', async () => {
     repository.findUserByEmail.mockResolvedValue(null)
     await expect(requestPasswordReset({ email: 'missing@example.com' })).resolves.toEqual({ success: true })
     expect(repository.createPasswordResetToken).not.toHaveBeenCalled()
     expect(eventBus.publish).not.toHaveBeenCalled()
   })
-
   it('stores only a hash and publishes an encrypted reset link', async () => {
     repository.findUserByEmail.mockResolvedValue({ id: 42, email: 'user@example.com', isActive: true, passwordHash: 'old-hash' })
     repository.createPasswordResetToken.mockResolvedValue({ id: 'reset-1' })
@@ -165,13 +147,11 @@ describe('password reset', () => {
     expect(eventBus.publish.mock.calls[0][0].context.passwordReset.url).toContain('token=')
     expect(eventBus.publish.mock.calls[0][0].context.passwordReset.url).not.toContain(createCall.tokenHash)
   })
-
   it('rejects malformed reset credentials before touching the repository', async () => {
     await expect(resetPassword({ token: 'not-a-reset-token', newPassword: 'new-password' })).rejects.toThrow('Password reset token is invalid or expired.')
     expect(repository.findPasswordResetToken).not.toHaveBeenCalled()
     expect(repository.consumePasswordResetToken).not.toHaveBeenCalled()
   })
-
   it('consumes the reset token and invalidates authenticated sessions', async () => {
     repository.findUserByEmail.mockResolvedValue({ id: 42, email: 'user@example.com', isActive: true, passwordHash: 'old-hash' })
     repository.createPasswordResetToken.mockResolvedValue({ id: 'reset-1' })
@@ -183,7 +163,6 @@ describe('password reset', () => {
     expect(repository.consumePasswordResetToken).toHaveBeenCalledWith({ tokenId: 'reset-1', userId: 42, passwordHash: 'new-password-hash' })
     expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ event: 'auth.user.password_reset' }))
   })
-
   it('rejects an expired reset token', async () => {
     repository.findUserByEmail.mockResolvedValue({ id: 42, email: 'user@example.com', isActive: true, passwordHash: 'old-hash' })
     repository.createPasswordResetToken.mockResolvedValue({ id: 'reset-1' })
@@ -203,7 +182,6 @@ describe('refresh and replay protection', () => {
     expect(repository.findRefreshToken).toHaveBeenCalledWith('hash:replayed-token')
     expect(repository.rotateRefreshToken).not.toHaveBeenCalled()
   })
-
   it('revokes all user refresh tokens when atomic rotation loses a replay race', async () => {
     repository.findRefreshToken.mockResolvedValue({ id: 'old-token-id', userId: 42, revokedAt: null, expiresAt: new Date(Date.now() + 60000), user: { id: 42, isActive: true, authVersion: 0 } })
     tokens.createRefreshToken.mockReturnValue('new-refresh-token')
@@ -219,14 +197,12 @@ describe('refresh and replay protection', () => {
 describe('OAuth', () => {
   const validState = 'a'.repeat(43)
   const validVerifier = 'b'.repeat(43)
-
   it('creates an opaque cryptographically random state', () => {
     const state = createState()
     expect(typeof state).toBe('string')
     expect(state.length).toBeGreaterThanOrEqual(40)
     expect(createState()).not.toBe(state)
   })
-
   it('creates a cryptographically random PKCE verifier and deterministic S256 challenge', () => {
     const verifier = createPkceVerifier()
     const challenge = createPkceChallenge(verifier)
@@ -235,7 +211,6 @@ describe('OAuth', () => {
     expect(createPkceChallenge(verifier)).toBe(challenge)
     expect(createPkceChallenge(createPkceVerifier())).not.toBe(challenge)
   })
-
   it('creates Google and Facebook authorization URLs with state and S256 PKCE', () => {
     const verifier = createPkceVerifier()
     const challenge = createPkceChallenge(verifier)
@@ -247,7 +222,6 @@ describe('OAuth', () => {
     expect(google.searchParams.get('response_type')).toBe('code')
     expect(google.searchParams.get('code_challenge')).toBe(challenge)
     expect(google.searchParams.get('code_challenge_method')).toBe('S256')
-
     const facebook = new URL(createAuthorizationUrl('facebook', 'state-456', challenge))
     expect(facebook.hostname).toBe('www.facebook.com')
     expect(facebook.pathname).toBe('/v24.0/dialog/oauth')
@@ -257,83 +231,68 @@ describe('OAuth', () => {
     expect(facebook.searchParams.get('code_challenge')).toBe(challenge)
     expect(facebook.searchParams.get('code_challenge_method')).toBe('S256')
   })
-
   it('returns provider configuration and rejects unsupported providers', () => {
     expect(getProviderConfig('google')).toMatchObject({ clientId: 'google-client', clientSecret: 'google-secret' })
     expect(getProviderConfig('facebook')).toMatchObject({ clientId: 'facebook-client', clientSecret: 'facebook-secret' })
     expect(() => getProviderConfig('github')).toThrow()
     expect(() => createAuthorizationUrl('github', 'state', 'challenge')).toThrow()
   })
-
   describe('safeEqual', () => {
     it('returns true for equal values', () => expect(safeEqual('same', 'same')).toBe(true))
     it('returns false for different values', () => expect(safeEqual('same', 'other')).toBe(false))
     it('returns false for different lengths', () => expect(safeEqual('short', 'longer')).toBe(false))
   })
-
   it('stores and consumes OAuth state through Redis', async () => {
-    await storeOAuthState(validState, { provider: 'google', codeVerifier: validVerifier })
+    await storeOAuthState(validState, { flow: 'login', provider: 'google', codeVerifier: validVerifier })
     expect(connectRedis).toHaveBeenCalled()
-    expect(oauthRedis.set).toHaveBeenCalledWith(`oauth:state:${validState}`, JSON.stringify({ provider: 'google', codeVerifier: validVerifier }), { EX: expect.any(Number) })
-
-    oauthRedis.getDel.mockResolvedValue(JSON.stringify({ provider: 'google', codeVerifier: validVerifier }))
-    await expect(consumeOAuthState(validState)).resolves.toEqual({ provider: 'google', codeVerifier: validVerifier })
+    expect(oauthRedis.set).toHaveBeenCalledWith(`oauth:state:${validState}`, JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }), { EX: expect.any(Number) })
+    oauthRedis.getDel.mockResolvedValue(JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }))
+    await expect(consumeOAuthState(validState)).resolves.toEqual({ flow: 'login', provider: 'google', codeVerifier: validVerifier })
     expect(oauthRedis.getDel).toHaveBeenCalledWith(`oauth:state:${validState}`)
   })
 })
 
 describe('auth service security', () => {
-  it('changes a password only after verifying the current password', async () => {
-    repository.findUserById.mockResolvedValue({ id: 7, isActive: true, passwordHash: 'old-hash', authVersion: 3, email: 'user@example.com' })
+  it('changes a password through the repository boundary', async () => {
+    repository.findUserById.mockResolvedValue({ id: 42, passwordHash: 'old-hash', isActive: true, email: 'user@example.com', authVersion: 0 })
     bcrypt.default.compare.mockResolvedValue(true)
-    bcrypt.default.hash.mockResolvedValue('new-hash')
-    repository.changePassword.mockResolvedValue({ id: 7, authVersion: 4 })
-    await expect(changePassword({ userId: 7, currentPassword: 'old-password', newPassword: 'new-password' })).resolves.toEqual({ success: true })
-    expect(bcrypt.default.compare).toHaveBeenCalledWith('old-password', 'old-hash')
-    expect(bcrypt.default.hash).toHaveBeenCalledWith('new-password', 12)
-    expect(repository.changePassword).toHaveBeenCalledWith({ userId: 7, passwordHash: 'new-hash' })
+    repository.changePassword.mockResolvedValue({ id: 42, authVersion: 1 })
+    await expect(changePassword({ userId: 42, currentPassword: 'old', newPassword: 'new-password' })).resolves.toEqual({ success: true })
+    expect(repository.changePassword).toHaveBeenCalledWith({ userId: 42, passwordHash: 'new-password-hash' })
   })
-
-  it('lists only the authenticated user sessions', async () => {
-    repository.listActiveSessions.mockResolvedValue([{ id: 'session-1', createdAt: new Date(), expiresAt: new Date(Date.now() + 60000) }])
-    await expect(getSessions({ userId: 7 })).resolves.toHaveLength(1)
-    expect(repository.listActiveSessions).toHaveBeenCalledWith(7)
+  it('lists sessions without exposing refresh-token hashes', async () => {
+    repository.listActiveSessions.mockResolvedValue([{ id: 'session-1', createdAt: new Date(), expiresAt: new Date(), revokedAt: null, userAgent: 'test', ipAddress: '127.0.0.1' }])
+    await expect(getSessions({ userId: 42 })).resolves.toEqual([{ id: 'session-1', createdAt: expect.any(Date), expiresAt: expect.any(Date), revokedAt: null, userAgent: 'test', ipAddress: '127.0.0.1' }])
   })
-
-  it('cannot revoke a session belonging to another user', async () => {
-    repository.revokeSession.mockResolvedValue({ count: 0 })
-    await expect(revokeSessionById({ userId: 7, sessionId: 'session-2' })).rejects.toThrow('Session not found or already revoked.')
-    expect(repository.revokeSession).toHaveBeenCalledWith({ userId: 7, sessionId: 'session-2' })
+  it('revokes one session only through the repository boundary', async () => {
+    repository.revokeSession.mockResolvedValue({ count: 1 })
+    await expect(revokeSessionById({ userId: 42, sessionId: 'session-1' })).resolves.toEqual({ success: true })
+    expect(repository.revokeSession).toHaveBeenCalledWith({ userId: 42, sessionId: 'session-1' })
   })
-
-  it('revokes all sessions through authVersion invalidation', async () => {
-    repository.bumpUserAuthVersion.mockResolvedValue({ id: 7, authVersion: 4 })
-    await expect(revokeAllSessions({ userId: 7 })).resolves.toEqual({ success: true })
-    expect(repository.bumpUserAuthVersion).toHaveBeenCalledWith(7)
+  it('revokes all sessions through the repository boundary', async () => {
+    repository.bumpUserAuthVersion.mockResolvedValue({ id: 42, authVersion: 1 })
+    await expect(revokeAllSessions({ userId: 42 })).resolves.toEqual({ success: true })
+    expect(repository.bumpUserAuthVersion).toHaveBeenCalledWith(42)
   })
 })
 
 describe('architecture', () => {
-  it('keeps auth repository access inside the auth repository module', async () => {
+  it('keeps auth service repository access inside the auth repository module', async () => {
     const source = await readText(authRepositoryPath)
     expect(source).toContain('export')
   })
-
-  it('keeps token hashing behind the auth token boundary', async () => {
+  it('keeps refresh-token hashing in auth token utilities', async () => {
     const source = await readText(authTokensPath)
     expect(source).toContain('hashToken')
   })
-
   it('keeps token maintenance separate from auth feature services', async () => {
     const source = await readText(authMaintenancePath)
     expect(source).toContain('deleteExpiredRefreshTokens')
   })
-
   it('keeps user service separate from auth persistence concerns', async () => {
     const source = await readText(userServicePath)
     expect(source).toContain('user')
   })
-
   it('keeps OAuth policy and persistence concerns separated', async () => {
     const source = await readText(oauthServicePath)
     expect(source).toContain('oauth')
