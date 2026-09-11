@@ -73,16 +73,18 @@ Infrastructure contains concrete technology integrations and persistence impleme
 ## Mandatory dependency rules
 
 1. Shared `features` must not import `modules`.
-2. `platform` must not import `modules`.
+2. `platform` must not import `modules` or feature implementations.
 3. `platform/authorization` must not import `features/admin`.
 4. `infrastructure` must not import `modules`.
-5. Domain-specific behavior belongs in `modules`, not `platform`.
-6. Administrative behavior belongs under `features/admin` only when it is genuinely application administration; do not use `admin` as a catch-all for domain behavior.
-7. Services must not query Prisma directly when a repository boundary exists.
-8. Repositories own persistence queries and persistence-specific composition.
-9. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
+5. `common` must not import `features`, `platform`, or `modules`.
+6. Domain-specific behavior belongs in `modules`, not `platform`.
+7. Administrative behavior belongs under `features/admin` only when it is genuinely application administration; do not use `admin` as a catch-all for domain behavior.
+8. Services must not query Prisma directly when a repository boundary exists.
+9. New platform services must use repositories rather than direct Prisma access.
+10. Repositories own persistence queries and persistence-specific composition.
+11. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
 
-The architecture validator enforces these boundaries where they can be checked statically.
+The architecture validator enforces these boundaries where they can be checked statically. See [`docs/api/platform/architecture-rules.md`](platform/architecture-rules.md) for the Phase 9 enforcement contract and the explicitly tracked legacy persistence exceptions.
 
 ## Service and repository boundary
 
@@ -101,6 +103,12 @@ Services own validation, authorization decisions, orchestration, and business be
 A service should not call `getPrismaClient()`, `prisma.$transaction()`, or Prisma models directly when the operation belongs to its repository. Transactions spanning multiple repository operations should be coordinated through an explicit transaction boundary without exposing Prisma to business services.
 
 Repositories may access Prisma because persistence is their responsibility.
+
+### Platform persistence migration rule
+
+A limited set of pre-existing platform services still accesses Prisma directly. Phase 9 records these files as explicit technical-debt exceptions in `apps/api/scripts/architecture-rules.cjs`.
+
+Those exceptions are not permission to add more direct Prisma access. New platform services are rejected by architecture validation if they access Prisma directly. When an existing exception is migrated to a repository, remove its path from the exception list in the same change.
 
 ## Shared business modeling
 
