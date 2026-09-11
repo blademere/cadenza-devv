@@ -15,8 +15,8 @@ const readSafeId = (value) => {
 
 const getRequestId = (req) => readSafeId(req.requestId) || readSafeId(req.get(REQUEST_ID_HEADER)) || randomUUID()
 
-const getCorrelationId = (req) =>
-  readSafeId(req.get(CORRELATION_ID_HEADER)) || getRequestId(req)
+const getCorrelationId = (req, requestId = getRequestId(req)) =>
+  readSafeId(req.get(CORRELATION_ID_HEADER)) || requestId
 
 const getActorContext = (req) => {
   const actor = req.user
@@ -37,7 +37,7 @@ const getActorContext = (req) => {
 
 const contextMiddleware = (req, res, next) => {
   const requestId = getRequestId(req)
-  const correlationId = getCorrelationId(req)
+  const correlationId = getCorrelationId(req, requestId)
   const { actorId, actorType, organizationId } = getActorContext(req)
 
   req.requestId = requestId
