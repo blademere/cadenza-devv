@@ -5,6 +5,7 @@ import {
   MAX_SCHEDULER_ID_LENGTH,
   MAX_JOB_NAME_LENGTH,
 } from './scheduler.constants.js'
+import { increment } from '../observability/metrics/metrics.service.js'
 
 const normalizeString = (value, name, maxLength) => {
   const normalized = String(value || '').trim()
@@ -60,7 +61,7 @@ const createSchedulerService = ({
     const interval = validateEvery(every)
     const targetQueue = await queueProvider.getQueue(queueName)
 
-    return targetQueue.upsertJobScheduler(
+    const result = await targetQueue.upsertJobScheduler(
       id,
       { every: interval },
       {
@@ -73,6 +74,8 @@ const createSchedulerService = ({
         },
       },
     )
+    increment('platform.scheduler.scheduled', { type: SCHEDULER_TYPES.EVERY, queue: queueName, jobType: name })
+    return result
   }
 
   const scheduleCron = async ({
@@ -89,7 +92,7 @@ const createSchedulerService = ({
     const pattern = validateCron(cron)
     const targetQueue = await queueProvider.getQueue(queueName)
 
-    return targetQueue.upsertJobScheduler(
+    const result = await targetQueue.upsertJobScheduler(
       id,
       { pattern },
       {
@@ -102,6 +105,8 @@ const createSchedulerService = ({
         },
       },
     )
+    increment('platform.scheduler.scheduled', { type: SCHEDULER_TYPES.CRON, queue: queueName, jobType: name })
+    return result
   }
 
   const scheduleOnce = async ({
@@ -117,20 +122,24 @@ const createSchedulerService = ({
     const name = normalizeJobName(jobName)
     const delayMs = validateDelay(delay)
 
-    return queueProvider.enqueueJob(queueName, name, data, {
+    const result = await queueProvider.enqueueJob(queueName, name, data, {
       ...jobOptions,
       jobId: id,
       delay: delayMs,
       removeOnComplete: jobOptions.removeOnComplete ?? { age: 86400, count: 1000 },
       removeOnFail: jobOptions.removeOnFail ?? { age: 604800, count: 5000 },
     })
+    increment('platform.scheduler.scheduled', { type: SCHEDULER_TYPES.DELAY, queue: queueName, jobType: name })
+    return result
   }
 
   const removeSchedule = async ({ schedulerId, queue = DEFAULT_SCHEDULER_QUEUE }) => {
     const id = normalizeSchedulerId(schedulerId)
     const queueName = normalizeQueue(queue)
     const targetQueue = await queueProvider.getQueue(queueName)
-    return targetQueue.removeJobScheduler(id)
+    const result = await targetQueue.removeJobScheduler(id)
+    increment('platform.scheduler.removed', { queue: queueName })
+    return result
   }
 
   const listSchedules = async ({ queue = DEFAULT_SCHEDULER_QUEUE, start = 0, end = 99 } = {}) => {
