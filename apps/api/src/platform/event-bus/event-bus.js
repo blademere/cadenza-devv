@@ -26,6 +26,15 @@ const buildEnvelope = ({
   const executionContext = getContext()
   const resolvedCorrelationId = resolveCorrelationId(correlationId)
   const resolvedActorId = actorId ?? executionContext?.actorId ?? null
+  const platformContext = executionContext
+    ? {
+        requestId: executionContext.requestId,
+        correlationId: resolvedCorrelationId,
+        actorId: resolvedActorId,
+        actorType: executionContext.actorType,
+        organizationId: executionContext.organizationId,
+      }
+    : null
 
   return {
     event,
@@ -34,18 +43,8 @@ const buildEnvelope = ({
     actorId: resolvedActorId,
     context: {
       ...(executionContext?.metadata || {}),
-      ...(executionContext
-        ? {
-            _platformContext: {
-              requestId: executionContext.requestId,
-              correlationId: resolvedCorrelationId,
-              actorId: resolvedActorId,
-              actorType: executionContext.actorType,
-              organizationId: executionContext.organizationId,
-            },
-          }
-        : {}),
       ...context,
+      ...(platformContext ? { _platformContext: platformContext } : {}),
     },
     correlationId: resolvedCorrelationId,
     causationId,
@@ -66,6 +65,7 @@ const publish = async (options = {}) => {
 const processEvent = async (envelope) => {
   const {
     event,
+    eventId = null,
     entityType,
     entityId,
     actorId,
@@ -81,6 +81,7 @@ const processEvent = async (envelope) => {
   const eventContext = {
     ...context,
     event,
+    eventId,
     entityType,
     entityId,
     correlationId,
