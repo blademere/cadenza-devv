@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+import { BadRequestError } from '../../common/errors/appError.js'
 
 const prisma = getPrismaClient()
 const formVersionInclude = { sections: { orderBy: { sortOrder: 'asc' } }, fields: { include: { options: { orderBy: { sortOrder: 'asc' } } }, orderBy: { sortOrder: 'asc' } }, documentRequirements: { include: { documentType: true }, orderBy: { sortOrder: 'asc' } } }
@@ -22,7 +23,7 @@ const createDefinitionRecords = async (versionId, sections, fields, db) => {
   }
   for (const [index, field] of fields.entries()) {
     const section = field.sectionKey ? sectionByKey.get(field.sectionKey) : null
-    if (field.sectionKey && !section) throw new Error(`Field '${field.key}' references an unknown section.`)
+    if (field.sectionKey && !section) throw new BadRequestError(`Field '${field.key}' references an unknown section.`)
     const created = await db.formField.create({ data: { formVersionId: versionId, sectionId: section?.id ?? null, key: field.key, label: field.label, description: field.description || null, type: field.type, sortOrder: field.sortOrder ?? index, required: Boolean(field.required), defaultValue: field.defaultValue ?? undefined, validation: field.validation || undefined, visibility: field.visibility || undefined, config: field.config || undefined } })
     if (field.options?.length) await db.formOption.createMany({ data: field.options.map((option, optionIndex) => ({ fieldId: created.id, value: String(option.value), label: option.label, sortOrder: option.sortOrder ?? optionIndex, metadata: option.metadata || undefined })) })
   }
