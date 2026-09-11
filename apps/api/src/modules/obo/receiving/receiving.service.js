@@ -5,6 +5,7 @@ import * as taskService from '../../../features/tasks/tasks.service.js'
 import * as repository from './receiving.repository.js'
 import * as applicationDocumentService from '../application-documents/application-document.service.js'
 import { getNotificationContext } from '../notification-context.js'
+import { hasReceivingTaskAccess } from './receiving.authorization.js'
 
 const STATUS = Object.freeze({ SUBMISSION_SCHEDULED: 'SUBMISSION_SCHEDULED', RECEIVING: 'RECEIVING', DECLINED: 'DECLINED', FOR_INSPECTION: 'FOR_INSPECTION' })
 const TASK_TYPE = Object.freeze({ REVIEW_APPLICATION: 'REVIEW_APPLICATION', RECEIVE_HARD_COPY: 'RECEIVE_HARD_COPY', VERIFY_DOCUMENTS: 'VERIFY_DOCUMENTS', EVALUATE_APPLICATION: 'EVALUATE_APPLICATION' })
@@ -35,12 +36,13 @@ const getApplication = async ({ id }) => {
 
 const getForAuthorization = (id) => repository.findApplication(id)
 
-const listApplications = async ({ status }) => {
+const listApplications = async ({ status, userId }) => {
   const applications = await repository.listApplications(status)
   const hydrated = await Promise.all(applications.map(async (application) => {
     const workflow = await getWorkflowState(application)
     if (status && workflow.currentStep.key !== status) return null
     if (!status && workflow.currentStep.key !== STATUS.SUBMISSION_SCHEDULED) return null
+    if (userId && !(await hasReceivingTaskAccess({ user: { id: userId }, resource: application }))) return null
     return hydrateApplication({ ...application, status: workflow.currentStep.key })
   }))
   return hydrated.filter(Boolean)
