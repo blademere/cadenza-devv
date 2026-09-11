@@ -5,22 +5,20 @@ const createDashboard = async ({ key, name, description = null, config = null, w
   if (!key || !name) throw new BadRequestError('Dashboard key and name are required.')
   if (await repository.findByKey(key)) throw new ConflictError(`Dashboard '${key}' already exists.`)
   return repository.create({
-    data: {
-      key,
-      name,
-      description,
-      config,
-      widgets: {
-        create: widgets.map((widget, index) => ({
-          key: widget.key,
-          type: widget.type,
-          title: widget.title,
-          description: widget.description || null,
-          sortOrder: widget.sortOrder ?? index,
-          permissionKey: widget.permissionKey || null,
-          config: widget.config || {},
-        })),
-      },
+    key,
+    name,
+    description,
+    config,
+    widgets: {
+      create: widgets.map((widget, index) => ({
+        key: widget.key,
+        type: widget.type,
+        title: widget.title,
+        description: widget.description || null,
+        sortOrder: widget.sortOrder ?? index,
+        permissionKey: widget.permissionKey || null,
+        config: widget.config || {},
+      })),
     },
   })
 }
