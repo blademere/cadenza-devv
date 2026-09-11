@@ -24,6 +24,15 @@ const applicationInclude = {
         include: { person: true },
         orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
       },
+      requirements: {
+        include: {
+          requirement: true,
+          applicationDocuments: {
+            include: { document: true },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
     },
   },
   submissionAppointment: true,
