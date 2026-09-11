@@ -22,7 +22,7 @@ import {
   findInstanceWithCurrentStep,
   createInstance,
 } from "./workflow.repository.js"
-import { WORKFLOW_ACTIONS, WORKFLOW_STATUS } from "./workflow.constants.js"
+import { WORKFLOW_ACTIONS } from "./workflow.constants.js"
 
 const parsePermissionKey = (permissionKey) => {
   if (!permissionKey) return null
