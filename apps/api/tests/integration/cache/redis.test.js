@@ -54,7 +54,9 @@ describeIfEnabled('Redis integration', () => {
     expect(await hasCachedPermission(userId, 'users', 'read')).toBe(true)
     expect(await hasCachedPermission(userId, 'users', 'create')).toBe(true)
     expect(await hasCachedPermission(userId, 'users', 'delete')).toBe(false)
-    expect(await redis.sMembers(key)).toEqual(expect.arrayContaining(permissions))
+    expect(await redis.sMembers(key)).toEqual(
+      expect.arrayContaining(permissions)
+    )
     expect(await redis.ttl(key)).toBeGreaterThan(0)
     expect(await redis.ttl(key)).toBeLessThanOrEqual(PERMISSION_CACHE_TTL)
   })
