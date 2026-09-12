@@ -9,7 +9,6 @@ RUN apt-get update \
 # Copy workspace manifests before npm ci so npm installs workspace dependencies.
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
-COPY apps/web/package*.json ./apps/web/
 COPY apps/obo-web/package*.json ./apps/obo-web/
 
 RUN npm ci
