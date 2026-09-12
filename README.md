@@ -135,7 +135,7 @@ npm run db:setup
 npm run dev
 ```
 
-`npm run dev` starts the API and Vite web application. To start an individual workspace, use the workspace-owned command, for example `npm --workspace @express-app/api run dev`, `npm --workspace @express-app/web run dev`, or `npm --workspace @express-app/obo-web run dev`. If you start the web application separately, the API must already be running on port `3000` (or the URL configured by `VITE_API_PROXY_TARGET`). The web app's Vite proxy uses `VITE_API_PROXY_TARGET` to reach the API; this must be reachable from the environment where Vite itself runs. For separate frontend/API containers, set it to the API service hostname, for example `http://api:3000`.
+`npm run dev` starts the API and Vite web application. To start an individual workspace, use the workspace-owned command, for example `npm --workspace @express-app/api run dev` or `npm --workspace @express-app/obo-web run dev`. If you start the web application separately, the API must already be running on port `3000` (or the URL configured by `VITE_API_PROXY_TARGET`). The web app's Vite proxy uses `VITE_API_PROXY_TARGET` to reach the API; this must be reachable from the environment where Vite itself runs. For separate frontend/API containers, set it to the API service hostname, for example `http://api:3000`.
 
 The browser-facing API base remains `/api/v1` for same-origin development so authentication cookies remain associated with the browser's web origin while Vite proxies API requests to Express.
 
@@ -152,7 +152,6 @@ Tests:
 
 ```bash
 npm --workspace @express-app/api run test
-npm --workspace @express-app/web run test
 npm --workspace @express-app/obo-web run test
 ```
 

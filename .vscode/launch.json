@@ -18,14 +18,6 @@
       "sourceMaps": true
     },
     {
-      "name": "Web: React",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "npm --workspace @express-app/web run dev",
-      "cwd": "${workspaceFolder}",
-      "env": { "BROWSER": "none" }
-    },
-    {
       "name": "OBO Web: React",
       "type": "node-terminal",
       "request": "launch",
@@ -35,11 +27,6 @@
     }
   ],
   "compounds": [
-    {
-      "name": "Full Stack: API + Web",
-      "configurations": ["API: Express", "Web: React"],
-      "stopAll": true
-    },
     {
       "name": "Full Stack: API + OBO Web",
       "configurations": ["API: Express", "OBO Web: React"],
