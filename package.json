@@ -8,8 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "nx run-many -t dev --parallel=3",
-    "dev:all": "nx run-many -t dev --parallel=3",
+    "dev": "nx run-many -t dev --parallel=2",
+    "dev:all": "nx run-many -t dev --parallel=2",
     "dev:obo-web": "nx run obo-web:dev",
     "build": "nx run-many -t build",
     "build:workspaces": "nx run-many -t build",
