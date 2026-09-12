@@ -56,6 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   eventBus.publish.mockResolvedValue({ id: 'event-1' })
   repository.revokeAllRefreshTokensForUser.mockResolvedValue(undefined)
+  repository.bumpUserAuthVersion.mockResolvedValue({ id: 42, authVersion: 1 })
   tokens.verifyRefreshToken.mockReturnValue({ type: 'refresh', sub: '42', tokenId: 'old-token-id', authVersion: 0 })
   tokens.hashToken.mockImplementation((value) => `hash:${value}`)
   bcrypt.default.hash.mockResolvedValue('new-password-hash')
@@ -244,12 +245,16 @@ describe('OAuth', () => {
   })
   it('stores and consumes OAuth state through Redis', async () => {
     oauthRedis.set.mockResolvedValue('OK')
-    await storeOAuthState(validState, { flow: 'login', provider: 'google', codeVerifier: validVerifier })
+    await storeOAuthState(validState, { flow: 'login', provider: 'google', codeVerifier: validVerifier }, 600000)
     expect(connectRedis).toHaveBeenCalled()
-    expect(oauthRedis.set).toHaveBeenCalledWith(`oauth:state:${validState}`, JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }), { NX: true, EX: expect.any(Number) })
+    expect(oauthRedis.set).toHaveBeenCalledWith(
+      expect.stringMatching(/^oauth:state:[a-f0-9]{64}$/),
+      JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }),
+      { NX: true, EX: 600 },
+    )
     oauthRedis.getDel.mockResolvedValue(JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }))
     await expect(consumeOAuthState(validState)).resolves.toEqual({ flow: 'login', provider: 'google', codeVerifier: validVerifier })
-    expect(oauthRedis.getDel).toHaveBeenCalledWith(`oauth:state:${validState}`)
+    expect(oauthRedis.getDel).toHaveBeenCalledWith(expect.stringMatching(/^oauth:state:[a-f0-9]{64}$/))
   })
 })
 
@@ -270,10 +275,10 @@ describe('auth service security', () => {
     await expect(revokeSessionById({ userId: 42, sessionId: 'session-1' })).resolves.toEqual({ success: true })
     expect(repository.revokeSession).toHaveBeenCalledWith({ userId: 42, sessionId: 'session-1' })
   })
-  it('revokes all sessions through the repository boundary', async () => {
-    repository.revokeAllRefreshTokensForUser.mockResolvedValue({ count: 2 })
+  it('revokes all sessions through the repository authorization-version boundary', async () => {
+    repository.bumpUserAuthVersion.mockResolvedValue({ id: 42, authVersion: 1 })
     await expect(revokeAllSessions({ userId: 42 })).resolves.toEqual({ success: true })
-    expect(repository.revokeAllRefreshTokensForUser).toHaveBeenCalledWith(42)
+    expect(repository.bumpUserAuthVersion).toHaveBeenCalledWith(42)
   })
   it('requires the current password before changing credentials', async () => {
     repository.findUserById.mockResolvedValue({ id: 42, passwordHash: 'old-hash', isActive: true })
@@ -291,7 +296,7 @@ describe('architecture', () => {
       readText(userServicePath),
       readText(oauthServicePath),
     ])
-    expect(repositorySource).toContain("from '@prisma/client'")
+    expect(repositorySource).toContain("from '../../infrastructure/database/prisma.js'")
     expect(tokenSource).toContain('jose')
     expect(userServiceSource).not.toContain('prisma.')
     expect(oauthServiceSource).not.toContain('prisma.')
