@@ -5,7 +5,6 @@
     {
       "plugin": "@nx/vite/plugin",
       "include": [
-        "apps/web/**",
         "apps/obo-web/**"
       ],
       "options": {
@@ -18,7 +17,6 @@
       "plugin": "@nx/eslint/plugin",
       "include": [
         "apps/api/**",
-        "apps/web/**",
         "apps/obo-web/**"
       ],
       "options": {
