@@ -243,9 +243,10 @@ describe('OAuth', () => {
     it('returns false for different lengths', () => expect(safeEqual('short', 'longer')).toBe(false))
   })
   it('stores and consumes OAuth state through Redis', async () => {
+    oauthRedis.set.mockResolvedValue('OK')
     await storeOAuthState(validState, { flow: 'login', provider: 'google', codeVerifier: validVerifier })
     expect(connectRedis).toHaveBeenCalled()
-    expect(oauthRedis.set).toHaveBeenCalledWith(`oauth:state:${validState}`, JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }), { EX: expect.any(Number) })
+    expect(oauthRedis.set).toHaveBeenCalledWith(`oauth:state:${validState}`, JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }), { NX: true, EX: expect.any(Number) })
     oauthRedis.getDel.mockResolvedValue(JSON.stringify({ flow: 'login', provider: 'google', codeVerifier: validVerifier }))
     await expect(consumeOAuthState(validState)).resolves.toEqual({ flow: 'login', provider: 'google', codeVerifier: validVerifier })
     expect(oauthRedis.getDel).toHaveBeenCalledWith(`oauth:state:${validState}`)
@@ -270,31 +271,34 @@ describe('auth service security', () => {
     expect(repository.revokeSession).toHaveBeenCalledWith({ userId: 42, sessionId: 'session-1' })
   })
   it('revokes all sessions through the repository boundary', async () => {
-    repository.bumpUserAuthVersion.mockResolvedValue({ id: 42, authVersion: 1 })
+    repository.revokeAllRefreshTokensForUser.mockResolvedValue({ count: 2 })
     await expect(revokeAllSessions({ userId: 42 })).resolves.toEqual({ success: true })
-    expect(repository.bumpUserAuthVersion).toHaveBeenCalledWith(42)
+    expect(repository.revokeAllRefreshTokensForUser).toHaveBeenCalledWith(42)
+  })
+  it('requires the current password before changing credentials', async () => {
+    repository.findUserById.mockResolvedValue({ id: 42, passwordHash: 'old-hash', isActive: true })
+    bcrypt.default.compare.mockResolvedValue(false)
+    await expect(changePassword({ userId: 42, currentPassword: 'wrong', newPassword: 'new-password' })).rejects.toBeInstanceOf(UnauthorizedError)
+    expect(repository.changePassword).not.toHaveBeenCalled()
   })
 })
 
 describe('architecture', () => {
-  it('keeps auth service repository access inside the auth repository module', async () => {
-    const source = await readText(authRepositoryPath)
-    expect(source).toContain('export')
+  it('keeps auth repository and token modules as implementation boundaries', async () => {
+    const [repositorySource, tokenSource, userServiceSource, oauthServiceSource] = await Promise.all([
+      readText(authRepositoryPath),
+      readText(authTokensPath),
+      readText(userServicePath),
+      readText(oauthServicePath),
+    ])
+    expect(repositorySource).toContain("from '@prisma/client'")
+    expect(tokenSource).toContain('jose')
+    expect(userServiceSource).not.toContain('prisma.')
+    expect(oauthServiceSource).not.toContain('prisma.')
   })
-  it('keeps refresh-token hashing in auth token utilities', async () => {
-    const source = await readText(authTokensPath)
-    expect(source).toContain('hashToken')
-  })
-  it('keeps token maintenance separate from auth feature services', async () => {
+  it('keeps token maintenance focused on expired refresh-token cleanup', async () => {
     const source = await readText(authMaintenancePath)
     expect(source).toContain('deleteExpiredRefreshTokens')
-  })
-  it('keeps user service separate from auth persistence concerns', async () => {
-    const source = await readText(userServicePath)
-    expect(source).toContain('user')
-  })
-  it('keeps OAuth policy and persistence concerns separated', async () => {
-    const source = await readText(oauthServicePath)
-    expect(source).toContain('oauth')
+    expect(source).not.toContain('authVersion')
   })
 })
