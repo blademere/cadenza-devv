@@ -17,7 +17,14 @@ const requireApplicationContext = () => async (req, _res, next) => {
       return next(new ForbiddenError('User context not found.'))
     }
 
-    const appId = readApplicationId(req)
+    const tokenAppId = req.auth?.appId ?? null
+    const headerAppId = readApplicationId(req)
+
+    if (tokenAppId && headerAppId && tokenAppId !== headerAppId) {
+      return next(new ForbiddenError('Application context does not match the access token.'))
+    }
+
+    const appId = tokenAppId || headerAppId
     if (!appId) {
       return next(new ForbiddenError('Application context is required.'))
     }
@@ -31,9 +38,7 @@ const requireApplicationContext = () => async (req, _res, next) => {
       return next(new ForbiddenError('User does not have an active membership for this application.'))
     }
 
-    req.appContext = {
-      ...security.app,
-    }
+    req.appContext = { ...security.app }
     req.appMembership = security.membership
     req.security = {
       user: req.user,
