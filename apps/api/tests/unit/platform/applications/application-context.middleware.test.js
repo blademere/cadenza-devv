@@ -56,6 +56,45 @@ describe('application context middleware', () => {
     expect(next).toHaveBeenCalledWith()
   })
 
+  it('requires the requested application key when configured', async () => {
+    repository.getUserAuthorizationContext.mockResolvedValue({
+      userId: 42,
+      app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
+      membership: { id: 'membership-1' },
+      roles: [{ id: 3, name: 'receiving_officer' }],
+      permissions: [{ resource: 'permits', action: 'read' }],
+    })
+
+    const req = createRequest({ tokenAppId: 'app-1' })
+    const next = vi.fn()
+
+    await requireApplicationContext({ appKey: 'obo' })(req, {}, next)
+
+    expect(req.security.app.key).toBe('obo')
+    expect(next).toHaveBeenCalledWith()
+  })
+
+  it('rejects a request authenticated for another application', async () => {
+    repository.getUserAuthorizationContext.mockResolvedValue({
+      userId: 42,
+      app: { id: 'app-2', key: 'other', name: 'Other App', isActive: true },
+      membership: { id: 'membership-2' },
+      roles: [{ id: 9, name: 'administrator' }],
+      permissions: [{ resource: 'admin', action: 'read' }],
+    })
+
+    const req = createRequest({ tokenAppId: 'app-2' })
+    const next = vi.fn()
+
+    await requireApplicationContext({ appKey: 'obo' })(req, {}, next)
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      statusCode: 403,
+      message: "Application context 'obo' is required.",
+    }))
+    expect(context.setApplicationContext).not.toHaveBeenCalled()
+  })
+
   it('rejects a conflicting application header when the token is app-scoped', async () => {
     const req = createRequest({ tokenAppId: 'app-1', appId: 'app-2' })
     const next = vi.fn()
