@@ -7,8 +7,6 @@ const optionalEnvString = z.preprocess(emptyToUndefined, z.string().optional())
 const optionalEnvUrl = z.preprocess(emptyToUndefined, z.url().optional())
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  APP_NAME: z.string().min(1).default('Express App'),
-  APP_SLUG: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'APP_SLUG must contain only lowercase letters, numbers, and hyphens.').default('express-app'),
   PORT: z.coerce.number().int().positive().max(65535).default(3000),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required.'),
   REDIS_URL: z.url().default('redis://localhost:6379'),

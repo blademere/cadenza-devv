@@ -29,6 +29,7 @@ const listPermitTypes = async () => {
 
 const getPermitTypeById = async (id) => hydratePermitType(await repository.findActiveById(id))
 const getPermitTypeByKey = async (key) => repository.findByKey(key)
+const getForAuthorization = (id) => repository.findById(id)
 
 const getPermitTypeFormVersions = async (id) => {
   const permitType = await hydratePermitType(await repository.findById(id))
@@ -162,4 +163,4 @@ const publishPermitTypeFormVersion = async ({ actorId, permitTypeId, version }) 
   return published
 }
 
-export { listPermitTypes, getPermitTypeById, getPermitTypeByKey, getPermitTypeFormVersions, getPermitTypeForm, getPermitTypeFormVersion, createPermitType, updatePermitType, createPermitTypeForm, createPermitTypeFormVersion, updatePermitTypeFormVersion, publishPermitTypeFormVersion }
+export { listPermitTypes, getPermitTypeById, getPermitTypeByKey, getForAuthorization, getPermitTypeFormVersions, getPermitTypeForm, getPermitTypeFormVersion, createPermitType, updatePermitType, createPermitTypeForm, createPermitTypeFormVersion, updatePermitTypeFormVersion, publishPermitTypeFormVersion }

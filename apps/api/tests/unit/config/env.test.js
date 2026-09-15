@@ -22,7 +22,6 @@ describe("environment configuration", () => {
     expect(env.PORT).toBeTypeOf("number")
     expect(env.COOKIE_SECURE).toBeTypeOf("boolean")
     expect(env.COOKIE_REFRESH_MAX_AGE_MS).toBeTypeOf("number")
-    expect(env.APP_SLUG).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
     expect(["local"]).toContain(env.STORAGE_PROVIDER)
     expect(env.STORAGE_LOCAL_ROOT).toBeTypeOf("string")
   })
