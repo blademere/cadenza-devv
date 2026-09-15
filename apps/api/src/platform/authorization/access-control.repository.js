@@ -11,12 +11,7 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
   if (!user || !user.isActive || !appId) return null
 
   const membership = await prisma.appMembership.findUnique({
-    where: {
-      appId_userId: {
-        appId,
-        userId: Number(userId),
-      },
-    },
+    where: { appId_userId: { appId, userId: Number(userId) } },
     select: {
       id: true,
       isActive: true,
@@ -65,7 +60,6 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
     app: membership.app,
     membership: { id: membership.id },
     roles,
-    role: roles[0]?.name ?? null,
     permissions: [...permissions.values()],
   }
 }
@@ -100,13 +94,7 @@ const findUserIdsByRoleId = async (roleId) => {
     select: { userId: true },
     distinct: ['userId'],
   })
-
   return memberships.map(({ userId }) => userId)
 }
 
-export {
-  getUserAuthorizationContext,
-  getUserPermissions,
-  findRoleById,
-  findUserIdsByRoleId,
-}
+export { getUserAuthorizationContext, getUserPermissions, findRoleById, findUserIdsByRoleId }
