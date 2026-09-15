@@ -46,7 +46,7 @@ const consumePasswordResetToken = async ({ tokenId, userId, passwordHash }) => p
   return { success: true }
 })
 const invalidatePasswordResetTokens = async (userId, db = prisma) => db.passwordResetToken.updateMany({ where: { userId: Number(userId), usedAt: null }, data: { usedAt: new Date() } })
-const createEmailVerificationToken = async ({ tokenHash, userId, expiresAt }, db = prisma) => db.emailVerificationToken.create({ data: { id: crypto.randomUUID(), tokenHash, userId: Number(userId), expiresAt } })
+const createEmailVerificationToken = async ({ tokenHash, userId, expiresAt }, db = prisma) => db.emailVerificationToken.create({ data: { tokenHash, userId: Number(userId), expiresAt } })
 const findEmailVerificationToken = async (tokenHash, db = prisma) => db.emailVerificationToken.findUnique({ where: { tokenHash }, include: { user: true } })
 const invalidateEmailVerificationTokens = async (userId, db = prisma) => db.emailVerificationToken.updateMany({ where: { userId: Number(userId), usedAt: null }, data: { usedAt: new Date() } })
 const consumeEmailVerificationToken = async ({ tokenId, userId }) => prisma.$transaction(async (tx) => {
