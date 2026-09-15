@@ -11,7 +11,6 @@ const findPage = ({ where, orderBy, skip, take }, db = prisma) =>
       take,
       include: {
         actor: { select: { id: true, email: true } },
-        app: { select: { id: true, key: true, name: true } },
       },
     }),
     db.auditLog.count({ where }),
