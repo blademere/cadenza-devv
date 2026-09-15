@@ -8,6 +8,8 @@ const normalizeContext = (context = {}) => ({
   actorId: context.actorId ?? null,
   actorType: context.actorType ?? null,
   organizationId: context.organizationId ?? null,
+  appId: context.appId ?? null,
+  appKey: context.appKey ?? null,
   metadata: context.metadata && typeof context.metadata === 'object' ? { ...context.metadata } : {},
 })
 
@@ -34,6 +36,16 @@ const setActorContext = ({ actorId = null, actorType = null, organizationId = nu
   return context
 }
 
+const setApplicationContext = ({ appId = null, appKey = null } = {}) => {
+  const context = storage.getStore()
+  if (!context) return null
+
+  context.appId = appId
+  context.appKey = appKey
+
+  return context
+}
+
 const withContext = (overrides, callback) => {
   const current = getContext() || {}
   return runWithContext(
@@ -54,5 +66,6 @@ export {
   requireContext,
   runWithContext,
   setActorContext,
+  setApplicationContext,
   withContext,
 }
