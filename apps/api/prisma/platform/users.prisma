@@ -11,6 +11,7 @@ model User {
   refreshTokens                        RefreshToken[]
   passwordResetTokens                  PasswordResetToken[]
   emailVerificationTokens              EmailVerificationToken[]
+  appMemberships                       AppMembership[]
   workflowInstancesStarted             WorkflowInstance[]                    @relation("WorkflowInstanceStartedBy")
   workflowHistoryActions               WorkflowHistory[]                     @relation("WorkflowHistoryActor")
   auditLogs                            AuditLog[]                            @relation("AuditLogActor")
@@ -55,6 +56,7 @@ model Role {
   description String?
   users       User[]
   permissions RolePermission[]
+  membershipRoles AppMembershipRole[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 }
@@ -102,7 +104,7 @@ model RefreshToken {
   revokedAt         DateTime?
   replacedByTokenId String?       @unique
   replacedByToken   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
-  replacesToken     RefreshToken? @relation("RefreshTokenReplacement")
+  replacesToken     RefreshToken?  @relation("RefreshTokenReplacement")
   createdAt         DateTime      @default(now())
 
   @@index([userId])
@@ -130,6 +132,6 @@ model EmailVerificationToken {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash  String   @unique
   expiresAt  DateTime
-  usedAt     DateTime?
+  usedAt      DateTime?
   createdAt  DateTime  @default(now())
 }
