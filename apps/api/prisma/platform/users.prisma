@@ -24,7 +24,6 @@ model User {
   caseStatusChanges                    CaseStatusHistory[]                   @relation("CaseStatusChangedBy")
   assignedTasks                        Task[]                                @relation("TaskAssignee")
   tasksCreated                         Task[]                                @relation("TaskCreatedBy")
-  oboProfessional                      OboProfessional?                      @relation("OboProfessionalUser")
   oboProfessionalsVerified             OboProfessional[]                     @relation("OboProfessionalVerifiedBy")
   oboApplicationsAccepted              OboPermitApplication[]                @relation("OboApplicationAcceptedBy")
   oboReceivingDecisions                OboReceivingDecision[]                @relation("OboReceivingDecisionUser")
