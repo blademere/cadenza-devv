@@ -28,9 +28,19 @@ An operation that is deliberately exempt must document why retries are safe with
 
 A route operating on a specific resource must perform resource-level authorization when access depends on ownership, tenant, relationship, or resource state. RBAC alone is insufficient for those operations.
 
-Use the shared authorization policy mechanism. Services may retain scoped repository lookups as defense in depth.
+Use the shared `platform/authorization` enforcement mechanism. The owning module defines the resource, permission, role, and policy semantics. Services may retain scoped repository lookups as defense in depth.
 
-## 5. Dependency boundary
+Authorization is not a single global business domain. Each module owns the authorization model required for its own domain while reusing the platform enforcement mechanism.
+
+## 5. API ownership
+
+Public HTTP endpoints belong to application modules. Reusable features are route-less by default and expose reusable services/capabilities to modules rather than public controllers and CRUD endpoints.
+
+The authentication feature is the explicit exception because authentication establishes the application's identity/session boundary and may require authentication-specific routes and middleware.
+
+A module must not depend on a feature route in order to use a feature capability. A module composes feature services behind its own API boundary.
+
+## 6. Dependency boundary
 
 The architectural dependency direction is:
 
@@ -46,6 +56,8 @@ Supporting application code such as routes and common HTTP helpers must not be u
 - services must not access Prisma directly; repositories own persistence access.
 - repositories are explicitly allowed to access Prisma.
 - domain-specific rules belong in modules; reusable business capabilities belong in features; reusable mechanisms belong in platform.
+- feature routes/controllers are prohibited except for the explicit authentication boundary.
+- module routes/controllers may depend on feature services and platform mechanisms, but not on feature HTTP boundaries.
 - infrastructure must not contain domain business rules.
 
 These rules are checked by `scripts/validate-architecture.cjs` and run in CI.
