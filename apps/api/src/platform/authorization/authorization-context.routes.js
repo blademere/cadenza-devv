@@ -1,6 +1,7 @@
 import express from 'express'
 import { asyncHandler } from '../../common/middleware/index.js'
 import { successResponse } from '../../common/responses/apiResponse.js'
+import { requireApplicationContext } from '../applications/application-context.middleware.js'
 import { getAuthorizationContextResponse } from './authorization-context.service.js'
 
 const createAuthorizationContextRouter = ({ authenticate }) => {
@@ -10,21 +11,27 @@ const createAuthorizationContextRouter = ({ authenticate }) => {
 
   const router = express.Router()
 
-  router.get('/me/authorization', authenticate, asyncHandler(async (req, res) => {
-    // Authorization state changes independently of the application shell, so a
-    // previously cached GET response must never keep old navigation/permissions.
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-    res.set('Pragma', 'no-cache')
-    res.set('Expires', '0')
+  router.get(
+    '/me/authorization',
+    authenticate,
+    requireApplicationContext(),
+    asyncHandler(async (req, res) => {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+      res.set('Pragma', 'no-cache')
+      res.set('Expires', '0')
 
-    const authorizationContext = await getAuthorizationContextResponse(req.user.id)
+      const authorizationContext = await getAuthorizationContextResponse({
+        userId: req.user.id,
+        appId: req.security.app.id,
+      })
 
-    return successResponse(
-      res,
-      'Authorization context retrieved successfully.',
-      authorizationContext,
-    )
-  }))
+      return successResponse(
+        res,
+        'Authorization context retrieved successfully.',
+        authorizationContext,
+      )
+    }),
+  )
 
   return router
 }

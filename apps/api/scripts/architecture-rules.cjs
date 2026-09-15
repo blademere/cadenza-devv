@@ -1,6 +1,6 @@
 const path = require('node:path')
 
-const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:features|modules)\//
+const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:apps|features|modules)\//
 const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_INFRASTRUCTURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform|modules)\//
@@ -18,6 +18,46 @@ const IDEMPOTENCY_MIDDLEWARE =
   /\b(?:requireIdempotency|idempotency(?:Middleware)?)\b/
 const AUTHORIZATION_MIDDLEWARE =
   /\bauthorizeResource\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/
+
+const APPLICATION_SECURITY_IMPORT =
+  /(?:\.\.\/)+platform\/applications\/(?:application|membership)[^'"`\s)]*/
+const AUTHORIZATION_REPOSITORY_IMPORT =
+  /(?:\.\.\/)+platform\/authorization\/access-control\.repository(?:\.js)?/
+const DOMAIN_IMPORT = /(?:\.\.\/)+(?:apps|modules|features)\//
+
+const isOBOPath = (relative) =>
+  relative.startsWith('apps/api/src/apps/obo/') ||
+  relative.startsWith('apps/api/src/modules/obo/')
+
+const getApplicationSecurityViolations = (relative, source) => {
+  const failures = []
+
+  if (
+    relative.startsWith('apps/api/src/features/') &&
+    AUTHORIZATION_REPOSITORY_IMPORT.test(source)
+  ) {
+    failures.push(
+      `${relative}: features must not access the platform authorization repository directly; use platform authorization enforcement/context APIs.`
+    )
+  }
+
+  if (isOBOPath(relative) && APPLICATION_SECURITY_IMPORT.test(source)) {
+    failures.push(
+      `${relative}: OBO must consume application security through platform context/middleware, not import application-security repositories or services directly.`
+    )
+  }
+
+  if (
+    relative.startsWith('apps/api/src/platform/applications/') &&
+    DOMAIN_IMPORT.test(source)
+  ) {
+    failures.push(
+      `${relative}: application security must remain domain-neutral and must not depend on apps, modules, or features.`
+    )
+  }
+
+  return failures
+}
 
 const normalizeRelativePath = (file) =>
   path.relative(process.cwd(), file).replaceAll(path.sep, '/')
@@ -172,11 +212,15 @@ module.exports = {
   PRISMA_IMPORT,
   PRISMA_CLIENT_ACCESS,
   PLATFORM_PRISMA_LEGACY_EXCEPTIONS,
+  APPLICATION_SECURITY_IMPORT,
+  AUTHORIZATION_REPOSITORY_IMPORT,
   normalizeRelativePath,
   isApplicationService,
   hasDirectPrismaAccess,
   isPlatformPrismaLegacyException,
+  isOBOPath,
   getLayerViolations,
+  getApplicationSecurityViolations,
   findCallEnd,
   getRouteViolations,
 }

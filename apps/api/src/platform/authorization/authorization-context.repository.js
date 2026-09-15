@@ -2,23 +2,45 @@ import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 
 const prisma = getPrismaClient()
 
-const getUserAuthorizationContext = async (userId) => {
+const getUserAuthorizationContext = async ({ userId, appId }) => {
+  const normalizedUserId = Number(userId)
+  const normalizedAppId = String(appId ?? '').trim()
+
+  if (!Number.isInteger(normalizedUserId) || !normalizedAppId) return null
+
   const user = await prisma.user.findUnique({
-    where: { id: Number(userId) },
+    where: { id: normalizedUserId },
     select: {
       id: true,
       isActive: true,
-      role: {
+      appMemberships: {
+        where: {
+          appId: normalizedAppId,
+          isActive: true,
+          app: { isActive: true },
+        },
         select: {
           id: true,
-          name: true,
-          permissions: {
+          app: {
+            select: { id: true, key: true, name: true, isActive: true },
+          },
+          roles: {
             select: {
-              permission: {
+              role: {
                 select: {
-                  action: true,
-                  module: {
-                    select: { key: true, name: true, isActive: true },
+                  id: true,
+                  name: true,
+                  permissions: {
+                    select: {
+                      permission: {
+                        select: {
+                          action: true,
+                          module: {
+                            select: { key: true, name: true, isActive: true },
+                          },
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -31,8 +53,16 @@ const getUserAuthorizationContext = async (userId) => {
 
   if (!user || !user.isActive) return null
 
-  const permissions = user.role.permissions
-    .map(({ permission }) => permission)
+  const membership = user.appMemberships[0]
+  if (!membership) return null
+
+  const roles = membership.roles.map(({ role }) => ({
+    id: role.id,
+    name: role.name,
+  }))
+
+  const permissions = membership.roles
+    .flatMap(({ role }) => role.permissions.map(({ permission }) => permission))
     .filter(({ module }) => module.isActive)
     .map(({ action, module }) => ({
       resource: module.key,
@@ -42,7 +72,9 @@ const getUserAuthorizationContext = async (userId) => {
 
   return {
     userId: user.id,
-    role: { id: user.role.id, name: user.role.name },
+    app: membership.app,
+    membership: { id: membership.id },
+    roles,
     permissions,
   }
 }

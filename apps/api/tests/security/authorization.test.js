@@ -11,7 +11,11 @@ describe('resource authorization security', () => {
     accessControlService.can.mockResolvedValue(true)
     const loadResource = vi.fn().mockResolvedValue({ id: 4 })
     const next = vi.fn()
-    const req = { user: { id: 1 }, params: { roleId: '4' } }
+    const req = {
+      user: { id: 1 },
+      auth: { appId: 'app-1' },
+      params: { roleId: '4' },
+    }
     const middleware = authorizeResource({ resource: 'authorization', action: 'manage', loadResource, getResourceId: (request) => Number(request.params.roleId) })
     await middleware(req, {}, next)
     expect(loadResource).toHaveBeenCalledWith(4, req)

@@ -9,7 +9,7 @@ import { env } from '../../config/index.js'
 
 const refreshCookieOptions = { httpOnly: true, secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/api/v1/auth', maxAge: env.COOKIE_REFRESH_MAX_AGE_MS }
 const clearRefreshCookie = (res) => res.clearCookie('refreshToken', { httpOnly: true, secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/api/v1/auth' })
-const toPublicUser = (user) => ({ id: user.id, email: user.email, emailVerified: Boolean(user.emailVerifiedAt), role: user.role ? { id: user.role.id, name: user.role.name, description: user.role.description } : null })
+const toPublicUser = (user) => ({ id: user.id, email: user.email, emailVerified: Boolean(user.emailVerifiedAt) })
 const csrfTokenController = async (_req, res) => successResponse(res, 'CSRF token issued.', { csrfToken: setCsrfCookie(res) })
 const registerUserController = async (req, res) => successResponse(res, 'User account created successfully. Please verify your email address.', { user: await registerUser(req.validated.body) }, 201)
 const loginController = async (req, res) => { const result = await login(req.validated.body); res.cookie('refreshToken', result.refreshToken, refreshCookieOptions); return successResponse(res, 'Login successful.', { accessToken: result.accessToken, csrfToken: setCsrfCookie(res), user: result.user }, 200) }

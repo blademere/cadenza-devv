@@ -3,6 +3,7 @@ import {
   createPaginationMeta,
   createOrderBy,
 } from '../../common/pagination/pagination.js'
+import { getContext } from '../context/context.service.js'
 import * as repository from './audit.query.repository.js'
 
 const parseDate = (value) => {
@@ -18,13 +19,15 @@ const parseOptionalInt = (value) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
 }
 
-const buildAuditWhere = ({ entityType, entityId, actorId, action, from, to } = {}) => {
+const buildAuditWhere = ({ entityType, entityId, actorId, action, appId, from, to } = {}) => {
   const where = {}
   if (entityType) where.entityType = entityType
   if (entityId) where.entityId = String(entityId)
   if (action) where.action = action
   const parsedActorId = parseOptionalInt(actorId)
   if (parsedActorId) where.actorId = parsedActorId
+  const resolvedAppId = appId ?? getContext()?.appId ?? null
+  if (resolvedAppId) where.appId = resolvedAppId
   const fromDate = parseDate(from)
   const toDate = parseDate(to)
   if (fromDate || toDate) {
@@ -36,9 +39,9 @@ const buildAuditWhere = ({ entityType, entityId, actorId, action, from, to } = {
   return where
 }
 
-const listAuditLogs = async ({ page, limit, sortBy, sortOrder, entityType, entityId, actorId, action, from, to } = {}, db) => {
+const listAuditLogs = async ({ page, limit, sortBy, sortOrder, entityType, entityId, actorId, action, appId, from, to } = {}, db) => {
   const pagination = normalizePagination({ page, limit })
-  const where = buildAuditWhere({ entityType, entityId, actorId, action, from, to })
+  const where = buildAuditWhere({ entityType, entityId, actorId, action, appId, from, to })
   const orderBy = createOrderBy({ sortBy, sortOrder }, ['createdAt', 'action', 'entityType'], 'createdAt')
   const [data, total] = await repository.findPage({ where, orderBy, skip: pagination.skip, take: pagination.take }, db)
   return {

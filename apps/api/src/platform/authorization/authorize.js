@@ -35,8 +35,14 @@ const authorize = (resourceOrPermission, action) => {
         return next(new ForbiddenError('User context not found.'))
       }
 
+      const appId = req.auth?.appId ?? req.appContext?.id ?? null
+      if (!appId) {
+        return next(new ForbiddenError('Application context is required for authorization.'))
+      }
+
       const allowed = await accessControlService.can({
         userId: req.user.id,
+        appId,
         resource: resource.trim(),
         action: resolvedAction.trim(),
       })
@@ -45,6 +51,7 @@ const authorize = (resourceOrPermission, action) => {
         const context = getContext()
         await recordAuthorizationDenied({
           actorId: req.user.id,
+          appId,
           resource: resource.trim(),
           action: resolvedAction.trim(),
           resourceId: req.params?.id,

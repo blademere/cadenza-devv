@@ -1,3 +1,4 @@
+import { getContext } from '../context/context.service.js'
 import { createAuditLog } from './audit.repository.js'
 
 const SENSITIVE_KEYS = new Set([
@@ -33,6 +34,7 @@ const sanitizeJson = (value) => {
 
 const recordAudit = async ({
   actorId = null,
+  appId,
   action,
   entityType,
   entityId,
@@ -47,8 +49,13 @@ const recordAudit = async ({
     throw new TypeError('Audit action, entityType, and entityId are required.')
   }
 
+  const context = getContext()
+  const resolvedAppId = appId ?? context?.appId ?? null
+  const resolvedActorId = actorId ?? context?.actorId ?? null
+
   return createAuditLog({
-    actorId,
+    actorId: resolvedActorId,
+    appId: resolvedAppId,
     action,
     entityType,
     entityId: String(entityId),
@@ -62,6 +69,7 @@ const recordAudit = async ({
 
 const recordAuthorizationDenied = async ({
   actorId,
+  appId,
   resource,
   action,
   resourceId = null,
@@ -78,6 +86,7 @@ const recordAuthorizationDenied = async ({
 
     return await recordAudit({
       actorId,
+      appId,
       action: 'AUTHORIZATION_DENIED',
       entityType: String(resource),
       entityId,

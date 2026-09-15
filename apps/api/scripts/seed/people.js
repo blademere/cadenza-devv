@@ -6,23 +6,16 @@ const ROLE_PERSON_NAMES = {
 }
 
 const ensurePersonForUser = async (prisma, user) => {
-  const [fallbackFirstName, fallbackLastName] = ROLE_PERSON_NAMES[user.role.name] || [
-    user.role.name.replaceAll('_', ' '),
+  const roleName = user.appMemberships?.flatMap((membership) => membership.roles ?? []).map(({ role }) => role.name)[0] ?? null
+  const [fallbackFirstName, fallbackLastName] = ROLE_PERSON_NAMES[roleName] || [
+    roleName ? roleName.replaceAll('_', ' ') : 'Platform',
     'User',
   ]
 
   return prisma.person.upsert({
     where: { userId: user.id },
-    update: {
-      email: user.email,
-      isActive: true,
-    },
-    create: {
-      userId: user.id,
-      firstName: fallbackFirstName,
-      lastName: fallbackLastName,
-      email: user.email,
-    },
+    update: { email: user.email, isActive: true },
+    create: { userId: user.id, firstName: fallbackFirstName, lastName: fallbackLastName, email: user.email },
   })
 }
 
@@ -32,12 +25,14 @@ async function seedRolePersons(prisma) {
     select: {
       id: true,
       email: true,
-      role: { select: { name: true } },
+      appMemberships: {
+        where: { isActive: true, app: { isActive: true } },
+        select: { roles: { select: { role: { select: { name: true } } } } },
+      },
     },
   })
 
   for (const user of users) await ensurePersonForUser(prisma, user)
-
   console.log(`Person profiles ensured for ${users.length} active users.`)
   return users.length
 }

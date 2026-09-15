@@ -112,33 +112,25 @@ beforeEach(() => {
   tokens.hashToken.mockImplementation((value) => `hash:${value}`)
   bcrypt.default.hash.mockResolvedValue('new-password-hash')
   repository.findUserByEmail.mockResolvedValue(null)
-  repository.findRoleByName.mockResolvedValue({
-    id: 7,
-    name: 'client',
-    description: 'Client role',
-  })
   repository.createUser.mockResolvedValue({
     id: 100,
     email: 'user@example.com',
-    role: { id: 7, name: 'client', description: 'Client role' },
   })
 })
 
 describe('registration', () => {
-  it('creates a user with the default client role', async () => {
+  it('creates a user identity without a default global role', async () => {
     await expect(
       registerUser({ email: 'user@example.com', password: 'password123' })
     ).resolves.toEqual({
       id: 100,
       email: 'user@example.com',
-      role: { id: 7, name: 'client', description: 'Client role' },
     })
     expect(repository.findUserByEmail).toHaveBeenCalledWith('user@example.com')
-    expect(repository.findRoleByName).toHaveBeenCalledWith('client')
+    expect(repository.findRoleByName).not.toHaveBeenCalled()
     expect(bcrypt.default.hash).toHaveBeenCalledWith('password123', 12)
     expect(repository.createUser).toHaveBeenCalledWith({
       email: 'user@example.com',
-      roleId: 7,
       passwordHash: 'new-password-hash',
     })
   })
@@ -153,13 +145,19 @@ describe('registration', () => {
     expect(bcrypt.default.hash).not.toHaveBeenCalled()
     expect(repository.createUser).not.toHaveBeenCalled()
   })
-  it('fails closed when the default role is missing', async () => {
+  it('does not require a global default role for registration', async () => {
     repository.findRoleByName.mockResolvedValue(null)
     await expect(
       registerUser({ email: 'user@example.com', password: 'password123' })
-    ).rejects.toThrow("The default 'client' role is not configured.")
-    expect(bcrypt.default.hash).not.toHaveBeenCalled()
-    expect(repository.createUser).not.toHaveBeenCalled()
+    ).resolves.toEqual({
+      id: 100,
+      email: 'user@example.com',
+    })
+    expect(bcrypt.default.hash).toHaveBeenCalledWith('password123', 12)
+    expect(repository.createUser).toHaveBeenCalledWith({
+      email: 'user@example.com',
+      passwordHash: 'new-password-hash',
+    })
   })
   it('converts a Prisma unique constraint race into a conflict error', async () => {
     repository.createUser.mockRejectedValue({ code: 'P2002' })

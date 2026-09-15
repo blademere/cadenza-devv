@@ -1,20 +1,14 @@
-const toUserResponse = (user) => {
-  return {
-    id: user.id,
-    email: user.email,
-    isActive: user.isActive,
-
-    role: user.role
-      ? {
-          id: user.role.id,
-          name: user.role.name,
-          description: user.role.description,
-        }
-      : null,
-
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  }
-}
+const toUserResponse = (user) => ({
+  id: user.id,
+  email: user.email,
+  isActive: user.isActive,
+  roles: (user.roles ?? []).map((role) => ({
+    id: role.id,
+    name: role.name,
+    description: role.description,
+  })),
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
+})
 
 export { toUserResponse }

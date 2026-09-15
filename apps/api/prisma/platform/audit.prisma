@@ -1,6 +1,7 @@
 model AuditLog {
   id         String   @id @default(uuid())
   actorId    Int?
+  appId      String?
   action     String
   entityType String
   entityId   String
@@ -10,9 +11,12 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
   actor      User?    @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+  app        App?     @relation(fields: [appId], references: [id], onDelete: SetNull)
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId, createdAt])
   @@index([actorId, createdAt])
+  @@index([appId, createdAt])
+  @@index([appId, entityType, entityId, createdAt])
   @@index([action, createdAt])
 }

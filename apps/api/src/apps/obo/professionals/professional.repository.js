@@ -4,9 +4,8 @@ const prisma = getPrismaClient()
 
 const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where: { userId } })
 const findPersonById = (id, db = prisma) => db.person.findUnique({ where: { id }, select: { userId: true, email: true, isActive: true, user: { select: { email: true } } } })
-const findById = (id, db = prisma) => db.oboProfessional.findUnique({ where: { id }, include: { person: { select: { id: true, isActive: true } } } })
+const findById = (id, db = prisma) => db.oboProfessional.findUnique({ where: { id }, include: { person: { select: { id: true, isActive: true, userId: true } } } })
 const findByPersonId = (personId, db = prisma) => db.oboProfessional.findUnique({ where: { personId } })
-const findByUserId = (userId, db = prisma) => db.oboProfessional.findUnique({ where: { userId }, include: { person: { select: { id: true, isActive: true } } } })
 const create = (data, db = prisma) => db.oboProfessional.create({ data })
 const listPending = (db = prisma) => db.oboProfessional.findMany({ where: { status: 'PENDING_VERIFICATION' }, include: { person: true }, orderBy: { createdAt: 'asc' } })
 
@@ -57,4 +56,4 @@ const update = (id, data, db = prisma) => db.oboProfessional.update({ where: { i
 const addDecision = (data, db = prisma) => db.oboProfessionalVerificationDecision.create({ data })
 const withTransaction = (callback) => prisma.$transaction(callback)
 
-export { findPersonByUserId, findPersonById, findById, findByPersonId, findByUserId, create, listPending, listVerified, listLookup, update, addDecision, withTransaction }
+export { findPersonByUserId, findPersonById, findById, findByPersonId, create, listPending, listVerified, listLookup, update, addDecision, withTransaction }

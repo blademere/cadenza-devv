@@ -29,6 +29,11 @@ export function AuthProvider({ children }) {
     return session
   }, [applySession])
 
+  const setSession = useCallback((session) => {
+    applySession(session)
+    return session
+  }, [applySession])
+
   const refresh = useCallback(async () => {
     if (refreshPromiseRef.current) return refreshPromiseRef.current
     if (globalRefreshPromise) return globalRefreshPromise
@@ -81,8 +86,8 @@ export function AuthProvider({ children }) {
   }, [refresh])
 
   const value = useMemo(
-    () => ({ accessToken, user, isAuthenticated: Boolean(accessToken), isLoading, login, refresh, logout }),
-    [accessToken, user, isLoading, login, refresh, logout],
+    () => ({ accessToken, user, isAuthenticated: Boolean(accessToken), isLoading, login, refresh, logout, setSession }),
+    [accessToken, user, isLoading, login, refresh, logout, setSession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

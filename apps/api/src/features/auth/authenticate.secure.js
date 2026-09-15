@@ -24,6 +24,7 @@ const authenticate = async (req, _res, next) => {
     if (!user || !user.isActive || user.authVersion !== payload.authVersion)
       return next(new UnauthorizedError('Access token has been revoked.'))
     req.user = { id: userId }
+    req.auth = payload
     setActorContext({ actorId: userId, actorType: 'user' })
     return next()
   } catch (_error) {

@@ -4,7 +4,6 @@ import {
   findOAuthAccount,
   findUserByEmail,
   findUserById,
-  findRoleByName,
   createUser,
   createOAuthAccount,
   listOAuthAccounts,
@@ -35,11 +34,9 @@ const authenticateWithOAuth = async ({ provider, code, codeVerifier }) => {
     const existingUser = await findUserByEmail(identity.email)
     if (existingUser) throw new ConflictError('An account already exists for this email. Sign in with your password first, then link the OAuth provider.')
     user = await withTransaction(async (tx) => {
-      const role = await findRoleByName(env.OAUTH_DEFAULT_ROLE_NAME, tx)
-      if (!role) throw new Error(`OAuth default role '${env.OAUTH_DEFAULT_ROLE_NAME}' does not exist.`)
       const currentUser = await findUserByEmail(identity.email, tx)
       if (currentUser) throw new ConflictError('An account already exists for this email address.')
-      const createdUser = await createUser({ email: identity.email, passwordHash: null, roleId: role.id, emailVerifiedAt: new Date() }, tx)
+      const createdUser = await createUser({ email: identity.email, passwordHash: null, emailVerifiedAt: new Date() }, tx)
       await createOAuthAccount({ userId: createdUser.id, provider: identity.provider, providerAccountId: identity.providerAccountId }, tx)
       return createdUser
     })

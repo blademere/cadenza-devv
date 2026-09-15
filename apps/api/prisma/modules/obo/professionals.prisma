@@ -1,7 +1,6 @@
 model OboProfessional {
   id                 String @id @default(uuid())
   personId           String @unique
-  userId             Int?   @unique
   registrationNumber String @unique
   prcId              String? @unique
   ptrNumber          String?
@@ -12,7 +11,6 @@ model OboProfessional {
   verifiedAt            DateTime?
   verificationReason    String?
   person                Person                                @relation(fields: [personId], references: [id], onDelete: Restrict)
-  user                  User?                                 @relation("OboProfessionalUser", fields: [userId], references: [id], onDelete: SetNull)
   verifiedBy            User?                                 @relation("OboProfessionalVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
   verificationDecisions OboProfessionalVerificationDecision[]
   createdAt             DateTime                              @default(now())

@@ -28,8 +28,9 @@ const findApplicablePolicy = async ({ entityType, context = {} }) => {
 }
 const isUniqueConstraintError = (error) => error?.code === 'P2002'
 
-const startApproval = async ({ policyKey, subjectType, subjectId, context = {}, actorId = null }) => {
+const startApproval = async ({ policyKey, subjectType, subjectId, context = {}, actorId = null, appId = null }) => {
   if (!subjectType || subjectId == null) throw new BadRequestError('Approval subjectType and subjectId are required.')
+  const applicationId = appId ?? context.appId ?? null
   const policy = policyKey ? await findPolicyByKey(policyKey) : await findApplicablePolicy({ entityType: subjectType, context })
   if (!policy) throw new NotFoundError('No applicable approval policy was found.')
   if (!policy.steps.length) throw new BadRequestError('Approval policy has no steps.')
@@ -39,9 +40,9 @@ const startApproval = async ({ policyKey, subjectType, subjectId, context = {}, 
       const existing = await findPendingInstance({ policyId: policy.id, subjectType, subjectId }, tx)
       if (existing) return existing
       const firstStep = policy.steps[0]
-      const approverIds = await resolveApproverIds(firstStep, tx)
+      const approverIds = await resolveApproverIds(firstStep, tx, applicationId)
       if (approverIds.length < firstStep.requiredCount) throw new ConflictError(`Approval step '${firstStep.name}' requires ${firstStep.requiredCount} eligible approver(s), but only ${approverIds.length} are available.`)
-      const created = await createInstance({ policyId: policy.id, subjectType, subjectId: String(subjectId), currentStepOrder: firstStep.stepOrder }, tx)
+      const created = await createInstance({ policyId: policy.id, appId: applicationId, subjectType, subjectId: String(subjectId), currentStepOrder: firstStep.stepOrder }, tx)
       await createRequests(approverIds.map((assigneeUserId) => ({ instanceId: created.id, stepId: firstStep.id, assigneeUserId })), tx)
       return findInstance(created.id, tx)
     })
@@ -50,7 +51,7 @@ const startApproval = async ({ policyKey, subjectType, subjectId, context = {}, 
     instance = await findPendingInstance({ policyId: policy.id, subjectType, subjectId })
     if (!instance) throw new ConflictError('Approval instance was created concurrently but could not be reloaded. Retry.')
   }
-  await recordAudit({ actorId, action: 'APPROVAL_STARTED', entityType: 'ApprovalInstance', entityId: instance.id, after: instance })
+  await recordAudit({ actorId, appId: applicationId, action: 'APPROVAL_STARTED', entityType: 'ApprovalInstance', entityId: instance.id, after: instance })
   return instance
 }
 
@@ -73,12 +74,12 @@ const actOnApproval = async ({ requestId, actorId, decision, comment = null }) =
     const currentIndex = steps.findIndex((step) => step.id === request.stepId)
     const next = steps[currentIndex + 1]
     if (!next) return updateInstance(request.instanceId, { status: 'APPROVED', completedAt: new Date() }, tx)
-    const nextApproverIds = await resolveApproverIds(next, tx)
+    const nextApproverIds = await resolveApproverIds(next, tx, request.instance.appId)
     if (nextApproverIds.length < next.requiredCount) throw new ConflictError(`Approval step '${next.name}' requires ${next.requiredCount} eligible approver(s), but only ${nextApproverIds.length} are available.`)
     await createRequests(nextApproverIds.map((assigneeUserId) => ({ instanceId: request.instanceId, stepId: next.id, assigneeUserId })), tx)
     return updateInstance(request.instanceId, { currentStepOrder: next.stepOrder }, tx)
   })
-  await recordAudit({ actorId, action: `APPROVAL_${decision}`, entityType: 'ApprovalInstance', entityId: result.id, after: result })
+  await recordAudit({ actorId, appId: request.instance.appId, action: `APPROVAL_${decision}`, entityType: 'ApprovalInstance', entityId: result.id, after: result })
   return result
 }
 

@@ -5,7 +5,8 @@ import authorizationRouter from '../features/admin/authorization/authorization.r
 import createAuthorizationContextRouter from '../platform/authorization/authorization-context.routes.js'
 import auditRouter from '../platform/audit/audit.routes.js'
 import appointmentRouter from '../features/appointments/appointment.routes.js'
-import oboRouter from '../modules/obo/obo.routes.js'
+import applicationRouter from '../platform/applications/application.routes.js'
+import oboRouter from '../apps/obo/obo.routes.js'
 import authenticate from '../features/auth/authenticate.secure.js'
 
 const router = express.Router()
@@ -15,6 +16,7 @@ router.use('/users', userRouter)
 router.use('/admin/authorization', authorizationRouter)
 router.use('/appointments', appointmentRouter)
 router.use('/audit', auditRouter)
+router.use('/apps', applicationRouter)
 router.use('/', createAuthorizationContextRouter({ authenticate }))
 router.use('/obo', oboRouter)
 
