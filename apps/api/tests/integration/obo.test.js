@@ -10,16 +10,19 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
-const mocks = vi.hoisted(() => ({
-  findUserAuthState: vi.fn(),
-  can: vi.fn(),
-  getAuthorizationContext: vi.fn(),
-}))
+const mocks = vi.hoisted(() => {
+  vi.resetModules()
+  return {
+    findUserAuthState: vi.fn(),
+    can: vi.fn(),
+    getAuthorizationContext: vi.fn(),
+  }
+})
 
-vi.mock('../../../src/features/auth/auth.repository.js', () => ({
+vi.mock(import('../../../src/features/auth/auth.repository.js'), () => ({
   findUserAuthState: mocks.findUserAuthState,
 }))
-vi.mock('../../../src/platform/authorization/access-control.service.js', () => ({
+vi.mock(import('../../../src/platform/authorization/access-control.service.js'), () => ({
   can: mocks.can,
   canAny: vi.fn(),
   canOwn: vi.fn(),
