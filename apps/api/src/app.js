@@ -57,6 +57,7 @@ app.use(
       'Idempotency-Key',
       'X-Request-ID',
       'X-Correlation-ID',
+      'X-App-ID',
     ],
     exposedHeaders: ['X-Request-ID', 'X-Correlation-ID'],
   })
