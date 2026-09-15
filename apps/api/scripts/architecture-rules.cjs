@@ -77,7 +77,7 @@ const getLayerViolations = (relative, source) => {
     FORBIDDEN_PLATFORM_IMPORT.test(source)
   )
     failures.push(
-      `${relative}: platform code must not import apps, features or modules.`
+      `${relative}: platform code must not import features or modules.`
     )
   if (
     relative.startsWith('apps/api/src/features/') &&
