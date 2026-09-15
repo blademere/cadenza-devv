@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { makeIdempotencyKey, signPayload } from '../../../src/platform/integrations/webhook.service.js'
 
 describe('platform integrations capability', () => {
