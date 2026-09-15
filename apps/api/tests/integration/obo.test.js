@@ -175,9 +175,9 @@ describeIfEnabled('OBO shared-feature API integration', () => {
     createdProfessionalIds.push(professional.id)
 
     const requirementDefinitions = await Promise.all([
-      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-building-plan'), name: 'Building Plan', metadata: { required: true } }),
-      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-site-plan'), name: 'Site Development Plan', metadata: { required: true } }),
-      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-credentials'), name: 'Professional Credentials', metadata: { required: true } }),
+      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-building-plan'), name: 'Building Plan', metadata: { required: true } } }),
+      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-site-plan'), name: 'Site Development Plan', metadata: { required: true } } }),
+      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-credentials'), name: 'Professional Credentials', metadata: { required: true } } }),
     ])
     createdRequirementIds.push(...requirementDefinitions.map((item) => item.id))
     requirementIds.push(...requirementDefinitions.map((item) => item.id))
