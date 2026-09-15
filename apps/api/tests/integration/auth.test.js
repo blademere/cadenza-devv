@@ -13,16 +13,19 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
-const mocks = vi.hoisted(() => ({
-  can: vi.fn(),
-  findUserAuthState: vi.fn(),
-  listUsers: vi.fn(),
-  registerUser: vi.fn(),
-  getUserAuthorizationContext: vi.fn(),
-  listActiveModules: vi.fn(),
-}))
+const mocks = vi.hoisted(() => {
+  vi.resetModules()
+  return {
+    can: vi.fn(),
+    findUserAuthState: vi.fn(),
+    listUsers: vi.fn(),
+    registerUser: vi.fn(),
+    getUserAuthorizationContext: vi.fn(),
+    listActiveModules: vi.fn(),
+  }
+})
 
-vi.mock('../../../src/platform/authorization/access-control.service.js', () => ({
+vi.mock(import('../../../src/platform/authorization/access-control.service.js'), () => ({
   can: mocks.can,
   canAny: vi.fn(),
   canOwn: vi.fn(),
@@ -30,16 +33,16 @@ vi.mock('../../../src/platform/authorization/access-control.service.js', () => (
   getRoleById: vi.fn(),
 }))
 
-vi.mock('../../../src/features/auth/auth.repository.js', () => ({
+vi.mock(import('../../../src/features/auth/auth.repository.js'), () => ({
   findUserAuthState: mocks.findUserAuthState,
 }))
 
-vi.mock('../../../src/features/users/user.service.js', () => ({
+vi.mock(import('../../../src/features/users/user.service.js'), () => ({
   listUsers: mocks.listUsers,
   registerUser: mocks.registerUser,
 }))
 
-vi.mock('../../../src/platform/authorization/authorization-context.repository.js', () => ({
+vi.mock(import('../../../src/platform/authorization/authorization-context.repository.js'), () => ({
   getUserAuthorizationContext: mocks.getUserAuthorizationContext,
   listActiveModules: mocks.listActiveModules,
 }))
