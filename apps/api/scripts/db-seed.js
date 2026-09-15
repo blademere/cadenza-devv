@@ -15,7 +15,44 @@ import { seedRolePersons } from './seed/people.js'
 import { seedOboProfessionalVerificationFixtures, verifyOboProfessionalVerificationFixtures } from './seed/obo-professional-verification.js'
 import { getPrismaClient, disconnectPrisma } from '../src/infrastructure/database/prisma.js'
 
-const prisma = getPrismaClient()
+const basePrisma = getPrismaClient()
+
+// The OBO development fixture predates the app-scoped role model and still
+// passes roleId to its local ensureUser helper. Adapt that fixture input at the
+// seed boundary so the database never receives a global User.roleId write.
+const prisma = new Proxy(basePrisma, {
+  get(target, property) {
+    if (property !== 'user') return target[property]
+    return new Proxy(target.user, {
+      get(delegate, method) {
+        if (method !== 'upsert') return delegate[method].bind(delegate)
+        return async (args) => {
+          const roleId = args.create?.roleId ?? args.update?.roleId
+          const create = { ...args.create }
+          const update = { ...args.update }
+          delete create.roleId
+          delete update.roleId
+          const user = await delegate.upsert({ ...args, create, update })
+          if (roleId != null) {
+            const app = await target.app.findUnique({ where: { key: 'obo' } })
+            if (!app) throw new Error("Application 'obo' must be seeded before OBO role fixtures.")
+            const membership = await target.appMembership.upsert({
+              where: { appId_userId: { appId: app.id, userId: user.id } },
+              update: { isActive: true },
+              create: { appId: app.id, userId: user.id },
+            })
+            await target.appMembershipRole.upsert({
+              where: { membershipId_roleId: { membershipId: membership.id, roleId } },
+              update: {},
+              create: { membershipId: membership.id, roleId },
+            })
+          }
+          return user
+        }
+      },
+    })
+  },
+})
 
 async function seed() {
   const { roles, permissionRecords } = await seedAuthorization(prisma)
