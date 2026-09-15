@@ -1,8 +1,8 @@
 import { getUserAuthorizationContext, listActiveModules } from './authorization-context.repository.js'
 
-const getAuthorizationContextResponse = async (userId) => {
+const getAuthorizationContextResponse = async ({ userId, appId }) => {
   const [context, modules] = await Promise.all([
-    getUserAuthorizationContext(userId),
+    getUserAuthorizationContext({ userId, appId }),
     listActiveModules(),
   ])
 
@@ -11,7 +11,10 @@ const getAuthorizationContextResponse = async (userId) => {
   )
 
   return {
-    role: context?.role ?? null,
+    userId: context?.userId ?? Number(userId),
+    app: context?.app ?? null,
+    membership: context?.membership ?? null,
+    roles: context?.roles ?? [],
     permissions: [...permissions].sort(),
     modules: (modules ?? []).map(({ key, name, description, isActive }) => ({
       key,
