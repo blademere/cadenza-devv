@@ -21,6 +21,7 @@ const listUsersController = async (req, res) => {
 const createUserController = async (req, res) => {
   const user = await registerUser({
     requesterId: req.user.id,
+    appId: req.auth?.appId ?? req.appContext?.id ?? null,
     ...req.validated.body,
   })
   return successResponse(res, 'User created successfully.', user, 201)
@@ -29,6 +30,7 @@ const createUserController = async (req, res) => {
 const assignUserRoleController = async (req, res) => {
   const user = await assignUserRole({
     requesterId: req.user.id,
+    appId: req.auth?.appId ?? req.appContext?.id ?? null,
     ...req.validated.params,
     ...req.validated.body,
   })
