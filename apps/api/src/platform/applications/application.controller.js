@@ -1,6 +1,6 @@
 import { successResponse } from '../../common/responses/apiResponse.js'
 import { ForbiddenError } from '../../common/errors/appError.js'
-import { mapApplication, mapMembership } from './application.mapper.js'
+import { mapApplication } from './application.mapper.js'
 import { getUserApplications, getApplicationByKey } from './application.service.js'
 import { selectApplication } from '../../features/auth/auth.service.js'
 import { env } from '../../config/index.js'
@@ -33,7 +33,7 @@ const selectApplicationController = async (req, res) => {
   return successResponse(res, 'Application selected successfully.', {
     accessToken: result.accessToken,
     application: mapApplication(result.application),
-    membership: mapMembership(result.membership),
+    membership: result.membership,
   })
 }
 
