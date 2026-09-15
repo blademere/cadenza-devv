@@ -13,8 +13,9 @@ vi.mock('../../../../src/platform/context/index.js', () => context)
 
 const { requireApplicationContext, readApplicationId } = await import('../../../../src/platform/applications/application-context.middleware.js')
 
-const createRequest = ({ appId } = {}) => ({
+const createRequest = ({ appId, tokenAppId = null } = {}) => ({
   user: { id: 42 },
+  auth: { appId: tokenAppId },
   headers: appId ? { 'x-app-id': appId } : {},
   get: vi.fn((name) => name.toLowerCase() === 'x-app-id' ? appId : undefined),
 })
@@ -35,6 +36,39 @@ describe('application context middleware', () => {
     expect(repository.getUserAuthorizationContext).not.toHaveBeenCalled()
   })
 
+  it('uses the signed token app id and validates membership without requiring a header', async () => {
+    repository.getUserAuthorizationContext.mockResolvedValue({
+      userId: 42,
+      app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
+      membership: { id: 'membership-1' },
+      roles: [{ id: 3, name: 'receiving_officer' }],
+      permissions: [{ resource: 'permits', action: 'read' }],
+    })
+
+    const req = createRequest({ tokenAppId: 'app-1' })
+    const next = vi.fn()
+
+    await requireApplicationContext()(req, {}, next)
+
+    expect(repository.getUserAuthorizationContext).toHaveBeenCalledWith({ userId: 42, appId: 'app-1' })
+    expect(req.security.app.id).toBe('app-1')
+    expect(context.setApplicationContext).toHaveBeenCalledWith({ appId: 'app-1', appKey: 'obo' })
+    expect(next).toHaveBeenCalledWith()
+  })
+
+  it('rejects a conflicting application header when the token is app-scoped', async () => {
+    const req = createRequest({ tokenAppId: 'app-1', appId: 'app-2' })
+    const next = vi.fn()
+
+    await requireApplicationContext()(req, {}, next)
+
+    expect(repository.getUserAuthorizationContext).not.toHaveBeenCalled()
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      statusCode: 403,
+      message: 'Application context does not match the access token.',
+    }))
+  })
+
   it('validates membership before establishing application security context', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue({
       userId: 42,
@@ -49,10 +83,7 @@ describe('application context middleware', () => {
 
     await requireApplicationContext()(req, {}, next)
 
-    expect(repository.getUserAuthorizationContext).toHaveBeenCalledWith({
-      userId: 42,
-      appId: 'app-1',
-    })
+    expect(repository.getUserAuthorizationContext).toHaveBeenCalledWith({ userId: 42, appId: 'app-1' })
     expect(req.appContext).toEqual({
       id: 'app-1',
       key: 'obo',
@@ -67,17 +98,14 @@ describe('application context middleware', () => {
       roles: [{ id: 3, name: 'receiving_officer' }],
       permissions: [{ resource: 'permits', action: 'read' }],
     })
-    expect(context.setApplicationContext).toHaveBeenCalledWith({
-      appId: 'app-1',
-      appKey: 'obo',
-    })
+    expect(context.setApplicationContext).toHaveBeenCalledWith({ appId: 'app-1', appKey: 'obo' })
     expect(next).toHaveBeenCalledWith()
   })
 
   it('denies users without an active membership', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue(null)
 
-    const req = createRequest({ appId: 'app-1' })
+    const req = createRequest({ tokenAppId: 'app-1' })
     const next = vi.fn()
 
     await requireApplicationContext()(req, {}, next)
