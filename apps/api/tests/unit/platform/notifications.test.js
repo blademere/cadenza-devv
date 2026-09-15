@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repository = vi.hoisted(() => ({
   findRulesForEvent: vi.fn(),
@@ -14,11 +14,11 @@ vi.mock(
 )
 
 import {
-  normalizeChannels,
   queueNotifications,
   render,
   stableIdempotencyKey,
 } from '../../../src/platform/notifications/notification.service.js'
+import { normalizeChannels } from '../../../src/platform/notifications/notification.send.service.js'
 import {
   clearNotificationTransports,
   registerNotificationTransport,
@@ -27,22 +27,23 @@ import {
 import { processNotificationDelivery } from '../../../src/platform/notifications/notification.delivery.worker.js'
 
 describe('platform notifications capability', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    clearNotificationTransports()
+  })
+
   it('defaults to in-app delivery when no channels are configured', () => {
     expect(normalizeChannels()).toEqual(['IN_APP'])
   })
 
   it('normalizes and deduplicates notification channels', () => {
     expect(
-      normalizeChannels(['email', 'EMAIL', 'sms', 'in_app', 'invalid'])
+      normalizeChannels(['email', 'EMAIL', 'sms', 'in_app'])
     ).toEqual(['EMAIL', 'SMS', 'IN_APP'])
   })
 
-  it('accepts only supported notification channels', () => {
-    expect(normalizeChannels(['EMAIL', 'SMS', 'IN_APP'])).toEqual([
-      'EMAIL',
-      'SMS',
-      'IN_APP',
-    ])
+  it('rejects unsupported notification channels', () => {
+    expect(() => normalizeChannels(['EMAIL', 'INVALID'])).toThrow()
   })
 
   it('renders nested template context', () => {
@@ -241,11 +242,11 @@ describe('platform notifications capability', () => {
   })
 
   it('registers and clears notification transports', () => {
-    const transport = vi.fn()
+    const transport = { send: vi.fn() }
     registerNotificationTransport('EMAIL', transport)
     unregisterNotificationTransport('EMAIL')
     clearNotificationTransports()
-    expect(transport).not.toHaveBeenCalled()
+    expect(transport.send).not.toHaveBeenCalled()
   })
 
   it('rejects invalid notification transport registration', () => {
@@ -253,7 +254,7 @@ describe('platform notifications capability', () => {
   })
 
   it('delivers a queued notification through its registered transport', async () => {
-    const transport = vi.fn().mockResolvedValue(undefined)
+    const transport = { send: vi.fn().mockResolvedValue(undefined) }
     registerNotificationTransport('EMAIL', transport)
 
     await processNotificationDelivery({
@@ -267,12 +268,10 @@ describe('platform notifications capability', () => {
       complete: vi.fn().mockResolvedValue(undefined),
     })
 
-    expect(transport).toHaveBeenCalled()
-    clearNotificationTransports()
+    expect(transport.send).toHaveBeenCalled()
   })
 
   it('fails delivery when no transport is registered', async () => {
-    clearNotificationTransports()
     await expect(
       processNotificationDelivery({
         delivery: {
@@ -288,7 +287,7 @@ describe('platform notifications capability', () => {
   })
 
   it('does not deliver when the worker cannot claim the delivery', async () => {
-    const transport = vi.fn()
+    const transport = { send: vi.fn() }
     registerNotificationTransport('EMAIL', transport)
 
     await processNotificationDelivery({
@@ -302,7 +301,6 @@ describe('platform notifications capability', () => {
       complete: vi.fn(),
     })
 
-    expect(transport).not.toHaveBeenCalled()
-    clearNotificationTransports()
+    expect(transport.send).not.toHaveBeenCalled()
   })
 })
