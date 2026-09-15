@@ -18,32 +18,32 @@ describe('app-aware audit boundary', () => {
   })
 
   it('does not expose a cross-application audit query parameter', async () => {
-    const validation = await read('apps/api/src/platform/audit/audit.validation.js')
+    const validation = await read('src/platform/audit/audit.validation.js')
     expect(validation).not.toContain('appId:')
   })
 
   it('stores application context on the audit model', async () => {
-    const schema = await read('apps/api/prisma/platform/audit.prisma')
-    const apps = await read('apps/api/prisma/platform/apps.prisma')
+    const schema = await read('prisma/platform/audit.prisma')
+    const apps = await read('prisma/platform/apps.prisma')
 
-    expect(schema).toMatch(/appId\s+String\?/) 
+    expect(schema).toMatch(/appId\s+String\?/)
     expect(schema).toMatch(/app\s+App\?\s+@relation\(fields: \[appId\], references: \[id\], onDelete: SetNull\)/)
     expect(apps).toContain('auditLogs         AuditLog[]')
   })
 
   it('propagates application context from platform execution context', async () => {
-    const service = await read('apps/api/src/platform/audit/audit.service.js')
+    const service = await read('src/platform/audit/audit.service.js')
     expect(service).toContain("import { getContext } from '../context/context.service.js'")
     expect(service).toContain('const resolvedAppId = appId ?? context?.appId ?? null')
   })
 
   it('requires application context for audit reads', async () => {
-    const routes = await read('apps/api/src/platform/audit/audit.routes.js')
+    const routes = await read('src/platform/audit/audit.routes.js')
     expect(routes).toContain('requireApplicationContext()')
   })
 
   it('creates the app foreign key and app-scoped indexes', async () => {
-    const migration = await read('apps/api/prisma/migrations/20260915180000_add_app_context_to_audit_logs/migration.sql')
+    const migration = await read('prisma/migrations/20260915180000_add_app_context_to_audit_logs/migration.sql')
     expect(migration).toContain('ADD COLUMN "appId" TEXT')
     expect(migration).toContain('REFERENCES "App"("id")')
     expect(migration).toContain('"AuditLog_appId_createdAt_idx"')
