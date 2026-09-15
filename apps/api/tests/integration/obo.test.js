@@ -19,7 +19,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../src/features/auth/auth.repository.js', () => ({
   findUserAuthState: mocks.findUserAuthState,
 }))
-
 vi.mock('../../../src/platform/authorization/access-control.service.js', () => ({
   can: mocks.can,
   canAny: vi.fn(),
@@ -224,33 +223,89 @@ describeIfEnabled('OBO shared-feature API integration', () => {
 
   it('composes cases, participants, requirements, appointments, documents, tasks, and workflow through the API', async () => {
     const application = await createApplication()
+    const stored = await prisma.oboPermitApplication.findUnique({ where: { id: application.id }, include: { caseRecord: true } })
+    expect(stored?.caseId).toBe(application.caseId)
+    expect(stored?.caseRecord?.id).toBe(application.caseId)
+    const initialParticipants = await prisma.caseParticipant.findMany({ where: { caseId: application.caseId } })
+    expect(initialParticipants).toEqual(expect.arrayContaining([expect.objectContaining({ personId: clientPerson.id, roleKey: 'APPLICANT', isPrimary: true })]))
+    expect(initialParticipants).not.toEqual(expect.arrayContaining([expect.objectContaining({ personId: professional.personId, roleKey: 'PROFESSIONAL' })]))
+    const caseRequirements = await prisma.caseRequirement.findMany({ where: { caseId: application.caseId } })
+    expect(caseRequirements.map((item) => item.requirementId)).toEqual(expect.arrayContaining(requirementIds))
     await submitApplication(application.id)
+    const submittedParticipants = await prisma.caseParticipant.findMany({ where: { caseId: application.caseId } })
+    expect(submittedParticipants).toEqual(expect.arrayContaining([
+      expect.objectContaining({ personId: clientPerson.id, roleKey: 'APPLICANT', isPrimary: true }),
+      expect.objectContaining({ personId: professional.personId, roleKey: 'PROFESSIONAL', isPrimary: false }),
+    ]))
+    const submittedTasks = await prisma.task.findMany({ where: { caseId: application.caseId } })
+    expect(submittedTasks).toEqual(expect.arrayContaining([expect.objectContaining({ metadata: expect.objectContaining({ applicationId: application.id, taskType: 'REVIEW_APPLICATION' }) })]))
     await bookAppointment(application.id)
+    const scheduledTasks = await prisma.task.findMany({ where: { caseId: application.caseId } })
+    expect(scheduledTasks).toEqual(expect.arrayContaining([expect.objectContaining({ metadata: expect.objectContaining({ applicationId: application.id, taskType: 'RECEIVE_HARD_COPY' }) })]))
     await receiveApplication(application.id)
     await attachAndVerifyDocuments(application.id)
-    const decision = await decide(application.id, 'ACCEPT', undefined)
-    expect(decision.status).toBe('APPROVED')
+    const receivingTasks = await prisma.task.findMany({ where: { caseId: application.caseId } })
+    expect(receivingTasks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ status: 'DONE', metadata: expect.objectContaining({ applicationId: application.id, taskType: 'REVIEW_APPLICATION' }) }),
+      expect.objectContaining({ status: 'DONE', metadata: expect.objectContaining({ applicationId: application.id, taskType: 'RECEIVE_HARD_COPY' }) }),
+      expect.objectContaining({ status: 'OPEN', metadata: expect.objectContaining({ applicationId: application.id, taskType: 'VERIFY_DOCUMENTS' }) }),
+      expect.objectContaining({ status: 'OPEN', metadata: expect.objectContaining({ applicationId: application.id, taskType: 'EVALUATE_APPLICATION' }) }),
+    ]))
+    const accepted = await decide(application.id, 'ACCEPTED')
+    expect(accepted.status).toBe('FOR_INSPECTION')
+    const finalApplication = await prisma.oboPermitApplication.findUnique({ where: { id: application.id } })
+    expect(finalApplication?.acceptedAt).not.toBeNull()
+    expect(finalApplication?.declinedAt).toBeNull()
+    const workflow = await prisma.workflowInstance.findUnique({ where: { id: finalApplication.workflowInstanceId }, include: { currentStep: true } })
+    expect(workflow?.currentStep.key).toBe('FOR_INSPECTION')
+    const eventNames = await prisma.eventOutbox.findMany({ where: { entityType: 'OboPermitApplication', entityId: application.id }, select: { event: true } })
+    expect(eventNames.map((item) => item.event)).toEqual(expect.arrayContaining(['obo.permit_application.created', 'obo.permit_application.professional.associated', 'obo.permit_application.submitted', 'obo.permit_application.appointment.booked', 'obo.permit_application.hardcopy.received', 'obo.permit_application.accepted']))
   })
 
   it('supports decline and replacement application through the same API boundary', async () => {
-    const application = await createApplication()
-    await submitApplication(application.id)
-    await bookAppointment(application.id)
-    await receiveApplication(application.id)
-    await attachAndVerifyDocuments(application.id)
-    const declined = await decide(application.id, 'DECLINE', 'Missing supporting information')
+    const original = await createApplication()
+    await submitApplication(original.id)
+    await bookAppointment(original.id)
+    await receiveApplication(original.id)
+    await attachAndVerifyDocuments(original.id)
+    const declined = await decide(original.id, 'DECLINED', 'Integration test decline')
     expect(declined.status).toBe('DECLINED')
-    const replacement = await createApplication(application.id)
-    expect(replacement.replacesApplicationId).toBe(application.id)
+    const replacement = await createApplication(original.id)
+    expect(replacement.replacesApplicationId).toBe(original.id)
+    expect(replacement.id).not.toBe(original.id)
+    expect(replacement.caseId).not.toBe(original.caseId)
+    expect(replacement.status).toBe('DRAFT')
+    const replacementCase = await prisma.caseRecord.findUnique({ where: { id: replacement.caseId } })
+    expect(replacementCase).toEqual(expect.objectContaining({ id: replacement.caseId }))
+    const replacementParticipants = await prisma.caseParticipant.findMany({ where: { caseId: replacement.caseId } })
+    expect(replacementParticipants).toEqual(expect.arrayContaining([expect.objectContaining({ personId: clientPerson.id, roleKey: 'APPLICANT', isPrimary: true })]))
+    expect(replacementParticipants).not.toEqual(expect.arrayContaining([expect.objectContaining({ personId: professional.personId, roleKey: 'PROFESSIONAL' })]))
+    const replacementEventNames = await prisma.eventOutbox.findMany({ where: { entityType: 'OboPermitApplication', entityId: replacement.id }, select: { event: true } })
+    expect(replacementEventNames.map((item) => item.event)).toEqual(expect.arrayContaining(['obo.permit_application.created', 'obo.permit_application.replacement_created']))
   })
 
   it('registers, auto-generates a professional number, and supports receiving-officer verification', async () => {
-    const response = await request(app).post('/api/v1/obo/professionals').set(auth(clientToken())).set('Idempotency-Key', idempotencyKey('professional-create')).send({ firstName: 'New', lastName: 'Professional', email: `${unique('new-professional')}@example.test`, professionalRole: 'ARCHITECT' })
-    expect(response.status).toBe(201)
-    expect(response.body.data.registrationNumber).toMatch(/^PRO-[A-Z0-9-]+$/)
-    const professionalId = response.body.data.id
-    const verify = await request(app).post(`/api/v1/obo/professionals/${professionalId}/verify`).set(auth(receivingToken())).set('Idempotency-Key', idempotencyKey('professional-verify')).send({ reason: 'Verified during integration test' })
-    expect(verify.status).toBe(200)
-    expect(verify.body.data.status).toBe('VERIFIED')
+    const registrationUser = await prisma.user.create({ data: { email: `${unique('obo-api-registration')}@example.test`, roleId: clientUser.roleId, isActive: true } })
+    const registrationPerson = await prisma.person.create({ data: { userId: registrationUser.id, firstName: 'Registration', lastName: 'Professional', email: registrationUser.email } })
+    createdUserIds.push(registrationUser.id)
+    createdPersonIds.push(registrationPerson.id)
+    const registrationToken = createAccessToken({ id: registrationUser.id, authVersion: registrationUser.authVersion })
+    const apply = await request(app).post('/api/v1/obo/professionals/applications').set(auth(registrationToken)).set('Idempotency-Key', idempotencyKey('professional-apply')).send({ prcId: 'PRC-INTEGRATION-001', ptrNumber: 'PTR-INTEGRATION-001', professionalRole: 'ARCHITECT' })
+    expect(apply.status).toBe(201)
+    expect(apply.body.success).toBe(true)
+    expect(apply.body.data.registrationNumber).toMatch(/^PRO-\d{8}-[A-F0-9]{8}$/)
+    expect(apply.body.data.prcId).toBe('PRC-INTEGRATION-001')
+    expect(apply.body.data.ptrNumber).toBe('PTR-INTEGRATION-001')
+    expect(apply.body.data.status).toBe('PENDING_VERIFICATION')
+    const professionalId = apply.body.data.id
+    createdProfessionalIds.push(professionalId)
+    const decision = await request(app).post(`/api/v1/obo/professionals/applications/${professionalId}/decision`).set(auth(receivingToken())).set('Idempotency-Key', idempotencyKey('professional-decision')).send({ decision: 'ACCEPTED' })
+    expect(decision.status).toBe(200)
+    expect(decision.body.success).toBe(true)
+    expect(decision.body.data.status).toBe('VERIFIED')
+    expect(decision.body.data.registrationNumber).toBe(apply.body.data.registrationNumber)
+    const stored = await prisma.oboProfessional.findUnique({ where: { id: professionalId } })
+    expect(stored?.status).toBe('VERIFIED')
+    expect(stored?.verifiedByUserId).toBe(receivingOfficer.id)
   })
 })
