@@ -51,8 +51,8 @@ const ensurePendingProfessional = async (prisma, fixture, { roleId, passwordHash
   })
   const professional = await prisma.oboProfessional.upsert({
     where: { registrationNumber: fixture.registrationNumber },
-    update: { personId: person.id, userId: user.id, prcId: fixture.prcId, ptrNumber: fixture.ptrNumber, professionalRole: fixture.professionalRole, status: 'PENDING_VERIFICATION', verifiedByUserId: null, verifiedAt: null, verificationReason: null },
-    create: { personId: person.id, userId: user.id, registrationNumber: fixture.registrationNumber, prcId: fixture.prcId, ptrNumber: fixture.ptrNumber, professionalRole: fixture.professionalRole, status: 'PENDING_VERIFICATION' },
+    update: { personId: person.id, prcId: fixture.prcId, ptrNumber: fixture.ptrNumber, professionalRole: fixture.professionalRole, status: 'PENDING_VERIFICATION', verifiedByUserId: null, verifiedAt: null, verificationReason: null },
+    create: { personId: person.id, registrationNumber: fixture.registrationNumber, prcId: fixture.prcId, ptrNumber: fixture.ptrNumber, professionalRole: fixture.professionalRole, status: 'PENDING_VERIFICATION' },
   })
   await prisma.oboProfessionalVerificationDecision.deleteMany({ where: { professionalId: professional.id } })
   return { user, person, professional }
@@ -71,11 +71,11 @@ async function verifyOboProfessionalVerificationFixtures(prisma) {
   for (const fixture of OBO_PROFESSIONAL_VERIFICATION_FIXTURES) {
     const professional = await prisma.oboProfessional.findUnique({
       where: { registrationNumber: fixture.registrationNumber },
-      select: { id: true, status: true, userId: true, prcId: true, ptrNumber: true, professionalRole: true, verifiedByUserId: true, verifiedAt: true, verificationReason: true, person: { select: { firstName: true, lastName: true, email: true } } },
+      select: { id: true, status: true, prcId: true, ptrNumber: true, professionalRole: true, verifiedByUserId: true, verifiedAt: true, verificationReason: true, person: { select: { firstName: true, lastName: true, email: true, userId: true } } },
     })
     if (!professional) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' was not seeded.`)
     if (professional.status !== 'PENDING_VERIFICATION') throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' must be PENDING_VERIFICATION.`)
-    if (!professional.userId) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' must have a linked user.`)
+    if (!professional.person?.userId) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' must have a person linked to a user identity.`)
     if (professional.prcId !== fixture.prcId || professional.ptrNumber !== fixture.ptrNumber) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' has inconsistent credentials.`)
     if (professional.professionalRole !== fixture.professionalRole) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' must have role '${fixture.professionalRole}'.`)
     if (professional.verifiedByUserId !== null || professional.verifiedAt !== null || professional.verificationReason !== null) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' must not contain a prior verification decision.`)
