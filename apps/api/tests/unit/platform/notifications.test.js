@@ -10,8 +10,7 @@ const repository = vi.hoisted(() => ({
 
 vi.mock('../../../src/platform/notifications/notification.repository.js', () => repository)
 
-import { normalizeChannels, queueNotifications, stableIdempotencyKey } from '../../../src/platform/notifications/notification.service.js'
-import { render } from '../../../src/platform/notifications/notification.template.service.js'
+import { normalizeChannels, queueNotifications, render, stableIdempotencyKey } from '../../../src/platform/notifications/notification.service.js'
 import { clearNotificationTransports, registerNotificationTransport, unregisterNotificationTransport } from '../../../src/platform/notifications/notification.transport.js'
 import { processNotificationDelivery } from '../../../src/platform/notifications/notification.worker.js'
 
@@ -123,9 +122,9 @@ describe('platform notifications capability', () => {
   })
 
   it('builds a stable idempotency key from event context', () => {
-    expect(stableIdempotencyKey('workflow.transitioned', { referenceNumber: 'BP-1', clientUserId: 42 }, 'r1', 'EMAIL')).toBe(
-      stableIdempotencyKey('workflow.transitioned', { clientUserId: 42, referenceNumber: 'BP-1' }, 'r1', 'EMAIL'),
-    )
+    const first = stableIdempotencyKey({ correlationId: 'c1', event: 'workflow.transitioned', ruleId: 'r1', recipient: '42', templateId: 't1' })
+    const second = stableIdempotencyKey({ correlationId: 'c1', event: 'workflow.transitioned', ruleId: 'r1', recipient: '42', templateId: 't1' })
+    expect(first).toBe(second)
   })
 
   it('registers and clears notification transports', () => {
