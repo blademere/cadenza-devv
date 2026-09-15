@@ -31,3 +31,8 @@ export {
   mapApplication,
   mapMembership,
 } from './application.mapper.js'
+
+export {
+  requireApplicationContext,
+  readApplicationId,
+} from './application-context.middleware.js'
