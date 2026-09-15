@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import bcrypt from 'bcrypt'
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../../common/errors/appError.js'
 import { findUserByEmail, findUserById, createRefreshTokenRecord, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, changePassword as persistPasswordChange, listActiveSessions, revokeSession, bumpUserAuthVersion, createPasswordResetToken, findPasswordResetToken, consumePasswordResetToken, invalidatePasswordResetTokens } from './auth.repository.js'
-import { createAccessToken, createRefreshToken, verifyRefreshToken, hashToken } from './auth.tokens.js'
+import { createAccessToken, createRefreshToken, verifyRefreshToken, hashToken, normalizeAppId } from './auth.tokens.js'
 import { publish } from '../../platform/event-bus/event-bus.js'
 import { env } from '../../config/index.js'
 
@@ -79,11 +79,13 @@ const changePassword = async ({ userId, currentPassword, newPassword }) => {
 }
 const getSessions = async ({ userId }) => listActiveSessions(userId)
 const revokeSessionById = async ({ userId, sessionId }) => { const result = await revokeSession({ userId, sessionId }); if (result.count !== 1) throw new NotFoundError('Session not found or already revoked.'); await publish({ event: 'auth.session.revoked', entityType: 'RefreshToken', entityId: sessionId, actorId: userId, context: { user: { id: userId } }, idempotencyKey: `auth.session.revoked:${sessionId}` }); return { success: true } }
-const revokeAllSessions = async ({ userId }) => { await bumpUserAuthVersion(userId); await publish({ event: 'auth.session.revoked_all', entityType: 'User', entityId: userId, actorId: userId, context: { user: { id: userId } }, idempotencyKey: `auth.session.revoked-all:${userId}:${Date.now()}` }); return { success: true } }
+const revokeAllSessions = async ({ userId }) => { await bumpUserAuthVersion(userId); await publish({ event: 'auth.session.revoked_all', entityType: 'User', entityId: userId, context: { user: { id: userId } }, idempotencyKey: `auth.session.revoked-all:${userId}:${Date.now()}` }); return { success: true } }
 const refreshAccessToken = async ({ refreshToken }) => {
   let payload
   try { payload = verifyRefreshToken(refreshToken) } catch { throw new UnauthorizedError('Refresh token is invalid or expired.') }
   if (payload.type !== 'refresh' || !payload.sub || !payload.tokenId || !Number.isInteger(payload.authVersion) || payload.authVersion < 0) throw new UnauthorizedError('Refresh token is invalid.')
+  let appId
+  try { appId = normalizeAppId(payload.appId) } catch { throw new UnauthorizedError('Refresh token is invalid.') }
   const userId = Number(payload.sub)
   if (!Number.isInteger(userId) || userId <= 0) throw new UnauthorizedError('Refresh token is invalid.')
   const storedToken = await findRefreshToken(hashToken(refreshToken))
@@ -93,10 +95,10 @@ const refreshAccessToken = async ({ refreshToken }) => {
   if (storedToken.expiresAt <= new Date()) throw new UnauthorizedError('Refresh token is expired.')
   if (!storedToken.user.isActive) throw new UnauthorizedError('User account is inactive.')
   const newTokenId = createTokenId()
-  const newRefreshToken = createRefreshToken(storedToken.user, newTokenId)
+  const newRefreshToken = createRefreshToken(storedToken.user, newTokenId, appId)
   const rotation = await rotateRefreshToken({ currentTokenId: storedToken.id, newTokenId, newTokenHash: hashToken(newRefreshToken), userId: storedToken.user.id, expiresAt: getRefreshTokenExpiration() })
   if (!rotation.success) { await revokeAllRefreshTokensForUser(storedToken.userId); await publish({ event: 'auth.session.reuse_detected', entityType: 'RefreshToken', entityId: storedToken.id, actorId: storedToken.userId, context: { user: { id: storedToken.userId } }, idempotencyKey: `auth.session.reuse:${storedToken.id}:race` }); throw new UnauthorizedError('Refresh token has already been used.') }
-  return { accessToken: createAccessToken(storedToken.user), refreshToken: newRefreshToken }
+  return { accessToken: createAccessToken(storedToken.user, appId), refreshToken: newRefreshToken }
 }
 const logout = async ({ refreshToken }) => { if (!refreshToken) return; let payload; try { payload = verifyRefreshToken(refreshToken) } catch { return }; if (payload.type !== 'refresh' || !payload.tokenId) return; const storedToken = await findRefreshToken(hashToken(refreshToken)); if (!storedToken || storedToken.id !== payload.tokenId || storedToken.revokedAt) return; await revokeRefreshToken(storedToken.id); await publish({ event: 'auth.session.revoked', entityType: 'RefreshToken', entityId: storedToken.id, actorId: storedToken.userId, context: { user: { id: storedToken.userId } }, idempotencyKey: `auth.session.logout:${storedToken.id}` }) }
 
