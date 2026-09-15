@@ -6,7 +6,7 @@ import createAuthorizationContextRouter from '../platform/authorization/authoriz
 import auditRouter from '../platform/audit/audit.routes.js'
 import appointmentRouter from '../features/appointments/appointment.routes.js'
 import applicationRouter from '../platform/applications/application.routes.js'
-import oboRouter from '../modules/obo/obo.routes.js'
+import oboRouter from '../apps/obo/obo.routes.js'
 import authenticate from '../features/auth/authenticate.secure.js'
 
 const router = express.Router()
