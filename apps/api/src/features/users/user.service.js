@@ -66,8 +66,8 @@ const listUsers = async (query = {}) => {
   }
 }
 
-const registerUser = async ({ requesterId, email, roleId, password }) => {
-  const requester = await getAuthorizationContext(requesterId)
+const registerUser = async ({ requesterId, appId, email, roleId, password }) => {
+  const requester = await getAuthorizationContext(requesterId, appId)
   if (!requester)
     throw new ForbiddenError('Your account is not authorized to create users.')
   const existingUser = await findUserByEmail(email)
@@ -83,9 +83,9 @@ const registerUser = async ({ requesterId, email, roleId, password }) => {
   return toUserResponse(await createUser({ email, roleId, passwordHash }))
 }
 
-const assignUserRole = async ({ requesterId, userId, roleId }) => {
+const assignUserRole = async ({ requesterId, appId, userId, roleId }) => {
   const [requester, targetUser, targetRole] = await Promise.all([
-    getAuthorizationContext(requesterId),
+    getAuthorizationContext(requesterId, appId),
     findUserWithRole(userId),
     findRoleForAssignment(roleId),
   ])
