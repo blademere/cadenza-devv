@@ -61,7 +61,7 @@ describe('access-control service', () => {
     cache.hasCachedPermission.mockResolvedValue(false)
     repository.getUserAuthorizationContext.mockResolvedValue({ role: 'admin', permissions: [{ resource: 'obo_permit_types', action: 'create' }] })
     await expect(hasPermission(7, 'obo_permit_types', 'create')).resolves.toBe(true)
-    expect(repository.getUserAuthorizationContext).toHaveBeenCalledWith(7)
+    expect(repository.getUserAuthorizationContext).toHaveBeenCalledWith({ userId: 7, appId: null })
     expect(cache.cacheUserPermissions).toHaveBeenCalledWith(7, ['obo_permit_types:create'])
   })
 
