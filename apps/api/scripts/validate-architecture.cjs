@@ -2,6 +2,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const {
   getLayerViolations,
+  getApplicationSecurityViolations,
   hasDirectPrismaAccess,
   getRouteViolations,
 } = require('./architecture-rules.cjs')
@@ -25,6 +26,7 @@ for (const file of files) {
   const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
 
   failures.push(...getLayerViolations(relative, source))
+  failures.push(...getApplicationSecurityViolations(relative, source))
 
   const isApplicationService =
     (relative.startsWith('apps/api/src/features/') ||
