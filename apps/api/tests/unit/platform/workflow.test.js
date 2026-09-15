@@ -1,0 +1,15 @@
+import { describe, expect, it } from 'vitest'
+const { assertWorkflowDefinition } = await import('../../../src/platform/workflow/workflow.service.js')
+const validSteps = [{ key: 'START', name: 'Start', isInitial: true, isFinal: false }, { key: 'REVIEW', name: 'Review', isInitial: false, isFinal: false }, { key: 'DONE', name: 'Done', isInitial: false, isFinal: true }]
+const validTransitions = [{ key: 'TO_REVIEW', name: 'To review', fromStepKey: 'START', toStepKey: 'REVIEW', permissionKey: 'applications:review' }, { key: 'APPROVE', name: 'Approve', fromStepKey: 'REVIEW', toStepKey: 'DONE', permissionKey: 'applications:approve' }]
+
+describe('workflow capability', () => {
+  it('accepts a reachable workflow with one initial and a final state', () => expect(() => assertWorkflowDefinition({ steps: validSteps, transitions: validTransitions })).not.toThrow())
+  it('requires at least one final step', () => expect(() => assertWorkflowDefinition({ steps: validSteps.map((step) => ({ ...step, isFinal: false })), transitions: validTransitions })).toThrow())
+  it('rejects duplicate transition keys', () => expect(() => assertWorkflowDefinition({ steps: validSteps, transitions: [...validTransitions, { ...validTransitions[1], key: 'TO_REVIEW', name: 'Duplicate' }] })).toThrow())
+  it('rejects transitions leaving a final step', () => expect(() => assertWorkflowDefinition({ steps: validSteps, transitions: [...validTransitions, { key: 'LEAVE_DONE', name: 'Leave done', fromStepKey: 'DONE', toStepKey: 'REVIEW' }] })).toThrow())
+  it('rejects non-final dead-end steps', () => expect(() => assertWorkflowDefinition({ steps: [...validSteps, { key: 'DEAD_END', name: 'Dead end', isInitial: false, isFinal: false }], transitions: validTransitions })).toThrow())
+  it('rejects unreachable steps', () => expect(() => assertWorkflowDefinition({ steps: [...validSteps, { key: 'ORPHAN', name: 'Orphan', isInitial: false, isFinal: true }], transitions: validTransitions })).toThrow())
+  it('accepts the platform-standard resource:action permission format', () => expect(() => assertWorkflowDefinition({ steps: validSteps, transitions: validTransitions })).not.toThrow())
+  it('rejects malformed transition permissions', () => { const transitions = validTransitions.map((transition) => ({ ...transition })); transitions[0].permissionKey = 'application'; expect(() => assertWorkflowDefinition({ steps: validSteps, transitions })).toThrow() })
+})
