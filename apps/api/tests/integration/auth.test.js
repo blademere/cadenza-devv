@@ -22,8 +22,7 @@ const mocks = vi.hoisted(() => ({
   listActiveModules: vi.fn(),
 }))
 
-vi.mock('../../../src/platform/authorization/access-control.service.js', async (importOriginal) => ({
-  ...(await importOriginal()),
+vi.mock('../../../src/platform/authorization/access-control.service.js', () => ({
   can: mocks.can,
   canAny: vi.fn(),
   canOwn: vi.fn(),
@@ -31,19 +30,16 @@ vi.mock('../../../src/platform/authorization/access-control.service.js', async (
   getRoleById: vi.fn(),
 }))
 
-vi.mock('../../../src/features/auth/auth.repository.js', async (importOriginal) => ({
-  ...(await importOriginal()),
+vi.mock('../../../src/features/auth/auth.repository.js', () => ({
   findUserAuthState: mocks.findUserAuthState,
 }))
 
-vi.mock('../../../src/features/users/user.service.js', async (importOriginal) => ({
-  ...(await importOriginal()),
+vi.mock('../../../src/features/users/user.service.js', () => ({
   listUsers: mocks.listUsers,
   registerUser: mocks.registerUser,
 }))
 
-vi.mock('../../../src/platform/authorization/authorization-context.repository.js', async (importOriginal) => ({
-  ...(await importOriginal()),
+vi.mock('../../../src/platform/authorization/authorization-context.repository.js', () => ({
   getUserAuthorizationContext: mocks.getUserAuthorizationContext,
   listActiveModules: mocks.listActiveModules,
 }))
