@@ -26,9 +26,15 @@ const authorizeResource = ({
         return next(new ForbiddenError('User context not found.'))
       }
 
+      const appId = req.auth?.appId ?? req.appContext?.id ?? null
+      if (!appId) {
+        return next(new ForbiddenError('Application context is required for authorization.'))
+      }
+
       const resourceId = getResourceId(req)
       const allowed = await accessControlService.can({
         userId: req.user.id,
+        appId,
         resource,
         action,
       })
@@ -37,6 +43,7 @@ const authorizeResource = ({
         const context = getContext()
         await recordAuthorizationDenied({
           actorId: req.user.id,
+          appId,
           resource,
           action,
           resourceId,
@@ -62,10 +69,13 @@ const authorizeResource = ({
       if (policy) {
         const authorizationContext = await accessControlService.getAuthorizationContext(
           req.user.id,
+          appId,
         )
         const user = {
           ...req.user,
           role: authorizationContext.role,
+          roles: authorizationContext.roles,
+          appId,
         }
 
         if (typeof getOwnerId === 'function') {
@@ -83,6 +93,7 @@ const authorizeResource = ({
             const context = getContext()
             await recordAuthorizationDenied({
               actorId: req.user.id,
+              appId,
               resource,
               action,
               resourceId,
