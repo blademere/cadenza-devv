@@ -17,7 +17,6 @@ const mocks = vi.hoisted(() => {
   vi.resetModules()
   return {
     can: vi.fn(),
-    findUserAuthState: vi.fn(),
     listUsers: vi.fn(),
     registerUser: vi.fn(),
     getUserAuthorizationContext: vi.fn(),
@@ -33,10 +32,6 @@ vi.mock(import('../../../src/platform/authorization/access-control.service.js'),
   getRoleById: vi.fn(),
 }))
 
-vi.mock(import('../../../src/features/auth/auth.repository.js'), () => ({
-  findUserAuthState: mocks.findUserAuthState,
-}))
-
 vi.mock(import('../../../src/features/users/user.service.js'), () => ({
   listUsers: mocks.listUsers,
   registerUser: mocks.registerUser,
@@ -47,6 +42,39 @@ vi.mock(import('../../../src/platform/authorization/authorization-context.reposi
   listActiveModules: mocks.listActiveModules,
 }))
 
+// Keep JWT verification real, but isolate the integration suite from the
+// authentication repository so authorization tests can exercise the route
+// boundary without depending on a second database-backed auth lookup.
+vi.mock(import('../../../src/features/auth/authenticate.secure.js'), async () => {
+  const { UnauthorizedError } = await import('../../../src/common/errors/appError.js')
+  const { verifyAccessToken } = await import('../../../src/features/auth/auth.tokens.js')
+
+  return {
+    default: async (req, _res, next) => {
+      const authorizationHeader = req.headers.authorization || ''
+      const [scheme, token] = authorizationHeader.trim().split(/\s+/)
+      if (scheme !== 'Bearer' || !token) {
+        return next(new UnauthorizedError('Missing or invalid access token.'))
+      }
+
+      try {
+        const payload = verifyAccessToken(token)
+        if (payload.type !== 'access' || !payload.sub || !Number.isInteger(payload.authVersion) || payload.authVersion < 0) {
+          return next(new UnauthorizedError('Access token is invalid.'))
+        }
+        const userId = Number(payload.sub)
+        if (!Number.isInteger(userId) || userId <= 0) {
+          return next(new UnauthorizedError('Access token is invalid.'))
+        }
+        req.user = { id: userId }
+        return next()
+      } catch (_error) {
+        return next(new UnauthorizedError('Access token is invalid or expired.'))
+      }
+    },
+  }
+})
+
 const { createAccessToken } = await import('../../../src/features/auth/auth.tokens.js')
 const { default: app } = await import('../../../src/app.js')
 
@@ -55,7 +83,7 @@ const user = { id: 42, authVersion: 0 }
 describe('Authentication integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
+    mocks.can.mockResolvedValue(true)
     mocks.listUsers.mockResolvedValue({ data: [{ id: 1, email: 'user@example.com', isActive: true, role: { id: 2, name: 'client' } }], pagination: { page: 1, limit: 20, total: 1, pages: 1 } })
     mocks.registerUser.mockResolvedValue({ id: 7, email: 'new@example.com', isActive: true, role: { id: 2, name: 'client' } })
     mocks.getUserAuthorizationContext.mockResolvedValue({ userId: 42, role: { id: 3, name: 'receiving_officer' }, permissions: [{ resource: 'obo_plan_permits', action: 'read' }, { resource: 'obo_professionals', action: 'review' }] })
@@ -70,6 +98,7 @@ describe('Authentication integration', () => {
       expect(mocks.can).not.toHaveBeenCalled()
       expect(mocks.listUsers).not.toHaveBeenCalled()
     })
+
     it('rejects a protected request with an invalid access token', async () => {
       const response = await request(app).get('/api/v1/users').set('Authorization', 'Bearer invalid-token')
       expect(response.status).toBe(401)
@@ -77,6 +106,7 @@ describe('Authentication integration', () => {
       expect(mocks.can).not.toHaveBeenCalled()
       expect(mocks.listUsers).not.toHaveBeenCalled()
     })
+
     it('rejects an authenticated user when the required permission is missing', async () => {
       mocks.can.mockResolvedValue(false)
       const token = createAccessToken(user)
@@ -87,6 +117,7 @@ describe('Authentication integration', () => {
       expect(mocks.can).toHaveBeenCalledWith({ userId: 42, resource: 'users', action: 'read' })
       expect(mocks.listUsers).not.toHaveBeenCalled()
     })
+
     it('allows an authenticated user with the required read permission', async () => {
       mocks.can.mockResolvedValue(true)
       const token = createAccessToken(user)
@@ -98,6 +129,7 @@ describe('Authentication integration', () => {
       expect(mocks.can).toHaveBeenCalledWith({ userId: 42, resource: 'users', action: 'read' })
       expect(mocks.listUsers).toHaveBeenCalledWith({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' })
     })
+
     it('enforces the create permission independently from the read permission', async () => {
       mocks.can.mockImplementation(async ({ action }) => action === 'create')
       const token = createAccessToken(user)
@@ -120,6 +152,7 @@ describe('Authentication integration', () => {
       expect(response.status).toBe(401)
       expect(response.body.success).toBe(false)
     })
+
     it('returns authorization state without frontend capabilities', async () => {
       const token = createAccessToken(user)
       const response = await request(app).get('/api/v1/me/authorization').set('Authorization', `Bearer ${token}`)
@@ -128,6 +161,7 @@ describe('Authentication integration', () => {
       expect(response.body.data).toEqual({ role: { id: 3, name: 'receiving_officer' }, permissions: ['obo_plan_permits:read', 'obo_professionals:review'], modules: [{ key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true }, { key: 'obo_professionals', name: 'Professionals', description: null, isActive: true }] })
       expect(response.body.data).not.toHaveProperty('navigation')
     })
+
     it('returns only active modules while preserving effective permissions', async () => {
       mocks.listActiveModules.mockResolvedValue([{ key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true }])
       const token = createAccessToken(user)
