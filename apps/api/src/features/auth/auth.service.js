@@ -79,7 +79,7 @@ const changePassword = async ({ userId, currentPassword, newPassword }) => {
 }
 const getSessions = async ({ userId }) => listActiveSessions(userId)
 const revokeSessionById = async ({ userId, sessionId }) => { const result = await revokeSession({ userId, sessionId }); if (result.count !== 1) throw new NotFoundError('Session not found or already revoked.'); await publish({ event: 'auth.session.revoked', entityType: 'RefreshToken', entityId: sessionId, actorId: userId, context: { user: { id: userId } }, idempotencyKey: `auth.session.revoked:${sessionId}` }); return { success: true } }
-const revokeAllSessions = async ({ userId }) => { await bumpUserAuthVersion(userId); await publish({ event: 'auth.session.revoked_all', entityType: 'User', entityId: userId, context: { user: { id: userId } }, idempotencyKey: `auth.session.revoked-all:${userId}:${Date.now()}` }); return { success: true } }
+const revokeAllSessions = async ({ userId }) => { await bumpUserAuthVersion(userId); await publish({ event: 'auth.session.revoked_all', entityType: 'User', entityId: userId, actorId: userId, context: { user: { id: userId } }, idempotencyKey: `auth.session.revoked-all:${userId}:${Date.now()}` }); return { success: true } }
 const refreshAccessToken = async ({ refreshToken }) => {
   let payload
   try { payload = verifyRefreshToken(refreshToken) } catch { throw new UnauthorizedError('Refresh token is invalid or expired.') }
