@@ -4,7 +4,6 @@ const prisma = getPrismaClient()
 const findUserByEmail = async (email, db = prisma) => db.user.findUnique({ where: { email } })
 const findUserById = async (id, db = prisma) => db.user.findUnique({ where: { id: Number(id) } })
 const findUserAuthState = async (id, db = prisma) => db.user.findUnique({ where: { id: Number(id) }, select: { id: true, isActive: true, authVersion: true } })
-const findRoleByName = async (name, db = prisma) => db.role.findUnique({ where: { name }, select: { id: true, name: true, description: true } })
 const createUser = async ({ email, passwordHash, emailVerifiedAt = undefined }, db = prisma) => db.user.create({ data: { email, passwordHash, emailVerifiedAt } })
 const bumpUserAuthVersion = async (userId, { revokeRefreshTokens = true, db = prisma } = {}) => {
   const execute = async (tx) => {
@@ -47,7 +46,7 @@ const consumePasswordResetToken = async ({ tokenId, userId, passwordHash }) => p
   return { success: true }
 })
 const invalidatePasswordResetTokens = async (userId, db = prisma) => db.passwordResetToken.updateMany({ where: { userId: Number(userId), usedAt: null }, data: { usedAt: new Date() } })
-const createEmailVerificationToken = async ({ tokenHash, userId, expiresAt }, db = prisma) => db.emailVerificationToken.create({ data: { tokenHash, userId: Number(userId), expiresAt } })
+const createEmailVerificationToken = async ({ tokenHash, userId, expiresAt }, db = prisma) => db.emailVerificationToken.create({ data: { id: crypto.randomUUID(), tokenHash, userId: Number(userId), expiresAt } })
 const findEmailVerificationToken = async (tokenHash, db = prisma) => db.emailVerificationToken.findUnique({ where: { tokenHash }, include: { user: true } })
 const invalidateEmailVerificationTokens = async (userId, db = prisma) => db.emailVerificationToken.updateMany({ where: { userId: Number(userId), usedAt: null }, data: { usedAt: new Date() } })
 const consumeEmailVerificationToken = async ({ tokenId, userId }) => prisma.$transaction(async (tx) => {
@@ -63,7 +62,6 @@ export {
   findUserByEmail,
   findUserById,
   findUserAuthState,
-  findRoleByName,
   createUser,
   bumpUserAuthVersion,
   changePassword,
