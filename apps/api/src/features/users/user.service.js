@@ -27,14 +27,18 @@ import {
 } from '../../platform/authorization/access-control.service.js'
 
 const permissionKey = (permission) => {
+  if (typeof permission === 'string') return permission
   const resource = permission.resource ?? permission.module?.key
   return `${resource}:${permission.action}`
 }
 
+const toPermissionSet = (permissions = []) => {
+  if (permissions instanceof Set) return permissions
+  return new Set(permissions.map(permissionKey))
+}
+
 const canAssignRole = (requesterPermissions, targetRole) => {
-  const requesterPermissionSet = new Set(
-    (requesterPermissions || []).map((permission) => permissionKey(permission))
-  )
+  const requesterPermissionSet = toPermissionSet(requesterPermissions)
 
   return targetRole.permissions.every(({ permission }) => {
     if (permission.module?.isActive === false) return false
@@ -94,9 +98,7 @@ const assignUserRole = async ({ requesterId, appId, userId, roleId }) => {
   if (!targetUser) throw new NotFoundError('User not found.')
   if (!targetRole) throw new NotFoundError('Role not found.')
 
-  const requesterPermissionSet = new Set(
-    (requester.permissions || []).map((permission) => permissionKey(permission))
-  )
+  const requesterPermissionSet = toPermissionSet(requester.permissions)
   if (!requesterPermissionSet.has('authorization:manage'))
     throw new ForbiddenError('You do not have permission to assign user roles.')
 
