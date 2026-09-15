@@ -18,7 +18,6 @@ const spies = {
   findPersonByUserId: vi.spyOn(repository, 'findPersonByUserId'),
   findPersonById: vi.spyOn(repository, 'findPersonById'),
   findByPersonId: vi.spyOn(repository, 'findByPersonId'),
-  findByUserId: vi.spyOn(repository, 'findByUserId'),
   findById: vi.spyOn(repository, 'findById'),
   create: vi.spyOn(repository, 'create'),
   listPending: vi.spyOn(repository, 'listPending'),
@@ -61,7 +60,6 @@ describe('professional verification service', () => {
     expect(spies.create).toHaveBeenCalledWith(
       expect.objectContaining({
         personId: 'person-1',
-        userId: 'user-1',
         prcId: 'PRC-123',
         ptrNumber: 'PTR-2026-123',
         registrationNumber: expect.stringMatching(/^PRO-\d{8}-[A-F0-9]{8}$/),
@@ -102,7 +100,8 @@ describe('professional verification service', () => {
     ).rejects.toThrow('already exists')
   })
   it('returns the authenticated professional verification record', async () => {
-    spies.findByUserId.mockResolvedValue({
+    spies.findPersonByUserId.mockResolvedValue({ id: 'person-1' })
+    spies.findByPersonId.mockResolvedValue({
       id: 'professional-1',
       status: 'VERIFIED',
       prcId: 'PRC-123',
@@ -111,12 +110,14 @@ describe('professional verification service', () => {
     await expect(
       professionalService.getMine({ userId: 'user-1' })
     ).resolves.toMatchObject({ id: 'professional-1', status: 'VERIFIED' })
-    expect(spies.findByUserId).toHaveBeenCalledWith('user-1')
+    expect(spies.findPersonByUserId).toHaveBeenCalledWith('user-1')
+    expect(spies.findByPersonId).toHaveBeenCalledWith('person-1')
   })
   it('rejects a professional from deciding their own application', async () => {
     spies.findById.mockResolvedValue({
       id: 'professional-1',
-      userId: 1,
+      personId: 'person-1',
+      person: { userId: 1 },
       status: 'PENDING_VERIFICATION',
     })
     await expect(
@@ -133,8 +134,8 @@ describe('professional verification service', () => {
   it('records an accepted verification decision transactionally', async () => {
     spies.findById.mockResolvedValue({
       id: 'professional-1',
-      userId: 2,
       personId: 'person-1',
+      person: { userId: 2 },
       status: 'PENDING_VERIFICATION',
       registrationNumber: 'REG-123',
       prcId: 'PRC-123',
@@ -325,7 +326,6 @@ describe('professional credentials and events', () => {
     expect(spies.create).toHaveBeenCalledWith(
       expect.objectContaining({
         personId: 'person-1',
-        userId: 'user-1',
         prcId: 'PRC-1',
         ptrNumber: 'PTR-1',
       })
@@ -335,7 +335,8 @@ describe('professional credentials and events', () => {
     )
   })
   it('allows the professional to retrieve their verification record', async () => {
-    spies.findByUserId.mockResolvedValue({
+    spies.findPersonByUserId.mockResolvedValue({ id: 'person-1' })
+    spies.findByPersonId.mockResolvedValue({
       id: 'professional-1',
       status: 'VERIFIED',
       prcId: 'PRC-1',
@@ -366,7 +367,7 @@ describe('professional credentials and events', () => {
     spies.findById.mockResolvedValue({
       id: 'professional-1',
       personId: 'person-1',
-      userId: 'professional-user-1',
+      person: { userId: 'professional-user-1' },
       status: 'PENDING_VERIFICATION',
       registrationNumber: 'REG-1',
       prcId: 'PRC-1',
@@ -619,7 +620,7 @@ describe('professional seed architecture', () => {
     expect(applicationUpsert).toContain('formValues,')
   })
   it('assigns roles to professional verification fixtures', async () => {
-    const content = await readSeed('obo-professional-verification.js')
+    const content = await readFile(path.join(seedRoot, 'obo-professional-verification.js'), 'utf8')
     expect(content).toContain("professionalRole: 'ARCHITECT'")
     expect(content).toContain("professionalRole: 'CIVIL_ENGINEER'")
     expect(content).toContain('professionalRole: fixture.professionalRole')
