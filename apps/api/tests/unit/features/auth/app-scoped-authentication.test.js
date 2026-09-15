@@ -85,16 +85,6 @@ describe('app-scoped authentication', () => {
   })
 
   it('rejects expired access tokens before establishing identity', async () => {
-    const { verifyAccessToken: verify } = await import('../../../../src/features/auth/auth.tokens.js')
-    const verifySpy = vi.spyOn({ verify }, 'verifyAccessToken')
-    void verifySpy
-
-    const expiredToken = createAccessToken(user, 'app-obo')
-    const req = { headers: { authorization: `Bearer ${expiredToken}` } }
-    const next = vi.fn()
-
-    // The token verifier remains the authority for expiration. This test uses a deterministic
-    // expired JWT so it does not depend on wall-clock timing or token lifetime configuration.
     const jwt = await import('jsonwebtoken')
     const { env } = await import('../../../../src/config/index.js')
     const token = jwt.default.sign(
@@ -102,7 +92,8 @@ describe('app-scoped authentication', () => {
       env.JWT_ACCESS_SECRET,
       { subject: '42', issuer: 'express-app', audience: 'api' },
     )
-    req.headers.authorization = `Bearer ${token}`
+    const req = { headers: { authorization: `Bearer ${token}` } }
+    const next = vi.fn()
 
     await authenticate(req, {}, next)
 
