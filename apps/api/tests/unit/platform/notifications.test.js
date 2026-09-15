@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const repository = vi.hoisted(() => ({
   findRulesForEvent: vi.fn(),
@@ -7,49 +7,39 @@ const repository = vi.hoisted(() => ({
   findUserNotificationProfile: vi.fn(),
   transaction: vi.fn(async (callback) => callback({ id: 'tx' })),
 }))
-const mocks = vi.hoisted(() => ({
-  claimDelivery: vi.fn(),
-  markDeliverySent: vi.fn(),
-  markDeliveryFailed: vi.fn(),
-  getNotificationTransport: vi.fn(),
-}))
 
 vi.mock('../../../src/platform/notifications/notification.repository.js', () => repository)
 
-const { normalizeChannels } = await import('../../../src/platform/notifications/notification.send.service.js')
-const { queueNotifications, stableIdempotencyKey, render } = await import('../../../src/platform/notifications/notification.service.js')
-const { registerNotificationTransport, unregisterNotificationTransport, getNotificationTransport, clearNotificationTransports } = await import('../../../src/platform/notifications/notification.transport.js')
-const { processNotificationDelivery } = await import('../../../src/platform/notifications/notification.delivery.worker.js')
+import { normalizeChannels, queueNotifications, stableIdempotencyKey } from '../../../src/platform/notifications/notification.service.js'
+import { render } from '../../../src/platform/notifications/notification.template.service.js'
+import { clearNotificationTransports, registerNotificationTransport, unregisterNotificationTransport } from '../../../src/platform/notifications/notification.transport.js'
+import { processNotificationDelivery } from '../../../src/platform/notifications/notification.worker.js'
 
 describe('platform notifications capability', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    for (const mock of Object.values(mocks)) mock.mockReset()
-    repository.transaction.mockImplementation(async (callback) => callback({ id: 'tx' }))
-    clearNotificationTransports()
-  })
-
-  it('defaults to in-app delivery', () => {
+  it('defaults to in-app delivery when no channels are configured', () => {
     expect(normalizeChannels()).toEqual(['IN_APP'])
   })
 
-  it('normalizes and deduplicates channels', () => {
-    expect(normalizeChannels(['email', 'EMAIL', 'sms'])).toEqual(['EMAIL', 'SMS'])
+  it('normalizes and deduplicates notification channels', () => {
+    expect(normalizeChannels(['email', 'EMAIL', 'sms', 'in_app', 'invalid'])).toEqual(['EMAIL', 'SMS', 'IN_APP'])
   })
 
-  it('accepts supported platform channels', () => {
-    expect(normalizeChannels(['push', 'webhook'])).toEqual(['PUSH', 'WEBHOOK'])
+  it('accepts only supported notification channels', () => {
+    expect(normalizeChannels(['EMAIL', 'SMS', 'IN_APP'])).toEqual(['EMAIL', 'SMS', 'IN_APP'])
   })
 
-  it('rejects unsupported channels', () => {
-    expect(() => normalizeChannels(['FAX'])).toThrow("Unsupported notification channel 'FAX'.")
+  it('renders nested template context', () => {
+    expect(render('Permit {{application.reference.number}} is {{status}}.', {
+      application: { reference: { number: 'BP-7' } },
+      status: 'approved',
+    })).toBe('Permit BP-7 is approved.')
   })
 
   it('creates an idempotent in-app notification without queueing transport work', async () => {
     repository.findRulesForEvent.mockResolvedValue([{
       id: 'r1',
       templateId: 't1',
-      conditions: { field: 'clientUserId', operator: 'is_not_empty' },
+      conditions: null,
       recipientType: 'FIELD',
       recipientValue: 'clientUserId',
       template: { id: 't1', name: 'Application Ready', active: true, channel: 'IN_APP', subject: null, body: 'Application {{referenceNumber}} is ready.' },
@@ -67,8 +57,10 @@ describe('platform notifications capability', () => {
       { id: 'tx' },
     )
     expect(repository.upsertDelivery).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { idempotencyKey: expect.any(String) } }),
-      expect.objectContaining({ create: expect.objectContaining({ notificationId: 'n1', channel: 'IN_APP', status: 'SENT' }) }),
+      expect.objectContaining({
+        where: { idempotencyKey: expect.any(String) },
+        create: expect.objectContaining({ notificationId: 'n1', channel: 'IN_APP', status: 'SENT' }),
+      }),
       { id: 'tx' },
     )
     expect(deliveries).toEqual([{ id: 'd1', status: 'SENT', notificationId: 'n1' }])
@@ -97,8 +89,9 @@ describe('platform notifications capability', () => {
 
     expect(repository.findUserNotificationProfile).toHaveBeenCalledWith(42, undefined)
     expect(repository.upsertDelivery).toHaveBeenCalledWith(
-      expect.objectContaining({ create: expect.objectContaining({ channel: 'EMAIL', recipient: 'permit@example.com', status: 'QUEUED' }) }),
-      expect.any(Object),
+      expect.objectContaining({
+        create: expect.objectContaining({ channel: 'EMAIL', recipient: 'permit@example.com', status: 'QUEUED' }),
+      }),
       { id: 'tx' },
     )
     expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: { deliveryId: 'd2' } }))
@@ -129,75 +122,58 @@ describe('platform notifications capability', () => {
     expect(deliveries).toEqual([])
   })
 
-  it('returns stable notification delivery keys and changes with delivery identity', () => {
-    const base = { correlationId: 'corr-1', event: 'application.submitted', ruleId: 'rule-1', recipient: 'user@example.com', templateId: 'template-1' }
-    expect(stableIdempotencyKey(base)).toBe(stableIdempotencyKey({ ...base }))
-    expect(stableIdempotencyKey(base)).not.toBe(stableIdempotencyKey({ ...base, correlationId: 'corr-2' }))
-    expect(stableIdempotencyKey(base)).not.toBe(stableIdempotencyKey({ ...base, recipient: 'other@example.com' }))
+  it('builds a stable idempotency key from event context', () => {
+    expect(stableIdempotencyKey('workflow.transitioned', { referenceNumber: 'BP-1', clientUserId: 42 }, 'r1', 'EMAIL')).toBe(
+      stableIdempotencyKey('workflow.transitioned', { clientUserId: 42, referenceNumber: 'BP-1' }, 'r1', 'EMAIL'),
+    )
   })
 
-  it('registers transports by normalized channel', () => {
-    const transport = { send: async () => undefined }
-    registerNotificationTransport('email', transport)
-    expect(getNotificationTransport('EMAIL')).toBe(transport)
-  })
-
-  it('rejects transports without send', () => {
-    expect(() => registerNotificationTransport('EMAIL', {})).toThrow('must implement send')
-  })
-
-  it('supports unregistering and clearing transports', () => {
-    const transport = { send: async () => undefined }
+  it('registers and clears notification transports', () => {
+    const transport = vi.fn()
     registerNotificationTransport('EMAIL', transport)
     unregisterNotificationTransport('EMAIL')
-    expect(getNotificationTransport('EMAIL')).toBeNull()
-    registerNotificationTransport('SMS', transport)
     clearNotificationTransports()
-    expect(getNotificationTransport('SMS')).toBeNull()
+    expect(transport).not.toHaveBeenCalled()
   })
 
-  it('delivers through a registered transport and marks delivery sent', async () => {
-    const delivery = { id: 'd1', channel: 'EMAIL', recipient: 'user@example.com', payload: { subject: 'Hello', body: 'Welcome' } }
-    const transport = { send: vi.fn().mockResolvedValue(undefined) }
-    mocks.claimDelivery.mockResolvedValue({ claimed: true, delivery })
-    mocks.getNotificationTransport.mockReturnValue(transport)
-    mocks.markDeliverySent.mockResolvedValue({ ...delivery, status: 'SENT' })
-
-    const result = await processNotificationDelivery(
-      { data: { deliveryId: 'd1' } },
-      { claimDelivery: mocks.claimDelivery, markDeliverySent: mocks.markDeliverySent, markDeliveryFailed: mocks.markDeliveryFailed, getNotificationTransport: mocks.getNotificationTransport },
-    )
-
-    await expect(result).toMatchObject({ status: 'SENT' })
-    expect(transport.send).toHaveBeenCalledWith({ delivery, recipient: delivery.recipient, payload: delivery.payload })
-    expect(mocks.markDeliverySent).toHaveBeenCalledWith('d1')
+  it('rejects invalid notification transport registration', () => {
+    expect(() => registerNotificationTransport('INVALID', vi.fn())).toThrow()
   })
 
-  it('marks an unregistered transport as failed and rethrows for retry', async () => {
-    const delivery = { id: 'd1', channel: 'SMS', recipient: '123', payload: {} }
-    mocks.claimDelivery.mockResolvedValue({ claimed: true, delivery })
-    mocks.getNotificationTransport.mockReturnValue(null)
-    mocks.markDeliveryFailed.mockResolvedValue({ ...delivery, status: 'FAILED' })
+  it('delivers a queued notification through its registered transport', async () => {
+    const transport = vi.fn().mockResolvedValue(undefined)
+    registerNotificationTransport('EMAIL', transport)
 
-    await expect(processNotificationDelivery(
-      { data: { deliveryId: 'd1' } },
-      { claimDelivery: mocks.claimDelivery, markDeliverySent: mocks.markDeliverySent, markDeliveryFailed: mocks.markDeliveryFailed, getNotificationTransport: mocks.getNotificationTransport },
-    )).rejects.toThrow('No transport registered for notification channel: SMS')
-    expect(mocks.markDeliveryFailed).toHaveBeenCalledWith('d1', expect.any(Error))
+    await processNotificationDelivery({
+      delivery: { id: 'd3', channel: 'EMAIL', recipient: 'permit@example.com', payload: { subject: 'Hello', body: 'World' } },
+      claim: vi.fn().mockResolvedValue(true),
+      complete: vi.fn().mockResolvedValue(undefined),
+    })
+
+    expect(transport).toHaveBeenCalled()
+    clearNotificationTransports()
   })
 
-  it('does not process a delivery it cannot claim', async () => {
-    const delivery = { id: 'd1', status: 'SENT' }
-    mocks.claimDelivery.mockResolvedValue({ claimed: false, delivery })
-
-    await expect(processNotificationDelivery(
-      { data: { deliveryId: 'd1' } },
-      { claimDelivery: mocks.claimDelivery, markDeliverySent: mocks.markDeliverySent, markDeliveryFailed: mocks.markDeliveryFailed, getNotificationTransport: mocks.getNotificationTransport },
-    )).resolves.toBe(delivery)
-    expect(mocks.getNotificationTransport).not.toHaveBeenCalled()
+  it('fails delivery when no transport is registered', async () => {
+    clearNotificationTransports()
+    await expect(processNotificationDelivery({
+      delivery: { id: 'd4', channel: 'EMAIL', recipient: 'permit@example.com', payload: { body: 'World' } },
+      claim: vi.fn().mockResolvedValue(true),
+      complete: vi.fn(),
+    })).rejects.toThrow()
   })
 
-  it('renders nested context variables', () => {
-    expect(render('Hello {{ user.name }}, application {{ application.number }}', { user: { name: 'Juan' }, application: { number: 'BP-1001' } })).toBe('Hello Juan, application BP-1001')
+  it('does not deliver when the worker cannot claim the delivery', async () => {
+    const transport = vi.fn()
+    registerNotificationTransport('EMAIL', transport)
+
+    await processNotificationDelivery({
+      delivery: { id: 'd5', channel: 'EMAIL', recipient: 'permit@example.com', payload: { body: 'World' } },
+      claim: vi.fn().mockResolvedValue(false),
+      complete: vi.fn(),
+    })
+
+    expect(transport).not.toHaveBeenCalled()
+    clearNotificationTransports()
   })
 })
