@@ -29,7 +29,6 @@ const listUsers = userService.listUsers
 const registerUser = userService.registerUser
 
 const authorizationMocks = vi.hoisted(() => ({
-  findUserAuthState: vi.fn(),
   getUserAuthorizationContext: vi.fn(),
   listActiveModules: vi.fn(),
 }))
@@ -38,24 +37,6 @@ vi.mock('../../../src/platform/authorization/authorization-context.repository.js
   getUserAuthorizationContext: authorizationMocks.getUserAuthorizationContext,
   listActiveModules: authorizationMocks.listActiveModules,
 }))
-
-const authorizationTokens = await import('../../../src/features/auth/auth.tokens.js')
-
-const configureAuthorizationMocks = () => {
-  authorizationMocks.findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
-  authorizationMocks.getUserAuthorizationContext.mockResolvedValue({
-    userId: 42,
-    role: { id: 3, name: 'receiving_officer' },
-    permissions: [
-      { resource: 'obo_plan_permits', action: 'read' },
-      { resource: 'obo_professionals', action: 'review' },
-    ],
-  })
-  authorizationMocks.listActiveModules.mockResolvedValue([
-    { key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true },
-    { key: 'obo_professionals', name: 'Professionals', description: null, isActive: true },
-  ])
-}
 
 describe('Authentication integration', () => {
   describe('access control', () => {
@@ -127,7 +108,19 @@ describe('Authentication integration', () => {
   describe('authorization context', () => {
     beforeEach(() => {
       vi.clearAllMocks()
-      configureAuthorizationMocks()
+      findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
+      authorizationMocks.getUserAuthorizationContext.mockResolvedValue({
+        userId: 42,
+        role: { id: 3, name: 'receiving_officer' },
+        permissions: [
+          { resource: 'obo_plan_permits', action: 'read' },
+          { resource: 'obo_professionals', action: 'review' },
+        ],
+      })
+      authorizationMocks.listActiveModules.mockResolvedValue([
+        { key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true },
+        { key: 'obo_professionals', name: 'Professionals', description: null, isActive: true },
+      ])
     })
 
     it('requires authentication', async () => {
@@ -137,7 +130,7 @@ describe('Authentication integration', () => {
     })
 
     it('returns authorization state without frontend capabilities', async () => {
-      const token = authorizationTokens.createAccessToken({ id: 42, authVersion: 0 })
+      const token = createAccessToken({ id: 42, authVersion: 0 })
       const response = await request(app).get('/api/v1/me/authorization').set('Authorization', `Bearer ${token}`)
       expect(response.status).toBe(200)
       expect(response.body.success).toBe(true)
@@ -156,7 +149,7 @@ describe('Authentication integration', () => {
       authorizationMocks.listActiveModules.mockResolvedValue([
         { key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true },
       ])
-      const token = authorizationTokens.createAccessToken({ id: 42, authVersion: 0 })
+      const token = createAccessToken({ id: 42, authVersion: 0 })
       const response = await request(app).get('/api/v1/me/authorization').set('Authorization', `Bearer ${token}`)
       expect(response.status).toBe(200)
       expect(response.body.data.permissions).toEqual(['obo_plan_permits:read', 'obo_professionals:review'])
