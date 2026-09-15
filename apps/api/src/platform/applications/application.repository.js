@@ -30,6 +30,16 @@ const getMembership = async ({ userId, appId }) => prisma.appMembership.findUniq
   },
 })
 
+const getMembershipById = async (membershipId) => prisma.appMembership.findUnique({
+  where: { id: membershipId },
+  include: {
+    app: true,
+    roles: {
+      include: { role: true },
+    },
+  },
+})
+
 const listUserApps = async (userId) => prisma.appMembership.findMany({
   where: {
     userId: Number(userId),
@@ -87,6 +97,7 @@ export {
   getAppById,
   listActiveApps,
   getMembership,
+  getMembershipById,
   listUserApps,
   createMembership,
   disableMembership,
