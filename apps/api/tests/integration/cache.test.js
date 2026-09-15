@@ -4,14 +4,14 @@ const {
   getRedisClient,
   connectRedis,
   disconnectRedis,
-} = require('../../../src/infrastructure/cache/redis')
+} = await import('../../../src/infrastructure/cache/redis.js')
 const {
   PERMISSION_CACHE_TTL,
   getPermissionCacheKey,
   hasCachedPermission,
   cacheUserPermissions,
   invalidateUserPermissionCache,
-} = require('../../../src/platform/authorization/access-control.cache')
+} = await import('../../../src/platform/authorization/access-control.cache.js')
 const runIntegrationTests = process.env.RUN_REDIS_INTEGRATION_TESTS === 'true'
 const describeIfEnabled = runIntegrationTests ? describe : describe.skip
 
