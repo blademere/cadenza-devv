@@ -1,11 +1,12 @@
 model App {
-  id               String             @id @default(uuid())
-  key              String             @unique
-  name             String
-  description      String?
-  isActive         Boolean            @default(true)
-  memberships      AppMembership[]
+  id                String             @id @default(uuid())
+  key               String             @unique
+  name              String
+  description       String?
+  isActive          Boolean            @default(true)
+  memberships       AppMembership[]
   approvalInstances ApprovalInstance[]
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  auditLogs         AuditLog[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 }
