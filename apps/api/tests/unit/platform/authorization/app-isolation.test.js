@@ -52,7 +52,7 @@ describe('application authorization isolation', () => {
 
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
       statusCode: 403,
-      message: "Application context 'obo' is required.",
+      message: 'User does not have an active membership for this application.',
     }))
     expect(context.setApplicationContext).not.toHaveBeenCalled()
   })
