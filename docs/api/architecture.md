@@ -17,7 +17,7 @@ modules → features → platform → infrastructure
 
 ## Layer responsibilities
 
-### `apps/api/src/modules/`
+### `apps/api/src/apps/`
 
 Modules own domain terminology, domain validation, domain workflows and policies, domain-specific persistence through repositories, domain-owned API composition, and domain-owned authorization policy administration.
 

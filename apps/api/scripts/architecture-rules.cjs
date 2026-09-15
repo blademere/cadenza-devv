@@ -4,28 +4,68 @@ const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:features|modules)\//
 const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_INFRASTRUCTURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform|modules)\//
-const PRISMA_IMPORT = new RegExp(String.raw`(?:\.\./)+infrastructure/database/prisma(?:['"]|/|$)`)
+const PRISMA_IMPORT = new RegExp(
+  String.raw`(?:\.\./)+infrastructure/database/prisma(?:['"]|/|$)`
+)
 const PRISMA_CLIENT_ACCESS = /\b(?:getPrismaClient|PrismaClient)\s*\(/
 
 const PLATFORM_PRISMA_LEGACY_EXCEPTIONS = new Set()
 
 const MUTATION = /router\.(post|put|patch|delete)\s*\(/g
-const RESOURCE_ROUTE = /router\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
-const IDEMPOTENCY_MIDDLEWARE = /\b(?:requireIdempotency|idempotency(?:Middleware)?)\b/
-const AUTHORIZATION_MIDDLEWARE = /\bauthorizeResource\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/
+const RESOURCE_ROUTE =
+  /router\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
+const IDEMPOTENCY_MIDDLEWARE =
+  /\b(?:requireIdempotency|idempotency(?:Middleware)?)\b/
+const AUTHORIZATION_MIDDLEWARE =
+  /\bauthorizeResource\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/
 
-const normalizeRelativePath = (file) => path.relative(process.cwd(), file).replaceAll(path.sep, '/')
-const isApplicationService = (relative) => (relative.startsWith('apps/api/src/features/') || relative.startsWith('apps/api/src/modules/') || relative.startsWith('apps/api/src/platform/')) && /(?:^|\/)\w+(?:\.query)?\.service\.(?:js|cjs|mjs)$/.test(relative)
-const hasDirectPrismaAccess = (source) => PRISMA_IMPORT.test(source) || PRISMA_CLIENT_ACCESS.test(source)
-const isPlatformPrismaLegacyException = (relative) => PLATFORM_PRISMA_LEGACY_EXCEPTIONS.has(relative)
+const normalizeRelativePath = (file) =>
+  path.relative(process.cwd(), file).replaceAll(path.sep, '/')
+const isApplicationService = (relative) =>
+  (relative.startsWith('apps/api/src/features/') ||
+    relative.startsWith('apps/api/src/apps/') ||
+    relative.startsWith('apps/api/src/platform/')) &&
+  /(?:^|\/)\w+(?:\.query)?\.service\.(?:js|cjs|mjs)$/.test(relative)
+const hasDirectPrismaAccess = (source) =>
+  PRISMA_IMPORT.test(source) || PRISMA_CLIENT_ACCESS.test(source)
+const isPlatformPrismaLegacyException = (relative) =>
+  PLATFORM_PRISMA_LEGACY_EXCEPTIONS.has(relative)
 
 const getLayerViolations = (relative, source) => {
   const failures = []
-  if (relative.startsWith('apps/api/src/platform/') && FORBIDDEN_PLATFORM_IMPORT.test(source)) failures.push(`${relative}: platform code must not import features or modules.`)
-  if (relative.startsWith('apps/api/src/features/') && FORBIDDEN_FEATURE_IMPORT.test(source)) failures.push(`${relative}: shared features must not import modules.`)
-  if (relative.startsWith('apps/api/src/infrastructure/') && FORBIDDEN_INFRASTRUCTURE_IMPORT.test(source)) failures.push(`${relative}: infrastructure must not import modules.`)
-  if (relative.startsWith('apps/api/src/common/') && FORBIDDEN_COMMON_IMPORT.test(source)) failures.push(`${relative}: common code must not import features, platform, or modules.`)
-  if (relative.startsWith('apps/api/src/platform/') && isApplicationService(relative) && hasDirectPrismaAccess(source) && !isPlatformPrismaLegacyException(relative)) failures.push(`${relative}: platform services must not access Prisma directly; use a repository or explicit infrastructure boundary.`)
+  if (
+    relative.startsWith('apps/api/src/platform/') &&
+    FORBIDDEN_PLATFORM_IMPORT.test(source)
+  )
+    failures.push(
+      `${relative}: platform code must not import features or modules.`
+    )
+  if (
+    relative.startsWith('apps/api/src/features/') &&
+    FORBIDDEN_FEATURE_IMPORT.test(source)
+  )
+    failures.push(`${relative}: shared features must not import modules.`)
+  if (
+    relative.startsWith('apps/api/src/infrastructure/') &&
+    FORBIDDEN_INFRASTRUCTURE_IMPORT.test(source)
+  )
+    failures.push(`${relative}: infrastructure must not import modules.`)
+  if (
+    relative.startsWith('apps/api/src/common/') &&
+    FORBIDDEN_COMMON_IMPORT.test(source)
+  )
+    failures.push(
+      `${relative}: common code must not import features, platform, or modules.`
+    )
+  if (
+    relative.startsWith('apps/api/src/platform/') &&
+    isApplicationService(relative) &&
+    hasDirectPrismaAccess(source) &&
+    !isPlatformPrismaLegacyException(relative)
+  )
+    failures.push(
+      `${relative}: platform services must not access Prisma directly; use a repository or explicit infrastructure boundary.`
+    )
   return failures
 }
 
@@ -103,7 +143,9 @@ const getRouteViolations = (relative, source) => {
     const explicitlyExempt = /idempotency\s*:\s*exempt/i.test(context)
 
     if (!IDEMPOTENCY_MIDDLEWARE.test(statement) && !explicitlyExempt) {
-      failures.push(`${relative}: ${match[1].toUpperCase()} mutation must use shared idempotency middleware or an explicit 'idempotency: exempt' comment with justification.`)
+      failures.push(
+        `${relative}: ${match[1].toUpperCase()} mutation must use shared idempotency middleware or an explicit 'idempotency: exempt' comment with justification.`
+      )
     }
   }
 
@@ -113,7 +155,9 @@ const getRouteViolations = (relative, source) => {
     const statement = source.slice(operationStart, statementEnd)
 
     if (!AUTHORIZATION_MIDDLEWARE.test(statement)) {
-      failures.push(`${relative}: resource route '${match[2]}' must use authorizeResource or an explicit resource-authorization helper.`)
+      failures.push(
+        `${relative}: resource route '${match[2]}' must use authorizeResource or an explicit resource-authorization helper.`
+      )
     }
   }
 

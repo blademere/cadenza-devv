@@ -7,10 +7,7 @@ const {
 } = require('./architecture-rules.cjs')
 
 const ROOT = path.resolve(__dirname, '..', 'src')
-const ROUTE_ROOTS = [
-  path.join(ROOT, 'features'),
-  path.join(ROOT, 'modules'),
-]
+const ROUTE_ROOTS = [path.join(ROOT, 'features'), path.join(ROOT, 'modules')]
 
 const walk = (directory) => {
   if (!fs.existsSync(directory)) return []
@@ -30,18 +27,25 @@ for (const file of files) {
   failures.push(...getLayerViolations(relative, source))
 
   const isApplicationService =
-    (relative.startsWith('apps/api/src/features/') || relative.startsWith('apps/api/src/modules/')) &&
+    (relative.startsWith('apps/api/src/features/') ||
+      relative.startsWith('apps/api/src/apps/')) &&
     /(?:^|\/)\w+\.service\.(?:js|cjs|mjs)$/.test(relative)
 
   if (isApplicationService && hasDirectPrismaAccess(source)) {
-    failures.push(`${relative}: services must not access Prisma directly; use a repository.`)
+    failures.push(
+      `${relative}: services must not access Prisma directly; use a repository.`
+    )
   }
 }
 
 for (const routeRoot of ROUTE_ROOTS) {
-  for (const file of walk(routeRoot).filter((entry) => entry.endsWith('.routes.js'))) {
+  for (const file of walk(routeRoot).filter((entry) =>
+    entry.endsWith('.routes.js')
+  )) {
     const source = fs.readFileSync(file, 'utf8')
-    const relative = path.relative(process.cwd(), file).replaceAll(path.sep, '/')
+    const relative = path
+      .relative(process.cwd(), file)
+      .replaceAll(path.sep, '/')
     failures.push(...getRouteViolations(relative, source))
   }
 }

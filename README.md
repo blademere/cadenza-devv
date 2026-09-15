@@ -14,7 +14,7 @@ This README is the **formal entry point** for the repository. It describes the c
 - Shared people, cases, participants, requirements, and tasks foundations.
 - Dynamic forms and configurable custom fields for genuinely variable data.
 - Reusable document, notification, audit, workflow, event, storage, queue, and related platform capabilities.
-- OBO plan-permit domain workflows under `apps/api/src/modules/obo/`.
+- OBO plan-permit domain workflows under `apps/api/src/apps/obo/`.
 - PostgreSQL persistence through Prisma and Redis-backed infrastructure.
 - OpenAPI/Swagger documentation outside production.
 - Health, readiness, liveness, metrics, logging, and monitoring support.
@@ -159,15 +159,15 @@ Never commit production secrets. Keep `.env.example` as the configuration templa
 
 ## Documentation
 
-| Document | Purpose |
-|---|---|
-| [`docs/api/architecture.md`](docs/api/architecture.md) | Stable API architecture and dependency contract |
-| [`docs/api/modules/`](docs/api/modules/) | Domain/module-specific API documentation |
-| [`docs/api/dynamic-forms.md`](docs/api/dynamic-forms.md) | Reusable dynamic forms and configurable fields |
-| [`docs/api/event-infrastructure.md`](docs/api/event-infrastructure.md) | Event/outbox infrastructure |
-| [`docs/api/workflow-engine.md`](docs/api/workflow-engine.md) | Generic workflow/versioning mechanism |
-| [`docs/api/enforcement-contracts.md`](docs/api/enforcement-contracts.md) | Enforceable repository contracts |
-| [`docs/api/security/security-and-api-contracts.md`](docs/api/security/security-and-api-contracts.md) | Security and API contracts |
-| [`apps/api/openapi/openapi.yaml`](apps/api/openapi/openapi.yaml) | Public API contract |
+| Document                                                                                             | Purpose                                         |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| [`docs/api/architecture.md`](docs/api/architecture.md)                                               | Stable API architecture and dependency contract |
+| [`docs/api/modules/`](docs/api/modules/)                                                             | Domain/module-specific API documentation        |
+| [`docs/api/dynamic-forms.md`](docs/api/dynamic-forms.md)                                             | Reusable dynamic forms and configurable fields  |
+| [`docs/api/event-infrastructure.md`](docs/api/event-infrastructure.md)                               | Event/outbox infrastructure                     |
+| [`docs/api/workflow-engine.md`](docs/api/workflow-engine.md)                                         | Generic workflow/versioning mechanism           |
+| [`docs/api/enforcement-contracts.md`](docs/api/enforcement-contracts.md)                             | Enforceable repository contracts                |
+| [`docs/api/security/security-and-api-contracts.md`](docs/api/security/security-and-api-contracts.md) | Security and API contracts                      |
+| [`apps/api/openapi/openapi.yaml`](apps/api/openapi/openapi.yaml)                                     | Public API contract                             |
 
-General documentation describes current implementation and stable engineering contracts. Historical implementation phases and temporary migration plans do not belong in the README or architecture contract. Domain workflows and domain-specific requirements belong under `docs/api/modules/<module>/`. 
+General documentation describes current implementation and stable engineering contracts. Historical implementation phases and temporary migration plans do not belong in the README or architecture contract. Domain workflows and domain-specific requirements belong under `docs/api/modules/<module>/`.
