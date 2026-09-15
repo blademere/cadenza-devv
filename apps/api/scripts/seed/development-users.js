@@ -1,10 +1,29 @@
 import bcrypt from 'bcrypt'
 
-const ensureUser = async (prisma, { email, roleId, passwordHash }) => prisma.user.upsert({
-  where: { email },
-  update: { roleId, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
-  create: { email, roleId, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
-})
+const ensureUser = async (prisma, { email, roleId, passwordHash }) => {
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: { isActive: true, ...(passwordHash ? { passwordHash } : {}) },
+    create: { email, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
+  })
+
+  if (roleId) {
+    const app = await prisma.app.findUnique({ where: { key: 'obo' } })
+    if (!app) throw new Error("Application 'obo' must be seeded before development users.")
+    const membership = await prisma.appMembership.upsert({
+      where: { appId_userId: { appId: app.id, userId: user.id } },
+      update: { isActive: true },
+      create: { appId: app.id, userId: user.id },
+    })
+    await prisma.appMembershipRole.upsert({
+      where: { membershipId_roleId: { membershipId: membership.id, roleId } },
+      update: {},
+      create: { membershipId: membership.id, roleId },
+    })
+  }
+
+  return user
+}
 
 const ensurePerson = async (prisma, { userId, firstName, lastName, email, phone }) => prisma.person.upsert({
   where: { userId },
@@ -26,13 +45,7 @@ async function seedDevelopmentUsers(prisma, { roles }) {
 
   const passwordHash = await bcrypt.hash(adminPassword, 12)
   const admin = await ensureUser(prisma, { email: adminEmail, roleId: roles.admin.id, passwordHash })
-  await ensurePerson(prisma, {
-    userId: admin.id,
-    firstName: 'System',
-    lastName: 'Administrator',
-    email: admin.email,
-    phone: '+630000000000',
-  })
+  await ensurePerson(prisma, { userId: admin.id, firstName: 'System', lastName: 'Administrator', email: admin.email, phone: '+630000000000' })
   console.log(`Development admin ensured: ${adminEmail}`)
   return { admin, demoPasswordHash }
 }
