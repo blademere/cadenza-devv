@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- provider and its hook share the application context boundary */
-import { createContext, useCallback, useContext, useEffect, useMemo } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { applicationsApi } from '../api/applications.api'
 import { useAuth } from '../../auth/components/AuthProvider'
@@ -10,6 +10,11 @@ export const APPLICATION_QUERY_KEY = ['application', 'context']
 export function ApplicationProvider({ children }) {
   const { isAuthenticated, accessToken, setSession } = useAuth()
   const queryClient = useQueryClient()
+  const selectionAttemptedRef = useRef(false)
+
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) selectionAttemptedRef.current = false
+  }, [isAuthenticated, accessToken])
 
   const query = useQuery({
     queryKey: APPLICATION_QUERY_KEY,
@@ -23,7 +28,8 @@ export function ApplicationProvider({ children }) {
   })
 
   useEffect(() => {
-    if (!isAuthenticated || !accessToken || query.data?.key !== 'obo') return
+    if (!isAuthenticated || !accessToken || query.data?.key !== 'obo' || selectionAttemptedRef.current) return
+    selectionAttemptedRef.current = true
 
     let cancelled = false
     const select = async () => {
