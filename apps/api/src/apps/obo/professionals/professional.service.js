@@ -50,7 +50,9 @@ const applyForVerification = async ({ userId, prcId, ptrNumber, professionalRole
   throw new ConflictError('Unable to generate a unique professional registration number.')
 }
 const getMine = async ({ userId }) => {
-  const professional = await repository.findByUserId(userId)
+  const person = await repository.findPersonByUserId(userId)
+  if (!person) throw new NotFoundError('Professional application not found.')
+  const professional = await repository.findByPersonId(person.id)
   if (!professional) throw new NotFoundError('Professional application not found.')
   return professional
 }
@@ -66,7 +68,7 @@ const decideVerification = async ({ id, actorId, decision, reason }) => {
   if (Number(professional.person?.userId) === Number(actorId)) throw new ConflictError('A professional cannot approve or decline their own application.')
   const accepted = decision === 'ACCEPTED'
   const cleanReason = reason?.trim() || null
-  if (!accepted && !cleanReason) throw new BadRequestError('A reason is required when declining a professional verification application.')
+  if (!accepted && !cleanReason) throw new BadRequestError('A reason is required when declining professional verification.')
   return repository.withTransaction(async (tx) => {
     const updated = await repository.update(id, { status: accepted ? 'VERIFIED' : 'DECLINED', verifiedByUserId: actorId, verifiedAt: new Date(), verificationReason: cleanReason }, tx)
     await repository.addDecision({ professionalId: id, decision, reason: cleanReason, decidedByUserId: actorId }, tx)
