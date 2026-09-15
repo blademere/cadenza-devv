@@ -13,30 +13,17 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
+vi.mock('../../../src/platform/authorization/access-control.service.js')
+vi.mock('../../../src/features/auth/auth.repository.js')
+vi.mock('../../../src/features/users/user.service.js')
+
+const accessControlService = await import('../../../src/platform/authorization/access-control.service.js')
+const authRepository = await import('../../../src/features/auth/auth.repository.js')
+const userService = await import('../../../src/features/users/user.service.js')
+
 const mocks = vi.hoisted(() => ({
-  can: vi.fn(),
-  findUserAuthState: vi.fn(),
-  listUsers: vi.fn(),
-  registerUser: vi.fn(),
   getUserAuthorizationContext: vi.fn(),
   listActiveModules: vi.fn(),
-}))
-
-vi.mock('../../../src/platform/authorization/access-control.service.js', () => ({
-  can: mocks.can,
-  canAny: vi.fn(),
-  canOwn: vi.fn(),
-  getAuthorizationContext: vi.fn(),
-  getRoleById: vi.fn(),
-}))
-
-vi.mock('../../../src/features/auth/auth.repository.js', () => ({
-  findUserAuthState: mocks.findUserAuthState,
-}))
-
-vi.mock('../../../src/features/users/user.service.js', () => ({
-  listUsers: mocks.listUsers,
-  registerUser: mocks.registerUser,
 }))
 
 vi.mock('../../../src/platform/authorization/authorization-context.repository.js', () => ({
@@ -47,15 +34,19 @@ vi.mock('../../../src/platform/authorization/authorization-context.repository.js
 const { createAccessToken } = await import('../../../src/features/auth/auth.tokens.js')
 const { default: app } = await import('../../../src/app.js')
 
+const { can } = accessControlService
+const { findUserAuthState } = authRepository
+const { listUsers, registerUser } = userService
+
 const user = { id: 42, authVersion: 0 }
 
 describe('Authentication integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
-    mocks.can.mockResolvedValue(true)
-    mocks.listUsers.mockResolvedValue({ data: [{ id: 1, email: 'user@example.com', isActive: true, role: { id: 2, name: 'client' } }], pagination: { page: 1, limit: 20, total: 1, pages: 1 } })
-    mocks.registerUser.mockResolvedValue({ id: 7, email: 'new@example.com', isActive: true, role: { id: 2, name: 'client' } })
+    findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
+    can.mockResolvedValue(true)
+    listUsers.mockResolvedValue({ data: [{ id: 1, email: 'user@example.com', isActive: true, role: { id: 2, name: 'client' } }], pagination: { page: 1, limit: 20, total: 1, pages: 1 } })
+    registerUser.mockResolvedValue({ id: 7, email: 'new@example.com', isActive: true, role: { id: 2, name: 'client' } })
     mocks.getUserAuthorizationContext.mockResolvedValue({ userId: 42, role: { id: 3, name: 'receiving_officer' }, permissions: [{ resource: 'obo_plan_permits', action: 'read' }, { resource: 'obo_professionals', action: 'review' }] })
     mocks.listActiveModules.mockResolvedValue([{ key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true }, { key: 'obo_professionals', name: 'Professionals', description: null, isActive: true }])
   })
@@ -65,55 +56,55 @@ describe('Authentication integration', () => {
       const response = await request(app).get('/api/v1/users')
       expect(response.status).toBe(401)
       expect(response.body.success).toBe(false)
-      expect(mocks.can).not.toHaveBeenCalled()
-      expect(mocks.listUsers).not.toHaveBeenCalled()
+      expect(can).not.toHaveBeenCalled()
+      expect(listUsers).not.toHaveBeenCalled()
     })
 
     it('rejects a protected request with an invalid access token', async () => {
       const response = await request(app).get('/api/v1/users').set('Authorization', 'Bearer invalid-token')
       expect(response.status).toBe(401)
       expect(response.body.success).toBe(false)
-      expect(mocks.can).not.toHaveBeenCalled()
-      expect(mocks.listUsers).not.toHaveBeenCalled()
+      expect(can).not.toHaveBeenCalled()
+      expect(listUsers).not.toHaveBeenCalled()
     })
 
     it('rejects an authenticated user when the required permission is missing', async () => {
-      mocks.can.mockResolvedValue(false)
+      can.mockResolvedValue(false)
       const token = createAccessToken(user)
       const response = await request(app).get('/api/v1/users').set('Authorization', `Bearer ${token}`)
       expect(response.status).toBe(403)
       expect(response.body.success).toBe(false)
-      expect(mocks.can).toHaveBeenCalledOnce()
-      expect(mocks.can).toHaveBeenCalledWith({ userId: 42, resource: 'users', action: 'read' })
-      expect(mocks.listUsers).not.toHaveBeenCalled()
+      expect(can).toHaveBeenCalledOnce()
+      expect(can).toHaveBeenCalledWith({ userId: 42, resource: 'users', action: 'read' })
+      expect(listUsers).not.toHaveBeenCalled()
     })
 
     it('allows an authenticated user with the required read permission', async () => {
-      mocks.can.mockResolvedValue(true)
+      can.mockResolvedValue(true)
       const token = createAccessToken(user)
       const response = await request(app).get('/api/v1/users?page=1&limit=20').set('Authorization', `Bearer ${token}`)
       expect(response.status).toBe(200)
       expect(response.body.success).toBe(true)
       expect(response.body.data).toHaveLength(1)
       expect(response.body.pagination).toMatchObject({ page: 1, limit: 20, total: 1, pages: 1 })
-      expect(mocks.can).toHaveBeenCalledWith({ userId: 42, resource: 'users', action: 'read' })
-      expect(mocks.listUsers).toHaveBeenCalledWith({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' })
+      expect(can).toHaveBeenCalledWith({ userId: 42, resource: 'users', action: 'read' })
+      expect(listUsers).toHaveBeenCalledWith({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' })
     })
 
     it('enforces the create permission independently from the read permission', async () => {
-      mocks.can.mockImplementation(async ({ action }) => action === 'create')
+      can.mockImplementation(async ({ action }) => action === 'create')
       const token = createAccessToken(user)
       const forbiddenResponse = await request(app).get('/api/v1/users').set('Authorization', `Bearer ${token}`)
       expect(forbiddenResponse.status).toBe(403)
-      expect(mocks.can).toHaveBeenLastCalledWith({ userId: 42, resource: 'users', action: 'read' })
+      expect(can).toHaveBeenLastCalledWith({ userId: 42, resource: 'users', action: 'read' })
 
       const idempotencyKey = `auth-access-control-create-user-${crypto.randomUUID()}`
       const allowedResponse = await request(app).post('/api/v1/users').set('Authorization', `Bearer ${token}`).set('Idempotency-Key', idempotencyKey).send({ email: 'new@example.com', roleId: 2, password: 'password123' })
       expect(allowedResponse.status).toBe(201)
       expect(allowedResponse.body.success).toBe(true)
       expect(allowedResponse.body.data).toMatchObject({ id: 7, email: 'new@example.com' })
-      expect(mocks.can).toHaveBeenLastCalledWith({ userId: 42, resource: 'users', action: 'create' })
-      expect(mocks.registerUser).toHaveBeenCalledWith({ requesterId: 42, email: 'new@example.com', roleId: 2, password: 'password123' })
+      expect(can).toHaveBeenLastCalledWith({ userId: 42, resource: 'users', action: 'create' })
+      expect(registerUser).toHaveBeenCalledWith({ requesterId: 42, email: 'new@example.com', roleId: 2, password: 'password123' })
     })
   })
 
