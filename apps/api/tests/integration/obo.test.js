@@ -10,32 +10,20 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
-const mocks = vi.hoisted(() => {
-  vi.resetModules()
-  return {
-    findUserAuthState: vi.fn(),
-    can: vi.fn(),
-    getAuthorizationContext: vi.fn(),
-  }
-})
+vi.mock('../../../src/features/auth/auth.repository.js')
+vi.mock('../../../src/platform/authorization/access-control.service.js')
 
-vi.mock(import('../../../src/features/auth/auth.repository.js'), () => ({
-  findUserAuthState: mocks.findUserAuthState,
-}))
-vi.mock(import('../../../src/platform/authorization/access-control.service.js'), () => ({
-  can: mocks.can,
-  canAny: vi.fn(),
-  canOwn: vi.fn(),
-  getAuthorizationContext: mocks.getAuthorizationContext,
-  getRoleById: vi.fn(),
-}))
-
+const authRepository = await import('../../../src/features/auth/auth.repository.js')
+const accessControlService = await import('../../../src/platform/authorization/access-control.service.js')
 const { getPrismaClient } = await import('../../../src/infrastructure/database/prisma.js')
 const { createAccessToken } = await import('../../../src/features/auth/auth.tokens.js')
 const { seedPlatformForms } = await import('../../../scripts/seed/platform-forms.js')
 const { seedOboReferenceData } = await import('../../../scripts/seed/obo-reference.js')
 const { seedOboWorkflow } = await import('../../../scripts/seed/obo-development.js')
 const { default: app } = await import('../../../src/app.js')
+
+const { findUserAuthState } = authRepository
+const { can, getAuthorizationContext } = accessControlService
 
 const prisma = getPrismaClient()
 const runIntegrationTests = process.env.RUN_INTEGRATION_TESTS === 'true'
@@ -187,9 +175,9 @@ describeIfEnabled('OBO shared-feature API integration', () => {
     createdProfessionalIds.push(professional.id)
 
     const requirementDefinitions = await Promise.all([
-      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-building-plan'), name: 'Building Plan', metadata: { required: true } } }),
-      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-site-plan'), name: 'Site Development Plan', metadata: { required: true } } }),
-      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-credentials'), name: 'Professional Credentials', metadata: { required: true } } }),
+      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-building-plan'), name: 'Building Plan', metadata: { required: true } }),
+      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-site-plan'), name: 'Site Development Plan', metadata: { required: true } }),
+      prisma.requirementDefinition.create({ data: { key: unique('obo-integration-credentials'), name: 'Professional Credentials', metadata: { required: true } }),
     ])
     createdRequirementIds.push(...requirementDefinitions.map((item) => item.id))
     requirementIds.push(...requirementDefinitions.map((item) => item.id))
@@ -199,9 +187,9 @@ describeIfEnabled('OBO shared-feature API integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findUserAuthState.mockImplementation(async (userId) => ({ id: Number(userId), isActive: true, authVersion: 0 }))
-    mocks.can.mockResolvedValue(true)
-    mocks.getAuthorizationContext.mockResolvedValue({ role: { id: clientUser.roleId, name: 'integration' }, permissions: new Set() })
+    findUserAuthState.mockImplementation(async (userId) => ({ id: Number(userId), isActive: true, authVersion: 0 }))
+    can.mockResolvedValue(true)
+    getAuthorizationContext.mockResolvedValue({ role: { id: clientUser.roleId, name: 'integration' }, permissions: new Set() })
   })
 
   afterAll(async () => {
