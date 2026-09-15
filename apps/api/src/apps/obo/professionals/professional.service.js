@@ -50,9 +50,7 @@ const applyForVerification = async ({ userId, prcId, ptrNumber, professionalRole
   throw new ConflictError('Unable to generate a unique professional registration number.')
 }
 const getMine = async ({ userId }) => {
-  const person = await repository.findPersonByUserId(userId)
-  if (!person) throw new NotFoundError('Professional application not found.')
-  const professional = await repository.findByPersonId(person.id)
+  const professional = await repository.findByUserId(userId)
   if (!professional) throw new NotFoundError('Professional application not found.')
   return professional
 }
