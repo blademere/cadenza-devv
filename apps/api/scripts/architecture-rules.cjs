@@ -23,6 +23,7 @@ const APPLICATION_SECURITY_IMPORT =
   /(?:\.\.\/)+platform\/applications\/(?:application|membership)[^'"`\s)]*/
 const AUTHORIZATION_REPOSITORY_IMPORT =
   /(?:\.\.\/)+platform\/authorization\/access-control\.repository(?:\.js)?/
+const DOMAIN_IMPORT = /(?:\.\.\/)+(?:apps|modules|features)\//
 
 const isOBOPath = (relative) =>
   relative.startsWith('apps/api/src/apps/obo/') ||
@@ -48,7 +49,7 @@ const getApplicationSecurityViolations = (relative, source) => {
 
   if (
     relative.startsWith('apps/api/src/platform/applications/') &&
-    /(?:src\/apps|src\/modules|src\/features)\//.test(source)
+    DOMAIN_IMPORT.test(source)
   ) {
     failures.push(
       `${relative}: application security must remain domain-neutral and must not depend on apps, modules, or features.`
