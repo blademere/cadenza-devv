@@ -3,6 +3,7 @@ export {
   getAppById,
   listActiveApps,
   getMembership,
+  getMembershipById,
   listUserApps,
   createMembership,
   disableMembership,
