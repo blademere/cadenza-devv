@@ -1,0 +1,10 @@
+model App {
+  id          String          @id @default(uuid())
+  key         String          @unique
+  name        String
+  description String?
+  isActive    Boolean         @default(true)
+  memberships AppMembership[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
