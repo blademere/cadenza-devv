@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt'
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../../common/errors/appError.js'
 import { findUserByEmail, findUserById, createRefreshTokenRecord, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensForUser, rotateRefreshToken, changePassword as persistPasswordChange, listActiveSessions, revokeSession, bumpUserAuthVersion, createPasswordResetToken, findPasswordResetToken, consumePasswordResetToken, invalidatePasswordResetTokens } from './auth.repository.js'
 import { createAccessToken, createRefreshToken, verifyRefreshToken, hashToken, normalizeAppId } from './auth.tokens.js'
+import { getUserMembership } from '../../platform/applications/application.service.js'
 import { publish } from '../../platform/event-bus/event-bus.js'
 import { env } from '../../config/index.js'
 
@@ -94,6 +95,10 @@ const refreshAccessToken = async ({ refreshToken }) => {
   if (storedToken.revokedAt) { await revokeAllRefreshTokensForUser(storedToken.userId); await publish({ event: 'auth.session.reuse_detected', entityType: 'RefreshToken', entityId: storedToken.id, actorId: storedToken.userId, context: { user: { id: storedToken.userId } }, idempotencyKey: `auth.session.reuse:${storedToken.id}` }); throw new UnauthorizedError('Refresh token has already been used.') }
   if (storedToken.expiresAt <= new Date()) throw new UnauthorizedError('Refresh token is expired.')
   if (!storedToken.user.isActive) throw new UnauthorizedError('User account is inactive.')
+  if (appId) {
+    const membership = await getUserMembership({ userId, appId })
+    if (!membership) throw new UnauthorizedError('Application membership is no longer active.')
+  }
   const newTokenId = createTokenId()
   const newRefreshToken = createRefreshToken(storedToken.user, newTokenId, appId)
   const rotation = await rotateRefreshToken({ currentTokenId: storedToken.id, newTokenId, newTokenHash: hashToken(newRefreshToken), userId: storedToken.user.id, expiresAt: getRefreshTokenExpiration() })
