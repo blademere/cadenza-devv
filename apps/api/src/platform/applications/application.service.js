@@ -7,6 +7,7 @@ import {
   getAppById,
   listActiveApps,
   getMembership,
+  getMembershipById,
   listUserApps,
   createMembership,
   disableMembership,
@@ -59,8 +60,8 @@ const disableUserMembership = async ({ userId, appId }) => {
 }
 
 const addMembershipRole = async ({ membershipId, roleId }) => {
-  const membershipRoles = await listMembershipRoles(membershipId)
-  if (!membershipRoles) throw new NotFoundError(`Membership '${membershipId}' was not found.`)
+  const membership = await getMembershipById(membershipId)
+  if (!membership) throw new NotFoundError(`Membership '${membershipId}' was not found.`)
   return assignMembershipRole({ membershipId, roleId })
 }
 
