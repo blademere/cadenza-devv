@@ -22,15 +22,17 @@ const getPermissionKey = (resource, action) => {
   return `${resource.trim()}:${action.trim()}`
 }
 
-const loadUserPermissions = async (userId) => {
-  const context = await getUserAuthorizationContext(userId)
-  if (!context) return { role: null, permissions: [] }
+const loadUserPermissions = async (userId, appId = null) => {
+  const context = await getUserAuthorizationContext({ userId, appId })
+  if (!context) return { role: null, roles: [], permissions: [] }
 
   const permissions = context.permissions.map((permission) =>
     getPermissionKey(permission.resource, permission.action),
   )
 
-  if (AUTHORIZATION_CACHE_ENABLED) {
+  // The existing permission cache is keyed only by user. Do not use it for
+  // app-scoped authorization or permissions could leak between applications.
+  if (!appId && AUTHORIZATION_CACHE_ENABLED) {
     try {
       await cacheUserPermissions(userId, permissions)
     } catch {
@@ -38,13 +40,18 @@ const loadUserPermissions = async (userId) => {
     }
   }
 
-  return { role: context.role, permissions }
+  return {
+    role: context.role ?? null,
+    roles: context.roles ?? [],
+    permissions,
+  }
 }
 
-const hasPermission = async (userId, resource, action) => {
+const hasPermission = async (userId, resource, action, appId = null) => {
   const permissionKey = getPermissionKey(resource, action)
 
-  if (AUTHORIZATION_CACHE_ENABLED && AUTHORIZATION_CACHE_TRUST_POSITIVE) {
+  // Positive cache entries are intentionally bypassed for app-scoped checks.
+  if (!appId && AUTHORIZATION_CACHE_ENABLED && AUTHORIZATION_CACHE_TRUST_POSITIVE) {
     try {
       const cachedPermission = await hasCachedPermission(userId, resource, action)
       if (cachedPermission === true) return true
@@ -53,7 +60,7 @@ const hasPermission = async (userId, resource, action) => {
     }
   }
 
-  const { permissions } = await loadUserPermissions(userId)
+  const { permissions } = await loadUserPermissions(userId, appId)
   const allowed = permissions.includes(permissionKey)
   if (!allowed) {
     increment('platform.authorization.denied', { resource, action })
@@ -61,21 +68,22 @@ const hasPermission = async (userId, resource, action) => {
   return allowed
 }
 
-const getAuthorizationContext = async (userId) => {
-  const context = await loadUserPermissions(userId)
+const getAuthorizationContext = async (userId, appId = null) => {
+  const context = await loadUserPermissions(userId, appId)
   return {
     userId: Number(userId),
     role: context.role,
+    roles: context.roles,
     permissions: new Set(context.permissions),
   }
 }
 
 const getRoleById = async (roleId) => findRoleById(roleId)
 
-const can = async ({ userId, resource, action }) =>
-  hasPermission(userId, resource, action)
+const can = async ({ userId, appId = null, resource, action }) =>
+  hasPermission(userId, resource, action, appId)
 
-const canAny = async ({ userId, resource, action, actions }) => {
+const canAny = async ({ userId, appId = null, resource, action, actions }) => {
   const candidateActions = Array.isArray(actions)
     ? actions
     : action !== undefined
@@ -85,15 +93,15 @@ const canAny = async ({ userId, resource, action, actions }) => {
   if (candidateActions.length === 0) return false
 
   for (const candidateAction of candidateActions) {
-    if (await hasPermission(userId, resource, candidateAction)) return true
+    if (await hasPermission(userId, resource, candidateAction, appId)) return true
   }
 
   return false
 }
 
-const canOwn = async ({ userId, resource, action, resourceOwnerId }) => {
+const canOwn = async ({ userId, appId = null, resource, action, resourceOwnerId }) => {
   if (Number(userId) !== Number(resourceOwnerId)) return false
-  return can({ userId, resource, action })
+  return can({ userId, appId, resource, action })
 }
 
 const clearUserPermissionCache = async (userId) => {
