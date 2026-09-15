@@ -51,15 +51,17 @@ The OpenAPI contract is [`apps/api/openapi/openapi.yaml`](apps/api/openapi/opena
 The repository follows this dependency direction:
 
 ```text
-modules → features → platform → infrastructure
+apps → features → platform → infrastructure
 ```
 
-- `modules` contain application/domain-specific behavior.
+- `apps` contain application/domain-specific behavior and own their public API boundaries.
 - `features` contain reusable business capabilities and application administration.
 - `platform` contains reusable engines and mechanisms.
 - `infrastructure` contains concrete technical adapters/providers and persistence.
 
-The `admin` directory is an administrative feature boundary, not a replacement for domain features. Administrative capabilities can orchestrate domain features, but domain business rules remain owned by their domain feature or module. Do not move users, forms, appointments, documents, or other domain behavior into `features/admin` merely because administrators use those capabilities.
+The `apps` directory under `apps/api/src/` contains the applications that use and expose the API. It replaces the former `apps/api/src/modules/` directory; references to the old `modules` source path should not be used for current code.
+
+The `admin` directory is an administrative feature boundary, not a replacement for domain applications. Administrative capabilities can orchestrate domain features, but domain business rules remain owned by their domain feature or application. Do not move users, forms, appointments, documents, or other domain behavior into `features/admin` merely because administrators use those capabilities.
 
 Authorization follows the same separation:
 
@@ -86,9 +88,9 @@ apps/
 │  │  ├─ config/             # API configuration
 │  │  ├─ features/           # Shared business capabilities and admin capabilities
 │  │  │  └─ admin/           # Application administration boundary
+│  │  ├─ apps/               # Applications/domain modules using and exposing the API
 │  │  ├─ platform/           # Reusable engines and mechanisms
 │  │  ├─ infrastructure/     # Technical adapters/providers
-│  │  ├─ modules/             # Application/domain modules
 │  │  └─ routes/              # API composition
 │  ├─ tests/                  # Unit and integration tests
 │  ├─ openapi/                # API-owned public contract
