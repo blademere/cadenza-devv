@@ -1,6 +1,6 @@
 # Application Architecture
 
-This document is the authoritative architectural contract for the repository. It defines stable layer responsibilities, dependency direction, persistence boundaries, API ownership, authorization ownership, and rules for extending the application.
+This document is the authoritative architectural contract for the repository. It defines the current layer responsibilities, dependency direction, persistence boundaries, API ownership, authorization ownership, and rules for extending the application.
 
 ## Dependency direction
 
@@ -8,34 +8,34 @@ This document is the authoritative architectural contract for the repository. It
 apps → features → platform → infrastructure
 ```
 
-- `apps` contain application/domain-specific behavior and own their public API boundaries.
-- `features` contain reusable business capabilities and are normally route-less.
+- `apps` contain application/domain-specific behavior and own application boundaries.
+- `features` contain reusable business capabilities and may expose API endpoints when the capability is explicitly part of the API surface.
 - `platform` contains reusable engines and mechanisms.
 - `infrastructure` contains concrete technical providers and persistence.
 
-`common/`, `config/`, and `routes/` support the API application boundary. They are not additional business-architecture layers.
+`common/`, `config/`, and `routes/` support the API application boundary. They are supporting API infrastructure rather than additional business-architecture layers.
 
-The API application directory is `apps/api/src/apps/`. It replaces the former `apps/api/src/modules/` directory. The term **app** is used for these API-consuming application/domain boundaries; `module` may still be used when referring to a domain concept in documentation, but the source directory is `src/apps`.
+The API application directory is `apps/api/src/apps/`. Current applications include `cadenza` and `obo`.
 
 ## Layer responsibilities
 
 ### `apps/api/src/apps/`
 
-Apps own domain terminology, domain validation, domain workflows and policies, domain-specific persistence through repositories, domain-owned API composition, and domain-owned authorization policy administration.
+Apps own application-specific domain terminology, domain validation, domain workflows and policies, domain-specific persistence orchestration, and application API composition.
 
-Apps may depend on shared features and platform services. Shared layers must never import an app. Create an app only when its domain is actually implemented; do not create placeholders or duplicate shared capabilities inside an app.
+Apps may depend on shared features and platform services. Shared layers must not import an app. Create an app when there is a distinct application/domain boundary that needs its own orchestration, policies, or API composition.
 
-An app is the HTTP/API boundary for its own domain. App routes/controllers may compose reusable feature services and platform mechanisms, but the app owns the endpoint, request contract, domain authorization policy, and orchestration exposed through that endpoint.
+An app owns the API boundary for its domain when that domain exposes app-owned endpoints. App routes/controllers may compose reusable feature services and platform mechanisms, but the app owns the endpoint contract, domain validation, orchestration, and domain-specific authorization policy.
 
-Authorization is scoped to the app that owns the domain. An app may define and administer its own roles, permissions, resource policies, and authorization vocabulary while using `platform/authorization` as the shared enforcement mechanism. Authorization must not be treated as one global domain model merely because the enforcement engine is shared.
+Application authorization policy belongs to the app that owns the domain. The app may use `platform/authorization` for shared enforcement, authorization context, middleware, and resource-authorization mechanisms.
 
 ### `apps/api/src/features/`
 
-Features are reusable business capabilities that can support multiple applications. Current examples include people, cases, participants, requirements, tasks, appointments, authentication, users, documents, and notifications.
+Features are reusable business capabilities that can support multiple applications or be exposed directly as an explicit API capability. Current feature boundaries include admin, appointments, auth, cases, documents, notifications, participants, people, requirements, tasks, and users.
 
-Features must remain domain-neutral and normally have no HTTP routes or controllers. A feature exposes reusable services, repositories, validation, and supporting business capability to apps. A feature must not become a second public API merely because its service is reusable.
+A feature owns its business behavior, validation, repositories, services, and—when the current API exposes that capability directly—its controllers and routes. The existence of a feature route does not make the feature a separate application; API composition remains explicit in `apps/api/src/routes/`.
 
-The application boundary should therefore follow:
+The current composition therefore follows either of these valid patterns:
 
 ```text
 HTTP request
@@ -44,36 +44,48 @@ app route/controller
     ↓
 app service
     ↓
-reusable feature service
+feature service
     ↓
 platform / infrastructure
 ```
 
-The authentication feature is an explicit exception to the route-less rule because authentication establishes the application's identity/session boundary. Authentication may own authentication-specific middleware and endpoints required to establish or terminate authenticated sessions. This exception does not grant other features permission to expose their own APIs.
+or, for an explicitly API-facing feature:
 
-Reusable features are not moved into `platform` merely because they are shared. People, cases, requirements, tasks, appointments, documents, and similar capabilities remain features when they represent reusable business behavior. Platform is reserved for domain-neutral mechanisms.
+```text
+HTTP request
+    ↓
+feature route/controller
+    ↓
+feature service
+    ↓
+platform / infrastructure
+```
+
+The `auth`, `users`, `appointments`, and `admin/authorization` features currently participate directly in the API composition. Reusable feature services remain usable internally without requiring a public endpoint.
+
+People, cases, participants, requirements, tasks, appointments, documents, users, and similar capabilities remain features when they represent reusable business behavior. They do not belong in `platform` merely because more than one app can use them.
 
 ### `apps/api/src/platform/`
 
-Platform provides reusable mechanisms such as authorization, workflow, forms, configurable custom fields, rules, event/outbox infrastructure, jobs, generic scheduling primitives, notification mechanisms, configuration, and storage boundaries.
+Platform provides reusable, domain-neutral mechanisms such as authorization, workflow, forms, configurable custom fields, rules, event/outbox infrastructure, jobs, generic scheduling primitives, notification mechanisms, context, configuration, and storage boundaries.
 
-Platform code must be provider-neutral and domain-neutral. It provides mechanisms, not application-specific business decisions.
+Platform code must remain domain-neutral. It provides mechanisms and enforcement primitives, not application-specific business decisions.
 
-`platform/authorization` is the shared authorization enforcement mechanism. It owns permission evaluation infrastructure, authorization middleware, resource-authorization primitives, authorization context, enforcement, and authorization-related caching. It does not own application-domain roles, permissions, or app policy administration.
+`platform/authorization` is the shared authorization enforcement mechanism. It provides authorization context, permission evaluation, middleware, resource-authorization primitives, enforcement, and related caching. It does not define the business meaning of an application's roles, permissions, or resource policies.
 
 The intended relationship is:
 
 ```text
-app authorization policy
-          │
-          ▼
+app / feature authorization policy
+              │
+              ▼
 platform/authorization
-          │
-          ▼
-authorization engine
+              │
+              ▼
+shared authorization enforcement
 ```
 
-The app owns the meaning and administration of its authorization model. The platform supplies the reusable mechanism for evaluating and enforcing that model.
+The application or feature owns the meaning and administration of its authorization model. The platform supplies the reusable mechanism for evaluating and enforcing that model.
 
 ### `apps/api/src/infrastructure/`
 
@@ -85,18 +97,19 @@ Infrastructure contains concrete technology integrations and persistence impleme
 2. `platform` must not import `apps` or feature implementations.
 3. `infrastructure` must not import `apps`.
 4. `common` must not import `features`, `platform`, or `apps`.
-5. Domain-specific behavior belongs in `apps`, not `platform`.
-6. App-specific authorization behavior belongs in the owning `app`; shared authorization enforcement belongs in `platform/authorization`.
-7. Features are route-less by default and must not expose public HTTP APIs through feature route/controller files.
-8. Authentication is the explicit feature exception for authentication-specific HTTP endpoints and middleware.
-9. An app may consume feature services but must not depend on feature HTTP routes/controllers.
-10. Services must not query Prisma directly when a repository boundary exists.
-11. New platform services must use repositories rather than direct Prisma access.
-12. Repositories own persistence queries and persistence-specific composition.
-13. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
-14. Platform-owned configuration must be consumed through `platform/configuration`; domain-specific configuration remains owned by the domain/app.
+5. Domain-specific application behavior belongs in `apps`.
+6. Shared business capabilities belong in `features`.
+7. Domain-neutral mechanisms belong in `platform`.
+8. App-specific authorization policy belongs to the owning app; shared authorization enforcement belongs in `platform/authorization`.
+9. Feature routes are allowed only when that feature is an explicit API capability; API composition must remain explicit in `apps/api/src/routes/`.
+10. Apps may consume feature services but should not depend on another feature's route registration.
+11. Services must not query Prisma directly when a repository boundary exists.
+12. New platform services must use repositories rather than direct Prisma access.
+13. Repositories own persistence queries and persistence-specific composition.
+14. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
+15. Platform-owned configuration must be consumed through `platform/configuration`; domain-specific configuration remains owned by the relevant app or feature.
 
-The architecture validator must enforce these boundaries where they can be checked statically. See [`docs/api/platform/architecture-rules.md`](platform/architecture-rules.md) for the detailed enforcement contract and tracked legacy exceptions.
+The architecture validator enforces these boundaries where they can be checked statically.
 
 ## Service and repository boundary
 
@@ -115,12 +128,6 @@ Services own validation, authorization decisions, orchestration, and business be
 A service should not call `getPrismaClient()`, `prisma.$transaction()`, or Prisma models directly when the operation belongs to its repository. Transactions spanning multiple repository operations should be coordinated through an explicit transaction boundary without exposing Prisma to business services.
 
 Repositories may access Prisma because persistence is their responsibility.
-
-## Platform persistence migration rule
-
-A limited set of pre-existing platform services still accesses Prisma directly. Phase 9 records these files as explicit technical-debt exceptions in `apps/api/scripts/architecture-rules.cjs`.
-
-Those exceptions are not permission to add more direct Prisma access. New platform services are rejected by architecture validation if they access Prisma directly. When an existing exception is migrated to a repository, remove its path from the exception list in the same change.
 
 ## Configuration boundary
 
@@ -142,7 +149,7 @@ Do not introduce a database-backed configuration store unless the application re
 
 ## Platform documentation
 
-The platform capability contracts are maintained under `docs/api/platform/`.
+Platform capability contracts are maintained under `docs/api/platform/`.
 
 ## Shared business modeling
 
@@ -160,11 +167,13 @@ For domain-specific forms, the app associates its business entity with a platfor
 
 ## Public API boundaries
 
-`apps/api/src/routes/index.js` is the API composition root. It should mount application-owned app APIs and the explicit authentication boundary rather than every reusable capability in the repository.
+`apps/api/src/routes/index.js` is the API composition root. It currently mounts authentication, users, administrative authorization, appointments, audit, authorization-context handling, and OBO application routes.
 
-Generic feature or platform services should not automatically become public CRUD endpoints. When an app needs a shared capability, its domain-owned route should compose that capability internally.
+The public API is mounted under `/api/v1` by `apps/api/src/app.js`.
 
-App APIs must own their endpoint paths, request/response contracts, domain-specific validation, and authorization policies. Shared feature services must not require consumers to mount feature routes in order to use the capability.
+Generic feature or platform services do not automatically become public CRUD endpoints. When a capability is public, its route is explicitly registered in `apps/api/src/routes/`.
+
+Application APIs own their endpoint paths, request/response contracts, domain-specific validation, and authorization policies. Feature APIs own the same concerns when the feature is intentionally exposed directly.
 
 ## Storage and email boundaries
 
@@ -174,10 +183,10 @@ Document features use:
 features/documents → platform/storage → infrastructure/storage
 ```
 
-Application code uses the infrastructure email boundary rather than importing a provider client directly:
+Application and feature code uses the infrastructure email boundary rather than importing a provider client directly:
 
 ```text
-application → infrastructure/email → provider
+application / feature → infrastructure/email → provider
 ```
 
 Provider selection and provider-specific implementation remain outside business features and apps.
@@ -194,41 +203,43 @@ infrastructure provides concrete technology
 
 A domain must not create a second generic workflow engine. Domain-specific transition definitions belong with the domain while execution remains in the shared platform workflow mechanism.
 
-Event processing and workers must remain domain-neutral.
+Event processing and workers should remain domain-neutral unless a worker is explicitly owned by an application or feature.
 
 ## Appointments
 
-Appointments are a shared business feature because appointment scheduling is business behavior. An app may associate an appointment with one of its own entities through an app-owned service or route without moving domain appointment semantics into the generic feature.
+Appointments are a shared business feature because appointment scheduling is business behavior. The current API explicitly mounts the appointment feature at `/api/v1/appointments`.
 
-The appointment feature does not need to expose its own HTTP API for apps to use appointment scheduling.
+Other apps or features may reuse appointment services without creating a second scheduling implementation.
 
 ## Domain documentation
 
-Domain-specific documentation is kept outside the general architecture contract:
+Domain-specific API documentation is kept under:
 
 ```text
-docs/server/modules/
+docs/api/modules/
 ├── README.md
 └── <module>/
     ├── README.md
     └── supporting documents
 ```
 
-General documentation must not become a catalog of one application's domain workflows. Domain documentation belongs in `docs/server/modules/<module>/`.
+The documentation directory describes domain behavior and implementation details. General architecture documentation remains focused on stable repository-wide contracts.
 
 ## Architectural extension rules
 
 When adding code:
 
-1. Identify whether it is domain-specific, shared business behavior, a reusable mechanism, or a concrete provider.
+1. Identify whether it is application-specific behavior, reusable business behavior, a reusable mechanism, or a concrete provider.
 2. Place it in the corresponding existing layer.
 3. Reuse an existing feature or platform mechanism before creating another abstraction.
 4. Keep persistence behind repositories.
-5. Keep shared layers independent of application apps.
-6. Put public HTTP endpoints in apps, except for the explicit authentication boundary.
-7. Keep authorization policy ownership inside the app that owns the domain; reuse `platform/authorization` for enforcement.
-8. Add tests for the behavior and update architecture enforcement when a new enforceable boundary is introduced.
-9. Document stable architectural changes here; document domain behavior under `docs/server/modules/<module>/`.
+5. Put application-specific orchestration and domain policy in the owning app.
+6. Put reusable business behavior in features.
+7. Put domain-neutral mechanisms in platform.
+8. Put public HTTP endpoints in the appropriate app or explicitly API-facing feature and register them through the API composition root.
+9. Keep authorization policy ownership with the app or feature that owns the business meaning; reuse `platform/authorization` for enforcement.
+10. Add tests for the behavior and update architecture enforcement when a new enforceable boundary is introduced.
+11. Document stable architectural changes here; document domain behavior under `docs/api/modules/<module>/`.
 
 ## Anti-patterns
 
@@ -240,7 +251,6 @@ apps/api/src/core/
 apps/api/src/application/
 apps/api/src/adapters/
 apps/api/src/platform/<specific-domain>/
-apps/api/src/features/<specific-domain>/
 ```
 
-Also avoid direct Prisma access from services, domain-specific rules in platform services, shared features importing apps, infrastructure importing apps, feature-owned public CRUD APIs, feature route registration outside the explicit authentication boundary, global authorization policy models that erase app ownership, generic JSON/custom fields for stable relationships, provider-specific clients in business code, and placeholder domain documentation.
+Also avoid direct Prisma access from services where a repository boundary exists, domain-specific rules in platform services, shared features importing apps, infrastructure importing apps, unregistered feature endpoints, global authorization policy models that erase app ownership, generic JSON/custom fields for stable relationships, provider-specific clients in business code, and documentation that describes structures not present in the current source tree.
