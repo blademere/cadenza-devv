@@ -5,8 +5,8 @@ model User {
   isActive                             Boolean                               @default(true)
   authVersion                          Int                                   @default(0)
   emailVerifiedAt                      DateTime?
-  roleId                               Int
-  role                                 Role                                  @relation(fields: [roleId], references: [id])
+  roleId                               Int?
+  role                                 Role?                                 @relation(fields: [roleId], references: [id])
   oauthAccounts                        OAuthAccount[]
   refreshTokens                        RefreshToken[]
   passwordResetTokens                  PasswordResetToken[]
@@ -132,6 +132,6 @@ model EmailVerificationToken {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash  String   @unique
   expiresAt  DateTime
-  usedAt     DateTime?
+  usedAt      DateTime?
   createdAt  DateTime  @default(now())
 }
