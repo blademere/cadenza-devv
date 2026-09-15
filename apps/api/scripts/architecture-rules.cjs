@@ -1,6 +1,6 @@
 const path = require('node:path')
 
-const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:features|modules)\//
+const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:apps|features|modules)\//
 const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_INFRASTRUCTURE_IMPORT = /(?:\.\.\/)+modules\//
 const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform|modules)\//
@@ -77,7 +77,7 @@ const getLayerViolations = (relative, source) => {
     FORBIDDEN_PLATFORM_IMPORT.test(source)
   )
     failures.push(
-      `${relative}: platform code must not import features or modules.`
+      `${relative}: platform code must not import apps, features or modules.`
     )
   if (
     relative.startsWith('apps/api/src/features/') &&
