@@ -41,6 +41,13 @@
         "cwd": "apps/api"
       }
     },
+    "test:auth": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --dir tests/integration/auth",
+        "cwd": "apps/api"
+      }
+    },
     "test:all": {
       "executor": "nx:run-commands",
       "dependsOn": ["prisma:generate"],
