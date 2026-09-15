@@ -15,7 +15,7 @@ const createAuthorizationContextRouter = ({ authenticate }) => {
     res.set('Pragma', 'no-cache')
     res.set('Expires', '0')
 
-    const appId = req.security?.app?.id ?? req.appContext?.app?.id ?? req.app?.id
+    const appId = req.security?.app?.id ?? req.appContext?.app?.id
     const authorizationContext = await getAuthorizationContextResponse({
       userId: req.user.id,
       appId,
