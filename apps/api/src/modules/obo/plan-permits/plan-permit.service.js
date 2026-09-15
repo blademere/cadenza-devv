@@ -184,6 +184,8 @@ const getMine = async ({ id, userId }) => {
   return withWorkflowState(await hydrateApplication(application))
 }
 
+const getForAuthorization = (id) => repository.findById(id)
+
 const getForReceiving = async (id) => {
   const application = await repository.findById(id)
   if (!application) throw new NotFoundError('Permit application not found.')
@@ -275,4 +277,4 @@ const submit = async ({ id, userId }) => {
   return withWorkflowState(await hydrateApplication(updated))
 }
 
-export { STATUS, WORKFLOW_KEY, SUBJECT_TYPE, PARTICIPANT_ROLE, createApplication, getMine, getForReceiving, getForApplicationDocuments, listMine, updateDraft, submit, getWorkflowState, withWorkflowState }
+export { STATUS, WORKFLOW_KEY, SUBJECT_TYPE, PARTICIPANT_ROLE, createApplication, getMine, getForAuthorization, getForReceiving, getForApplicationDocuments, listMine, updateDraft, submit, getWorkflowState, withWorkflowState }
