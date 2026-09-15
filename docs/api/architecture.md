@@ -1,6 +1,6 @@
 # Application Architecture
 
-This document is the authoritative architectural contract for the repository. It defines stable layer responsibilities, dependency direction, persistence boundaries, and rules for extending the application.
+This document is the authoritative architectural contract for the repository. It defines stable layer responsibilities, dependency direction, persistence boundaries, API ownership, authorization ownership, and rules for extending the application.
 
 ## Dependency direction
 
@@ -8,8 +8,8 @@ This document is the authoritative architectural contract for the repository. It
 modules → features → platform → infrastructure
 ```
 
-- `modules` contain application/domain-specific behavior.
-- `features` contain reusable business capabilities.
+- `modules` contain application/domain-specific behavior and own their public API boundaries.
+- `features` contain reusable business capabilities and are normally route-less.
 - `platform` contains reusable engines and mechanisms.
 - `infrastructure` contains concrete technical providers and persistence.
 
@@ -19,30 +19,37 @@ modules → features → platform → infrastructure
 
 ### `apps/api/src/modules/`
 
-Modules own domain terminology, domain validation, domain workflows and policies, domain-specific persistence through repositories, and domain-owned API composition.
+Modules own domain terminology, domain validation, domain workflows and policies, domain-specific persistence through repositories, domain-owned API composition, and domain-owned authorization policy administration.
 
 Modules may depend on shared features and platform services. Shared layers must never import a module. Create a module only when its domain is actually implemented; do not create placeholders or duplicate shared capabilities inside a module.
 
+A module is the HTTP/API boundary for its own domain. Module routes/controllers may compose reusable feature services and platform mechanisms, but the module owns the endpoint, request contract, domain authorization policy, and orchestration exposed through that endpoint.
+
+Authorization is scoped to the module that owns the domain. A module may define and administer its own roles, permissions, resource policies, and authorization vocabulary while using `platform/authorization` as the shared enforcement mechanism. Authorization must not be treated as one global domain model merely because the enforcement engine is shared.
+
 ### `apps/api/src/features/`
 
-Features are reusable business capabilities that can support multiple application modules. Current examples include people, cases, participants, requirements, tasks, appointments, authentication, users, documents, notifications, and audit.
+Features are reusable business capabilities that can support multiple application modules. Current examples include people, cases, participants, requirements, tasks, appointments, authentication, users, documents, and notifications.
 
-Features must remain domain-neutral. Appointments are a business feature: availability, slots, capacity, booking, and appointment lifecycle belong here. Generic background scheduling is a platform mechanism and is not the appointment implementation.
+Features must remain domain-neutral and normally have no HTTP routes or controllers. A feature exposes reusable services, repositories, validation, and supporting business capability to modules. A feature must not become a second public API merely because its service is reusable.
 
-Administrative capabilities belong under the `admin` feature boundary when they manage application-wide administration rather than owning a domain's business rules. For example:
+The application boundary should therefore follow:
 
 ```text
-features/
-└── admin/
-    └── authorization/
-        ├── authorization.controller.js
-        ├── authorization.repository.js
-        ├── authorization.routes.js
-        ├── authorization.service.js
-        └── authorization.validation.js
+HTTP request
+    ↓
+module route/controller
+    ↓
+module service
+    ↓
+reusable feature service
+    ↓
+platform / infrastructure
 ```
 
-`admin` is an administrative feature boundary, not a replacement for domain features. Administrative APIs may orchestrate domain capabilities, but the domain feature or module remains the owner of its business rules. Do not move `users`, `forms`, `appointments`, `documents`, or other domain behavior into `features/admin` merely because administrators use those capabilities.
+The authentication feature is an explicit exception to the route-less rule because authentication establishes the application's identity/session boundary. Authentication may own authentication-specific middleware and endpoints required to establish or terminate authenticated sessions. This exception does not grant other features permission to expose their own APIs.
+
+Reusable features are not moved into `platform` merely because they are shared. People, cases, requirements, tasks, appointments, documents, and similar capabilities remain features when they represent reusable business behavior. Platform is reserved for domain-neutral mechanisms.
 
 ### `apps/api/src/platform/`
 
@@ -50,12 +57,12 @@ Platform provides reusable mechanisms such as authorization, workflow, forms, co
 
 Platform code must be provider-neutral and domain-neutral. It provides mechanisms, not application-specific business decisions.
 
-Authorization is a platform capability. `platform/authorization` owns permission evaluation, authorization middleware, resource authorization, authorization context, enforcement, and authorization-related caching. It must not depend on `features/admin`.
+`platform/authorization` is the shared authorization enforcement mechanism. It owns permission evaluation infrastructure, authorization middleware, resource-authorization primitives, authorization context, enforcement, and authorization-related caching. It does not own application-domain roles, permissions, or module policy administration.
 
-The administrative authorization feature consumes the platform authorization capability to protect administrative operations:
+The intended relationship is:
 
 ```text
-features/admin/authorization
+module authorization policy
           │
           ▼
 platform/authorization
@@ -64,7 +71,7 @@ platform/authorization
 authorization engine
 ```
 
-The administrative feature owns management operations such as authorization-module management, permission management, module activation, role listing, and role-permission management. It does not replace or duplicate the authorization engine.
+The module owns the meaning and administration of its authorization model. The platform supplies the reusable mechanism for evaluating and enforcing that model.
 
 ### `apps/api/src/infrastructure/`
 
@@ -74,18 +81,20 @@ Infrastructure contains concrete technology integrations and persistence impleme
 
 1. Shared `features` must not import `modules`.
 2. `platform` must not import `modules` or feature implementations.
-3. `platform/authorization` must not import `features/admin`.
-4. `infrastructure` must not import `modules`.
-5. `common` must not import `features`, `platform`, or `modules`.
-6. Domain-specific behavior belongs in `modules`, not `platform`.
-7. Administrative behavior belongs under `features/admin` only when it is genuinely application administration; do not use `admin` as a catch-all for domain behavior.
-8. Services must not query Prisma directly when a repository boundary exists.
-9. New platform services must use repositories rather than direct Prisma access.
-10. Repositories own persistence queries and persistence-specific composition.
-11. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
-12. Platform-owned configuration must be consumed through `platform/configuration`; domain-specific configuration remains owned by the domain/module.
+3. `infrastructure` must not import `modules`.
+4. `common` must not import `features`, `platform`, or `modules`.
+5. Domain-specific behavior belongs in `modules`, not `platform`.
+6. Module-specific authorization behavior belongs in the owning `module`; shared authorization enforcement belongs in `platform/authorization`.
+7. Features are route-less by default and must not expose public HTTP APIs through feature route/controller files.
+8. Authentication is the explicit feature exception for authentication-specific HTTP endpoints and middleware.
+9. A module may consume feature services but must not depend on feature HTTP routes/controllers.
+10. Services must not query Prisma directly when a repository boundary exists.
+11. New platform services must use repositories rather than direct Prisma access.
+12. Repositories own persistence queries and persistence-specific composition.
+13. Do not introduce `domains/`, `core/`, `application/`, `adapters/`, or another parallel architecture layer.
+14. Platform-owned configuration must be consumed through `platform/configuration`; domain-specific configuration remains owned by the domain/module.
 
-The architecture validator enforces these boundaries where they can be checked statically. See [`docs/api/platform/architecture-rules.md`](platform/architecture-rules.md) for the Phase 9 enforcement contract and the explicitly tracked legacy persistence exceptions.
+The architecture validator must enforce these boundaries where they can be checked statically. See [`docs/api/platform/architecture-rules.md`](platform/architecture-rules.md) for the detailed enforcement contract and tracked legacy exceptions.
 
 ## Service and repository boundary
 
@@ -105,7 +114,7 @@ A service should not call `getPrismaClient()`, `prisma.$transaction()`, or Prism
 
 Repositories may access Prisma because persistence is their responsibility.
 
-### Platform persistence migration rule
+## Platform persistence migration rule
 
 A limited set of pre-existing platform services still accesses Prisma directly. Phase 9 records these files as explicit technical-debt exceptions in `apps/api/scripts/architecture-rules.cjs`.
 
@@ -125,28 +134,13 @@ platform/configuration
 platform services
 ```
 
-Platform configuration must remain generic. It may contain system, operational, and platform mechanism settings, but must not encode domain rules such as OBO permit requirements. Domain-specific configuration remains owned by the relevant module or feature.
+Platform configuration must remain generic. It may contain system, operational, and platform mechanism settings, but must not encode domain rules. Domain-specific configuration remains owned by the relevant module or feature.
 
 Do not introduce a database-backed configuration store unless the application requires runtime-managed, tenant-scoped, versioned, or transactional settings. If persistence becomes necessary, keep it behind a configuration repository.
 
 ## Platform documentation
 
-The platform capability contracts are maintained under `docs/api/platform/`:
-
-```text
-docs/api/platform/
-├── overview.md
-├── context.md
-├── events.md
-├── jobs.md
-├── workflow.md
-├── idempotency.md
-├── observability.md
-├── architecture-rules.md
-└── phase-11-configuration.md
-```
-
-`overview.md` provides the platform-level entry point. Individual documents define the detailed reliability and architecture contracts for each capability.
+The platform capability contracts are maintained under `docs/api/platform/`.
 
 ## Shared business modeling
 
@@ -164,13 +158,11 @@ For domain-specific forms, the module associates its business entity with a plat
 
 ## Public API boundaries
 
-`apps/api/src/routes/index.js` is the API composition root. It should mount application-owned APIs rather than every reusable capability in the repository.
+`apps/api/src/routes/index.js` is the API composition root. It should mount application-owned module APIs and the explicit authentication boundary rather than every reusable capability in the repository.
 
 Generic feature or platform services should not automatically become public CRUD endpoints. When a module needs a shared capability, its domain-owned route should compose that capability internally.
 
-Administrative authorization management is exposed through the canonical `/admin/authorization` API namespace. The authorization permission remains `authorization:manage`; the API namespace and feature boundary do not introduce an `admin:manage` replacement permission.
-
-`apps/api/openapi/openapi.yaml` is the public API contract and should match routes actually exposed by the application.
+Module APIs must own their endpoint paths, request/response contracts, domain-specific validation, and authorization policies. Shared feature services must not require consumers to mount feature routes in order to use the capability.
 
 ## Storage and email boundaries
 
@@ -204,7 +196,9 @@ Event processing and workers must remain domain-neutral.
 
 ## Appointments
 
-Appointments are a shared business feature because appointment scheduling is business behavior. A domain may associate an appointment with one of its own entities through a domain-owned service or route without moving domain appointment semantics into the generic feature.
+Appointments are a shared business feature because appointment scheduling is business behavior. A module may associate an appointment with one of its own entities through a module-owned service or route without moving domain appointment semantics into the generic feature.
+
+The appointment feature does not need to expose its own HTTP API for modules to use appointment scheduling.
 
 ## Domain documentation
 
@@ -229,8 +223,10 @@ When adding code:
 3. Reuse an existing feature or platform mechanism before creating another abstraction.
 4. Keep persistence behind repositories.
 5. Keep shared layers independent of application modules.
-6. Add tests for the behavior and update architecture enforcement when a new enforceable boundary is introduced.
-7. Document stable architectural changes here; document domain behavior under `docs/server/modules/<module>/`.
+6. Put public HTTP endpoints in modules, except for the explicit authentication boundary.
+7. Keep authorization policy ownership inside the module that owns the domain; reuse `platform/authorization` for enforcement.
+8. Add tests for the behavior and update architecture enforcement when a new enforceable boundary is introduced.
+9. Document stable architectural changes here; document domain behavior under `docs/server/modules/<module>/`.
 
 ## Anti-patterns
 
@@ -245,4 +241,4 @@ apps/api/src/platform/<specific-domain>/
 apps/api/src/features/<specific-domain>/
 ```
 
-Also avoid direct Prisma access from services, domain-specific rules in platform services, shared features importing modules, infrastructure importing modules, generic JSON/custom fields for stable relationships, generic public CRUD routes for internal capabilities, provider-specific clients in business code, and placeholder domain documentation.
+Also avoid direct Prisma access from services, domain-specific rules in platform services, shared features importing modules, infrastructure importing modules, feature-owned public CRUD APIs, feature route registration outside the explicit authentication boundary, global authorization policy models that erase module ownership, generic JSON/custom fields for stable relationships, provider-specific clients in business code, and placeholder domain documentation.
