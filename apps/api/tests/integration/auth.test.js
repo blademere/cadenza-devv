@@ -13,18 +13,16 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 process.env.COOKIE_SECURE = 'false'
 process.env.COOKIE_SAME_SITE = 'lax'
 
-const mocks = vi.hoisted(() => {
-  vi.resetModules()
-  return {
-    can: vi.fn(),
-    listUsers: vi.fn(),
-    registerUser: vi.fn(),
-    getUserAuthorizationContext: vi.fn(),
-    listActiveModules: vi.fn(),
-  }
-})
+const mocks = vi.hoisted(() => ({
+  can: vi.fn(),
+  findUserAuthState: vi.fn(),
+  listUsers: vi.fn(),
+  registerUser: vi.fn(),
+  getUserAuthorizationContext: vi.fn(),
+  listActiveModules: vi.fn(),
+}))
 
-vi.mock(import('../../../src/platform/authorization/access-control.service.js'), () => ({
+vi.mock('../../../src/platform/authorization/access-control.service.js', () => ({
   can: mocks.can,
   canAny: vi.fn(),
   canOwn: vi.fn(),
@@ -32,48 +30,19 @@ vi.mock(import('../../../src/platform/authorization/access-control.service.js'),
   getRoleById: vi.fn(),
 }))
 
-vi.mock(import('../../../src/features/users/user.service.js'), () => ({
+vi.mock('../../../src/features/auth/auth.repository.js', () => ({
+  findUserAuthState: mocks.findUserAuthState,
+}))
+
+vi.mock('../../../src/features/users/user.service.js', () => ({
   listUsers: mocks.listUsers,
   registerUser: mocks.registerUser,
 }))
 
-vi.mock(import('../../../src/platform/authorization/authorization-context.repository.js'), () => ({
+vi.mock('../../../src/platform/authorization/authorization-context.repository.js', () => ({
   getUserAuthorizationContext: mocks.getUserAuthorizationContext,
   listActiveModules: mocks.listActiveModules,
 }))
-
-// Keep JWT verification real, but isolate the integration suite from the
-// authentication repository so authorization tests can exercise the route
-// boundary without depending on a second database-backed auth lookup.
-vi.mock(import('../../../src/features/auth/authenticate.secure.js'), async () => {
-  const { UnauthorizedError } = await import('../../../src/common/errors/appError.js')
-  const { verifyAccessToken } = await import('../../../src/features/auth/auth.tokens.js')
-
-  return {
-    default: async (req, _res, next) => {
-      const authorizationHeader = req.headers.authorization || ''
-      const [scheme, token] = authorizationHeader.trim().split(/\s+/)
-      if (scheme !== 'Bearer' || !token) {
-        return next(new UnauthorizedError('Missing or invalid access token.'))
-      }
-
-      try {
-        const payload = verifyAccessToken(token)
-        if (payload.type !== 'access' || !payload.sub || !Number.isInteger(payload.authVersion) || payload.authVersion < 0) {
-          return next(new UnauthorizedError('Access token is invalid.'))
-        }
-        const userId = Number(payload.sub)
-        if (!Number.isInteger(userId) || userId <= 0) {
-          return next(new UnauthorizedError('Access token is invalid.'))
-        }
-        req.user = { id: userId }
-        return next()
-      } catch (_error) {
-        return next(new UnauthorizedError('Access token is invalid or expired.'))
-      }
-    },
-  }
-})
 
 const { createAccessToken } = await import('../../../src/features/auth/auth.tokens.js')
 const { default: app } = await import('../../../src/app.js')
@@ -83,6 +52,7 @@ const user = { id: 42, authVersion: 0 }
 describe('Authentication integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 0 })
     mocks.can.mockResolvedValue(true)
     mocks.listUsers.mockResolvedValue({ data: [{ id: 1, email: 'user@example.com', isActive: true, role: { id: 2, name: 'client' } }], pagination: { page: 1, limit: 20, total: 1, pages: 1 } })
     mocks.registerUser.mockResolvedValue({ id: 7, email: 'new@example.com', isActive: true, role: { id: 2, name: 'client' } })
@@ -119,7 +89,6 @@ describe('Authentication integration', () => {
     })
 
     it('allows an authenticated user with the required read permission', async () => {
-      mocks.can.mockResolvedValue(true)
       const token = createAccessToken(user)
       const response = await request(app).get('/api/v1/users?page=1&limit=20').set('Authorization', `Bearer ${token}`)
       expect(response.status).toBe(200)
