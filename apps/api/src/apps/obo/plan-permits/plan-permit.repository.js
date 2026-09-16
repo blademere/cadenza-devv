@@ -19,6 +19,7 @@ const applicationInclude = {
   caseRecord: {
     select: {
       id: true,
+      appId: true,
       caseNumber: true,
       status: true,
       participants: {
@@ -81,13 +82,14 @@ const create = (data, db = prisma) => {
 }
 
 const update = async (id, appId, data, db = prisma) => {
+  const owner = requireAppId(appId)
   const result = await db.oboPermitApplication.updateMany({
-    where: withAppId({ id }, appId),
+    where: withAppId({ id }, owner),
     data,
   })
   if (!result.count) return null
-  return db.oboPermitApplication.findUnique({
-    where: { id },
+  return db.oboPermitApplication.findFirst({
+    where: withAppId({ id }, owner),
     include: applicationInclude,
   })
 }
