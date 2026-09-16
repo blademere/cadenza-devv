@@ -1,7 +1,7 @@
 model OboPermitType {
   id                      String                     @id @default(uuid())
   appId                   String
-  key                     String
+  key                     String                     @unique
   name                    String
   description             String?
   formId                  String?
@@ -12,7 +12,6 @@ model OboPermitType {
   createdAt               DateTime                   @default(now())
   updatedAt               DateTime                   @updatedAt
 
-  @@unique([appId, key])
   @@index([appId])
   @@index([appId, isActive])
   @@index([formId])
