@@ -1,11 +1,30 @@
 -- Phase 18: controlled application-ownership finalization.
 --
 -- This migration is deliberately fail-closed. Ownership is backfilled only from
--- authoritative application-owned relationships; it is never inferred from a
--- user, actor, or other identity. Ambiguous or contradictory ownership stops
--- the migration instead of silently assigning a tenant.
+-- authoritative domain relationships; it is never inferred from a user, actor,
+-- or other identity. Ambiguous or contradictory ownership stops the migration.
 
 BEGIN;
+
+-- OBO-specific tables have an authoritative application identity: the OBO
+-- application itself. This is domain identity, not user identity.
+UPDATE "OboPermitType" pt
+SET "appId" = a."id"
+FROM "App" a
+WHERE a."key" = 'obo'
+  AND pt."appId" IS NULL;
+
+UPDATE "OboPermitApplication" p
+SET "appId" = a."id"
+FROM "App" a
+WHERE a."key" = 'obo'
+  AND p."appId" IS NULL;
+
+UPDATE "OboProfessional" p
+SET "appId" = a."id"
+FROM "App" a
+WHERE a."key" = 'obo'
+  AND p."appId" IS NULL;
 
 -- Resolve ownership from authoritative relationships where an intermediate
 -- deployment still contains NULL appId values.
@@ -172,7 +191,7 @@ BEGIN
 END $$;
 
 -- Make required application ownership explicit at the database level. These
--- statements are idempotent with respect to a column that is already NOT NULL.
+-- statements are safe when the columns are already NOT NULL.
 ALTER TABLE "CaseRecord" ALTER COLUMN "appId" SET NOT NULL;
 ALTER TABLE "Task" ALTER COLUMN "appId" SET NOT NULL;
 ALTER TABLE "AppointmentType" ALTER COLUMN "appId" SET NOT NULL;
@@ -183,9 +202,8 @@ ALTER TABLE "OboPermitType" ALTER COLUMN "appId" SET NOT NULL;
 ALTER TABLE "OboPermitApplication" ALTER COLUMN "appId" SET NOT NULL;
 ALTER TABLE "OboProfessional" ALTER COLUMN "appId" SET NOT NULL;
 
--- Strengthen the two OBO relationships whose parents already expose the
--- composite (id, appId) key. This makes application ownership a database-level
--- invariant rather than only a service/repository invariant.
+-- Strengthen the two OBO relationships whose parents expose the composite
+-- (id, appId) key. This makes application ownership a database invariant.
 ALTER TABLE "OboPermitApplication"
   DROP CONSTRAINT IF EXISTS "OboPermitApplication_caseId_fkey";
 
