@@ -1,6 +1,5 @@
 import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 const prisma = getPrismaClient()
-
 const withTransaction = (callback) => prisma.$transaction(callback)
 const findAppointmentType = (id, appId, db = prisma) => db.appointmentType.findFirst({ where: { id, appId } })
 const listAppointmentTypes = ({ appId, active }, db = prisma) => db.appointmentType.findMany({ where: { appId, ...(active === undefined ? {} : { isActive: active }) }, orderBy: { name: 'asc' } })
@@ -11,7 +10,7 @@ const listAvailabilitySchedules = ({ appointmentTypeId, active, appId } = {}, db
 const createAvailabilitySchedule = (data, db = prisma) => db.availabilitySchedule.create({ data })
 const createAppointmentSlot = (data, db = prisma) => db.appointmentSlot.create({ data })
 const findSlotByStart = ({ appointmentTypeId, startsAt, appId }, db = prisma) => db.appointmentSlot.findFirst({ where: { appointmentTypeId, startsAt, appointmentType: { appId } } })
-const listAppointmentSlots = ({ appointmentTypeId, from, to, status, appId }, db = prisma) => db.appointmentSlot.findMany({ where: { ...(appointmentTypeId ? { appointmentTypeId } : {}), appointmentType: { appId }, ...(status ? { status } : {}), appointmentType: { appId, isActive: true }, OR: [{ scheduleId: null }, { schedule: { isActive: true } }], ...(from || to ? { startsAt: { ...(from ? { gte: from } : {}), ...(to ? { lt: to } : {}) } } : {}) }, orderBy: { startsAt: 'asc' } })
+const listAppointmentSlots = ({ appointmentTypeId, from, to, status, appId }, db = prisma) => db.appointmentSlot.findMany({ where: { ...(appointmentTypeId ? { appointmentTypeId } : {}), appointmentType: { appId, isActive: true }, ...(status ? { status } : {}), OR: [{ scheduleId: null }, { schedule: { isActive: true } }], ...(from || to ? { startsAt: { ...(from ? { gte: from } : {}), ...(to ? { lt: to } : {}) } } : {}) }, orderBy: { startsAt: 'asc' } })
 const findSlot = (id, appId, db = prisma) => db.appointmentSlot.findFirst({ where: { id, appointmentType: { appId } }, include: { schedule: true, appointmentType: true } })
 const findActiveUserAppointmentForSlot = ({ slotId, userId, statuses, appId }, db = prisma) => db.appointment.findFirst({ where: { slotId, userId, appId, status: { in: statuses } }, select: { id: true } })
 const claimSlot = ({ slotId, capacity, appId }, db) => db.appointmentSlot.updateMany({ where: { id: slotId, status: 'OPEN', bookedCount: { lt: capacity }, appointmentType: { appId, isActive: true }, OR: [{ scheduleId: null }, { schedule: { isActive: true } }] }, data: { bookedCount: { increment: 1 }, updatedAt: new Date() } })
@@ -25,5 +24,4 @@ const cancelAppointmentRecord = (id, appId, db) => db.appointment.updateMany({ w
 const releaseSlot = (slotId, appId, db) => db.appointmentSlot.updateMany({ where: { id: slotId, appointmentType: { appId }, bookedCount: { gt: 0 } }, data: { bookedCount: { decrement: 1 } } })
 const transitionAppointment = ({ id, appId, fromStatus, status, timestampField }, db = prisma) => db.appointment.updateMany({ where: { id, appId, status: fromStatus }, data: { status, [timestampField]: new Date() } })
 const getAppointmentWithRelations = (id, appId, db = prisma) => db.appointment.findFirst({ where: { id, appId }, include: { appointmentType: true, slot: true } })
-
 export { withTransaction, findAppointmentType, listAppointmentTypes, createAppointmentType, findSchedule, listActiveSchedules, listAvailabilitySchedules, createAvailabilitySchedule, createAppointmentSlot, findSlotByStart, listAppointmentSlots, findSlot, findActiveUserAppointmentForSlot, claimSlot, createAppointment, findUserAppointment, findAppointment, findAppointmentsByIds, listUserAppointments, listAppointments, cancelAppointmentRecord, releaseSlot, transitionAppointment, getAppointmentWithRelations }
