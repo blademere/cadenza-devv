@@ -14,7 +14,7 @@ model CaseType {
 model CaseRecord {
   id              String                @id @default(uuid())
   appId           String
-  caseNumber      String                @unique
+  caseNumber      String
   caseTypeId      String
   title           String
   description     String?
@@ -37,7 +37,9 @@ model CaseRecord {
   @@index([appId])
   @@index([appId, caseTypeId, status])
   @@index([appId, status, createdAt])
+  @@index([appId, caseNumber])
   @@index([createdByUserId])
+  @@unique([appId, caseNumber])
   @@unique([id, appId])
 }
 
