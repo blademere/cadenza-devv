@@ -22,17 +22,17 @@ const hydratePermitType = async (permitType) => {
   return { ...permitType, form }
 }
 
-const listPermitTypes = async () => {
-  const permitTypes = await repository.listActive()
+const listPermitTypes = async (appId) => {
+  const permitTypes = await repository.listActive(appId)
   return Promise.all(permitTypes.map(hydratePermitType))
 }
 
-const getPermitTypeById = async (id) => hydratePermitType(await repository.findActiveById(id))
-const getPermitTypeByKey = async (key) => repository.findByKey(key)
-const getForAuthorization = (id) => repository.findById(id)
+const getPermitTypeById = async (id, appId) => hydratePermitType(await repository.findActiveById(id, appId))
+const getPermitTypeByKey = async (key, appId) => repository.findByKey(key, appId)
+const getForAuthorization = (id, appId) => repository.findById(id, appId)
 
-const getPermitTypeFormVersions = async (id) => {
-  const permitType = await hydratePermitType(await repository.findById(id))
+const getPermitTypeFormVersions = async (id, appId) => {
+  const permitType = await hydratePermitType(await repository.findById(id, appId))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) return []
 
@@ -44,8 +44,8 @@ const getPermitTypeFormVersions = async (id) => {
   }))
 }
 
-const getPermitTypeForm = async (id, version) => {
-  const permitType = await hydratePermitType(await repository.findActiveById(id))
+const getPermitTypeForm = async (id, appId, version) => {
+  const permitType = await hydratePermitType(await repository.findActiveById(id, appId))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) return null
 
@@ -69,21 +69,21 @@ const getPermitTypeForm = async (id, version) => {
   }
 }
 
-const getPermitTypeFormVersion = async (id, version) => {
-  const permitType = await hydratePermitType(await repository.findById(id))
+const getPermitTypeFormVersion = async (id, appId, version) => {
+  const permitType = await hydratePermitType(await repository.findById(id, appId))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
   const formVersion = await formService.getFormVersion({ formKey: permitType.form.key, version })
   return toFormResponse(permitType, formVersion)
 }
 
-const createPermitType = async ({ actorId, data }) => {
+const createPermitType = async ({ actorId, appId, data }) => {
   try {
     return await repository.withTransaction(async (tx) => {
-      const existing = await repository.findByKey(data.key, tx)
+      const existing = await repository.findByKey(data.key, appId, tx)
       if (existing) throw new ConflictError('A permit type with this key already exists.')
-      const created = await repository.create(data, tx)
-      await recordAudit({ actorId, action: 'OBO_PERMIT_TYPE_CREATED', entityType: 'OboPermitType', entityId: created.id, before: null, after: created, db: tx })
+      const created = await repository.create({ ...data, appId }, tx)
+      await recordAudit({ actorId, appId, action: 'OBO_PERMIT_TYPE_CREATED', entityType: 'OboPermitType', entityId: created.id, before: null, after: created, db: tx })
       return created
     })
   } catch (error) {
@@ -92,17 +92,18 @@ const createPermitType = async ({ actorId, data }) => {
   }
 }
 
-const updatePermitType = async ({ actorId, id, data }) => {
+const updatePermitType = async ({ actorId, appId, id, data }) => {
   try {
     return await repository.withTransaction(async (tx) => {
-      const before = await repository.findById(id, tx)
+      const before = await repository.findById(id, appId, tx)
       if (!before) throw new NotFoundError('Permit type not found.')
       if (data.key && data.key !== before.key) {
-        const existing = await repository.findByKey(data.key, tx)
+        const existing = await repository.findByKey(data.key, appId, tx)
         if (existing && existing.id !== id) throw new ConflictError('A permit type with this key already exists.')
       }
-      const updated = await repository.update(id, data, tx)
-      await recordAudit({ actorId, action: 'OBO_PERMIT_TYPE_UPDATED', entityType: 'OboPermitType', entityId: updated.id, before, after: updated, db: tx })
+      const updated = await repository.update(id, appId, data, tx)
+      if (!updated) throw new NotFoundError('Permit type not found.')
+      await recordAudit({ actorId, appId, action: 'OBO_PERMIT_TYPE_UPDATED', entityType: 'OboPermitType', entityId: updated.id, before, after: updated, db: tx })
       return updated
     })
   } catch (error) {
@@ -111,20 +112,21 @@ const updatePermitType = async ({ actorId, id, data }) => {
   }
 }
 
-const createPermitTypeForm = async ({ actorId, permitTypeId, data }) => {
-  const permitType = await repository.findById(permitTypeId)
+const createPermitTypeForm = async ({ actorId, appId, permitTypeId, data }) => {
+  const permitType = await repository.findById(permitTypeId, appId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot receive forms.')
   if (permitType.formId) throw new ConflictError('This permit type already has a form.')
   try {
     return await repository.withTransaction(async (tx) => {
-      const existing = await repository.findById(permitTypeId, tx)
+      const existing = await repository.findById(permitTypeId, appId, tx)
       if (!existing) throw new NotFoundError('Permit type not found.')
       if (!existing.isActive) throw new ConflictError('Inactive permit types cannot receive forms.')
       if (existing.formId) throw new ConflictError('This permit type already has a form.')
       const form = await formService.createForm({ key: data.key, name: data.name, description: data.description ?? null, entityType: data.entityType ?? 'OboPermitApplication', sections: data.sections ?? [], fields: data.fields, actorId, db: tx })
-      const updated = await repository.attachForm(permitTypeId, form.id, tx)
-      await recordAudit({ actorId, action: 'OBO_PERMIT_TYPE_FORM_ATTACHED', entityType: 'OboPermitType', entityId: permitTypeId, before: existing, after: updated, db: tx })
+      const updated = await repository.attachForm(permitTypeId, appId, form.id, tx)
+      if (!updated) throw new NotFoundError('Permit type not found.')
+      await recordAudit({ actorId, appId, action: 'OBO_PERMIT_TYPE_FORM_ATTACHED', entityType: 'OboPermitType', entityId: permitTypeId, before: existing, after: updated, db: tx })
       return form
     })
   } catch (error) {
@@ -133,33 +135,33 @@ const createPermitTypeForm = async ({ actorId, permitTypeId, data }) => {
   }
 }
 
-const createPermitTypeFormVersion = async ({ actorId, permitTypeId, data }) => {
-  const permitType = await hydratePermitType(await repository.findById(permitTypeId))
+const createPermitTypeFormVersion = async ({ actorId, appId, permitTypeId, data }) => {
+  const permitType = await hydratePermitType(await repository.findById(permitTypeId, appId))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot receive form versions.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
   const version = await formService.createFormVersion({ formKey: permitType.form.key, sections: data.sections ?? [], fields: data.fields, actorId })
-  await recordAudit({ actorId, action: 'OBO_FORM_VERSION_CREATED', entityType: 'FormVersion', entityId: version.id, before: null, after: version })
+  await recordAudit({ actorId, appId, action: 'OBO_FORM_VERSION_CREATED', entityType: 'FormVersion', entityId: version.id, before: null, after: version })
   return version
 }
 
-const updatePermitTypeFormVersion = async ({ actorId, permitTypeId, version, data }) => {
-  const permitType = await hydratePermitType(await repository.findById(permitTypeId))
+const updatePermitTypeFormVersion = async ({ actorId, appId, permitTypeId, version, data }) => {
+  const permitType = await hydratePermitType(await repository.findById(permitTypeId, appId))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot update form versions.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
   const updated = await formService.updateFormVersion({ formKey: permitType.form.key, version, sections: data.sections ?? [], fields: data.fields, actorId })
-  await recordAudit({ actorId, action: 'OBO_FORM_VERSION_UPDATED', entityType: 'FormVersion', entityId: updated.id, before: null, after: updated })
+  await recordAudit({ actorId, appId, action: 'OBO_FORM_VERSION_UPDATED', entityType: 'FormVersion', entityId: updated.id, before: null, after: updated })
   return updated
 }
 
-const publishPermitTypeFormVersion = async ({ actorId, permitTypeId, version }) => {
-  const permitType = await hydratePermitType(await repository.findById(permitTypeId))
+const publishPermitTypeFormVersion = async ({ actorId, appId, permitTypeId, version }) => {
+  const permitType = await hydratePermitType(await repository.findById(permitTypeId, appId))
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot publish form versions.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
   const published = await formService.publishFormVersion({ formKey: permitType.form.key, version, actorId })
-  await recordAudit({ actorId, action: 'OBO_FORM_VERSION_PUBLISHED', entityType: 'FormVersion', entityId: published.id, before: null, after: published })
+  await recordAudit({ actorId, appId, action: 'OBO_FORM_VERSION_PUBLISHED', entityType: 'FormVersion', entityId: published.id, before: null, after: published })
   return published
 }
 
