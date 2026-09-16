@@ -65,8 +65,8 @@ const updateReceiptStatus = async ({ applicationId, appId, requirementId, actorI
     if (![STATUS.RECEIVED, STATUS.VERIFIED, STATUS.REJECTED].includes(status)) throw new ConflictError('Unsupported document receipt status.')
 
     let attachedDocument = existing.document
-    if (documentId !== undefined) attachedDocument = documentId === null ? null : await documentService.getOwnedDocument({ userId: actorId, id: documentId })
-    if ([STATUS.RECEIVED, STATUS.VERIFIED].includes(status) && !(documentId || existing.documentId)) throw new ConflictError('A shared document must be attached before a document can be received or verified.')
+    if (documentId !== undefined) attachedDocument = documentId === null ? null : await documentService.getOwnedDocument({ userId: actorId, id: documentId, appId })
+    if ([STATUS.RECEIVED, STATUS.VERIFIED].includes(status) && !(documentId || existing.documentId)) throw new ConflictError('A shared or application-owned document must be attached before a document can be received or verified.')
     if (status === STATUS.VERIFIED && existing.status !== STATUS.RECEIVED) throw new ConflictError('A document must be received before it can be verified.')
 
     const cleanNotes = notes?.trim() || null
