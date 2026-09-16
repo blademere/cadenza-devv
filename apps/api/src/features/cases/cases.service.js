@@ -5,10 +5,6 @@ import {
   NotFoundError,
 } from '../../common/errors/appError.js'
 import {
-  normalizePagination,
-  createPaginationMeta,
-} from '../../common/pagination/pagination.js'
-import {
   createCaseType,
   findCaseTypeByKey,
   createCase,
@@ -41,7 +37,7 @@ const getOrCreateType = async ({ key, name, description = null, isActive = true,
   return createType({ key: key.trim(), name: name.trim(), description, isActive }, { db })
 }
 
-const createRecord = async (data, { appId, db } = {}) => {
+const createRecord = async ({ appId, db, ...data }) => {
   if (!appId) throw new BadRequestError('appId is required.')
   if (!data.caseTypeId || !data.title?.trim()) throw new BadRequestError('caseTypeId and title are required.')
   const caseType = await findCaseTypeById(data.caseTypeId, db)
