@@ -12,7 +12,7 @@ model Task {
   completedAt     DateTime?
   metadata        Json?
   app             App         @relation(fields: [appId], references: [id], onDelete: Restrict)
-  caseRecord      CaseRecord? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  caseRecord      CaseRecord? @relation(fields: [caseId, appId], references: [id, appId], onDelete: SetNull)
   assigneeUser    User?       @relation("TaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   createdByUser   User?       @relation("TaskCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   createdAt       DateTime    @default(now())
