@@ -9,6 +9,7 @@ const applicationInclude = {
   caseRecord: {
     select: {
       id: true,
+      appId: true,
       caseNumber: true,
       status: true,
       participants: { include: { person: true }, orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }] },
@@ -25,7 +26,7 @@ const findApplication = (id, appId, db = prisma) =>
 
 const listApplications = (status, appId, db = prisma) =>
   db.oboPermitApplication.findMany({
-    where: withAppId({ workflowInstanceId: { not: null } }, appId),
+    where: withAppId({ workflowInstanceId: { not: null }, ...(status ? { status } : {}) }, appId),
     include: applicationInclude,
     orderBy: { createdAt: 'asc' },
   })
@@ -33,7 +34,7 @@ const listApplications = (status, appId, db = prisma) =>
 const updateApplication = async (id, appId, data, db = prisma) => {
   const result = await db.oboPermitApplication.updateMany({ where: withAppId({ id }, appId), data })
   if (!result.count) return null
-  return db.oboPermitApplication.findUnique({ where: { id }, include: applicationInclude })
+  return db.oboPermitApplication.findFirst({ where: withAppId({ id }, appId), include: applicationInclude })
 }
 
 const addDecision = (data, db = prisma) => db.oboReceivingDecision.create({ data })
