@@ -45,9 +45,9 @@ const hydrateApplication = async (application, db) => {
   return hydrated
 }
 
-const resolveReplacement = async ({ replacesApplicationId, personId }) => {
+const resolveReplacement = async ({ replacesApplicationId, personId, appId }) => {
   if (!replacesApplicationId) return null
-  const original = await repository.findOwnedByClient(replacesApplicationId, personId)
+  const original = await repository.findOwnedByClient(replacesApplicationId, personId, appId)
   if (!original) throw new NotFoundError('The application being replaced was not found.')
   const originalWithStatus = await withWorkflowState(original)
   if (originalWithStatus.status !== STATUS.DECLINED) throw new ConflictError('Only a declined permit application can be replaced with a new application.')
@@ -73,11 +73,11 @@ const getProfessionalSnapshotEntries = (snapshots = {}) => {
   return entries
 }
 
-const addProfessionalParticipants = async ({ caseId, applicationId, professionalSnapshots, db, actorId }) => {
+const addProfessionalParticipants = async ({ caseId, applicationId, professionalSnapshots, db, actorId, appId }) => {
   const addedPersonIds = new Set()
   const associatedProfessionals = []
   for (const { fieldKey, snapshot } of getProfessionalSnapshotEntries(professionalSnapshots)) {
-    const professional = await professionalService.getForReference(snapshot.professionalId)
+    const professional = await professionalService.getForReference(snapshot.professionalId, appId)
     if (!professional?.personId) throw new ConflictError('Referenced professional is missing a person profile.')
     if (addedPersonIds.has(professional.personId)) continue
     await participantService.add({
@@ -99,13 +99,7 @@ const addProfessionalParticipants = async ({ caseId, applicationId, professional
       entityType: SUBJECT_TYPE,
       entityId: applicationId,
       actorId,
-      context: {
-        caseId,
-        professionalId: professional.id,
-        professionalPersonId: professional.personId,
-        professionalRole: professional.professionalRole || null,
-        fieldKey,
-      },
+      context: { appId, caseId, professionalId: professional.id, professionalPersonId: professional.personId, professionalRole: professional.professionalRole || null, fieldKey },
       idempotencyKey: `obo:permit-application:${applicationId}:professional:${professional.id}`,
     })
     associatedProfessionals.push(professional.id)
@@ -114,8 +108,8 @@ const addProfessionalParticipants = async ({ caseId, applicationId, professional
   return associatedProfessionals
 }
 
-const attachPermitRequirements = async ({ caseId, permitTypeId, db }) => {
-  const requirementIds = await permitTypeRequirementService.getRequirementIds(permitTypeId, db)
+const attachPermitRequirements = async ({ caseId, permitTypeId, appId, db }) => {
+  const requirementIds = await permitTypeRequirementService.getRequirementIds(permitTypeId, appId, db)
   return requirementService.attachDefinitionsToCase({
     caseId,
     requirementIds,
@@ -124,84 +118,53 @@ const attachPermitRequirements = async ({ caseId, permitTypeId, db }) => {
   })
 }
 
-const createApplication = async ({ userId, permitTypeId, formVersionId, formValues, replacesApplicationId }) => {
+const createApplication = async ({ appId, userId, permitTypeId, formVersionId, formValues, replacesApplicationId }) => {
   const person = await getClientPerson(userId)
-  const permitType = await permitTypeService.getPermitTypeById(permitTypeId)
+  const permitType = await permitTypeService.getPermitTypeById(permitTypeId, appId)
   if (!permitType) throw new NotFoundError('Active permit type not found.')
-  const replacement = await resolveReplacement({ replacesApplicationId, personId: person.id })
+  const replacement = await resolveReplacement({ replacesApplicationId, personId: person.id, appId })
   const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
   const application = await repository.withTransaction(async (tx) => {
     const referenceNumber = `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
     const caseRecord = await createCaseRecord({ userId, permitTypeName: permitType.name, db: tx })
-    await attachPermitRequirements({ caseId: caseRecord.id, permitTypeId, db: tx })
-    const created = await repository.create({ clientPersonId: person.id, permitTypeId, formVersionId: resolvedForm.formVersionId, formValues, replacesApplicationId: replacement?.id || null, caseId: caseRecord.id, referenceNumber }, tx)
+    await attachPermitRequirements({ caseId: caseRecord.id, permitTypeId, appId, db: tx })
+    const created = await repository.create({ appId, clientPersonId: person.id, permitTypeId, formVersionId: resolvedForm.formVersionId, formValues, replacesApplicationId: replacement?.id || null, caseId: caseRecord.id, referenceNumber }, tx)
     await addApplicantParticipant({ caseId: caseRecord.id, personId: person.id, db: tx })
     const notificationContext = await getNotificationContext({ personId: person.id, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     const workflow = await workflowService.startWorkflow({ workflowKey: WORKFLOW_KEY, subjectType: SUBJECT_TYPE, subjectId: created.id, actorId: userId, metadata: { source: replacement ? 'obo-plan-permit.replace-declined' : 'obo-plan-permit.create', referenceNumber: created.referenceNumber, permitTypeName: permitType.name, replacesReferenceNumber: replacement?.referenceNumber || null, ...notificationContext }, db: tx })
-    const updated = await repository.update(created.id, { workflowInstanceId: workflow.id }, tx)
-    await publish({
-      db: tx,
-      event: 'obo.permit_application.created',
-      entityType: SUBJECT_TYPE,
-      entityId: updated.id,
-      actorId: userId,
-      context: {
-        caseId: updated.caseId,
-        referenceNumber: updated.referenceNumber,
-        permitTypeId: updated.permitTypeId,
-        permitTypeName: permitType.name,
-        workflowInstanceId: workflow.id,
-        replacesApplicationId: replacement?.id || null,
-        replacesReferenceNumber: replacement?.referenceNumber || null,
-      },
-      idempotencyKey: `obo:permit-application:${updated.id}:created`,
-    })
-    if (replacement) {
-      await publish({
-        db: tx,
-        event: 'obo.permit_application.replacement_created',
-        entityType: SUBJECT_TYPE,
-        entityId: updated.id,
-        actorId: userId,
-        context: {
-          caseId: updated.caseId,
-          referenceNumber: updated.referenceNumber,
-          originalApplicationId: replacement.id,
-          originalReferenceNumber: replacement.referenceNumber,
-        },
-        idempotencyKey: `obo:permit-application:${updated.id}:replacement:${replacement.id}`,
-      })
-    }
+    const updated = await repository.update(created.id, appId, { workflowInstanceId: workflow.id }, tx)
+    await publish({ db: tx, event: 'obo.permit_application.created', entityType: SUBJECT_TYPE, entityId: updated.id, actorId: userId, context: { appId, caseId: updated.caseId, referenceNumber: updated.referenceNumber, permitTypeId: updated.permitTypeId, permitTypeName: permitType.name, workflowInstanceId: workflow.id, replacesApplicationId: replacement?.id || null, replacesReferenceNumber: replacement?.referenceNumber || null }, idempotencyKey: `obo:permit-application:${updated.id}:created` })
+    if (replacement) await publish({ db: tx, event: 'obo.permit_application.replacement_created', entityType: SUBJECT_TYPE, entityId: updated.id, actorId: userId, context: { appId, caseId: updated.caseId, referenceNumber: updated.referenceNumber, originalApplicationId: replacement.id, originalReferenceNumber: replacement.referenceNumber }, idempotencyKey: `obo:permit-application:${updated.id}:replacement:${replacement.id}` })
     return updated
   })
   return withWorkflowState(await hydrateApplication(application))
 }
 
-const getMine = async ({ id, userId }) => {
+const getMine = async ({ id, appId, userId }) => {
   const person = await getClientPerson(userId)
-  const application = await repository.findOwnedByClient(id, person.id)
+  const application = await repository.findOwnedByClient(id, person.id, appId)
   if (!application) throw new NotFoundError('Permit application not found.')
   return withWorkflowState(await hydrateApplication(application))
 }
 
-const getForAuthorization = (id) => repository.findById(id)
+const getForAuthorization = (id, appId) => repository.findById(id, appId)
 
-const getForReceiving = async (id) => {
-  const application = await repository.findById(id)
+const getForReceiving = async (id, appId) => {
+  const application = await repository.findById(id, appId)
   if (!application) throw new NotFoundError('Permit application not found.')
   return withWorkflowState(await hydrateApplication(application))
 }
 
-const getForApplicationDocuments = async (id) => {
-  const application = await repository.findById(id)
+const getForApplicationDocuments = async (id, appId) => {
+  const application = await repository.findById(id, appId)
   if (!application) throw new NotFoundError('Permit application not found.')
   return hydrateApplication(application)
 }
 
-const listMine = async ({ userId }) => {
+const listMine = async ({ appId, userId }) => {
   const person = await repository.findPersonByUserId(userId)
   if (!person) return []
-  const applications = await repository.listByClient(person.id)
+  const applications = await repository.listByClient(person.id, appId)
   return Promise.all(applications.map(async (application) => withWorkflowState(await hydrateApplication(application))))
 }
 
@@ -210,69 +173,47 @@ const getChangedFormFields = (before = {}, after = {}) => {
   return [...keys].filter((key) => !isDeepStrictEqual(before?.[key], after?.[key]))
 }
 
-const updateDraft = async ({ id, userId, formVersionId, formValues }) => {
-  const application = await getMine({ id, userId })
+const updateDraft = async ({ id, appId, userId, formVersionId, formValues }) => {
+  const application = await getMine({ id, appId, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be updated.')
   const resolvedForm = await resolveAndValidateForm({ permitType: application.permitType, formVersionId: formVersionId || application.formVersionId, formValues })
   const updated = await repository.withTransaction(async (tx) => {
-    const result = await repository.update(id, { formVersionId: resolvedForm.formVersionId, formValues }, tx)
-    if (application.formVersionId !== resolvedForm.formVersionId) await recordAudit({ actorId: userId, action: 'OBO_PERMIT_APPLICATION_FORM_VERSION_CHANGED', entityType: SUBJECT_TYPE, entityId: id, before: application.formVersionId || null, after: resolvedForm.formVersionId || null, metadata: { referenceNumber: application.referenceNumber || null }, db: tx })
-    for (const fieldKey of getChangedFormFields(application.formValues, formValues)) await recordAudit({ actorId: userId, action: 'OBO_PERMIT_APPLICATION_FORM_FIELD_UPDATED', entityType: SUBJECT_TYPE, entityId: id, before: application.formValues?.[fieldKey] ?? null, after: formValues?.[fieldKey] ?? null, metadata: { formVersionId: resolvedForm.formVersionId, fieldKey, referenceNumber: application.referenceNumber || null }, db: tx })
+    const result = await repository.update(id, appId, { formVersionId: resolvedForm.formVersionId, formValues }, tx)
+    if (!result) throw new NotFoundError('Permit application not found.')
+    if (application.formVersionId !== resolvedForm.formVersionId) await recordAudit({ actorId: userId, appId, action: 'OBO_PERMIT_APPLICATION_FORM_VERSION_CHANGED', entityType: SUBJECT_TYPE, entityId: id, before: application.formVersionId || null, after: resolvedForm.formVersionId || null, metadata: { referenceNumber: application.referenceNumber || null }, db: tx })
+    for (const fieldKey of getChangedFormFields(application.formValues, formValues)) await recordAudit({ actorId: userId, appId, action: 'OBO_PERMIT_APPLICATION_FORM_FIELD_UPDATED', entityType: SUBJECT_TYPE, entityId: id, before: application.formValues?.[fieldKey] ?? null, after: formValues?.[fieldKey] ?? null, metadata: { formVersionId: resolvedForm.formVersionId, fieldKey, referenceNumber: application.referenceNumber || null }, db: tx })
     return result
   })
   return withWorkflowState(await hydrateApplication(updated))
 }
 
-const validateSubmissionProfessionals = async (application) => {
+const validateSubmissionProfessionals = async (application, appId) => {
   if (!application.formVersion || !application.permitType.formId) return null
   const form = await formService.getFormById(application.permitType.formId)
   if (!form || !form.isActive) throw new ConflictError('The permit type is linked to an inactive form.')
   const formVersion = application.formVersion
   const validation = await formService.validateFormValues({ formKey: form.key, version: formVersion.version, values: application.formValues, requireRequired: true })
   if (!validation.valid) throw new ValidationError('Permit form validation failed.', validation.errors)
-  await validateProfessionalReferences({ formVersion, formValues: application.formValues })
+  await validateProfessionalReferences({ formVersion, formValues: application.formValues, appId })
   return buildProfessionalSnapshots({ formVersion, formValues: application.formValues })
 }
 
-const submit = async ({ id, userId }) => {
-  const application = await getMine({ id, userId })
+const submit = async ({ id, appId, userId }) => {
+  const application = await getMine({ id, appId, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be submitted.')
-  const professionalSnapshots = await validateSubmissionProfessionals(application)
+  const professionalSnapshots = await validateSubmissionProfessionals(application, appId)
   const updated = await repository.withTransaction(async (tx) => {
     let associatedProfessionals = []
     if (professionalSnapshots && Object.keys(professionalSnapshots).length > 0) {
-      await repository.update(id, { professionalSnapshots }, tx)
-      associatedProfessionals = await addProfessionalParticipants({ caseId: application.caseId, applicationId: id, professionalSnapshots, db: tx, actorId: userId })
+      await repository.update(id, appId, { professionalSnapshots }, tx)
+      associatedProfessionals = await addProfessionalParticipants({ caseId: application.caseId, applicationId: id, professionalSnapshots, db: tx, actorId: userId, appId })
     }
     const notificationContext = await getNotificationContext({ personId: application.clientPersonId, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     await workflowService.transitionWorkflow({ instanceId: application.workflowInstanceId, transitionKey: 'SUBMIT_FOR_SUBMISSION', actorId: userId, metadata: { source: 'obo-plan-permit.submit', referenceNumber: application.referenceNumber, permitTypeName: application.permitType.name, ...notificationContext }, db: tx })
-    await taskService.create({
-      caseId: application.caseId,
-      title: 'Review permit application',
-      description: `Review ${application.referenceNumber} before hard-copy submission is scheduled.`,
-      status: 'OPEN',
-      priority: 'HIGH',
-      metadata: { source: 'obo-plan-permit', taskType: TASK_TYPE.REVIEW_APPLICATION, applicationId: id, workflowTransition: 'SUBMIT_FOR_SUBMISSION' },
-    }, { db: tx })
-    await recordAudit({ actorId: userId, action: 'OBO_PERMIT_APPLICATION_SUBMITTED', entityType: SUBJECT_TYPE, entityId: id, before: { formVersionId: application.formVersionId || null, formValues: application.formValues || {} }, after: { formVersionId: application.formVersionId || null, formValues: application.formValues || {}, professionalSnapshots: professionalSnapshots || application.professionalSnapshots || null }, metadata: { formVersionId: application.formVersionId || null, referenceNumber: application.referenceNumber || null, professionalFieldKeys: Object.keys(professionalSnapshots || {}) }, db: tx })
-    await publish({
-      db: tx,
-      event: 'obo.permit_application.submitted',
-      entityType: SUBJECT_TYPE,
-      entityId: id,
-      actorId: userId,
-      context: {
-        caseId: application.caseId,
-        referenceNumber: application.referenceNumber,
-        permitTypeId: application.permitTypeId,
-        permitTypeName: application.permitType.name,
-        formVersionId: application.formVersionId || null,
-        professionalIds: associatedProfessionals,
-        workflowTransition: 'SUBMIT_FOR_SUBMISSION',
-      },
-      idempotencyKey: `obo:permit-application:${id}:submitted`,
-    })
-    return repository.findById(id, tx)
+    await taskService.create({ caseId: application.caseId, title: 'Review permit application', description: `Review ${application.referenceNumber} before hard-copy submission is scheduled.`, status: 'OPEN', priority: 'HIGH', metadata: { source: 'obo-plan-permit', taskType: TASK_TYPE.REVIEW_APPLICATION, applicationId: id, workflowTransition: 'SUBMIT_FOR_SUBMISSION' } }, { db: tx })
+    await recordAudit({ actorId: userId, appId, action: 'OBO_PERMIT_APPLICATION_SUBMITTED', entityType: SUBJECT_TYPE, entityId: id, before: { formVersionId: application.formVersionId || null, formValues: application.formValues || {} }, after: { formVersionId: application.formVersionId || null, formValues: application.formValues || {}, professionalSnapshots: professionalSnapshots || application.professionalSnapshots || null }, metadata: { formVersionId: application.formVersionId || null, referenceNumber: application.referenceNumber || null, professionalFieldKeys: Object.keys(professionalSnapshots || {}) }, db: tx })
+    await publish({ db: tx, event: 'obo.permit_application.submitted', entityType: SUBJECT_TYPE, entityId: id, actorId: userId, context: { appId, caseId: application.caseId, referenceNumber: application.referenceNumber, permitTypeId: application.permitTypeId, permitTypeName: application.permitType.name, formVersionId: application.formVersionId || null, professionalIds: associatedProfessionals, workflowTransition: 'SUBMIT_FOR_SUBMISSION' }, idempotencyKey: `obo:permit-application:${id}:submitted` })
+    return repository.findById(id, appId, tx)
   })
   return withWorkflowState(await hydrateApplication(updated))
 }
