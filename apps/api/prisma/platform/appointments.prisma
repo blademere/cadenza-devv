@@ -16,7 +16,6 @@ model AppointmentType {
 
   @@index([appId])
   @@index([appId, isActive])
-  @@unique([id, appId])
 }
 
 model AvailabilitySchedule {
@@ -28,7 +27,7 @@ model AvailabilitySchedule {
   timezone            String            @default("UTC")
   slotDurationMinutes Int
   capacity            Int
-  isActive            Boolean           @default(true)
+  isActive             Boolean           @default(true)
   appointmentType     AppointmentType   @relation(fields: [appointmentTypeId], references: [id], onDelete: Cascade)
   slots               AppointmentSlot[]
   createdAt           DateTime          @default(now())
@@ -82,5 +81,4 @@ model Appointment {
   @@index([appId, userId, createdAt])
   @@index([appId, status, createdAt])
   @@index([appId, appointmentTypeId, status])
-  @@unique([id, appId])
 }
