@@ -171,6 +171,18 @@ BEGIN
   END IF;
 END $$;
 
+-- Make required application ownership explicit at the database level. These
+-- statements are idempotent with respect to a column that is already NOT NULL.
+ALTER TABLE "CaseRecord" ALTER COLUMN "appId" SET NOT NULL;
+ALTER TABLE "Task" ALTER COLUMN "appId" SET NOT NULL;
+ALTER TABLE "AppointmentType" ALTER COLUMN "appId" SET NOT NULL;
+ALTER TABLE "Appointment" ALTER COLUMN "appId" SET NOT NULL;
+ALTER TABLE "RequirementDefinition" ALTER COLUMN "appId" SET NOT NULL;
+ALTER TABLE "Form" ALTER COLUMN "appId" SET NOT NULL;
+ALTER TABLE "OboPermitType" ALTER COLUMN "appId" SET NOT NULL;
+ALTER TABLE "OboPermitApplication" ALTER COLUMN "appId" SET NOT NULL;
+ALTER TABLE "OboProfessional" ALTER COLUMN "appId" SET NOT NULL;
+
 -- Strengthen the two OBO relationships whose parents already expose the
 -- composite (id, appId) key. This makes application ownership a database-level
 -- invariant rather than only a service/repository invariant.
