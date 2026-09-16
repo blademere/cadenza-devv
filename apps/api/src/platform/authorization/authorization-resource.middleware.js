@@ -25,6 +25,13 @@ const authorizeResource = ({ resource, action, loadResource, policy, getResource
       const resourceInstance = await loadResource(resourceId, req)
       if (!resourceInstance) return next(new NotFoundError('Resource not found.'))
 
+      // Authorization and data ownership must agree. Resource loaders should already
+      // scope their database query by appId, but this invariant prevents a faulty or
+      // future loader from authorizing a resource owned by another application.
+      if (resourceInstance.appId !== undefined && resourceInstance.appId !== null && resourceInstance.appId !== appId) {
+        return next(new NotFoundError('Resource not found.'))
+      }
+
       if (policy) {
         const authorizationContext = await accessControlService.getAuthorizationContext(req.user.id, appId)
         const user = { ...req.user, roles: authorizationContext.roles, appId }
