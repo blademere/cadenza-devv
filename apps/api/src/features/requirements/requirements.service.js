@@ -70,7 +70,9 @@ const updateStatus = async ({ id, status, notes, submittedAt, verifiedAt, appId,
     ...(verifiedAt !== undefined ? { verifiedAt } : {}),
   }, db)
   if (!result.count) throw new NotFoundError('Case requirement not found.')
-  return db?.caseRequirement?.findFirst ? db.caseRequirement.findFirst({ where: { id }, include: { requirement: true } }) : result
+  return db?.caseRequirement?.findFirst
+    ? db.caseRequirement.findFirst({ where: { id, caseRecord: { appId } }, include: { requirement: true } })
+    : result
 }
 
 export { createRequirementDefinition, getDefinitionById, attachToCase, attachDefinitionsToCase, listForCase, updateStatus }
