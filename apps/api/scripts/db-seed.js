@@ -46,7 +46,7 @@ const prisma = new Proxy(basePrisma, {
       })
     }
 
-    if (!['oboPermitType', 'oboProfessional', 'oboPermitApplication'].includes(property)) return target[property]
+    if (!['oboPermitType', 'oboProfessional', 'oboPermitApplication', 'appointmentType', 'appointment'].includes(property)) return target[property]
 
     const delegate = target[property]
     return new Proxy(delegate, {
@@ -57,6 +57,7 @@ const prisma = new Proxy(basePrisma, {
           if (!app) throw new Error("Application 'obo' must be seeded before OBO domain fixtures.")
           const create = args.create ? { ...args.create, appId: args.create.appId ?? app.id } : args.create
           const update = args.update ? { ...args.update } : args.update
+          if (property === 'appointmentType') update.appId = update.appId ?? app.id
           const data = args.data ? { ...args.data, appId: args.data.appId ?? app.id } : args.data
           return model[method]({ ...args, ...(args.create ? { create } : {}), ...(args.update ? { update } : {}), ...(args.data ? { data } : {}) })
         }
