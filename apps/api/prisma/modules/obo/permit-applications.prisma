@@ -1,6 +1,7 @@
 model OboPermitApplication {
   id                      String                    @id @default(uuid())
-  referenceNumber         String                    @unique
+  appId                   String
+  referenceNumber         String
   caseId                  String                    @unique
   permitTypeId            String
   clientPersonId          String
@@ -14,6 +15,7 @@ model OboPermitApplication {
   declineReason           String?
   acceptedAt              DateTime?
   acceptedByUserId        Int?
+  app                     App                       @relation(fields: [appId], references: [id], onDelete: Restrict)
   caseRecord              CaseRecord                @relation(fields: [caseId], references: [id], onDelete: Restrict)
   permitType              OboPermitType             @relation(fields: [permitTypeId], references: [id], onDelete: Restrict)
   clientPerson            Person                    @relation("OboApplicationClient", fields: [clientPersonId], references: [id], onDelete: Restrict)
@@ -27,8 +29,10 @@ model OboPermitApplication {
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
 
-  @@index([clientPersonId, createdAt])
-  @@index([permitTypeId])
+  @@unique([appId, referenceNumber])
+  @@index([appId])
+  @@index([appId, clientPersonId, createdAt])
+  @@index([appId, permitTypeId])
   @@index([replacesApplicationId])
   @@index([formVersionId])
 }
