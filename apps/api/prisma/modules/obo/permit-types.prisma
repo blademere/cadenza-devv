@@ -1,16 +1,20 @@
 model OboPermitType {
   id                      String                     @id @default(uuid())
-  key                     String                     @unique
+  appId                   String
+  key                     String
   name                    String
   description             String?
   formId                  String?
   isActive                Boolean                    @default(true)
+  app                     App                        @relation(fields: [appId], references: [id], onDelete: Restrict)
   applications            OboPermitApplication[]
   requirementAssociations OboPermitTypeRequirement[]
   createdAt               DateTime                   @default(now())
   updatedAt               DateTime                   @updatedAt
 
-  @@index([isActive])
+  @@unique([appId, key])
+  @@index([appId])
+  @@index([appId, isActive])
   @@index([formId])
 }
 
