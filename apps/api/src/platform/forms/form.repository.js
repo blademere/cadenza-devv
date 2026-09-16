@@ -5,14 +5,14 @@ const prisma = getPrismaClient()
 const formVersionInclude = { sections: { orderBy: { sortOrder: 'asc' } }, fields: { include: { options: { orderBy: { sortOrder: 'asc' } } }, orderBy: { sortOrder: 'asc' } }, documentRequirements: { include: { documentType: true }, orderBy: { sortOrder: 'asc' } } }
 const allVersionsInclude = { versions: { orderBy: { version: 'desc' }, include: formVersionInclude } }
 const runTransaction = (operation, db = prisma) => db === prisma ? prisma.$transaction(operation) : operation(db)
-const findById = (id, db = prisma) => db.form.findUnique({ where: { id } })
-const findByKey = (key, db = prisma) => db.form.findUnique({ where: { key } })
-const findByIdWithVersions = (id, db = prisma) => db.form.findUnique({ where: { id }, include: { versions: { select: { id: true, version: true, status: true }, orderBy: { version: 'desc' } } } })
-const findByKeyWithDefinitions = (key, db = prisma) => db.form.findUnique({ where: { key }, include: allVersionsInclude })
-const findVersionById = (id, db = prisma) => db.formVersion.findUnique({ where: { id }, include: formVersionInclude })
-const findVersion = (formId, version, db = prisma) => db.formVersion.findUnique({ where: { formId_version: { formId, version } }, include: formVersionInclude })
-const findVersionForUpdate = (formId, version, db) => db.formVersion.findUnique({ where: { formId_version: { formId, version } } })
-const findLatestFormVersion = (key, db = prisma) => db.form.findUnique({ where: { key }, include: { versions: { orderBy: { version: 'desc' }, take: 1 } } })
+const findById = (id, appId, db = prisma) => db.form.findFirst({ where: { id, appId } })
+const findByKey = (key, appId, db = prisma) => db.form.findFirst({ where: { key, appId } })
+const findByIdWithVersions = (id, appId, db = prisma) => db.form.findFirst({ where: { id, appId }, include: { versions: { select: { id: true, version: true, status: true }, orderBy: { version: 'desc' } } } })
+const findByKeyWithDefinitions = (key, appId, db = prisma) => db.form.findFirst({ where: { key, appId }, include: allVersionsInclude })
+const findVersionById = async (id, appId, db = prisma) => db.formVersion.findFirst({ where: { id, form: { appId } }, include: formVersionInclude })
+const findVersion = (formId, version, appId, db = prisma) => db.formVersion.findFirst({ where: { formId, version, form: { appId } }, include: formVersionInclude })
+const findVersionForUpdate = (formId, version, appId, db) => db.formVersion.findFirst({ where: { formId, version, form: { appId } } })
+const findLatestFormVersion = (key, appId, db = prisma) => db.form.findFirst({ where: { key, appId }, include: { versions: { orderBy: { version: 'desc' }, take: 1 } } })
 const createFormRecord = (data, db) => db.form.create({ data })
 const createVersionRecord = (data, db) => db.formVersion.create({ data })
 const createDefinitionRecords = async (versionId, sections, fields, db) => {
@@ -28,12 +28,13 @@ const createDefinitionRecords = async (versionId, sections, fields, db) => {
     if (field.options?.length) await db.formOption.createMany({ data: field.options.map((option, optionIndex) => ({ fieldId: created.id, value: String(option.value), label: option.label, sortOrder: option.sortOrder ?? optionIndex, metadata: option.metadata || undefined })) })
   }
 }
-const findVersionWithDefinition = (id, db) => db.formVersion.findUnique({ where: { id }, include: formVersionInclude })
+const findVersionWithDefinition = (id, appId, db) => db.formVersion.findFirst({ where: { id, form: { appId } }, include: formVersionInclude })
 const deleteFields = (formVersionId, db) => db.formField.deleteMany({ where: { formVersionId } })
 const deleteSections = (formVersionId, db) => db.formSection.deleteMany({ where: { formVersionId } })
-const updateVersion = (id, data, db) => db.formVersion.update({ where: { id }, data, include: formVersionInclude })
-const archivePublishedVersions = (formId, db) => db.formVersion.updateMany({ where: { formId, status: 'PUBLISHED' }, data: { status: 'ARCHIVED' } })
+const updateVersion = (id, appId, data, db) => db.formVersion.updateMany({ where: { id, form: { appId } }, data })
+const getUpdatedVersion = (id, appId, db) => db.formVersion.findFirst({ where: { id, form: { appId } }, include: formVersionInclude })
+const archivePublishedVersions = (formId, appId, db) => db.formVersion.updateMany({ where: { formId, form: { appId }, status: 'PUBLISHED' }, data: { status: 'ARCHIVED' } })
 const createSubmissionRecord = (data, db) => db.formSubmission.create({ data })
-const findPublishedForm = (key, db = prisma) => db.form.findUnique({ where: { key }, include: { versions: { where: { status: 'PUBLISHED' }, orderBy: { version: 'desc' }, take: 1, include: formVersionInclude } } })
+const findPublishedForm = (key, appId, db = prisma) => db.form.findFirst({ where: { key, appId }, include: { versions: { where: { status: 'PUBLISHED' }, orderBy: { version: 'desc' }, take: 1, include: formVersionInclude } } })
 
-export { runTransaction, findById, findByKey, findByIdWithVersions, findByKeyWithDefinitions, findVersionById, findVersion, findVersionForUpdate, findLatestFormVersion, createFormRecord, createVersionRecord, createDefinitionRecords, findVersionWithDefinition, deleteFields, deleteSections, updateVersion, archivePublishedVersions, createSubmissionRecord, findPublishedForm }
+export { runTransaction, findById, findByKey, findByIdWithVersions, findByKeyWithDefinitions, findVersionById, findVersion, findVersionForUpdate, findLatestFormVersion, createFormRecord, createVersionRecord, createDefinitionRecords, findVersionWithDefinition, deleteFields, deleteSections, updateVersion, getUpdatedVersion, archivePublishedVersions, createSubmissionRecord, findPublishedForm }
