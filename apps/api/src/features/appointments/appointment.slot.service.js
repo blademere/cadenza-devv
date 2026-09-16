@@ -24,11 +24,12 @@ const toDateAtMinutes = (date, minutes, timeZone) => {
   return candidate
 }
 
-const generateSlots = async ({ appointmentTypeId, from, to, scheduleId, actorId, db = prisma }) => {
+const generateSlots = async ({ appointmentTypeId, from, to, scheduleId, actorId, appId, db = prisma }) => {
+  if (!appId) throw new BadRequestError('Application context is required.')
   if (!(from instanceof Date) || Number.isNaN(from.getTime()) || !(to instanceof Date) || Number.isNaN(to.getTime())) throw new BadRequestError('from and to must be valid dates.')
   if (from >= to) throw new BadRequestError('from must be earlier than to.')
-  if (!(await repository.findAppointmentType(appointmentTypeId, db))) throw new NotFoundError('Appointment type not found.')
-  const schedules = await repository.listActiveSchedules({ appointmentTypeId, scheduleId }, db)
+  if (!(await repository.findAppointmentType(appointmentTypeId, appId, db))) throw new NotFoundError('Appointment type not found.')
+  const schedules = await repository.listActiveSchedules({ appointmentTypeId, scheduleId, appId }, db)
   if (scheduleId && schedules.length === 0) throw new NotFoundError('Availability schedule not found.')
 
   const pending = []
@@ -49,11 +50,11 @@ const generateSlots = async ({ appointmentTypeId, from, to, scheduleId, actorId,
   return db.$transaction(async (tx) => {
     const created = []
     for (const data of pending) {
-      if (await repository.findSlotByStart({ appointmentTypeId: data.appointmentTypeId, startsAt: data.startsAt }, tx)) continue
+      if (await repository.findSlotByStart({ appointmentTypeId: data.appointmentTypeId, startsAt: data.startsAt, appId }, tx)) continue
       try {
         const slot = await repository.createAppointmentSlot(data, tx)
         created.push(slot)
-        await recordAudit({ actorId, action: 'APPOINTMENT_SLOT_CREATED', entityType: 'AppointmentSlot', entityId: slot.id, before: null, after: slot, db: tx })
+        await recordAudit({ actorId, appId, action: 'APPOINTMENT_SLOT_CREATED', entityType: 'AppointmentSlot', entityId: slot.id, before: null, after: slot, db: tx })
       } catch (error) {
         if (error.code !== 'P2002') throw error
       }
