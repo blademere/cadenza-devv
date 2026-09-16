@@ -24,14 +24,13 @@ async function seedOboReferenceData(prisma, { planPermitForm } = {}) {
   })
 
   const appointmentType = await prisma.appointmentType.upsert({
-    where: { key: OBO_APPOINTMENT_TYPE.key },
+    where: { appId_key: { appId: oboApp.id, key: OBO_APPOINTMENT_TYPE.key } },
     update: {
       name: OBO_APPOINTMENT_TYPE.name,
       description: OBO_APPOINTMENT_TYPE.description,
       defaultDurationMinutes: OBO_APPOINTMENT_TYPE.defaultDurationMinutes,
       defaultCapacity: OBO_APPOINTMENT_TYPE.defaultCapacity,
       isActive: true,
-      appId: oboApp.id,
     },
     create: { ...OBO_APPOINTMENT_TYPE, appId: oboApp.id, isActive: true },
   })
