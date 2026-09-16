@@ -20,6 +20,7 @@ This document freezes the ownership findings that must drive the application-sco
 - Shared appointment models (`AppointmentType`, `AvailabilitySchedule`, `AppointmentSlot`, `Appointment`) currently have no `appId`; several identifiers are globally unique. This requires a dedicated ownership and uniqueness decision before migration.
 - Generic `Form` is shared infrastructure/capability, but OBO permit types use it for application-specific form definitions. Form ownership must therefore be separated from the reusable form engine.
 - `CaseRequirement` and case participants are naturally scoped through `CaseRecord`; direct `appId` is not automatically required if the repository always resolves through an application-owned case.
+- Documents are reusable storage artifacts but may be application-owned. Phase 9 therefore uses a nullable `Document.appId`: a non-null value means the artifact belongs to that application, while `null` is an explicit shared/global artifact. `DocumentType` remains a global catalog. OBO's `OboPermitApplicationDocument` remains the application-specific association between a permit application, case requirement and document.
 
 ## Ownership matrix — baseline decision record
 
@@ -49,7 +50,9 @@ This document freezes the ownership findings that must drive the application-sco
 | `Form` | platform | Application | **Yes** | Form definitions are application-owned data; form engine remains shared |
 | `FormVersion` | platform | Application-inherited | No initially | Owned through `Form` |
 | Form sections/fields/options | platform | Application-inherited | No initially | Owned through `FormVersion` |
-| Documents | platform / OBO | Review | Review | Classify global artifact vs application/case/requirement association |
+| `DocumentType` | platform | Global catalog | No | Reusable document classification |
+| `Document` | platform | Application or explicitly shared | **Nullable** | `appId` identifies application ownership; `null` is the explicit shared/global state |
+| `OboPermitApplicationDocument` | OBO app | OBO application-inherited | No | Owned by `OboPermitApplication`; references `CaseRequirement` and `Document` |
 | `AuditLog` | platform | Contextual | **Already present** | Nullable `appId` supports global and application-context events |
 | Workflow definitions/engine | platform | Shared mechanism; data review | Review | Keep engine shared; inspect whether definitions/instances need app ownership |
 
@@ -61,6 +64,7 @@ The baseline contains repository access patterns that currently identify shared 
 - Tasks: repository lookup is currently by task id; task creation can validate a case by id without an application predicate.
 - Requirements: case validation and case-requirement queries currently use `caseId` without an application boundary.
 - Participants: case validation currently resolves a case by id, while the person remains global.
+- Documents: document lookup is owner-scoped but previously had no application predicate. Phase 9 adds application-aware repository filters while retaining explicit access to `appId = null` shared artifacts.
 
 These are not safe application boundaries once shared records become multi-application data. Later phases must change the service/repository contracts so application ownership is explicit and enforced at the persistence boundary.
 
@@ -74,6 +78,7 @@ The following globally unique fields are known ownership candidates and must be 
 - OBO `OboPermitType.key`
 - OBO `OboPermitApplication.referenceNumber`
 - Generic `Form.key`
+- `Document.storageKey` — intentionally remains globally unique because it identifies a storage object rather than an application business identifier.
 
 Do not automatically change all of these to composite uniqueness. Phase 13 must determine whether each identifier is intentionally global or only unique within an application.
 
@@ -94,6 +99,27 @@ Reusable infrastructure/mechanism
 
 Shared feature code must accept application context as data (`appId` or an equivalent application context object at the service boundary), not import an OBO application module and not depend directly on Express request objects.
 
+## Phase 9 document ownership decision
+
+Documents are split into two ownership states without moving the reusable document feature:
+
+```text
+DocumentType
+    -> global reusable catalog
+
+Document
+    -> appId = application-owned artifact
+    -> appId = null = explicitly shared/global artifact
+
+OboPermitApplicationDocument
+    -> OBO application association
+    -> application -> case -> case requirement remains the primary ownership chain
+```
+
+Application-scoped document repositories must include the current `appId`. A document from another application must not be returned through an application-scoped lookup. A `null` `appId` document is intentionally shareable and remains visible to the owning user in an application context.
+
+The OBO receiving workflow now passes its application context when resolving an attached document. This prevents an OBO workflow from attaching a document owned by another application while preserving the existing shared-document behavior.
+
 ## Explicit non-goals for Phase 0
 
 - No Prisma schema changes.
@@ -110,8 +136,8 @@ Shared feature code must accept application context as data (`appId` or an equiv
 - [x] Primary missing application boundaries identified.
 - [x] Global uniqueness hotspots identified for later review.
 - [x] Repository-level implicit ownership risks identified.
-- [ ] Requirement-definition ownership explicitly decided in Phase 6.
-- [ ] Document ownership explicitly decided in Phase 9.
+- [x] Requirement-definition ownership explicitly decided in Phase 6.
+- [x] Document ownership explicitly decided in Phase 9.
 - [ ] Workflow data ownership explicitly audited before migration.
 
 ## Next phase
