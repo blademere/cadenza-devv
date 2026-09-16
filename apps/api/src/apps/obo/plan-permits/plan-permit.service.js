@@ -35,7 +35,7 @@ const hydrateApplication = async (application, appId, db) => {
   if (!application) return application
   let hydrated = application
   if (application.formVersionId) {
-    const formVersion = await formService.getFormVersionById(application.formVersionId, db)
+    const formVersion = await formService.getFormVersionById(application.formVersionId, appId, db)
     hydrated = { ...hydrated, formVersion }
   }
   if (application.submissionAppointment?.appointmentId) {
@@ -87,7 +87,7 @@ const addProfessionalParticipants = async ({ caseId, applicationId, professional
 
 const attachPermitRequirements = async ({ caseId, permitTypeId, appId, db }) => {
   const requirementIds = await permitTypeRequirementService.getRequirementIds(permitTypeId, appId, db)
-  return requirementService.attachDefinitionsToCase({ caseId, requirementIds, metadata: { source: 'obo-plan-permit', permitTypeId }, db })
+  return requirementService.attachDefinitionsToCase({ caseId, requirementIds, metadata: { source: 'obo-plan-permit', permitTypeId }, db, appId })
 }
 
 const createApplication = async ({ appId, userId, permitTypeId, formVersionId, formValues, replacesApplicationId }) => {
@@ -95,7 +95,7 @@ const createApplication = async ({ appId, userId, permitTypeId, formVersionId, f
   const permitType = await permitTypeService.getPermitTypeById(permitTypeId, appId)
   if (!permitType) throw new NotFoundError('Active permit type not found.')
   const replacement = await resolveReplacement({ replacesApplicationId, personId: person.id, appId })
-  const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
+  const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues, appId })
   const application = await repository.withTransaction(async (tx) => {
     const referenceNumber = `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
     const caseRecord = await createCaseRecord({ appId, userId, permitTypeName: permitType.name, db: tx })
@@ -142,7 +142,7 @@ const getChangedFormFields = (before = {}, after = {}) => {
 const updateDraft = async ({ id, appId, userId, formVersionId, formValues }) => {
   const application = await getMine({ id, appId, userId })
   if (application.status !== STATUS.DRAFT) throw new ConflictError('Only draft applications can be updated.')
-  const resolvedForm = await resolveAndValidateForm({ permitType: application.permitType, formVersionId: formVersionId || application.formVersionId, formValues })
+  const resolvedForm = await resolveAndValidateForm({ permitType: application.permitType, formVersionId: formVersionId || application.formVersionId, formValues, appId })
   const updated = await repository.withTransaction(async (tx) => {
     const result = await repository.update(id, appId, { formVersionId: resolvedForm.formVersionId, formValues }, tx)
     if (!result) throw new NotFoundError('Permit application not found.')
@@ -154,9 +154,9 @@ const updateDraft = async ({ id, appId, userId, formVersionId, formValues }) => 
 }
 const validateSubmissionProfessionals = async (application, appId) => {
   if (!application.formVersion || !application.permitType.formId) return null
-  const form = await formService.getFormById(application.permitType.formId)
+  const form = await formService.getFormById(application.permitType.formId, appId)
   if (!form || !form.isActive) throw new ConflictError('The permit type is linked to an inactive form.')
-  const validation = await formService.validateFormValues({ formKey: form.key, version: application.formVersion.version, values: application.formValues, requireRequired: true })
+  const validation = await formService.validateFormValues({ appId, formKey: form.key, version: application.formVersion.version, values: application.formValues, requireRequired: true })
   if (!validation.valid) throw new ValidationError('Permit form validation failed.', validation.errors)
   await validateProfessionalReferences({ formVersion: application.formVersion, formValues: application.formValues, appId })
   return buildProfessionalSnapshots({ formVersion: application.formVersion, formValues: application.formValues })
