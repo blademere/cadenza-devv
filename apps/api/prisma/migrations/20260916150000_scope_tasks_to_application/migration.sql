@@ -1,6 +1,9 @@
 -- Phase 4: make shared tasks explicitly application-owned.
 -- Ownership is derived from the authoritative CaseRecord relationship.
--- Tasks without a case are not assigned an owner by inference.
+-- Legacy orphan tasks are assigned to the sole OBO application because the
+-- current database contains only the OBO application and these tasks predate
+-- explicit application ownership. We never infer ownership from a user or
+-- assignee.
 
 ALTER TABLE "Task"
   ADD COLUMN "appId" TEXT;
@@ -10,6 +13,24 @@ SET "appId" = c."appId"
 FROM "CaseRecord" AS c
 WHERE t."caseId" = c."id"
   AND t."appId" IS NULL;
+
+DO $$
+DECLARE
+  obo_app_id TEXT;
+BEGIN
+  SELECT id
+  INTO obo_app_id
+  FROM "App"
+  WHERE key = 'obo';
+
+  IF obo_app_id IS NULL THEN
+    RAISE EXCEPTION 'Cannot complete task application ownership migration: OBO application does not exist';
+  END IF;
+
+  UPDATE "Task"
+  SET "appId" = obo_app_id
+  WHERE "appId" IS NULL;
+END $$;
 
 DO $$
 BEGIN
