@@ -14,6 +14,17 @@ DROP INDEX IF EXISTS "OboProfessional_personId_key";
 DROP INDEX IF EXISTS "OboProfessional_registrationNumber_key";
 DROP INDEX IF EXISTS "OboProfessional_prcId_key";
 
+-- These indexes may already exist when recovering a previously failed rollout.
+-- Drop the exact target names first so the migration is safe to retry without
+-- weakening the intended uniqueness guarantees.
+DROP INDEX IF EXISTS "CaseRecord_appId_caseNumber_key";
+DROP INDEX IF EXISTS "CaseRecord_id_appId_key";
+DROP INDEX IF EXISTS "OboPermitType_appId_key_key";
+DROP INDEX IF EXISTS "OboPermitApplication_appId_referenceNumber_key";
+DROP INDEX IF EXISTS "OboProfessional_appId_personId_key";
+DROP INDEX IF EXISTS "OboProfessional_appId_registrationNumber_key";
+DROP INDEX IF EXISTS "OboProfessional_appId_prcId_key";
+
 CREATE UNIQUE INDEX "CaseRecord_appId_caseNumber_key"
   ON "CaseRecord" ("appId", "caseNumber");
 
