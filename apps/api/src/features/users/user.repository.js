@@ -43,18 +43,4 @@ const findUser = async (userId, db = prisma) => db.user.findUnique({
   select: { id: true, email: true, isActive: true, createdAt: true, updatedAt: true },
 })
 
-const findRoleForAssignment = async (roleId, db = prisma) => db.role.findUnique({
-  where: { id: Number(roleId) },
-  select: {
-    id: true,
-    name: true,
-    description: true,
-    permissions: {
-      select: {
-        permission: { select: { action: true, module: { select: { key: true, isActive: true } } } },
-      },
-    },
-  },
-})
-
-export { findAllUsers, findUserByEmail, createUser, findUser, findRoleForAssignment }
+export { findAllUsers, findUserByEmail, createUser, findUser }

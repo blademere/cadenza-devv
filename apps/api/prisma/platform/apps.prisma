@@ -5,6 +5,7 @@ model App {
   description       String?
   isActive          Boolean            @default(true)
   memberships       AppMembership[]
+  roles             Role[]
   approvalInstances ApprovalInstance[]
   auditLogs         AuditLog[]
   createdAt         DateTime           @default(now())

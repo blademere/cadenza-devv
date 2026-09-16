@@ -16,14 +16,8 @@ const listUsersSchema = z.object({
 const createUserSchema = z.object({
   body: z.object({
     email: z.email().trim().toLowerCase(),
-    roleId: z.coerce.number().int().positive(),
     password: z.string().min(8).max(72),
   }),
-})
-
-const assignUserRoleSchema = z.object({
-  params: z.object({ userId: z.coerce.number().int().positive() }),
-  body: z.object({ roleId: z.coerce.number().int().positive() }),
 })
 
 const profileFields = {
@@ -49,8 +43,6 @@ const listUsersValidator = async (req) =>
   listUsersSchema.parse({ query: req.query || {} })
 const createUserValidator = async (req) =>
   createUserSchema.parse({ body: req.body || {} })
-const assignUserRoleValidator = async (req) =>
-  assignUserRoleSchema.parse({ params: req.params || {}, body: req.body || {} })
 const createMyProfileValidator = async (req) =>
   createMyProfileSchema.parse({ body: req.body || {} })
 const updateMyProfileValidator = async (req) =>
@@ -59,7 +51,6 @@ const updateMyProfileValidator = async (req) =>
 export {
   listUsersValidator,
   createUserValidator,
-  assignUserRoleValidator,
   createMyProfileValidator,
   updateMyProfileValidator,
 }

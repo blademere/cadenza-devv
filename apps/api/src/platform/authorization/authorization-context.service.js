@@ -3,7 +3,7 @@ import { getUserAuthorizationContext, listActiveModules } from './authorization-
 const getAuthorizationContextResponse = async ({ userId, appId }) => {
   const [context, modules] = await Promise.all([
     getUserAuthorizationContext({ userId, appId }),
-    listActiveModules(),
+    listActiveModules({ appId }),
   ])
 
   const permissions = new Set(

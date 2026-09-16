@@ -7,10 +7,12 @@ import professionalRoutes from './professionals/professional.routes.js'
 import planPermitRoutes from './plan-permits/plan-permit.routes.js'
 import receivingRoutes from './receiving/receiving.routes.js'
 import submissionAppointmentRoutes from './submission-appointments/submission-appointment.routes.js'
+import authorizationRoutes from './authorization/authorization.routes.js'
 
 const oboRouter = express.Router()
 
 oboRouter.use(authenticate, requireApplicationContext({ appKey: 'obo' }))
+oboRouter.use('/authorization', authorizationRoutes)
 oboRouter.use('/permit-types', permitTypeRoutes)
 oboRouter.use('/clients', clientRoutes)
 oboRouter.use('/professionals', professionalRoutes)

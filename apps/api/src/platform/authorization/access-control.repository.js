@@ -3,15 +3,20 @@ import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 const prisma = getPrismaClient()
 
 const getUserAuthorizationContext = async ({ userId, appId }) => {
+  const normalizedUserId = Number(userId)
+  const normalizedAppId = String(appId ?? '').trim()
+
+  if (!Number.isInteger(normalizedUserId) || !normalizedAppId) return null
+
   const user = await prisma.user.findUnique({
-    where: { id: Number(userId) },
+    where: { id: normalizedUserId },
     select: { id: true, isActive: true },
   })
 
-  if (!user || !user.isActive || !appId) return null
+  if (!user || !user.isActive) return null
 
   const membership = await prisma.appMembership.findUnique({
-    where: { appId_userId: { appId, userId: Number(userId) } },
+    where: { appId_userId: { appId: normalizedAppId, userId: normalizedUserId } },
     select: {
       id: true,
       isActive: true,
@@ -43,10 +48,14 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
 
   const roles = membership.roles.map(({ role }) => ({ id: role.id, name: role.name }))
   const permissions = new Map()
+  const modulePrefix = `${membership.app.key}_`
 
   for (const { role } of membership.roles) {
     for (const { permission } of role.permissions) {
-      if (permission.module.isActive) {
+      if (
+        permission.module.isActive &&
+        permission.module.key.startsWith(modulePrefix)
+      ) {
         permissions.set(`${permission.module.key}:${permission.action}`, {
           resource: permission.module.key,
           action: permission.action,
@@ -69,32 +78,30 @@ const getUserPermissions = async ({ userId, appId }) => {
   return context?.permissions ?? []
 }
 
-const findRoleById = async (roleId) => prisma.role.findUnique({
-  where: { id: Number(roleId) },
-  select: {
-    id: true,
-    name: true,
-    description: true,
-    permissions: {
-      select: {
-        permission: {
-          select: {
-            action: true,
-            module: { select: { key: true, isActive: true } },
-          },
-        },
-      },
-    },
-  },
-})
+const findUserIdsByRoleId = async (roleId, appId) => {
+  const normalizedRoleId = Number(roleId)
+  const normalizedAppId = String(appId ?? '').trim()
+  if (!Number.isInteger(normalizedRoleId)) return []
 
-const findUserIdsByRoleId = async (roleId) => {
-  const memberships = await prisma.appMembership.findMany({
-    where: { roles: { some: { roleId: Number(roleId) } } },
-    select: { userId: true },
-    distinct: ['userId'],
+  const role = await prisma.role.findUnique({
+    where: { id: normalizedRoleId },
+    select: { appId: true },
   })
-  return memberships.map(({ userId }) => userId)
+  if (!role) return []
+  if (normalizedAppId && role.appId !== normalizedAppId) return []
+
+  const resolvedAppId = role.appId
+  const memberships = await prisma.appMembership.findMany({
+    where: {
+      appId: resolvedAppId,
+      isActive: true,
+      app: { isActive: true },
+      roles: { some: { roleId: normalizedRoleId, role: { appId: resolvedAppId } } },
+    },
+    select: { userId: true, appId: true },
+    distinct: ['userId', 'appId'],
+  })
+  return memberships.map(({ userId, appId: membershipAppId }) => ({ userId, appId: membershipAppId }))
 }
 
-export { getUserAuthorizationContext, getUserPermissions, findRoleById, findUserIdsByRoleId }
+export { getUserAuthorizationContext, getUserPermissions, findUserIdsByRoleId }

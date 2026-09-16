@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import 'dotenv/config'
+
 import { seedModelCoverage } from './seed-model-coverage.js'
 import { seedAuthorization } from './seed/authorization.js'
 import { seedApplications } from './seed/applications.js'
@@ -55,8 +56,8 @@ const prisma = new Proxy(basePrisma, {
 })
 
 async function seed() {
-  const { roles, permissionRecords } = await seedAuthorization(prisma)
   const applications = await seedApplications(prisma)
+  const { roles, permissionRecords } = await seedAuthorization(prisma, { applications })
   const { demoPasswordHash } = await seedDevelopmentUsers(prisma, { roles })
   const { form: planPermitForm } = await seedPlatformForms(prisma)
 
@@ -72,7 +73,7 @@ async function seed() {
   await seedOboNotifications(prisma)
   await seedModelCoverage(prisma)
 
-  console.log(`Seed complete: ${permissionRecords.size} canonical permissions, baseline roles, ${Object.keys(applications).length} platform application(s), application-scoped memberships and roles, platform OBO form/document/appointment configuration, OBO reference/workflow/notification fixtures, deterministic OBO development scenario with form-owned professional selection, deterministic professional verification cases, person profiles for active users, and verified complete Prisma model coverage.`)
+  console.log(`Seed complete: ${permissionRecords.size} canonical permissions, application-owned roles, ${Object.keys(applications).length} platform application(s), application-scoped memberships and roles, platform OBO form/document/appointment configuration, OBO reference/workflow/notification fixtures, deterministic OBO development scenario with form-owned professional selection, deterministic professional verification cases, person profiles for active users, and verified complete Prisma model coverage.`)
 }
 
 async function main() {

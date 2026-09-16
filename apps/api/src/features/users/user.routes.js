@@ -5,7 +5,6 @@ import authorize from '../../platform/authorization/authorize.js'
 import {
   createUserController,
   listUsersController,
-  assignUserRoleController,
   getMyProfileController,
   createMyProfileController,
   updateMyProfileController,
@@ -13,7 +12,6 @@ import {
 import {
   createUserValidator,
   listUsersValidator,
-  assignUserRoleValidator,
   createMyProfileValidator,
   updateMyProfileValidator,
 } from './user.validation.js'
@@ -26,6 +24,5 @@ userRouter.post('/me/profile', authenticate, /* authorization: auth-boundary —
 userRouter.patch('/me/profile', authenticate, /* authorization: auth-boundary — authenticated user updates only their own profile */ validate(updateMyProfileValidator), asyncHandler(updateMyProfileController))
 userRouter.get('/', authenticate, authorize('users', 'read'), validate(listUsersValidator), asyncHandler(listUsersController))
 userRouter.post('/', authenticate, authorize('users', 'create'), requireIdempotency, validate(createUserValidator), asyncHandler(createUserController))
-userRouter.patch('/:userId/role', authenticate, authorize('authorization', 'manage'), requireIdempotency, validate(assignUserRoleValidator), asyncHandler(assignUserRoleController))
 
 export default userRouter

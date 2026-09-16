@@ -1,8 +1,7 @@
 import express from 'express'
 import { asyncHandler, idempotency, validate } from '../../../common/middleware/index.js'
 import authenticate from '../../../features/auth/authenticate.secure.js'
-import authorize from '../../../platform/authorization/authorize.js'
-import authorizeResource from '../../../platform/authorization/authorization-resource.middleware.js'
+import { authorizeOBO, authorizeOBOResource } from '../authorization/authorization.service.js'
 import * as controller from './permit-type.controller.js'
 import * as service from './permit-type.service.js'
 import { createPermitTypeFormValidator, createPermitTypeFormVersionValidator, updatePermitTypeFormVersionValidator, publishPermitTypeFormVersionValidator } from './permit-type.form.validation.js'
@@ -11,6 +10,8 @@ import { createPermitTypeValidator, getPermitTypeFormValidator, permitTypeIdVali
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-permit-types', required: true })
 const loadPermitType = (id) => service.getForAuthorization(id)
+const authorize = authorizeOBO
+const authorizeResource = authorizeOBOResource
 
 const authorizePermitTypeRead = authorizeResource({ resource: 'obo_permit_types', action: 'read', loadResource: loadPermitType, getResourceId: (req) => req.params.permitTypeId })
 const authorizePermitTypeUpdate = authorizeResource({ resource: 'obo_permit_types', action: 'update', loadResource: loadPermitType, getResourceId: (req) => req.params.permitTypeId })

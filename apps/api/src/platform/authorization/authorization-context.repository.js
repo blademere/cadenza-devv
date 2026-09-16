@@ -25,6 +25,7 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
             select: { id: true, key: true, name: true, isActive: true },
           },
           roles: {
+            where: { role: { appId: normalizedAppId } },
             select: {
               role: {
                 select: {
@@ -56,6 +57,7 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
   const membership = user.appMemberships[0]
   if (!membership) return null
 
+  const appModulePrefix = `${membership.app.key}_`
   const roles = membership.roles.map(({ role }) => ({
     id: role.id,
     name: role.name,
@@ -63,7 +65,7 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
 
   const permissions = membership.roles
     .flatMap(({ role }) => role.permissions.map(({ permission }) => permission))
-    .filter(({ module }) => module.isActive)
+    .filter(({ module }) => module.isActive && module.key.startsWith(appModulePrefix))
     .map(({ action, module }) => ({
       resource: module.key,
       action,
@@ -79,10 +81,24 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
   }
 }
 
-const listActiveModules = () => prisma.module.findMany({
-  where: { isActive: true },
-  orderBy: { key: 'asc' },
-  select: { id: true, key: true, name: true, description: true, isActive: true },
-})
+const listActiveModules = async ({ appId } = {}) => {
+  const normalizedAppId = String(appId ?? '').trim()
+  if (!normalizedAppId) return []
+
+  const app = await prisma.app.findUnique({
+    where: { id: normalizedAppId },
+    select: { key: true, isActive: true },
+  })
+  if (!app || !app.isActive) return []
+
+  return prisma.module.findMany({
+    where: {
+      isActive: true,
+      key: { startsWith: `${app.key}_` },
+    },
+    orderBy: { key: 'asc' },
+    select: { id: true, key: true, name: true, description: true, isActive: true },
+  })
+}
 
 export { getUserAuthorizationContext, listActiveModules }

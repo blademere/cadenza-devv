@@ -20,68 +20,50 @@ beforeEach(() => {
   users.findUserByEmail.mockResolvedValue(null)
   users.createUser.mockResolvedValue({ id: 100, email: 'new@example.com' })
   applications.addMembership.mockResolvedValue({ id: 'membership-1' })
-  applications.addMembershipRole.mockResolvedValue({ id: 'membership-role-1' })
   mapper.toUserResponse.mockImplementation((user) => user)
 })
 
-describe('user role assignment', () => {
-  it('rejects assignment of a role containing permissions the requester lacks', async () => {
-    accessControl.getAuthorizationContext.mockResolvedValue({
-      roles: [{ id: 1, name: 'operator' }],
-      permissions: [
-        { resource: 'users', action: 'create' },
-        { resource: 'users', action: 'read' },
-      ],
-    })
-    accessControl.getRoleById.mockResolvedValue({
-      id: 2,
-      name: 'administrator',
-      permissions: [{ permission: { action: 'approve', module: { key: 'applications' } } }],
-    })
+describe('user registration', () => {
+  it('requires application context', async () => {
+    await expect(registerUser({
+      requesterId: 7,
+      email: 'new@example.com',
+      password: 'password123',
+    })).rejects.toThrow('Application context is required to create users.')
+    expect(accessControl.getAuthorizationContext).not.toHaveBeenCalled()
+    expect(users.createUser).not.toHaveBeenCalled()
+  })
+
+  it('requires an authorized requester before creating a user', async () => {
+    accessControl.getAuthorizationContext.mockResolvedValue(null)
 
     await expect(registerUser({
       requesterId: 7,
       appId: 'app-obo',
       email: 'new@example.com',
-      roleId: 2,
       password: 'password123',
-    })).rejects.toThrow('You cannot assign a role containing permissions that you do not have.')
+    })).rejects.toThrow('Your account is not authorized to create users.')
+    expect(accessControl.getAuthorizationContext).toHaveBeenCalledWith(7, 'app-obo')
     expect(users.createUser).not.toHaveBeenCalled()
-    expect(bcrypt.default.hash).not.toHaveBeenCalled()
     expect(applications.addMembership).not.toHaveBeenCalled()
   })
 
-  it('allows assignment when the target role permissions are a subset of requester permissions', async () => {
+  it('creates the user and application membership without assigning a role', async () => {
     accessControl.getAuthorizationContext.mockResolvedValue({
       roles: [{ id: 1, name: 'administrator' }],
-      permissions: [
-        { resource: 'users', action: 'create' },
-        { resource: 'users', action: 'read' },
-        { resource: 'applications', action: 'approve' },
-      ],
-    })
-    accessControl.getRoleById.mockResolvedValue({
-      id: 2,
-      name: 'operator',
-      permissions: [
-        { permission: { action: 'create', module: { key: 'users' } } },
-        { permission: { action: 'read', module: { key: 'users' } } },
-      ],
+      permissions: [{ resource: 'users', action: 'create' }],
     })
 
     await expect(registerUser({
       requesterId: 7,
       appId: 'app-obo',
       email: 'new@example.com',
-      roleId: 2,
       password: 'password123',
     })).resolves.toEqual({
       id: 100,
       email: 'new@example.com',
-      roles: [{ id: 2, name: 'operator', permissions: [
-        { permission: { action: 'create', module: { key: 'users' } } },
-        { permission: { action: 'read', module: { key: 'users' } } },
-      ] }],
+      roles: [],
+      membershipId: 'membership-1',
     })
     expect(users.createUser).toHaveBeenCalledWith({
       email: 'new@example.com',
@@ -91,9 +73,6 @@ describe('user role assignment', () => {
       userId: 100,
       appId: 'app-obo',
     })
-    expect(applications.addMembershipRole).toHaveBeenCalledWith({
-      membershipId: 'membership-1',
-      roleId: 2,
-    })
+    expect(applications.addMembershipRole).not.toHaveBeenCalled()
   })
 })

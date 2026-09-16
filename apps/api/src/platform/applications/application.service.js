@@ -59,13 +59,27 @@ const disableUserMembership = async ({ userId, appId }) => {
   return disableMembership({ userId, appId })
 }
 
-const addMembershipRole = async ({ membershipId, roleId }) => {
+const addMembershipRole = async ({ membershipId, roleId, appId }) => {
   const membership = await getMembershipById(membershipId)
   if (!membership) throw new NotFoundError(`Membership '${membershipId}' was not found.`)
-  return assignMembershipRole({ membershipId, roleId })
+  if (appId && membership.appId !== appId) {
+    throw new ForbiddenError('Membership does not belong to the current application.')
+  }
+  const assignment = await assignMembershipRole({ membershipId, roleId, appId })
+  if (!assignment) throw new NotFoundError(`Role '${roleId}' was not found in the current application.`)
+  return assignment
 }
 
-const removeMembershipRoleAssignment = async ({ membershipId, roleId }) => removeMembershipRole({ membershipId, roleId })
+const removeMembershipRoleAssignment = async ({ membershipId, roleId, appId }) => {
+  const membership = await getMembershipById(membershipId)
+  if (!membership) throw new NotFoundError(`Membership '${membershipId}' was not found.`)
+  if (appId && membership.appId !== appId) {
+    throw new ForbiddenError('Membership does not belong to the current application.')
+  }
+  const assignment = await removeMembershipRole({ membershipId, roleId, appId })
+  if (!assignment) throw new NotFoundError(`Membership '${membershipId}' was not found in the current application.`)
+  return assignment
+}
 
 const getRolesForMembership = async (membershipId) => listMembershipRoles(membershipId)
 

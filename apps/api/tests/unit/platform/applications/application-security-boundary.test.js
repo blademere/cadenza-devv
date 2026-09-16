@@ -16,6 +16,9 @@ const prisma = {
     delete: vi.fn(),
     findMany: vi.fn(),
   },
+  role: {
+    findFirst: vi.fn(),
+  },
 }
 
 vi.mock('../../../../src/infrastructure/database/prisma.js', () => ({
@@ -86,15 +89,56 @@ describe('application security boundary', () => {
   })
 
   it('assigns a membership role idempotently through the unique membership-role key', async () => {
+    prisma.appMembership.findUnique.mockResolvedValue({
+      id: 'membership-1',
+      appId: 'app-obo',
+      isActive: true,
+      app: { isActive: true },
+    })
+    prisma.role.findFirst.mockResolvedValue({ id: 7 })
     prisma.appMembershipRole.upsert.mockResolvedValue({ id: 'assignment-1' })
 
-    await repository.assignMembershipRole({ membershipId: 'membership-1', roleId: '7' })
+    await repository.assignMembershipRole({ membershipId: 'membership-1', roleId: '7', appId: 'app-obo' })
 
     expect(prisma.appMembershipRole.upsert).toHaveBeenCalledWith(expect.objectContaining({
       where: { membershipId_roleId: { membershipId: 'membership-1', roleId: 7 } },
       update: {},
       create: { membershipId: 'membership-1', roleId: 7 },
     }))
+  })
+
+  it('rejects membership role assignment when the membership belongs to another application', async () => {
+    prisma.appMembership.findUnique.mockResolvedValue({
+      id: 'membership-1',
+      appId: 'app-cadenza',
+      isActive: true,
+      app: { isActive: true },
+    })
+
+    await expect(repository.assignMembershipRole({
+      membershipId: 'membership-1',
+      roleId: 7,
+      appId: 'app-obo',
+    })).resolves.toBeNull()
+    expect(prisma.role.findFirst).not.toHaveBeenCalled()
+    expect(prisma.appMembershipRole.upsert).not.toHaveBeenCalled()
+  })
+
+  it('rejects membership role assignment when the role is not owned by the membership application', async () => {
+    prisma.appMembership.findUnique.mockResolvedValue({
+      id: 'membership-1',
+      appId: 'app-obo',
+      isActive: true,
+      app: { isActive: true },
+    })
+    prisma.role.findFirst.mockResolvedValue(null)
+
+    await expect(repository.assignMembershipRole({
+      membershipId: 'membership-1',
+      roleId: 7,
+      appId: 'app-obo',
+    })).resolves.toBeNull()
+    expect(prisma.appMembershipRole.upsert).not.toHaveBeenCalled()
   })
 
   it('lists all roles assigned to a membership', async () => {

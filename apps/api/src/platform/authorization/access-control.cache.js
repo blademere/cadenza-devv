@@ -10,13 +10,17 @@ const getPermissionKey = (resource, action) => {
   return `${resource}:${action}`
 }
 
-const getPermissionCacheKey = (userId) => {
-  return `access-control:user:${userId}:permissions`
+const getPermissionCacheKey = (userId, appId) => {
+  if (!userId || !appId) {
+    throw new Error("Permission cache user and application are required")
+  }
+
+  return `access-control:user:${userId}:app:${appId}:permissions`
 }
 
-const hasCachedPermission = async (userId, resource, action) => {
+const hasCachedPermission = async (userId, appId, resource, action) => {
   const redis = await connectRedis()
-  const key = getPermissionCacheKey(userId)
+  const key = getPermissionCacheKey(userId, appId)
   const exists = await redis.exists(key)
 
   if (!exists) {
@@ -26,9 +30,9 @@ const hasCachedPermission = async (userId, resource, action) => {
   return Boolean(await redis.sIsMember(key, getPermissionKey(resource, action)))
 }
 
-const cacheUserPermissions = async (userId, permissions) => {
+const cacheUserPermissions = async (userId, appId, permissions) => {
   const redis = await connectRedis()
-  const key = getPermissionCacheKey(userId)
+  const key = getPermissionCacheKey(userId, appId)
 
   await redis.del(key)
 
@@ -40,9 +44,9 @@ const cacheUserPermissions = async (userId, permissions) => {
   return permissions
 }
 
-const invalidateUserPermissionCache = async (userId) => {
+const invalidateUserPermissionCache = async (userId, appId) => {
   const redis = await connectRedis()
-  await redis.del(getPermissionCacheKey(userId))
+  await redis.del(getPermissionCacheKey(userId, appId))
 }
 
 export {

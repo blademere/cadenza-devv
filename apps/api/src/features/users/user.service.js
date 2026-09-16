@@ -15,38 +15,14 @@ import {
   findUserByEmail,
   createUser,
   findUser,
-  findRoleForAssignment,
 } from './user.repository.js'
 import { toUserResponse } from './user.mapper.js'
 import * as peopleService from '../people/people.service.js'
-import {
-  getRoleById,
-  getAuthorizationContext,
-} from '../../platform/authorization/access-control.service.js'
+import { getAuthorizationContext } from '../../platform/authorization/access-control.service.js'
 import {
   getUserMembership,
   addMembership,
-  addMembershipRole,
-  removeMembershipRoleAssignment,
 } from '../../platform/applications/application.service.js'
-
-const permissionKey = (permission) => {
-  if (typeof permission === 'string') return permission
-  const resource = permission.resource ?? permission.module?.key
-  return `${resource}:${permission.action}`
-}
-
-const toPermissionSet = (permissions = []) => new Set(
-  permissions instanceof Set ? permissions : permissions.map(permissionKey),
-)
-
-const canAssignRole = (requesterPermissions, targetRole) => {
-  const requesterPermissionSet = toPermissionSet(requesterPermissions)
-  return targetRole.permissions.every(({ permission }) => {
-    if (permission.module?.isActive === false) return false
-    return requesterPermissionSet.has(permissionKey(permission))
-  })
-}
 
 const roleResponse = (roles = []) => roles.map(({ id, name, description }) => ({ id, name, description }))
 const userWithMembershipRoles = (user, appId) => {
@@ -65,67 +41,17 @@ const listUsers = async (query = {}, appId) => {
   }
 }
 
-const registerUser = async ({ requesterId, appId, email, roleId, password }) => {
+const registerUser = async ({ requesterId, appId, email, password }) => {
   if (!appId) throw new ForbiddenError('Application context is required to create users.')
   const requester = await getAuthorizationContext(requesterId, appId)
   if (!requester) throw new ForbiddenError('Your account is not authorized to create users.')
   const existingUser = await findUserByEmail(email)
   if (existingUser) throw new ConflictError('A user with this email already exists.')
-  const role = await getRoleById(roleId)
-  if (!role) throw new NotFoundError('Role not found.')
-  if (!canAssignRole(requester.permissions, role)) {
-    throw new ForbiddenError('You cannot assign a role containing permissions that you do not have.')
-  }
+
   const passwordHash = await bcrypt.hash(password, 12)
   const user = await createUser({ email, passwordHash })
   const membership = await addMembership({ userId: user.id, appId })
-  await addMembershipRole({ membershipId: membership.id, roleId: role.id })
-  return toUserResponse({ ...user, roles: [role] })
-}
-
-const assignUserRole = async ({ requesterId, appId, userId, roleId }) => {
-  if (!appId) throw new ForbiddenError('Application context is required to manage user roles.')
-  const [requester, targetUser, targetRole, targetMembership] = await Promise.all([
-    getAuthorizationContext(requesterId, appId),
-    findUser(userId),
-    findRoleForAssignment(roleId),
-    getUserMembership({ userId, appId }),
-  ])
-  if (!requester) throw new ForbiddenError('Your account is not authorized to manage users.')
-  if (!targetUser) throw new NotFoundError('User not found.')
-  if (!targetRole) throw new NotFoundError('Role not found.')
-  if (!targetMembership) throw new ForbiddenError('Target user does not have an active membership for this application.')
-
-  const requesterPermissionSet = toPermissionSet(requester.permissions)
-  if (!requesterPermissionSet.has('authorization:manage')) {
-    throw new ForbiddenError('You do not have permission to assign user roles.')
-  }
-
-  const currentRoles = targetMembership.roles ?? []
-  const currentHasTarget = currentRoles.some((role) => role.id === targetRole.id)
-  if (currentHasTarget && currentRoles.length === 1) {
-    return toUserResponse({ ...targetUser, roles: currentRoles })
-  }
-
-  if (Number(requesterId) === Number(userId)) {
-    const retainsAuthorization = targetRole.permissions.some(({ permission }) => (
-      permission.module?.isActive !== false &&
-      permission.module?.key === 'authorization' &&
-      permission.action === 'manage'
-    ))
-    if (!retainsAuthorization) {
-      throw new ForbiddenError('You cannot remove your own authorization management permission.')
-    }
-  }
-
-  for (const currentRole of currentRoles) {
-    if (currentRole.id !== targetRole.id) {
-      await removeMembershipRoleAssignment({ membershipId: targetMembership.id, roleId: currentRole.id })
-    }
-  }
-  await addMembershipRole({ membershipId: targetMembership.id, roleId: targetRole.id })
-
-  return toUserResponse({ ...targetUser, roles: [targetRole] })
+  return toUserResponse({ ...user, roles: [], membershipId: membership.id })
 }
 
 const getMyProfile = async (userId, appId) => {
@@ -161,7 +87,6 @@ const updateMyProfile = async (userId, data, appId) => {
 export {
   listUsers,
   registerUser,
-  assignUserRole,
   getMyProfile,
   createMyProfile,
   updateMyProfile,

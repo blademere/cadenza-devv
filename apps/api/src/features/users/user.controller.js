@@ -2,7 +2,6 @@ import { successResponse } from '../../common/responses/apiResponse.js'
 import {
   listUsers,
   registerUser,
-  assignUserRole,
   getMyProfile,
   createMyProfile,
   updateMyProfile,
@@ -20,11 +19,6 @@ const createUserController = async (req, res) => {
   return successResponse(res, 'User created successfully.', user, 201)
 }
 
-const assignUserRoleController = async (req, res) => {
-  const user = await assignUserRole({ requesterId: req.user.id, appId: getAppId(req), ...req.validated.params, ...req.validated.body })
-  return successResponse(res, 'User application role updated successfully.', user)
-}
-
 const getMyProfileController = async (req, res) => successResponse(res, 'Profile retrieved successfully.', await getMyProfile(req.user.id, getAppId(req)))
 const createMyProfileController = async (req, res) => successResponse(res, 'Profile created successfully.', await createMyProfile(req.user.id, req.validated.body, getAppId(req)), 201)
 const updateMyProfileController = async (req, res) => successResponse(res, 'Profile updated successfully.', await updateMyProfile(req.user.id, req.validated.body, getAppId(req)))
@@ -32,7 +26,6 @@ const updateMyProfileController = async (req, res) => successResponse(res, 'Prof
 export {
   listUsersController,
   createUserController,
-  assignUserRoleController,
   getMyProfileController,
   createMyProfileController,
   updateMyProfileController,

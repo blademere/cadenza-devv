@@ -1,0 +1,50 @@
+import express from 'express'
+import { asyncHandler, validate, idempotency } from '../../../common/middleware/index.js'
+import authenticate from '../../../features/auth/authenticate.secure.js'
+import { requireApplicationContext } from '../../../platform/applications/application-context.middleware.js'
+import { authorizeOBO, authorizeOBOResource, getAuthorizationModule, getAuthorizationMembership, getAuthorizationRole } from '../authorization/authorization.service.js'
+import {
+  listModulesController, createModuleController, createPermissionController, setModuleActiveController,
+  listRolesController, createRoleController, getRoleController, replaceRolePermissionsController,
+  listMembershipRolesController, replaceMembershipRolesController,
+} from './authorization.controller.js'
+import {
+  createModuleValidator, createPermissionValidator, setModuleActiveValidator, createRoleValidator,
+  roleParamsValidator, replaceRolePermissionsValidator, membershipParamsValidator, membershipRolesValidator,
+} from './authorization.validation.js'
+
+const router = express.Router()
+const manageAuthorization = authorizeOBO('authorization', 'manage')
+const requireIdempotency = idempotency({ scope: 'obo-authorization', required: true })
+const authorizeModuleResource = authorizeOBOResource({
+  resource: 'authorization',
+  action: 'manage',
+  loadResource: getAuthorizationModule,
+  getResourceId: (req) => Number(req.params.moduleId),
+})
+const authorizeRoleResource = authorizeOBOResource({
+  resource: 'authorization',
+  action: 'manage',
+  loadResource: (roleId, req) => getAuthorizationRole({ roleId, appId: req.security.app.id }),
+  getResourceId: (req) => Number(req.params.roleId),
+})
+const authorizeMembershipResource = authorizeOBOResource({
+  resource: 'authorization',
+  action: 'manage',
+  loadResource: (membershipId, req) => getAuthorizationMembership({ membershipId, appId: req.security.app.id }),
+  getResourceId: (req) => req.params.membershipId,
+})
+
+router.use(authenticate, requireApplicationContext(), manageAuthorization)
+router.get('/modules', asyncHandler(listModulesController))
+router.post('/modules', requireIdempotency, validate(createModuleValidator), asyncHandler(createModuleController))
+router.post('/modules/:moduleId/permissions', authorizeModuleResource, requireIdempotency, validate(createPermissionValidator), asyncHandler(createPermissionController))
+router.patch('/modules/:moduleId/active', authorizeModuleResource, requireIdempotency, validate(setModuleActiveValidator), asyncHandler(setModuleActiveController))
+router.get('/roles', asyncHandler(listRolesController))
+router.post('/roles', requireIdempotency, validate(createRoleValidator), asyncHandler(createRoleController))
+router.get('/roles/:roleId', authorizeRoleResource, validate(roleParamsValidator), asyncHandler(getRoleController))
+router.put('/roles/:roleId/permissions', authorizeRoleResource, requireIdempotency, validate(replaceRolePermissionsValidator), asyncHandler(replaceRolePermissionsController))
+router.get('/memberships/:membershipId/roles', authorizeMembershipResource, validate(membershipParamsValidator), asyncHandler(listMembershipRolesController))
+router.put('/memberships/:membershipId/roles', authorizeMembershipResource, requireIdempotency, validate(membershipRolesValidator), asyncHandler(replaceMembershipRolesController))
+
+export default router

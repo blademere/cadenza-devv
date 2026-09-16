@@ -8,7 +8,11 @@ const {
 } = require('./architecture-rules.cjs')
 
 const ROOT = path.resolve(__dirname, '..', 'src')
-const ROUTE_ROOTS = [path.join(ROOT, 'features'), path.join(ROOT, 'modules')]
+const ROUTE_ROOTS = [
+  path.join(ROOT, 'apps'),
+  path.join(ROOT, 'features'),
+  path.join(ROOT, 'modules'),
+]
 
 const walk = (directory) => {
   if (!fs.existsSync(directory)) return []

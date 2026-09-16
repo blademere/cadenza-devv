@@ -25,6 +25,7 @@ const getMembership = async ({ userId, appId }) => prisma.appMembership.findUniq
   include: {
     app: true,
     roles: {
+      where: { role: { appId } },
       include: { role: true },
     },
   },
@@ -68,23 +69,47 @@ const disableMembership = async ({ userId, appId }) => prisma.appMembership.upda
   data: { isActive: false },
 })
 
-const assignMembershipRole = async ({ membershipId, roleId }) => prisma.appMembershipRole.upsert({
-  where: {
-    membershipId_roleId: { membershipId, roleId: Number(roleId) },
-  },
-  update: {},
-  create: {
-    membershipId,
-    roleId: Number(roleId),
-  },
-  include: { role: true },
-})
+const assignMembershipRole = async ({ membershipId, roleId, appId }) => {
+  const membership = await prisma.appMembership.findUnique({
+    where: { id: membershipId },
+    select: { id: true, appId: true, isActive: true, app: { select: { isActive: true } } },
+  })
+  if (!membership || !membership.isActive || !membership.app.isActive || (appId && membership.appId !== appId)) return null
 
-const removeMembershipRole = async ({ membershipId, roleId }) => prisma.appMembershipRole.delete({
-  where: {
-    membershipId_roleId: { membershipId, roleId: Number(roleId) },
-  },
-})
+  const role = await prisma.role.findFirst({
+    where: { id: Number(roleId), appId: membership.appId },
+    select: { id: true },
+  })
+  if (!role) return null
+
+  return prisma.appMembershipRole.upsert({
+    where: {
+      membershipId_roleId: { membershipId, roleId: Number(roleId) },
+    },
+    update: {},
+    create: {
+      membershipId,
+      roleId: Number(roleId),
+    },
+    include: { role: true },
+  })
+}
+
+const removeMembershipRole = async ({ membershipId, roleId, appId }) => {
+  if (appId) {
+    const membership = await prisma.appMembership.findUnique({
+      where: { id: membershipId },
+      select: { id: true, appId: true, isActive: true, app: { select: { isActive: true } } },
+    })
+    if (!membership || !membership.isActive || !membership.app.isActive || membership.appId !== appId) return null
+  }
+
+  return prisma.appMembershipRole.delete({
+    where: {
+      membershipId_roleId: { membershipId, roleId: Number(roleId) },
+    },
+  })
+}
 
 const listMembershipRoles = async (membershipId) => prisma.appMembershipRole.findMany({
   where: { membershipId },

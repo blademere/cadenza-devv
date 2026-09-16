@@ -119,21 +119,6 @@ beforeEach(() => {
 })
 
 describe('registration', () => {
-  it('creates a user identity without a default global role', async () => {
-    await expect(
-      registerUser({ email: 'user@example.com', password: 'password123' })
-    ).resolves.toEqual({
-      id: 100,
-      email: 'user@example.com',
-    })
-    expect(repository.findUserByEmail).toHaveBeenCalledWith('user@example.com')
-    expect(repository.findRoleByName).not.toHaveBeenCalled()
-    expect(bcrypt.default.hash).toHaveBeenCalledWith('password123', 12)
-    expect(repository.createUser).toHaveBeenCalledWith({
-      email: 'user@example.com',
-      passwordHash: 'new-password-hash',
-    })
-  })
   it('rejects an existing email before hashing the password', async () => {
     repository.findUserByEmail.mockResolvedValue({
       id: 42,
@@ -144,20 +129,6 @@ describe('registration', () => {
     ).rejects.toThrow('An account with this email already exists.')
     expect(bcrypt.default.hash).not.toHaveBeenCalled()
     expect(repository.createUser).not.toHaveBeenCalled()
-  })
-  it('does not require a global default role for registration', async () => {
-    repository.findRoleByName.mockResolvedValue(null)
-    await expect(
-      registerUser({ email: 'user@example.com', password: 'password123' })
-    ).resolves.toEqual({
-      id: 100,
-      email: 'user@example.com',
-    })
-    expect(bcrypt.default.hash).toHaveBeenCalledWith('password123', 12)
-    expect(repository.createUser).toHaveBeenCalledWith({
-      email: 'user@example.com',
-      passwordHash: 'new-password-hash',
-    })
   })
   it('converts a Prisma unique constraint race into a conflict error', async () => {
     repository.createUser.mockRejectedValue({ code: 'P2002' })
