@@ -22,37 +22,21 @@ const OBO_PROFESSIONAL_VERIFICATION_FIXTURES = [
 ]
 
 const ensureUser = async (prisma, { email, roleId, passwordHash }) => {
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { isActive: true, ...(passwordHash ? { passwordHash } : {}) },
-    create: { email, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
-  })
+  const user = await prisma.user.upsert({ where: { email }, update: { isActive: true, ...(passwordHash ? { passwordHash } : {}) }, create: { email, isActive: true, ...(passwordHash ? { passwordHash } : {}) } })
   const app = await prisma.app.findUnique({ where: { key: 'obo' } })
   if (!app) throw new Error("Application 'obo' must be seeded before OBO professional verification fixtures.")
-  const membership = await prisma.appMembership.upsert({
-    where: { appId_userId: { appId: app.id, userId: user.id } },
-    update: { isActive: true },
-    create: { appId: app.id, userId: user.id },
-  })
-  await prisma.appMembershipRole.upsert({
-    where: { membershipId_roleId: { membershipId: membership.id, roleId } },
-    update: {},
-    create: { membershipId: membership.id, roleId },
-  })
-  return user
+  const membership = await prisma.appMembership.upsert({ where: { appId_userId: { appId: app.id, userId: user.id } }, update: { isActive: true }, create: { appId: app.id, userId: user.id } })
+  await prisma.appMembershipRole.upsert({ where: { membershipId_roleId: { membershipId: membership.id, roleId } }, update: {}, create: { membershipId: membership.id, roleId } })
+  return { user, app }
 }
 
 const ensurePendingProfessional = async (prisma, fixture, { roleId, passwordHash }) => {
-  const user = await ensureUser(prisma, { email: fixture.email, roleId, passwordHash })
-  const person = await prisma.person.upsert({
-    where: { userId: user.id },
-    update: { firstName: fixture.firstName, lastName: fixture.lastName, email: fixture.email, phone: fixture.phone, isActive: true },
-    create: { userId: user.id, firstName: fixture.firstName, lastName: fixture.lastName, email: fixture.email, phone: fixture.phone, isActive: true },
-  })
+  const { user, app } = await ensureUser(prisma, { email: fixture.email, roleId, passwordHash })
+  const person = await prisma.person.upsert({ where: { userId: user.id }, update: { firstName: fixture.firstName, lastName: fixture.lastName, email: fixture.email, phone: fixture.phone, isActive: true }, create: { userId: user.id, firstName: fixture.firstName, lastName: fixture.lastName, email: fixture.email, phone: fixture.phone, isActive: true } })
   const professional = await prisma.oboProfessional.upsert({
-    where: { registrationNumber: fixture.registrationNumber },
+    where: { appId_registrationNumber: { appId: app.id, registrationNumber: fixture.registrationNumber } },
     update: { personId: person.id, prcId: fixture.prcId, ptrNumber: fixture.ptrNumber, professionalRole: fixture.professionalRole, status: 'PENDING_VERIFICATION', verifiedByUserId: null, verifiedAt: null, verificationReason: null },
-    create: { personId: person.id, registrationNumber: fixture.registrationNumber, prcId: fixture.prcId, ptrNumber: fixture.ptrNumber, professionalRole: fixture.professionalRole, status: 'PENDING_VERIFICATION' },
+    create: { appId: app.id, personId: person.id, registrationNumber: fixture.registrationNumber, prcId: fixture.prcId, ptrNumber: fixture.ptrNumber, professionalRole: fixture.professionalRole, status: 'PENDING_VERIFICATION' },
   })
   await prisma.oboProfessionalVerificationDecision.deleteMany({ where: { professionalId: professional.id } })
   return { user, person, professional }
@@ -60,20 +44,18 @@ const ensurePendingProfessional = async (prisma, fixture, { roleId, passwordHash
 
 async function seedOboProfessionalVerificationFixtures(prisma, { roles, passwordHash = null }) {
   const fixtures = []
-  for (const fixture of OBO_PROFESSIONAL_VERIFICATION_FIXTURES) {
-    fixtures.push(await ensurePendingProfessional(prisma, fixture, { roleId: roles.professional.id, passwordHash }))
-  }
+  for (const fixture of OBO_PROFESSIONAL_VERIFICATION_FIXTURES) fixtures.push(await ensurePendingProfessional(prisma, fixture, { roleId: roles.professional.id, passwordHash }))
   console.log('OBO professional verification fixtures reset: approve and decline cases are PENDING_VERIFICATION.')
   return fixtures
 }
 
 async function verifyOboProfessionalVerificationFixtures(prisma) {
+  const app = await prisma.app.findUnique({ where: { key: 'obo' } })
+  if (!app) throw new Error("Application 'obo' must be seeded before OBO professional verification fixtures.")
   for (const fixture of OBO_PROFESSIONAL_VERIFICATION_FIXTURES) {
-    const professional = await prisma.oboProfessional.findUnique({
-      where: { registrationNumber: fixture.registrationNumber },
-      select: { id: true, status: true, prcId: true, ptrNumber: true, professionalRole: true, verifiedByUserId: true, verifiedAt: true, verificationReason: true, person: { select: { firstName: true, lastName: true, email: true, userId: true } } },
-    })
+    const professional = await prisma.oboProfessional.findUnique({ where: { appId_registrationNumber: { appId: app.id, registrationNumber: fixture.registrationNumber } }, select: { id: true, appId: true, status: true, prcId: true, ptrNumber: true, professionalRole: true, verifiedByUserId: true, verifiedAt: true, verificationReason: true, person: { select: { firstName: true, lastName: true, email: true, userId: true } } } })
     if (!professional) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' was not seeded.`)
+    if (professional.appId !== app.id) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' is assigned to the wrong application.`)
     if (professional.status !== 'PENDING_VERIFICATION') throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' must be PENDING_VERIFICATION.`)
     if (!professional.person?.userId) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' must have a person linked to a user identity.`)
     if (professional.prcId !== fixture.prcId || professional.ptrNumber !== fixture.ptrNumber) throw new Error(`OBO professional verification fixture '${fixture.registrationNumber}' has inconsistent credentials.`)
