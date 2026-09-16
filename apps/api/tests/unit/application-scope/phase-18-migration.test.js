@@ -16,6 +16,8 @@ describe('phase 18 application ownership migration', () => {
   it('backfills ownership only from authoritative relationships', async () => {
     const sql = await readMigration()
 
+    expect(sql).toContain('FROM "App" a')
+    expect(sql).toContain("a.\"key\" = 'obo'")
     expect(sql).toContain('FROM "OboPermitApplication" p')
     expect(sql).toContain('FROM "CaseRecord" c')
     expect(sql).toContain('FROM "OboSubmissionAppointment" osa')
@@ -41,6 +43,8 @@ describe('phase 18 application ownership migration', () => {
       expect(sql).toContain(`FROM "${table}" WHERE "appId" IS NULL`)
     }
 
+    expect(sql).toContain('ALTER TABLE "CaseRecord" ALTER COLUMN "appId" SET NOT NULL')
+    expect(sql).toContain('ALTER TABLE "OboPermitApplication" ALTER COLUMN "appId" SET NOT NULL')
     expect(sql).toContain('Do not silently default unresolved rows to OBO.')
   })
 
