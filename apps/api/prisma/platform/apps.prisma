@@ -15,6 +15,7 @@ model App {
   oboPermitTypes    OboPermitType[]
   oboApplications   OboPermitApplication[]
   oboProfessionals  OboProfessional[]
+  requirementDefinitions RequirementDefinition[]
   createdAt         DateTime                     @default(now())
   updatedAt         DateTime                     @updatedAt
 }

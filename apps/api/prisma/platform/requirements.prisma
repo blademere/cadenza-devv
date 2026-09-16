@@ -1,16 +1,20 @@
 model RequirementDefinition {
   id                        String                        @id @default(uuid())
+  appId                     String
   key                       String                        @unique
   name                      String
   description               String?
   isActive                  Boolean                       @default(true)
   metadata                  Json?
+  app                       App                           @relation(fields: [appId], references: [id], onDelete: Restrict)
   caseRequirements          CaseRequirement[]
   oboPermitTypeRequirements OboPermitTypeRequirement[]
   createdAt                 DateTime                      @default(now())
   updatedAt                 DateTime                      @updatedAt
 
-  @@index([isActive])
+  @@index([appId])
+  @@index([appId, isActive])
+  @@unique([id, appId])
 }
 
 model CaseRequirement {
