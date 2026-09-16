@@ -38,6 +38,7 @@ model CaseRecord {
   @@index([appId, caseTypeId, status])
   @@index([appId, status, createdAt])
   @@index([createdByUserId])
+  @@unique([id, appId])
 }
 
 model CaseStatusHistory {
