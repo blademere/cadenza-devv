@@ -54,9 +54,9 @@ const resolveReplacement = async ({ replacesApplicationId, personId, appId }) =>
   return originalWithStatus
 }
 
-const createCaseRecord = async ({ userId, permitTypeName, db }) => {
+const createCaseRecord = async ({ appId, userId, permitTypeName, db }) => {
   const caseType = await caseService.getOrCreateType({ key: 'obo-permit-application', name: 'OBO Permit Application', description: 'OBO permit application lifecycle', db })
-  return caseService.createRecord({ caseTypeId: caseType.id, title: `${permitTypeName} Application`, status: 'OPEN', createdByUserId: userId }, { db })
+  return caseService.createRecord({ caseTypeId: caseType.id, title: `${permitTypeName} Application`, status: 'OPEN', createdByUserId: userId }, { appId, db })
 }
 
 const addApplicantParticipant = async ({ caseId, personId, db }) =>
@@ -126,7 +126,7 @@ const createApplication = async ({ appId, userId, permitTypeId, formVersionId, f
   const resolvedForm = await resolveAndValidateForm({ permitType, formVersionId, formValues })
   const application = await repository.withTransaction(async (tx) => {
     const referenceNumber = `OBO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
-    const caseRecord = await createCaseRecord({ userId, permitTypeName: permitType.name, db: tx })
+    const caseRecord = await createCaseRecord({ appId, userId, permitTypeName: permitType.name, db: tx })
     await attachPermitRequirements({ caseId: caseRecord.id, permitTypeId, appId, db: tx })
     const created = await repository.create({ appId, clientPersonId: person.id, permitTypeId, formVersionId: resolvedForm.formVersionId, formValues, replacesApplicationId: replacement?.id || null, caseId: caseRecord.id, referenceNumber }, tx)
     await addApplicantParticipant({ caseId: caseRecord.id, personId: person.id, db: tx })
