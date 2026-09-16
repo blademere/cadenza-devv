@@ -1,13 +1,19 @@
 model Form {
   id             String          @id @default(uuid())
+  appId          String
   key            String          @unique
   name           String
   description    String?
   entityType     String?
   isActive       Boolean         @default(true)
+  app            App             @relation(fields: [appId], references: [id], onDelete: Restrict)
   versions       FormVersion[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+
+  @@index([appId])
+  @@index([appId, isActive])
+  @@unique([id, appId])
 }
 
 model FormVersion {
