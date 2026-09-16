@@ -1,7 +1,7 @@
 model RequirementDefinition {
   id                        String                        @id @default(uuid())
   appId                     String
-  key                       String                        @unique
+  key                       String
   name                      String
   description               String?
   isActive                  Boolean                       @default(true)
@@ -14,6 +14,8 @@ model RequirementDefinition {
 
   @@index([appId])
   @@index([appId, isActive])
+  @@index([appId, key])
+  @@unique([appId, key])
   @@unique([id, appId])
 }
 
