@@ -19,7 +19,12 @@ END $$;
 ALTER TABLE "RequirementDefinition" ALTER COLUMN "appId" SET NOT NULL;
 CREATE INDEX "RequirementDefinition_appId_idx" ON "RequirementDefinition"("appId");
 CREATE INDEX "RequirementDefinition_appId_isActive_idx" ON "RequirementDefinition"("appId", "isActive");
-CREATE UNIQUE INDEX "RequirementDefinition_id_appId_key" ON "RequirementDefinition"("id", "appId");
+
+DROP INDEX IF EXISTS "RequirementDefinition_key_key";
+CREATE UNIQUE INDEX "RequirementDefinition_appId_key_key"
+  ON "RequirementDefinition"("appId", "key");
+CREATE UNIQUE INDEX "RequirementDefinition_id_appId_key"
+  ON "RequirementDefinition"("id", "appId");
 
 ALTER TABLE "RequirementDefinition"
   ADD CONSTRAINT "RequirementDefinition_appId_fkey"
@@ -29,4 +34,3 @@ ALTER TABLE "RequirementDefinition"
 -- CaseRequirement ownership remains inherited from CaseRecord. The service
 -- layer requires the same appId for both the case and requirement definition;
 -- no duplicated appId is introduced into CaseRequirement.
--- Global RequirementDefinition.key uniqueness remains until Phase 13.
