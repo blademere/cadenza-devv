@@ -9,6 +9,7 @@ model App {
   approvalInstances ApprovalInstance[]
   auditLogs         AuditLog[]
   cases             CaseRecord[]
+  tasks             Task[]
   oboPermitTypes    OboPermitType[]
   oboApplications   OboPermitApplication[]
   oboProfessionals  OboProfessional[]
