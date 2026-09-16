@@ -3,45 +3,58 @@
 -- Existing appointment data is currently used by OBO, so ownership is backfilled
 -- from the authoritative OBO App rather than from user identity.
 
-ALTER TABLE `AppointmentType` ADD COLUMN `appId` VARCHAR(191) NULL;
+ALTER TABLE "AppointmentType" ADD COLUMN "appId" TEXT;
 
-UPDATE `AppointmentType` AS t
-INNER JOIN `App` AS a ON a.`key` = 'obo'
-SET t.`appId` = a.`id`
-WHERE t.`appId` IS NULL;
+UPDATE "AppointmentType" AS t
+SET "appId" = a."id"
+FROM "App" AS a
+WHERE a."key" = 'obo'
+  AND t."appId" IS NULL;
 
--- Making the column required deliberately fails if any appointment type remains
--- unowned. Ownership must not be inferred from user identity.
-ALTER TABLE `AppointmentType` MODIFY `appId` VARCHAR(191) NOT NULL;
-CREATE INDEX `AppointmentType_appId_idx` ON `AppointmentType`(`appId`);
-CREATE INDEX `AppointmentType_appId_isActive_idx` ON `AppointmentType`(`appId`, `isActive`);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM "AppointmentType" WHERE "appId" IS NULL) THEN
+    RAISE EXCEPTION 'Phase 5 migration blocked: one or more appointment types have no authoritative application owner';
+  END IF;
+END $$;
 
-ALTER TABLE `Appointment`
-  ADD COLUMN `appId` VARCHAR(191) NULL;
+ALTER TABLE "AppointmentType" ALTER COLUMN "appId" SET NOT NULL;
+CREATE INDEX "AppointmentType_appId_idx" ON "AppointmentType"("appId");
+CREATE INDEX "AppointmentType_appId_isActive_idx" ON "AppointmentType"("appId", "isActive");
+CREATE UNIQUE INDEX "AppointmentType_appId_key_key"
+  ON "AppointmentType"("appId", "key");
 
-UPDATE `Appointment` AS ap
-INNER JOIN `AppointmentType` AS t ON t.`id` = ap.`appointmentTypeId`
-SET ap.`appId` = t.`appId`
-WHERE ap.`appId` IS NULL;
+ALTER TABLE "Appointment"
+  ADD COLUMN "appId" TEXT;
 
--- Making the column required deliberately fails if any appointment remains
--- unowned or references an invalid appointment type.
-ALTER TABLE `Appointment` MODIFY `appId` VARCHAR(191) NOT NULL;
-CREATE INDEX `Appointment_appId_idx` ON `Appointment`(`appId`);
-CREATE INDEX `Appointment_appId_slotId_status_idx` ON `Appointment`(`appId`, `slotId`, `status`);
-CREATE INDEX `Appointment_appId_userId_createdAt_idx` ON `Appointment`(`appId`, `userId`, `createdAt`);
-CREATE INDEX `Appointment_appId_status_createdAt_idx` ON `Appointment`(`appId`, `status`, `createdAt`);
-CREATE INDEX `Appointment_appId_appointmentTypeId_status_idx` ON `Appointment`(`appId`, `appointmentTypeId`, `status`);
+UPDATE "Appointment" AS ap
+SET "appId" = t."appId"
+FROM "AppointmentType" AS t
+WHERE t."id" = ap."appointmentTypeId"
+  AND ap."appId" IS NULL;
 
-ALTER TABLE `AppointmentType`
-  ADD CONSTRAINT `AppointmentType_appId_fkey`
-  FOREIGN KEY (`appId`) REFERENCES `App`(`id`)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM "Appointment" WHERE "appId" IS NULL) THEN
+    RAISE EXCEPTION 'Phase 5 migration blocked: one or more appointments have no authoritative application owner';
+  END IF;
+END $$;
+
+ALTER TABLE "Appointment" ALTER COLUMN "appId" SET NOT NULL;
+CREATE INDEX "Appointment_appId_idx" ON "Appointment"("appId");
+CREATE INDEX "Appointment_appId_slotId_status_idx" ON "Appointment"("appId", "slotId", "status");
+CREATE INDEX "Appointment_appId_userId_createdAt_idx" ON "Appointment"("appId", "userId", "createdAt");
+CREATE INDEX "Appointment_appId_status_createdAt_idx" ON "Appointment"("appId", "status", "createdAt");
+CREATE INDEX "Appointment_appId_appointmentTypeId_status_idx" ON "Appointment"("appId", "appointmentTypeId", "status");
+CREATE UNIQUE INDEX "Appointment_appId_referenceNumber_key"
+  ON "Appointment"("appId", "referenceNumber");
+
+ALTER TABLE "AppointmentType"
+  ADD CONSTRAINT "AppointmentType_appId_fkey"
+  FOREIGN KEY ("appId") REFERENCES "App"("id")
   ON DELETE RESTRICT ON UPDATE CASCADE;
 
-ALTER TABLE `Appointment`
-  ADD CONSTRAINT `Appointment_appId_fkey`
-  FOREIGN KEY (`appId`) REFERENCES `App`(`id`)
+ALTER TABLE "Appointment"
+  ADD CONSTRAINT "Appointment_appId_fkey"
+  FOREIGN KEY ("appId") REFERENCES "App"("id")
   ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- Phase 13 decides whether currently-global identifiers should become
--- application-scoped unique constraints.
