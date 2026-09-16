@@ -1,21 +1,22 @@
 model App {
-  id                String                       @id @default(uuid())
-  key               String                       @unique
-  name              String
-  description       String?
-  isActive          Boolean                      @default(true)
-  memberships       AppMembership[]
-  roles             Role[]
-  approvalInstances ApprovalInstance[]
-  auditLogs         AuditLog[]
-  cases             CaseRecord[]
-  tasks             Task[]
-  appointments      Appointment[]
-  appointmentTypes  AppointmentType[]
-  oboPermitTypes    OboPermitType[]
-  oboApplications   OboPermitApplication[]
-  oboProfessionals  OboProfessional[]
-  requirementDefinitions RequirementDefinition[]
-  createdAt         DateTime                     @default(now())
-  updatedAt         DateTime                     @updatedAt
+  id                       String                       @id @default(uuid())
+  key                      String                       @unique
+  name                     String
+  description              String?
+  isActive                 Boolean                      @default(true)
+  memberships              AppMembership[]
+  roles                    Role[]
+  approvalInstances        ApprovalInstance[]
+  auditLogs                AuditLog[]
+  cases                    CaseRecord[]
+  tasks                    Task[]
+  appointments             Appointment[]
+  appointmentTypes         AppointmentType[]
+  oboPermitTypes           OboPermitType[]
+  oboApplications          OboPermitApplication[]
+  oboProfessionals         OboProfessional[]
+  requirementDefinitions   RequirementDefinition[]
+  forms                    Form[]
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
 }
