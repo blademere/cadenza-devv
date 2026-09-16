@@ -13,7 +13,6 @@ model Form {
 
   @@index([appId])
   @@index([appId, isActive])
-  @@index([appId, key])
   @@unique([appId, key])
   @@unique([id, appId])
 }
