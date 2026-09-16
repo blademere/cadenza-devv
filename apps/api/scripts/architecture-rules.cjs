@@ -1,9 +1,9 @@
 const path = require('node:path')
 
 const FORBIDDEN_PLATFORM_IMPORT = /(?:\.\.\/)+(?:apps|features|modules)\//
-const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+modules\//
-const FORBIDDEN_INFRASTRUCTURE_IMPORT = /(?:\.\.\/)+modules\//
-const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform|modules)\//
+const FORBIDDEN_FEATURE_IMPORT = /(?:\.\.\/)+(?:modules|apps)\//
+const FORBIDDEN_INFRASTRUCTURE_IMPORT = /(?:\.\.\/)+(?:modules|apps)\//
+const FORBIDDEN_COMMON_IMPORT = /(?:\.\.\/)+(?:features|platform|modules|apps)\//
 const PRISMA_IMPORT = new RegExp(
   String.raw`(?:\.\./)+infrastructure/database/prisma(?:['"]|/|$)`
 )
@@ -25,12 +25,35 @@ const AUTHORIZATION_REPOSITORY_IMPORT =
   /(?:\.\.\/)+platform\/authorization\/access-control\.repository(?:\.js)?/
 const DOMAIN_IMPORT = /(?:\.\.\/)+(?:apps|modules|features)\//
 
+const APPLICATION_SCOPED_REPOSITORIES = [
+  'apps/api/src/features/cases/',
+  'apps/api/src/features/tasks/',
+  'apps/api/src/features/appointments/',
+  'apps/api/src/features/requirements/',
+  'apps/api/src/features/participants/',
+  'apps/api/src/platform/forms/',
+]
+
 const isOBOPath = (relative) =>
   relative.startsWith('apps/api/src/apps/obo/') ||
   relative.startsWith('apps/api/src/modules/obo/')
 
+const isApplicationScopedRepository = (relative) =>
+  relative.endsWith('.repository.js') &&
+  APPLICATION_SCOPED_REPOSITORIES.some((prefix) => relative.startsWith(prefix))
+
 const getApplicationSecurityViolations = (relative, source) => {
   const failures = []
+
+  if (
+    (relative.startsWith('apps/api/src/features/') ||
+      relative.startsWith('apps/api/src/platform/')) &&
+    /(?:\.\.\/)+apps\//.test(source)
+  ) {
+    failures.push(
+      `${relative}: shared features and platform must not import application code; application composition belongs in apps/.`
+    )
+  }
 
   if (
     relative.startsWith('apps/api/src/features/') &&
@@ -53,6 +76,12 @@ const getApplicationSecurityViolations = (relative, source) => {
   ) {
     failures.push(
       `${relative}: application security must remain domain-neutral and must not depend on apps, modules, or features.`
+    )
+  }
+
+  if (isApplicationScopedRepository(relative) && !/\bappId\b/.test(source)) {
+    failures.push(
+      `${relative}: application-scoped repositories must expose or enforce an appId ownership boundary.`
     )
   }
 
@@ -84,18 +113,18 @@ const getLayerViolations = (relative, source) => {
     relative.startsWith('apps/api/src/features/') &&
     FORBIDDEN_FEATURE_IMPORT.test(source)
   )
-    failures.push(`${relative}: shared features must not import modules.`)
+    failures.push(`${relative}: shared features must not import modules or apps.`)
   if (
     relative.startsWith('apps/api/src/infrastructure/') &&
     FORBIDDEN_INFRASTRUCTURE_IMPORT.test(source)
   )
-    failures.push(`${relative}: infrastructure must not import modules.`)
+    failures.push(`${relative}: infrastructure must not import modules or apps.`)
   if (
     relative.startsWith('apps/api/src/common/') &&
     FORBIDDEN_COMMON_IMPORT.test(source)
   )
     failures.push(
-      `${relative}: common code must not import features, platform, or modules.`
+      `${relative}: common code must not import features, platform, modules, or apps.`
     )
   if (
     relative.startsWith('apps/api/src/platform/') &&
@@ -214,8 +243,10 @@ module.exports = {
   PLATFORM_PRISMA_LEGACY_EXCEPTIONS,
   APPLICATION_SECURITY_IMPORT,
   AUTHORIZATION_REPOSITORY_IMPORT,
+  APPLICATION_SCOPED_REPOSITORIES,
   normalizeRelativePath,
   isApplicationService,
+  isApplicationScopedRepository,
   hasDirectPrismaAccess,
   isPlatformPrismaLegacyException,
   isOBOPath,
