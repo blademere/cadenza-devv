@@ -10,7 +10,7 @@ import { documentIdValidator, documentUploadValidator } from './document.validat
 import * as controller from './document.controller.js'
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'documents', required: true })
-const loadOwnedDocument = (id, req) => repository.findOwnedDocument({ id: Number(id), userId: req.user.id })
+const loadOwnedDocument = (id, req) => repository.findOwnedDocument({ id: Number(id), userId: req.user.id, appId: req.appContext?.id ?? null })
 const authorizeOwnedDocument = (action) => authorizeResource({ resource: DOCUMENT_MODULE, action, loadResource: loadOwnedDocument, policy: ownershipPolicy, getOwnerId: (document) => document.ownerId })
 router.post('/', authenticate, authorize(DOCUMENT_MODULE, DOCUMENT_ACTIONS.UPLOAD), requireIdempotency, express.raw({ type: '*/*', limit: DEFAULT_MAX_FILE_SIZE_BYTES }), validate(documentUploadValidator), asyncHandler(controller.uploadDocumentController))
 router.get('/', authenticate, authorize(DOCUMENT_MODULE, DOCUMENT_ACTIONS.READ), asyncHandler(controller.listDocumentsController))
