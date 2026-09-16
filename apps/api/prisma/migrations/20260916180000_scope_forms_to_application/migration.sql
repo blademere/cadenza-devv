@@ -1,3 +1,5 @@
+-- Phase 7: forms are application-owned.
+
 ALTER TABLE "Form" ADD COLUMN "appId" TEXT;
 
 UPDATE "Form" AS f
@@ -17,6 +19,10 @@ ALTER TABLE "Form" ALTER COLUMN "appId" SET NOT NULL;
 
 CREATE INDEX "Form_appId_idx" ON "Form"("appId");
 CREATE INDEX "Form_appId_isActive_idx" ON "Form"("appId", "isActive");
+
+DROP INDEX IF EXISTS "Form_key_key";
+CREATE UNIQUE INDEX "Form_appId_key_key"
+  ON "Form"("appId", "key");
 CREATE UNIQUE INDEX "Form_id_appId_key" ON "Form"("id", "appId");
 
 ALTER TABLE "Form"
