@@ -4,8 +4,6 @@
 -- authoritative domain relationships; it is never inferred from a user, actor,
 -- or other identity. Ambiguous or contradictory ownership stops the migration.
 
-BEGIN;
-
 -- OBO-specific tables have an authoritative application identity: the OBO
 -- application itself. This is domain identity, not user identity.
 UPDATE "OboPermitType" pt
@@ -221,7 +219,4 @@ ALTER TABLE "OboPermitApplication"
   ADD CONSTRAINT "OboPermitApplication_permitTypeId_appId_fkey"
   FOREIGN KEY ("permitTypeId", "appId")
   REFERENCES "OboPermitType" ("id", "appId")
-  ON DELETE RESTRICT
-  ON UPDATE CASCADE;
-
-COMMIT;
+  ON DELETE RESTRICT ON UPDATE CASCADE;
