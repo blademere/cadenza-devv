@@ -13,7 +13,7 @@ const requireAppId = (appId) => {
   return appId
 }
 
-const create = async ({ appId, db, ...data }) => {
+const create = async (data, { appId, db } = {}) => {
   requireAppId(appId)
   if (!data.title?.trim()) throw new BadRequestError('title is required.')
 
