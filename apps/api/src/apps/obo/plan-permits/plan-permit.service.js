@@ -7,8 +7,8 @@ import * as workflowService from '../../../platform/workflow/workflow.service.js
 import * as formService from '../../../platform/forms/form.service.js'
 import * as appointmentService from '../../../features/appointments/appointment.service.js'
 import * as requirementService from '../../../features/requirements/requirements.service.js'
-import * as taskService from '../../../features/tasks/tasks.service.js'
-import participantService from '../../../features/participants/participants.service.js'
+import * as taskService from '../../../features/tasks/tasks.service.js
+import participantService from '../../../features/participants/participants.application.service.js'
 import * as repository from './plan-permit.repository.js'
 import { resolveAndValidateForm } from './plan-permit.form.js'
 import { buildProfessionalSnapshots, validateProfessionalReferences } from '../professionals/professional-reference.service.js'
@@ -59,7 +59,7 @@ const createCaseRecord = async ({ appId, userId, permitTypeName, db }) => {
   return caseService.createRecord({ caseTypeId: caseType.id, title: `${permitTypeName} Application`, status: 'OPEN', createdByUserId: userId }, { appId, db })
 }
 
-const addApplicantParticipant = async ({ caseId, personId, db }) => participantService.add({ caseId, personId, roleKey: PARTICIPANT_ROLE.APPLICANT, isPrimary: true, metadata: { source: 'obo-plan-permit' }, db })
+const addApplicantParticipant = async ({ caseId, personId, db, appId }) => participantService.add({ caseId, personId, roleKey: PARTICIPANT_ROLE.APPLICANT, isPrimary: true, metadata: { source: 'obo-plan-permit' }, appId, db })
 
 const getProfessionalSnapshotEntries = (snapshots = {}) => {
   const entries = []
@@ -77,7 +77,7 @@ const addProfessionalParticipants = async ({ caseId, applicationId, professional
     const professional = await professionalService.getForReference(snapshot.professionalId, appId)
     if (!professional?.personId) throw new ConflictError('Referenced professional is missing a person profile.')
     if (addedPersonIds.has(professional.personId)) continue
-    await participantService.add({ caseId, personId: professional.personId, roleKey: PARTICIPANT_ROLE.PROFESSIONAL, isPrimary: false, metadata: { source: 'obo-plan-permit', professionalId: professional.id, professionalRole: professional.professionalRole || null, fieldKey }, db })
+    await participantService.add({ caseId, personId: professional.personId, roleKey: PARTICIPANT_ROLE.PROFESSIONAL, isPrimary: false, metadata: { source: 'obo-plan-permit', professionalId: professional.id, professionalRole: professional.professionalRole || null, fieldKey }, appId, db })
     await publish({ db, event: 'obo.permit_application.professional.associated', entityType: SUBJECT_TYPE, entityId: applicationId, actorId, context: { appId, caseId, professionalId: professional.id, professionalPersonId: professional.personId, professionalRole: professional.professionalRole || null, fieldKey }, idempotencyKey: `obo:permit-application:${applicationId}:professional:${professional.id}` })
     associatedProfessionals.push(professional.id)
     addedPersonIds.add(professional.personId)
@@ -101,7 +101,7 @@ const createApplication = async ({ appId, userId, permitTypeId, formVersionId, f
     const caseRecord = await createCaseRecord({ appId, userId, permitTypeName: permitType.name, db: tx })
     await attachPermitRequirements({ caseId: caseRecord.id, permitTypeId, appId, db: tx })
     const created = await repository.create({ appId, clientPersonId: person.id, permitTypeId, formVersionId: resolvedForm.formVersionId, formValues, replacesApplicationId: replacement?.id || null, caseId: caseRecord.id, referenceNumber }, tx)
-    await addApplicantParticipant({ caseId: caseRecord.id, personId: person.id, db: tx })
+    await addApplicantParticipant({ caseId: caseRecord.id, personId: person.id, appId, db: tx })
     const notificationContext = await getNotificationContext({ personId: person.id, db: tx, findPersonNotificationContext: repository.findPersonNotificationContext })
     const workflow = await workflowService.startWorkflow({ workflowKey: WORKFLOW_KEY, subjectType: SUBJECT_TYPE, subjectId: created.id, actorId: userId, metadata: { source: replacement ? 'obo-plan-permit.replace-declined' : 'obo-plan-permit.create', referenceNumber: created.referenceNumber, permitTypeName: permitType.name, replacesReferenceNumber: replacement?.referenceNumber || null, ...notificationContext }, db: tx })
     const updated = await repository.update(created.id, appId, { workflowInstanceId: workflow.id }, tx)
