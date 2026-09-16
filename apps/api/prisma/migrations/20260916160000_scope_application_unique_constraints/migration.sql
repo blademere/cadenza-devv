@@ -16,6 +16,11 @@ DROP INDEX IF EXISTS "OboProfessional_prcId_key";
 CREATE UNIQUE INDEX "CaseRecord_appId_caseNumber_key"
   ON "CaseRecord" ("appId", "caseNumber");
 
+-- CaseRecord.id is globally unique, but later application-owned relations need
+-- a composite ownership key so the database can enforce id + appId together.
+CREATE UNIQUE INDEX "CaseRecord_id_appId_key"
+  ON "CaseRecord" ("id", "appId");
+
 CREATE UNIQUE INDEX "Form_appId_key_key"
   ON "Form" ("appId", "key");
 
