@@ -1,18 +1,22 @@
 model AppointmentType {
   id                     String                 @id @default(uuid())
+  appId                  String
   key                    String                 @unique
   name                   String
   description            String?
   defaultDurationMinutes Int                    @default(30)
   defaultCapacity        Int                    @default(1)
   isActive               Boolean                @default(true)
+  app                    App                    @relation(fields: [appId], references: [id], onDelete: Restrict)
   schedules              AvailabilitySchedule[]
   slots                  AppointmentSlot[]
   appointments           Appointment[]
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
 
-  @@index([isActive])
+  @@index([appId])
+  @@index([appId, isActive])
+  @@unique([id, appId])
 }
 
 model AvailabilitySchedule {
@@ -55,6 +59,7 @@ model AppointmentSlot {
 
 model Appointment {
   id                String          @id @default(uuid())
+  appId             String
   referenceNumber   String          @unique
   appointmentTypeId String
   slotId            String
@@ -66,13 +71,16 @@ model Appointment {
   checkedInAt       DateTime?
   completedAt       DateTime?
   noShowAt          DateTime?
+  app               App             @relation(fields: [appId], references: [id], onDelete: Restrict)
   appointmentType   AppointmentType @relation(fields: [appointmentTypeId], references: [id], onDelete: Restrict)
   slot              AppointmentSlot @relation(fields: [slotId], references: [id], onDelete: Restrict)
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  @@index([slotId, status])
-  @@index([userId, createdAt])
-  @@index([status, createdAt])
-  @@index([appointmentTypeId, status])
+  @@index([appId])
+  @@index([appId, slotId, status])
+  @@index([appId, userId, createdAt])
+  @@index([appId, status, createdAt])
+  @@index([appId, appointmentTypeId, status])
+  @@unique([id, appId])
 }
