@@ -21,6 +21,9 @@ END $$;
 ALTER TABLE "AppointmentType" ALTER COLUMN "appId" SET NOT NULL;
 CREATE INDEX "AppointmentType_appId_idx" ON "AppointmentType"("appId");
 CREATE INDEX "AppointmentType_appId_isActive_idx" ON "AppointmentType"("appId", "isActive");
+
+-- Replace the legacy global unique constraint with application-scoped uniqueness.
+DROP INDEX IF EXISTS "AppointmentType_key_key";
 CREATE UNIQUE INDEX "AppointmentType_appId_key_key"
   ON "AppointmentType"("appId", "key");
 
@@ -46,6 +49,9 @@ CREATE INDEX "Appointment_appId_slotId_status_idx" ON "Appointment"("appId", "sl
 CREATE INDEX "Appointment_appId_userId_createdAt_idx" ON "Appointment"("appId", "userId", "createdAt");
 CREATE INDEX "Appointment_appId_status_createdAt_idx" ON "Appointment"("appId", "status", "createdAt");
 CREATE INDEX "Appointment_appId_appointmentTypeId_status_idx" ON "Appointment"("appId", "appointmentTypeId", "status");
+
+-- Replace the legacy global reference-number uniqueness with application-scoped uniqueness.
+DROP INDEX IF EXISTS "Appointment_referenceNumber_key";
 CREATE UNIQUE INDEX "Appointment_appId_referenceNumber_key"
   ON "Appointment"("appId", "referenceNumber");
 
