@@ -37,6 +37,7 @@ model DocumentRequirement {
 
 model Document {
   id                       String                         @id @default(uuid())
+  appId                    String?
   documentTypeId           String?
   ownerId                  Int?
   originalName             String
@@ -45,13 +46,18 @@ model Document {
   mimeType                 String
   sizeBytes                BigInt
   checksumSha256           String
+  // A null appId denotes an explicitly shared/global document artifact.
+  // A non-null appId makes the artifact application-owned and prevents
+  // application-scoped repository lookups from crossing application boundaries.
+  app                      App?                           @relation(fields: [appId], references: [id], onDelete: Restrict)
   documentType             DocumentType?                  @relation(fields: [documentTypeId], references: [id], onDelete: SetNull)
   owner                    User?                          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  oboApplicationDocuments OboPermitApplicationDocument[]
+  oboApplicationDocuments  OboPermitApplicationDocument[]
   createdAt                DateTime                       @default(now())
   updatedAt                DateTime                       @updatedAt
   deletedAt                DateTime?
 
+  @@index([appId, createdAt])
   @@index([ownerId, createdAt])
   @@index([documentTypeId])
   @@index([deletedAt])
