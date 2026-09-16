@@ -31,8 +31,9 @@ async function seedOboReferenceData(prisma, { planPermitForm } = {}) {
       defaultDurationMinutes: OBO_APPOINTMENT_TYPE.defaultDurationMinutes,
       defaultCapacity: OBO_APPOINTMENT_TYPE.defaultCapacity,
       isActive: true,
+      appId: oboApp.id,
     },
-    create: { ...OBO_APPOINTMENT_TYPE, isActive: true },
+    create: { ...OBO_APPOINTMENT_TYPE, appId: oboApp.id, isActive: true },
   })
 
   return { permitType, appointmentType }
