@@ -1,19 +1,20 @@
 import { ConflictError, ValidationError } from '../../../common/errors/appError.js'
 import * as formService from '../../../platform/forms/form.service.js'
 
-const resolveAndValidateForm = async ({ permitType, formVersionId, formValues }) => {
+const resolveAndValidateForm = async ({ permitType, formVersionId, formValues, appId }) => {
   if (!permitType.formId) return { formVersionId: formVersionId || null }
 
-  const form = permitType.form || await formService.getFormById(permitType.formId)
+  const form = permitType.form || await formService.getFormById(permitType.formId, appId)
   if (!form || !form.isActive) throw new ConflictError('The permit type is linked to an inactive form.')
 
   if (formVersionId) {
-    const version = await formService.getFormVersionById(formVersionId)
+    const version = await formService.getFormVersionById(formVersionId, appId)
     if (!version || version.formId !== form.id || version.status !== 'PUBLISHED') {
       throw new ConflictError('The selected form version is not a published version for this permit type.')
     }
 
     const validation = await formService.validateFormValues({
+      appId,
       formKey: form.key,
       version: version.version,
       values: formValues,
@@ -25,6 +26,7 @@ const resolveAndValidateForm = async ({ permitType, formVersionId, formValues })
   }
 
   const validation = await formService.validateFormValues({
+    appId,
     formKey: form.key,
     values: formValues,
     requireRequired: false,
