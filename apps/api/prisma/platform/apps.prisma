@@ -1,13 +1,16 @@
 model App {
-  id                String             @id @default(uuid())
-  key               String             @unique
+  id                String                       @id @default(uuid())
+  key               String                       @unique
   name              String
   description       String?
-  isActive          Boolean            @default(true)
+  isActive          Boolean                      @default(true)
   memberships       AppMembership[]
   roles             Role[]
   approvalInstances ApprovalInstance[]
   auditLogs         AuditLog[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  oboPermitTypes    OboPermitType[]
+  oboApplications   OboPermitApplication[]
+  oboProfessionals  OboProfessional[]
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
 }
