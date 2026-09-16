@@ -1,7 +1,7 @@
 model OboPermitApplication {
   id                      String                    @id @default(uuid())
   appId                   String
-  referenceNumber         String                    @unique
+  referenceNumber         String
   caseId                  String                    @unique
   permitTypeId            String
   clientPersonId          String
@@ -32,6 +32,9 @@ model OboPermitApplication {
   @@index([appId])
   @@index([appId, clientPersonId, createdAt])
   @@index([appId, permitTypeId])
+  @@index([appId, referenceNumber])
   @@index([replacesApplicationId])
   @@index([formVersionId])
+  @@unique([appId, referenceNumber])
+  @@unique([id, appId])
 }
