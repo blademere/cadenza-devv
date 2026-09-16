@@ -17,6 +17,7 @@ model App {
   oboProfessionals         OboProfessional[]
   requirementDefinitions   RequirementDefinition[]
   forms                    Form[]
+  documents                Document[]
   createdAt                DateTime                     @default(now())
   updatedAt                DateTime                     @updatedAt
 }
