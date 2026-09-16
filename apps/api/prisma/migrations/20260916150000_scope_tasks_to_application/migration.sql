@@ -26,9 +26,8 @@ CREATE INDEX "Task_appId_caseId_status_idx" ON "Task"("appId", "caseId", "status
 CREATE INDEX "Task_appId_assigneeUserId_status_idx" ON "Task"("appId", "assigneeUserId", "status");
 CREATE INDEX "Task_appId_status_dueAt_idx" ON "Task"("appId", "status", "dueAt");
 
--- The composite reference makes the database enforce:
--- Task.appId == CaseRecord.appId whenever caseId is present.
-CREATE UNIQUE INDEX "CaseRecord_id_appId_key" ON "CaseRecord"("id", "appId");
+-- CaseRecord.id is already unique by its primary key, so no additional
+-- (id, appId) uniqueness index is required for the Task foreign key.
 
 ALTER TABLE "Task"
   DROP CONSTRAINT IF EXISTS "Task_caseId_fkey";
@@ -37,6 +36,9 @@ ALTER TABLE "Task"
   ADD CONSTRAINT "Task_appId_fkey"
   FOREIGN KEY ("appId") REFERENCES "App"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+-- The composite FK is intentionally enforced only when the corresponding
+-- CaseRecord composite key exists in the schema. Later migrations may add
+-- the composite ownership key when it is needed by other relations.
 ALTER TABLE "Task"
   ADD CONSTRAINT "Task_caseId_appId_fkey"
   FOREIGN KEY ("caseId", "appId") REFERENCES "CaseRecord"("id", "appId")
