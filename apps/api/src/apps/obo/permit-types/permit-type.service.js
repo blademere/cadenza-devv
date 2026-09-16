@@ -16,42 +16,38 @@ const toFormResponse = (permitType, formVersion) => ({
   documentRequirements: formVersion.documentRequirements,
 })
 
-const hydratePermitType = async (permitType) => {
+const hydratePermitType = async (permitType, appId) => {
   if (!permitType) return permitType
-  const form = permitType.formId ? await formService.getFormById(permitType.formId) : null
+  const form = permitType.formId ? await formService.getFormById(permitType.formId, appId) : null
   return { ...permitType, form }
 }
 
 const listPermitTypes = async (appId) => {
   const permitTypes = await repository.listActive(appId)
-  return Promise.all(permitTypes.map(hydratePermitType))
+  return Promise.all(permitTypes.map((permitType) => hydratePermitType(permitType, appId)))
 }
 
-const getPermitTypeById = async (id, appId) => hydratePermitType(await repository.findActiveById(id, appId))
+const getPermitTypeById = async (id, appId) => hydratePermitType(await repository.findActiveById(id, appId), appId)
 const getPermitTypeByKey = async (key, appId) => repository.findByKey(key, appId)
 const getForAuthorization = (id, appId) => repository.findById(id, appId)
 
 const getPermitTypeFormVersions = async (id, appId) => {
-  const permitType = await hydratePermitType(await repository.findById(id, appId))
+  const permitType = await hydratePermitType(await repository.findById(id, appId), appId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) return []
 
-  const form = await formService.getFormByIdWithVersions(permitType.form.id)
-  return (form?.versions ?? []).map(({ id: formVersionId, version, status }) => ({
-    id: formVersionId,
-    version,
-    status,
-  }))
+  const form = await formService.getFormByIdWithVersions(permitType.form.id, appId)
+  return (form?.versions ?? []).map(({ id: formVersionId, version, status }) => ({ id: formVersionId, version, status }))
 }
 
 const getPermitTypeForm = async (id, appId, version) => {
-  const permitType = await hydratePermitType(await repository.findActiveById(id, appId))
+  const permitType = await hydratePermitType(await repository.findActiveById(id, appId), appId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) return null
 
   if (version == null) {
     try {
-      const publishedForm = await formService.getPublishedForm(permitType.form.key)
+      const publishedForm = await formService.getPublishedForm(permitType.form.key, appId)
       const publishedVersion = publishedForm.versions[0]
       return publishedVersion ? toFormResponse({ ...permitType, form: publishedForm }, publishedVersion) : null
     } catch (error) {
@@ -61,7 +57,7 @@ const getPermitTypeForm = async (id, appId, version) => {
   }
 
   try {
-    const formVersion = await formService.getFormVersion({ formKey: permitType.form.key, version })
+    const formVersion = await formService.getFormVersion({ appId, formKey: permitType.form.key, version })
     return toFormResponse(permitType, formVersion)
   } catch (error) {
     if (error?.status === 404 || error?.code === 'NOT_FOUND') return null
@@ -70,10 +66,10 @@ const getPermitTypeForm = async (id, appId, version) => {
 }
 
 const getPermitTypeFormVersion = async (id, appId, version) => {
-  const permitType = await hydratePermitType(await repository.findById(id, appId))
+  const permitType = await hydratePermitType(await repository.findById(id, appId), appId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
-  const formVersion = await formService.getFormVersion({ formKey: permitType.form.key, version })
+  const formVersion = await formService.getFormVersion({ appId, formKey: permitType.form.key, version })
   return toFormResponse(permitType, formVersion)
 }
 
@@ -123,7 +119,7 @@ const createPermitTypeForm = async ({ actorId, appId, permitTypeId, data }) => {
       if (!existing) throw new NotFoundError('Permit type not found.')
       if (!existing.isActive) throw new ConflictError('Inactive permit types cannot receive forms.')
       if (existing.formId) throw new ConflictError('This permit type already has a form.')
-      const form = await formService.createForm({ key: data.key, name: data.name, description: data.description ?? null, entityType: data.entityType ?? 'OboPermitApplication', sections: data.sections ?? [], fields: data.fields, actorId, db: tx })
+      const form = await formService.createForm({ appId, key: data.key, name: data.name, description: data.description ?? null, entityType: data.entityType ?? 'OboPermitApplication', sections: data.sections ?? [], fields: data.fields, actorId, db: tx })
       const updated = await repository.attachForm(permitTypeId, appId, form.id, tx)
       if (!updated) throw new NotFoundError('Permit type not found.')
       await recordAudit({ actorId, appId, action: 'OBO_PERMIT_TYPE_FORM_ATTACHED', entityType: 'OboPermitType', entityId: permitTypeId, before: existing, after: updated, db: tx })
@@ -136,31 +132,31 @@ const createPermitTypeForm = async ({ actorId, appId, permitTypeId, data }) => {
 }
 
 const createPermitTypeFormVersion = async ({ actorId, appId, permitTypeId, data }) => {
-  const permitType = await hydratePermitType(await repository.findById(permitTypeId, appId))
+  const permitType = await hydratePermitType(await repository.findById(permitTypeId, appId), appId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot receive form versions.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
-  const version = await formService.createFormVersion({ formKey: permitType.form.key, sections: data.sections ?? [], fields: data.fields, actorId })
+  const version = await formService.createFormVersion({ appId, formKey: permitType.form.key, sections: data.sections ?? [], fields: data.fields, actorId })
   await recordAudit({ actorId, appId, action: 'OBO_FORM_VERSION_CREATED', entityType: 'FormVersion', entityId: version.id, before: null, after: version })
   return version
 }
 
 const updatePermitTypeFormVersion = async ({ actorId, appId, permitTypeId, version, data }) => {
-  const permitType = await hydratePermitType(await repository.findById(permitTypeId, appId))
+  const permitType = await hydratePermitType(await repository.findById(permitTypeId, appId), appId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot update form versions.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
-  const updated = await formService.updateFormVersion({ formKey: permitType.form.key, version, sections: data.sections ?? [], fields: data.fields, actorId })
+  const updated = await formService.updateFormVersion({ appId, formKey: permitType.form.key, version, sections: data.sections ?? [], fields: data.fields, actorId })
   await recordAudit({ actorId, appId, action: 'OBO_FORM_VERSION_UPDATED', entityType: 'FormVersion', entityId: updated.id, before: null, after: updated })
   return updated
 }
 
 const publishPermitTypeFormVersion = async ({ actorId, appId, permitTypeId, version }) => {
-  const permitType = await hydratePermitType(await repository.findById(permitTypeId, appId))
+  const permitType = await hydratePermitType(await repository.findById(permitTypeId, appId), appId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot publish form versions.')
   if (!permitType.form) throw new NotFoundError('Permit type form not found.')
-  const published = await formService.publishFormVersion({ formKey: permitType.form.key, version, actorId })
+  const published = await formService.publishFormVersion({ appId, formKey: permitType.form.key, version, actorId })
   await recordAudit({ actorId, appId, action: 'OBO_FORM_VERSION_PUBLISHED', entityType: 'FormVersion', entityId: published.id, before: null, after: published })
   return published
 }
