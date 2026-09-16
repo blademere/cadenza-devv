@@ -51,15 +51,19 @@ const PLAN_PERMIT_FORM = {
 }
 
 async function seedPlatformForms(prisma) {
+  const app = await prisma.app.findUnique({ where: { key: 'obo' } })
+  if (!app) throw new Error("Application 'obo' must be seeded before platform forms.")
   const form = await prisma.form.upsert({
     where: { key: PLAN_PERMIT_FORM.key },
     update: {
+      appId: app.id,
       name: PLAN_PERMIT_FORM.name,
       description: PLAN_PERMIT_FORM.description,
       entityType: PLAN_PERMIT_FORM.entityType,
       isActive: true,
     },
     create: {
+      appId: app.id,
       key: PLAN_PERMIT_FORM.key,
       name: PLAN_PERMIT_FORM.name,
       description: PLAN_PERMIT_FORM.description,
