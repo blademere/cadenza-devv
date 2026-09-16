@@ -7,7 +7,7 @@ import * as workflowService from '../../../platform/workflow/workflow.service.js
 import * as formService from '../../../platform/forms/form.service.js'
 import * as appointmentService from '../../../features/appointments/appointment.service.js'
 import * as requirementService from '../../../features/requirements/requirements.service.js'
-import * as taskService from '../../../features/tasks/tasks.service.js
+import * as taskService from '../../../features/tasks/tasks.service.js'
 import participantService from '../../../features/participants/participants.application.service.js'
 import * as repository from './plan-permit.repository.js'
 import { resolveAndValidateForm } from './plan-permit.form.js'
