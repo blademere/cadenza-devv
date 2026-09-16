@@ -86,6 +86,13 @@ const matrix = [
     ],
     requiredServiceTokens: ['requireAppId', 'appId', 'const add', 'const list', 'const remove'],
   },
+  {
+    name: 'Audit',
+    repository: 'platform/audit/audit.repository.js',
+    service: 'platform/audit/audit.service.js',
+    requiredRepositoryTokens: ['auditLog.create({ data })'],
+    requiredServiceTokens: ['const resolvedAppId = appId ?? context?.appId ?? null', 'appId: resolvedAppId'],
+  },
 ]
 
 describe('phase 17 application isolation matrix', () => {
@@ -97,7 +104,7 @@ describe('phase 17 application isolation matrix', () => {
       }
     })
 
-    it(`${entry.name}: service boundary requires application context`, async () => {
+    it(`${entry.name}: service boundary carries application context without Express coupling`, async () => {
       const source = await read(entry.service)
       for (const token of entry.requiredServiceTokens) {
         expect(source, `${entry.name} service is missing ${token}`).toContain(token)
@@ -126,12 +133,6 @@ describe('phase 17 application isolation matrix', () => {
     expect(source).toContain('deletedAt: null')
   })
 
-  it('audit records resolve appId from explicit input or application execution context', async () => {
-    const source = await read('platform/audit/audit.service.js')
-    expect(source).toContain('const resolvedAppId = appId ?? context?.appId ?? null')
-    expect(source).toContain('appId: resolvedAppId')
-  })
-
   it('the Phase 13 unique constraints remain application-scoped', async () => {
     const migration = await readPrisma('migrations/20260916160000_scope_application_unique_constraints/migration.sql')
     const expectedIndexes = [
@@ -158,6 +159,7 @@ describe('phase 17 application isolation matrix', () => {
       'Forms',
       'Documents',
       'Participants',
+      'Audit',
     ])
   })
 })
