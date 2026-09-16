@@ -26,9 +26,6 @@ CREATE INDEX "Task_appId_caseId_status_idx" ON "Task"("appId", "caseId", "status
 CREATE INDEX "Task_appId_assigneeUserId_status_idx" ON "Task"("appId", "assigneeUserId", "status");
 CREATE INDEX "Task_appId_status_dueAt_idx" ON "Task"("appId", "status", "dueAt");
 
--- CaseRecord.id is already unique by its primary key, so no additional
--- (id, appId) uniqueness index is required for the Task foreign key.
-
 ALTER TABLE "Task"
   DROP CONSTRAINT IF EXISTS "Task_caseId_fkey";
 
@@ -36,10 +33,7 @@ ALTER TABLE "Task"
   ADD CONSTRAINT "Task_appId_fkey"
   FOREIGN KEY ("appId") REFERENCES "App"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- The composite FK is intentionally enforced only when the corresponding
--- CaseRecord composite key exists in the schema. Later migrations may add
--- the composite ownership key when it is needed by other relations.
-ALTER TABLE "Task"
-  ADD CONSTRAINT "Task_caseId_appId_fkey"
-  FOREIGN KEY ("caseId", "appId") REFERENCES "CaseRecord"("id", "appId")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
+-- Case ownership is enforced by the application-scoped repository/service
+-- layer at this historical migration point. The composite CaseRecord key is
+-- introduced later by the application-ownership migrations before the final
+-- database ownership constraints are applied.
