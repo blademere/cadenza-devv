@@ -10,14 +10,8 @@ INNER JOIN `App` AS a ON a.`key` = 'obo'
 SET t.`appId` = a.`id`
 WHERE t.`appId` IS NULL;
 
-SET @unowned_type_count = (SELECT COUNT(*) FROM `AppointmentType` WHERE `appId` IS NULL);
-SET @unowned_type_error = IF(@unowned_type_count = 0, NULL,
-  CONCAT('Phase 5 migration blocked: ', @unowned_type_count,
-         ' appointment type(s) have no authoritative application owner.'));
-DO CASE
-  WHEN @unowned_type_count > 0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = @unowned_type_error;
-END CASE;
-
+-- Making the column required deliberately fails if any appointment type remains
+-- unowned. Ownership must not be inferred from user identity.
 ALTER TABLE `AppointmentType` MODIFY `appId` VARCHAR(191) NOT NULL;
 CREATE INDEX `AppointmentType_appId_idx` ON `AppointmentType`(`appId`);
 CREATE INDEX `AppointmentType_appId_isActive_idx` ON `AppointmentType`(`appId`, `isActive`);
@@ -30,14 +24,8 @@ INNER JOIN `AppointmentType` AS t ON t.`id` = ap.`appointmentTypeId`
 SET ap.`appId` = t.`appId`
 WHERE ap.`appId` IS NULL;
 
-SET @unowned_appointment_count = (SELECT COUNT(*) FROM `Appointment` WHERE `appId` IS NULL);
-SET @unowned_appointment_error = IF(@unowned_appointment_count = 0, NULL,
-  CONCAT('Phase 5 migration blocked: ', @unowned_appointment_count,
-         ' appointment(s) have no authoritative application owner.'));
-DO CASE
-  WHEN @unowned_appointment_count > 0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = @unowned_appointment_error;
-END CASE;
-
+-- Making the column required deliberately fails if any appointment remains
+-- unowned or references an invalid appointment type.
 ALTER TABLE `Appointment` MODIFY `appId` VARCHAR(191) NOT NULL;
 CREATE INDEX `Appointment_appId_idx` ON `Appointment`(`appId`);
 CREATE INDEX `Appointment_appId_slotId_status_idx` ON `Appointment`(`appId`, `slotId`, `status`);
