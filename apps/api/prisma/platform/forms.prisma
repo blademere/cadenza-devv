@@ -1,7 +1,7 @@
 model Form {
   id             String          @id @default(uuid())
   appId          String
-  key            String          @unique
+  key            String
   name           String
   description    String?
   entityType     String?
@@ -13,6 +13,8 @@ model Form {
 
   @@index([appId])
   @@index([appId, isActive])
+  @@index([appId, key])
+  @@unique([appId, key])
   @@unique([id, appId])
 }
 
