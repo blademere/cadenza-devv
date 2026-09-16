@@ -41,32 +41,39 @@ const getOrCreateType = async ({ key, name, description = null, isActive = true,
   return createType({ key: key.trim(), name: name.trim(), description, isActive }, { db })
 }
 
-const createRecord = async (data, { db } = {}) => {
+const createRecord = async (data, { appId, db } = {}) => {
+  if (!appId) throw new BadRequestError('appId is required.')
   if (!data.caseTypeId || !data.title?.trim()) throw new BadRequestError('caseTypeId and title are required.')
   const caseType = await findCaseTypeById(data.caseTypeId, db)
   if (!caseType || !caseType.isActive) throw new NotFoundError('Active case type not found.')
-  return createCase({ ...data, caseNumber: data.caseNumber?.trim() || generateCaseNumber(), title: data.title.trim(), status: data.status?.trim() || CASE_STATUS.DRAFT }, db)
+  return createCase({ ...data, appId, caseNumber: data.caseNumber?.trim() || generateCaseNumber(), title: data.title.trim(), status: data.status?.trim() || CASE_STATUS.DRAFT }, db)
 }
 
-const getById = async (id, options = {}) => {
-  const record = await findCaseById(id, options)
+const getById = async (id, { appId, db, includeDetails = true } = {}) => {
+  if (!appId) throw new BadRequestError('appId is required.')
+  const record = await findCaseById(id, { appId, db, includeDetails })
   if (!record) throw new NotFoundError('Case not found.')
   return record
 }
 
-const list = async (query = {}) => {
+const list = async (query = {}, { appId, db } = {}) => {
+  if (!appId) throw new BadRequestError('appId is required.')
   const pagination = normalizePagination(query)
   const where = { ...(query.caseTypeId ? { caseTypeId: query.caseTypeId } : {}), ...(query.status ? { status: query.status } : {}) }
-  const [cases, total] = await Promise.all([listCases({ skip: pagination.skip, take: pagination.take, where }), countCases(where)])
+  const [cases, total] = await Promise.all([
+    listCases({ skip: pagination.skip, take: pagination.take, where, appId }, db),
+    countCases({ where, appId }, db),
+  ])
   return { data: cases, pagination: createPaginationMeta({ page: pagination.page, limit: pagination.limit, total }) }
 }
 
-const transition = async ({ id, toStatus, changedByUserId, reason, metadata }) => {
+const transition = async ({ id, appId, toStatus, changedByUserId, reason, metadata, db }) => {
+  if (!appId) throw new BadRequestError('appId is required.')
   if (!toStatus?.trim()) throw new BadRequestError('toStatus is required.')
-  const current = await getById(id, { includeDetails: false })
+  const current = await getById(id, { appId, db, includeDetails: false })
   const normalizedStatus = toStatus.trim()
   if (current.status === normalizedStatus) throw new BadRequestError('Case is already in the requested status.')
-  const updated = await transitionCase(id, current.status, normalizedStatus, changedByUserId, reason, metadata)
+  const updated = await transitionCase(id, appId, current.status, normalizedStatus, changedByUserId, reason, metadata, db)
   if (!updated) throw new ConflictError('Case status changed before this transition could be completed.')
   return updated
 }
