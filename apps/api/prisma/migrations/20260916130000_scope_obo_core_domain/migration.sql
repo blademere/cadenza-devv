@@ -1,5 +1,7 @@
 -- Phase 2: establish explicit OBO application ownership for core domain records.
 -- Existing OBO records are backfilled from the authoritative App row keyed by 'obo'.
+-- Global uniqueness is intentionally retained for this phase; Phase 13 decides
+-- which identifiers should become application-scoped.
 
 ALTER TABLE "OboPermitType" ADD COLUMN "appId" TEXT;
 ALTER TABLE "OboPermitApplication" ADD COLUMN "appId" TEXT;
@@ -29,17 +31,6 @@ END $$;
 ALTER TABLE "OboPermitType" ALTER COLUMN "appId" SET NOT NULL;
 ALTER TABLE "OboPermitApplication" ALTER COLUMN "appId" SET NOT NULL;
 ALTER TABLE "OboProfessional" ALTER COLUMN "appId" SET NOT NULL;
-
-DROP INDEX IF EXISTS "OboPermitType_key_key";
-DROP INDEX IF EXISTS "OboPermitApplication_referenceNumber_key";
-DROP INDEX IF EXISTS "OboProfessional_personId_key";
-DROP INDEX IF EXISTS "OboProfessional_registrationNumber_key";
-DROP INDEX IF EXISTS "OboProfessional_prcId_key";
-
-CREATE UNIQUE INDEX "OboPermitType_appId_key_key" ON "OboPermitType"("appId", "key");
-CREATE UNIQUE INDEX "OboPermitApplication_appId_referenceNumber_key" ON "OboPermitApplication"("appId", "referenceNumber");
-CREATE UNIQUE INDEX "OboProfessional_appId_personId_key" ON "OboProfessional"("appId", "personId");
-CREATE UNIQUE INDEX "OboProfessional_appId_registrationNumber_key" ON "OboProfessional"("appId", "registrationNumber");
 
 CREATE INDEX "OboPermitType_appId_idx" ON "OboPermitType"("appId");
 CREATE INDEX "OboPermitType_appId_isActive_idx" ON "OboPermitType"("appId", "isActive");
