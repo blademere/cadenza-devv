@@ -5,22 +5,22 @@ import * as permitTypeRepository from './permit-type.repository.js'
 
 const normalizeIds = (requirementIds) => [...new Set(requirementIds.filter(Boolean))]
 
-const listRequirements = async (permitTypeId, db) => {
-  const permitType = await permitTypeRepository.findById(permitTypeId, db)
+const listRequirements = async (permitTypeId, appId, db) => {
+  const permitType = await permitTypeRepository.findById(permitTypeId, appId, db)
   if (!permitType) throw new NotFoundError('Permit type not found.')
   return repository.listByPermitTypeId(permitTypeId, db)
 }
 
-const getRequirementIds = async (permitTypeId, db) => {
-  const associations = await listRequirements(permitTypeId, db)
+const getRequirementIds = async (permitTypeId, appId, db) => {
+  const associations = await listRequirements(permitTypeId, appId, db)
   return associations.map(({ requirementId }) => requirementId)
 }
 
-const setRequirements = async ({ permitTypeId, requirementIds }) => {
+const setRequirements = async ({ permitTypeId, appId, requirementIds }) => {
   if (!Array.isArray(requirementIds)) throw new BadRequestError('requirementIds must be an array.')
   const ids = normalizeIds(requirementIds)
 
-  const permitType = await permitTypeRepository.findById(permitTypeId)
+  const permitType = await permitTypeRepository.findById(permitTypeId, appId)
   if (!permitType) throw new NotFoundError('Permit type not found.')
   if (!permitType.isActive) throw new ConflictError('Inactive permit types cannot configure requirements.')
 
@@ -30,7 +30,7 @@ const setRequirements = async ({ permitTypeId, requirementIds }) => {
   }
 
   return repository.withTransaction(async (tx) => {
-    const existing = await repository.listByPermitTypeId(permitTypeId, tx)
+    const existing = await listRequirements(permitTypeId, appId, tx)
     const desired = new Set(ids)
     for (const association of existing) {
       if (!desired.has(association.requirementId)) {
