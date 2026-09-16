@@ -35,8 +35,11 @@ const findOrCreateDocumentType = async (prisma, definition) => {
 }
 
 async function seedOboPlatformConfiguration(prisma) {
+  const app = await prisma.app.findUnique({ where: { key: 'obo' } })
+  if (!app) throw new Error("Application 'obo' must be seeded before OBO platform configuration.")
+
   const form = await prisma.form.findUnique({
-    where: { key: OBO_FORM_KEY },
+    where: { appId_key: { appId: app.id, key: OBO_FORM_KEY } },
     include: { versions: { where: { version: OBO_FORM_VERSION }, take: 1 } },
   })
   if (!form?.isActive) throw new Error(`Active platform form '${OBO_FORM_KEY}' was not seeded.`)
@@ -72,7 +75,7 @@ async function seedOboPlatformConfiguration(prisma) {
     else await prisma.documentRequirement.create({ data })
   }
 
-  const appointmentType = await prisma.appointmentType.findUnique({ where: { key: OBO_APPOINTMENT_TYPE_KEY } })
+  const appointmentType = await prisma.appointmentType.findUnique({ where: { appId_key: { appId: app.id, key: OBO_APPOINTMENT_TYPE_KEY } } })
   if (!appointmentType || !appointmentType.isActive) throw new Error(`Active appointment type '${OBO_APPOINTMENT_TYPE_KEY}' was not seeded.`)
 
   const scheduleDefinition = {
@@ -106,8 +109,11 @@ const requireCondition = (condition, message) => {
 }
 
 async function verifyOboPlatformConfiguration(prisma) {
+  const app = await prisma.app.findUnique({ where: { key: 'obo' } })
+  requireCondition(app, "application 'obo' is missing.")
+
   const form = await prisma.form.findUnique({
-    where: { key: OBO_FORM_KEY },
+    where: { appId_key: { appId: app.id, key: OBO_FORM_KEY } },
     include: {
       versions: {
         where: { version: OBO_FORM_VERSION },
@@ -128,8 +134,9 @@ async function verifyOboPlatformConfiguration(prisma) {
   const fieldKeys = new Set((formVersion?.fields || []).map((field) => field.key))
   for (const key of FORM_FIELDS) requireCondition(fieldKeys.has(key), `form field '${key}' is missing.`)
 
-  const permitType = await prisma.oboPermitType.findUnique({ where: { key: OBO_PERMIT_TYPE_KEY }, select: { id: true, isActive: true, formId: true } })
+  const permitType = await prisma.oboPermitType.findUnique({ where: { appId_key: { appId: app.id, key: OBO_PERMIT_TYPE_KEY } }, select: { id: true, isActive: true, formId: true, appId: true } })
   requireCondition(permitType?.isActive, `active OBO permit type '${OBO_PERMIT_TYPE_KEY}' is missing.`)
+  requireCondition(permitType.appId === app.id, `permit type '${OBO_PERMIT_TYPE_KEY}' belongs to a different application.`)
   requireCondition(permitType.formId === form.id, `permit type '${OBO_PERMIT_TYPE_KEY}' is not linked to form '${OBO_FORM_KEY}'.`)
 
   const requirements = formVersion.documentRequirements || []
@@ -142,8 +149,9 @@ async function verifyOboPlatformConfiguration(prisma) {
     requireCondition(actual.maxSizeBytes === BigInt(10 * 1024 * 1024), `document requirement '${expected.name}' max file size is incorrect.`)
   }
 
-  const appointmentType = await prisma.appointmentType.findUnique({ where: { key: OBO_APPOINTMENT_TYPE_KEY }, select: { id: true, isActive: true } })
+  const appointmentType = await prisma.appointmentType.findUnique({ where: { appId_key: { appId: app.id, key: OBO_APPOINTMENT_TYPE_KEY } }, select: { id: true, isActive: true, appId: true } })
   requireCondition(appointmentType?.isActive, `active appointment type '${OBO_APPOINTMENT_TYPE_KEY}' is missing.`)
+  requireCondition(appointmentType.appId === app.id, `appointment type '${OBO_APPOINTMENT_TYPE_KEY}' belongs to a different application.`)
 
   const schedule = await prisma.availabilitySchedule.findFirst({
     where: {
@@ -167,7 +175,7 @@ async function verifyOboPlatformConfiguration(prisma) {
   requireCondition(slot.capacity === 1, 'development appointment slot capacity is incorrect.')
 
   const application = await prisma.oboPermitApplication.findUnique({
-    where: { referenceNumber: 'OBO-DEV-20300610-0001' },
+    where: { appId_referenceNumber: { appId: app.id, referenceNumber: 'OBO-DEV-20300610-0001' } },
     select: { formVersionId: true },
   })
   requireCondition(application?.formVersionId === formVersion.id, 'development OBO application is not bound to the published platform form version.')
