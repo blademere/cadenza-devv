@@ -11,7 +11,6 @@ const makeScopedDb = ({ model, record, matches }) => ({
 
 const appScopedMatch = (where, appId) => where?.appId === appId
 const nestedAppScopedMatch = (where, appId, relation) => where?.[relation]?.appId === appId
-
 const adminRecord = (appId = 'admin-app') => ({ id: 'shared-id', appId })
 
 describe('cross-application isolation contracts', () => {
@@ -83,18 +82,15 @@ describe('cross-application isolation contracts', () => {
     }))
   })
 
-  it('documents: an application can access its documents and explicitly shared documents, but not another app document', async () => {
+  it('documents: an application cannot resolve another application document', async () => {
     const db = {
       document: {
-        findFirst: vi.fn(async ({ where }) => {
-          const allowed = where.OR?.some((entry) => entry.appId === 'obo-app' || entry.appId === null)
-          return allowed ? { id: where.id, appId: 'admin-app' } : null
-        }),
+        findFirst: vi.fn(async ({ where }) => (where.OR?.some((entry) => entry.appId === 'admin-app') ? { id: 'doc-1', appId: 'admin-app' } : null)),
       },
     }
     const { findOwnedDocument } = await import('../../../src/features/documents/document.repository.js')
 
-    await expect(findOwnedDocument({ userId: 'user-1', id: 'doc-1', appId: 'obo-app' }, db)).toEqual({ id: 'doc-1', appId: 'admin-app' })
+    await expect(findOwnedDocument({ userId: 'user-1', id: 'doc-1', appId: 'obo-app' }, db)).resolves.toBeNull()
     expect(db.document.findFirst).toHaveBeenCalledWith({
       where: {
         id: 'doc-1',
@@ -103,12 +99,31 @@ describe('cross-application isolation contracts', () => {
         OR: [{ appId: 'obo-app' }, { appId: null }],
       },
     })
+  })
 
-    const crossAppDb = {
+  it('documents: explicitly shared documents remain accessible to an application', async () => {
+    const db = {
       document: {
-        findFirst: vi.fn(async ({ where }) => (where.OR?.some((entry) => entry.appId === 'admin-app') ? { id: 'doc-1', appId: 'admin-app' } : null)),
+        findFirst: vi.fn(async ({ where }) => (where.OR?.some((entry) => entry.appId === null) ? { id: 'doc-shared', appId: null } : null)),
       },
     }
-    await expect(findOwnedDocument({ userId: 'user-1', id: 'doc-1', appId: 'obo-app' }, crossAppDb)).resolves.toBeNull()
+    const { findOwnedDocument } = await import('../../../src/features/documents/document.repository.js')
+
+    await expect(findOwnedDocument({ userId: 'user-1', id: 'doc-shared', appId: 'obo-app' }, db)).resolves.toEqual({ id: 'doc-shared', appId: null })
+  })
+
+  it('audit: application context is persisted with audit records', async () => {
+    vi.resetModules()
+    vi.doMock('../../../src/platform/context/context.service.js', () => ({
+      getContext: () => ({ appId: 'obo-app', actorId: 'user-1' }),
+    }))
+    vi.doMock('../../../src/platform/audit/audit.repository.js', () => ({
+      createAuditLog: vi.fn(async (data) => data),
+    }))
+
+    const { recordAudit } = await import('../../../src/platform/audit/audit.service.js')
+    const result = await recordAudit({ action: 'CASE_READ', entityType: 'Case', entityId: 'case-1' })
+
+    expect(result).toEqual(expect.objectContaining({ appId: 'obo-app', actorId: 'user-1', entityId: 'case-1' }))
   })
 })
