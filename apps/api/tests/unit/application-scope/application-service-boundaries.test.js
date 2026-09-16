@@ -11,13 +11,13 @@ const read = (relativePath) => readFile(path.join(src, relativePath), 'utf8')
 describe('application-scoped service boundaries', () => {
   it('requires appId at the shared case creation boundary', async () => {
     const source = await read('features/cases/cases.service.js')
-    expect(source).toContain('const createRecord = async ({ appId, db, ...data })')
+    expect(source).toContain('const createRecord = async (data, { appId, db } = {})')
     expect(source).toContain("throw new BadRequestError('appId is required.')")
   })
 
   it('requires appId at the shared task creation boundary', async () => {
     const source = await read('features/tasks/tasks.service.js')
-    expect(source).toContain('const create = async ({ appId, db, ...data })')
+    expect(source).toContain('const create = async (data, { appId, db } = {})')
     expect(source).toContain("throw new BadRequestError('appId is required.')")
   })
 
