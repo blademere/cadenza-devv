@@ -1,7 +1,7 @@
 model AppointmentType {
   id                     String                 @id @default(uuid())
   appId                  String
-  key                    String                 @unique
+  key                    String
   name                   String
   description            String?
   defaultDurationMinutes Int                    @default(30)
@@ -16,15 +16,17 @@ model AppointmentType {
 
   @@index([appId])
   @@index([appId, isActive])
+  @@unique([appId, key])
+  @@unique([id, appId])
 }
 
 model AvailabilitySchedule {
   id                  String            @id @default(uuid())
   appointmentTypeId   String
-  dayOfWeek           Int
-  startTime           String
-  endTime             String
-  timezone            String            @default("UTC")
+  dayOfWeek            Int
+  startTime            String
+  endTime              String
+  timezone             String            @default("UTC")
   slotDurationMinutes Int
   capacity            Int
   isActive             Boolean           @default(true)
@@ -59,7 +61,7 @@ model AppointmentSlot {
 model Appointment {
   id                String          @id @default(uuid())
   appId             String
-  referenceNumber   String          @unique
+  referenceNumber   String
   appointmentTypeId String
   slotId            String
   userId            Int?
@@ -81,4 +83,6 @@ model Appointment {
   @@index([appId, userId, createdAt])
   @@index([appId, status, createdAt])
   @@index([appId, appointmentTypeId, status])
+  @@unique([appId, referenceNumber])
+  @@unique([id, appId])
 }
