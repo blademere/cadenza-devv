@@ -17,7 +17,7 @@ const requireAppId = (appId) => {
   return appId
 }
 
-const ensureCaseAndPerson = async (caseId, personId, appId, db) => {
+const ensureCaseAndPerson = async ({ caseId, personId, appId, db }) => {
   const [caseRecord, person] = await Promise.all([
     findCase(caseId, appId, db),
     findPerson(personId, db),
@@ -32,7 +32,7 @@ const add = async ({ caseId, personId, roleKey, isPrimary = false, metadata, app
     throw new BadRequestError('caseId, personId, and roleKey are required.')
   }
   const normalizedRoleKey = roleKey.trim()
-  await ensureCaseAndPerson(caseId, personId, appId, db)
+  await ensureCaseAndPerson({ caseId, personId, appId, db })
   const existing = await findParticipant(caseId, personId, normalizedRoleKey, appId, db)
   if (existing) throw new ConflictError('Participant is already assigned to this case role.')
   const participant = await addParticipant({ caseId, personId, roleKey: normalizedRoleKey, isPrimary, metadata }, appId, db)
@@ -40,14 +40,14 @@ const add = async ({ caseId, personId, roleKey, isPrimary = false, metadata, app
   return participant
 }
 
-const list = async (caseId, { appId, db } = {}) => {
+const list = async ({ caseId, appId, db }) => {
   requireAppId(appId)
   const caseRecord = await findCase(caseId, appId, db)
   if (!caseRecord) throw new NotFoundError('Case not found.')
   return listParticipants(caseId, appId, db)
 }
 
-const remove = async (id, { appId, db } = {}) => {
+const remove = async ({ id, appId, db }) => {
   requireAppId(appId)
   const participant = await removeParticipant(id, appId, db)
   if (!participant) throw new NotFoundError('Participant not found.')
