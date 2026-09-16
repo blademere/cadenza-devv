@@ -26,9 +26,18 @@ CREATE INDEX "Task_appId_caseId_status_idx" ON "Task"("appId", "caseId", "status
 CREATE INDEX "Task_appId_assigneeUserId_status_idx" ON "Task"("appId", "assigneeUserId", "status");
 CREATE INDEX "Task_appId_status_dueAt_idx" ON "Task"("appId", "status", "dueAt");
 
+-- The composite reference makes the database enforce:
+-- Task.appId == CaseRecord.appId whenever caseId is present.
+CREATE UNIQUE INDEX "CaseRecord_id_appId_key" ON "CaseRecord"("id", "appId");
+
+ALTER TABLE "Task"
+  DROP CONSTRAINT IF EXISTS "Task_caseId_fkey";
+
 ALTER TABLE "Task"
   ADD CONSTRAINT "Task_appId_fkey"
   FOREIGN KEY ("appId") REFERENCES "App"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- Service/repository validation requires caseId to resolve to a CaseRecord
--- owned by the same appId before a task is created or moved to another case.
+ALTER TABLE "Task"
+  ADD CONSTRAINT "Task_caseId_appId_fkey"
+  FOREIGN KEY ("caseId", "appId") REFERENCES "CaseRecord"("id", "appId")
+  ON DELETE SET NULL ON UPDATE CASCADE;
