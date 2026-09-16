@@ -1,9 +1,9 @@
 model OboProfessional {
   id                 String @id @default(uuid())
   appId              String
-  personId           String @unique
-  registrationNumber String @unique
-  prcId              String? @unique
+  personId           String
+  registrationNumber String
+  prcId              String?
   ptrNumber          String?
   professionalRole   String?
 
@@ -20,6 +20,10 @@ model OboProfessional {
 
   @@index([appId])
   @@index([appId, status])
-  @@index([ptrNumber])
-  @@index([professionalRole])
+  @@index([appId, ptrNumber])
+  @@index([appId, professionalRole])
+  @@unique([appId, personId])
+  @@unique([appId, registrationNumber])
+  @@unique([appId, prcId])
+  @@unique([id, appId])
 }
