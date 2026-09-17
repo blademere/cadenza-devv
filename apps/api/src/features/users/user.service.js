@@ -1,7 +1,6 @@
 import bcrypt from 'bcrypt'
 import {
   ConflictError,
-  ForbiddenError,
   NotFoundError,
 } from '../../common/errors/appError.js'
 import {
@@ -13,16 +12,12 @@ import {
 import {
   findAllUsers,
   findUserByEmail,
-  createUser,
+  createUser as createUserRecord,
   findUser,
 } from './user.repository.js'
 import { toUserResponse } from './user.mapper.js'
 import * as peopleService from '../people/people.service.js'
-import { getAuthorizationContext } from '../../platform/authorization/access-control.service.js'
-import {
-  getUserMembership,
-  addMembership,
-} from '../../platform/applications/application.service.js'
+import { getUserMembership } from '../../platform/applications/application.service.js'
 
 const roleResponse = (roles = []) => roles.map(({ id, name, description }) => ({ id, name, description }))
 const userWithMembershipRoles = (user, appId) => {
@@ -41,17 +36,20 @@ const listUsers = async (query = {}, appId) => {
   }
 }
 
-const registerUser = async ({ requesterId, appId, email, password }) => {
-  if (!appId) throw new ForbiddenError('Application context is required to create users.')
-  const requester = await getAuthorizationContext(requesterId, appId)
-  if (!requester) throw new ForbiddenError('Your account is not authorized to create users.')
+/**
+ * Create a global user identity from an already prepared password hash.
+ * Application membership and role assignment are intentionally outside this capability.
+ */
+const createUser = async ({ email, passwordHash }) => {
   const existingUser = await findUserByEmail(email)
   if (existingUser) throw new ConflictError('A user with this email already exists.')
+  const user = await createUserRecord({ email, passwordHash })
+  return toUserResponse({ ...user, roles: [] })
+}
 
+const createUserWithPassword = async ({ email, password }) => {
   const passwordHash = await bcrypt.hash(password, 12)
-  const user = await createUser({ email, passwordHash })
-  const membership = await addMembership({ userId: user.id, appId })
-  return toUserResponse({ ...user, roles: [], membershipId: membership.id })
+  return createUser({ email, passwordHash })
 }
 
 const getMyProfile = async (userId, appId) => {
@@ -86,7 +84,8 @@ const updateMyProfile = async (userId, data, appId) => {
 
 export {
   listUsers,
-  registerUser,
+  createUser,
+  createUserWithPassword,
   getMyProfile,
   createMyProfile,
   updateMyProfile,
