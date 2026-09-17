@@ -53,15 +53,11 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
   const membership = user.appMemberships[0]
   if (!membership) return null
 
-  const appModulePrefix = `${membership.app.key}_`
   const roles = membership.roles.map(({ role }) => ({ id: role.id, name: role.name }))
 
   const permissions = membership.roles
     .flatMap(({ role }) => role.permissions.map(({ permission }) => permission))
-    .filter(({ module }) => (
-      module.isActive &&
-      (module.key.startsWith(appModulePrefix) || module.key === 'appointments')
-    ))
+    .filter(({ module }) => module.isActive)
     .map(({ action, module }) => ({
       resource: module.key,
       action,
