@@ -1,6 +1,5 @@
 import { successResponse } from '../../../common/responses/apiResponse.js'
 import * as service from '../../../features/appointments/appointment.service.js'
-import { generateSlots } from '../../../features/appointments/appointment.slot.service.js'
 import { mapAppointmentType, mapAppointment, mapAppointmentSlot, mapAvailabilitySchedule } from '../../../features/appointments/appointment.mapper.js'
 
 const mapList = (items, mapper) => items.map(mapper)
@@ -11,7 +10,7 @@ const createType = async (req, res) => successResponse(res, 'Appointment type cr
 const createSchedule = async (req, res) => successResponse(res, 'Availability schedule created successfully.', mapAvailabilitySchedule(await service.createAvailabilitySchedule({ actorId: req.user.id, appId: appId(req), data: req.validated.body })), 201)
 const listSchedules = async (req, res) => successResponse(res, 'Availability schedules retrieved successfully.', mapList(await service.listAvailabilitySchedules({ ...req.validated.query, appId: appId(req) }), mapAvailabilitySchedule))
 const createSlot = async (req, res) => successResponse(res, 'Appointment slot created successfully.', mapAppointmentSlot(await service.createAppointmentSlot({ actorId: req.user.id, appId: appId(req), data: req.validated.body })), 201)
-const generate = async (req, res) => successResponse(res, 'Appointment slots generated successfully.', mapList(await generateSlots({ ...req.validated.body, actorId: req.user.id, appId: appId(req) }), mapAppointmentSlot), 201)
+const generate = async (req, res) => successResponse(res, 'Appointment slots generated successfully.', mapList(await service.generateSlots({ ...req.validated.body, actorId: req.user.id, appId: appId(req) }), mapAppointmentSlot), 201)
 const listSlots = async (req, res) => successResponse(res, 'Appointment slots retrieved successfully.', mapList(await service.listAppointmentSlots({ ...req.validated.query, appId: appId(req) }), mapAppointmentSlot))
 const createAppointment = async (req, res) => successResponse(res, 'Appointment booked successfully.', mapAppointment(await service.bookAppointment({ userId: req.user.id, appId: appId(req), ...req.validated.body })), 201)
 const listAppointments = async (req, res) => successResponse(res, 'Appointments retrieved successfully.', mapList(await service.listAppointments({ ...req.validated.query, appId: appId(req) }), mapAppointment))
