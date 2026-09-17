@@ -18,16 +18,10 @@ const findAllOBOUsers = async ({ appId, skip, take, filters = {}, orderBy }) => 
       skip,
       take,
       where: membershipWhere,
-      orderBy: orderBy
-        ? Object.fromEntries(
-            Object.entries(orderBy).map(([field, direction]) => [
-              field === 'email' || field === 'isActive' || field === 'createdAt' || field === 'updatedAt'
-                ? { user: { [field]: direction } }
-                : { user: { [field]: direction } },
-              direction,
-            ])
-          )
-        : { user: { createdAt: 'desc' } },
+      orderBy: (() => {
+        const [field, direction] = Object.entries(orderBy ?? { createdAt: 'desc' })[0]
+        return { user: { [field]: direction } }
+      })(),
       select: {
         user: {
           select: {
