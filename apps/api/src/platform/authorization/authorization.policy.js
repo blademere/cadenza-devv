@@ -9,7 +9,7 @@ const ownershipPolicy = ({ user, resource, userId, ownerId }) => {
 
 const evaluatePolicy = async ({ policy, user, resource }) => {
   if (typeof policy !== 'function') {
-    throw new TypeError('Authorization policy must be a function.')
+    throw new TypeError('Access-control policy must be a function.')
   }
 
   return Boolean(await policy({ user, resource }))
