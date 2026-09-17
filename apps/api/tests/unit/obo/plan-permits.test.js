@@ -45,7 +45,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   repository.withTransaction.mockImplementation(async (callback) => callback({ tx: true }))
   repository.findPersonByUserId.mockResolvedValue(person)
-  repository.findOwnedByClient.mockResolvedValue(application)
+  repository.findOwnedByClient.mockImplementation(async (_id, _personId, appId) => appId ? application : (() => { throw new Error('appId is required') })())
   repository.findById.mockResolvedValue(application)
   repository.listByClient.mockResolvedValue([application])
   permitTypeService.getPermitTypeById.mockResolvedValue(permitType)
@@ -109,9 +109,9 @@ describe('OBO plan permit service', () => {
     expect(repository.update).not.toHaveBeenCalled()
   })
 
-  it('requires application context for client application access', async () => {
-    await expect(service.getMine({ id: 'application-1', userId: 'user-1' })).rejects.toBeDefined()
-    expect(repository.findOwnedByClient).toHaveBeenCalledWith('application-1', 'person-1', undefined)
+  it('passes application context to client application lookups', async () => {
+    await service.getMine({ id: 'application-1', appId: 'obo-app', userId: 'user-1' })
+    expect(repository.findOwnedByClient).toHaveBeenCalledWith('application-1', 'person-1', 'obo-app')
   })
 })
 
