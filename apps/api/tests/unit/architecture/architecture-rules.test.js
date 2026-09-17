@@ -32,7 +32,7 @@ describe('architecture rules', () => {
         "import x from '../../modules/obo/example.service.js'"
       )
     ).toContain(
-      'apps/api/src/features/example/example.service.js: shared features must not import modules.'
+      'apps/api/src/features/example/example.service.js: shared features must not import modules or apps.'
     )
 
     expect(
@@ -41,7 +41,7 @@ describe('architecture rules', () => {
         "import x from '../../modules/obo/example.service.js'"
       )
     ).toContain(
-      'apps/api/src/infrastructure/example.js: infrastructure must not import modules.'
+      'apps/api/src/infrastructure/example.js: infrastructure must not import modules or apps.'
     )
   })
 
