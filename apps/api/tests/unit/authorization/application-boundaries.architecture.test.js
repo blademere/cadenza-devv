@@ -115,8 +115,9 @@ describe('application authorization dependency boundaries', () => {
   test('OBO authorization exposes only its declared resource vocabulary', async () => {
     const { OBO_RESOURCES, assertOBOResource } = await import('../../../src/apps/obo/authorization/authorization.service.js')
 
-    expect(OBO_RESOURCES).toContain('authorization')
+    expect(OBO_RESOURCES).toContain('obo_authorization')
     expect(OBO_RESOURCES).toContain('obo_plan_permits')
+    expect(() => assertOBOResource('authorization')).toThrow(/Unsupported OBO authorization resource/)
     expect(() => assertOBOResource('users')).toThrow(/Unsupported OBO authorization resource/)
     expect(() => assertOBOResource('cadenza_records')).toThrow(/Unsupported OBO authorization resource/)
 
