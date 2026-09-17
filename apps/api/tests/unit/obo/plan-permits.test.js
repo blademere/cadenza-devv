@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repository = vi.hoisted(() => ({
   findPersonByUserId: vi.fn(),
@@ -41,17 +41,12 @@ vi.mock('../../../src/features/tasks/tasks.service.js', () => taskService)
 vi.mock('../../../src/features/documents/document.service.js', () => documentsService)
 vi.mock('../../../src/apps/obo/application-documents/application-document.repository.js', () => repository)
 
-let service
-let resolveAndValidateForm
+import * as service from '../../../src/apps/obo/plan-permits/plan-permit.service.js'
+import { resolveAndValidateForm } from '../../../src/apps/obo/plan-permits/plan-permit.form.js'
 
 const person = { id: 'person-1', userId: 'user-1', email: 'client@example.com' }
 const permitType = { id: 'permit-1', name: 'Building Permit', isActive: true, formId: null }
 const application = { id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType, formValues: {}, submissionAppointment: { appointmentId: 'appointment-1' } }
-
-beforeAll(async () => {
-  service = await import('../../../src/apps/obo/plan-permits/plan-permit.service.js')
-  ;({ resolveAndValidateForm } = await import('../../../src/apps/obo/plan-permits/plan-permit.form.js'))
-})
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -93,7 +88,7 @@ describe('OBO plan permit service', () => {
   })
 
   it('associates verified professionals from form references as case participants', async () => {
-    repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', version: 1, fields: [] }, formValues: { architect: { professionalId: 'professional-1' } })
+    repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', version: 1, fields: [] }, formValues: { architect: { professionalId: 'professional-1' } } })
     await service.submit({ id: 'application-1', appId: 'obo-app', userId: 'user-1' })
     expect(professionalReferenceService.validateProfessionalReferences).toHaveBeenCalledWith(expect.objectContaining({ appId: 'obo-app', formVersion: expect.anything(), formValues: expect.anything() }))
     expect(professionalReferenceService.buildProfessionalSnapshots).toHaveBeenCalledWith(expect.objectContaining({ appId: 'obo-app' }))
