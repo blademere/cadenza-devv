@@ -3,77 +3,66 @@ import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 const prisma = getPrismaClient()
 
 const findAllUsers = async ({ appId, skip, take, filters = {}, orderBy }) => {
-  if (appId) {
-    const membershipWhere = {
-      appId,
-      isActive: true,
-      app: { isActive: true },
-      user: {
-        ...(filters.email ? { email: { contains: filters.email, mode: 'insensitive' } } : {}),
-        ...(filters.isActive !== undefined ? { isActive: filters.isActive === 'true' } : {}),
-      },
-    }
-
-    const [memberships, total] = await Promise.all([
-      prisma.appMembership.findMany({
-        skip,
-        take,
-        where: membershipWhere,
-        orderBy: (() => {
-          const [field, direction] = Object.entries(orderBy ?? { createdAt: 'desc' })[0]
-          return { user: { [field]: direction } }
-        })(),
-        select: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              isActive: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          },
-          roles: {
-            where: { role: { appId } },
-            include: { role: true },
-          },
-        },
-      }),
-      prisma.appMembership.count({ where: membershipWhere }),
-    ])
-
-    return {
-      users: memberships.map(({ user, roles }) => ({
-        ...user,
-        roles: roles.map(({ role }) => role),
-      })),
-      total,
-    }
-  }
-
-  const where = {
+  const userWhere = {
     ...(filters.email ? { email: { contains: filters.email, mode: 'insensitive' } } : {}),
     ...(filters.isActive !== undefined ? { isActive: filters.isActive === 'true' } : {}),
+    ...(appId ? {
+      appMemberships: {
+        some: {
+          appId,
+          isActive: true,
+          app: { isActive: true },
+        },
+      },
+    } : {}),
+  }
+
+  const select = {
+    id: true,
+    email: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+    ...(appId ? {
+      appMemberships: {
+        where: {
+          appId,
+          isActive: true,
+          app: { isActive: true },
+        },
+        select: {
+          roles: {
+            where: { role: { appId } },
+            select: { role: true },
+          },
+        },
+      },
+    } : {}),
   }
 
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       skip,
       take,
-      where,
+      where: userWhere,
       orderBy,
-      select: {
-        id: true,
-        email: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select,
     }),
-    prisma.user.count({ where }),
+    prisma.user.count({ where: userWhere }),
   ])
 
-  return { users, total }
+  return {
+    users: users.map((user) => {
+      if (!appId) return user
+
+      const roles = user.appMemberships.flatMap((membership) =>
+        membership.roles.map(({ role }) => role)
+      )
+      const { appMemberships, ...userWithoutMemberships } = user
+      return { ...userWithoutMemberships, roles }
+    }),
+    total,
+  }
 }
 
 const findUserByEmail = async (email, db = prisma) => db.user.findUnique({
