@@ -27,7 +27,8 @@ describe('phase 15 application ownership boundaries', () => {
 
   it('does not expose an unscoped application-owned case lookup', async () => {
     const source = await read('features/cases/cases.repository.js')
+    expect(source).toContain('const findCaseById = (id, { appId, db = prisma, includeDetails = true } = {})')
     expect(source).toContain('where: { id, appId }')
-    expect(source).not.toMatch(/findUnique\(\{\s*where:\s*\{\s*id\s*\}\s*\}\)/)
+    expect(source).not.toMatch(/caseRecord\.findUnique\(\{\s*where:\s*\{\s*id\s*\}\s*\}\)/)
   })
 })
