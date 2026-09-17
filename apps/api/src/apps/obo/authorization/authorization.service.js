@@ -1,36 +1,4 @@
-import { authorize, authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
 import * as management from './authorization-management.service.js'
-
-export const OBO_RESOURCES = Object.freeze([
-  'obo_authorization',
-  'obo_users',
-  'obo_clients',
-  'obo_forms',
-  'obo_permit_types',
-  'obo_plan_permits',
-  'obo_professionals',
-  'obo_appointments',
-])
-
-export const OBO_AUTHORIZATION_MODULE_PREFIX = 'obo_'
-const OBO_RESOURCE_SET = new Set(OBO_RESOURCES)
-
-export const assertOBOResource = (resource) => {
-  if (!OBO_RESOURCE_SET.has(resource)) {
-    throw new TypeError(`Unsupported OBO authorization resource: ${resource}`)
-  }
-  return resource
-}
-
-export const authorizeOBO = (resource, action) => authorize(assertOBOResource(resource), action)
-
-export const authorizeOBOResource = ({ resource, action, loadResource, getResourceId, policy }) => authorizeResource({
-  resource: assertOBOResource(resource),
-  action,
-  loadResource,
-  getResourceId,
-  policy,
-})
 
 export const listAuthorizationModules = () => management.listModules()
 export const getAuthorizationModule = (moduleId) => management.getModule(moduleId)
