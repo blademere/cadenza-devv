@@ -1,20 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 
-const repository = vi.hoisted(() => ({
-  findById: vi.fn(),
-  findByIdWithVersions: vi.fn(),
-  findByKey: vi.fn(),
-  findByKeyWithDefinitions: vi.fn(),
-  findVersionById: vi.fn(),
-  findVersion: vi.fn(),
-  findLatestFormVersion: vi.fn(),
-}))
+const repository = vi.hoisted(() => Object.fromEntries([
+  'runTransaction', 'findById', 'findByIdWithVersions', 'findVersionById', 'findByKey', 'findVersion', 'findVersionForUpdate',
+  'findLatestFormVersion', 'findByKeyWithDefinitions', 'createFormRecord', 'createVersionRecord', 'createDefinitionRecords',
+  'findVersionWithDefinition', 'deleteFields', 'deleteSections', 'updateVersion', 'getUpdatedVersion', 'archivePublishedVersions',
+  'createSubmissionRecord', 'findPublishedForm',
+].map((name) => [name, vi.fn()])))
 
-vi.mock('../../../../src/platform/forms/form.repository.js', async (importOriginal) => ({
-  ...(await importOriginal()),
-  ...repository,
-}))
-
+vi.mock('../../../../src/platform/forms/form.repository.js', () => repository)
 const formService = await import('../../../../src/platform/forms/form.service.js')
 
 describe('forms application scope', () => {
