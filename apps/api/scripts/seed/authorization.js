@@ -1,4 +1,8 @@
 const authorizationCatalog = {
+  authorization: ['manage'],
+  users: ['read', 'create', 'manage'],
+  applications: ['read', 'create', 'update', 'review', 'receive', 'approve', 'reject'],
+  appointments: ['read', 'create', 'cancel', 'check_in', 'manage'],
   obo_authorization: ['manage'],
   obo_clients: ['read', 'create', 'update'],
   obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive'],
@@ -8,10 +12,10 @@ const authorizationCatalog = {
 }
 
 const rolePermissions = {
-  client: ['obo_clients:read','obo_clients:create','obo_clients:update','obo_plan_permits:read','obo_plan_permits:create','obo_plan_permits:update','obo_plan_permits:submit','obo_plan_permits:schedule_submission','obo_professionals:read'],
-  professional: ['obo_plan_permits:read','obo_professionals:create','obo_professionals:read','obo_professionals:update'],
-  receiving_officer: ['obo_plan_permits:read','obo_plan_permits:receive','obo_permit_types:read','obo_permit_types:create','obo_permit_types:update','obo_forms:read','obo_forms:create','obo_forms:update','obo_forms:publish','obo_professionals:read','obo_professionals:review'],
-  admin: ['obo_authorization:manage','obo_permit_types:read','obo_permit_types:create','obo_permit_types:update','obo_forms:read','obo_forms:create','obo_forms:update','obo_forms:publish'],
+  client: ['applications:read', 'applications:create', 'applications:update', 'appointments:read', 'appointments:create', 'appointments:cancel', 'obo_clients:read', 'obo_clients:create', 'obo_clients:update', 'obo_plan_permits:read', 'obo_plan_permits:create', 'obo_plan_permits:update', 'obo_plan_permits:submit', 'obo_plan_permits:schedule_submission', 'obo_professionals:read'],
+  professional: ['applications:read', 'applications:create', 'applications:update', 'appointments:read', 'obo_plan_permits:read', 'obo_professionals:create', 'obo_professionals:read', 'obo_professionals:update'],
+  receiving_officer: ['applications:read', 'applications:review', 'applications:receive', 'applications:approve', 'applications:reject', 'appointments:read', 'appointments:check_in', 'appointments:manage', 'obo_plan_permits:read', 'obo_plan_permits:receive', 'obo_permit_types:read', 'obo_permit_types:create', 'obo_permit_types:update', 'obo_forms:read', 'obo_forms:create', 'obo_forms:update', 'obo_forms:publish', 'obo_professionals:read', 'obo_professionals:review'],
+  admin: ['authorization:manage', 'users:read', 'users:create', 'users:manage', 'obo_authorization:manage', 'obo_permit_types:read', 'obo_permit_types:create', 'obo_permit_types:update', 'obo_forms:read', 'obo_forms:create', 'obo_forms:update', 'obo_forms:publish'],
 }
 
 const moduleName = (key) => key.split(/[_-]+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
@@ -20,8 +24,8 @@ function validateCatalog() {
   const permissionKeys = new Set(Object.entries(authorizationCatalog).flatMap(([moduleKey, actions]) => actions.map((action) => `${moduleKey}:${action}`)))
   for (const [roleName, keys] of Object.entries(rolePermissions)) {
     for (const key of keys) {
-      if (!key.startsWith('obo_') || !permissionKeys.has(key)) {
-        throw new Error(`OBO role '${roleName}' references permission outside the OBO authorization catalog: ${key}`)
+      if (!permissionKeys.has(key)) {
+        throw new Error(`OBO role '${roleName}' references permission outside the authorization catalog: ${key}`)
       }
     }
   }
@@ -75,7 +79,7 @@ async function seedAuthorization(prisma, { applications } = {}) {
     })
     for (const key of keys) {
       const permission = permissionRecords.get(key)
-      if (!permission) throw new Error(`Unknown OBO permission declared for ${roleName}: ${key}`)
+      if (!permission) throw new Error(`Unknown permission declared for ${roleName}: ${key}`)
       await prisma.rolePermission.upsert({
         where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
         update: {},
