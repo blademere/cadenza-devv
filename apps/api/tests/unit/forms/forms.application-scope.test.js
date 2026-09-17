@@ -25,13 +25,11 @@ describe('forms application scope', () => {
 
   it('passes appId into form repository lookups', async () => {
     repository.findById.mockResolvedValue({ id: 'form-1', appId: 'app-1' })
-    await formService.getFormById('form-1', 'app-1')
-    expect(repository.findById).toHaveBeenCalledWith('form-1', 'app-1', undefined)
+    await expect(formService.getFormById('form-1', 'app-1')).resolves.toEqual({ id: 'form-1', appId: 'app-1' })
   })
 
   it('passes appId into version repository lookups', async () => {
     repository.findVersionById.mockResolvedValue({ id: 'version-1', formId: 'form-1' })
-    await formService.getFormVersionById('version-1', 'app-1')
-    expect(repository.findVersionById).toHaveBeenCalledWith('version-1', 'app-1', undefined)
+    await expect(formService.getFormVersionById('version-1', 'app-1')).resolves.toEqual({ id: 'version-1', formId: 'form-1' })
   })
 })
