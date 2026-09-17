@@ -69,7 +69,7 @@ describe('user listing capability', () => {
   })
 })
 
-describe('user creation capability', () =>
+describe('user creation capability', () => {
   it('creates a global user identity from a prepared password hash', async () => {
     await expect(createUser({
       email: 'new@example.com',
