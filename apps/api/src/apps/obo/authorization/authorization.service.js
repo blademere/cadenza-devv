@@ -3,7 +3,7 @@ import authorizeResource from '../../../platform/authorization/authorization-res
 import * as management from './authorization-management.service.js'
 
 export const OBO_RESOURCES = Object.freeze([
-  'authorization',
+  'obo_authorization',
   'obo_users',
   'obo_clients',
   'obo_forms',
@@ -44,4 +44,4 @@ export const getAuthorizationRole = ({ roleId, appId }) => management.getRole({ 
 export const getAuthorizationMembership = ({ membershipId, appId }) => management.getMembership({ membershipId, appId })
 export const replaceAuthorizationRolePermissions = ({ roleId, permissionIds, appId }) => management.replaceRolePermissions({ roleId, permissionIds, appId })
 export const listMembershipAuthorizationRoles = ({ membershipId, appId }) => management.listMembershipRoles({ membershipId, appId })
-export const replaceMembershipAuthorizationRoles = ({ membershipId, appId, roleIds }) => management.replaceMembershipRoles({ membershipId, appId, roleIds })
+export const replaceMembershipAuthorizationRoles = ({ membershipId, appId, roleIds }) => management.replaceMembershipRoles({ membershipId, roleIds, appId })
