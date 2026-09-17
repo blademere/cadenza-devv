@@ -1,13 +1,34 @@
 import bcrypt from 'bcrypt'
+import {
+  createPaginationMeta,
+} from '../../../common/pagination/pagination.js'
+import { toUserResponse } from '../../../features/users/user.mapper.js'
 import * as usersService from '../../../features/users/user.service.js'
+import { findAllOBOUsers } from './user.repository.js'
 import {
   addMembership,
   addMembershipRole,
   requireActiveMembership,
 } from '../../../platform/applications/application.service.js'
 
-const listUsers = ({ appId, filters, pagination, orderBy }) =>
-  usersService.listUsers({ appId, filters, pagination, orderBy })
+const listUsers = async ({ appId, filters, pagination, orderBy }) => {
+  const { users, total } = await findAllOBOUsers({
+    appId,
+    skip: pagination.skip,
+    take: pagination.take,
+    filters,
+    orderBy,
+  })
+
+  return {
+    data: users.map(toUserResponse),
+    pagination: createPaginationMeta({
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+    }),
+  }
+}
 
 const createUser = async ({ appId, email, password }) => {
   const passwordHash = await bcrypt.hash(password, 12)
