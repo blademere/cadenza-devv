@@ -1,14 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repository = vi.hoisted(() => ({
-  findPersonByUserId: vi.fn(),
-  findById: vi.fn(),
-  findOwnedByClient: vi.fn(),
-  listByClient: vi.fn(),
-  create: vi.fn(),
-  update: vi.fn(),
-  findPersonNotificationContext: vi.fn(),
-  withTransaction: vi.fn(),
+  findPersonByUserId: vi.fn(), findById: vi.fn(), findOwnedByClient: vi.fn(), listByClient: vi.fn(), create: vi.fn(), update: vi.fn(), findPersonNotificationContext: vi.fn(), withTransaction: vi.fn(),
 }))
 const permitTypeService = vi.hoisted(() => ({ getPermitTypeById: vi.fn(), getRequirementIds: vi.fn() }))
 const requirementService = vi.hoisted(() => ({ attachDefinitionsToCase: vi.fn(), listForCase: vi.fn(), updateStatus: vi.fn() }))
@@ -54,6 +47,7 @@ beforeEach(() => {
   repository.findPersonByUserId.mockResolvedValue(person)
   repository.findOwnedByClient.mockResolvedValue(application)
   repository.findById.mockResolvedValue(application)
+  repository.listByClient.mockResolvedValue([application])
   permitTypeService.getPermitTypeById.mockResolvedValue(permitType)
   permitTypeService.getRequirementIds.mockResolvedValue(['requirement-1', 'requirement-2'])
   requirementService.attachDefinitionsToCase.mockResolvedValue([])
@@ -87,6 +81,12 @@ describe('OBO plan permit service', () => {
     expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', appId: 'obo-app' }))
   })
 
+  it('rejects creation when the permit type is not available in the application', async () => {
+    permitTypeService.getPermitTypeById.mockResolvedValue(null)
+    await expect(service.createApplication({ appId: 'obo-app', userId: 'user-1', permitTypeId: 'missing', formValues: {} })).rejects.toThrow('Active permit type not found.')
+    expect(caseService.createRecord).not.toHaveBeenCalled()
+  })
+
   it('associates verified professionals from form references as case participants', async () => {
     repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', version: 1, fields: [] }, formValues: { architect: { professionalId: 'professional-1' } } })
     await service.submit({ id: 'application-1', appId: 'obo-app', userId: 'user-1' })
@@ -95,6 +95,23 @@ describe('OBO plan permit service', () => {
     expect(professionalService.getForReference).toHaveBeenCalledWith('professional-a', 'obo-app')
     expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', roleKey: 'PROFESSIONAL', appId: 'obo-app' }))
     expect(taskService.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1' }), { appId: 'obo-app', db: expect.anything() })
+  })
+
+  it('rejects submission of a non-draft application', async () => {
+    repository.findOwnedByClient.mockResolvedValue({ ...application, status: 'READY_FOR_SUBMISSION' })
+    await expect(service.submit({ id: 'application-1', appId: 'obo-app', userId: 'user-1' })).rejects.toThrow('Only draft applications can be submitted.')
+    expect(workflowService.transitionWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('rejects updating a non-draft application', async () => {
+    repository.findOwnedByClient.mockResolvedValue({ ...application, status: 'SUBMISSION_SCHEDULED' })
+    await expect(service.updateDraft({ id: 'application-1', appId: 'obo-app', userId: 'user-1', formValues: {} })).rejects.toThrow('Only draft applications can be updated.')
+    expect(repository.update).not.toHaveBeenCalled()
+  })
+
+  it('requires application context for client application access', async () => {
+    await expect(service.getMine({ id: 'application-1', userId: 'user-1' })).rejects.toBeDefined()
+    expect(repository.findOwnedByClient).toHaveBeenCalledWith('application-1', 'person-1', undefined)
   })
 })
 
