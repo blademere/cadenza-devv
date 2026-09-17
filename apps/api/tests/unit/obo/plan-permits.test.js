@@ -85,7 +85,7 @@ describe('OBO plan permit service', () => {
     await service.submit({ id: 'application-1', appId: 'obo-app', userId: 'user-1' })
     expect(professionalReferenceService.validateProfessionalReferences).toHaveBeenCalledWith(expect.objectContaining({ appId: 'obo-app', formVersion: expect.anything(), formValues: expect.anything() }))
     expect(professionalReferenceService.buildProfessionalSnapshots).toHaveBeenCalledWith(expect.objectContaining({ appId: 'obo-app' }))
-    expect(professionalService.getForReference).toHaveBeenCalledWith('professional-a', 'obo-app')
+    expect(professionalService.getForReference).toHaveBeenCalledWith('professional-a', 'obo-app', expect.anything())
     expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', roleKey: 'PROFESSIONAL', appId: 'obo-app' }))
     expect(taskService.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1' }), { appId: 'obo-app', db: expect.anything() })
   })
