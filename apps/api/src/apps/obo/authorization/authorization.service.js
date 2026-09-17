@@ -9,6 +9,7 @@ export const OBO_RESOURCES = Object.freeze([
   'obo_permit_types',
   'obo_plan_permits',
   'obo_professionals',
+  'obo_appointments',
 ])
 
 export const OBO_AUTHORIZATION_MODULE_PREFIX = 'obo_'
