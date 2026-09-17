@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const prisma = path.resolve(here, '../../../prisma')
 const migrationPath = path.join(
   prisma,
-  'migrations/20260916180000_finalize_application_ownership/migration.sql'
+  'migrations/20260916190000_finalize_application_ownership/migration.sql'
 )
 
 const readMigration = () => readFile(migrationPath, 'utf8')
