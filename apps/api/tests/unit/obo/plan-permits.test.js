@@ -81,20 +81,19 @@ describe('OBO plan permit service', () => {
   })
 
   it('associates verified professionals from form references as case participants', async () => {
-    repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', version: 1, fields: [] }, formValues: { architect: { professionalId: 'professional-1' } } })
+    repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', version: 1, fields: [] }, formValues: { architect: { professionalId: 'professional-1' } })
     await service.submit({ id: 'application-1', appId: 'obo-app', userId: 'user-1' })
     expect(professionalReferenceService.validateProfessionalReferences).toHaveBeenCalledWith(expect.objectContaining({ appId: 'obo-app', formVersion: expect.anything(), formValues: expect.anything() }))
     expect(professionalReferenceService.buildProfessionalSnapshots).toHaveBeenCalledWith(expect.objectContaining({ appId: 'obo-app' }))
     expect(professionalService.getForReference).toHaveBeenCalledWith('professional-a', 'obo-app')
-    expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', roleKey: 'PROFESSIONAL', appId: 'obo-app' }), expect.anything())
+    expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', roleKey: 'PROFESSIONAL', appId: 'obo-app' }))
     expect(taskService.create).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1' }), { appId: 'obo-app', db: expect.anything() })
   })
 })
 
 describe('OBO plan permit form resolution', () => {
   it('passes application context when resolving a form version', async () => {
-    const permit = { ...permitType, formId: 'form-1' }
-    await resolveAndValidateForm({ permitType: permit, formVersionId: 'version-1', formValues: {}, appId: 'obo-app' })
+    await resolveAndValidateForm({ permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'version-1', formValues: {}, appId: 'obo-app' })
     expect(formService.getFormVersionById).toHaveBeenCalledWith('version-1', 'obo-app')
   })
   it('resolves an explicitly selected published version instead of the latest version', async () => {
