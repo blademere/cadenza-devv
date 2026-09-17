@@ -1,4 +1,3 @@
-import bcrypt from 'bcrypt'
 import {
   ConflictError,
   NotFoundError,
@@ -38,18 +37,14 @@ const listUsers = async (query = {}, appId) => {
 
 /**
  * Create a global user identity from an already prepared password hash.
- * Application membership and role assignment are intentionally outside this capability.
+ * Application membership, role assignment, authorization, and password hashing are
+ * intentionally outside this reusable user capability.
  */
 const createUser = async ({ email, passwordHash }) => {
   const existingUser = await findUserByEmail(email)
   if (existingUser) throw new ConflictError('A user with this email already exists.')
   const user = await createUserRecord({ email, passwordHash })
   return toUserResponse({ ...user, roles: [] })
-}
-
-const createUserWithPassword = async ({ email, password }) => {
-  const passwordHash = await bcrypt.hash(password, 12)
-  return createUser({ email, passwordHash })
 }
 
 const getMyProfile = async (userId, appId) => {
@@ -85,7 +80,6 @@ const updateMyProfile = async (userId, data, appId) => {
 export {
   listUsers,
   createUser,
-  createUserWithPassword,
   getMyProfile,
   createMyProfile,
   updateMyProfile,
