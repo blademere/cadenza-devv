@@ -16,13 +16,13 @@ const getApplication = async (id, appId) => {
   return { ...application, status: workflow.currentStep.key }
 }
 
-const getApplicableRequirements = async (application, db) => {
+const getApplicableRequirements = async (application, appId, db) => {
   if (!application.caseRecord?.id) return []
-  return requirementService.listForCase(application.caseRecord.id, db)
+  return requirementService.listForCase(application.caseRecord.id, { appId, db })
 }
 
-const ensureChecklist = async (application, db, requirements = null) => {
-  const applicableRequirements = requirements ?? await getApplicableRequirements(application, db)
+const ensureChecklist = async (application, db, requirements = null, appId = application?.appId) => {
+  const applicableRequirements = requirements ?? await getApplicableRequirements(application, appId, db)
   if (applicableRequirements.length) await repository.createMany(applicableRequirements.map((caseRequirement) => ({ applicationId: application.id, caseRequirementId: caseRequirement.id, status: STATUS.PENDING })), db)
   return applicableRequirements
 }
@@ -40,16 +40,16 @@ const normalizeRequirement = (caseRequirement) => ({ ...caseRequirement.requirem
 
 const getChecklist = async ({ applicationId, appId }) => {
   const application = await getApplication(applicationId, appId)
-  const requirements = await ensureChecklist(application)
+  const requirements = await ensureChecklist(application, undefined, null, appId)
   const rows = await repository.listByApplicationId(application.id)
   return normalizeChecklist(rows, requirements)
 }
 
-const updateCaseRequirementFulfillment = async ({ caseRequirementId, status, notes, db }) => {
+const updateCaseRequirementFulfillment = async ({ caseRequirementId, status, notes, db, appId }) => {
   const now = new Date()
-  if (status === STATUS.VERIFIED) return requirementService.updateStatus({ id: caseRequirementId, status: 'VERIFIED', notes, verifiedAt: now, db })
-  if (status === STATUS.RECEIVED) return requirementService.updateStatus({ id: caseRequirementId, status: 'SUBMITTED', notes, submittedAt: now, verifiedAt: null, db })
-  return requirementService.updateStatus({ id: caseRequirementId, status: 'PENDING', notes, submittedAt: null, verifiedAt: null, db })
+  if (status === STATUS.VERIFIED) return requirementService.updateStatus({ id: caseRequirementId, status: 'VERIFIED', notes, verifiedAt: now, db, appId })
+  if (status === STATUS.RECEIVED) return requirementService.updateStatus({ id: caseRequirementId, status: 'SUBMITTED', notes, submittedAt: now, verifiedAt: null, db, appId })
+  return requirementService.updateStatus({ id: caseRequirementId, status: 'PENDING', notes, submittedAt: null, verifiedAt: null, db, appId })
 }
 
 const updateReceiptStatus = async ({ applicationId, appId, requirementId, actorId, status, notes, documentId }) => {
@@ -57,7 +57,7 @@ const updateReceiptStatus = async ({ applicationId, appId, requirementId, actorI
   if (application.status !== 'RECEIVING') throw new ConflictError('Document receipt can only be recorded while the application is in receiving.')
 
   return repository.withTransaction(async (tx) => {
-    const requirements = await ensureChecklist(application, tx)
+    const requirements = await ensureChecklist(application, tx, null, appId)
     const caseRequirement = requirements.find((item) => item.id === requirementId)
     if (!caseRequirement) throw new NotFoundError('Case requirement not found for this application.')
     const existing = await repository.findByApplicationAndCaseRequirement(application.id, caseRequirement.id, tx)
@@ -72,7 +72,7 @@ const updateReceiptStatus = async ({ applicationId, appId, requirementId, actorI
     const cleanNotes = notes?.trim() || null
     const updated = await repository.update(existing.id, { ...(documentId !== undefined ? { documentId } : {}), status, notes: cleanNotes, ...(status === STATUS.RECEIVED ? { receivedAt: existing.receivedAt || new Date(), receivedByUserId: existing.receivedByUserId || actorId, verifiedAt: null, verifiedByUserId: null } : status === STATUS.VERIFIED ? { verifiedAt: existing.verifiedAt || new Date(), verifiedByUserId: existing.verifiedByUserId || actorId } : { receivedAt: null, receivedByUserId: null, verifiedAt: null, verifiedByUserId: null }) }, tx)
 
-    await updateCaseRequirementFulfillment({ caseRequirementId: caseRequirement.id, status, notes: cleanNotes, db: tx })
+    await updateCaseRequirementFulfillment({ caseRequirementId: caseRequirement.id, status, notes: cleanNotes, db: tx, appId })
     await recordAudit({ actorId, appId, action: `OBO_PERMIT_APPLICATION_DOCUMENT_${status}`, entityType: 'OboPermitApplicationDocument', entityId: updated.id, before: existing, after: updated, metadata: { applicationId: application.id, referenceNumber: application.referenceNumber, caseRequirementId: caseRequirement.id, requirementId: caseRequirement.requirementId, requirementName: caseRequirement.requirement.name, documentId: updated.documentId }, db: tx })
     await publish({ db: tx, event: `obo.permit_application.document.${status.toLowerCase()}`, entityType: 'OboPermitApplicationDocument', entityId: updated.id, actorId, context: { appId, applicationId: application.id, caseId: application.caseId, referenceNumber: application.referenceNumber, caseRequirementId: caseRequirement.id, requirementId: caseRequirement.requirementId, requirementName: caseRequirement.requirement.name, documentId: updated.documentId, status }, idempotencyKey: `obo:application-document:${updated.id}:status:${status}:${updated.receivedAt?.toISOString() || updated.verifiedAt?.toISOString() || Date.now()}` })
     return { ...updated, caseRequirement, requirement: normalizeRequirement(caseRequirement), document: attachedDocument }
@@ -81,7 +81,7 @@ const updateReceiptStatus = async ({ applicationId, appId, requirementId, actorI
 
 const validateRequiredDocuments = async ({ applicationId, appId, application = null, db }) => {
   const targetApplication = application ?? await getApplication(applicationId, appId)
-  const requirements = await ensureChecklist(targetApplication, db)
+  const requirements = await ensureChecklist(targetApplication, db, null, appId)
   const rows = await repository.listByApplicationId(targetApplication.id, db)
   const rowByRequirement = new Map(rows.map((row) => [row.caseRequirementId, row]))
   const missing = requirements.filter((requirement) => requirement.requirement.metadata?.required !== false).filter((requirement) => rowByRequirement.get(requirement.id)?.status !== STATUS.VERIFIED)
