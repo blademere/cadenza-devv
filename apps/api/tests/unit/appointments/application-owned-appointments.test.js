@@ -49,7 +49,7 @@ describe('appointment application scoping', () => {
     const repository = await import('../../../src/features/appointments/appointment.repository.js')
     const { listAppointmentTypes } = await import('../../../src/features/appointments/appointment.service.js')
 
-    await expect(listAppointmentTypes({ active: true })).rejects.toThrow('Application context is required.')
+    expect(() => listAppointmentTypes({ active: true })).toThrow('Application context is required.')
     expect(repository.listAppointmentTypes).not.toHaveBeenCalled()
   })
 
