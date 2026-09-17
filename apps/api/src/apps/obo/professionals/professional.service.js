@@ -64,7 +64,7 @@ const getMine = async ({ appId, userId }) => {
   return professional
 }
 const getForAuthorization = (id, appId) => repository.findById(id, requireAppId(appId))
-const getForReference = (id, appId) => repository.findById(id, requireAppId(appId))
+const getForReference = (id, appId, db) => repository.findById(id, requireAppId(appId), db)
 const listPending = (appId) => repository.listPending(requireAppId(appId))
 const listVerified = (appId) => repository.listVerified(requireAppId(appId))
 const listDirectory = ({ appId, status = 'VERIFIED', role, search } = {}) => repository.listLookup({ appId: requireAppId(appId), status, role, search })
