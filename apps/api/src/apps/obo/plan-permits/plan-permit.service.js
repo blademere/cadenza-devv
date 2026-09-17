@@ -159,7 +159,7 @@ const validateSubmissionProfessionals = async (application, appId) => {
   const validation = await formService.validateFormValues({ appId, formKey: form.key, version: application.formVersion.version, values: application.formValues, requireRequired: true })
   if (!validation.valid) throw new ValidationError('Permit form validation failed.', validation.errors)
   await validateProfessionalReferences({ formVersion: application.formVersion, formValues: application.formValues, appId })
-  return buildProfessionalSnapshots({ formVersion: application.formVersion, formValues: application.formValues })
+  return buildProfessionalSnapshots({ formVersion: application.formVersion, formValues: application.formValues, appId })
 }
 const submit = async ({ id, appId, userId }) => {
   const application = await getMine({ id, appId, userId })
