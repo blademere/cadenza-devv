@@ -6,6 +6,7 @@ import {
 } from '../../../common/middleware/index.js'
 import authenticate from '../../../features/auth/authenticate.secure.js'
 import authorize, { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
+import { getApplicationId } from '../../../platform/applications/application-context.middleware.js'
 import * as repository from '../../../features/appointments/appointment.repository.js'
 import * as controller from './appointment.controller.js'
 import {
@@ -27,7 +28,7 @@ const requireIdempotency = idempotency({
   required: true,
 })
 const loadAppointment = (id, req) =>
-  repository.findAppointment(id, req.security.app.id)
+  repository.findAppointment(id, getApplicationId(req))
 const authorizeAppointmentResource = (action) =>
   authorizeResource({
     resource: 'obo_appointments',
