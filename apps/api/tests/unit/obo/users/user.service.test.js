@@ -10,7 +10,7 @@ vi.mock('../../../../src/platform/applications/application.service.js')
 
 const usersService = await import('../../../../src/features/users/user.service.js')
 const applicationsService = await import('../../../../src/platform/applications/application.service.js')
-const { listUsers, createUser } = await import('../../../../src/apps/obo/users/user.service.js')
+const { listUsers, createUser, assignUserRole } = await import('../../../../src/apps/obo/users/user.service.js')
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -28,6 +28,17 @@ beforeEach(() => {
     userId: 100,
     appId: 7,
     isActive: true,
+  })
+  applicationsService.requireActiveMembership.mockResolvedValue({
+    id: 200,
+    userId: 100,
+    appId: 7,
+    isActive: true,
+  })
+  applicationsService.addMembershipRole.mockResolvedValue({
+    id: 300,
+    membershipId: 200,
+    roleId: 11,
   })
 })
 
@@ -72,6 +83,32 @@ describe('OBO user application service', () => {
     })
     expect(applicationsService.addMembership).toHaveBeenCalledWith({
       userId: 100,
+      appId: 7,
+    })
+  })
+
+  it('assigns a role through the active OBO membership', async () => {
+    await expect(assignUserRole({
+      appId: 7,
+      userId: 100,
+      roleId: 11,
+    })).resolves.toEqual({
+      userId: 100,
+      membershipId: 200,
+      role: {
+        id: 300,
+        membershipId: 200,
+        roleId: 11,
+      },
+    })
+
+    expect(applicationsService.requireActiveMembership).toHaveBeenCalledWith({
+      userId: 100,
+      appId: 7,
+    })
+    expect(applicationsService.addMembershipRole).toHaveBeenCalledWith({
+      membershipId: 200,
+      roleId: 11,
       appId: 7,
     })
   })
