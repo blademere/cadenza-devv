@@ -3,12 +3,13 @@ import authorizeResource from '../../../platform/authorization/authorization-res
 import * as management from './authorization-management.service.js'
 
 export const OBO_RESOURCES = Object.freeze([
-  'authorization',
+  'obo_authorization',
   'obo_clients',
   'obo_forms',
   'obo_permit_types',
   'obo_plan_permits',
   'obo_professionals',
+  'obo_appointments',
 ])
 
 export const OBO_AUTHORIZATION_MODULE_PREFIX = 'obo_'

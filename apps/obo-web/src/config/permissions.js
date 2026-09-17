@@ -19,10 +19,11 @@ export const permissions = Object.freeze({
     publish: 'obo_forms:publish',
   }),
   appointments: Object.freeze({
-    read: 'appointments:read',
-    create: 'appointments:create',
-    manage: 'appointments:manage',
-    cancel: 'appointments:cancel',
+    read: 'obo_appointments:read',
+    create: 'obo_appointments:create',
+    manage: 'obo_appointments:manage',
+    cancel: 'obo_appointments:cancel',
+    checkIn: 'obo_appointments:check_in',
   }),
   professionals: Object.freeze({
     read: 'obo_professionals:read',
@@ -34,7 +35,7 @@ export const permissions = Object.freeze({
     manage: 'users:manage',
   }),
   authorization: Object.freeze({
-    manage: 'authorization:manage',
+    manage: 'obo_authorization:manage',
   }),
 })
 

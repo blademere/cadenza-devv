@@ -33,7 +33,10 @@ const listApplications = async ({ status, userId, appId }) => {
     const workflow = await getWorkflowState(application)
     if (status && workflow.currentStep.key !== status) return null
     if (!status && workflow.currentStep.key !== STATUS.SUBMISSION_SCHEDULED) return null
-    if (userId && !(await hasReceivingTaskAccess({ user: { id: userId }, resource: application }))) return null
+    // Once receiving accepts an application, its receiving tasks are completed. FOR_INSPECTION
+    // is still intentionally visible in the receiving queue as a handoff state; no inspection
+    // workflow is implemented here yet.
+    if (status !== STATUS.FOR_INSPECTION && userId && !(await hasReceivingTaskAccess({ user: { id: userId }, resource: application }))) return null
     return hydrateApplication({ ...application, status: workflow.currentStep.key }, appId)
   }))
   return hydrated.filter(Boolean)
