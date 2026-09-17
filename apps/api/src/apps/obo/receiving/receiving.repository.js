@@ -24,7 +24,7 @@ const applicationInclude = {
 const findApplication = (id, appId, db = prisma) =>
   db.oboPermitApplication.findFirst({ where: withAppId({ id }, appId), include: applicationInclude })
 
-const listApplications = (status, appId, db = prisma) =>
+const listApplications = (appId, db = prisma) =>
   db.oboPermitApplication.findMany({
     where: withAppId({ workflowInstanceId: { not: null } }, appId),
     include: applicationInclude,
