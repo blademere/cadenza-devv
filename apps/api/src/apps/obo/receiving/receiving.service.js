@@ -27,7 +27,7 @@ const getApplication = async ({ id, appId }) => {
 }
 const getForAuthorization = (id, appId) => repository.findApplication(id, appId)
 const listApplications = async ({ status, userId, appId }) => {
-  const applications = await repository.listApplications(status, appId)
+  const applications = await repository.listApplications(appId)
   const hydrated = await Promise.all(applications.map(async (application) => {
     const workflow = await getWorkflowState(application)
     if (status && workflow.currentStep.key !== status) return null
