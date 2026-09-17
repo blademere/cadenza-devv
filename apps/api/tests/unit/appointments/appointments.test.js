@@ -18,11 +18,10 @@ vi.mock('../../../src/features/appointments/appointment.repository.js', () => ({
 const { APPOINTMENT_ACTIONS, APPOINTMENT_STATUS, SLOT_STATUS } = await import('../../../src/features/appointments/appointment.constants.js')
 const { mapAppointmentType, mapAppointment, mapAppointmentSlot, mapAvailabilitySchedule } = require('../../../src/features/appointments/appointment.mapper')
 const { createScheduleValidator, generateSlotsValidator, createAppointmentValidator } = require('../../../src/apps/obo/appointments/appointment.validation')
-const { generateSlots } = await import('../../../src/features/appointments/appointment.slot.service.js')
+const { generateSlots, bookAppointment, checkInAppointment } = await import('../../../src/features/appointments/appointment.service.js')
 const repository = await import('../../../src/features/appointments/appointment.repository.js')
 const audit = await import('../../../src/platform/audit/audit.service.js')
 const { ConflictError } = await import('../../../src/common/errors/appError.js')
-const { bookAppointment, checkInAppointment } = await import('../../../src/features/appointments/appointment.service.js')
 
 describe('appointment constants', () => {
   it('exposes the complete appointment lifecycle', () => expect(APPOINTMENT_STATUS).toMatchObject({ PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', CHECKED_IN: 'CHECKED_IN', COMPLETED: 'COMPLETED', CANCELLED: 'CANCELLED', NO_SHOW: 'NO_SHOW' }))
