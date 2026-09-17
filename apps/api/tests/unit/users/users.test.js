@@ -34,7 +34,7 @@ describe('user listing capability', () => {
         total: 0,
         pages: 0,
         hasNextPage: false,
-        hasPreviousPage: true,
+        hasPreviousPage: false,
       },
     })
 
