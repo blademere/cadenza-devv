@@ -1,5 +1,4 @@
-import authorize from '../../../platform/authorization/authorize.js'
-import authorizeResource from '../../../platform/authorization/authorization-resource.middleware.js'
+import { authorize, authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
 import * as management from './authorization-management.service.js'
 
 export const OBO_RESOURCES = Object.freeze([
@@ -44,4 +43,4 @@ export const getAuthorizationRole = ({ roleId, appId }) => management.getRole({ 
 export const getAuthorizationMembership = ({ membershipId, appId }) => management.getMembership({ membershipId, appId })
 export const replaceAuthorizationRolePermissions = ({ roleId, permissionIds, appId }) => management.replaceRolePermissions({ roleId, permissionIds, appId })
 export const listMembershipAuthorizationRoles = ({ membershipId, appId }) => management.listMembershipRoles({ membershipId, appId })
-export const replaceMembershipAuthorizationRoles = ({ membershipId, appId, roleIds }) => management.replaceMembershipRoles({ membershipId, roleIds, appId })
+export const replaceMembershipAuthorizationRoles = ({ membershipId, appId, roleIds }) => management.replaceMembershipRoles({ membershipId, appId, roleIds })

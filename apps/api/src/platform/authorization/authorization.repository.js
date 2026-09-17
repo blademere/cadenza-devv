@@ -104,4 +104,26 @@ const findUserIdsByRoleId = async (roleId, appId) => {
   return memberships.map(({ userId, appId: membershipAppId }) => ({ userId, appId: membershipAppId }))
 }
 
-export { getUserAuthorizationContext, getUserPermissions, findUserIdsByRoleId }
+const listActiveModules = async ({ appId } = {}) => {
+  const normalizedAppId = String(appId ?? '').trim()
+  if (!normalizedAppId) return []
+
+  const app = await prisma.app.findUnique({
+    where: { id: normalizedAppId },
+    select: { isActive: true },
+  })
+  if (!app || !app.isActive) return []
+
+  return prisma.module.findMany({
+    where: { isActive: true },
+    orderBy: { key: 'asc' },
+    select: { id: true, key: true, name: true, description: true, isActive: true },
+  })
+}
+
+export {
+  getUserAuthorizationContext,
+  getUserPermissions,
+  findUserIdsByRoleId,
+  listActiveModules,
+}

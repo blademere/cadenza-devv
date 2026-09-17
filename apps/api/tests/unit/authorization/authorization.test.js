@@ -12,10 +12,10 @@ const { repository, cache } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('../../../src/platform/authorization/access-control.repository.js', () => repository)
-vi.mock('../../../src/platform/authorization/access-control.cache.js', () => cache)
+vi.mock('../../../src/platform/authorization/authorization.repository.js', () => repository)
+vi.mock('../../../src/platform/authorization/authorization.cache.js', () => cache)
 
-const { hasPermission, canAny, canOwn, clearRolePermissionCache } = await import('../../../src/platform/authorization/access-control.service.js')
+const { hasPermission, canAny, canOwn, clearRolePermissionCache } = await import('../../../src/platform/authorization/authorization.service.js')
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -25,25 +25,25 @@ beforeEach(() => {
   repository.getUserAuthorizationContext.mockResolvedValue({ role: 'operator', permissions: [] })
 })
 
-describe('permission policies', () => {
+describe('authorization policy', () => {
   it('allows ownership when user owns the resource', () => {
-    const { ownershipPolicy } = require('../../../src/platform/authorization/access-control.policy')
+    const { ownershipPolicy } = require('../../../src/platform/authorization/authorization.policy')
     expect(ownershipPolicy({ user: { id: 10 }, resource: { ownerId: 10 } })).toBe(true)
   })
 
   it('denies ownership when user does not own the resource', () => {
-    const { ownershipPolicy } = require('../../../src/platform/authorization/access-control.policy')
+    const { ownershipPolicy } = require('../../../src/platform/authorization/authorization.policy')
     expect(ownershipPolicy({ user: { id: 10 }, resource: { ownerId: 20 } })).toBe(false)
   })
 
   it('evaluates asynchronous policies', async () => {
-    const { evaluatePolicy } = require('../../../src/platform/authorization/access-control.policy')
+    const { evaluatePolicy } = require('../../../src/platform/authorization/authorization.policy')
     const policy = async ({ user, resource }) => user.id === resource.ownerId
     await expect(evaluatePolicy({ policy, user: { id: 10 }, resource: { ownerId: 10 } })).resolves.toBe(true)
   })
 })
 
-describe('access-control service', () => {
+describe('authorization service', () => {
   it('builds correct permission keys from application-scoped PostgreSQL context', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue({ role: 'operator', permissions: [{ resource: 'users', action: 'create' }, { resource: 'applications', action: 'approve' }] })
     await expect(hasPermission(7, 'users', 'create', 'app-obo')).resolves.toBe(true)

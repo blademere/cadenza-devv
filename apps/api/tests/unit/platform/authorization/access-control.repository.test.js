@@ -5,15 +5,17 @@ const prisma = {
   appMembership: { findUnique: vi.fn() },
   role: { findUnique: vi.fn() },
   appMembershipRole: { findMany: vi.fn() },
+  app: { findUnique: vi.fn() },
+  module: { findMany: vi.fn() },
 }
 
 vi.mock('../../../../src/infrastructure/database/prisma.js', () => ({
   getPrismaClient: () => prisma,
 }))
 
-const { getUserAuthorizationContext } = await import('../../../../src/platform/authorization/access-control.repository.js')
+const { getUserAuthorizationContext } = await import('../../../../src/platform/authorization/authorization.repository.js')
 
-describe('access control repository', () => {
+describe('authorization repository', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('returns shared appointments:read when it is granted to an application-owned role', async () => {

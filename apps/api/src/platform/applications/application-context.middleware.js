@@ -1,6 +1,6 @@
 import { ForbiddenError } from '../../common/errors/appError.js'
 import { setApplicationContext } from '../context/index.js'
-import { getUserAuthorizationContext } from '../authorization/authorization-context.repository.js'
+import { getUserAuthorizationContext } from '../authorization/authorization.repository.js'
 import { APPLICATION_ID_HEADER } from '../context/context.constants.js'
 import { normalizeAppId } from './application-scope.js'
 

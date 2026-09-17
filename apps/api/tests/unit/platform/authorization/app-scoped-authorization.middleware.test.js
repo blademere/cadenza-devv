@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-vi.mock('../../../../src/platform/authorization/access-control.service.js', () => ({
+vi.mock('../../../../src/platform/authorization/authorization.service.js', () => ({
   can: vi.fn(),
   getAuthorizationContext: vi.fn(),
 }))
@@ -9,10 +9,9 @@ vi.mock('../../../../src/platform/audit/audit.service.js', () => ({
   recordAuthorizationDenied: vi.fn(),
 }))
 
-const accessControlService = await import('../../../../src/platform/authorization/access-control.service.js')
+const authorizationService = await import('../../../../src/platform/authorization/authorization.service.js')
 const auditService = await import('../../../../src/platform/audit/audit.service.js')
-const authorize = (await import('../../../../src/platform/authorization/authorize.js')).default
-const authorizeResource = (await import('../../../../src/platform/authorization/authorization-resource.middleware.js')).default
+const { authorize, authorizeResource } = await import('../../../../src/platform/authorization/authorization.middleware.js')
 
 describe('app-scoped authorization middleware', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -26,17 +25,17 @@ describe('app-scoped authorization middleware', () => {
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
       message: 'Application context is required for authorization.',
     }))
-    expect(accessControlService.can).not.toHaveBeenCalled()
+    expect(authorizationService.can).not.toHaveBeenCalled()
   })
 
   it('passes the signed application context to permission checks', async () => {
-    accessControlService.can.mockResolvedValue(true)
+    authorizationService.can.mockResolvedValue(true)
     const next = vi.fn()
     const middleware = authorize('permits', 'read')
 
     await middleware({ user: { id: 42 }, auth: { appId: 'app-obo' } }, {}, next)
 
-    expect(accessControlService.can).toHaveBeenCalledWith({
+    expect(authorizationService.can).toHaveBeenCalledWith({
       userId: 42,
       appId: 'app-obo',
       resource: 'permits',
@@ -46,10 +45,9 @@ describe('app-scoped authorization middleware', () => {
   })
 
   it('uses application context for resource authorization and policy evaluation', async () => {
-    accessControlService.can.mockResolvedValue(true)
-    accessControlService.getAuthorizationContext.mockResolvedValue({
+    authorizationService.can.mockResolvedValue(true)
+    authorizationService.getAuthorizationContext.mockResolvedValue({
       userId: 42,
-      role: null,
       roles: [{ id: 3, name: 'receiving_officer' }],
       permissions: new Set(['permits:read']),
     })
@@ -69,13 +67,13 @@ describe('app-scoped authorization middleware', () => {
       params: { id: '100' },
     }, {}, next)
 
-    expect(accessControlService.can).toHaveBeenCalledWith({
+    expect(authorizationService.can).toHaveBeenCalledWith({
       userId: 42,
       appId: 'app-obo',
       resource: 'permits',
       action: 'read',
     })
-    expect(accessControlService.getAuthorizationContext).toHaveBeenCalledWith(42, 'app-obo')
+    expect(authorizationService.getAuthorizationContext).toHaveBeenCalledWith(42, 'app-obo')
     expect(policy).toHaveBeenCalledWith({
       user: expect.objectContaining({
         id: 42,
@@ -88,7 +86,7 @@ describe('app-scoped authorization middleware', () => {
   })
 
   it('records the application when authorization is denied', async () => {
-    accessControlService.can.mockResolvedValue(false)
+    authorizationService.can.mockResolvedValue(false)
     const next = vi.fn()
     const middleware = authorize('permits', 'read')
 
