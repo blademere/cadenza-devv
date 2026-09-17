@@ -101,13 +101,13 @@ describe('OBO plan permit service', () => {
 describe('OBO plan permit form resolution', () => {
   it('passes application context when resolving a form version', async () => {
     await resolveAndValidateForm({ permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'version-1', formValues: {}, appId: 'obo-app' })
-    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-1', 'obo-app', expect.anything())
+    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-1', 'obo-app')
   })
 
   it('resolves an explicitly selected published version instead of the latest version', async () => {
     formService.getFormVersionById.mockResolvedValue({ id: 'version-2', formId: 'form-1', version: 2, status: 'PUBLISHED', fields: [] })
     await resolveAndValidateForm({ permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'version-2', formValues: {}, appId: 'obo-app' })
-    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-2', 'obo-app', expect.anything())
+    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-2', 'obo-app')
     expect(formService.validateFormValues).toHaveBeenCalledWith(expect.objectContaining({ appId: 'obo-app', version: 2 }))
   })
 })
