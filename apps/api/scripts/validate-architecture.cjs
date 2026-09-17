@@ -18,6 +18,12 @@ const LEGACY_APPOINTMENT_ROUTE = 'apps/api/src/features/appointments/appointment
 const GLOBAL_ROUTES = 'apps/api/src/routes/index.js'
 const APPLICATION_APPOINTMENT_ROUTE = /^apps\/api\/src\/apps\/[^/]+\/appointments\/[^/]+\.routes\.js$/
 const APPOINTMENT_FEATURE_ROOT = 'apps/api/src/features/appointments/'
+const LEGACY_USER_ROUTE_FILES = new Set([
+  'apps/api/src/features/users/user.routes.js',
+  'apps/api/src/features/users/user.controller.js',
+])
+const USER_FEATURE_ROOT = 'apps/api/src/features/users/'
+const APPLICATION_USER_ROUTE = /^apps\/api\/src\/apps\/[^/]+\/users\/[^/]+\.routes\.js$/
 
 const walk = (directory) => {
   if (!fs.existsSync(directory)) return []
@@ -32,6 +38,49 @@ const failures = []
 const relativeFiles = new Set(
   files.map((file) => path.relative(process.cwd(), file).replaceAll(path.sep, '/'))
 )
+
+const getUserArchitectureViolations = (relative, source) => {
+  const violations = []
+
+  if (LEGACY_USER_ROUTE_FILES.has(relative)) {
+    violations.push(
+      `${relative}: user HTTP routes/controllers must be application-owned; shared features/users must remain routeless.`
+    )
+  }
+
+  if (
+    relative.startsWith(USER_FEATURE_ROOT) &&
+    (relative.endsWith('.routes.js') || relative.endsWith('.controller.js'))
+  ) {
+    violations.push(
+      `${relative}: user HTTP layers are forbidden under features/users; put application-owned routes/controllers under apps/<application>/users/.`
+    )
+  }
+
+  if (
+    relative.includes('/users/') &&
+    relative.endsWith('.routes.js') &&
+    relative.startsWith('apps/api/src/') &&
+    !APPLICATION_USER_ROUTE.test(relative)
+  ) {
+    violations.push(
+      `${relative}: user management routes must live under apps/api/src/apps/<application>/users/.`
+    )
+  }
+
+  if (
+    relative === GLOBAL_ROUTES &&
+    /(?:features\/users\/(?:user\.)?(?:routes|controller)|['"`]\/users['"`]\s*,\s*userRouter)/.test(
+      source
+    )
+  ) {
+    violations.push(
+      `${relative}: global user-management registration is forbidden; mount management routes through an application-owned router.`
+    )
+  }
+
+  return violations
+}
 
 const getAppointmentArchitectureViolations = (relative, source) => {
   const violations = []
@@ -96,6 +145,7 @@ for (const file of files) {
   failures.push(...getLayerViolations(relative, source))
   failures.push(...getApplicationSecurityViolations(relative, source))
   failures.push(...getAppointmentArchitectureViolations(relative, source))
+  failures.push(...getUserArchitectureViolations(relative, source))
 
   const isApplicationService =
     (relative.startsWith('apps/api/src/features/') ||
