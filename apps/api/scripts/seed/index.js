@@ -35,8 +35,7 @@ async function seedDevelopment(prisma, context) {
 
 async function seedFixtures(prisma, context) {
   const { roles } = context
-  const { demoPasswordHash } = await seedDevelopmentUsers(prisma, { roles })
-  await seedOboProfessionalVerificationFixtures(prisma, { roles, passwordHash: demoPasswordHash })
+  await seedOboProfessionalVerificationFixtures(prisma, { roles, passwordHash: null })
   await seedOboNotifications(prisma)
   await verifyOboProfessionalVerificationFixtures(prisma)
 }
