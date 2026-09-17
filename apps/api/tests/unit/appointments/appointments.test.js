@@ -17,7 +17,7 @@ vi.mock('../../../src/features/appointments/appointment.repository.js', () => ({
 
 const { APPOINTMENT_ACTIONS, APPOINTMENT_STATUS, SLOT_STATUS } = await import('../../../src/features/appointments/appointment.constants.js')
 const { mapAppointmentType, mapAppointment, mapAppointmentSlot, mapAvailabilitySchedule } = require('../../../src/features/appointments/appointment.mapper')
-const { createScheduleValidator, generateSlotsValidator, createAppointmentValidator } = require('../../../src/features/appointments/appointment.validation')
+const { createScheduleValidator, generateSlotsValidator, createAppointmentValidator } = require('../../../src/apps/obo/appointments/appointment.validation')
 const { generateSlots } = await import('../../../src/features/appointments/appointment.slot.service.js')
 const repository = await import('../../../src/features/appointments/appointment.repository.js')
 const audit = await import('../../../src/platform/audit/audit.service.js')
