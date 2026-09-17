@@ -35,12 +35,14 @@ describe('Application-owned authorization hardening', () => {
     expect(repository).toContain("key: { startsWith: 'obo_' }")
   })
 
-  it('keeps application role management out of the global users feature', async () => {
-    const routes = await read('../../../src/features/users/user.routes.js')
+  it('keeps application role management out of the global users capability', async () => {
+    const routes = await read('../../../src/apps/obo/users/user.routes.js')
     const service = await read('../../../src/features/users/user.service.js')
     const repository = await read('../../../src/features/users/user.repository.js')
-    expect(routes).not.toContain('/role')
-    expect(routes).not.toContain('assignUserRole')
+
+    expect(routes).toContain("router.post('/:userId/roles'")
+    expect(routes).toContain('authorizeOBOUserRoleManagement')
+    expect(routes).toContain('assignUserRoleValidator')
     expect(service).not.toContain('assignUserRole')
     expect(service).not.toContain('findRoleForAssignment')
     expect(repository).not.toContain('findRoleForAssignment')
