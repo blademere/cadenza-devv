@@ -7,8 +7,8 @@ vi.mock('../../../../src/common/middleware/index.js', () => ({
 }))
 
 vi.mock('../../../../src/apps/obo/authorization/authorization.service.js', () => ({
-  authorizeOBO: vi.fn(() => 'action-authorization'),
-  authorizeOBOResource: vi.fn(() => 'resource-authorization'),
+  authorizeOBO: vi.fn(() => (_req, _res, next) => next()),
+  authorizeOBOResource: vi.fn(() => (_req, _res, next) => next()),
 }))
 
 vi.mock('../../../../src/platform/applications/application.service.js', () => ({
