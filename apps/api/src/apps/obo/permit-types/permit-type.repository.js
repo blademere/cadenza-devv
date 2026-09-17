@@ -29,7 +29,9 @@ const update = async (id, appId, data, db = prisma) => {
     data,
   })
   if (!result.count) return null
-  return db.oboPermitType.findUnique({ where: { id } })
+  return db.oboPermitType.findFirst({
+    where: withAppId({ id }, appId),
+  })
 }
 
 const attachForm = async (id, appId, formId, db = prisma) => {
@@ -38,7 +40,9 @@ const attachForm = async (id, appId, formId, db = prisma) => {
     data: { formId },
   })
   if (!result.count) return null
-  return db.oboPermitType.findUnique({ where: { id } })
+  return db.oboPermitType.findFirst({
+    where: withAppId({ id }, appId),
+  })
 }
 
 const withTransaction = (callback) => prisma.$transaction(callback)
