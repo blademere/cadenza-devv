@@ -9,6 +9,8 @@ const readApplicationId = (req) => {
   return typeof value === 'string' ? normalizeAppId(value) : null
 }
 
+const getApplicationId = (req) => req.appContext?.id ?? null
+
 const requireApplicationContext = ({ appKey = null } = {}) => {
   if (appKey !== null && (typeof appKey !== 'string' || !appKey.trim())) {
     throw new TypeError('Application key must be a non-empty string when provided.')
@@ -72,4 +74,4 @@ const requireApplicationContext = ({ appKey = null } = {}) => {
   }
 }
 
-export { requireApplicationContext, readApplicationId }
+export { requireApplicationContext, readApplicationId, getApplicationId }
