@@ -21,7 +21,7 @@ describe('Application-owned authorization P2 contracts', () => {
 
     expect(routes).toContain('router.use(authenticate, requireApplicationContext(), manageAuthorization)')
     expect(routes).toContain('authorizeOBOResource')
-    expect(routes).toContain("resource: 'authorization'")
+    expect(routes).toContain("resource: 'obo_authorization'")
   })
 
   it('keeps role cache invalidation application-scoped', async () => {
