@@ -9,6 +9,7 @@ const authorizationCatalog = {
   obo_permit_types: ['read', 'create', 'update'],
   obo_forms: ['read', 'create', 'update', 'publish'],
   obo_professionals: ['read', 'create', 'update', 'review'],
+  obo_appointments: ['read', 'create', 'cancel', 'check_in', 'manage'],
 }
 
 const rolePermissions = {
