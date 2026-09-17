@@ -1,7 +1,8 @@
+import bcrypt from 'bcrypt'
 import { successResponse } from '../../common/responses/apiResponse.js'
 import {
   listUsers,
-  registerUser,
+  createUser,
   getMyProfile,
   createMyProfile,
   updateMyProfile,
@@ -15,13 +16,15 @@ const listUsersController = async (req, res) => {
 }
 
 const createUserController = async (req, res) => {
-  const user = await registerUser({ requesterId: req.user.id, appId: getAppId(req), ...req.validated.body })
+  const { email, password } = req.validated.body
+  const passwordHash = await bcrypt.hash(password, 12)
+  const user = await createUser({ email, passwordHash })
   return successResponse(res, 'User created successfully.', user, 201)
 }
 
 const getMyProfileController = async (req, res) => successResponse(res, 'Profile retrieved successfully.', await getMyProfile(req.user.id, getAppId(req)))
 const createMyProfileController = async (req, res) => successResponse(res, 'Profile created successfully.', await createMyProfile(req.user.id, req.validated.body, getAppId(req)), 201)
-const updateMyProfileController = async (req, res) => successResponse(res, 'Profile updated successfully.', await updateMyProfile(req.user.id, req.validated.body, getAppId(req)))
+const updateMyProfileController = async (req, res) => successResponse(res, 'Profile updated successfully.', await updateMyProfile(req.user.id, req.validated.body, getAppId(req)), 200)
 
 export {
   listUsersController,
