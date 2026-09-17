@@ -11,13 +11,13 @@ const management = {
   listRoles: vi.fn(),
   createRole: vi.fn(),
   getRole: vi.fn(),
+  getMembership: vi.fn(),
   replaceRolePermissions: vi.fn(),
   listMembershipRoles: vi.fn(),
   replaceMembershipRoles: vi.fn(),
 }
 
-vi.mock('../../../src/platform/authorization/authorize.js', () => ({ default: authorize }))
-vi.mock('../../../src/platform/authorization/authorization-resource.middleware.js', () => ({ default: authorizeResource }))
+vi.mock('../../../src/platform/authorization/authorization.middleware.js', () => ({ authorize, authorizeResource }))
 vi.mock('../../../src/apps/obo/authorization/authorization-management.service.js', () => management)
 
 const service = await import('../../../src/apps/obo/authorization/authorization.service.js')
