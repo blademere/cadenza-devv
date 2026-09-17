@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt'
 import { successResponse } from '../../../common/responses/apiResponse.js'
+import { getApplicationId } from '../../../platform/applications/application-context.middleware.js'
 import {
   normalizePagination,
   createOrderBy,
@@ -12,8 +13,6 @@ import {
   requireActiveMembership,
 } from '../../../platform/applications/application.service.js'
 
-const getAppId = (req) => req.security.app.id
-
 const listUsers = async (req, res) => {
   const query = req.validated.query
   const pagination = normalizePagination(query)
@@ -23,7 +22,7 @@ const listUsers = async (req, res) => {
     'createdAt'
   )
   const result = await usersService.listUsers({
-    appId: getAppId(req),
+    appId: getApplicationId(req),
     pagination,
     filters: pickFilters(query, ['email', 'isActive']),
     orderBy,
@@ -37,7 +36,7 @@ const listUsers = async (req, res) => {
 }
 
 const createUser = async (req, res) => {
-  const appId = getAppId(req)
+  const appId = getApplicationId(req)
   const { email, password } = req.validated.body
   const passwordHash = await bcrypt.hash(password, 12)
   const user = await usersService.createUser({ email, passwordHash })
@@ -47,7 +46,7 @@ const createUser = async (req, res) => {
 }
 
 const assignUserRole = async (req, res) => {
-  const appId = getAppId(req)
+  const appId = getApplicationId(req)
   const { userId } = req.validated.params
   const { roleId } = req.validated.body
   const membership = await requireActiveMembership({ userId, appId })
