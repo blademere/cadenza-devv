@@ -2,10 +2,6 @@ import express from 'express'
 import { asyncHandler, validate, idempotency } from '../../../common/middleware/index.js'
 import { authorizeOBO } from '../authorization/authorization.service.js'
 import {
-  listUsersController,
-  createUserController,
-} from '../../../features/users/user.controller.js'
-import {
   listUsersValidator,
   createUserValidator,
 } from '../../../features/users/user.validation.js'
