@@ -21,9 +21,7 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
         },
         select: {
           id: true,
-          app: {
-            select: { id: true, key: true, name: true, isActive: true },
-          },
+          app: { select: { id: true, key: true, name: true, isActive: true } },
           roles: {
             where: { role: { appId: normalizedAppId } },
             select: {
@@ -36,9 +34,7 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
                       permission: {
                         select: {
                           action: true,
-                          module: {
-                            select: { key: true, name: true, isActive: true },
-                          },
+                          module: { select: { key: true, name: true, isActive: true } },
                         },
                       },
                     },
@@ -57,17 +53,15 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
   const membership = user.appMemberships[0]
   if (!membership) return null
 
-  const roles = membership.roles.map(({ role }) => ({
-    id: role.id,
-    name: role.name,
-  }))
+  const appModulePrefix = `${membership.app.key}_`
+  const roles = membership.roles.map(({ role }) => ({ id: role.id, name: role.name }))
 
-  // Module records are a shared platform permission catalog. The user's
-  // application membership and application-owned role determine which
-  // permissions are available in this app; module keys are not app scopes.
   const permissions = membership.roles
     .flatMap(({ role }) => role.permissions.map(({ permission }) => permission))
-    .filter(({ module }) => module.isActive)
+    .filter(({ module }) => (
+      module.isActive &&
+      (module.key.startsWith(appModulePrefix) || module.key === 'appointments')
+    ))
     .map(({ action, module }) => ({
       resource: module.key,
       action,
