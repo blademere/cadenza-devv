@@ -8,4 +8,4 @@ WHERE rp."roleId" = r."id"
   AND rp."permissionId" = p."id"
   AND p."moduleId" = m."id"
   AND r."appId" = (SELECT id FROM "App" WHERE key = 'obo')
-  AND m."key" NOT LIKE 'obo\_%' ESCAPE '\\';
+  AND LEFT(m."key", 4) <> 'obo_';
