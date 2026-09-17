@@ -1,7 +1,4 @@
-import {
-  ConflictError,
-  NotFoundError,
-} from '../../common/errors/appError.js'
+import { ConflictError } from '../../common/errors/appError.js'
 import {
   createPaginationMeta,
 } from '../../common/pagination/pagination.js'
@@ -9,11 +6,8 @@ import {
   findAllUsers,
   findUserByEmail,
   createUser as createUserRecord,
-  findUser,
 } from './user.repository.js'
 import { toUserResponse } from './user.mapper.js'
-import * as peopleService from '../people/people.service.js'
-import { getUserMembership } from '../../platform/applications/application.service.js'
 
 const roleResponse = (roles = []) => roles.map(({ id, name, description }) => ({ id, name, description }))
 const userWithMembershipRoles = (user, appId) => {
@@ -64,40 +58,7 @@ const createUser = async ({ email, passwordHash }) => {
   return toUserResponse({ ...user, roles: [] })
 }
 
-const getMyProfile = async (userId, appId) => {
-  const user = await findUser(Number(userId))
-  if (!user) throw new NotFoundError('User not found.')
-  const person = await peopleService.getByUserId(userId)
-  const membership = appId ? await getUserMembership({ userId, appId }) : null
-  return { user: toUserResponse({ ...user, roles: membership?.roles ?? [] }), person }
-}
-
-const createMyProfile = async (userId, data, appId) => {
-  const user = await findUser(Number(userId))
-  if (!user) throw new NotFoundError('User not found.')
-  const existingPerson = await peopleService.getByUserId(userId).catch((error) => {
-    if (error instanceof NotFoundError) return null
-    throw error
-  })
-  if (existingPerson) throw new ConflictError('Profile already exists.')
-  const person = await peopleService.create({ ...data, userId })
-  const membership = appId ? await getUserMembership({ userId, appId }) : null
-  return { user: toUserResponse({ ...user, roles: membership?.roles ?? [] }), person }
-}
-
-const updateMyProfile = async (userId, data, appId) => {
-  const user = await findUser(Number(userId))
-  if (!user) throw new NotFoundError('User not found.')
-  const person = await peopleService.getByUserId(userId)
-  const updatedPerson = await peopleService.update(person.id, data)
-  const membership = appId ? await getUserMembership({ userId, appId }) : null
-  return { user: toUserResponse({ ...user, roles: membership?.roles ?? [] }), person: updatedPerson }
-}
-
 export {
   listUsers,
   createUser,
-  getMyProfile,
-  createMyProfile,
-  updateMyProfile,
 }
