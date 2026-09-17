@@ -34,14 +34,13 @@ describe('user listing capability', () => {
         total: 0,
         pages: 0,
         hasNextPage: false,
-        hasPreviousPage: false,
+        hasPreviousPage: true,
       },
     })
 
     expect(users.findAllUsers).toHaveBeenCalledWith({
       appId: 7,
       filters,
-      pagination,
       orderBy,
       skip: 20,
       take: 20,
