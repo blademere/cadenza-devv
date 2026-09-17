@@ -18,8 +18,6 @@ async function seedCore(prisma) {
   const { roles, permissionRecords } = await seedAuthorization(prisma, { applications })
   const { form: planPermitForm } = await seedPlatformForms(prisma)
   await seedOboReferenceData(prisma, { planPermitForm })
-  await seedOboPlatformConfiguration(prisma)
-  await bindOboDevelopmentForm(prisma)
 
   return { applications, roles, permissionRecords }
 }
@@ -28,6 +26,8 @@ async function seedDevelopment(prisma, context) {
   const { roles } = context
   const { demoPasswordHash } = await seedDevelopmentUsers(prisma, { roles })
   await seedOboDevelopmentScenario(prisma, { roles, passwordHash: demoPasswordHash })
+  await seedOboPlatformConfiguration(prisma)
+  await bindOboDevelopmentForm(prisma)
   await seedRolePersons(prisma)
   await verifyOboPlatformConfiguration(prisma)
   await verifyOboDevelopmentScenario(prisma)
@@ -57,8 +57,8 @@ async function runSeed(prisma, profile = 'default') {
   if (profile === 'coverage') await seedCoverage(prisma)
 
   const profileDescription = {
-    default: 'required application, authorization, platform form, OBO reference/configuration, and form-binding data',
-    development: 'required data plus deterministic OBO development users, scenario, and person profiles',
+    default: 'required application, authorization, platform form, and OBO reference data',
+    development: 'required data plus deterministic OBO development users, scenario, platform configuration, form binding, and person profiles',
     fixtures: 'required data plus professional-verification and notification fixtures',
     coverage: 'required data plus complete Prisma model coverage',
   }[profile]
