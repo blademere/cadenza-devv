@@ -1,6 +1,6 @@
 import express from 'express'
 import authRouter from '../features/auth/auth.routes.js'
-import profileRouter from '../features/users/profile.routes.js'
+import profileRouter from '../features/profile/profile.routes.js'
 import createAuthorizationContextRouter from '../platform/authorization/authorization-context.routes.js'
 import auditRouter from '../platform/audit/audit.routes.js'
 import applicationRouter from '../platform/applications/application.routes.js'
