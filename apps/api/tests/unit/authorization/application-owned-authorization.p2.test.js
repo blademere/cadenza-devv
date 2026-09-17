@@ -20,7 +20,7 @@ describe('Application-owned authorization P2 contracts', () => {
     const routes = await read('../../../src/apps/obo/authorization/authorization.routes.js')
 
     expect(routes).toContain('router.use(authenticate, requireApplicationContext(), manageAuthorization)')
-    expect(routes).toContain('authorizeOBOResource')
+    expect(routes).toContain('authorizeResource')
     expect(routes).toContain("resource: 'obo_authorization'")
   })
 
@@ -45,9 +45,9 @@ describe('Application-owned authorization P2 contracts', () => {
     expect(service).toContain("if (!role) throw new NotFoundError('Application membership not found.')")
   })
 
-  it('does not introduce an admin application authorization boundary', async () => {
+  it('allows application-owned authorization boundaries', async () => {
     const validator = await read('../../../scripts/validate-authorization.cjs')
-    expect(validator).toContain("'src/apps/admin/authorization/'")
-    expect(validator).toContain('/apps\\/admin\\/authorization/')
+    expect(validator).not.toContain("'src/apps/admin/authorization/'")
+    expect(validator).toContain("relative.startsWith('src/apps/')")
   })
 })
