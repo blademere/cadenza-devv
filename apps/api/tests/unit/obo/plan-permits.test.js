@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const repository = vi.hoisted(() => ({
-  findPersonByUserId: vi.fn(), findById: vi.fn(), findOwnedByClient: vi.fn(), listByClient: vi.fn(), create: vi.fn(), update: vi.fn(), findPersonNotificationContext: vi.fn(), withTransaction: vi.fn(),
-}))
+const repository = vi.hoisted(() => ({ findPersonByUserId: vi.fn(), findById: vi.fn(), findOwnedByClient: vi.fn(), listByClient: vi.fn(), create: vi.fn(), update: vi.fn(), findPersonNotificationContext: vi.fn(), withTransaction: vi.fn() }))
 const permitTypeService = vi.hoisted(() => ({ getPermitTypeById: vi.fn(), getRequirementIds: vi.fn() }))
 const requirementService = vi.hoisted(() => ({ attachDefinitionsToCase: vi.fn(), listForCase: vi.fn(), updateStatus: vi.fn() }))
 const caseService = vi.hoisted(() => ({ getOrCreateType: vi.fn(), createRecord: vi.fn() }))
@@ -47,7 +45,7 @@ beforeEach(() => {
   repository.withTransaction.mockImplementation(async (callback) => callback({ tx: true }))
   repository.findPersonByUserId.mockResolvedValue(person)
   repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType, formValues: {}, submissionAppointment: { appointmentId: 'appointment-1' } })
-  repository.findById.mockResolvedValue({ id: 'application-1', caseId: 'case-1', caseRecord: { id: 'case-1' }, workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType })
+  repository.findById.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType })
   permitTypeService.getPermitTypeById.mockResolvedValue(permitType)
   permitTypeService.getRequirementIds.mockResolvedValue(['requirement-1', 'requirement-2'])
   requirementService.attachDefinitionsToCase.mockResolvedValue([])
@@ -57,7 +55,9 @@ beforeEach(() => {
   professionalService.getForReference.mockResolvedValue({ id: 'professional-1', personId: 'professional-person-1', professionalRole: 'ARCHITECT' })
   repository.create.mockResolvedValue({ id: 'application-1', referenceNumber: 'OBO-1', status: 'DRAFT', permitType, workflowInstanceId: 'workflow-1', caseId: 'case-1' })
   repository.update.mockResolvedValue({ id: 'application-1', workflowInstanceId: 'workflow-1', status: 'DRAFT', permitType, caseId: 'case-1' })
+  workflowService.getWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
   workflowService.startWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'DRAFT' } })
+  workflowService.transitionWorkflow.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
   formService.getFormById.mockResolvedValue({ id: 'form-1', key: 'building-permit', isActive: true })
   formService.getFormVersionById.mockResolvedValue({ id: 'form-version-1', formId: 'form-1', version: 1, status: 'PUBLISHED', fields: [] })
   formService.validateFormValues.mockResolvedValue({ valid: true, formVersionId: 'form-version-1' })
@@ -93,14 +93,14 @@ describe('OBO plan permit form resolution', () => {
   it('passes application context when resolving a form version', async () => {
     const permit = { ...permitType, formId: 'form-1' }
     await resolveAndValidateForm({ permitType: permit, formVersionId: 'version-1', formValues: {}, appId: 'obo-app' })
-    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-1', 'obo-app', undefined)
+    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-1', 'obo-app')
   })
 
   it('resolves an explicitly selected published version instead of the latest version', async () => {
     formService.getFormById.mockResolvedValue({ id: 'form-1', key: 'building-permit', isActive: true })
     formService.getFormVersionById.mockResolvedValue({ id: 'version-2', formId: 'form-1', version: 2, status: 'PUBLISHED', fields: [] })
     await resolveAndValidateForm({ permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'version-2', formValues: {}, appId: 'obo-app' })
-    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-2', 'obo-app', undefined)
+    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-2', 'obo-app')
     expect(formService.validateFormValues).toHaveBeenCalledWith(expect.objectContaining({ appId: 'obo-app', version: 2 }))
   })
 })
