@@ -8,7 +8,7 @@ describe('OBO authorization management architecture', () => {
   it('keeps management routes inside the OBO application boundary', async () => {
     const routes = await read('apps/obo/authorization/authorization.routes.js')
     expect(routes).not.toContain('/admin/authorization')
-    expect(routes).toContain("authorizeOBO('authorization', 'manage')")
+    expect(routes).toContain("authorizeOBO('obo_authorization', 'manage')")
   })
 
   it('owns authorization management persistence and service inside OBO', async () => {
