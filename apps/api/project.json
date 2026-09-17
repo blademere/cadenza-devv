@@ -23,7 +23,7 @@
     "test:seed": {
       "executor": "nx:run-commands",
       "dependsOn": ["prisma:generate"],
-      "options": { "command": "vitest run tests/unit/scripts/seed/index.test.js", "cwd": "apps/api" }
+      "options": { "command": "vitest run tests/unit/scripts/seed/*.test.js", "cwd": "apps/api" }
     },
     "test:integration": {
       "executor": "nx:run-commands",
