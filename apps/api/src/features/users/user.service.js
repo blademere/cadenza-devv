@@ -3,10 +3,7 @@ import {
   NotFoundError,
 } from '../../common/errors/appError.js'
 import {
-  normalizePagination,
   createPaginationMeta,
-  createOrderBy,
-  pickFilters,
 } from '../../common/pagination/pagination.js'
 import {
   findAllUsers,
@@ -24,14 +21,34 @@ const userWithMembershipRoles = (user, appId) => {
   return { ...user, roles: roleResponse((membership?.roles ?? []).map(({ role }) => role)) }
 }
 
-const listUsers = async (query = {}, appId) => {
-  const pagination = normalizePagination(query)
-  const orderBy = createOrderBy(query, ['createdAt', 'updatedAt', 'email', 'isActive'], 'createdAt')
-  const filters = pickFilters(query, ['email', 'isActive'])
-  const { users, total } = await findAllUsers({ skip: pagination.skip, take: pagination.take, filters, orderBy, appId })
+/**
+ * List users through the reusable user capability.
+ *
+ * Contract:
+ * - appId scopes users to an application's active memberships.
+ * - filters contains persistence-level user filters.
+ * - pagination contains normalized { page, limit, skip, take } values.
+ * - orderBy contains the validated Prisma ordering expression.
+ *
+ * HTTP query parsing and application-specific authorization remain outside this
+ * capability.
+ */
+const listUsers = async ({ appId = null, filters = {}, pagination, orderBy }) => {
+  const { users, total } = await findAllUsers({
+    skip: pagination.skip,
+    take: pagination.take,
+    filters,
+    orderBy,
+    appId,
+  })
+
   return {
     data: users.map((user) => toUserResponse(userWithMembershipRoles(user, appId))),
-    pagination: createPaginationMeta({ page: pagination.page, limit: pagination.limit, total }),
+    pagination: createPaginationMeta({
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+    }),
   }
 }
 
