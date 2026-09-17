@@ -25,9 +25,9 @@ describe('Application-owned authorization P2 contracts', () => {
   })
 
   it('keeps role cache invalidation application-scoped', async () => {
-    const repository = await read('../../../src/platform/authorization/access-control.repository.js')
-    const cache = await read('../../../src/platform/authorization/access-control.cache.js')
-    const service = await read('../../../src/platform/authorization/access-control.service.js')
+    const repository = await read('../../../src/platform/authorization/authorization.repository.js')
+    const cache = await read('../../../src/platform/authorization/authorization.cache.js')
+    const service = await read('../../../src/platform/authorization/authorization.service.js')
 
     expect(repository).toContain('const findUserIdsByRoleId = async (roleId, appId)')
     expect(repository).toContain('select: { appId: true }')
