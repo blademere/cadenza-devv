@@ -7,11 +7,25 @@ import {
   createMyProfile,
   updateMyProfile,
 } from './user.service.js'
+import {
+  normalizePagination,
+  createOrderBy,
+  pickFilters,
+} from '../../common/pagination/pagination.js'
 
 const getAppId = (req) => req.auth?.appId ?? req.appContext?.id ?? null
 
 const listUsersController = async (req, res) => {
-  const result = await listUsers(req.validated.query, getAppId(req))
+  const query = req.validated.query
+  const pagination = normalizePagination(query)
+  const orderBy = createOrderBy(query, ['createdAt', 'updatedAt', 'email', 'isActive'], 'createdAt')
+  const filters = pickFilters(query, ['email', 'isActive'])
+  const result = await listUsers({
+    appId: getAppId(req),
+    filters,
+    pagination,
+    orderBy,
+  })
   return res.status(200).json({ success: true, message: 'Users retrieved successfully.', data: result.data, pagination: result.pagination })
 }
 
