@@ -21,9 +21,7 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
         },
         select: {
           id: true,
-          app: {
-            select: { id: true, key: true, name: true, isActive: true },
-          },
+          app: { select: { id: true, key: true, name: true, isActive: true } },
           roles: {
             where: { role: { appId: normalizedAppId } },
             select: {
@@ -36,9 +34,7 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
                       permission: {
                         select: {
                           action: true,
-                          module: {
-                            select: { key: true, name: true, isActive: true },
-                          },
+                          module: { select: { key: true, name: true, isActive: true } },
                         },
                       },
                     },
@@ -57,15 +53,11 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
   const membership = user.appMemberships[0]
   if (!membership) return null
 
-  const appModulePrefix = `${membership.app.key}_`
-  const roles = membership.roles.map(({ role }) => ({
-    id: role.id,
-    name: role.name,
-  }))
+  const roles = membership.roles.map(({ role }) => ({ id: role.id, name: role.name }))
 
   const permissions = membership.roles
     .flatMap(({ role }) => role.permissions.map(({ permission }) => permission))
-    .filter(({ module }) => module.isActive && module.key.startsWith(appModulePrefix))
+    .filter(({ module }) => module.isActive)
     .map(({ action, module }) => ({
       resource: module.key,
       action,
@@ -87,15 +79,12 @@ const listActiveModules = async ({ appId } = {}) => {
 
   const app = await prisma.app.findUnique({
     where: { id: normalizedAppId },
-    select: { key: true, isActive: true },
+    select: { isActive: true },
   })
   if (!app || !app.isActive) return []
 
   return prisma.module.findMany({
-    where: {
-      isActive: true,
-      key: { startsWith: `${app.key}_` },
-    },
+    where: { isActive: true },
     orderBy: { key: 'asc' },
     select: { id: true, key: true, name: true, description: true, isActive: true },
   })

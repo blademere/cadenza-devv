@@ -37,12 +37,6 @@ describe('Application-owned authorization P2 contracts', () => {
     expect(service).toContain('findUserIdsByRoleId(roleId)')
   })
 
-  it('keeps authorization context permissions scoped to the current application', async () => {
-    const repository = await read('../../../src/platform/authorization/authorization-context.repository.js')
-    expect(repository).toContain('const appModulePrefix = `${membership.app.key}_`')
-    expect(repository).toContain('module.isActive && module.key.startsWith(appModulePrefix)')
-  })
-
   it('does not allow failed transactional role creation to become a successful response', async () => {
     const service = await read('../../../src/apps/obo/authorization/authorization-management.service.js')
     const repository = await read('../../../src/apps/obo/authorization/authorization-management.repository.js')

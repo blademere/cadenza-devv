@@ -48,14 +48,14 @@ const getUserAuthorizationContext = async ({ userId, appId }) => {
 
   const roles = membership.roles.map(({ role }) => ({ id: role.id, name: role.name }))
   const permissions = new Map()
-  const modulePrefix = `${membership.app.key}_`
 
+  // Modules are shared platform catalog records. Application ownership is
+  // enforced by the app membership and app-scoped role; do not filter the
+  // permission catalog by the application's key here. This allows shared
+  // capabilities such as appointments to be granted to an application's roles.
   for (const { role } of membership.roles) {
     for (const { permission } of role.permissions) {
-      if (
-        permission.module.isActive &&
-        permission.module.key.startsWith(modulePrefix)
-      ) {
+      if (permission.module.isActive) {
         permissions.set(`${permission.module.key}:${permission.action}`, {
           resource: permission.module.key,
           action: permission.action,

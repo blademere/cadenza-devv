@@ -32,11 +32,28 @@ const OBO_DEVELOPMENT_FIXTURE = {
   professionalFieldKey: 'architect',
 }
 
-const ensureUser = async (prisma, { email, roleId, passwordHash }) => prisma.user.upsert({
-  where: { email },
-  update: { roleId, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
-  create: { email, roleId, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
-})
+const ensureUser = async (prisma, { appId, email, roleId, passwordHash }) => {
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: { isActive: true, ...(passwordHash ? { passwordHash } : {}) },
+    create: { email, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
+  })
+
+  if (roleId) {
+    const membership = await prisma.appMembership.upsert({
+      where: { appId_userId: { appId, userId: user.id } },
+      update: { isActive: true },
+      create: { appId, userId: user.id },
+    })
+    await prisma.appMembershipRole.upsert({
+      where: { membershipId_roleId: { membershipId: membership.id, roleId } },
+      update: {},
+      create: { membershipId: membership.id, roleId },
+    })
+  }
+
+  return user
+}
 
 async function seedOboWorkflow(prisma) {
   const workflow = await prisma.workflow.upsert({
@@ -72,7 +89,7 @@ async function seedOboWorkflow(prisma) {
 }
 
 async function ensureDevelopmentProfessional(prisma, { appId, roles, passwordHash, receivingOfficer, now }) {
-  const professionalUser = await ensureUser(prisma, { email: OBO_DEVELOPMENT_FIXTURE.professionalEmail, roleId: roles.professional.id, passwordHash })
+  const professionalUser = await ensureUser(prisma, { appId, email: OBO_DEVELOPMENT_FIXTURE.professionalEmail, roleId: roles.professional.id, passwordHash })
   const professionalPerson = await prisma.person.upsert({
     where: { userId: professionalUser.id },
     update: { firstName: 'OBO', lastName: 'Architect', email: professionalUser.email, phone: '+630000000002', isActive: true },
@@ -120,14 +137,14 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
   const now = new Date('2030-06-10T08:00:00.000Z')
   const appointmentStart = new Date('2030-06-14T09:00:00.000Z')
   const appointmentEnd = new Date('2030-06-14T09:30:00.000Z')
-  const clientUser = await ensureUser(prisma, { email: OBO_DEVELOPMENT_FIXTURE.clientEmail, roleId: roles.client.id, passwordHash })
-  const receivingOfficer = await ensureUser(prisma, { email: OBO_DEVELOPMENT_FIXTURE.receivingOfficerEmail, roleId: roles.receiving_officer.id, passwordHash })
+  const clientUser = await ensureUser(prisma, { appId, email: OBO_DEVELOPMENT_FIXTURE.clientEmail, roleId: roles.client.id, passwordHash })
+  const receivingOfficer = await ensureUser(prisma, { appId, email: OBO_DEVELOPMENT_FIXTURE.receivingOfficerEmail, roleId: roles.receiving_officer.id, passwordHash })
   const { professionalUser, professionalPerson, professional } = await ensureDevelopmentProfessional(prisma, { appId, roles, passwordHash, receivingOfficer, now })
 
   const clientPerson = await prisma.person.upsert({
     where: { userId: clientUser.id },
     update: { firstName: 'OBO', lastName: 'Client', email: clientUser.email, phone: '+630000000001', isActive: true },
-    create: { userId: clientUser.id, firstName: 'OBO', lastName: 'Client', email: clientUser.email, phone: '+630000000001' },
+    create: { userId: clientUser.id, firstName: 'OBO', lastName: 'Client', email: clientUser.email, phone: '+630000000001', isActive: true },
   })
 
   const form = await prisma.form.findUnique({ where: { appId_key: { appId, key: OBO_DEVELOPMENT_FIXTURE.formKey } } })
