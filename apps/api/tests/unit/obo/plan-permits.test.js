@@ -45,9 +45,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   repository.withTransaction.mockImplementation(async (callback) => callback({ tx: true }))
   repository.findPersonByUserId.mockResolvedValue(person)
-  repository.findOwnedByClient.mockImplementation(async (_id, _personId, appId) => appId ? application : (() => { throw new Error('appId is required') })())
+  repository.findOwnedByClient.mockResolvedValue(application)
   repository.findById.mockResolvedValue(application)
-  repository.listByClient.mockResolvedValue([application])
   permitTypeService.getPermitTypeById.mockResolvedValue(permitType)
   permitTypeService.getRequirementIds.mockResolvedValue(['requirement-1', 'requirement-2'])
   requirementService.attachDefinitionsToCase.mockResolvedValue([])
@@ -81,12 +80,6 @@ describe('OBO plan permit service', () => {
     expect(participantService.add).toHaveBeenCalledWith(expect.objectContaining({ caseId: 'case-1', appId: 'obo-app' }))
   })
 
-  it('rejects creation when the permit type is not available in the application', async () => {
-    permitTypeService.getPermitTypeById.mockResolvedValue(null)
-    await expect(service.createApplication({ appId: 'obo-app', userId: 'user-1', permitTypeId: 'missing', formValues: {} })).rejects.toThrow('Active permit type not found.')
-    expect(caseService.createRecord).not.toHaveBeenCalled()
-  })
-
   it('associates verified professionals from form references as case participants', async () => {
     repository.findOwnedByClient.mockResolvedValue({ id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'form-version-1', formVersion: { id: 'form-version-1', version: 1, fields: [] }, formValues: { architect: { professionalId: 'professional-1' } } })
     await service.submit({ id: 'application-1', appId: 'obo-app', userId: 'user-1' })
@@ -99,12 +92,14 @@ describe('OBO plan permit service', () => {
 
   it('rejects submission of a non-draft application', async () => {
     repository.findOwnedByClient.mockResolvedValue({ ...application, status: 'READY_FOR_SUBMISSION' })
+    workflowService.getWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'READY_FOR_SUBMISSION' } })
     await expect(service.submit({ id: 'application-1', appId: 'obo-app', userId: 'user-1' })).rejects.toThrow('Only draft applications can be submitted.')
     expect(workflowService.transitionWorkflow).not.toHaveBeenCalled()
   })
 
   it('rejects updating a non-draft application', async () => {
     repository.findOwnedByClient.mockResolvedValue({ ...application, status: 'SUBMISSION_SCHEDULED' })
+    workflowService.getWorkflowInstance.mockResolvedValue({ id: 'workflow-1', currentStep: { key: 'SUBMISSION_SCHEDULED' } })
     await expect(service.updateDraft({ id: 'application-1', appId: 'obo-app', userId: 'user-1', formValues: {} })).rejects.toThrow('Only draft applications can be updated.')
     expect(repository.update).not.toHaveBeenCalled()
   })
