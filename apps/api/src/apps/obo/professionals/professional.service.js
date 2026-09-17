@@ -8,6 +8,10 @@ const normalizeCredential = (value) => value?.trim() || ''
 const normalizeProfessionalRole = (value) => value?.trim() || ''
 const createRegistrationNumber = () =>
   `PRO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
+const requireAppId = (appId) => {
+  if (!appId) throw new BadRequestError('Application context is required.')
+  return appId
+}
 const getProfile = async ({ userId }) => peopleService.getByUserId(userId)
 const createProfile = async ({ userId, ...data }) => {
   const existing = await repository.findPersonByUserId(userId)
@@ -20,6 +24,7 @@ const updateProfile = async ({ userId, ...data }) => {
   return peopleService.update(existing.id, data)
 }
 const applyForVerification = async ({ appId, userId, prcId, ptrNumber, professionalRole }) => {
+  requireAppId(appId)
   const normalizedPrcId = normalizeCredential(prcId)
   const normalizedPtrNumber = normalizeCredential(ptrNumber)
   const normalizedProfessionalRole = normalizeProfessionalRole(professionalRole)
@@ -51,18 +56,20 @@ const applyForVerification = async ({ appId, userId, prcId, ptrNumber, professio
   throw new ConflictError('Unable to generate a unique professional registration number.')
 }
 const getMine = async ({ appId, userId }) => {
+  requireAppId(appId)
   const person = await repository.findPersonByUserId(userId)
   if (!person) throw new NotFoundError('Professional application not found.')
   const professional = await repository.findByPersonId(person.id, appId)
   if (!professional) throw new NotFoundError('Professional application not found.')
   return professional
 }
-const getForAuthorization = (id, appId) => repository.findById(id, appId)
-const getForReference = (id, appId) => repository.findById(id, appId)
-const listPending = (appId) => repository.listPending(appId)
-const listVerified = (appId) => repository.listVerified(appId)
-const listDirectory = ({ appId, status = 'VERIFIED', role, search } = {}) => repository.listLookup({ appId, status, role, search })
+const getForAuthorization = (id, appId) => repository.findById(id, requireAppId(appId))
+const getForReference = (id, appId) => repository.findById(id, requireAppId(appId))
+const listPending = (appId) => repository.listPending(requireAppId(appId))
+const listVerified = (appId) => repository.listVerified(requireAppId(appId))
+const listDirectory = ({ appId, status = 'VERIFIED', role, search } = {}) => repository.listLookup({ appId: requireAppId(appId), status, role, search })
 const decideVerification = async ({ id, appId, actorId, decision, reason }) => {
+  requireAppId(appId)
   const professional = await repository.findById(id, appId)
   if (!professional) throw new NotFoundError('Professional application not found.')
   if (professional.status !== 'PENDING_VERIFICATION') throw new ConflictError('Professional application is not awaiting verification.')
