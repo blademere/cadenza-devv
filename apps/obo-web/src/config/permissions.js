@@ -32,7 +32,7 @@ export const permissions = Object.freeze({
     review: 'obo_professionals:review',
   }),
   users: Object.freeze({
-    manage: 'users:manage',
+    manage: 'obo_users:manage',
   }),
   authorization: Object.freeze({
     manage: 'obo_authorization:manage',
