@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../../src/features/participants/participants.repository.js')
 
 const repository = await import('../../../src/features/participants/participants.repository.js')
-const { default: participantsService } = await import('../../../src/features/participants/participants.service.js')
+const { default: participantsService } = await import('../../../src/features/participants/participants.application.service.js')
 const { add, list, remove } = participantsService
 const spies = {
   addParticipant: repository.addParticipant,
@@ -22,7 +22,7 @@ describe('participants capability', () => {
   })
 
   it('adds a normalized participant role within the application', async () => {
-    spies.findCase.mockResolvedValue({ id: 'case-1' })
+    spies.findCase.mockResolvedValue({ id: 'case-1', appId: 'obo-app' })
     spies.findPerson.mockResolvedValue({ id: 'person-1' })
     spies.findParticipant.mockResolvedValue(null)
     spies.addParticipant.mockImplementation(async (data) => ({ id: 'participant-1', ...data }))
@@ -33,7 +33,7 @@ describe('participants capability', () => {
   })
 
   it('rejects duplicate participants in the scoped case', async () => {
-    spies.findCase.mockResolvedValue({ id: 'case-1' })
+    spies.findCase.mockResolvedValue({ id: 'case-1', appId: 'obo-app' })
     spies.findPerson.mockResolvedValue({ id: 'person-1' })
     spies.findParticipant.mockResolvedValue({ id: 'participant-1' })
     await expect(add({ caseId: 'case-1', personId: 'person-1', roleKey: 'OWNER', appId: 'obo-app' })).rejects.toThrow('Participant is already assigned to this case role.')
@@ -47,15 +47,15 @@ describe('participants capability', () => {
   })
 
   it('lists only participants through an application-owned case', async () => {
-    spies.findCase.mockResolvedValue({ id: 'case-1' })
+    spies.findCase.mockResolvedValue({ id: 'case-1', appId: 'obo-app' })
     spies.listParticipants.mockResolvedValue([{ id: 'participant-1' }])
-    await expect(list('case-1', { appId: 'obo-app' })).resolves.toEqual([{ id: 'participant-1' }])
+    await expect(list({ caseId: 'case-1', appId: 'obo-app' })).resolves.toEqual([{ id: 'participant-1' }])
     expect(spies.listParticipants).toHaveBeenCalledWith('case-1', 'obo-app', undefined)
   })
 
   it('rejects removal outside the current application', async () => {
     spies.removeParticipant.mockResolvedValue(null)
-    await expect(remove('participant-1', { appId: 'obo-app' })).rejects.toThrow('Participant not found.')
+    await expect(remove({ id: 'participant-1', appId: 'obo-app' })).rejects.toThrow('Participant not found.')
     expect(spies.removeParticipant).toHaveBeenCalledWith('participant-1', 'obo-app', undefined)
   })
 })
