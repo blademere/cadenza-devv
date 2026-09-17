@@ -8,6 +8,10 @@ vi.mock('../../../src/features/appointments/appointment.repository.js', async (i
   return {
     ...actual,
     withTransaction: vi.fn(),
+    findAppointmentType: vi.fn(),
+    listActiveSchedules: vi.fn(),
+    findSlotByStart: vi.fn(),
+    createAppointmentSlot: vi.fn(),
     findSlot: vi.fn(),
     findActiveUserAppointmentForSlot: vi.fn(),
     claimSlot: vi.fn(),
@@ -42,24 +46,11 @@ const { bookAppointment, checkInAppointment } = await import('../../../src/featu
 describe('appointment constants', () => {
   it('exposes the complete appointment lifecycle', () => {
     expect(APPOINTMENT_STATUS).toMatchObject({
-      PENDING: 'PENDING',
-      CONFIRMED: 'CONFIRMED',
-      CHECKED_IN: 'CHECKED_IN',
-      COMPLETED: 'COMPLETED',
-      CANCELLED: 'CANCELLED',
-      NO_SHOW: 'NO_SHOW',
+      PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', CHECKED_IN: 'CHECKED_IN', COMPLETED: 'COMPLETED', CANCELLED: 'CANCELLED', NO_SHOW: 'NO_SHOW',
     })
   })
-
   it('exposes management actions including no-show', () => {
-    expect(APPOINTMENT_ACTIONS).toMatchObject({
-      READ: 'read',
-      CREATE: 'create',
-      CANCEL: 'cancel',
-      CHECK_IN: 'check_in',
-      NO_SHOW: 'no_show',
-      MANAGE: 'manage',
-    })
+    expect(APPOINTMENT_ACTIONS).toMatchObject({ READ: 'read', CREATE: 'create', CANCEL: 'cancel', CHECK_IN: 'check_in', NO_SHOW: 'no_show', MANAGE: 'manage' })
     expect(SLOT_STATUS.OPEN).toBe('OPEN')
   })
 })
@@ -71,7 +62,6 @@ describe('appointment response mappers', () => {
     expect(value).toEqual({ id: 'type-1', key: 'SUBMISSION', name: 'Submission', description: 'Hardcopy submission', defaultDurationMinutes: 30, defaultCapacity: 5, isActive: true, createdAt, updatedAt: createdAt })
     expect(value.internalOnly).toBeUndefined()
   })
-
   it('maps appointments explicitly', () => {
     const createdAt = new Date('2026-08-19T00:00:00.000Z')
     const value = mapAppointment({ id: 'appointment-1', referenceNumber: 'APT-1', appointmentTypeId: 'type-1', slotId: 'slot-1', userId: 42, status: 'CONFIRMED', metadata: { source: 'web' }, notes: 'test', cancelledAt: null, checkedInAt: null, completedAt: null, noShowAt: null, createdAt, updatedAt: createdAt, secret: 'do-not-return' })
@@ -79,14 +69,12 @@ describe('appointment response mappers', () => {
     expect(value.referenceNumber).toBe('APT-1')
     expect(value.metadata).toEqual({ source: 'web' })
   })
-
   it('maps nested appointment type and slot details when relations are loaded', () => {
     const createdAt = new Date('2026-08-19T00:00:00.000Z')
     const value = mapAppointment({ id: 'appointment-1', referenceNumber: 'APT-1', appointmentTypeId: 'type-1', slotId: 'slot-1', userId: 42, status: 'CONFIRMED', metadata: null, notes: null, cancelledAt: null, checkedInAt: null, completedAt: null, noShowAt: null, createdAt, updatedAt: createdAt, appointmentType: { id: 'type-1', key: 'obo-hardcopy-submission', name: 'OBO Hardcopy Submission', description: 'Physical submission', defaultDurationMinutes: 30, defaultCapacity: 1, isActive: true, createdAt, updatedAt: createdAt }, slot: { id: 'slot-1', appointmentTypeId: 'type-1', scheduleId: 'schedule-1', startsAt: createdAt, endsAt: new Date('2026-08-19T00:30:00.000Z'), capacity: 1, bookedCount: 1, status: 'OPEN', createdAt, updatedAt: createdAt } })
     expect(value.appointmentType).toEqual({ id: 'type-1', key: 'obo-hardcopy-submission', name: 'OBO Hardcopy Submission', description: 'Physical submission', defaultDurationMinutes: 30, defaultCapacity: 1, isActive: true, createdAt, updatedAt: createdAt })
     expect(value.slot).toEqual({ id: 'slot-1', appointmentTypeId: 'type-1', scheduleId: 'schedule-1', startsAt: createdAt, endsAt: new Date('2026-08-19T00:30:00.000Z'), capacity: 1, bookedCount: 1, status: 'OPEN', createdAt, updatedAt: createdAt })
   })
-
   it('maps slots and schedules explicitly', () => {
     const createdAt = new Date('2026-08-19T00:00:00.000Z')
     expect(mapAppointmentSlot({ id: 'slot-1', appointmentTypeId: 'type-1', scheduleId: null, startsAt: createdAt, endsAt: new Date('2026-08-19T00:30:00.000Z'), capacity: 5, bookedCount: 2, status: 'OPEN', createdAt, updatedAt: createdAt, internal: 'secret' })).toEqual({ id: 'slot-1', appointmentTypeId: 'type-1', scheduleId: null, startsAt: createdAt, endsAt: new Date('2026-08-19T00:30:00.000Z'), capacity: 5, bookedCount: 2, status: 'OPEN', createdAt, updatedAt: createdAt })
@@ -109,23 +97,24 @@ describe('appointment validation', () => {
 })
 
 describe('appointment slot generation', () => {
-  const prisma = { appointmentType: { findUnique: vi.fn() }, availabilitySchedule: { findMany: vi.fn() }, $transaction: vi.fn() }
-
   it('generates slots from an Asia/Manila weekly schedule', async () => {
-    prisma.appointmentType.findUnique.mockResolvedValue({ id: 'type-1' })
-    prisma.availabilitySchedule.findMany.mockResolvedValue([{ id: 'schedule-1', appointmentTypeId: 'type-1', dayOfWeek: 2, startTime: '09:00', endTime: '10:00', timezone: 'Asia/Manila', slotDurationMinutes: 30, capacity: 3, isActive: true }])
+    repository.findAppointmentType.mockResolvedValue({ id: 'type-1', appId: 'app-1' })
+    repository.listActiveSchedules.mockResolvedValue([{ id: 'schedule-1', appointmentTypeId: 'type-1', dayOfWeek: 2, startTime: '09:00', endTime: '10:00', timezone: 'Asia/Manila', slotDurationMinutes: 30, capacity: 3, isActive: true }])
+    repository.findSlotByStart.mockResolvedValue(null)
     const created = []
-    prisma.$transaction.mockImplementation(async (callback) => callback({ appointmentSlot: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(async ({ data }) => { created.push(data); return { id: `slot-${created.length}`, ...data } }) }, auditLog: { create: vi.fn().mockResolvedValue({ id: 'audit-1' }) } }))
-    const result = await generateSlots({ appointmentTypeId: 'type-1', appId: 'app-1', from: new Date('2026-08-18T00:00:00.000Z'), to: new Date('2026-08-19T00:00:00.000Z'), db: prisma })
+    repository.createAppointmentSlot.mockImplementation(async (data) => { created.push(data); return { id: `slot-${created.length}`, ...data } })
+    repository.withTransaction.mockImplementation(async (callback) => callback({}))
+    const result = await generateSlots({ appointmentTypeId: 'type-1', appId: 'app-1', from: new Date('2026-08-18T00:00:00.000Z'), to: new Date('2026-08-19T00:00:00.000Z') })
     expect(result).toHaveLength(2)
+    expect(repository.findAppointmentType).toHaveBeenCalledWith('type-1', 'app-1', expect.anything())
+    expect(repository.listActiveSchedules).toHaveBeenCalledWith({ appointmentTypeId: 'type-1', scheduleId: undefined, appId: 'app-1' }, expect.anything())
     expect(created[0].scheduleId).toBe('schedule-1')
     expect(created[0].capacity).toBe(3)
     expect(created[0].startsAt.toISOString()).toBe('2026-08-18T01:00:00.000Z')
     expect(created[1].startsAt.toISOString()).toBe('2026-08-18T01:30:00.000Z')
   })
-
   it('rejects an invalid generation window', async () => {
-    await expect(generateSlots({ appointmentTypeId: 'type-1', appId: 'app-1', from: new Date('2026-08-19T00:00:00.000Z'), to: new Date('2026-08-18T00:00:00.000Z'), db: prisma })).rejects.toThrow('from must be earlier than to')
+    await expect(generateSlots({ appointmentTypeId: 'type-1', appId: 'app-1', from: new Date('2026-08-19T00:00:00.000Z'), to: new Date('2026-08-18T00:00:00.000Z') })).rejects.toThrow('from must be earlier than to')
   })
 })
 
@@ -147,14 +136,12 @@ describe('appointment booking capacity and availability', () => {
     expect(repository.createAppointment).toHaveBeenCalledWith(expect.objectContaining({ appId: 'app-1' }), expect.anything())
     expect(audit.recordAudit).toHaveBeenCalled()
   })
-
   it('rejects when an atomic capacity claim loses the race for the last slot', async () => {
     repository.findSlot.mockResolvedValue({ id: 'slot-1', appointmentTypeId: 'type-1', startsAt: new Date(Date.now() + 60000), capacity: 1, status: 'OPEN', appointmentType: { isActive: true }, schedule: { isActive: true } })
     repository.claimSlot.mockResolvedValue({ count: 0 })
     await expect(bookAppointment({ userId: 10, appId: 'app-1', appointmentTypeId: 'type-1', slotId: 'slot-1' })).rejects.toThrow('Appointment slot is full or closed.')
     expect(repository.createAppointment).not.toHaveBeenCalled()
   })
-
   it('does not book a slot from an inactive appointment schedule', async () => {
     repository.findSlot.mockResolvedValue({ id: 'slot-1', appointmentTypeId: 'type-1', startsAt: new Date(Date.now() + 60000), capacity: 1, status: 'OPEN', appointmentType: { isActive: true }, schedule: { isActive: false } })
     repository.claimSlot.mockResolvedValue({ count: 0 })
