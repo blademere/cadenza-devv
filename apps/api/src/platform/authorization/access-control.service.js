@@ -1,5 +1,6 @@
 import { getUserAuthorizationContext, findUserIdsByRoleId } from './access-control.repository.js'
 import { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } from './access-control.cache.js'
+import { getContext } from '../context/context.service.js'
 import { increment } from '../observability/metrics/metrics.service.js'
 import { getConfiguration } from '../configuration/configuration.service.js'
 import { PLATFORM_CONFIGURATION_KEYS } from '../configuration/configuration.constants.js'
@@ -20,8 +21,10 @@ const requireAppId = (appId) => {
   return appId.trim()
 }
 
+const resolveAppId = (appId) => requireAppId(appId ?? getContext()?.appId)
+
 const loadUserPermissions = async (userId, appId) => {
-  const resolvedAppId = requireAppId(appId)
+  const resolvedAppId = resolveAppId(appId)
   const context = await getUserAuthorizationContext({ userId, appId: resolvedAppId })
   if (!context) return { roles: [], permissions: [] }
   const permissions = context.permissions.map((permission) => getPermissionKey(permission.resource, permission.action))
@@ -34,7 +37,7 @@ const loadUserPermissions = async (userId, appId) => {
 }
 
 const hasPermission = async (userId, resource, action, appId) => {
-  const resolvedAppId = requireAppId(appId)
+  const resolvedAppId = resolveAppId(appId)
   const permissionKey = getPermissionKey(resource, action)
 
   if (AUTHORIZATION_CACHE_ENABLED && AUTHORIZATION_CACHE_TRUST_POSITIVE) {
@@ -71,7 +74,7 @@ const canOwn = async ({ userId, appId, resource, action, resourceOwnerId }) => {
 
 const clearUserPermissionCache = async (userId, appId) => {
   if (!AUTHORIZATION_CACHE_ENABLED) return
-  try { await invalidateUserPermissionCache(userId, requireAppId(appId)) } catch { /* Best effort. */ }
+  try { await invalidateUserPermissionCache(userId, resolveAppId(appId)) } catch { /* Best effort. */ }
 }
 
 const clearRolePermissionCache = async (roleId) => {
