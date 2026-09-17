@@ -1,5 +1,0 @@
-# Phase 15 migration note: application-owned user management is documented under /obo/users.
-# The canonical path definitions remain in paths.yaml.
-# This file intentionally contains no additional OpenAPI paths; it exists only as a
-# temporary marker for the migration commit and should be removed once paths.yaml is
-# updated through the repository's patch-capable workflow.
