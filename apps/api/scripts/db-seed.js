@@ -17,38 +17,43 @@ import { seedOboProfessionalVerificationFixtures, verifyOboProfessionalVerificat
 import { getPrismaClient, disconnectPrisma } from '../src/infrastructure/database/prisma.js'
 
 const basePrisma = getPrismaClient()
-
-// The OBO development fixture predates the app-scoped role model and still
-// passes roleId to its local ensureUser helper. Adapt that fixture input at the
-// seed boundary so the database never receives a global User.roleId write.
 const prisma = new Proxy(basePrisma, {
   get(target, property) {
-    if (property !== 'user') return target[property]
-    return new Proxy(target.user, {
-      get(delegate, method) {
-        if (method !== 'upsert') return delegate[method].bind(delegate)
-        return async (args) => {
-          const roleId = args.create?.roleId ?? args.update?.roleId
-          const create = { ...args.create }
-          const update = { ...args.update }
-          delete create.roleId
-          delete update.roleId
-          const user = await delegate.upsert({ ...args, create, update })
-          if (roleId != null) {
-            const app = await target.app.findUnique({ where: { key: 'obo' } })
-            if (!app) throw new Error("Application 'obo' must be seeded before OBO role fixtures.")
-            const membership = await target.appMembership.upsert({
-              where: { appId_userId: { appId: app.id, userId: user.id } },
-              update: { isActive: true },
-              create: { appId: app.id, userId: user.id },
-            })
-            await target.appMembershipRole.upsert({
-              where: { membershipId_roleId: { membershipId: membership.id, roleId } },
-              update: {},
-              create: { membershipId: membership.id, roleId },
-            })
+    if (property === 'user') {
+      return new Proxy(target.user, {
+        get(delegate, method) {
+          if (method !== 'upsert') return delegate[method].bind(delegate)
+          return async (args) => {
+            const roleId = args.create?.roleId ?? args.update?.roleId
+            const create = { ...args.create }
+            const update = { ...args.update }
+            delete create.roleId
+            delete update.roleId
+            const user = await delegate.upsert({ ...args, create, update })
+            if (roleId != null) {
+              const app = await target.app.findUnique({ where: { key: 'obo' } })
+              if (!app) throw new Error("Application 'obo' must be seeded before OBO role fixtures.")
+              const membership = await target.appMembership.upsert({ where: { appId_userId: { appId: app.id, userId: user.id } }, update: { isActive: true }, create: { appId: app.id, userId: user.id } })
+              await target.appMembershipRole.upsert({ where: { membershipId_roleId: { membershipId: membership.id, roleId } }, update: {}, create: { membershipId: membership.id, roleId } })
+            }
+            return user
           }
-          return user
+        },
+      })
+    }
+    if (!['oboPermitType', 'oboProfessional', 'oboPermitApplication', 'appointmentType', 'appointment', 'requirementDefinition'].includes(property)) return target[property]
+    const delegate = target[property]
+    return new Proxy(delegate, {
+      get(model, method) {
+        if (!['create', 'upsert'].includes(method)) return typeof model[method] === 'function' ? model[method].bind(model) : model[method]
+        return async (args = {}) => {
+          const app = await target.app.findUnique({ where: { key: 'obo' } })
+          if (!app) throw new Error("Application 'obo' must be seeded before OBO domain fixtures.")
+          const create = args.create ? { ...args.create, appId: args.create.appId ?? app.id } : args.create
+          const update = args.update ? { ...args.update } : args.update
+          if (property === 'appointmentType' || property === 'requirementDefinition') update.appId = update.appId ?? app.id
+          const data = args.data ? { ...args.data, appId: args.data.appId ?? app.id } : args.data
+          return model[method]({ ...args, ...(args.create ? { create } : {}), ...(args.update ? { update } : {}), ...(args.data ? { data } : {}) })
         }
       },
     })
@@ -60,7 +65,6 @@ async function seed() {
   const { roles, permissionRecords } = await seedAuthorization(prisma, { applications })
   const { demoPasswordHash } = await seedDevelopmentUsers(prisma, { roles })
   const { form: planPermitForm } = await seedPlatformForms(prisma)
-
   await seedOboReferenceData(prisma, { planPermitForm })
   await seedOboPlatformConfiguration(prisma)
   await seedOboDevelopmentScenario(prisma, { roles, passwordHash: demoPasswordHash })
@@ -72,12 +76,8 @@ async function seed() {
   await verifyOboProfessionalVerificationFixtures(prisma)
   await seedOboNotifications(prisma)
   await seedModelCoverage(prisma)
-
   console.log(`Seed complete: ${permissionRecords.size} canonical permissions, application-owned roles, ${Object.keys(applications).length} platform application(s), application-scoped memberships and roles, platform OBO form/document/appointment configuration, OBO reference/workflow/notification fixtures, deterministic OBO development scenario with form-owned professional selection, deterministic professional verification cases, person profiles for active users, and verified complete Prisma model coverage.`)
 }
 
-async function main() {
-  await seed()
-}
-
-main().catch((error) => { console.error(`Database seed failed: ${error.message}`); process.exitCode = 1 }).finally(async () => { await disconnectPrisma() })
+async function main() { await seed() }
+main().catch((error) => { console.error(error); process.exitCode = 1 }).finally(async () => { await disconnectPrisma() })

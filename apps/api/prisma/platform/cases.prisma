@@ -13,7 +13,8 @@ model CaseType {
 
 model CaseRecord {
   id              String                @id @default(uuid())
-  caseNumber      String                @unique
+  appId           String
+  caseNumber      String
   caseTypeId      String
   title           String
   description     String?
@@ -22,6 +23,7 @@ model CaseRecord {
   closedAt        DateTime?
   createdByUserId Int?
   metadata        Json?
+  app             App                   @relation(fields: [appId], references: [id], onDelete: Restrict)
   caseType        CaseType              @relation(fields: [caseTypeId], references: [id], onDelete: Restrict)
   createdByUser   User?                 @relation("CaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   statusHistory   CaseStatusHistory[]
@@ -32,9 +34,12 @@ model CaseRecord {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
-  @@index([caseTypeId, status])
-  @@index([status, createdAt])
+  @@index([appId])
+  @@index([appId, caseTypeId, status])
+  @@index([appId, status, createdAt])
   @@index([createdByUserId])
+  @@unique([appId, caseNumber])
+  @@unique([id, appId])
 }
 
 model CaseStatusHistory {

@@ -8,11 +8,11 @@ const RECEIVING_TASK_TYPES = new Set([
 ])
 
 const hasReceivingTaskAccess = async ({ user, resource }) => {
-  if (!user?.id || !resource?.caseId || !resource?.id) return false
+  if (!user?.id || !resource?.caseId || !resource?.id || !resource?.appId) return false
 
   const tasks = await taskService.list(
     { caseId: resource.caseId, status: 'OPEN' },
-    {},
+    { appId: resource.appId },
   )
 
   const applicationTasks = tasks.filter((task) => {

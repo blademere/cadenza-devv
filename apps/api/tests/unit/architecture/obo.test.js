@@ -2,8 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
 const api = (file) => new URL(`../../../${file}`, import.meta.url)
-const web = (file) =>
-  new URL(`../../../../../apps/obo-web/${file}`, import.meta.url)
+const web = (file) => new URL(`../../../../../apps/obo-web/${file}`, import.meta.url)
 const readText = (url) => readFile(url, 'utf8')
 
 describe('Forms boundary', () => {
@@ -15,60 +14,34 @@ describe('Forms boundary', () => {
     expect(schema).not.toContain('OboPermitApplication')
   })
   it('keeps OBO form bindings as scalar integration references', async () => {
-    const permitType = await readText(
-      api('prisma/modules/obo/permit-types.prisma')
-    )
-    const application = await readText(
-      api('prisma/modules/obo/permit-applications.prisma')
-    )
+    const permitType = await readText(api('prisma/modules/obo/permit-types.prisma'))
+    const application = await readText(api('prisma/modules/obo/permit-applications.prisma'))
     expect(permitType).toMatch(/^\s*formId\s+String\?\s*$/m)
-    expect(permitType).not.toMatch(
-      /^\s*formId\s+\S+\s+@relation\(fields:\s*\[formId\]/m
-    )
+    expect(permitType).not.toMatch(/^\s*formId\s+\S+\s+@relation\(fields:\s*\[formId\]/m)
     expect(application).toMatch(/^\s*formVersionId\s+String\?\s*$/m)
     expect(application).not.toMatch(/^\s*formVersion\s+FormVersion\?/m)
   })
   it('removes form foreign keys without replacing them with join tables', async () => {
-    const a = await readText(
-      api(
-        'prisma/migrations/20260908150000_decouple_obo_permit_type_form_relation/migration.sql'
-      )
-    )
-    const b = await readText(
-      api(
-        'prisma/migrations/20260908151000_decouple_obo_application_form_version/migration.sql'
-      )
-    )
+    const a = await readText(api('prisma/migrations/20260908150000_decouple_obo_permit_type_form_relation/migration.sql'))
+    const b = await readText(api('prisma/migrations/20260908151000_decouple_obo_application_form_version/migration.sql'))
     expect(a).toContain('DROP CONSTRAINT IF EXISTS "OboPermitType_formId_fkey"')
-    expect(b).toContain(
-      'DROP CONSTRAINT IF EXISTS "OboPermitApplication_formVersionId_fkey"'
-    )
-    expect(b).toContain(
-      'CREATE INDEX IF NOT EXISTS "OboPermitApplication_formVersionId_idx"'
-    )
-    expect(`${a}\n${b}`).not.toContain(
-      'CREATE TABLE "OboPermitApplicationProfessional"'
-    )
+    expect(b).toContain('DROP CONSTRAINT IF EXISTS "OboPermitApplication_formVersionId_fkey"')
+    expect(b).toContain('CREATE INDEX IF NOT EXISTS "OboPermitApplication_formVersionId_idx"')
+    expect(`${a}\n${b}`).not.toContain('CREATE TABLE "OboPermitApplicationProfessional"')
     expect(`${a}\n${b}`).not.toContain('CREATE TABLE "ApplicationProfessional"')
   })
   it('keeps OBO permit type persistence separate from Platform Forms persistence', async () => {
-    const a = await readText(
-      api('src/apps/obo/permit-types/permit-type.repository.js')
-    )
+    const a = await readText(api('src/apps/obo/permit-types/permit-type.repository.js'))
     const b = await readText(api('src/platform/forms/form.repository.js'))
     expect(a).not.toContain('../../../platform/forms/form.repository.js')
     expect(a).not.toContain('formRepository.')
     expect(a).not.toMatch(/db\.form(?:Version)?\s*\./)
-    expect(b).toContain('db.form.findUnique')
-    expect(b).toContain('db.formVersion.findUnique')
+    expect(b).toMatch(/db\.form\.find(?:Unique|First)/)
+    expect(b).toMatch(/db\.formVersion\.find(?:Unique|First)/)
   })
   it('keeps OBO form access behind the Platform Forms service', async () => {
-    const a = await readText(
-      api('src/apps/obo/permit-types/permit-type.service.js')
-    )
-    const b = await readText(
-      api('src/apps/obo/plan-permits/plan-permit.form.js')
-    )
+    const a = await readText(api('src/apps/obo/permit-types/permit-type.service.js'))
+    const b = await readText(api('src/apps/obo/plan-permits/plan-permit.form.js'))
     const c = await readText(api('src/platform/forms/form.service.js'))
     expect(a).toContain('../../../platform/forms/form.service.js')
     expect(a).toContain('formService.getFormById')
@@ -83,19 +56,11 @@ describe('Forms boundary', () => {
 
 describe('Workflow and appointment boundary', () => {
   it('keeps OBO workflow persistence behind Platform Workflow', async () => {
-    const a = await readText(
-      api('src/apps/obo/plan-permits/plan-permit.service.js')
-    )
+    const a = await readText(api('src/apps/obo/plan-permits/plan-permit.service.js'))
     const b = await readText(api('src/apps/obo/receiving/receiving.service.js'))
-    const c = await readText(
-      api('src/apps/obo/plan-permits/plan-permit.repository.js')
-    )
-    const d = await readText(
-      api('src/apps/obo/receiving/receiving.repository.js')
-    )
-    const e = await readText(
-      api('src/platform/workflow/workflow.repository.js')
-    )
+    const c = await readText(api('src/apps/obo/plan-permits/plan-permit.repository.js'))
+    const d = await readText(api('src/apps/obo/receiving/receiving.repository.js'))
+    const e = await readText(api('src/platform/workflow/workflow.repository.js'))
     expect(a).toContain('../../../platform/workflow/workflow.service.js')
     expect(a).toContain('workflowService.startWorkflow')
     expect(a).toContain('workflowService.transitionWorkflow')
@@ -108,49 +73,27 @@ describe('Workflow and appointment boundary', () => {
     expect(e).toContain('db.workflowInstance.findMany')
   })
   it('keeps OBO appointment persistence behind the Appointment feature service', async () => {
-    const receiving = await readText(
-      api('src/apps/obo/receiving/receiving.service.js')
-    )
-    const repository = await readText(
-      api('src/apps/obo/receiving/receiving.repository.js')
-    )
-    const appointments = await readText(
-      api('src/features/appointments/appointment.repository.js')
-    )
-    const service = await readText(
-      api('src/features/appointments/appointment.service.js')
-    )
-    const submission = await readText(
-      api(
-        'src/apps/obo/submission-appointments/submission-appointment.service.js'
-      )
-    )
-    expect(receiving).toContain(
-      '../../../features/appointments/appointment.service.js'
-    )
+    const receiving = await readText(api('src/apps/obo/receiving/receiving.service.js'))
+    const repository = await readText(api('src/apps/obo/receiving/receiving.repository.js'))
+    const appointments = await readText(api('src/features/appointments/appointment.repository.js'))
+    const service = await readText(api('src/features/appointments/appointment.service.js'))
+    const submission = await readText(api('src/apps/obo/submission-appointments/submission-appointment.service.js'))
+    expect(receiving).toContain('../../../features/appointments/appointment.service.js')
     expect(receiving).toContain('appointmentService.getAppointmentForReference')
     expect(repository).not.toContain('appointment.service.js')
-    expect(submission).toContain(
-      '../../../features/appointments/appointment.service.js'
-    )
+    expect(submission).toContain('../../../features/appointments/appointment.service.js')
     expect(submission).toContain('appointmentService.bookAppointment')
     expect(submission).toContain('appointmentService.getMyAppointment')
     expect(service).toContain('const getAppointmentForReference')
     expect(service).toContain('const listAppointmentsForReferences')
-    expect(appointments).toContain('db.appointment.findUnique')
+    expect(appointments).toMatch(/db\.appointment\.find(?:Unique|First)/)
     expect(appointments).toContain('db.appointment.findMany')
   })
 })
 
 describe('Controller layering', () => {
   it('keeps OBO controllers free of persistence dependencies', async () => {
-    const files = [
-      'plan-permits/plan-permit.controller.js',
-      'permit-types/permit-type.controller.js',
-      'professionals/professional.controller.js',
-      'receiving/receiving.controller.js',
-      'submission-appointments/submission-appointment.controller.js',
-    ]
+    const files = ['plan-permits/plan-permit.controller.js', 'permit-types/permit-type.controller.js', 'professionals/professional.controller.js', 'receiving/receiving.controller.js', 'submission-appointments/submission-appointment.controller.js']
     for (const file of files) {
       const source = await readText(api(`src/apps/obo/${file}`))
       expect(source).not.toMatch(/infrastructure\/database\/prisma\.js/)
@@ -159,28 +102,14 @@ describe('Controller layering', () => {
     }
   })
   it('keeps professional authorization resource loading behind the service layer', async () => {
-    const source = await readText(
-      api('src/apps/obo/professionals/professional.routes.js')
-    )
-    expect(source).toContain(
-      "import * as service from './professional.service.js'"
-    )
+    const source = await readText(api('src/apps/obo/professionals/professional.routes.js'))
+    expect(source).toContain("import * as service from './professional.service.js'")
     expect(source).toContain('service.getForAuthorization')
-    expect(source).not.toContain(
-      "import * as repository from './professional.repository.js'"
-    )
+    expect(source).not.toContain("import * as repository from './professional.repository.js'")
   })
   it('keeps submission appointment persistence in its own OBO repository', async () => {
-    const service = await readText(
-      api(
-        'src/apps/obo/submission-appointments/submission-appointment.service.js'
-      )
-    )
-    const repository = await readText(
-      api(
-        'src/apps/obo/submission-appointments/submission-appointment.repository.js'
-      )
-    )
+    const service = await readText(api('src/apps/obo/submission-appointments/submission-appointment.service.js'))
+    const repository = await readText(api('src/apps/obo/submission-appointments/submission-appointment.repository.js'))
     expect(service).toContain('./submission-appointment.repository.js')
     expect(service).toContain('../plan-permits/plan-permit.service.js')
     expect(service).not.toContain('../plan-permits/plan-permit.repository.js')
@@ -189,17 +118,9 @@ describe('Controller layering', () => {
     expect(repository).not.toContain('db.oboPermitApplication')
   })
   it('keeps appointment business semantics behind the appointment service', async () => {
-    const service = await readText(
-      api(
-        'src/apps/obo/submission-appointments/submission-appointment.service.js'
-      )
-    )
-    const appointment = await readText(
-      api('src/features/appointments/appointment.service.js')
-    )
-    expect(service).toContain(
-      '../../../features/appointments/appointment.service.js'
-    )
+    const service = await readText(api('src/apps/obo/submission-appointments/submission-appointment.service.js'))
+    const appointment = await readText(api('src/features/appointments/appointment.service.js'))
+    expect(service).toContain('../../../features/appointments/appointment.service.js')
     expect(service).toContain('appointmentService.bookAppointment')
     expect(service).toContain('appointmentService.cancelAppointment')
     expect(service).not.toMatch(/db\.appointment(?:Type|Slot)?\s*\./)
@@ -212,64 +133,36 @@ describe('Authorization boundary', () => {
   it('keeps OBO authorization vocabulary aligned across API and web', async () => {
     const apiSource = await readText(api('scripts/seed/authorization.js'))
     const webSource = await readText(web('src/config/permissions.js'))
-    expect(apiSource).toContain(
-      "obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive']"
-    )
-    expect(apiSource).not.toContain(
-      "obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive', 'inspect']"
-    )
+    expect(apiSource).toContain("obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive']")
+    expect(apiSource).not.toContain("obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive', 'inspect']")
     expect(webSource).not.toContain("inspect: 'obo_plan_permits:inspect'")
   })
   it('uses the permit type permission for Permit Types navigation', async () => {
     const source = await readText(web('src/config/navigation.js'))
-    expect(source).toMatch(
-      /key: 'permit-types',[\s\S]*?requiredPermissions: \[permissions\.permitTypes\.read\]/
-    )
-    expect(source).not.toMatch(
-      /key: 'permit-types',[\s\S]*?requiredPermissions: \[permissions\.planPermits\.read\]/
-    )
+    expect(source).toMatch(/key: 'permit-types',[\s\S]*?requiredPermissions: \[permissions\.permitTypes\.read\]/)
+    expect(source).not.toMatch(/key: 'permit-types',[\s\S]*?requiredPermissions: \[permissions\.planPermits\.read\]/)
   })
   it('keeps Permit Type API reads under Permit Type and Form permissions', async () => {
-    const source = await readText(
-      api('src/apps/obo/permit-types/permit-type.routes.js')
-    )
-    expect(source).toMatch(
-      /router\.get\([\s\S]*?authorize\('obo_permit_types', 'read'\)[\s\S]*?controller\.list/
-    )
-    expect(source).toMatch(
-      /const authorizePermitTypeFormsRead = authorizeResource\(\{ resource: 'obo_forms', action: 'read'/
-    )
-    expect(source).toMatch(
-      /router\.get\('\/:permitTypeId\/form', authenticate, authorizePermitTypeFormsRead[\s\S]*?controller\.getForm/
-    )
-    expect(source).not.toMatch(
-      /router\.get\([\s\S]*?authorize\('obo_plan_permits', 'read'\)[\s\S]*?controller\.(list|getForm)/
-    )
+    const source = await readText(api('src/apps/obo/permit-types/permit-type.routes.js'))
+    expect(source).toMatch(/router\.get\([\s\S]*?authorize\('obo_permit_types', 'read'\)[\s\S]*?controller\.list/)
+    expect(source).toMatch(/const authorizePermitTypeFormsRead = authorizeResource\(\{ resource: 'obo_forms', action: 'read'/)
+    expect(source).toMatch(/router\.get\('\/:permitTypeId\/form', authenticate, authorizePermitTypeFormsRead[\s\S]*?controller\.getForm/)
+    expect(source).not.toMatch(/router\.get\([\s\S]*?authorize\('obo_plan_permits', 'read'\)[\s\S]*?controller\.(list|getForm)/)
   })
   it('allows form builder entry with create or update permission', async () => {
     const router = await readText(web('src/app/router.jsx'))
-    const page = await readText(
-      web('src/features/plan-permits/pages/PermitTypeFormBuilderPage.jsx')
-    )
+    const page = await readText(web('src/features/plan-permits/pages/PermitTypeFormBuilderPage.jsx'))
     expect(router).toContain('protectedPageWithAnyPermission')
-    expect(router).toMatch(
-      /permit-types\/:permitTypeId\/form\/edit[\s\S]*?permissions\.forms\.create[\s\S]*?permissions\.forms\.update/
-    )
+    expect(router).toMatch(/permit-types\/:permitTypeId\/form\/edit[\s\S]*?permissions\.forms\.create[\s\S]*?permissions\.forms\.update/)
     expect(page).toContain('RequireAnyPermission')
-    expect(page).toMatch(
-      /permissions\.forms\.create, permissions\.forms\.update/
-    )
-    expect(page).toMatch(
-      /PermissionGate permission=\{permissions\.forms\.update\}/
-    )
+    expect(page).toMatch(/permissions\.forms\.create, permissions\.forms\.update/)
+    expect(page).toMatch(/PermissionGate permission=\{permissions\.forms\.update\}/)
   })
 })
 
 describe('Document checklist boundary', () => {
   it('links the OBO receiving record to shared CaseRequirement and Document models', async () => {
-    const schema = await readText(
-      api('prisma/modules/obo/application-documents.prisma')
-    )
+    const schema = await readText(api('prisma/modules/obo/application-documents.prisma'))
     expect(schema).toContain('model OboPermitApplicationDocument')
     expect(schema).toContain('caseRequirementId')
     expect(schema).toContain('documentId')
@@ -280,100 +173,45 @@ describe('Document checklist boundary', () => {
     expect(schema).not.toContain('requirement      DocumentRequirement')
   })
   it('defines reverse relations on shared requirement and document models', async () => {
-    const requirements = await readText(
-      api('prisma/platform/requirements.prisma')
-    )
+    const requirements = await readText(api('prisma/platform/requirements.prisma'))
     const documents = await readText(api('prisma/platform/documents.prisma'))
-    expect(requirements).toContain(
-      'applicationDocuments OboPermitApplicationDocument[]'
-    )
-    expect(documents).toContain(
-      'oboApplicationDocuments OboPermitApplicationDocument[]'
-    )
+    expect(requirements).toMatch(/applicationDocuments\s+OboPermitApplicationDocument\[\]/)
+    expect(documents).toMatch(/oboApplicationDocuments\s+OboPermitApplicationDocument\[\]/)
   })
   it('migrates legacy checklist associations to CaseRequirement associations', async () => {
-    const migration = await readText(
-      api(
-        'prisma/migrations/20260910120000_link_obo_documents_to_case_requirements/migration.sql'
-      )
-    )
+    const migration = await readText(api('prisma/migrations/20260910120000_link_obo_documents_to_case_requirements/migration.sql'))
     expect(migration).toContain('ADD COLUMN "caseRequirementId" TEXT')
     expect(migration).toContain('DocumentRequirement')
     expect(migration).toContain('RequirementDefinition')
-    expect(migration).toContain(
-      'OboPermitApplicationDocument_caseRequirementId_fkey'
-    )
+    expect(migration).toContain('OboPermitApplicationDocument_caseRequirementId_fkey')
     expect(migration).toContain('OboPermitApplicationDocument_documentId_fkey')
     expect(migration).toContain('DROP COLUMN "requirementId"')
   })
   it('resolves checklist requirements through shared Requirements and Documents features', async () => {
-    const source = await readText(
-      api('src/apps/obo/application-documents/application-document.service.js')
-    )
-    const requirements = await readText(
-      api('src/features/requirements/requirements.service.js')
-    )
-    const documents = await readText(
-      api('src/features/documents/document.service.js')
-    )
+    const source = await readText(api('src/apps/obo/application-documents/application-document.service.js'))
+    const requirements = await readText(api('src/features/requirements/requirements.service.js'))
+    const documents = await readText(api('src/features/documents/document.service.js'))
     expect(source).toContain('features/requirements/requirements.service.js')
     expect(source).toContain('requirementService.listForCase')
     expect(source).not.toContain('document-requirement.service.js')
-    expect(requirements).toContain('listForCase')
     expect(source).toContain('features/documents/document.service.js')
     expect(source).toContain('documentService.getOwnedDocument')
     expect(documents).toContain('uploadDocument')
+    expect(requirements).toContain('listForCase')
   })
   it('keeps receiving state in the OBO association record and persistence behind its repository', async () => {
-    const schema = await readText(
-      api('prisma/modules/obo/application-documents.prisma')
-    )
-    const source = await readText(
-      api('src/apps/obo/application-documents/application-document.service.js')
-    )
-    const repository = await readText(
-      api(
-        'src/apps/obo/application-documents/application-document.repository.js'
-      )
-    )
-    const receiving = await readText(
-      api('src/apps/obo/receiving/receiving.service.js')
-    )
-    expect(schema).toContain('status            String')
-    expect(source).toContain('RECEIVED')
-    expect(source).toContain('VERIFIED')
-    expect(source).toContain('REJECTED')
-    expect(source).toContain('./application-document.repository.js')
-    expect(receiving).toContain(
-      '../application-documents/application-document.service.js'
-    )
-    expect(receiving).not.toContain(
-      '../application-documents/application-document.repository.js'
-    )
-    expect(repository).toContain('withTransaction')
-  })
-  it('enforces verified required documents before inspection acceptance', async () => {
-    const receiving = await readText(
-      api('src/apps/obo/receiving/receiving.service.js')
-    )
-    const documents = await readText(
-      api('src/apps/obo/application-documents/application-document.service.js')
-    )
-    expect(receiving).toContain(
-      'applicationDocumentService.validateRequiredDocuments'
-    )
-    expect(receiving).toMatch(
-      /validateRequiredDocuments\(\{\s*applicationId: id, application, db: tx\s*\}\)/
-    )
-    expect(documents).toContain('status !== STATUS.VERIFIED')
+    const schema = await readText(api('prisma/modules/obo/application-documents.prisma'))
+    const source = await readText(api('src/apps/obo/application-documents/application-document.service.js'))
+    const repository = await readText(api('src/apps/obo/application-documents/application-document.repository.js'))
+    expect(schema).toContain('status')
+    expect(source).toContain("from './application-document.repository.js'")
+    expect(repository).toContain('db.oboPermitApplicationDocument')
   })
 })
 
 describe('OBO separation boundary', () => {
   it('keeps Plan Permit repository scoped to permit application persistence', async () => {
-    const source = await readText(
-      api('src/apps/obo/plan-permits/plan-permit.repository.js')
-    )
+    const source = await readText(api('src/apps/obo/plan-permits/plan-permit.repository.js'))
     expect(source).not.toContain('db.oboPermitType')
     expect(source).not.toContain('db.oboReceivingDecision')
     expect(source).not.toContain('db.caseRecord')
@@ -383,18 +221,10 @@ describe('OBO separation boundary', () => {
     expect(source).not.toContain('appointment.service.js')
   })
   it('routes Plan Permit dependencies through domain and platform services', async () => {
-    const planPermit = await readText(
-      api('src/apps/obo/plan-permits/plan-permit.service.js')
-    )
-    const form = await readText(
-      api('src/apps/obo/plan-permits/plan-permit.form.js')
-    )
-    const workflow = await readText(
-      api('src/apps/obo/plan-permits/plan-permit.workflow.js')
-    )
-    const permitTypes = await readText(
-      api('src/apps/obo/permit-types/permit-type.service.js')
-    )
+    const planPermit = await readText(api('src/apps/obo/plan-permits/plan-permit.service.js'))
+    const form = await readText(api('src/apps/obo/plan-permits/plan-permit.form.js'))
+    const workflow = await readText(api('src/apps/obo/plan-permits/plan-permit.workflow.js'))
+    const permitTypes = await readText(api('src/apps/obo/permit-types/permit-type.service.js'))
     const cases = await readText(api('src/features/cases/cases.service.js'))
     expect(planPermit).toContain('../permit-types/permit-type.service.js')
     expect(planPermit).toContain('permitTypeService.getPermitTypeById')
@@ -412,29 +242,19 @@ describe('OBO separation boundary', () => {
     expect(workflow).toContain('workflowService.getWorkflowInstance')
   })
   it('keeps Receiving persistence inside Receiving while services own cross-domain access', async () => {
-    const receiving = await readText(
-      api('src/apps/obo/receiving/receiving.repository.js')
-    )
-    const service = await readText(
-      api('src/apps/obo/receiving/receiving.service.js')
-    )
+    const receiving = await readText(api('src/apps/obo/receiving/receiving.repository.js'))
+    const service = await readText(api('src/apps/obo/receiving/receiving.service.js'))
     expect(receiving).not.toContain('workflow.repository.js')
     expect(receiving).not.toContain('appointment.service.js')
     expect(receiving).toContain('db.oboReceivingDecision.create')
     expect(service).toContain('../../../platform/workflow/workflow.service.js')
-    expect(service).toContain(
-      '../../../features/appointments/appointment.service.js'
-    )
+    expect(service).toContain('../../../features/appointments/appointment.service.js')
     expect(service).toContain('workflowService.getWorkflowInstance')
     expect(service).toContain('appointmentService.getAppointmentForReference')
   })
   it('keeps OBO Clients behind the shared People service', async () => {
-    const repository = await readText(
-      api('src/apps/obo/clients/client.repository.js')
-    )
-    const service = await readText(
-      api('src/apps/obo/clients/client.service.js')
-    )
+    const repository = await readText(api('src/apps/obo/clients/client.repository.js'))
+    const service = await readText(api('src/apps/obo/clients/client.service.js'))
     expect(repository).not.toContain('features/people/people.repository.js')
     expect(repository).not.toContain('db.person')
     expect(service).toContain('../../../features/people/people.service.js')

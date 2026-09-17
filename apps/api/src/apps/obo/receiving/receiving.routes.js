@@ -7,21 +7,12 @@ import { hasReceivingTaskAccess } from './receiving.authorization.js'
 import * as applicationDocumentController from '../application-documents/application-document.controller.js'
 import * as controller from './receiving.controller.js'
 import * as validation from './receiving.validation.js'
-import {
-  applicationDocumentsParamsValidator,
-  updateDocumentReceiptValidator,
-} from '../application-documents/application-document.validation.js'
+import { applicationDocumentsParamsValidator, updateDocumentReceiptValidator } from '../application-documents/application-document.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-receiving', required: true })
-const loadApplication = (id) => service.getForAuthorization(id)
-const authorizeReceivingApplication = authorizeOBOResource({
-  resource: 'obo_plan_permits',
-  action: 'receive',
-  loadResource: loadApplication,
-  policy: hasReceivingTaskAccess,
-  getResourceId: (req) => req.params.id,
-})
+const loadApplication = (id, req) => service.getForAuthorization(id, req.security.app.id)
+const authorizeReceivingApplication = authorizeOBOResource({ resource: 'obo_plan_permits', action: 'receive', loadResource: loadApplication, policy: hasReceivingTaskAccess, getResourceId: (req) => req.params.id })
 
 router.get('/applications', authenticate, authorizeOBO('obo_plan_permits', 'receive'), validate(validation.listValidator), asyncHandler(controller.list))
 router.get('/applications/:id', authenticate, authorizeReceivingApplication, validate(validation.applicationParamsValidator), asyncHandler(controller.get))

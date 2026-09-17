@@ -1,6 +1,7 @@
 model OboPermitApplication {
   id                      String                    @id @default(uuid())
-  referenceNumber         String                    @unique
+  appId                   String
+  referenceNumber         String
   caseId                  String                    @unique
   permitTypeId            String
   clientPersonId          String
@@ -14,8 +15,9 @@ model OboPermitApplication {
   declineReason           String?
   acceptedAt              DateTime?
   acceptedByUserId        Int?
-  caseRecord              CaseRecord                @relation(fields: [caseId], references: [id], onDelete: Restrict)
-  permitType              OboPermitType             @relation(fields: [permitTypeId], references: [id], onDelete: Restrict)
+  app                     App                       @relation(fields: [appId], references: [id], onDelete: Restrict)
+  caseRecord              CaseRecord                @relation(fields: [caseId, appId], references: [id, appId], onDelete: Restrict)
+  permitType              OboPermitType             @relation(fields: [permitTypeId, appId], references: [id, appId], onDelete: Restrict)
   clientPerson            Person                    @relation("OboApplicationClient", fields: [clientPersonId], references: [id], onDelete: Restrict)
   workflowInstance        WorkflowInstance?         @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
   acceptedBy              User?                     @relation("OboApplicationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
@@ -27,8 +29,13 @@ model OboPermitApplication {
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
 
-  @@index([clientPersonId, createdAt])
-  @@index([permitTypeId])
+  @@index([appId])
+  @@index([appId, clientPersonId, createdAt])
+  @@index([appId, permitTypeId])
+  @@index([appId, referenceNumber])
   @@index([replacesApplicationId])
   @@index([formVersionId])
+  @@unique([appId, referenceNumber])
+  @@unique([id, appId])
+  @@unique([caseId, appId])
 }

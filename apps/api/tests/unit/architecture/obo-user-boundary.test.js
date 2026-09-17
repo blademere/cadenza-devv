@@ -18,7 +18,8 @@ describe('OBO User boundary', () => {
     expect(professionalSchema).not.toMatch(
       /^\s*user\s+User\?/m
     )
-    expect(professionalSchema).toMatch(/^\s*personId\s+String\s+@unique/m)
+    expect(professionalSchema).toMatch(/^\s*personId\s+String/m)
+    expect(professionalSchema).toContain('@@unique([appId, personId])')
     expect(professionalSchema).toMatch(/^\s*person\s+Person\s+@relation/m)
   })
 
@@ -34,7 +35,7 @@ describe('OBO User boundary', () => {
     expect(repository).toContain('findByPersonId')
     expect(repository).not.toContain('findByUserId =')
     expect(service).toContain('const person = await repository.findPersonByUserId(userId)')
-    expect(service).toContain('repository.findByPersonId(person.id)')
+    expect(service).toContain('repository.findByPersonId(person.id, appId)')
     expect(service).not.toContain('repository.findByUserId(userId)')
     expect(service).not.toContain('professional.userId')
   })

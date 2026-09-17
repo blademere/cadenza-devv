@@ -8,7 +8,7 @@ import * as validation from './professional.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-professionals', required: true })
-const loadProfessional = (id) => service.getForAuthorization(id)
+const loadProfessional = (id, req) => service.getForAuthorization(id, req.security.app.id)
 
 router.get('/', authenticate, authorizeOBO('obo_professionals', 'read'), validate(validation.professionalLookupValidator), asyncHandler(controller.listDirectory))
 router.get('/profile', authenticate, authorizeOBO('obo_professionals', 'read'), asyncHandler(controller.getProfile))

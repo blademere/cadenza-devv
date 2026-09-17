@@ -8,7 +8,7 @@ import * as validation from './plan-permit.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-plan-permits', required: true })
-const loadApplication = (id) => service.getForAuthorization(id)
+const loadApplication = (id, req) => service.getForAuthorization(id, req.security.app.id)
 const authorizeApplicationRead = authorizeOBOResource({ resource: 'obo_plan_permits', action: 'read', loadResource: loadApplication, getResourceId: (req) => req.params.id })
 const authorizeApplicationUpdate = authorizeOBOResource({ resource: 'obo_plan_permits', action: 'update', loadResource: loadApplication, getResourceId: (req) => req.params.id })
 const authorizeApplicationSubmit = authorizeOBOResource({ resource: 'obo_plan_permits', action: 'submit', loadResource: loadApplication, getResourceId: (req) => req.params.id })

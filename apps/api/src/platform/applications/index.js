@@ -37,3 +37,9 @@ export {
   requireApplicationContext,
   readApplicationId,
 } from './application-context.middleware.js'
+
+export {
+  normalizeAppId,
+  requireAppId,
+  withAppId,
+} from './application-scope.js'

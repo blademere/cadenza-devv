@@ -1,8 +1,9 @@
 model OboProfessional {
   id                 String @id @default(uuid())
-  personId           String @unique
-  registrationNumber String @unique
-  prcId              String? @unique
+  appId              String
+  personId           String
+  registrationNumber String
+  prcId              String?
   ptrNumber          String?
   professionalRole   String?
 
@@ -10,13 +11,19 @@ model OboProfessional {
   verifiedByUserId      Int?
   verifiedAt            DateTime?
   verificationReason    String?
+  app                   App                                   @relation(fields: [appId], references: [id], onDelete: Restrict)
   person                Person                                @relation(fields: [personId], references: [id], onDelete: Restrict)
   verifiedBy            User?                                 @relation("OboProfessionalVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
   verificationDecisions OboProfessionalVerificationDecision[]
   createdAt             DateTime                              @default(now())
   updatedAt             DateTime                              @updatedAt
 
-  @@index([status])
-  @@index([ptrNumber])
-  @@index([professionalRole])
+  @@index([appId])
+  @@index([appId, status])
+  @@index([appId, ptrNumber])
+  @@index([appId, professionalRole])
+  @@unique([appId, personId])
+  @@unique([appId, registrationNumber])
+  @@unique([appId, prcId])
+  @@unique([id, appId])
 }

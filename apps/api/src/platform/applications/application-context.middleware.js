@@ -2,13 +2,11 @@ import { ForbiddenError } from '../../common/errors/appError.js'
 import { setApplicationContext } from '../context/index.js'
 import { getUserAuthorizationContext } from '../authorization/authorization-context.repository.js'
 import { APPLICATION_ID_HEADER } from '../context/context.constants.js'
+import { normalizeAppId } from './application-scope.js'
 
 const readApplicationId = (req) => {
   const value = req.get?.(APPLICATION_ID_HEADER) ?? req.headers?.[APPLICATION_ID_HEADER]
-  if (typeof value !== 'string') return null
-
-  const appId = value.trim()
-  return appId || null
+  return typeof value === 'string' ? normalizeAppId(value) : null
 }
 
 const requireApplicationContext = ({ appKey = null } = {}) => {
@@ -49,19 +47,22 @@ const requireApplicationContext = ({ appKey = null } = {}) => {
         return next(new ForbiddenError(`Application context '${normalizedAppKey}' is required.`))
       }
 
-      req.appContext = { ...security.app }
-      req.appMembership = security.membership
-      req.security = {
+      const { app, membership, roles, permissions } = security
+      const securityContext = {
         user: req.user,
-        app: security.app,
-        membership: security.membership,
-        roles: security.roles,
-        permissions: security.permissions,
+        app,
+        membership,
+        roles,
+        permissions,
       }
 
+      req.appContext = { ...app }
+      req.appMembership = membership
+      req.security = securityContext
+
       setApplicationContext({
-        appId: security.app.id,
-        appKey: security.app.key,
+        appId: app.id,
+        appKey: app.key,
       })
 
       return next()

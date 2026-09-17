@@ -14,15 +14,17 @@ const OBO_APPOINTMENT_TYPE = {
 
 async function seedOboReferenceData(prisma, { planPermitForm } = {}) {
   if (!planPermitForm?.id) throw new Error("Platform form 'obo-building-plan-permit' must be seeded before OBO reference data.")
+  const oboApp = await prisma.app.findUnique({ where: { key: 'obo' } })
+  if (!oboApp) throw new Error("Application 'obo' must be seeded before OBO reference data.")
 
   const permitType = await prisma.oboPermitType.upsert({
-    where: { key: OBO_PERMIT_TYPE.key },
+    where: { appId_key: { appId: oboApp.id, key: OBO_PERMIT_TYPE.key } },
     update: { name: OBO_PERMIT_TYPE.name, description: OBO_PERMIT_TYPE.description, formId: planPermitForm.id, isActive: true },
-    create: { ...OBO_PERMIT_TYPE, formId: planPermitForm.id, isActive: true },
+    create: { ...OBO_PERMIT_TYPE, appId: oboApp.id, formId: planPermitForm.id, isActive: true },
   })
 
   const appointmentType = await prisma.appointmentType.upsert({
-    where: { key: OBO_APPOINTMENT_TYPE.key },
+    where: { appId_key: { appId: oboApp.id, key: OBO_APPOINTMENT_TYPE.key } },
     update: {
       name: OBO_APPOINTMENT_TYPE.name,
       description: OBO_APPOINTMENT_TYPE.description,
@@ -30,7 +32,7 @@ async function seedOboReferenceData(prisma, { planPermitForm } = {}) {
       defaultCapacity: OBO_APPOINTMENT_TYPE.defaultCapacity,
       isActive: true,
     },
-    create: { ...OBO_APPOINTMENT_TYPE, isActive: true },
+    create: { ...OBO_APPOINTMENT_TYPE, appId: oboApp.id, isActive: true },
   })
 
   return { permitType, appointmentType }

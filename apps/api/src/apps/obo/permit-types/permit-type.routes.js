@@ -9,7 +9,7 @@ import { createPermitTypeValidator, getPermitTypeFormValidator, permitTypeIdVali
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-permit-types', required: true })
-const loadPermitType = (id) => service.getForAuthorization(id)
+const loadPermitType = (id, req) => service.getForAuthorization(id, req.security.app.id)
 const authorize = authorizeOBO
 const authorizeResource = authorizeOBOResource
 

@@ -14,6 +14,7 @@ const publishCaseCreated = async (record, data, db) => {
     entityId: record.id,
     actorId: data.createdByUserId || null,
     context: {
+      appId: record.appId,
       caseTypeId: record.caseTypeId,
       caseNumber: record.caseNumber,
       status: record.status,
@@ -36,14 +37,15 @@ const createCase = (data, db = prisma) => {
   })
 }
 
-const findCaseById = (id, options = {}) => {
-  const db = options.db || prisma
-  return db.caseRecord.findUnique({
-    where: { id },
-    ...(options.includeDetails === false
+const findCaseById = (id, { appId, db = prisma, includeDetails = true } = {}) => {
+  if (!appId) throw new Error('appId is required to access a case.')
+  return db.caseRecord.findFirst({
+    where: { id, appId },
+    ...(includeDetails === false
       ? {
           select: {
             id: true,
+            appId: true,
             caseTypeId: true,
             status: true,
             caseNumber: true,
@@ -62,15 +64,22 @@ const findCaseById = (id, options = {}) => {
 }
 
 const findCaseTypeById = (id, db = prisma) => db.caseType.findUnique({ where: { id } })
-const listCases = ({ skip, take, where }, db = prisma) => db.caseRecord.findMany({ where, skip, take, include: { caseType: true }, orderBy: { createdAt: 'desc' } })
-const countCases = (where, db = prisma) => db.caseRecord.count({ where })
-const transitionCase = (id, fromStatus, toStatus, changedByUserId, reason, metadata, db = prisma) => {
+const listCases = ({ skip, take, where, appId }, db = prisma) => {
+  if (!appId) throw new Error('appId is required to list cases.')
+  return db.caseRecord.findMany({ where: { ...(where || {}), appId }, skip, take, include: { caseType: true }, orderBy: { createdAt: 'desc' } })
+}
+const countCases = ({ where, appId }, db = prisma) => {
+  if (!appId) throw new Error('appId is required to count cases.')
+  return db.caseRecord.count({ where: { ...(where || {}), appId } })
+}
+const transitionCase = (id, appId, fromStatus, toStatus, changedByUserId, reason, metadata, db = prisma) => {
+  if (!appId) throw new Error('appId is required to transition a case.')
   const run = async (tx) => {
-    const updated = await tx.caseRecord.updateMany({ where: { id, status: fromStatus }, data: { status: toStatus, closedAt: toStatus === 'CLOSED' ? new Date() : null } })
+    const updated = await tx.caseRecord.updateMany({ where: { id, appId, status: fromStatus }, data: { status: toStatus, closedAt: toStatus === 'CLOSED' ? new Date() : null } })
     if (updated.count !== 1) return null
     const history = await tx.caseStatusHistory.create({ data: { caseId: id, fromStatus, toStatus, changedByUserId, reason, metadata } })
-    await publish({ db: tx, event: 'case.transitioned', entityType: 'Case', entityId: id, actorId: changedByUserId || null, context: { fromStatus, toStatus, reason: reason || null, metadata: metadata || {}, historyId: history.id }, idempotencyKey: `case:${id}:transition:${history.id}` })
-    return tx.caseRecord.findUnique({ where: { id } })
+    await publish({ db: tx, event: 'case.transitioned', entityType: 'Case', entityId: id, actorId: changedByUserId || null, context: { appId, fromStatus, toStatus, reason: reason || null, metadata: metadata || {}, historyId: history.id }, idempotencyKey: `case:${id}:transition:${history.id}` })
+    return tx.caseRecord.findFirst({ where: { id, appId } })
   }
   return db === prisma ? prisma.$transaction(run) : run(db)
 }
