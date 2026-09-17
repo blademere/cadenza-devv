@@ -1,6 +1,6 @@
 import express from 'express'
 import authRouter from '../features/auth/auth.routes.js'
-import userRouter from '../features/users/user.routes.js'
+import profileRouter from '../features/users/profile.routes.js'
 import createAuthorizationContextRouter from '../platform/authorization/authorization-context.routes.js'
 import auditRouter from '../platform/audit/audit.routes.js'
 import applicationRouter from '../platform/applications/application.routes.js'
@@ -10,7 +10,7 @@ import authenticate from '../features/auth/authenticate.secure.js'
 const router = express.Router()
 
 router.use('/auth', authRouter)
-router.use('/users', userRouter)
+router.use('/users', profileRouter)
 router.use('/audit', auditRouter)
 router.use('/apps', applicationRouter)
 router.use('/', createAuthorizationContextRouter({ authenticate }))
