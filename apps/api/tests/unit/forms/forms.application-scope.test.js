@@ -7,8 +7,8 @@ const repository = vi.hoisted(() => Object.fromEntries([
   'createSubmissionRecord', 'findPublishedForm',
 ].map((name) => [name, vi.fn()])))
 
-vi.mock('../../../../src/platform/forms/form.repository.js', () => repository)
-const formService = await import('../../../../src/platform/forms/form.service.js')
+vi.mock('../../../src/platform/forms/form.repository.js', () => repository)
+const formService = await import('../../../src/platform/forms/form.service.js')
 
 describe('forms application scope', () => {
   it('requires appId for form lookup', async () => {
