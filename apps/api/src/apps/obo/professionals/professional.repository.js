@@ -60,7 +60,7 @@ const listLookup = ({ appId, status = 'VERIFIED', role, search } = {}, db = pris
 const update = async (id, appId, data, db = prisma) => {
   const result = await db.oboProfessional.updateMany({ where: withAppId({ id }, appId), data })
   if (!result.count) return null
-  return db.oboProfessional.findUnique({ where: { id } })
+  return db.oboProfessional.findFirst({ where: withAppId({ id }, appId) })
 }
 const addDecision = (data, db = prisma) => db.oboProfessionalVerificationDecision.create({ data })
 const withTransaction = (callback) => prisma.$transaction(callback)
