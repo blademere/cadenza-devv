@@ -7,6 +7,7 @@ vi.mock('../../../src/features/people/people.service.js')
 const userRepository = await import('../../../src/features/users/user.repository.js')
 const userMapper = await import('../../../src/features/users/user.mapper.js')
 const peopleService = await import('../../../src/features/people/people.service.js')
+const { NotFoundError } = await import('../../../src/common/errors/appError.js')
 const { getMyProfile, createMyProfile, updateMyProfile } = await import('../../../src/features/profile/profile.service.js')
 
 const user = {
@@ -53,6 +54,7 @@ describe('profile service', () => {
       firstName: 'Maria',
       lastName: 'Santos',
     }
+    peopleService.getByUserId.mockRejectedValueOnce(new NotFoundError('Profile not found.'))
 
     await expect(createMyProfile(7, data)).resolves.toEqual({
       user: userResponse,
