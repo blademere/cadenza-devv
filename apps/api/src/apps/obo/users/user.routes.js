@@ -1,6 +1,7 @@
 import express from 'express'
 import { asyncHandler, validate, idempotency } from '../../../common/middleware/index.js'
 import authorize, { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
+import { getApplicationId } from '../../../platform/applications/application-context.middleware.js'
 import { getUserMembership } from '../../../platform/applications/application.service.js'
 import {
   listUsersValidator,
@@ -14,7 +15,7 @@ const requireIdempotency = idempotency({ scope: 'obo-users', required: true })
 
 const loadOBOUserMembership = async (userId, req) => getUserMembership({
   userId,
-  appId: req.auth?.appId ?? req.appContext?.id ?? req.security?.app?.id,
+  appId: getApplicationId(req),
 })
 
 const authorizeOBOUserRoleManagement = authorizeResource({
