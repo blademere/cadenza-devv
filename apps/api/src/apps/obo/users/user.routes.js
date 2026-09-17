@@ -8,8 +8,8 @@ import { getUserMembership } from '../../../platform/applications/application.se
 import {
   listUsersValidator,
   createUserValidator,
-} from '../../../features/users/user.validation.js'
-import { assignUserRoleValidator } from './user.validation.js'
+  assignUserRoleValidator,
+} from './user.validation.js'
 import * as controller from './user.controller.js'
 
 const router = express.Router()
