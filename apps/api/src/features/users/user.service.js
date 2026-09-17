@@ -13,15 +13,16 @@ import { toUserResponse } from './user.mapper.js'
  * List users through the reusable user capability.
  *
  * Contract:
+ * - appId optionally scopes the identity query to active membership in an application.
  * - filters contains persistence-level user filters.
  * - pagination contains normalized { page, limit, skip, take } values.
  * - orderBy contains the validated Prisma ordering expression.
  *
- * Application membership, application roles, and application-specific
- * authorization remain outside this capability.
+ * Application authorization and role assignment remain outside this capability.
  */
-const listUsers = async ({ filters = {}, pagination, orderBy }) => {
+const listUsers = async ({ appId, filters = {}, pagination, orderBy }) => {
   const { users, total } = await findAllUsers({
+    appId,
     skip: pagination.skip,
     take: pagination.take,
     filters,
