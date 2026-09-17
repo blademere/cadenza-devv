@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../../src/platform/authorization/access-control.service.js', () => ({
   can: vi.fn(),
@@ -13,6 +13,8 @@ vi.mock('../../../../src/platform/audit/audit.service.js', () => ({
 
 const accessControlService = await import('../../../../src/platform/authorization/access-control.service.js')
 const { default: authorizeResource } = await import('../../../../src/platform/authorization/authorization-resource.middleware.js')
+
+afterEach(() => vi.clearAllMocks())
 
 describe('application-scoped authorization', () => {
   it('passes the request application to the permission check and resource loader', async () => {
