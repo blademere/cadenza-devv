@@ -47,20 +47,13 @@ describe('user listing capability', () => {
     })
   })
 
-  it('maps roles from the requested application membership', async () => {
-    users.findAllUsers.mockResolvedValue({
-      users: [{
-        id: 100,
-        email: 'obo@example.com',
-        appMemberships: [
-          {
-            appId: 7,
-            roles: [{ role: { id: 11, name: 'receiving_officer', description: 'Receives applications' } }],
-          },
-        ],
-      }],
-      total: 1,
-    })
+  it('passes application-scoped roles through the shared mapper', async () => {
+    const user = {
+      id: 100,
+      email: 'obo@example.com',
+      roles: [{ id: 11, name: 'receiving_officer', description: 'Receives applications' }],
+    }
+    users.findAllUsers.mockResolvedValue({ users: [user], total: 1 })
 
     await expect(listUsers({
       appId: 7,
@@ -68,17 +61,15 @@ describe('user listing capability', () => {
       pagination: { page: 1, limit: 20, skip: 0, take: 20 },
       orderBy: { createdAt: 'desc' },
     })).resolves.toMatchObject({
-      data: [{
-        id: 100,
-        email: 'obo@example.com',
-        roles: [{ id: 11, name: 'receiving_officer', description: 'Receives applications' }],
-      }],
+      data: [user],
       pagination: { total: 1, pages: 1 },
     })
+
+    expect(mapper.toUserResponse).toHaveBeenCalledWith(user)
   })
 })
 
-describe('user creation capability', () => {
+describe('user creation capability', () =>
   it('creates a global user identity from a prepared password hash', async () => {
     await expect(createUser({
       email: 'new@example.com',
