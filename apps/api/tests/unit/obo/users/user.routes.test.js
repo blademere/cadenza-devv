@@ -15,12 +15,9 @@ vi.mock('../../../../src/platform/applications/application.service.js', () => ({
   getUserMembership: vi.fn(),
 }))
 
-vi.mock('../../../../src/features/users/user.validation.js', () => ({
+vi.mock('../../../../src/apps/obo/users/user.validation.js', () => ({
   listUsersValidator: {},
   createUserValidator: {},
-}))
-
-vi.mock('../../../../src/apps/obo/users/user.validation.js', () => ({
   assignUserRoleValidator: {},
 }))
 
