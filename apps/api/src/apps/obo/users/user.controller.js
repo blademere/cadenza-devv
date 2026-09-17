@@ -38,7 +38,18 @@ const createUser = async (req, res) => {
   return successResponse(res, 'OBO user created successfully.', result, 201)
 }
 
+const assignUserRole = async (req, res) => {
+  const result = await service.assignUserRole({
+    appId: getAppId(req),
+    userId: req.validated.params.userId,
+    roleId: req.validated.body.roleId,
+  })
+
+  return successResponse(res, 'OBO user role assigned successfully.', result, 200)
+}
+
 export {
   listUsers,
   createUser,
+  assignUserRole,
 }
