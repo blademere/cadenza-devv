@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 const makeScopedDb = ({ model, record, matches }) => ({
   [model]: {
-    findFirst: vi.fn(async ({ where }) => (matches(where) ? record : null)),
-    findMany: vi.fn(async ({ where }) => (matches(where) ? [record] : [])),
-    updateMany: vi.fn(async ({ where }) => ({ count: matches(where) ? 1 : 0 })),
+    findFirst: vi.fn(async ({ where }) => (matches(where) && (!record?.appId || record.appId === where?.appId) ? record : null)),
+    findMany: vi.fn(async ({ where }) => (matches(where) && (!record?.appId || record.appId === where?.appId) ? [record] : [])),
+    updateMany: vi.fn(async ({ where }) => ({ count: matches(where) && (!record?.appId || record.appId === where?.appId) ? 1 : 0 })),
     create: vi.fn(async ({ data }) => ({ ...record, ...data })),
   },
 })
