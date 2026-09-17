@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repository = vi.hoisted(() => ({
   findPersonByUserId: vi.fn(),
@@ -34,21 +34,24 @@ vi.mock('../../../src/apps/obo/professionals/professional.service.js', () => pro
 vi.mock('../../../src/apps/obo/professionals/professional-reference.service.js', () => professionalReferenceService)
 vi.mock('../../../src/platform/forms/form.service.js', () => formService)
 vi.mock('../../../src/platform/workflow/workflow.service.js', () => workflowService)
-vi.mock('../../../src/platform/audit/audit.service.js', () => auditService)
-vi.mock('../../../src/platform/event-bus/event-bus.js', () => eventBus)
+vi.mock('../../../src/platform/audit/audit.service.js', () => ({ recordAudit: auditService.recordAudit }))
+vi.mock('../../../src/platform/event-bus/event-bus.js', () => ({ publish: eventBus.publish }))
 vi.mock('../../../src/features/appointments/appointment.service.js', () => appointmentService)
 vi.mock('../../../src/features/tasks/tasks.service.js', () => taskService)
 vi.mock('../../../src/features/documents/document.service.js', () => documentsService)
 vi.mock('../../../src/apps/obo/application-documents/application-document.repository.js', () => repository)
 
-const service = await import('../../../src/apps/obo/plan-permits/plan-permit.service.js')
-const { resolveAndValidateForm } = await import('../../../src/apps/obo/plan-permits/plan-permit.form.js')
-const { createApplicationValidator, updateApplicationValidator } = await import('../../../src/apps/obo/plan-permits/plan-permit.validation.js')
-const documentService = await import('../../../src/apps/obo/application-documents/application-document.service.js')
+let service
+let resolveAndValidateForm
 
 const person = { id: 'person-1', userId: 'user-1', email: 'client@example.com' }
 const permitType = { id: 'permit-1', name: 'Building Permit', isActive: true, formId: null }
 const application = { id: 'application-1', caseId: 'case-1', workflowInstanceId: 'workflow-1', clientPersonId: 'person-1', permitType, formValues: {}, submissionAppointment: { appointmentId: 'appointment-1' } }
+
+beforeAll(async () => {
+  service = await import('../../../src/apps/obo/plan-permits/plan-permit.service.js')
+  ;({ resolveAndValidateForm } = await import('../../../src/apps/obo/plan-permits/plan-permit.form.js'))
+})
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -103,17 +106,13 @@ describe('OBO plan permit service', () => {
 describe('OBO plan permit form resolution', () => {
   it('passes application context when resolving a form version', async () => {
     await resolveAndValidateForm({ permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'version-1', formValues: {}, appId: 'obo-app' })
-    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-1', 'obo-app')
+    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-1', 'obo-app', expect.anything())
   })
 
   it('resolves an explicitly selected published version instead of the latest version', async () => {
     formService.getFormVersionById.mockResolvedValue({ id: 'version-2', formId: 'form-1', version: 2, status: 'PUBLISHED', fields: [] })
     await resolveAndValidateForm({ permitType: { ...permitType, formId: 'form-1' }, formVersionId: 'version-2', formValues: {}, appId: 'obo-app' })
-    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-2', 'obo-app')
+    expect(formService.getFormVersionById).toHaveBeenCalledWith('version-2', 'obo-app', expect.anything())
     expect(formService.validateFormValues).toHaveBeenCalledWith(expect.objectContaining({ appId: 'obo-app', version: 2 }))
   })
 })
-
-void createApplicationValidator
-void updateApplicationValidator
-void documentService
