@@ -32,6 +32,9 @@
     "prisma:migrate": "nx run api:prisma:migrate",
     "prisma:migrate:deploy": "nx run api:prisma:migrate:deploy",
     "db:seed": "nx run api:db:seed",
+    "db:seed:development": "nx run api:db:seed:development",
+    "db:seed:fixtures": "nx run api:db:seed:fixtures",
+    "db:seed:coverage": "nx run api:db:seed:coverage",
     "db:setup": "nx run api:db:setup",
     "db:backup": "nx run api:db:backup",
     "db:restore": "nx run api:db:restore"
