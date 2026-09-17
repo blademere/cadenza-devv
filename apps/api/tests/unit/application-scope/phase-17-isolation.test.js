@@ -134,7 +134,12 @@ describe('phase 17 application isolation matrix', () => {
   })
 
   it('the Phase 13 unique constraints remain application-scoped', async () => {
-    const migration = await readPrisma('migrations/20260916160000_scope_application_unique_constraints/migration.sql')
+    const migrations = [
+      await readPrisma('migrations/20260916160000_scope_application_unique_constraints/migration.sql'),
+      await readPrisma('migrations/20260916160000_scope_appointments_to_application/migration.sql'),
+      await readPrisma('migrations/20260916170000_scope_requirements_to_application/migration.sql'),
+      await readPrisma('migrations/20260916175000_scope_forms_to_application/migration.sql'),
+    ].join('\n')
     const expectedIndexes = [
       'CaseRecord_appId_caseNumber_key',
       'Form_appId_key_key',
@@ -147,7 +152,7 @@ describe('phase 17 application isolation matrix', () => {
       'OboProfessional_appId_registrationNumber_key',
       'OboProfessional_appId_prcId_key',
     ]
-    for (const index of expectedIndexes) expect(migration).toContain(index)
+    for (const index of expectedIndexes) expect(migrations).toContain(index)
   })
 
   it('the application isolation matrix covers every Phase 17 target capability', () => {
