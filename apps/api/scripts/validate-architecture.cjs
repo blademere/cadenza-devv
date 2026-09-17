@@ -79,6 +79,30 @@ const getUserArchitectureViolations = (relative, source) => {
     )
   }
 
+  if (
+    relative.startsWith(USER_FEATURE_ROOT) &&
+    /(?:\.\.\/)+platform\/applications\//.test(source)
+  ) {
+    violations.push(
+      `${relative}: shared users must not orchestrate application membership or roles; application-owned user services must compose platform applications.`
+    )
+  }
+
+  if (
+    relative.startsWith(USER_FEATURE_ROOT) &&
+    /(?:\.\.\/)+platform\/authorization\//.test(source)
+  ) {
+    violations.push(
+      `${relative}: shared users must not depend on application authorization; authorization belongs to the owning application route/service.`
+    )
+  }
+
+  if (/(?:\b(?:user|users)\.)roleId\b/.test(source)) {
+    violations.push(
+      `${relative}: user-level roleId access is forbidden; roles must be resolved through AppMembershipRole.`
+    )
+  }
+
   return violations
 }
 
