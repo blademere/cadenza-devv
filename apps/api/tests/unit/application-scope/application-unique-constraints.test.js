@@ -42,8 +42,8 @@ describe('application-scoped unique constraints', () => {
   })
 
   test('global platform identifiers remain globally unique', () => {
-    expect(read('platform/cases.prisma')).toContain('key         String       @unique')
-    expect(read('platform/documents.prisma')).toContain('storageKey                 String                         @unique')
-    expect(read('platform/workflow.prisma')).toContain('key         String            @unique')
+    expect(read('platform/cases.prisma')).toMatch(/key\s+String\s+@unique/)
+    expect(read('platform/documents.prisma')).toMatch(/storageKey\s+String\s+@unique/)
+    expect(read('platform/workflow.prisma')).toMatch(/key\s+String\s+@unique/)
   })
 })
