@@ -1,7 +1,7 @@
 import express from 'express'
 import { asyncHandler, validate, idempotency } from '../../../common/middleware/index.js'
 import authenticate from '../../../features/auth/authenticate.secure.js'
-import authorize from '../../../platform/authorization/authorization.middleware.js'
+import authorize, { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
 import * as controller from './plan-permit.controller.js'
 import * as service from './plan-permit.service.js'
 import * as validation from './plan-permit.validation.js'
