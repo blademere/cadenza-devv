@@ -204,7 +204,7 @@ describe('Document checklist boundary', () => {
     const source = await readText(api('src/apps/obo/application-documents/application-document.service.js'))
     const repository = await readText(api('src/apps/obo/application-documents/application-document.repository.js'))
     expect(schema).toContain('status')
-    expect(source).toContain('applicationDocumentRepository')
+    expect(source).toContain("from './application-document.repository.js'")
     expect(repository).toContain('db.oboPermitApplicationDocument')
   })
 })
