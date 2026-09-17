@@ -14,22 +14,22 @@ import {
 } from './authorization.validation.js'
 
 const router = express.Router()
-const manageAuthorization = authorizeOBO('authorization', 'manage')
+const manageAuthorization = authorizeOBO('obo_authorization', 'manage')
 const requireIdempotency = idempotency({ scope: 'obo-authorization', required: true })
 const authorizeModuleResource = authorizeOBOResource({
-  resource: 'authorization',
+  resource: 'obo_authorization',
   action: 'manage',
   loadResource: getAuthorizationModule,
   getResourceId: (req) => Number(req.params.moduleId),
 })
 const authorizeRoleResource = authorizeOBOResource({
-  resource: 'authorization',
+  resource: 'obo_authorization',
   action: 'manage',
   loadResource: (roleId, req) => getAuthorizationRole({ roleId, appId: req.security.app.id }),
   getResourceId: (req) => Number(req.params.roleId),
 })
 const authorizeMembershipResource = authorizeOBOResource({
-  resource: 'authorization',
+  resource: 'obo_authorization',
   action: 'manage',
   loadResource: (membershipId, req) => getAuthorizationMembership({ membershipId, appId: req.security.app.id }),
   getResourceId: (req) => req.params.membershipId,
