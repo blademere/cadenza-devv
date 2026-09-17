@@ -89,7 +89,7 @@ describe('Authorization architecture contract', () => {
     expect(oboService).not.toContain('access-control.repository.js')
 
     expect(oboRoutes).toContain("'../authorization/authorization.service.js'")
-    expect(oboRoutes).toContain("authorizeOBO('authorization', 'manage')")
+    expect(oboRoutes).toContain("authorizeOBO('obo_authorization', 'manage')")
     expect(oboRoutes).toContain('requireApplicationContext')
     expect(oboRoutes).not.toContain("platform/authorization/authorize.js")
     expect(oboRoutes).not.toContain("platform/authorization/authorization-resource.middleware.js")
