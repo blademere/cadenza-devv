@@ -82,7 +82,7 @@ async function seedOboWorkflow(prisma) {
     await prisma.workflowTransition.upsert({
       where: { workflowVersionId_key: { workflowVersionId: version.id, key: transition.key } },
       update: { fromStepId: fromStep.id, toStepId: toStep.id, name: transition.name, permissionKey: transition.permissionKey },
-      create: { workflowVersionId: version.id, fromStepId: fromStep.id, fromStepId: fromStep.id, toStepId: toStep.id, key: transition.key, name: transition.name, permissionKey: transition.permissionKey },
+      create: { workflowVersionId: version.id, fromStepId: fromStep.id, toStepId: toStep.id, key: transition.key, name: transition.name, permissionKey: transition.permissionKey },
     })
   }
   return { workflow, version, steps: stepByKey }
