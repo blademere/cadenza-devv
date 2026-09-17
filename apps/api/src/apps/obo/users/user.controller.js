@@ -4,11 +4,8 @@ import {
   normalizePagination,
   createOrderBy,
   pickFilters,
-  createPaginationMeta,
 } from '../../../common/pagination/pagination.js'
 import * as usersService from '../../../features/users/user.service.js'
-import { toUserResponse } from '../../../features/users/user.mapper.js'
-import { findAllOBOUsers } from './user.repository.js'
 import {
   addMembership,
   addMembershipRole,
@@ -25,10 +22,9 @@ const listUsers = async (req, res) => {
     ['createdAt', 'updatedAt', 'email', 'isActive'],
     'createdAt'
   )
-  const { users, total } = await findAllOBOUsers({
+  const result = await usersService.listUsers({
     appId: getAppId(req),
-    skip: pagination.skip,
-    take: pagination.take,
+    pagination,
     filters: pickFilters(query, ['email', 'isActive']),
     orderBy,
   })
@@ -36,12 +32,7 @@ const listUsers = async (req, res) => {
   return res.status(200).json({
     success: true,
     message: 'OBO users retrieved successfully.',
-    data: users.map(toUserResponse),
-    pagination: createPaginationMeta({
-      page: pagination.page,
-      limit: pagination.limit,
-      total,
-    }),
+    ...result,
   })
 }
 
