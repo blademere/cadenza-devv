@@ -74,7 +74,7 @@ const addProfessionalParticipants = async ({ caseId, applicationId, professional
   const addedPersonIds = new Set()
   const associatedProfessionals = []
   for (const { fieldKey, snapshot } of getProfessionalSnapshotEntries(professionalSnapshots)) {
-    const professional = await professionalService.getForReference(snapshot.professionalId, appId)
+    const professional = await professionalService.getForReference(snapshot.professionalId, appId, db)
     if (!professional?.personId) throw new ConflictError('Referenced professional is missing a person profile.')
     if (addedPersonIds.has(professional.personId)) continue
     await participantService.add({ caseId, personId: professional.personId, roleKey: PARTICIPANT_ROLE.PROFESSIONAL, isPrimary: false, metadata: { source: 'obo-plan-permit', professionalId: professional.id, professionalRole: professional.professionalRole || null, fieldKey }, appId, db })
@@ -111,7 +111,6 @@ const createApplication = async ({ appId, userId, permitTypeId, formVersionId, f
   })
   return withWorkflowState(await hydrateApplication(application, appId))
 }
-
 const getMine = async ({ id, appId, userId }) => {
   const person = await getClientPerson(userId)
   const application = await repository.findOwnedByClient(id, person.id, appId)
