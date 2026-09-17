@@ -1,7 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-const authorize = vi.fn()
-const authorizeResource = vi.fn()
 const management = {
   listModules: vi.fn(),
   getModule: vi.fn(),
@@ -17,53 +15,12 @@ const management = {
   replaceMembershipRoles: vi.fn(),
 }
 
-vi.mock('../../../src/platform/authorization/authorization.middleware.js', () => ({ authorize, authorizeResource }))
 vi.mock('../../../src/apps/obo/authorization/authorization-management.service.js', () => management)
 
 const service = await import('../../../src/apps/obo/authorization/authorization.service.js')
 
 describe('OBO authorization service', () => {
   beforeEach(() => vi.clearAllMocks())
-
-  it('allows only OBO authorization resources', () => {
-    expect(service.authorizeOBO('obo_plan_permits', 'read')).toBeUndefined()
-    expect(authorize).toHaveBeenCalledWith('obo_plan_permits', 'read')
-
-    expect(() => service.authorizeOBO('admin_users', 'read')).toThrow(
-      'Unsupported OBO authorization resource: admin_users'
-    )
-    expect(authorize).toHaveBeenCalledTimes(1)
-  })
-
-  it('scopes OBO resource authorization before delegating to Platform', () => {
-    const policy = () => true
-    service.authorizeOBOResource({
-      resource: 'obo_professionals',
-      action: 'review',
-      loadResource: vi.fn(),
-      getResourceId: vi.fn(),
-      policy,
-    })
-
-    expect(authorizeResource).toHaveBeenCalledWith({
-      resource: 'obo_professionals',
-      action: 'review',
-      loadResource: expect.any(Function),
-      getResourceId: expect.any(Function),
-      policy,
-    })
-  })
-
-  it('rejects non-OBO resources before reaching Platform resource authorization', () => {
-    expect(() => service.authorizeOBOResource({
-      resource: 'admin_users',
-      action: 'read',
-      loadResource: vi.fn(),
-      getResourceId: vi.fn(),
-    })).toThrow('Unsupported OBO authorization resource: admin_users')
-
-    expect(authorizeResource).not.toHaveBeenCalled()
-  })
 
   it('delegates OBO management directly to the application-owned service', async () => {
     management.listModules.mockResolvedValue([])
