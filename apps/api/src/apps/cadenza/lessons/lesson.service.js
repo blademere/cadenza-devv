@@ -1,0 +1,11 @@
+import {BadRequestError,ConflictError,NotFoundError} from '../../../common/errors/appError.js'
+import {requireAppId} from '../../../platform/applications/application-scope.js'
+import {getPrismaClient} from '../../../infrastructure/database/prisma.js'
+import {createPaymentObligation} from '../../../platform/payments/payment.service.js'
+import * as repository from './lesson.repository.js'
+const prisma=getPrismaClient()
+const listPackages=({appId})=>repository.listPackages(requireAppId(appId))
+const createPackage=async({appId,name,description,price,numberOfSessions})=>{const owner=requireAppId(appId);const amount=Number(price);if(!name?.trim())throw new BadRequestError('name is required.');if(!Number.isFinite(amount)||amount<=0)throw new BadRequestError('price must be greater than zero.');if(!Number.isInteger(Number(numberOfSessions))||Number(numberOfSessions)<=0)throw new BadRequestError('numberOfSessions must be greater than zero.');try{return await repository.createPackage({appId:owner,name:name.trim(),description:description?.trim()||null,price,numberOfSessions:Number(numberOfSessions)})}catch(e){if(e?.code==='P2002')throw new ConflictError('Lesson package name is already used in this application.');throw e}}
+const listEnrollments=({appId})=>repository.listEnrollments(requireAppId(appId))
+const enroll=async({appId,studentId,lessonPackageId,currency='PHP'})=>{const owner=requireAppId(appId);if(!(await repository.findStudent(studentId,owner)))throw new NotFoundError('Student not found.');const pkg=await repository.findPackage(lessonPackageId,owner);if(!pkg)throw new NotFoundError('Lesson package not found.');try{return await prisma.$transaction(async(tx)=>{const enrollment=await repository.createEnrollment({appId:owner,studentId,lessonPackageId,status:'PENDING_PAYMENT'},tx);const obligation=await createPaymentObligation({appId:owner,referenceType:'CADENZA_ENROLLMENT',referenceId:enrollment.id,totalAmount:pkg.price,currency,db:tx,metadata:{requirement:'FULL_PAYMENT'}});return tx.cadenzaEnrollment.update({where:{id:enrollment.id},data:{paymentObligationId:obligation.id},include:{lessonPackage:true}})})}catch(e){if(e?.code==='P2002')throw new ConflictError('Student is already enrolled in this lesson package.');throw e}}
+export {listPackages,createPackage,listEnrollments,enroll}
