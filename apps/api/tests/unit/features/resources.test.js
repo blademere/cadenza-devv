@@ -166,7 +166,11 @@ describe('resource service', () => {
   it('isolates every repository operation by appId', async () => {
     repository.findResource
       .mockResolvedValueOnce(null)
-      .mockResolvedValue({ id: 'resource-1', appId: 'app-1', status: 'INACTIVE' })
+      .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'INACTIVE' })
+      .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'ACTIVE' })
+      .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'INACTIVE' })
+      .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'ACTIVE' })
+      .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'INACTIVE' })
     repository.findResourceByKey.mockResolvedValue(null)
     repository.listResources.mockResolvedValue([])
     repository.updateResource.mockResolvedValue({ count: 1 })
