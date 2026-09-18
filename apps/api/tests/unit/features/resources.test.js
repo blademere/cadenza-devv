@@ -78,7 +78,7 @@ describe('resource mapper', () => {
 
 describe('resource service', () => {
   it('requires application context and required creation fields', () => {
-    expect(() => service.listResources({})).toThrow('Application context is required.')
+    expect(() => service.listResources({})).toThrow('Application id is required for application-scoped data access.')
     expect(() => service.validateCreateInput({ name: 'x', type: 'y' }))
       .toThrow('Resource key is required.')
   })
