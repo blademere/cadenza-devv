@@ -3,7 +3,7 @@ import { submissionAppointmentsApi } from '../api/submission-appointments.api'
 import {
   planPermitApplicationQueryKey,
   planPermitApplicationsQueryKey,
-} from '../../plan-permits/queries/plan-permits.queries'
+} from '../../applications/queries/applications.queries'
 import { submissionAppointmentQueryKey } from '../queries/submission-appointments.queries'
 
 const invalidate = async (queryClient, applicationId) => {
