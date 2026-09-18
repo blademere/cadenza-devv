@@ -116,7 +116,6 @@ model CadenzaLessonSession {
   enrollmentId String
   instructorId String?
   roomId       String?
-  appointmentId String?
   scheduledStart DateTime
   scheduledEnd   DateTime
   status       String   @default("SCHEDULED")
