@@ -16,9 +16,10 @@ const toMajorAmount = (minorAmount) => {
 
 const normalizePaidEvent = (payload) => {
   const event = payload?.data
-  if (event?.type !== 'checkout_session.payment.paid') return null
+  const eventType = event?.attributes?.type || event?.type
+  if (eventType !== 'checkout_session.payment.paid') return null
 
-  const session = event.data
+  const session = event?.attributes?.data || event?.data
   const attributes = session?.attributes || {}
   const payment = attributes.payments?.find((item) => item?.attributes?.status === 'paid') || attributes.payments?.[0]
   if (!payment) throw new Error('PayMongo webhook did not include a payment.')
@@ -29,7 +30,7 @@ const normalizePaidEvent = (payload) => {
   if (!payment.id) throw new Error('PayMongo webhook is missing payment id.')
 
   return {
-    eventId: payload?.id || session.id,
+    eventId: event?.id || payload?.id || session.id,
     referenceId: attributes.reference_number,
     providerReference: payment.id,
     checkoutSessionId: session.id,
