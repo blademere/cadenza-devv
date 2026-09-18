@@ -14,5 +14,13 @@ const findInstructor=(id,appId,db=prisma)=>db.cadenzaInstructor.findFirst({where
 const findRoom=(id,appId,db=prisma)=>db.cadenzaRoom.findFirst({where:{id,appId,status:'AVAILABLE'}})
 const findOverlappingSession=({appId,instructorId,roomId,startsAt,endsAt,excludeId},db=prisma)=>db.cadenzaLessonSession.findFirst({where:{appId,status:{not:'CANCELLED'},scheduledStart:{lt:endsAt},scheduledEnd:{gt:startsAt},...(excludeId?{id:{not:excludeId}}:{}),OR:[...(instructorId?[{instructorId}]:[]),...(roomId?[{roomId}]:[])]}})
 const createSession=(data,db=prisma)=>db.cadenzaLessonSession.create({data})
+const findSession=(id,appId,db=prisma)=>db.cadenzaLessonSession.findFirst({where:{id,appId},include:{attendance:true}})
+const createAttendance=(data,db=prisma)=>db.cadenzaAttendance.create({data})
+const upsertAttendance=(sessionId,data,db=prisma)=>db.cadenzaAttendance.upsert({where:{sessionId},create:{sessionId,...data},update:data})
+const createReschedule=(data,db=prisma)=>db.cadenzaRescheduleRequest.create({data})
+const findReschedule=(id,appId,db=prisma)=>db.cadenzaRescheduleRequest.findFirst({where:{id,appId}})
+const listReschedules=(appId,db=prisma)=>db.cadenzaRescheduleRequest.findMany({where:{appId},orderBy:{createdAt:'desc'}})
+const updateReschedule=(id,appId,data,db=prisma)=>db.cadenzaRescheduleRequest.updateMany({where:{id,appId},data})
+const updateSession=(id,appId,data,db=prisma)=>db.cadenzaLessonSession.updateMany({where:{id,appId},data})
 const listSessions=(appId,db=prisma)=>db.cadenzaLessonSession.findMany({where:{appId},orderBy:{scheduledStart:'asc'},include:{attendance:true}})
-export {withTransaction,listPackages,createPackage,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment,findEnrollment,findInstructor,findRoom,findOverlappingSession,createSession,listSessions}
+export {withTransaction,listPackages,createPackage,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment,findEnrollment,findInstructor,findRoom,findOverlappingSession,createSession,findSession,createAttendance,upsertAttendance,createReschedule,findReschedule,listReschedules,updateReschedule,updateSession,listSessions}
