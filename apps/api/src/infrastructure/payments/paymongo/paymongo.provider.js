@@ -15,7 +15,7 @@ const timingSafeEqualHex = (expected, actual) => {
 const createPayMongoProvider = ({ secretKey, webhookSecret, mode = 'test', baseUrl, webhookToleranceSeconds = 300, successUrl, cancelUrl, paymentMethodTypes = ['card', 'gcash', 'qrph'], passOnFees = false }) => {
   const client = createPayMongoClient({ secretKey, baseUrl })
 
-  const createCheckout = async ({ amount, currency, referenceNumber, description, metadata, idempotencyKey }) => {
+  const createCheckout = async ({ amount, currency, referenceNumber, description, metadata, idempotencyKey, successUrl: requestedSuccessUrl, cancelUrl: requestedCancelUrl }) => {
     const minorAmount = Math.round(Number(amount) * 100)
     if (!Number.isSafeInteger(minorAmount) || minorAmount <= 0) throw new TypeError('Checkout amount must be a positive currency amount.')
     const result = await client.request('/v2/checkout_sessions', {
@@ -25,8 +25,8 @@ const createPayMongoProvider = ({ secretKey, webhookSecret, mode = 'test', baseU
         data: { attributes: {
           line_items: [{ name: description || referenceNumber, amount: minorAmount, currency: currency.toUpperCase(), quantity: 1 }],
           payment_method_types: paymentMethodTypes,
-          success_url: successUrl,
-          cancel_url: cancelUrl,
+          success_url: requestedSuccessUrl || successUrl,
+          cancel_url: requestedCancelUrl || cancelUrl,
           reference_number: referenceNumber,
           metadata,
           pass_on_fees: passOnFees,
