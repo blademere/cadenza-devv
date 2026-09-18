@@ -8,6 +8,7 @@ import {
   listSuccessfulPayments,
   withTransaction,
   lockObligation,
+  updateObligationStatus,
 } from './payment.repository.js'
 import { OBLIGATION_STATUS, PAYMENT_EVENTS, PAYMENT_STATUS } from './payment.constants.js'
 import { assertWithinBalance } from './payment.policy.js'
@@ -116,10 +117,7 @@ const recordPayment = async ({
       ? OBLIGATION_STATUS.PAID
       : OBLIGATION_STATUS.PARTIALLY_PAID
 
-    await tx.paymentObligation.update({
-      where: { id: obligationId },
-      data: { status: nextStatus },
-    })
+    await updateObligationStatus(obligationId, nextStatus, tx)
 
     if (onSettled) {
       await onSettled({
