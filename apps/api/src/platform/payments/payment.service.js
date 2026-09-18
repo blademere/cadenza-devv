@@ -80,6 +80,7 @@ const recordPayment = async ({
   metadata = undefined,
   actorId = null,
   db = prisma,
+  onSettled = null,
 }) => {
   if (!appId || !obligationId || !currency) {
     throw new TypeError('appId, obligationId, and currency are required.')
@@ -121,6 +122,16 @@ const recordPayment = async ({
       where: { id: obligationId },
       data: { status: nextStatus },
     })
+
+    if (onSettled) {
+      await onSettled({
+        db: tx,
+        obligation: { ...obligation, status: nextStatus },
+        payment,
+        paidAmount: paid.plus(payment.amount),
+        balanceDue: nextBalance,
+      })
+    }
 
     const after = {
       appId,
