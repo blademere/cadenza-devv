@@ -3,6 +3,7 @@ import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 const prisma = getPrismaClient()
 
 const getDb = (db) => db || prisma
+const withTransaction = (callback, db) => getDb(db).$transaction(callback)
 
 const createObligation = (data, db) => getDb(db).paymentObligation.create({ data })
 
@@ -43,4 +44,5 @@ export {
   updatePayment,
   listSuccessfulPayments,
   createRefund,
+  withTransaction,
 }
