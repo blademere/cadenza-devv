@@ -6,7 +6,7 @@ import { recordAudit } from '../../../platform/audit/audit.service.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import * as requirementService from '../../../features/requirements/requirements.service.js'
-import * as planPermitService from '../plan-permits/plan-permit.service.js'
+import * as applicationService from '../applications/applications.service.js'
 import * as repository from './document.repository.js'
 import { DEFAULT_MAX_FILE_SIZE_BYTES } from '../../../features/documents/document.constants.js'
 
@@ -76,7 +76,7 @@ const readDocument = async ({ userId, id, appId = null }) => {
 }
 
 const getApplication = async (id, appId) => {
-  const application = await planPermitService.getForApplicationDocuments(id, appId)
+  const application = await applicationService.getForApplicationDocuments(id, appId)
   if (!application?.workflowInstanceId) return application
   const workflow = await workflowService.getWorkflowInstance(application.workflowInstanceId)
   return { ...application, status: workflow.currentStep.key }
