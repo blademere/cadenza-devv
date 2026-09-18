@@ -39,6 +39,26 @@ describe('Cadenza lesson scheduling', () => {
     })).resolves.toMatchObject({ id: 'session-1', status: 'SCHEDULED' })
   })
 
+  it('rejects scheduling beyond the lesson package session count', async () => {
+    repository.withTransaction.mockImplementation((callback) => callback({}))
+    repository.findEnrollment.mockResolvedValue({
+      id: ENROLLMENT_ID,
+      status: 'CONFIRMED',
+      lessonPackage: { numberOfSessions: 4 },
+      _count: { sessions: 4 },
+    })
+
+    await expect(service.createSession({
+      appId: APP_ID,
+      enrollmentId: ENROLLMENT_ID,
+      scheduledStart: '2026-09-21T09:00:00.000Z',
+      scheduledEnd: '2026-09-21T10:00:00.000Z',
+    })).rejects.toThrow('Lesson package session limit has been reached')
+
+    expect(repository.findOverlappingSession).not.toHaveBeenCalled()
+    expect(repository.createSession).not.toHaveBeenCalled()
+  })
+
   it('rejects an instructor or room conflict', async () => {
     repository.withTransaction.mockImplementation((callback) => callback({}))
     repository.findEnrollment.mockResolvedValue({ id: ENROLLMENT_ID, status: 'CONFIRMED' })
