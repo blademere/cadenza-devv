@@ -224,6 +224,16 @@ const enroll = async ({
   }
 }
 const listSessions = ({ appId }) => repository.listSessions(requireAppId(appId))
+const getSession = async ({ appId, id }) => {
+  const value = await repository.findSession(id, requireAppId(appId))
+  if (!value) throw new NotFoundError('Lesson session not found.')
+  return value
+}
+const getReschedule = async ({ appId, id }) => {
+  const value = await repository.findReschedule(id, requireAppId(appId))
+  if (!value) throw new NotFoundError('Reschedule request not found.')
+  return value
+}
 const createSession = async ({
   appId,
   enrollmentId,
