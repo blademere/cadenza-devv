@@ -1,7 +1,7 @@
 const OBO_PERMIT_TYPE = {
-  key: 'building-plan-permit',
-  name: 'Building Plan Permit',
-  description: 'Plan permit application for building construction and related work.',
+  key: 'building-permit',
+  name: 'Building Permit',
+  description: 'Building permit application for building construction and related work.',
 }
 
 const OBO_APPOINTMENT_TYPE = {
@@ -13,7 +13,7 @@ const OBO_APPOINTMENT_TYPE = {
 }
 
 async function seedOboReferenceData(prisma, { applicationForm } = {}) {
-  if (!applicationForm?.id) throw new Error("Platform form 'obo-building-plan-permit' must be seeded before OBO reference data.")
+  if (!applicationForm?.id) throw new Error("Platform form 'obo-building-permit' must be seeded before OBO reference data.")
   const oboApp = await prisma.app.findUnique({ where: { key: 'obo' } })
   if (!oboApp) throw new Error("Application 'obo' must be seeded before OBO reference data.")
 
