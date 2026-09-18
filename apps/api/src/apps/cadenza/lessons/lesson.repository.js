@@ -10,6 +10,8 @@ const deleteAttachment=(id,lessonPackageId,appId,db=prisma)=>db.cadenzaLessonAtt
 const lockEnrollment=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaEnrollment" WHERE "id"=${id} AND "appId"=${appId} FOR UPDATE`
 const lockInstructor=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaInstructor" WHERE "id"=${id} AND "appId"=${appId} AND "status"='ACTIVE' FOR UPDATE`
 const lockRoom=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaRoom" WHERE "id"=${id} AND "appId"=${appId} AND "status"='AVAILABLE' FOR UPDATE`
+const lockSession=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaLessonSession" WHERE "id"=${id} AND "appId"=${appId} FOR UPDATE`
+const lockReschedule=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaRescheduleRequest" WHERE "id"=${id} AND "appId"=${appId} FOR UPDATE`
 const findStudent=(id,appId)=>prisma.cadenzaStudent.findFirst({where:{id,appId}})
 const findPackage=(id,appId)=>prisma.cadenzaLessonPackage.findFirst({where:{id,appId}})
 const createEnrollment=(data,db=prisma)=>db.cadenzaEnrollment.create({data})
