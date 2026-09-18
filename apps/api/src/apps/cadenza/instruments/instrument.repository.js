@@ -1,0 +1,6 @@
+import {getPrismaClient} from '../../../infrastructure/database/prisma.js'
+const prisma=getPrismaClient()
+const list=(appId)=>prisma.cadenzaInstrument.findMany({where:{appId},orderBy:{createdAt:'asc'}})
+const findById=(id,appId)=>prisma.cadenzaInstrument.findFirst({where:{id,appId}})
+const create=(data)=>prisma.cadenzaInstrument.create({data})
+export {list,findById,create}
