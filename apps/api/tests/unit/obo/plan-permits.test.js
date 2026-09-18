@@ -32,7 +32,7 @@ vi.mock('../../../src/platform/event-bus/event-bus.js', () => ({ publish: eventB
 vi.mock('../../../src/features/appointments/appointment.service.js', () => appointmentService)
 vi.mock('../../../src/features/tasks/tasks.service.js', () => taskService)
 vi.mock('../../../src/features/documents/document.service.js', () => documentsService)
-vi.mock('../../../src/apps/obo/application-documents/application-document.repository.js', () => repository)
+vi.mock('../../../src/apps/obo/documents/document.repository.js', () => repository)
 
 import * as service from '../../../src/apps/obo/plan-permits/plan-permit.service.js'
 import { resolveAndValidateForm } from '../../../src/apps/obo/plan-permits/plan-permit.form.js'
