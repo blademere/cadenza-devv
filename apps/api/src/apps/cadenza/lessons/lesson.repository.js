@@ -12,7 +12,7 @@ const lockInstructor=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "Cadenz
 const lockRoom=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaRoom" WHERE "id"=${id} AND "appId"=${appId} AND "status"='AVAILABLE' FOR UPDATE`
 const lockSession=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaLessonSession" WHERE "id"=${id} AND "appId"=${appId} FOR UPDATE`
 const lockReschedule=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaRescheduleRequest" WHERE "id"=${id} AND "appId"=${appId} FOR UPDATE`
-const findStudent=(id,appId)=>prisma.cadenzaStudent.findFirst({where:{id,appId}})
+const findStudent=(id,appId)=>prisma.cadenzaStudent.findFirst({where:{id,appId},include:{person:true}})
 const findPackage=(id,appId)=>prisma.cadenzaLessonPackage.findFirst({where:{id,appId}})
 const createEnrollment=(data,db=prisma)=>db.cadenzaEnrollment.create({data})
 const attachPaymentObligation=(id,appId,paymentObligationId,db=prisma)=>db.cadenzaEnrollment.update({where:{id},data:{paymentObligationId},include:{lessonPackage:true}})
