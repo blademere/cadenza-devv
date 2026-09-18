@@ -87,7 +87,7 @@ export default function ApplicationDetailsPage() {
     <PageHeader
       eyebrow="Applications / Application"
       title={application.referenceNumber ?? 'Application'}
-      description={isForInspection ? 'Hard-copy receiving is complete. This application is now in the inspection phase.' : isDeclined ? 'This application was declined and cannot continue through the current workflow.' : application.permitType?.name ?? 'Plan permit application'}
+      description={isForInspection ? 'Hard-copy receiving is complete. This application is now in the inspection phase.' : isDeclined ? 'This application was declined and cannot continue through the current workflow.' : application.permitType?.name ?? 'Permit application'}
       actions={<Group>
         <Button component={Link} to="/app/applications" variant="default">Back</Button>
         {isDeclined && <PermissionGate permission={permissions.applications.create}><Button component={Link} to="/app/applications/new" leftSection={<Plus size={18} aria-hidden />}>Start New Application</Button></PermissionGate>}
