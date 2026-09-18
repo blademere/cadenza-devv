@@ -14,6 +14,8 @@ vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
 vi.mock('../../../src/apps/cadenza/rentals/rental.repository.js', () => ({
   withTransaction: vi.fn(),
   findResource: vi.fn(),
+  findInstrumentByResource: vi.fn(),
+  findRoomByResource: vi.fn(),
   create: vi.fn(),
   attachPaymentObligation: vi.fn(),
   list: vi.fn(),
@@ -50,8 +52,8 @@ describe('Cadenza lesson payment workflow', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('creates a full-payment obligation when a student enrolls', async () => {
-    lessonRepository.findStudent.mockResolvedValue({ id: STUDENT_ID, appId: APP_ID })
-    lessonRepository.findPackage.mockResolvedValue({ id: PACKAGE_ID, appId: APP_ID, price: '1500.00' })
+    lessonRepository.findStudent.mockResolvedValue({ id: STUDENT_ID, appId: APP_ID, status: 'ACTIVE' })
+    lessonRepository.findPackage.mockResolvedValue({ id: PACKAGE_ID, appId: APP_ID, price: '1500.00', status: 'ACTIVE' })
     lessonRepository.withTransaction.mockImplementation((callback) => callback({}))
     lessonRepository.createEnrollment.mockResolvedValue({ id: 'enrollment-1' })
     platformPayments.createPaymentObligation.mockResolvedValue({ id: OBLIGATION_ID, status: 'UNPAID' })
@@ -80,7 +82,8 @@ describe('Cadenza rental payment workflow', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('creates a rental obligation carrying the required down payment', async () => {
-    rentalRepository.findResource.mockResolvedValue({ id: RESOURCE_ID, appId: APP_ID })
+    rentalRepository.findResource.mockResolvedValue({ id: RESOURCE_ID, appId: APP_ID, type: 'CADENZA_INSTRUMENT' })
+    rentalRepository.findInstrumentByResource.mockResolvedValue({ id: 'instrument-1', resourceId: RESOURCE_ID, status: 'AVAILABLE' })
     rentalRepository.withTransaction.mockImplementation((callback) => callback({}))
     rentalRepository.create.mockResolvedValue({ id: RENTAL_ID })
     platformPayments.createPaymentObligation.mockResolvedValue({ id: OBLIGATION_ID, status: 'UNPAID' })
