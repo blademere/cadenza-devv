@@ -1,18 +1,15 @@
 import {getPrismaClient} from '../../../infrastructure/database/prisma.js'
 const prisma=getPrismaClient()
-const withTransaction=(callback,db=prisma)=>db.$transaction(callback)
 const list=(appId,db=prisma)=>db.cadenzaRental.findMany({where:{appId},orderBy:{createdAt:'desc'}})
 const create=(data,db=prisma)=>db.cadenzaRental.create({data})
 const findResource=(id,appId,db=prisma)=>db.resource.findFirst({where:{id,appId,status:'ACTIVE'}})
-const lockResource=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "Resource" WHERE "id"=${id} AND "appId"=${appId} FOR UPDATE`
 const findInstrumentByResource=(resourceId,appId,db=prisma)=>db.cadenzaInstrument.findFirst({where:{resourceId,appId,status:'AVAILABLE'}})
 const findRoomByResource=(resourceId,appId,db=prisma)=>db.cadenzaRoom.findFirst({where:{resourceId,appId,status:'AVAILABLE'}})
 const findById=(id,appId,db=prisma)=>db.cadenzaRental.findFirst({where:{id,appId}})
-const lockRental=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaRental" WHERE "id"=${id} AND "appId"=${appId} FOR UPDATE`
 const attachPaymentObligation=(id,paymentObligationId,db=prisma)=>db.cadenzaRental.update({where:{id},data:{paymentObligationId}})
 const reserve=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'PENDING'},data:{status:'RESERVED'}})
 const findOverlap=({appId,resourceId,scheduledStart,scheduledEnd,excludeId},db=prisma)=>db.cadenzaRental.findFirst({where:{appId,resourceId,status:{in:['RESERVED','CHECKED_OUT']},scheduledStart:{lt:scheduledEnd},scheduledEnd:{gt:scheduledStart},...(excludeId?{id:{not:excludeId}}:{})}})
 const checkout=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'RESERVED'},data:{status:'CHECKED_OUT',checkedOutAt:new Date()}})
 const returnRental=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'CHECKED_OUT'},data:{status:'RETURNED',returnedAt:new Date()}})
 const cancel=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:{in:['PENDING','RESERVED']}},data:{status:'CANCELLED'}})
-export {withTransaction,list,create,findResource,lockResource,findInstrumentByResource,findRoomByResource,findById,lockRental,attachPaymentObligation,reserve,findOverlap,checkout,returnRental,cancel}
+export {list,create,findResource,findInstrumentByResource,findRoomByResource,findById,attachPaymentObligation,reserve,findOverlap,checkout,returnRental,cancel}
