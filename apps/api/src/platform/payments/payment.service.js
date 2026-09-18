@@ -1,4 +1,3 @@
-import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 import { enqueueEvent } from '../event-bus/event-outbox.service.js'
 import { recordAudit } from '../audit/audit.service.js'
 import {
@@ -9,13 +8,13 @@ import {
   findPaymentByIdempotencyKey,
   updatePayment,
   listSuccessfulPayments,
+  withTransaction,
 } from './payment.repository.js'
 import { OBLIGATION_STATUS, PAYMENT_EVENTS, PAYMENT_STATUS } from './payment.constants.js'
 import { assertWithinBalance } from './payment.policy.js'
 import { PaymentStateError } from './payment.errors.js'
 import { toDecimal } from '../money/money.js'
 
-const prisma = getPrismaClient()
 const decimal = toDecimal
 
 const summarizeObligation = (obligation, successfulPayments) => {
@@ -37,7 +36,7 @@ const summarizeObligation = (obligation, successfulPayments) => {
   }
 }
 
-const getObligation = async (id, appId, db = prisma) => {
+const getObligation = async (id, appId, db) => {
   if (!id || !appId) throw new TypeError('id and appId are required.')
   const obligation = await findObligationById(id, appId, db)
   if (!obligation) return null
@@ -79,7 +78,7 @@ const recordPayment = async ({
   idempotencyKey,
   metadata = undefined,
   actorId = null,
-  db = prisma,
+  db,
   onSettled = null,
 }) => {
   if (!appId || !obligationId || !currency) {
@@ -89,7 +88,7 @@ const recordPayment = async ({
   const existing = await findPaymentByIdempotencyKey(idempotencyKey, db)
   if (existing) return existing
 
-  return db.$transaction(async (tx) => {
+  return withTransaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${obligationId} AND "appId" = ${appId} FOR UPDATE`
     const obligation = await findObligationById(obligationId, appId, tx)
     if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
