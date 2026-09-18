@@ -30,6 +30,7 @@ model Payment {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   obligation        PaymentObligation @relation(fields: [obligationId], references: [id], onDelete: Restrict)
+  refunds           PaymentRefund[]
 
   @@index([obligationId, status, createdAt])
   @@index([provider, providerReference])
