@@ -8,14 +8,14 @@ import * as service from './applications.service.js'
 import * as validation from './applications.validation.js'
 
 const router = express.Router()
-const requireIdempotency = idempotency({ scope: 'obo-plan-permits', required: true })
+const requireIdempotency = idempotency({ scope: 'obo-applications', required: true })
 const loadApplication = (id, req) => service.getForAuthorization(id, getApplicationId(req))
-const authorizeApplicationRead = authorizeResource({ resource: 'obo_plan_permits', action: 'read', loadResource: loadApplication, getResourceId: (req) => req.params.id })
-const authorizeApplicationUpdate = authorizeResource({ resource: 'obo_plan_permits', action: 'update', loadResource: loadApplication, getResourceId: (req) => req.params.id })
-const authorizeApplicationSubmit = authorizeResource({ resource: 'obo_plan_permits', action: 'submit', loadResource: loadApplication, getResourceId: (req) => req.params.id })
+const authorizeApplicationRead = authorizeResource({ resource: 'obo_applications', action: 'read', loadResource: loadApplication, getResourceId: (req) => req.params.id })
+const authorizeApplicationUpdate = authorizeResource({ resource: 'obo_applications', action: 'update', loadResource: loadApplication, getResourceId: (req) => req.params.id })
+const authorizeApplicationSubmit = authorizeResource({ resource: 'obo_applications', action: 'submit', loadResource: loadApplication, getResourceId: (req) => req.params.id })
 
-router.post('/', authenticate, authorize('obo_plan_permits', 'create'), requireIdempotency, validate(validation.createApplicationValidator), asyncHandler(controller.create))
-router.get('/mine', authenticate, authorize('obo_plan_permits', 'read'), asyncHandler(controller.list))
+router.post('/', authenticate, authorize('obo_applications', 'create'), requireIdempotency, validate(validation.createApplicationValidator), asyncHandler(controller.create))
+router.get('/mine', authenticate, authorize('obo_applications', 'read'), asyncHandler(controller.list))
 router.get('/:id', authenticate, authorizeApplicationRead, validate(validation.applicationParamsValidator), asyncHandler(controller.get))
 router.patch('/:id', authenticate, authorizeApplicationUpdate, requireIdempotency, validate(validation.updateApplicationValidator), asyncHandler(controller.update))
 router.post('/:id/submit', authenticate, authorizeApplicationSubmit, requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.submit))
