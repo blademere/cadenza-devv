@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- provider and its hook share the application context boundary */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { applicationsApi } from '../api/applications.api'
+import { applicationsApi } from '../api/application-context.api'
 import { useAuth } from '../../auth/components/AuthProvider'
 
 const ApplicationContext = createContext(null)
