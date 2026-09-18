@@ -32,7 +32,7 @@ describe('application-scoped service boundaries', () => {
 
   it('requires explicit appId for the shared appointment service', async () => {
     const source = await read('features/appointments/appointment.service.js')
-    expect(source).toContain('const requireAppId = (appId) =>')
+    expect(source).toContain("import { requireAppId } from '../../platform/applications/application-scope.js'")
     expect(source).toContain('repository.listAppointmentTypes({ appId: requireAppId(appId)')
     expect(source).toContain('const getAppointmentForReference = async ({ id, appId, db })')
     expect(source).toContain('const bookAppointment = async ({ userId, appId,')
