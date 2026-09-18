@@ -90,7 +90,7 @@ const recordPayment = async ({
   if (existing) return existing
 
   return withTransaction(async (tx) => {
-    await lockObligation`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${obligationId} AND "appId" = ${appId} FOR UPDATE`
+    await lockObligation(obligationId, appId, tx)
     const obligation = await findObligationById(obligationId, appId, tx)
     if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
     if (obligation.currency !== currency.toUpperCase()) throw new PaymentStateError('Payment currency does not match the obligation currency.')
