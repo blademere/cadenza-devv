@@ -18,6 +18,7 @@ model App {
   requirementDefinitions   RequirementDefinition[]
   forms                    Form[]
   documents                Document[]
+  resources                Resource[]
   createdAt                DateTime                     @default(now())
   updatedAt                DateTime                     @updatedAt
 }
