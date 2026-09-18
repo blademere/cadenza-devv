@@ -82,7 +82,7 @@ describe('OBO appointment authorization', () => {
 
   it('uses app-scoped resource loading for appointment authorization', () => {
     const route = read('src/apps/obo/appointments/appointment.routes.js')
-    expect(route).toContain('repository.findAppointment(id, req.security.app.id)')
+    expect(route).toContain('repository.findAppointment(id, getApplicationId(req))')
     expect(route).toContain("resource: 'obo_appointments'")
   })
 })
