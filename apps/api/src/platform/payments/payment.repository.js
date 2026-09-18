@@ -4,6 +4,7 @@ const prisma = getPrismaClient()
 
 const getDb = (db) => db || prisma
 const withTransaction = (callback, db) => getDb(db).$transaction(callback)
+const lockObligation = (id, appId, db) => getDb(db).$queryRaw`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${id} AND "appId" = ${appId} FOR UPDATE`
 
 const createObligation = (data, db) => getDb(db).paymentObligation.create({ data })
 
@@ -45,4 +46,5 @@ export {
   listSuccessfulPayments,
   createRefund,
   withTransaction,
+  lockObligation,
 }
