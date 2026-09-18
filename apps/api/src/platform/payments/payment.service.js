@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 import { enqueueEvent } from '../event-bus/event-outbox.service.js'
@@ -71,7 +70,7 @@ const recordPayment = async ({
   method = null,
   provider = null,
   providerReference = null,
-  idempotencyKey = randomUUID(),
+  idempotencyKey,
   metadata = undefined,
   actorId = null,
   appId = null,
