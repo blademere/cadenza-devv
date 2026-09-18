@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../src/features/auth/auth.repository.js')
 vi.mock('../../src/platform/event-bus/event-bus.js')
+vi.mock('../../src/platform/transactions/transaction.service.js', () => ({ run: vi.fn((callback) => callback({ transaction: true })) }))
 vi.mock('../../src/features/auth/oauth/oauth.providers.js')
 
 const authRepository = await import('../../src/features/auth/auth.repository.js')
@@ -18,7 +19,7 @@ const mocks = {
   findOAuthAccountByUserAndProvider: authRepository.findOAuthAccountByUserAndProvider,
   deleteOAuthAccount: authRepository.deleteOAuthAccount,
   countOAuthAccounts: authRepository.countOAuthAccounts,
-  withTransaction: authRepository.withTransaction,
+  runTransaction: (await import('../../src/platform/transactions/transaction.service.js')).run,
   publish: eventBus.publish,
   getProviderConfig: oauthProviders.getProviderConfig,
 }
@@ -28,7 +29,6 @@ describe('OAuth security and audit events', () => {
     vi.clearAllMocks()
     mocks.getProviderConfig.mockReturnValue({ clientId: 'client-id', clientSecret: 'client-secret', callbackUrl: 'https://api.example.test/oauth/callback/google', tokenUrl: 'https://oauth.example.test/token' })
     mocks.publish.mockResolvedValue(undefined)
-    mocks.withTransaction.mockImplementation(async (callback) => callback({ transaction: true }))
     globalThis.fetch = vi.fn()
   })
 
