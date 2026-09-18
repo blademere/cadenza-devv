@@ -29,6 +29,8 @@ vi.mock('../../../src/apps/cadenza/payments/payment.repository.js', () => ({
   reserveRental: vi.fn(),
 }))
 
+vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({ can: vi.fn() }))
+
 vi.mock('../../../src/platform/payments/payment.service.js', () => ({
   createPaymentObligation: vi.fn(),
   recordPayment: vi.fn(),
@@ -38,6 +40,7 @@ vi.mock('../../../src/platform/payments/payment.service.js', () => ({
 const lessonRepository = await import('../../../src/apps/cadenza/lessons/lesson.repository.js')
 const rentalRepository = await import('../../../src/apps/cadenza/rentals/rental.repository.js')
 const paymentRepository = await import('../../../src/apps/cadenza/payments/payment.repository.js')
+const platformAuthorization = await import('../../../src/platform/authorization/authorization.service.js')
 const platformPayments = await import('../../../src/platform/payments/payment.service.js')
 const lessonService = await import('../../../src/apps/cadenza/lessons/lesson.service.js')
 const rentalService = await import('../../../src/apps/cadenza/rentals/rental.service.js')
@@ -93,6 +96,7 @@ describe('Cadenza rental payment workflow', () => {
 
     await rentalService.create({
       appId: APP_ID,
+      actorId: 42,
       customerUserId: 42,
       resourceId: RESOURCE_ID,
       rentalType: 'INSTRUMENT',
@@ -112,6 +116,25 @@ describe('Cadenza rental payment workflow', () => {
       metadata: { requiredDownPayment: '300' },
     }))
   })
+
+  it('rejects creating a rental for another customer without management permission', async () => {
+    platformAuthorization.can.mockResolvedValue(false)
+
+    await expect(rentalService.create({
+      appId: APP_ID,
+      actorId: 42,
+      customerUserId: 99,
+      resourceId: RESOURCE_ID,
+      rentalType: 'INSTRUMENT',
+      scheduledStart: '2026-09-20T09:00:00.000Z',
+      scheduledEnd: '2026-09-20T12:00:00.000Z',
+      totalAmount: '1000.00',
+      requiredDownPayment: '300.00',
+    })).rejects.toThrow('another customer with rental management permission')
+
+    expect(rentalRepository.findResource).not.toHaveBeenCalled()
+  })
+
 })
 
 describe('Cadenza payment settlement', () => {
