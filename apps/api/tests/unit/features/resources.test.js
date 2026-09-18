@@ -164,12 +164,14 @@ describe('resource service', () => {
   })
 
   it('isolates every repository operation by appId', async () => {
-    repository.findResource.mockResolvedValue(null)
+    repository.findResource
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ id: 'resource-1', appId: 'app-1', status: 'INACTIVE' })
     repository.findResourceByKey.mockResolvedValue(null)
     repository.listResources.mockResolvedValue([])
-    repository.updateResource.mockResolvedValue({ count: 0 })
-    repository.activateResource.mockResolvedValue({ count: 0 })
-    repository.deactivateResource.mockResolvedValue({ count: 0 })
+    repository.updateResource.mockResolvedValue({ count: 1 })
+    repository.activateResource.mockResolvedValue({ count: 1 })
+    repository.deactivateResource.mockResolvedValue({ count: 1 })
 
     await service.getResource({ id: 'resource-1', appId: 'app-1' }).catch(() => undefined)
     await service.getResourceByKey({ key: 'resource-key', appId: 'app-1' }).catch(() => undefined)
