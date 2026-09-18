@@ -490,6 +490,8 @@ export {
   listEnrollments,
   enroll,
   listSessions,
+  getSession,
+  getReschedule,
   createSession,
   markAttendance,
   requestReschedule,
