@@ -1,7 +1,7 @@
 import {getPrismaClient} from '../../../infrastructure/database/prisma.js'
 const prisma=getPrismaClient()
 const withTransaction=(callback)=>prisma.$transaction(callback)
-const listPackages=(appId)=>prisma.cadenzaLessonPackage.findMany({where:{appId},include:{attachments:true},orderBy:{name:'asc'}})
+const listPackages=(appId)=>prisma.cadenzaLessonPackage.findMany({where:{appId},include:{_count:{select:{attachments:true}}},orderBy:{name:'asc'}})
 const createPackage=(data)=>prisma.cadenzaLessonPackage.create({data,include:{attachments:true}})
 const createAttachment=(data,db=prisma)=>db.cadenzaLessonAttachment.create({data})
 const listAttachments=(lessonPackageId,appId,db=prisma)=>db.cadenzaLessonAttachment.findMany({where:{lessonPackageId,lessonPackage:{appId}},orderBy:{createdAt:'asc'}})
