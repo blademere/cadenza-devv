@@ -27,7 +27,7 @@ const OBO_DEVELOPMENT_FIXTURE = {
   professionalRole: 'ARCHITECT',
   referenceNumber: 'OBO-DEV-20300610-0001',
   appointmentReferenceNumber: 'OBO-APPT-DEV-0001',
-  formKey: 'obo-building-plan-permit',
+  formKey: 'obo-building-permit',
   formVersion: 1,
   professionalFieldKey: 'architect',
 }
@@ -155,8 +155,8 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
   if (!professionalField || professionalField.type !== 'reference' || professionalField.config?.referenceType !== 'obo_professional') throw new Error(`OBO development form must define '${OBO_DEVELOPMENT_FIXTURE.professionalFieldKey}' as an OBO professional reference.`)
   if (professionalField.config?.professionalRole !== OBO_DEVELOPMENT_FIXTURE.professionalRole) throw new Error(`OBO development professional field role must be '${OBO_DEVELOPMENT_FIXTURE.professionalRole}'.`)
 
-  const permitType = await prisma.oboPermitType.findUnique({ where: { appId_key: { appId, key: 'building-plan-permit' } } })
-  if (!permitType) throw new Error("OBO reference fixture 'building-plan-permit' was not seeded.")
+  const permitType = await prisma.oboPermitType.findUnique({ where: { appId_key: { appId, key: 'building-permit' } } })
+  if (!permitType) throw new Error("OBO reference fixture 'building-permit' was not seeded.")
   const caseType = await prisma.caseType.upsert({
     where: { key: 'obo-permit-application' },
     update: { name: 'OBO Permit Application', isActive: true },
