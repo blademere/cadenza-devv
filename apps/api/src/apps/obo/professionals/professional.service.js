@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { BadRequestError, ConflictError, NotFoundError } from '../../../common/errors/appError.js'
+import { requireAppId } from '../../../platform/applications/application-scope.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
 import * as peopleService from '../../../features/people/people.service.js'
 import * as repository from './professional.repository.js'
@@ -8,10 +9,6 @@ const normalizeCredential = (value) => value?.trim() || ''
 const normalizeProfessionalRole = (value) => value?.trim() || ''
 const createRegistrationNumber = () =>
   `PRO-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
-const requireAppId = (appId) => {
-  if (!appId) throw new BadRequestError('Application context is required.')
-  return appId
-}
 const getProfile = async ({ userId }) => peopleService.getByUserId(userId)
 const createProfile = async ({ userId, ...data }) => {
   const existing = await repository.findPersonByUserId(userId)

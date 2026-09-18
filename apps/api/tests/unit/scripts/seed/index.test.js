@@ -86,7 +86,7 @@ describe('seed profiles', () => {
     expect(mocks.seedAuthorization).toHaveBeenCalledWith({}, { applications })
     expect(mocks.seedPlatformForms).toHaveBeenCalledTimes(1)
     expect(mocks.seedOboReferenceData).toHaveBeenCalledWith({}, {
-      planPermitForm: { id: 'form-1', key: 'obo-building-plan-permit' },
+      applicationForm: { id: 'form-1', key: 'obo-building-plan-permit' },
     })
 
     expect(mocks.seedDevelopmentUsers).not.toHaveBeenCalled()

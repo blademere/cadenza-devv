@@ -4,7 +4,7 @@ import { requireApplicationContext } from '../../platform/applications/applicati
 import permitTypeRoutes from './permit-types/permit-type.routes.js'
 import clientRoutes from './clients/client.routes.js'
 import professionalRoutes from './professionals/professional.routes.js'
-import planPermitRoutes from './plan-permits/plan-permit.routes.js'
+import applicationRoutes from './applications/applications.routes.js'
 import receivingRoutes from './receiving/receiving.routes.js'
 import submissionAppointmentRoutes from './submission-appointments/submission-appointment.routes.js'
 import appointmentRoutes from './appointments/appointment.routes.js'
@@ -21,7 +21,7 @@ oboRouter.use('/clients', clientRoutes)
 oboRouter.use('/professionals', professionalRoutes)
 oboRouter.use('/appointments', appointmentRoutes)
 oboRouter.use('/applications/:applicationId/submission-appointments', submissionAppointmentRoutes)
-oboRouter.use('/applications', planPermitRoutes)
+oboRouter.use('/applications', applicationRoutes)
 oboRouter.use('/receiving', receivingRoutes)
 
 export default oboRouter

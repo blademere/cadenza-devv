@@ -16,8 +16,8 @@ const PROFILES = new Set(['default', 'development', 'fixtures', 'coverage'])
 async function seedCore(prisma) {
   const applications = await seedApplications(prisma)
   const { roles, permissionRecords } = await seedAuthorization(prisma, { applications })
-  const { form: planPermitForm } = await seedPlatformForms(prisma)
-  await seedOboReferenceData(prisma, { planPermitForm })
+  const { form: applicationForm } = await seedPlatformForms(prisma)
+  await seedOboReferenceData(prisma, { applicationForm })
 
   return { applications, roles, permissionRecords }
 }

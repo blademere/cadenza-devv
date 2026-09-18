@@ -5,7 +5,7 @@ import { withContext } from '../../../platform/context/context.service.js'
 import * as appointmentService from '../../../features/appointments/appointment.service.js'
 import * as taskService from '../../../features/tasks/tasks.service.js'
 import * as repository from './receiving.repository.js'
-import * as applicationDocumentService from '../application-documents/application-document.service.js'
+import * as applicationDocumentService from '../documents/document.service.js'
 import { getNotificationContext } from '../notification-context.js'
 import { hasReceivingTaskAccess } from './receiving.authorization.js'
 

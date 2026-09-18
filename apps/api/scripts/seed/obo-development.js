@@ -1,7 +1,7 @@
 const OBO_WORKFLOW = {
-  key: 'obo_plan_permit',
-  name: 'OBO Plan Permit Application',
-  description: 'Lifecycle workflow for an OBO plan permit application.',
+  key: 'obo_application',
+  name: 'OBO Application',
+  description: 'Lifecycle workflow for an OBO application.',
   steps: [
     { key: 'DRAFT', name: 'Draft', isInitial: true, isFinal: false, sortOrder: 0 },
     { key: 'READY_FOR_SUBMISSION', name: 'Ready for Submission', isInitial: false, isFinal: false, sortOrder: 1 },
@@ -11,11 +11,11 @@ const OBO_WORKFLOW = {
     { key: 'FOR_INSPECTION', name: 'For Inspection', isInitial: false, isFinal: true, sortOrder: 5 },
   ],
   transitions: [
-    { key: 'SUBMIT_FOR_SUBMISSION', name: 'Submit for Submission', fromStepKey: 'DRAFT', toStepKey: 'READY_FOR_SUBMISSION', permissionKey: 'obo_plan_permits:submit' },
-    { key: 'SCHEDULE_SUBMISSION', name: 'Schedule Hardcopy Submission', fromStepKey: 'READY_FOR_SUBMISSION', toStepKey: 'SUBMISSION_SCHEDULED', permissionKey: 'obo_plan_permits:schedule_submission' },
-    { key: 'RECEIVE_HARDCOPY', name: 'Receive Hardcopy', fromStepKey: 'SUBMISSION_SCHEDULED', toStepKey: 'RECEIVING', permissionKey: 'obo_plan_permits:receive' },
-    { key: 'DECLINE', name: 'Decline Application', fromStepKey: 'RECEIVING', toStepKey: 'DECLINED', permissionKey: 'obo_plan_permits:receive' },
-    { key: 'ACCEPT_FOR_INSPECTION', name: 'Accept for Inspection', fromStepKey: 'RECEIVING', toStepKey: 'FOR_INSPECTION', permissionKey: 'obo_plan_permits:receive' },
+    { key: 'SUBMIT_FOR_SUBMISSION', name: 'Submit for Submission', fromStepKey: 'DRAFT', toStepKey: 'READY_FOR_SUBMISSION', permissionKey: 'obo_applications:submit' },
+    { key: 'SCHEDULE_SUBMISSION', name: 'Schedule Hardcopy Submission', fromStepKey: 'READY_FOR_SUBMISSION', toStepKey: 'SUBMISSION_SCHEDULED', permissionKey: 'obo_applications:schedule_submission' },
+    { key: 'RECEIVE_HARDCOPY', name: 'Receive Hardcopy', fromStepKey: 'SUBMISSION_SCHEDULED', toStepKey: 'RECEIVING', permissionKey: 'obo_applications:receive' },
+    { key: 'DECLINE', name: 'Decline Application', fromStepKey: 'RECEIVING', toStepKey: 'DECLINED', permissionKey: 'obo_applications:receive' },
+    { key: 'ACCEPT_FOR_INSPECTION', name: 'Accept for Inspection', fromStepKey: 'RECEIVING', toStepKey: 'FOR_INSPECTION', permissionKey: 'obo_applications:receive' },
   ],
 }
 
@@ -27,7 +27,7 @@ const OBO_DEVELOPMENT_FIXTURE = {
   professionalRole: 'ARCHITECT',
   referenceNumber: 'OBO-DEV-20300610-0001',
   appointmentReferenceNumber: 'OBO-APPT-DEV-0001',
-  formKey: 'obo-building-plan-permit',
+  formKey: 'obo-building-permit',
   formVersion: 1,
   professionalFieldKey: 'architect',
 }
@@ -155,8 +155,8 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
   if (!professionalField || professionalField.type !== 'reference' || professionalField.config?.referenceType !== 'obo_professional') throw new Error(`OBO development form must define '${OBO_DEVELOPMENT_FIXTURE.professionalFieldKey}' as an OBO professional reference.`)
   if (professionalField.config?.professionalRole !== OBO_DEVELOPMENT_FIXTURE.professionalRole) throw new Error(`OBO development professional field role must be '${OBO_DEVELOPMENT_FIXTURE.professionalRole}'.`)
 
-  const permitType = await prisma.oboPermitType.findUnique({ where: { appId_key: { appId, key: 'building-plan-permit' } } })
-  if (!permitType) throw new Error("OBO reference fixture 'building-plan-permit' was not seeded.")
+  const permitType = await prisma.oboPermitType.findUnique({ where: { appId_key: { appId, key: 'building-permit' } } })
+  if (!permitType) throw new Error("OBO reference fixture 'building-permit' was not seeded.")
   const caseType = await prisma.caseType.upsert({
     where: { key: 'obo-permit-application' },
     update: { name: 'OBO Permit Application', isActive: true },

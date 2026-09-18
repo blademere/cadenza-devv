@@ -4,7 +4,7 @@ vi.mock('../../../src/features/appointments/appointment.service.js')
 vi.mock('../../../src/platform/workflow/workflow.service.js')
 vi.mock('../../../src/platform/event-bus/event-bus.js')
 vi.mock('../../../src/features/tasks/tasks.service.js')
-vi.mock('../../../src/apps/obo/plan-permits/plan-permit.service.js')
+vi.mock('../../../src/apps/obo/applications/applications.service.js')
 vi.mock(
   '../../../src/apps/obo/submission-appointments/submission-appointment.repository.js'
 )
@@ -15,15 +15,15 @@ const workflowService =
   await import('../../../src/platform/workflow/workflow.service.js')
 const eventBus = await import('../../../src/platform/event-bus/event-bus.js')
 const taskService = await import('../../../src/features/tasks/tasks.service.js')
-const planPermitService =
-  await import('../../../src/apps/obo/plan-permits/plan-permit.service.js')
+const applicationService =
+  await import('../../../src/apps/obo/applications/applications.service.js')
 const repository =
   await import('../../../src/apps/obo/submission-appointments/submission-appointment.repository.js')
 const service =
   await import('../../../src/apps/obo/submission-appointments/submission-appointment.service.js')
 
 const spies = {
-  getMine: planPermitService.getMine,
+  getMine: applicationService.getMine,
   bookAppointment: appointmentService.bookAppointment,
   cancelAppointment: appointmentService.cancelAppointment,
   createSubmissionAppointment: repository.createSubmissionAppointment,

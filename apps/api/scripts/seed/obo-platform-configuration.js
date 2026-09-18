@@ -1,13 +1,13 @@
-const OBO_FORM_KEY = 'obo-building-plan-permit'
+const OBO_FORM_KEY = 'obo-building-permit'
 const OBO_FORM_VERSION = 1
-const OBO_PERMIT_TYPE_KEY = 'building-plan-permit'
+const OBO_PERMIT_TYPE_KEY = 'building-permit'
 const OBO_APPOINTMENT_TYPE_KEY = 'obo-hardcopy-submission'
 const OBO_APPOINTMENT_REFERENCE = 'OBO-APPT-DEV-0001'
 const OBO_SLOT_START = new Date('2030-06-14T09:00:00.000Z')
 
 const DOCUMENT_TYPES = [
-  { key: 'obo-building-plan', name: 'Building Plan', description: 'Building plan documents submitted for plan permit processing.' },
-  { key: 'obo-site-development-plan', name: 'Site Development Plan', description: 'Site development plan supporting the building plan permit application.' },
+  { key: 'obo-building-plan', name: 'Building Plan', description: 'Building plan documents submitted for building permit processing.' },
+  { key: 'obo-site-development-plan', name: 'Site Development Plan', description: 'Site development plan supporting the building building permit application.' },
   { key: 'obo-professional-credentials', name: 'Professional Credentials', description: 'Professional credential documents associated with the permit application.' },
 ]
 

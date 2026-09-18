@@ -49,7 +49,7 @@ describe('appointment application scoping', () => {
     const repository = await import('../../../src/features/appointments/appointment.repository.js')
     const { listAppointmentTypes } = await import('../../../src/features/appointments/appointment.service.js')
 
-    expect(() => listAppointmentTypes({ active: true })).toThrow('Application context is required.')
+    expect(() => listAppointmentTypes({ active: true })).toThrow('Application id is required for application-scoped data access.')
     expect(repository.listAppointmentTypes).not.toHaveBeenCalled()
   })
 
@@ -82,7 +82,7 @@ describe('OBO appointment authorization', () => {
 
   it('uses app-scoped resource loading for appointment authorization', () => {
     const route = read('src/apps/obo/appointments/appointment.routes.js')
-    expect(route).toContain('repository.findAppointment(id, req.security.app.id)')
+    expect(route).toContain('repository.findAppointment(id, getApplicationId(req))')
     expect(route).toContain("resource: 'obo_appointments'")
   })
 })

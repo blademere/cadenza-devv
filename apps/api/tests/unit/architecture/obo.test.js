@@ -41,14 +41,14 @@ describe('Forms boundary', () => {
   })
   it('keeps OBO form access behind the Platform Forms service', async () => {
     const a = await readText(api('src/apps/obo/permit-types/permit-type.service.js'))
-    const b = await readText(api('src/apps/obo/plan-permits/plan-permit.form.js'))
+    const b = await readText(api('src/apps/obo/applications/applications.form.js'))
     const c = await readText(api('src/platform/forms/form.service.js'))
     expect(a).toContain('../../../platform/forms/form.service.js')
     expect(a).toContain('formService.getFormById')
     expect(a).toContain('formService.getFormVersion')
     expect(a).toContain('formService.getPublishedForm')
     expect(b).toContain('../../../platform/forms/form.service.js')
-    expect(b).not.toContain('plan-permit.repository.js')
+    expect(b).not.toContain('application.repository.js')
     expect(c).toContain('const getFormById')
     expect(c).toContain('const getFormVersionById')
   })
@@ -56,9 +56,9 @@ describe('Forms boundary', () => {
 
 describe('Workflow and appointment boundary', () => {
   it('keeps OBO workflow persistence behind Platform Workflow', async () => {
-    const a = await readText(api('src/apps/obo/plan-permits/plan-permit.service.js'))
+    const a = await readText(api('src/apps/obo/applications/applications.service.js'))
     const b = await readText(api('src/apps/obo/receiving/receiving.service.js'))
-    const c = await readText(api('src/apps/obo/plan-permits/plan-permit.repository.js'))
+    const c = await readText(api('src/apps/obo/applications/applications.repository.js'))
     const d = await readText(api('src/apps/obo/receiving/receiving.repository.js'))
     const e = await readText(api('src/platform/workflow/workflow.repository.js'))
     expect(a).toContain('../../../platform/workflow/workflow.service.js')
@@ -93,7 +93,7 @@ describe('Workflow and appointment boundary', () => {
 
 describe('Controller layering', () => {
   it('keeps OBO controllers free of persistence dependencies', async () => {
-    const files = ['plan-permits/plan-permit.controller.js', 'permit-types/permit-type.controller.js', 'professionals/professional.controller.js', 'receiving/receiving.controller.js', 'submission-appointments/submission-appointment.controller.js']
+    const files = ['applications/applications.controller.js', 'permit-types/permit-type.controller.js', 'professionals/professional.controller.js', 'receiving/receiving.controller.js', 'submission-appointments/submission-appointment.controller.js']
     for (const file of files) {
       const source = await readText(api(`src/apps/obo/${file}`))
       expect(source).not.toMatch(/infrastructure\/database\/prisma\.js/)
@@ -111,8 +111,8 @@ describe('Controller layering', () => {
     const service = await readText(api('src/apps/obo/submission-appointments/submission-appointment.service.js'))
     const repository = await readText(api('src/apps/obo/submission-appointments/submission-appointment.repository.js'))
     expect(service).toContain('./submission-appointment.repository.js')
-    expect(service).toContain('../plan-permits/plan-permit.service.js')
-    expect(service).not.toContain('../plan-permits/plan-permit.repository.js')
+    expect(service).toContain('../applications/applications.service.js')
+    expect(service).not.toContain('../applications/application.repository.js')
     expect(repository).toContain('db.oboSubmissionAppointment.create')
     expect(repository).toContain('db.oboSubmissionAppointment.update')
     expect(repository).not.toContain('db.oboPermitApplication')
@@ -133,25 +133,25 @@ describe('Authorization boundary', () => {
   it('keeps OBO authorization vocabulary aligned across API and web', async () => {
     const apiSource = await readText(api('scripts/seed/authorization.js'))
     const webSource = await readText(web('src/config/permissions.js'))
-    expect(apiSource).toContain("obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive']")
-    expect(apiSource).not.toContain("obo_plan_permits: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive', 'inspect']")
-    expect(webSource).not.toContain("inspect: 'obo_plan_permits:inspect'")
+    expect(apiSource).toContain("obo_applications: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive']")
+    expect(apiSource).not.toContain("obo_applications: ['read', 'create', 'update', 'submit', 'schedule_submission', 'receive', 'inspect']")
+    expect(webSource).not.toContain("inspect: 'obo_applications:inspect'")
   })
   it('uses the permit type permission for Permit Types navigation', async () => {
     const source = await readText(web('src/config/navigation.js'))
     expect(source).toMatch(/key: 'permit-types',[\s\S]*?requiredPermissions: \[permissions\.permitTypes\.read\]/)
-    expect(source).not.toMatch(/key: 'permit-types',[\s\S]*?requiredPermissions: \[permissions\.planPermits\.read\]/)
+    expect(source).not.toMatch(/key: 'permit-types',[\s\S]*?requiredPermissions: \[permissions\.applications\.read\]/)
   })
   it('keeps Permit Type API reads under Permit Type and Form permissions', async () => {
     const source = await readText(api('src/apps/obo/permit-types/permit-type.routes.js'))
     expect(source).toMatch(/router\.get\([\s\S]*?authorize\('obo_permit_types', 'read'\)[\s\S]*?controller\.list/)
     expect(source).toMatch(/const authorizePermitTypeFormsRead = authorizeResource\(\{ resource: 'obo_forms', action: 'read'/)
     expect(source).toMatch(/router\.get\('\/:permitTypeId\/form', authenticate, authorizePermitTypeFormsRead[\s\S]*?controller\.getForm/)
-    expect(source).not.toMatch(/router\.get\([\s\S]*?authorize\('obo_plan_permits', 'read'\)[\s\S]*?controller\.(list|getForm)/)
+    expect(source).not.toMatch(/router\.get\([\s\S]*?authorize\('obo_applications', 'read'\)[\s\S]*?controller\.(list|getForm)/)
   })
   it('allows form builder entry with create or update permission', async () => {
     const router = await readText(web('src/app/router.jsx'))
-    const page = await readText(web('src/features/plan-permits/pages/PermitTypeFormBuilderPage.jsx'))
+    const page = await readText(web('src/features/applications/pages/PermitTypeFormBuilderPage.jsx'))
     expect(router).toContain('protectedPageWithAnyPermission')
     expect(router).toMatch(/permit-types\/:permitTypeId\/form\/edit[\s\S]*?permissions\.forms\.create[\s\S]*?permissions\.forms\.update/)
     expect(page).toContain('RequireAnyPermission')
@@ -187,31 +187,29 @@ describe('Document checklist boundary', () => {
     expect(migration).toContain('OboPermitApplicationDocument_documentId_fkey')
     expect(migration).toContain('DROP COLUMN "requirementId"')
   })
-  it('resolves checklist requirements through shared Requirements and Documents features', async () => {
-    const source = await readText(api('src/apps/obo/application-documents/application-document.service.js'))
+  it('resolves checklist requirements through shared Requirements and the merged OBO Document service', async () => {
+    const source = await readText(api('src/apps/obo/documents/document.service.js'))
     const requirements = await readText(api('src/features/requirements/requirements.service.js'))
     const documents = await readText(api('src/features/documents/document.service.js'))
     expect(source).toContain('features/requirements/requirements.service.js')
     expect(source).toContain('requirementService.listForCase')
     expect(source).not.toContain('document-requirement.service.js')
-    expect(source).toContain('features/documents/document.service.js')
-    expect(source).toContain('documentService.getOwnedDocument')
     expect(documents).toContain('uploadDocument')
     expect(requirements).toContain('listForCase')
   })
   it('keeps receiving state in the OBO association record and persistence behind its repository', async () => {
     const schema = await readText(api('prisma/modules/obo/application-documents.prisma'))
-    const source = await readText(api('src/apps/obo/application-documents/application-document.service.js'))
-    const repository = await readText(api('src/apps/obo/application-documents/application-document.repository.js'))
+    const source = await readText(api('src/apps/obo/documents/document.service.js'))
+    const repository = await readText(api('src/apps/obo/documents/document.repository.js'))
     expect(schema).toContain('status')
-    expect(source).toContain("from './application-document.repository.js'")
+    expect(source).toContain("from './document.repository.js'")
     expect(repository).toContain('db.oboPermitApplicationDocument')
   })
 })
 
 describe('OBO separation boundary', () => {
-  it('keeps Plan Permit repository scoped to permit application persistence', async () => {
-    const source = await readText(api('src/apps/obo/plan-permits/plan-permit.repository.js'))
+  it('keeps Application repository scoped to permit application persistence', async () => {
+    const source = await readText(api('src/apps/obo/applications/applications.repository.js'))
     expect(source).not.toContain('db.oboPermitType')
     expect(source).not.toContain('db.oboReceivingDecision')
     expect(source).not.toContain('db.caseRecord')
@@ -220,25 +218,25 @@ describe('OBO separation boundary', () => {
     expect(source).not.toContain('workflow.repository.js')
     expect(source).not.toContain('appointment.service.js')
   })
-  it('routes Plan Permit dependencies through domain and platform services', async () => {
-    const planPermit = await readText(api('src/apps/obo/plan-permits/plan-permit.service.js'))
-    const form = await readText(api('src/apps/obo/plan-permits/plan-permit.form.js'))
-    const workflow = await readText(api('src/apps/obo/plan-permits/plan-permit.workflow.js'))
+  it('routes Application dependencies through domain and platform services', async () => {
+    const application = await readText(api('src/apps/obo/applications/applications.service.js'))
+    const form = await readText(api('src/apps/obo/applications/applications.form.js'))
+    const workflow = await readText(api('src/apps/obo/applications/applications.workflow.js'))
     const permitTypes = await readText(api('src/apps/obo/permit-types/permit-type.service.js'))
     const cases = await readText(api('src/features/cases/cases.service.js'))
-    expect(planPermit).toContain('../permit-types/permit-type.service.js')
-    expect(planPermit).toContain('permitTypeService.getPermitTypeById')
-    expect(planPermit).toContain('../../../features/cases/cases.service.js')
-    expect(planPermit).toContain('caseService.getOrCreateType')
-    expect(planPermit).toContain('caseService.createRecord')
+    expect(application).toContain('../permit-types/permit-type.service.js')
+    expect(application).toContain('permitTypeService.getPermitTypeById')
+    expect(application).toContain('../../../features/cases/cases.service.js')
+    expect(application).toContain('caseService.getOrCreateType')
+    expect(application).toContain('caseService.createRecord')
     expect(permitTypes).toContain('const getPermitTypeById')
     expect(cases).toContain('const getOrCreateType')
     expect(form).toContain('../../../platform/forms/form.service.js')
-    expect(form).not.toContain('plan-permit.repository.js')
+    expect(form).not.toContain('application.repository.js')
     expect(form).toContain('formService.getFormById')
     expect(form).toContain('formService.getFormVersionById')
     expect(workflow).toContain('../../../platform/workflow/workflow.service.js')
-    expect(workflow).not.toContain('plan-permit.repository.js')
+    expect(workflow).not.toContain('application.repository.js')
     expect(workflow).toContain('workflowService.getWorkflowInstance')
   })
   it('keeps Receiving persistence inside Receiving while services own cross-domain access', async () => {

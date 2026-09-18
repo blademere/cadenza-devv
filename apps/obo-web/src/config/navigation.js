@@ -37,10 +37,10 @@ export const navigation = Object.freeze([
     ],
   },
   {
-    key: 'plan-permits',
-    name: 'Plan Permits',
+    key: 'applications',
+    name: 'Applications',
     items: [
-      { key: 'applications', name: 'Applications', route: '/app/applications', requiredPermissions: [permissions.planPermits.read], icon: ApplicationsIcon },
+      { key: 'applications', name: 'Applications', route: '/app/applications', requiredPermissions: [permissions.applications.read], icon: ApplicationsIcon },
       { key: 'permit-types', name: 'Permit Types', route: '/app/permit-types', requiredPermissions: [permissions.permitTypes.read], icon: PermitTypesIcon },
     ],
   },
@@ -48,7 +48,7 @@ export const navigation = Object.freeze([
     key: 'operations',
     name: 'Operations',
     items: [
-      { key: 'receiving', name: 'Receiving', route: '/app/receiving', requiredPermissions: [permissions.planPermits.receive], icon: ReceivingIcon },
+      { key: 'receiving', name: 'Receiving', route: '/app/receiving', requiredPermissions: [permissions.applications.receive], icon: ReceivingIcon },
       { key: 'appointments', name: 'Appointments', route: '/app/appointments', requiredPermissions: [permissions.appointments.manage], icon: AppointmentsIcon },
       { key: 'professionals', name: 'Professionals', route: '/app/professionals', requiredPermissions: [permissions.professionals.read], icon: ProfessionalsIcon },
       { key: 'professional-verification', name: 'Professional Verification', route: '/app/professionals/verification', requiredPermissions: [permissions.professionals.review], icon: VerificationIcon },

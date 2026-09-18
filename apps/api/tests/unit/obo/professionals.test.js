@@ -77,8 +77,8 @@ describe('professional verification service', () => {
   })
 
   it('requires an application context for verification operations', async () => {
-    await expect(professionalService.getMine({ userId: 'user-1' })).rejects.toThrow('Application context is required.')
-    await expect(professionalService.applyForVerification({ userId: 'user-1', prcId: 'PRC-1', ptrNumber: 'PTR-1' })).rejects.toThrow('Application context is required.')
+    await expect(professionalService.getMine({ userId: 'user-1' })).rejects.toThrow('Application id is required for application-scoped data access.')
+    await expect(professionalService.applyForVerification({ userId: 'user-1', prcId: 'PRC-1', ptrNumber: 'PTR-1' })).rejects.toThrow('Application id is required for application-scoped data access.')
     expect(repository.findByPersonId).not.toHaveBeenCalled()
   })
 })

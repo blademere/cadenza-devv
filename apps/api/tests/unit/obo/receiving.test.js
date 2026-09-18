@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../../src/apps/obo/receiving/receiving.repository.js', () => ({
   findApplication: vi.fn(), withTransaction: vi.fn(), updateApplication: vi.fn(), addDecision: vi.fn(), findPersonNotificationContext: vi.fn(),
 }))
-vi.mock('../../../src/apps/obo/application-documents/application-document.service.js', () => ({ ensureChecklist: vi.fn(), validateRequiredDocuments: vi.fn() }))
+vi.mock('../../../src/apps/obo/documents/document.service.js', () => ({ ensureChecklist: vi.fn(), validateRequiredDocuments: vi.fn() }))
 vi.mock('../../../src/platform/workflow/workflow.service.js', () => ({ getWorkflowInstance: vi.fn(), transitionWorkflow: vi.fn() }))
 vi.mock('../../../src/platform/event-bus/event-bus.js', () => ({ publish: vi.fn() }))
 vi.mock('../../../src/features/appointments/appointment.service.js', () => ({ getAppointmentForReference: vi.fn() }))
@@ -11,7 +11,7 @@ vi.mock('../../../src/features/tasks/tasks.service.js', () => ({ create: vi.fn()
 vi.mock('../../../src/apps/obo/notification-context.js', () => ({ getNotificationContext: vi.fn().mockResolvedValue({}) }))
 
 import * as repository from '../../../src/apps/obo/receiving/receiving.repository.js'
-import * as applicationDocumentService from '../../../src/apps/obo/application-documents/application-document.service.js'
+import * as applicationDocumentService from '../../../src/apps/obo/documents/document.service.js'
 import * as workflowService from '../../../src/platform/workflow/workflow.service.js'
 import * as eventBus from '../../../src/platform/event-bus/event-bus.js'
 import * as appointmentService from '../../../src/features/appointments/appointment.service.js'

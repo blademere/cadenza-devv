@@ -4,14 +4,14 @@ import { mapAppointment } from '../../../features/appointments/appointment.mappe
 import * as taskService from '../../../features/tasks/tasks.service.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
-import * as planPermitService from '../plan-permits/plan-permit.service.js'
+import * as applicationService from '../applications/applications.service.js'
 import * as repository from './submission-appointment.repository.js'
 import { getNotificationContext } from '../notification-context.js'
 
 const TASK_TYPE = Object.freeze({ RECEIVE_HARD_COPY: 'RECEIVE_HARD_COPY' })
 
 const getSubmissionAppointment = async ({ applicationId, appId, userId }) => {
-  const application = await planPermitService.getMine({ id: applicationId, appId, userId })
+  const application = await applicationService.getMine({ id: applicationId, appId, userId })
   const submissionAppointment = application.submissionAppointment
   if (!submissionAppointment) return null
   const appointment = await appointmentService.getMyAppointment({ id: submissionAppointment.appointmentId, userId, appId })
@@ -19,8 +19,8 @@ const getSubmissionAppointment = async ({ applicationId, appId, userId }) => {
 }
 
 const createSubmissionAppointment = async ({ applicationId, appId, userId, appointmentTypeId, slotId, notes }) => {
-  const application = await planPermitService.getMine({ id: applicationId, appId, userId })
-  if (application.status !== planPermitService.STATUS.READY_FOR_SUBMISSION) throw new ConflictError('Application must be ready for submission before booking an appointment.')
+  const application = await applicationService.getMine({ id: applicationId, appId, userId })
+  if (application.status !== applicationService.STATUS.READY_FOR_SUBMISSION) throw new ConflictError('Application must be ready for submission before booking an appointment.')
   if (application.submissionAppointment) throw new ConflictError('A submission appointment is already assigned.')
 
   return repository.withTransaction(async (tx) => {
@@ -35,7 +35,7 @@ const createSubmissionAppointment = async ({ applicationId, appId, userId, appoi
 }
 
 const replaceSubmissionAppointment = async ({ applicationId, appId, userId, appointmentTypeId, slotId, notes }) => {
-  const application = await planPermitService.getMine({ id: applicationId, appId, userId })
+  const application = await applicationService.getMine({ id: applicationId, appId, userId })
   if (application.status !== 'SUBMISSION_SCHEDULED') throw new ConflictError('Only scheduled applications can change their submission appointment.')
   if (!application.submissionAppointment) throw new NotFoundError('Submission appointment not found.')
 

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../../src/features/participants/participants.repository.js')
 
 const repository = await import('../../../src/features/participants/participants.repository.js')
-const { default: participantsService } = await import('../../../src/features/participants/participants.application.service.js')
+const { default: participantsService } = await import('../../../src/features/participants/participants.service.js')
 const { add, list, remove } = participantsService
 const spies = {
   addParticipant: repository.addParticipant,
@@ -18,7 +18,7 @@ afterEach(() => vi.clearAllMocks())
 
 describe('participants capability', () => {
   it('requires application context', async () => {
-    await expect(add({ caseId: 'case-1', personId: 'person-1', roleKey: 'OWNER' })).rejects.toThrow('Application context is required.')
+    await expect(add({ caseId: 'case-1', personId: 'person-1', roleKey: 'OWNER' })).rejects.toThrow('Application id is required for application-scoped data access.')
   })
 
   it('adds a normalized participant role within the application', async () => {

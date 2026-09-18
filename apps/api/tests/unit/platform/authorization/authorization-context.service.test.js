@@ -18,12 +18,12 @@ describe('authorization service', () => {
       membership: { id: 'membership-1' },
       roles: [{ id: 3, name: 'receiving_officer' }],
       permissions: [
-        { resource: 'obo_plan_permits', action: 'read' },
+        { resource: 'obo_applications', action: 'read' },
         { resource: 'obo_professionals', action: 'review' },
       ],
     })
     repository.listActiveModules.mockResolvedValue([
-      { key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true },
+      { key: 'obo_applications', name: 'Applications', description: null, isActive: true },
       { key: 'obo_professionals', name: 'Professionals', description: null, isActive: true },
     ])
 
@@ -34,9 +34,9 @@ describe('authorization service', () => {
       app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
       membership: { id: 'membership-1' },
       roles: [{ id: 3, name: 'receiving_officer' }],
-      permissions: ['obo_plan_permits:read', 'obo_professionals:review'],
+      permissions: ['obo_applications:read', 'obo_professionals:review'],
       modules: [
-        { key: 'obo_plan_permits', name: 'Plan Permits', description: null, isActive: true },
+        { key: 'obo_applications', name: 'Applications', description: null, isActive: true },
         { key: 'obo_professionals', name: 'Professionals', description: null, isActive: true },
       ],
     })

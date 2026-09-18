@@ -3,6 +3,7 @@ import { ConflictError, NotFoundError, BadRequestError } from '../../common/erro
 import { APPOINTMENT_STATUS } from './appointment.constants.js'
 import * as repository from './appointment.repository.js'
 import { recordAudit } from '../../platform/audit/audit.service.js'
+import { requireAppId } from '../../platform/applications/application-scope.js'
 
 const WEEKDAYS = Object.freeze({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 })
 const parseTime = (value) => { const [hours, minutes] = value.split(':').map(Number); return hours * 60 + minutes }
@@ -25,10 +26,6 @@ const toDateAtMinutes = (date, minutes, timeZone) => {
 }
 
 const createReferenceNumber = () => `APT-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
-const requireAppId = (appId) => {
-  if (!appId) throw new BadRequestError('Application context is required.')
-  return appId
-}
 const listAppointmentTypes = ({ appId, active }) => repository.listAppointmentTypes({ appId: requireAppId(appId), active })
 const listAvailabilitySchedules = ({ appId, appointmentTypeId, active }) => repository.listAvailabilitySchedules({ appId: requireAppId(appId), appointmentTypeId, active })
 const listAppointmentSlots = ({ appId, appointmentTypeId, from, to, status }) => repository.listAppointmentSlots({ appId: requireAppId(appId), appointmentTypeId, from, to, status })
