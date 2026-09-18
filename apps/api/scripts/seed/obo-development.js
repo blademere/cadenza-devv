@@ -1,7 +1,7 @@
 const OBO_WORKFLOW = {
   key: 'obo_application',
-  name: 'OBO Plan Permit Application',
-  description: 'Lifecycle workflow for an OBO plan permit application.',
+  name: 'OBO Application',
+  description: 'Lifecycle workflow for an OBO application.',
   steps: [
     { key: 'DRAFT', name: 'Draft', isInitial: true, isFinal: false, sortOrder: 0 },
     { key: 'READY_FOR_SUBMISSION', name: 'Ready for Submission', isInitial: false, isFinal: false, sortOrder: 1 },
