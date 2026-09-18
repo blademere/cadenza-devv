@@ -167,10 +167,21 @@ const enroll = async ({
   studentId,
   lessonPackageId,
   currency = 'PHP',
+  actorId,
 }) => {
   const owner = requireAppId(appId)
+  if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
+    throw new BadRequestError('Authenticated actor is required.')
   const student = await repository.findStudent(studentId, owner)
   if (!student) throw new NotFoundError('Student not found.')
+  const isManager = await can({
+    userId: Number(actorId),
+    appId: owner,
+    resource: 'cadenza_enrollments',
+    action: 'manage',
+  })
+  if (!isManager && Number(student.person?.userId) !== Number(actorId))
+    throw new ForbiddenError('You can only enroll yourself as a Cadenza student.')
   if (student.status !== STUDENT_STATUS.ACTIVE)
     throw new ConflictError('Student is not active.')
   const pkg = await repository.findPackage(lessonPackageId, owner)
