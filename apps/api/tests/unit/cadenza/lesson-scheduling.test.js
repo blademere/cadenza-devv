@@ -35,10 +35,6 @@ describe('Cadenza lesson scheduling', () => {
     repository.findOverlappingSession.mockResolvedValue(null)
     repository.createSession.mockResolvedValue({ id: 'session-1', status: 'SCHEDULED' })
 
-    expect(repository.lockEnrollment).toHaveBeenCalledWith(ENROLLMENT_ID, APP_ID, expect.anything())
-    expect(repository.lockInstructor).toHaveBeenCalledWith(INSTRUCTOR_ID, APP_ID, expect.anything())
-    expect(repository.lockRoom).toHaveBeenCalledWith(ROOM_ID, APP_ID, expect.anything())
-
     await expect(service.createSession({
       appId: APP_ID,
       enrollmentId: ENROLLMENT_ID,
@@ -47,6 +43,10 @@ describe('Cadenza lesson scheduling', () => {
       scheduledStart: '2026-09-21T09:00:00.000Z',
       scheduledEnd: '2026-09-21T10:00:00.000Z',
     })).resolves.toMatchObject({ id: 'session-1', status: 'SCHEDULED' })
+    expect(repository.lockEnrollment).toHaveBeenCalledWith(ENROLLMENT_ID, APP_ID, expect.anything())
+    expect(repository.lockInstructor).toHaveBeenCalledWith(INSTRUCTOR_ID, APP_ID, expect.anything())
+    expect(repository.lockRoom).toHaveBeenCalledWith(ROOM_ID, APP_ID, expect.anything())
+
   })
 
   it('rejects scheduling beyond the lesson package session count', async () => {
