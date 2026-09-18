@@ -87,6 +87,7 @@ const create = async ({
   )
     throw new BadRequestError('scheduledEnd must be after scheduledStart.')
   return repository.withTransaction(async (tx) => {
+    await repository.lockResource(resourceId, owner, tx)
     if (
       await repository.findOverlap(
         { appId: owner, resourceId, scheduledStart: start, scheduledEnd: end },
@@ -132,6 +133,7 @@ const get = async ({ appId, id }) => {
 const checkout = async ({ appId, id }) => {
   const owner = requireAppId(appId)
   return repository.withTransaction(async (tx) => {
+    await repository.lockRental(id, owner, tx)
     const rental = await repository.findById(id, owner, tx)
     if (!rental) throw new NotFoundError('Rental not found.')
     if (rental.status !== RENTAL_STATUS.RESERVED)
