@@ -6,6 +6,12 @@ vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
   lockEnrollment: vi.fn(),
   lockInstructor: vi.fn(),
   lockRoom: vi.fn(),
+  lockSession: vi.fn(),
+  lockReschedule: vi.fn(),
+  findSession: vi.fn(),
+  findReschedule: vi.fn(),
+  updateSession: vi.fn(),
+  updateReschedule: vi.fn(),
   findInstructor: vi.fn(),
   findRoom: vi.fn(),
   findOverlappingSession: vi.fn(),
@@ -100,6 +106,71 @@ describe('Cadenza lesson scheduling', () => {
     })).rejects.toThrow('Confirmed enrollment not found')
 
     expect(repository.findOverlappingSession).not.toHaveBeenCalled()
+  })
+
+  it('serializes session state transitions with a row lock', async () => {
+    repository.withTransaction.mockImplementation((callback) => callback({}))
+    repository.lockSession.mockResolvedValue([])
+    repository.findSession
+      .mockResolvedValueOnce({ id: 'session-1', status: 'SCHEDULED' })
+      .mockResolvedValueOnce({ id: 'session-1', status: 'COMPLETED' })
+    repository.updateSession.mockResolvedValue({ count: 1 })
+
+    await expect(service.completeSession({ appId: APP_ID, id: 'session-1' }))
+      .resolves.toMatchObject({ id: 'session-1', status: 'COMPLETED' })
+
+    expect(repository.lockSession).toHaveBeenCalledWith('session-1', APP_ID, expect.anything())
+    expect(repository.updateSession).toHaveBeenCalledWith(
+      'session-1',
+      APP_ID,
+      { status: 'COMPLETED' },
+      expect.anything(),
+    )
+  })
+
+  it('locks resources and reschedule request before approving a reschedule', async () => {
+    repository.withTransaction.mockImplementation((callback) => callback({}))
+    const session = { id: 'session-1', status: 'SCHEDULED', instructorId: INSTRUCTOR_ID, roomId: ROOM_ID }
+    const request = {
+      id: 'request-1',
+      sessionId: 'session-1',
+      status: 'PENDING',
+      requestedStart: new Date('2026-09-21T11:00:00.000Z'),
+      requestedEnd: new Date('2026-09-21T12:00:00.000Z'),
+    }
+    repository.findReschedule
+      .mockResolvedValueOnce(request)
+      .mockResolvedValueOnce({ ...request, status: 'APPROVED' })
+    repository.findSession
+      .mockResolvedValueOnce(session)
+      .mockResolvedValueOnce(session)
+    repository.lockInstructor.mockResolvedValue([])
+    repository.lockRoom.mockResolvedValue([])
+    repository.lockSession.mockResolvedValue([])
+    repository.lockReschedule.mockResolvedValue([])
+    repository.findOverlappingSession.mockResolvedValue(null)
+    repository.updateSession.mockResolvedValue({ count: 1 })
+    repository.updateReschedule.mockResolvedValue({ count: 1 })
+
+    await expect(service.reviewReschedule({
+      appId: APP_ID,
+      id: request.id,
+      actorId: 99,
+      approve: true,
+    })).resolves.toMatchObject({ id: request.id, status: 'APPROVED' })
+
+    expect(repository.lockInstructor).toHaveBeenCalledWith(INSTRUCTOR_ID, APP_ID, expect.anything())
+    expect(repository.lockRoom).toHaveBeenCalledWith(ROOM_ID, APP_ID, expect.anything())
+    expect(repository.lockSession).toHaveBeenCalledWith(session.id, APP_ID, expect.anything())
+    expect(repository.lockReschedule).toHaveBeenCalledWith(request.id, APP_ID, expect.anything())
+    expect(repository.findOverlappingSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructorId: INSTRUCTOR_ID,
+        roomId: ROOM_ID,
+        excludeId: session.id,
+      }),
+      expect.anything(),
+    )
   })
 
   it('rejects invalid time ranges', async () => {
