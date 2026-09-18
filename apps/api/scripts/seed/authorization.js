@@ -46,7 +46,9 @@ async function seedAuthorization(prisma, { applications } = {}) {
   const permissionRecords = new Map()
   const roles = {}
   const obo = applications?.obo ?? await prisma.app.findUnique({ where: { key: 'obo' } })
+  const cadenza = applications?.cadenza ?? await prisma.app.findUnique({ where: { key: 'cadenza' } })
   if (!obo) throw new Error("Application 'obo' must be seeded before authorization roles.")
+  if (!cadenza) throw new Error("Application 'cadenza' must be seeded before authorization roles.")
 
   for (const [moduleKey, actions] of Object.entries(authorizationCatalog)) {
     const module = await prisma.module.upsert({
@@ -96,6 +98,13 @@ async function seedAuthorization(prisma, { applications } = {}) {
         create: { roleId: role.id, permissionId: permission.id },
       })
     }
+  }
+
+  const cadenzaAdmin = await prisma.role.upsert({ where: { appId_name: { appId: cadenza.id, name: 'admin' } }, update: { description: 'Application administrator for Cadenza.' }, create: { appId: cadenza.id, name: 'admin', description: 'Application administrator for Cadenza.' } })
+  roles.cadenza_admin = cadenzaAdmin
+  for (const [key, permission] of permissionRecords) {
+    if (!key.startsWith('cadenza_')) continue
+    await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: cadenzaAdmin.id, permissionId: permission.id } }, update: {}, create: { roleId: cadenzaAdmin.id, permissionId: permission.id } })
   }
 
   return { roles, permissionRecords }
