@@ -1,4 +1,4 @@
-const OBO_PERMIT_FORM_KEY = 'obo-building-plan-permit'
+const OBO_PERMIT_FORM_KEY = 'obo-building-permit'
 const OBO_FORM_VERSION = 1
 const OBO_APPLICATION_REFERENCE = 'OBO-DEV-20300610-0001'
 
