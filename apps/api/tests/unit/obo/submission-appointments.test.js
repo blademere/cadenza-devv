@@ -15,7 +15,7 @@ const workflowService =
   await import('../../../src/platform/workflow/workflow.service.js')
 const eventBus = await import('../../../src/platform/event-bus/event-bus.js')
 const taskService = await import('../../../src/features/tasks/tasks.service.js')
-const planPermitService =
+const applicationService =
   await import('../../../src/apps/obo/applications/applications.service.js')
 const repository =
   await import('../../../src/apps/obo/submission-appointments/submission-appointment.repository.js')
@@ -23,7 +23,7 @@ const service =
   await import('../../../src/apps/obo/submission-appointments/submission-appointment.service.js')
 
 const spies = {
-  getMine: planPermitService.getMine,
+  getMine: applicationService.getMine,
   bookAppointment: appointmentService.bookAppointment,
   cancelAppointment: appointmentService.cancelAppointment,
   createSubmissionAppointment: repository.createSubmissionAppointment,
