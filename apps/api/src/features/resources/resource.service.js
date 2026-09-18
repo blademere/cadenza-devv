@@ -4,16 +4,9 @@ import {
   NotFoundError,
 } from '../../common/errors/appError.js'
 import { recordAudit } from '../../platform/audit/audit.service.js'
+import { requireAppId } from '../../platform/applications/application-scope.js'
 import { RESOURCE_STATUS } from './resource.constants.js'
 import * as repository from './resource.repository.js'
-
-const requireAppId = (appId) => {
-  if (!appId || typeof appId !== 'string') {
-    throw new BadRequestError('Application context is required.')
-  }
-
-  return appId
-}
 
 const requireNonEmptyString = (value, field) => {
   if (typeof value !== 'string' || !value.trim()) {
