@@ -39,6 +39,11 @@ const envSchema = z.object({
   EMAIL_FROM: optionalEnvString,
   STORAGE_PROVIDER: z.enum(['local']).default('local'),
   STORAGE_LOCAL_ROOT: z.string().min(1).default('./storage'),
+  PAYMONGO_SECRET_KEY: optionalEnvString,
+  PAYMONGO_WEBHOOK_SECRET: optionalEnvString,
+  PAYMONGO_MODE: z.enum(['test', 'live']).default('test'),
+  PAYMONGO_API_BASE_URL: z.url().default('https://api.paymongo.com'),
+  PAYMONGO_WEBHOOK_TOLERANCE_SECONDS: z.coerce.number().int().positive().default(300),
   AUTHORIZATION_CACHE_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   AUTHORIZATION_CACHE_TRUST_POSITIVE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 })
