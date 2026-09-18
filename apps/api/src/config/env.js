@@ -44,6 +44,10 @@ const envSchema = z.object({
   PAYMONGO_MODE: z.enum(['test', 'live']).default('test'),
   PAYMONGO_API_BASE_URL: z.url().default('https://api.paymongo.com'),
   PAYMONGO_WEBHOOK_TOLERANCE_SECONDS: z.coerce.number().int().positive().default(300),
+  PAYMONGO_SUCCESS_URL: optionalEnvUrl,
+  PAYMONGO_CANCEL_URL: optionalEnvUrl,
+  PAYMONGO_PAYMENT_METHODS: z.string().default('card,gcash,qrph'),
+  PAYMONGO_PASS_ON_FEES: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   AUTHORIZATION_CACHE_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   AUTHORIZATION_CACHE_TRUST_POSITIVE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 })
