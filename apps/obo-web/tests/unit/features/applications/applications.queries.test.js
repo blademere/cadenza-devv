@@ -4,7 +4,7 @@ import {
   permitTypesQueryKey,
   applicationQueryKey,
   applicationsQueryKey,
-} from '../../../../src/features/plan-permits/queries/applications.queries.js'
+} from '../../../../src/features/applications/queries/applications.queries.js'
 
 describe('application query keys', () => {
   it('uses stable collection keys', () => {
