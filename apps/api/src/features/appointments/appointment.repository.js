@@ -1,6 +1,7 @@
 import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+import { run as runTransaction } from '../../platform/transactions/transaction.service.js'
 const prisma = getPrismaClient()
-const withTransaction = (callback) => prisma.$transaction(callback)
+const withTransaction = (callback) => runTransaction(callback)
 const findAppointmentType = (id, appId, db = prisma) => db.appointmentType.findFirst({ where: { id, appId } })
 const listAppointmentTypes = ({ appId, active }, db = prisma) => db.appointmentType.findMany({ where: { appId, ...(active === undefined ? {} : { isActive: active }) }, orderBy: { name: 'asc' } })
 const createAppointmentType = (data, db = prisma) => db.appointmentType.create({ data })
