@@ -182,6 +182,7 @@ CREATE TABLE "CadenzaRental" (
   "scheduledStart" TIMESTAMP(3) NOT NULL,
   "scheduledEnd" TIMESTAMP(3) NOT NULL,
   "totalAmount" DECIMAL(19,4) NOT NULL,
+  "requiredDownPayment" DECIMAL(19,4) NOT NULL,
   "paymentObligationId" TEXT,
   "status" TEXT NOT NULL DEFAULT 'PENDING',
   "checkedOutAt" TIMESTAMP(3),
