@@ -1,7 +1,7 @@
 const APPLICATION_FORM = {
   key: 'obo-building-permit',
   name: 'Building Permit Application',
-  description: 'Dynamic application form for OBO building building permit applications.',
+  description: 'Dynamic application form for OBO building permit applications.',
   entityType: 'OboPermitApplication',
   version: 1,
   sections: [
