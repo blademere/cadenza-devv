@@ -1,5 +1,6 @@
 CREATE TABLE "PaymentObligation" (
   "id" TEXT NOT NULL,
+  "appId" TEXT NOT NULL,
   "referenceType" TEXT NOT NULL,
   "referenceId" TEXT NOT NULL,
   "currency" TEXT NOT NULL,
@@ -12,12 +13,12 @@ CREATE TABLE "PaymentObligation" (
   CONSTRAINT "PaymentObligation_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "PaymentObligation_referenceType_referenceId_key"
-  ON "PaymentObligation"("referenceType", "referenceId");
-CREATE INDEX "PaymentObligation_status_createdAt_idx"
-  ON "PaymentObligation"("status", "createdAt");
-CREATE INDEX "PaymentObligation_referenceType_referenceId_idx"
-  ON "PaymentObligation"("referenceType", "referenceId");
+CREATE UNIQUE INDEX "PaymentObligation_appId_referenceType_referenceId_key"
+  ON "PaymentObligation"("appId", "referenceType", "referenceId");
+CREATE INDEX "PaymentObligation_appId_status_createdAt_idx"
+  ON "PaymentObligation"("appId", "status", "createdAt");
+CREATE INDEX "PaymentObligation_appId_referenceType_referenceId_idx"
+  ON "PaymentObligation"("appId", "referenceType", "referenceId");
 
 CREATE TABLE "Payment" (
   "id" TEXT NOT NULL,
