@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+import { run as runTransaction } from '../../platform/transactions/transaction.service.js'
 
 const prisma = getPrismaClient()
 const findUserByEmail = async (email, db = prisma) => db.user.findUnique({ where: { email } })
@@ -11,9 +12,9 @@ const bumpUserAuthVersion = async (userId, { revokeRefreshTokens = true, db = pr
     if (revokeRefreshTokens) await tx.refreshToken.updateMany({ where: { userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date() } })
     return user
   }
-  return db === prisma ? prisma.$transaction(execute) : execute(db)
+  return db === prisma ? runTransaction(execute) : execute(db)
 }
-const changePassword = async ({ userId, passwordHash }) => prisma.$transaction(async (tx) => {
+const changePassword = async ({ userId, passwordHash }) => runTransaction(async (tx) => {
   const user = await tx.user.update({ where: { id: Number(userId) }, data: { passwordHash, authVersion: { increment: 1 } }, select: { id: true, authVersion: true } })
   await tx.refreshToken.updateMany({ where: { userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date() } })
   return user
@@ -31,14 +32,14 @@ const findRefreshToken = async (tokenHash, db = prisma) => db.refreshToken.findU
 const findRefreshTokenById = async (tokenId, db = prisma) => db.refreshToken.findUnique({ where: { id: tokenId }, include: { user: true, replacedByToken: { select: { id: true, revokedAt: true, expiresAt: true } } } })
 const revokeRefreshToken = async (tokenId) => prisma.refreshToken.updateMany({ where: { id: tokenId, revokedAt: null }, data: { revokedAt: new Date() } })
 const revokeAllRefreshTokensForUser = async (userId) => prisma.refreshToken.updateMany({ where: { userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date() } })
-const rotateRefreshToken = async ({ currentTokenId, newTokenId, newTokenHash, userId, expiresAt }) => prisma.$transaction(async (tx) => {
+const rotateRefreshToken = async ({ currentTokenId, newTokenId, newTokenHash, userId, expiresAt }) => runTransaction(async (tx) => {
   await tx.refreshToken.create({ data: { id: newTokenId, tokenHash: newTokenHash, userId: Number(userId), expiresAt } })
   const consumed = await tx.refreshToken.updateMany({ where: { id: currentTokenId, userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date(), replacedByTokenId: newTokenId } })
   return consumed.count === 1 ? { success: true } : { success: false }
 })
 const createPasswordResetToken = async ({ tokenHash, userId, expiresAt }, db = prisma) => db.passwordResetToken.create({ data: { tokenHash, userId: Number(userId), expiresAt } })
 const findPasswordResetToken = async (tokenHash, db = prisma) => db.passwordResetToken.findUnique({ where: { tokenHash }, include: { user: true } })
-const consumePasswordResetToken = async ({ tokenId, userId, passwordHash }) => prisma.$transaction(async (tx) => {
+const consumePasswordResetToken = async ({ tokenId, userId, passwordHash }) => runTransaction(async (tx) => {
   const consumed = await tx.passwordResetToken.updateMany({ where: { id: tokenId, userId: Number(userId), usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } })
   if (consumed.count !== 1) return { success: false }
   await tx.user.update({ where: { id: Number(userId) }, data: { passwordHash, authVersion: { increment: 1 } } })
@@ -49,15 +50,13 @@ const invalidatePasswordResetTokens = async (userId, db = prisma) => db.password
 const createEmailVerificationToken = async ({ tokenHash, userId, expiresAt }, db = prisma) => db.emailVerificationToken.create({ data: { tokenHash, userId: Number(userId), expiresAt } })
 const findEmailVerificationToken = async (tokenHash, db = prisma) => db.emailVerificationToken.findUnique({ where: { tokenHash }, include: { user: true } })
 const invalidateEmailVerificationTokens = async (userId, db = prisma) => db.emailVerificationToken.updateMany({ where: { userId: Number(userId), usedAt: null }, data: { usedAt: new Date() } })
-const consumeEmailVerificationToken = async ({ tokenId, userId }) => prisma.$transaction(async (tx) => {
+const consumeEmailVerificationToken = async ({ tokenId, userId }) => runTransaction(async (tx) => {
   const consumed = await tx.emailVerificationToken.updateMany({ where: { id: tokenId, userId: Number(userId), usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } })
   if (consumed.count !== 1) return { success: false }
   const verified = await tx.user.updateMany({ where: { id: Number(userId), emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } })
   if (verified.count !== 1) return { success: false }
   return { success: true }
 })
-const withTransaction = (callback) => prisma.$transaction(callback)
-
 export {
   findUserByEmail,
   findUserById,
@@ -73,7 +72,6 @@ export {
   findOAuthAccountByUserAndProvider,
   deleteOAuthAccount,
   countOAuthAccounts,
-  withTransaction,
   createRefreshTokenRecord,
   findRefreshToken,
   findRefreshTokenById,
