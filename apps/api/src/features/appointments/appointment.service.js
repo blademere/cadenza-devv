@@ -4,6 +4,7 @@ import { APPOINTMENT_STATUS } from './appointment.constants.js'
 import * as repository from './appointment.repository.js'
 import { recordAudit } from '../../platform/audit/audit.service.js'
 import { requireAppId } from '../../platform/applications/application-scope.js'
+import { run as runTransaction } from '../../platform/transactions/transaction.service.js'
 
 const WEEKDAYS = Object.freeze({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 })
 const parseTime = (value) => { const [hours, minutes] = value.split(':').map(Number); return hours * 60 + minutes }
@@ -39,7 +40,7 @@ const listAppointmentsForReferences = ({ ids, appId, db }) => repository.findApp
 
 const createAppointmentType = async ({ actorId, appId, data }) => {
   const owner = requireAppId(appId)
-  return repository.withTransaction(async (tx) => {
+  return runTransaction(async (tx) => {
     const created = await repository.createAppointmentType({ ...data, appId: owner }, tx)
     await recordAudit({ actorId, appId: owner, action: 'APPOINTMENT_TYPE_CREATED', entityType: 'AppointmentType', entityId: created.id, before: null, after: created, db: tx })
     return created
@@ -48,7 +49,7 @@ const createAppointmentType = async ({ actorId, appId, data }) => {
 
 const createAvailabilitySchedule = async ({ actorId, appId, data }) => {
   const owner = requireAppId(appId)
-  return repository.withTransaction(async (tx) => {
+  return runTransaction(async (tx) => {
     const type = await repository.findAppointmentType(data.appointmentTypeId, owner, tx)
     if (!type) throw new NotFoundError('Appointment type not found.')
     if (data.startTime >= data.endTime) throw new BadRequestError('Schedule startTime must be earlier than endTime.')
@@ -62,7 +63,7 @@ const createAvailabilitySchedule = async ({ actorId, appId, data }) => {
 
 const createAppointmentSlot = async ({ actorId, appId, data }) => {
   const owner = requireAppId(appId)
-  return repository.withTransaction(async (tx) => {
+  return runTransaction(async (tx) => {
     const type = await repository.findAppointmentType(data.appointmentTypeId, owner, tx)
     if (!type) throw new NotFoundError('Appointment type not found.')
     if (data.endsAt <= data.startsAt) throw new BadRequestError('Slot endsAt must be later than startsAt.')
@@ -113,7 +114,7 @@ const generateSlots = async ({ appointmentTypeId, from, to, scheduleId, actorId,
     return created
   }
 
-  return db ? execute(db) : repository.withTransaction(execute)
+  return db ? execute(db) : runTransaction(execute)
 }
 
 const bookAppointment = async ({ userId, appId, appointmentTypeId, slotId, metadata, notes, db }) => {
@@ -131,7 +132,7 @@ const bookAppointment = async ({ userId, appId, appointmentTypeId, slotId, metad
     await recordAudit({ actorId: userId, appId: owner, action: 'APPOINTMENT_CREATED', entityType: 'Appointment', entityId: created.id, before: null, after: created, db: tx })
     return created
   }
-  return db ? execute(db) : repository.withTransaction(execute)
+  return db ? execute(db) : runTransaction(execute)
 }
 
 const getMyAppointment = async ({ id, userId, appId }) => {
@@ -154,12 +155,12 @@ const cancelAppointment = async ({ id, userId, appId, db }) => {
     await recordAudit({ actorId: userId, appId: owner, action: 'APPOINTMENT_CANCELLED', entityType: 'Appointment', entityId: id, before: appointment, after: updated, db: tx })
     return updated
   }
-  return db ? execute(db) : repository.withTransaction(execute)
+  return db ? execute(db) : runTransaction(execute)
 }
 
 const cancelManagedAppointment = async ({ id, actorId, appId }) => {
   const owner = requireAppId(appId)
-  return repository.withTransaction(async (tx) => {
+  return runTransaction(async (tx) => {
     const appointment = await repository.findAppointment(id, owner, tx)
     if (!appointment) throw new NotFoundError('Appointment not found.')
     if (![APPOINTMENT_STATUS.PENDING, APPOINTMENT_STATUS.CONFIRMED].includes(appointment.status)) throw new ConflictError('Only pending or confirmed appointments can be cancelled.')
@@ -174,7 +175,7 @@ const cancelManagedAppointment = async ({ id, actorId, appId }) => {
 
 const updateAppointmentStatus = async ({ id, actorId, appId, fromStatus, status, timestampField }) => {
   const owner = requireAppId(appId)
-  return repository.withTransaction(async (tx) => {
+  return runTransaction(async (tx) => {
     const before = await repository.findAppointment(id, owner, tx)
     if (!before) throw new NotFoundError('Appointment not found.')
     const updated = await repository.transitionAppointment({ id, appId: owner, fromStatus, status, timestampField }, tx)
@@ -187,7 +188,7 @@ const updateAppointmentStatus = async ({ id, actorId, appId, fromStatus, status,
 
 const checkInAppointment = async ({ id, actorId, appId }) => {
   const owner = requireAppId(appId)
-  return repository.withTransaction(async (tx) => {
+  return runTransaction(async (tx) => {
     const appointment = await repository.getAppointmentWithRelations(id, owner, tx)
     if (!appointment) throw new NotFoundError('Appointment not found.')
     if (appointment.status !== APPOINTMENT_STATUS.CONFIRMED) throw new ConflictError('Only confirmed appointments can be checked in.')
