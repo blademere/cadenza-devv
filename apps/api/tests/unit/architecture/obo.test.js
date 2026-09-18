@@ -195,12 +195,11 @@ describe('Document checklist boundary', () => {
     expect(source).toContain('requirementService.listForCase')
     expect(source).not.toContain('document-requirement.service.js')
     expect(documents).toContain('uploadDocument')
-    expect(documents).toContain('uploadDocument')
     expect(requirements).toContain('listForCase')
   })
   it('keeps receiving state in the OBO association record and persistence behind its repository', async () => {
     const schema = await readText(api('prisma/modules/obo/application-documents.prisma'))
-    const source = await readText(api('src/apps/obo/application-documents/application-document.service.js'))
+    const source = await readText(api('src/apps/obo/documents/document.service.js'))
     const repository = await readText(api('src/apps/obo/documents/document.repository.js'))
     expect(schema).toContain('status')
     expect(source).toContain("from './document.repository.js'")
