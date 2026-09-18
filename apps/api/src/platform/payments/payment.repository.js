@@ -6,15 +6,15 @@ const getDb = (db) => db || prisma
 
 const createObligation = (data, db) => getDb(db).paymentObligation.create({ data })
 
-const findObligationById = (id, db) =>
-  getDb(db).paymentObligation.findUnique({
-    where: { id },
+const findObligationById = (id, appId, db) =>
+  getDb(db).paymentObligation.findFirst({
+    where: { id, appId },
     include: { payments: { orderBy: { createdAt: 'asc' } } },
   })
 
-const findObligationByReference = (referenceType, referenceId, db) =>
+const findObligationByReference = (appId, referenceType, referenceId, db) =>
   getDb(db).paymentObligation.findUnique({
-    where: { referenceType_referenceId: { referenceType, referenceId } },
+    where: { appId_referenceType_referenceId: { appId, referenceType, referenceId } },
     include: { payments: { orderBy: { createdAt: 'asc' } } },
   })
 
