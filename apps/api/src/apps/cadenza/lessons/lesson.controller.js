@@ -3,6 +3,9 @@ import {getApplicationId} from '../../../platform/applications/application-conte
 import * as service from './lesson.service.js'
 const listPackages=async(req,res)=>successResponse(res,'Cadenza lesson packages retrieved successfully.',await service.listPackages({appId:getApplicationId(req)}))
 const createPackage=async(req,res)=>successResponse(res,'Cadenza lesson package created successfully.',await service.createPackage({appId:getApplicationId(req),...req.validated.body}),201)
+const addAttachment=async(req,res)=>successResponse(res,'Cadenza lesson attachment added successfully.',await service.addAttachment({appId:getApplicationId(req),lessonPackageId:req.params.lessonPackageId,...req.validated.body}),201)
+const listAttachments=async(req,res)=>successResponse(res,'Cadenza lesson attachments retrieved successfully.',await service.listAttachments({appId:getApplicationId(req),lessonPackageId:req.params.lessonPackageId}))
+const removeAttachment=async(req,res)=>successResponse(res,'Cadenza lesson attachment removed successfully.',await service.removeAttachment({appId:getApplicationId(req),lessonPackageId:req.params.lessonPackageId,id:req.params.id}))
 const listEnrollments=async(req,res)=>successResponse(res,'Cadenza enrollments retrieved successfully.',await service.listEnrollments({appId:getApplicationId(req)}))
 const enroll=async(req,res)=>successResponse(res,'Cadenza enrollment created successfully.',await service.enroll({appId:getApplicationId(req),...req.validated.body}),201)
 const listSessions=async(req,res)=>successResponse(res,'Cadenza lesson sessions retrieved successfully.',await service.listSessions({appId:getApplicationId(req)}))
