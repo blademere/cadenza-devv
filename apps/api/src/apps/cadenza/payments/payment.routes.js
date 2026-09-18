@@ -7,7 +7,7 @@ import {
 import { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
 import * as controller from './payment.controller.js'
 import * as service from './payment.service.js'
-import { getValidator, payValidator } from './payment.validation.js'
+import { getValidator, payValidator, checkoutValidator } from './payment.validation.js'
 const router = express.Router()
 const resource = authorizeResource({
   resource: 'cadenza_payments',
@@ -29,6 +29,13 @@ const payResource = authorizeResource({
     service.get({ obligationId: id, appId: req.security.app.id }),
   getResourceId: (req) => req.params.obligationId,
 })
+router.post(
+  '/:obligationId/checkout',
+  payResource,
+  idempotency({ scope: 'cadenza-payment-checkout', required: true }),
+  validate(checkoutValidator),
+  asyncHandler(controller.checkout)
+)
 router.post(
   '/:obligationId/pay',
   payResource,
