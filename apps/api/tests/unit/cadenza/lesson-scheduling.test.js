@@ -140,6 +140,7 @@ describe('Cadenza lesson scheduling', () => {
     }
     repository.findReschedule
       .mockResolvedValueOnce(request)
+      .mockResolvedValueOnce(request)
       .mockResolvedValueOnce({ ...request, status: 'APPROVED' })
     repository.findSession
       .mockResolvedValueOnce(session)
