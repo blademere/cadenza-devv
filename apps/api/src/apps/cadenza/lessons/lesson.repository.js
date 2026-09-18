@@ -21,7 +21,7 @@ const findInstructor=(id,appId,db=prisma)=>db.cadenzaInstructor.findFirst({where
 const findRoom=(id,appId,db=prisma)=>db.cadenzaRoom.findFirst({where:{id,appId,status:'AVAILABLE'}})
 const findOverlappingSession=({appId,instructorId,roomId,startsAt,endsAt,excludeId},db=prisma)=>db.cadenzaLessonSession.findFirst({where:{appId,status:{not:'CANCELLED'},scheduledStart:{lt:endsAt},scheduledEnd:{gt:startsAt},...(excludeId?{id:{not:excludeId}}:{}),OR:[...(instructorId?[{instructorId}]:[]),...(roomId?[{roomId}]:[])]}})
 const createSession=(data,db=prisma)=>db.cadenzaLessonSession.create({data})
-const findSession=(id,appId,db=prisma)=>db.cadenzaLessonSession.findFirst({where:{id,appId},include:{attendance:true,enrollment:{include:{student:{include:{person:true}},lessonPackage:true},},instructor:{include:{person:true}}}})
+const findSession=(id,appId,db=prisma)=>db.cadenzaLessonSession.findFirst({where:{id,appId},include:{attendance:true,enrollment:{include:{student:{include:{person:true}},lessonPackage:true}}}})
 const upsertAttendance=(sessionId,data,db=prisma)=>db.cadenzaAttendance.upsert({where:{sessionId},create:{sessionId,...data},update:data})
 const createReschedule=(data,db=prisma)=>db.cadenzaRescheduleRequest.create({data})
 const findReschedule=(id,appId,db=prisma)=>db.cadenzaRescheduleRequest.findFirst({where:{id,appId}})
