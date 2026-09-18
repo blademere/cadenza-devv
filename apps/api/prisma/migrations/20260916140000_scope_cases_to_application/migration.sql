@@ -6,9 +6,8 @@ ALTER TABLE "CaseRecord"
   ADD COLUMN "appId" TEXT;
 
 UPDATE "CaseRecord" AS c
-SET "appId" = a."id"
+SET "appId" = p."appId"
 FROM "OboPermitApplication" AS p
-JOIN "App" AS a ON a."key" = 'obo'
 WHERE p."caseId" = c."id";
 
 DO $$
@@ -17,9 +16,6 @@ BEGIN
     RAISE EXCEPTION 'Cannot complete case application ownership migration: one or more CaseRecord rows have no authoritative application owner';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM "App" WHERE "key" = 'obo') THEN
-    RAISE EXCEPTION 'Cannot complete case application ownership migration: OBO App does not exist';
-  END IF;
 END $$;
 
 ALTER TABLE "CaseRecord"
