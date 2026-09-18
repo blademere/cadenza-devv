@@ -326,6 +326,7 @@ const requestReschedule = async ({
   )
     throw new BadRequestError('requestedEnd must be after requestedStart.')
   return repository.withTransaction(async (tx) => {
+    await repository.lockSession(sessionId, owner, tx)
     const session = await repository.findSession(sessionId, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
     await assertSessionActor({ session, actorId, appId: owner })
@@ -335,6 +336,8 @@ const requestReschedule = async ({
       )
     )
       throw new ConflictError('Only active lesson sessions can be rescheduled.')
+    if (await repository.findPendingReschedule(sessionId, owner, tx))
+      throw new ConflictError('A pending reschedule request already exists for this lesson session.')
     return repository.createReschedule(
       {
         appId: owner,
