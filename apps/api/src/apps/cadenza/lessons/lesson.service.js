@@ -8,6 +8,7 @@ import { requireAppId } from '../../../platform/applications/application-scope.j
 import { can } from '../../../platform/authorization/authorization.service.js'
 import { createPaymentObligation } from '../../../platform/payments/payment.service.js'
 import { getStorageService } from '../../../platform/storage/storage.registry.js'
+import { positiveDecimal } from '../../../platform/money/money.js'
 import { createStorageKey } from '../../../platform/storage/storage.key.js'
 import * as repository from './lesson.repository.js'
 import {
@@ -42,13 +43,11 @@ const assertSessionActor = async ({
     'You can only act on lesson sessions you are authorized to manage.'
   )
 }
-const decimalAmount = (value) => {
+const decimalAmount = (value, field = 'amount') => {
   try {
-    const amount = new Prisma.Decimal(value)
-    if (!amount.isFinite() || amount.lte(0)) throw new Error()
-    return amount
+    return positiveDecimal(value, field)
   } catch {
-    throw new BadRequestError('price must be greater than zero.')
+    throw new BadRequestError(field + ' must be greater than zero.')
   }
 }
 const listPackages = ({ appId }) => repository.listPackages(requireAppId(appId))
