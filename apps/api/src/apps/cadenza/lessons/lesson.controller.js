@@ -7,4 +7,7 @@ const listEnrollments=async(req,res)=>successResponse(res,'Cadenza enrollments r
 const enroll=async(req,res)=>successResponse(res,'Cadenza enrollment created successfully.',await service.enroll({appId:getApplicationId(req),...req.validated.body}),201)
 const listSessions=async(req,res)=>successResponse(res,'Cadenza lesson sessions retrieved successfully.',await service.listSessions({appId:getApplicationId(req)}))
 const createSession=async(req,res)=>successResponse(res,'Cadenza lesson session scheduled successfully.',await service.createSession({appId:getApplicationId(req),...req.validated.body}),201)
-export {listPackages,createPackage,listEnrollments,enroll,listSessions,createSession}
+const markAttendance=async(req,res)=>successResponse(res,'Cadenza attendance saved successfully.',await service.markAttendance({appId:getApplicationId(req),sessionId:req.params.sessionId,...req.validated.body}))
+const requestReschedule=async(req,res)=>successResponse(res,'Cadenza reschedule requested successfully.',await service.requestReschedule({appId:getApplicationId(req),...req.validated.body}),201)
+const reviewReschedule=async(req,res)=>successResponse(res,'Cadenza reschedule reviewed successfully.',await service.reviewReschedule({appId:getApplicationId(req),id:req.params.id,...req.validated.body}))
+export {listPackages,createPackage,listEnrollments,enroll,listSessions,createSession,markAttendance,requestReschedule,reviewReschedule}
