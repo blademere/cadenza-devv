@@ -37,9 +37,9 @@ const summarizeObligation = (obligation, successfulPayments) => {
   }
 }
 
-const getObligation = async (id, appId) => {
+const getObligation = async (id, appId, db = prisma) => {
   if (!id || !appId) throw new TypeError('id and appId are required.')
-  const obligation = await findObligationById(id, appId)
+  const obligation = await findObligationById(id, appId, db)
   if (!obligation) return null
   return summarizeObligation(obligation, obligation.payments.filter((p) => p.status === PAYMENT_STATUS.SUCCEEDED))
 }
