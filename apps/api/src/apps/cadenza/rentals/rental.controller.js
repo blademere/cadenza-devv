@@ -5,4 +5,5 @@ const list=async(req,res)=>successResponse(res,'Cadenza rentals retrieved succes
 const create=async(req,res)=>successResponse(res,'Cadenza rental created successfully.',await service.create({appId:getApplicationId(req),...req.validated.body}),201)
 const checkout=async(req,res)=>successResponse(res,'Cadenza rental checked out successfully.',await service.checkout({appId:getApplicationId(req),id:req.params.id}))
 const returnRental=async(req,res)=>successResponse(res,'Cadenza rental returned successfully.',await service.returnRental({appId:getApplicationId(req),id:req.params.id}))
-export {list,create,checkout,returnRental}
+const cancel=async(req,res)=>successResponse(res,'Cadenza rental cancelled successfully.',await service.cancel({appId:getApplicationId(req),id:req.params.id}))
+export {list,create,checkout,returnRental,cancel}
