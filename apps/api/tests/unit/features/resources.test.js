@@ -168,6 +168,7 @@ describe('resource service', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'INACTIVE' })
       .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'ACTIVE' })
+      .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'ACTIVE' })
       .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'INACTIVE' })
       .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'ACTIVE' })
       .mockResolvedValueOnce({ id: 'resource-1', appId: 'app-1', status: 'INACTIVE' })
