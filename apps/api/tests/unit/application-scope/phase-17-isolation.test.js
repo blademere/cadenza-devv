@@ -114,7 +114,7 @@ describe('phase 17 application isolation matrix', () => {
   }
 
   it('OBO permit applications remain scoped for read, client-owned read, create, and update', async () => {
-    const source = await read('apps/obo/plan-permits/plan-permit.repository.js')
+    const source = await read('apps/obo/applications/applications.repository.js')
     expect(source).toContain('where: withAppId({ id }, appId)')
     expect(source).toContain('where: withAppId({ id, clientPersonId }, appId)')
     expect(source).toContain('const appId = requireAppId(data?.appId)')
