@@ -22,7 +22,7 @@ describe('application-scoped service boundaries', () => {
   })
 
   it('requires appId for participant application operations without accepting Express request objects', async () => {
-    const source = await read('features/participants/participants.application.service.js')
+    const source = await read('features/participants/participants.service.js')
     expect(source).toContain('const add = async ({')
     expect(source).toContain('const list = async ({ caseId, appId, db })')
     expect(source).toContain('const remove = async ({ id, appId, db })')
@@ -60,7 +60,7 @@ describe('application-scoped service boundaries', () => {
     const sources = await Promise.all([
       read('features/cases/cases.service.js'),
       read('features/tasks/tasks.service.js'),
-      read('features/participants/participants.application.service.js'),
+      read('features/participants/participants.service.js'),
       read('features/appointments/appointment.service.js'),
       read('features/requirements/requirements.service.js'),
       read('platform/forms/form.service.js'),
