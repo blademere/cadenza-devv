@@ -1,16 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { submissionAppointmentsApi } from '../api/submission-appointments.api'
 import {
-  planPermitApplicationQueryKey,
-  planPermitApplicationsQueryKey,
+  applicationQueryKey,
+  applicationsQueryKey,
 } from '../../applications/queries/applications.queries'
 import { submissionAppointmentQueryKey } from '../queries/submission-appointments.queries'
 
 const invalidate = async (queryClient, applicationId) => {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: submissionAppointmentQueryKey(applicationId), refetchType: 'active' }),
-    queryClient.invalidateQueries({ queryKey: planPermitApplicationQueryKey(applicationId), refetchType: 'active' }),
-    queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey, refetchType: 'active' }),
+    queryClient.invalidateQueries({ queryKey: applicationQueryKey(applicationId), refetchType: 'active' }),
+    queryClient.invalidateQueries({ queryKey: applicationsQueryKey, refetchType: 'active' }),
   ])
 }
 
