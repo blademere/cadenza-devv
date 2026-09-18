@@ -1,37 +1,30 @@
 model CadenzaStudent {
   id        String   @id @default(uuid())
   appId     String
-  userId    Int
-  personId  String?
-  firstName String
-  lastName  String
-  email     String?
-  phone     String?
+  personId  String
   status    String   @default("ACTIVE")
   metadata  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
-  @@unique([appId, userId])
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+  @@unique([appId, personId])
   @@index([appId, status])
-  @@index([appId, lastName, firstName])
 }
 
 model CadenzaInstructor {
   id        String   @id @default(uuid())
   appId     String
-  userId    Int?
-  personId  String?
-  firstName String
-  lastName  String
+  personId  String
   specialty String?
   status    String   @default("ACTIVE")
   metadata  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+  @@unique([appId, personId])
   @@index([appId, status])
-  @@index([appId, lastName, firstName])
 }
 
 model CadenzaInstrument {
@@ -130,7 +123,7 @@ model CadenzaLessonSession {
   metadata     Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  app          App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  app          App          @relation(fields: [appId], references: [id], onDelete: Cascade)
   enrollment   CadenzaEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   attendance   CadenzaAttendance?
   @@index([appId, scheduledStart, scheduledEnd])
