@@ -55,6 +55,35 @@ describe('Cadenza lesson attachment storage', () => {
     }))
   })
 
+  it('rejects malformed base64 before writing to storage', async () => {
+    repository.findPackage.mockResolvedValue({ id: PACKAGE_ID, appId: APP_ID })
+    await expect(service.addAttachment({
+      appId: APP_ID,
+      lessonPackageId: PACKAGE_ID,
+      fileName: 'lesson.pdf',
+      contentBase64: 'not-base64!',
+      contentType: 'application/pdf',
+      type: 'LESSON_MATERIAL',
+    })).rejects.toThrow('valid base64')
+    const storage = storageRegistry.getStorageService.mock.results[0].value
+    expect(storage.put).not.toHaveBeenCalled()
+  })
+
+  it('rejects decoded content above the storage limit', async () => {
+    repository.findPackage.mockResolvedValue({ id: PACKAGE_ID, appId: APP_ID })
+    const contentBase64 = Buffer.alloc(950 * 1024 + 1).toString('base64')
+    await expect(service.addAttachment({
+      appId: APP_ID,
+      lessonPackageId: PACKAGE_ID,
+      fileName: 'lesson.pdf',
+      contentBase64,
+      contentType: 'application/pdf',
+      type: 'LESSON_MATERIAL',
+    })).rejects.toThrow('950 KB or smaller')
+    const storage = storageRegistry.getStorageService.mock.results[0].value
+    expect(storage.put).not.toHaveBeenCalled()
+  })
+
   it('removes the database record and then cleans up the stored object', async () => {
     repository.findAttachment.mockResolvedValue({
       id: ATTACHMENT_ID,
