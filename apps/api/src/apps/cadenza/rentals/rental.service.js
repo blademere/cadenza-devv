@@ -180,7 +180,6 @@ const returnRental = async ({ appId, id }) => {
 const cancel = async ({ appId, id }) => {
   const owner = requireAppId(appId)
   return runTransaction(async (tx) => {
-    await repository.lockRental(id, owner, tx)
     const result = await repository.cancel(id, owner, tx)
     if (result.count !== 1)
       throw new ConflictError(
