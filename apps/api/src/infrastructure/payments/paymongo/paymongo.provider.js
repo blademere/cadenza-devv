@@ -40,11 +40,11 @@ const createPayMongoProvider = ({ secretKey, webhookSecret, mode = 'test', baseU
     if (!webhookSecret) throw new Error('PAYMONGO_WEBHOOK_SECRET is required.')
     const parts = parseSignature(signature)
     const timestamp = Number(parts.t)
-    if (!Number.isInteger(timestamp)) throw new Error('Invalid PayMongo webhook signature.')
-    if (Math.abs(Math.floor(now / 1000) - timestamp) > webhookToleranceSeconds) throw new Error('Expired PayMongo webhook signature.')
+    if (!Number.isInteger(timestamp)) { const error = new Error('Invalid PayMongo webhook signature.'); error.statusCode = 401; throw error }
+    if (Math.abs(Math.floor(now / 1000) - timestamp) > webhookToleranceSeconds) { const error = new Error('Expired PayMongo webhook signature.'); error.statusCode = 401; throw error }
     const expected = crypto.createHmac('sha256', webhookSecret).update(`${timestamp}.${rawBody.toString('utf8')}`).digest('hex')
     const provided = mode === 'live' ? parts.li : parts.te
-    if (!timingSafeEqualHex(expected, provided)) throw new Error('Invalid PayMongo webhook signature.')
+    if (!timingSafeEqualHex(expected, provided)) { const error = new Error('Invalid PayMongo webhook signature.'); error.statusCode = 401; throw error }
     return normalizePaidEvent(JSON.parse(rawBody.toString('utf8')))
   }
 
