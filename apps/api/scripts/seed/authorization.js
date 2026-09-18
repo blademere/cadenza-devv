@@ -19,6 +19,7 @@ const authorizationCatalog = {
   cadenza_lessons: ['read', 'create', 'update', 'manage'],
   cadenza_enrollments: ['read', 'create', 'update', 'manage'],
   cadenza_rentals: ['read', 'create', 'update', 'manage'],
+  cadenza_payments: ['read', 'create', 'manage'],
 }
 
 const rolePermissions = {
