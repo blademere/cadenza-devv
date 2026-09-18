@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../../src/features/participants/participants.repository.js')
 
 const repository = await import('../../../src/features/participants/participants.repository.js')
-const { default: participantsService } = await import('../../../src/features/participants/participants.application.service.js')
+const { default: participantsService } = await import('../../../src/features/participants/participants.service.js')
 const { add, list, remove } = participantsService
 const spies = {
   addParticipant: repository.addParticipant,
