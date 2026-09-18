@@ -199,7 +199,7 @@ describe('resource service', () => {
     expect(repository.findResourceByKey).toHaveBeenCalledWith(
       'resource-key',
       'app-1',
-      expect.anything(),
+      undefined,
     )
     expect(repository.listResources).toHaveBeenCalledWith({
       appId: 'app-1',
