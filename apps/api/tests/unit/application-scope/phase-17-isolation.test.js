@@ -79,7 +79,7 @@ const matrix = [
   {
     name: 'Participants',
     repository: 'features/participants/participants.repository.js',
-    service: 'features/participants/participants.application.service.js',
+    service: 'features/participants/participants.service.js',
     requiredRepositoryTokens: [
       'where: { id: data.caseId, appId }',
       'caseRecord: { appId }',
