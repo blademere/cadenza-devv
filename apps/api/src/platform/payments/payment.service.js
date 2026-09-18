@@ -90,7 +90,7 @@ const recordPayment = async ({
   if (existing) return existing
 
   return withTransaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${obligationId} AND "appId" = ${appId} FOR UPDATE`
+    await lockObligation`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${obligationId} AND "appId" = ${appId} FOR UPDATE`
     const obligation = await findObligationById(obligationId, appId, tx)
     if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
     if (obligation.currency !== currency.toUpperCase()) throw new PaymentStateError('Payment currency does not match the obligation currency.')
@@ -172,6 +172,34 @@ const recordPayment = async ({
     })
 
     return payment
+  })
+}
+
+const createCheckout = async ({
+  appId,
+  obligationId,
+  amount,
+  provider,
+  description,
+  successUrl,
+  cancelUrl,
+  idempotencyKey,
+  db,
+}) => {
+  const obligation = await getObligation(obligationId, appId, db)
+  if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
+  const checkoutAmount = positiveDecimal(amount, 'amount')
+  if (compare(checkoutAmount, obligation.balanceDue) > 0) throw new PaymentStateError('Payment amount exceeds the outstanding balance.')
+  const paymentProvider = getPaymentProvider(provider)
+  return paymentProvider.createCheckout({
+    amount: checkoutAmount.toString(),
+    currency: obligation.currency,
+    referenceNumber: obligationId,
+    description,
+    successUrl,
+    cancelUrl,
+    idempotencyKey,
+    metadata: { appId, obligationId },
   })
 }
 
