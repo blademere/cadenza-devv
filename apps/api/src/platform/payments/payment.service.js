@@ -37,13 +37,15 @@ const summarizeObligation = (obligation, successfulPayments) => {
   }
 }
 
-const getObligation = async (id) => {
-  const obligation = await findObligationById(id)
+const getObligation = async (id, appId) => {
+  if (!id || !appId) throw new TypeError('id and appId are required.')
+  const obligation = await findObligationById(id, appId)
   if (!obligation) return null
   return summarizeObligation(obligation, obligation.payments.filter((p) => p.status === PAYMENT_STATUS.SUCCEEDED))
 }
 
 const createPaymentObligation = async ({
+  appId,
   referenceType,
   referenceId,
   totalAmount,
@@ -51,10 +53,13 @@ const createPaymentObligation = async ({
   metadata = undefined,
   db,
 }) => {
-  if (!referenceType || !referenceId || !currency) throw new TypeError('referenceType, referenceId, and currency are required.')
+  if (!appId || !referenceType || !referenceId || !currency) {
+    throw new TypeError('appId, referenceType, referenceId, and currency are required.')
+  }
   const amount = decimal(totalAmount)
   if (amount.lte(0)) throw new TypeError('totalAmount must be greater than zero.')
   return createObligation({
+    appId,
     referenceType,
     referenceId,
     currency: currency.toUpperCase(),
@@ -64,6 +69,7 @@ const createPaymentObligation = async ({
 }
 
 const recordPayment = async ({
+  appId,
   obligationId,
   amount,
   currency,
@@ -73,17 +79,18 @@ const recordPayment = async ({
   idempotencyKey,
   metadata = undefined,
   actorId = null,
-  appId = null,
   db = prisma,
 }) => {
-  if (!obligationId || !currency) throw new TypeError('obligationId and currency are required.')
+  if (!appId || !obligationId || !currency) {
+    throw new TypeError('appId, obligationId, and currency are required.')
+  }
   if (!idempotencyKey) throw new TypeError('idempotencyKey is required.')
   const existing = await findPaymentByIdempotencyKey(idempotencyKey, db)
   if (existing) return existing
 
   return db.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${obligationId} FOR UPDATE`
-    const obligation = await findObligationById(obligationId, tx)
+    await tx.$queryRaw`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${obligationId} AND "appId" = ${appId} FOR UPDATE`
+    const obligation = await findObligationById(obligationId, appId, tx)
     if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
     if (obligation.currency !== currency.toUpperCase()) throw new PaymentStateError('Payment currency does not match the obligation currency.')
 
@@ -116,6 +123,7 @@ const recordPayment = async ({
     })
 
     const after = {
+      appId,
       obligationId,
       paymentId: payment.id,
       amount: payment.amount.toString(),
