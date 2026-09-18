@@ -1,4 +1,4 @@
-const PLAN_PERMIT_FORM = {
+const APPLICATION_FORM = {
   key: 'obo-building-plan-permit',
   name: 'Building Plan Permit Application',
   description: 'Dynamic application form for OBO building plan permit applications.',
@@ -54,30 +54,30 @@ async function seedPlatformForms(prisma) {
   const app = await prisma.app.findUnique({ where: { key: 'obo' } })
   if (!app) throw new Error("Application 'obo' must be seeded before platform forms.")
   const form = await prisma.form.upsert({
-    where: { appId_key: { appId: app.id, key: PLAN_PERMIT_FORM.key } },
+    where: { appId_key: { appId: app.id, key: APPLICATION_FORM.key } },
     update: {
-      name: PLAN_PERMIT_FORM.name,
-      description: PLAN_PERMIT_FORM.description,
-      entityType: PLAN_PERMIT_FORM.entityType,
+      name: APPLICATION_FORM.name,
+      description: APPLICATION_FORM.description,
+      entityType: APPLICATION_FORM.entityType,
       isActive: true,
     },
     create: {
       appId: app.id,
-      key: PLAN_PERMIT_FORM.key,
-      name: PLAN_PERMIT_FORM.name,
-      description: PLAN_PERMIT_FORM.description,
-      entityType: PLAN_PERMIT_FORM.entityType,
+      key: APPLICATION_FORM.key,
+      name: APPLICATION_FORM.name,
+      description: APPLICATION_FORM.description,
+      entityType: APPLICATION_FORM.entityType,
       isActive: true,
     },
   })
 
   const version = await prisma.formVersion.upsert({
-    where: { formId_version: { formId: form.id, version: PLAN_PERMIT_FORM.version } },
+    where: { formId_version: { formId: form.id, version: APPLICATION_FORM.version } },
     update: { status: 'PUBLISHED' },
-    create: { formId: form.id, version: PLAN_PERMIT_FORM.version, status: 'PUBLISHED' },
+    create: { formId: form.id, version: APPLICATION_FORM.version, status: 'PUBLISHED' },
   })
 
-  for (const section of PLAN_PERMIT_FORM.sections) {
+  for (const section of APPLICATION_FORM.sections) {
     const sectionRecord = await prisma.formSection.upsert({
       where: { formVersionId_key: { formVersionId: version.id, key: section.key } },
       update: { title: section.title, sortOrder: section.sortOrder },
@@ -89,7 +89,7 @@ async function seedPlatformForms(prisma) {
   const sections = await prisma.formSection.findMany({ where: { formVersionId: version.id } })
   const sectionByKey = new Map(sections.map((section) => [section.key, section]))
 
-  for (const field of PLAN_PERMIT_FORM.fields) {
+  for (const field of APPLICATION_FORM.fields) {
     const sectionId = field.sectionKey ? sectionByKey.get(field.sectionKey)?.id : null
     await prisma.formField.upsert({
       where: { formVersionId_key: { formVersionId: version.id, key: field.key } },
@@ -130,8 +130,8 @@ async function seedPlatformForms(prisma) {
     }
   }
 
-  console.log(`Platform form ensured: ${PLAN_PERMIT_FORM.key} v${PLAN_PERMIT_FORM.version}`)
+  console.log(`Platform form ensured: ${APPLICATION_FORM.key} v${APPLICATION_FORM.version}`)
   return { form, version }
 }
 
-export { PLAN_PERMIT_FORM, seedPlatformForms }
+export { APPLICATION_FORM, seedPlatformForms }
