@@ -14,4 +14,4 @@ const findOverlap=({appId,resourceId,scheduledStart,scheduledEnd,excludeId},db=p
 const checkout=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'RESERVED'},data:{status:'CHECKED_OUT',checkedOutAt:new Date()}})
 const returnRental=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'CHECKED_OUT'},data:{status:'RETURNED',returnedAt:new Date()}})
 const cancel=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:{in:['PENDING','RESERVED']}},data:{status:'CANCELLED'}})
-export {withTransaction,list,create,findResource,lockResource,findInstrumentByResource,findRoomByResource,findById,attachPaymentObligation,reserve,findOverlap,checkout,returnRental,cancel}
+export {withTransaction,list,create,findResource,lockResource,lockRental,findInstrumentByResource,findRoomByResource,findById,attachPaymentObligation,reserve,findOverlap,checkout,returnRental,cancel}
