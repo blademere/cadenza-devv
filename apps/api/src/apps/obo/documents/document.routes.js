@@ -10,7 +10,7 @@ import authorize, {
 } from '../../../platform/authorization/authorization.middleware.js'
 import { ownershipPolicy } from '../../../platform/authorization/authorization.policy.js'
 import { getApplicationId } from '../../../platform/applications/application-context.middleware.js'
-import * as repository from '../../../features/documents/document.repository.js'
+import * as repository from './document.repository.js'
 import {
   DOCUMENT_MODULE,
   DOCUMENT_ACTIONS,
