@@ -18,6 +18,7 @@ vi.mock('../../../src/apps/cadenza/rentals/rental.repository.js', () => ({
   findRoomByResource: vi.fn(),
   findOverlap: vi.fn(),
   lockResource: vi.fn(),
+  lockRental: vi.fn(),
   create: vi.fn(),
   attachPaymentObligation: vi.fn(),
   list: vi.fn(),
