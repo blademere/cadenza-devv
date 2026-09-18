@@ -8,7 +8,7 @@ const addAttachment=async(req,res)=>successResponse(res,'Cadenza lesson attachme
 const listAttachments=async(req,res)=>successResponse(res,'Cadenza lesson attachments retrieved successfully.',await service.listAttachments({appId:getApplicationId(req),lessonPackageId:req.params.lessonPackageId}))
 const removeAttachment=async(req,res)=>successResponse(res,'Cadenza lesson attachment removed successfully.',await service.removeAttachment({appId:getApplicationId(req),lessonPackageId:req.params.lessonPackageId,id:req.params.id}))
 const listEnrollments=async(req,res)=>successResponse(res,'Cadenza enrollments retrieved successfully.',await service.listEnrollments({appId:getApplicationId(req)}))
-const enroll=async(req,res)=>successResponse(res,'Cadenza enrollment created successfully.',await service.enroll({appId:getApplicationId(req),...req.validated.body}),201)
+const enroll=async(req,res)=>successResponse(res,'Cadenza enrollment created successfully.',await service.enroll({appId:getApplicationId(req),actorId:actorId(req),...req.validated.body}),201)
 const listSessions=async(req,res)=>successResponse(res,'Cadenza lesson sessions retrieved successfully.',await service.listSessions({appId:getApplicationId(req)}))
 const createSession=async(req,res)=>successResponse(res,'Cadenza lesson session scheduled successfully.',await service.createSession({appId:getApplicationId(req),...req.validated.body}),201)
 const markAttendance=async(req,res)=>successResponse(res,'Cadenza attendance saved successfully.',await service.markAttendance({appId:getApplicationId(req),sessionId:req.params.sessionId,actorId:actorId(req),...req.validated.body}))
