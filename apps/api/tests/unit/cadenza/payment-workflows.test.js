@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
-  withTransaction: vi.fn(),
   findStudent: vi.fn(),
   findPackage: vi.fn(),
   createEnrollment: vi.fn(),
@@ -12,13 +11,10 @@ vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
 }))
 
 vi.mock('../../../src/apps/cadenza/rentals/rental.repository.js', () => ({
-  withTransaction: vi.fn(),
   findResource: vi.fn(),
   findInstrumentByResource: vi.fn(),
   findRoomByResource: vi.fn(),
   findOverlap: vi.fn(),
-  lockResource: vi.fn(),
-  lockRental: vi.fn(),
   create: vi.fn(),
   attachPaymentObligation: vi.fn(),
   list: vi.fn(),
@@ -31,6 +27,8 @@ vi.mock('../../../src/apps/cadenza/payments/payment.repository.js', () => ({
 }))
 
 vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({ can: vi.fn() }))
+
+vi.mock('../../../src/platform/transactions/transaction.service.js', () => ({ run: vi.fn((callback) => callback({ transaction: true })) }))
 
 vi.mock('../../../src/platform/payments/payment.service.js', () => ({
   createPaymentObligation: vi.fn(),
@@ -58,14 +56,13 @@ describe('Cadenza lesson payment workflow', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('creates a full-payment obligation when a student enrolls', async () => {
-    lessonRepository.findStudent.mockResolvedValue({ id: STUDENT_ID, appId: APP_ID, status: 'ACTIVE' })
+    lessonRepository.findStudent.mockResolvedValue({ id: STUDENT_ID, appId: APP_ID, status: 'ACTIVE', person: { userId: 42 } })
     lessonRepository.findPackage.mockResolvedValue({ id: PACKAGE_ID, appId: APP_ID, price: '1500.00', status: 'ACTIVE' })
-    lessonRepository.withTransaction.mockImplementation((callback) => callback({}))
     lessonRepository.createEnrollment.mockResolvedValue({ id: 'enrollment-1' })
     platformPayments.createPaymentObligation.mockResolvedValue({ id: OBLIGATION_ID, status: 'UNPAID' })
     lessonRepository.attachPaymentObligation.mockResolvedValue({ id: 'enrollment-1', paymentObligationId: OBLIGATION_ID })
 
-    await lessonService.enroll({ appId: APP_ID, studentId: STUDENT_ID, lessonPackageId: PACKAGE_ID })
+    await lessonService.enroll({ appId: APP_ID, studentId: STUDENT_ID, lessonPackageId: PACKAGE_ID, actorId: 42 })
 
     expect(platformPayments.createPaymentObligation).toHaveBeenCalledWith(expect.objectContaining({
       appId: APP_ID,
@@ -90,7 +87,6 @@ describe('Cadenza rental payment workflow', () => {
   it('creates a rental obligation carrying the required down payment', async () => {
     rentalRepository.findResource.mockResolvedValue({ id: RESOURCE_ID, appId: APP_ID, type: 'CADENZA_INSTRUMENT' })
     rentalRepository.findInstrumentByResource.mockResolvedValue({ id: 'instrument-1', resourceId: RESOURCE_ID, status: 'AVAILABLE' })
-    rentalRepository.withTransaction.mockImplementation((callback) => callback({}))
     rentalRepository.create.mockResolvedValue({ id: RENTAL_ID })
     platformPayments.createPaymentObligation.mockResolvedValue({ id: OBLIGATION_ID, status: 'UNPAID' })
     rentalRepository.attachPaymentObligation.mockResolvedValue({ id: RENTAL_ID, paymentObligationId: OBLIGATION_ID })
@@ -107,7 +103,6 @@ describe('Cadenza rental payment workflow', () => {
       requiredDownPayment: '300.00',
     })
 
-    expect(rentalRepository.lockResource).toHaveBeenCalledWith(RESOURCE_ID, APP_ID, expect.anything())
     expect(platformPayments.createPaymentObligation).toHaveBeenCalledWith(expect.objectContaining({
       appId: APP_ID,
       referenceType: 'CADENZA_RENTAL',
