@@ -5,6 +5,7 @@ const listPackages=(appId)=>prisma.cadenzaLessonPackage.findMany({where:{appId},
 const createPackage=(data)=>prisma.cadenzaLessonPackage.create({data,include:{attachments:true}})
 const createAttachment=(data,db=prisma)=>db.cadenzaLessonAttachment.create({data})
 const listAttachments=(lessonPackageId,appId,db=prisma)=>db.cadenzaLessonAttachment.findMany({where:{lessonPackageId,lessonPackage:{appId}},orderBy:{createdAt:'asc'}})
+const findAttachment=(id,lessonPackageId,appId,db=prisma)=>db.cadenzaLessonAttachment.findFirst({where:{id,lessonPackageId,lessonPackage:{appId}}})
 const deleteAttachment=(id,lessonPackageId,appId,db=prisma)=>db.cadenzaLessonAttachment.deleteMany({where:{id,lessonPackageId,lessonPackage:{appId}}})
 const findStudent=(id,appId)=>prisma.cadenzaStudent.findFirst({where:{id,appId}})
 const findPackage=(id,appId)=>prisma.cadenzaLessonPackage.findFirst({where:{id,appId}})
@@ -25,4 +26,4 @@ const listReschedules=(appId,db=prisma)=>db.cadenzaRescheduleRequest.findMany({w
 const updateReschedule=(id,appId,data,db=prisma)=>db.cadenzaRescheduleRequest.updateMany({where:{id,appId},data})
 const updateSession=(id,appId,data,db=prisma)=>db.cadenzaLessonSession.updateMany({where:{id,appId},data})
 const listSessions=(appId,db=prisma)=>db.cadenzaLessonSession.findMany({where:{appId},orderBy:{scheduledStart:'asc'},include:{attendance:true}})
-export {withTransaction,listPackages,createPackage,createAttachment,listAttachments,deleteAttachment,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment,findEnrollment,findInstructor,findRoom,findOverlappingSession,createSession,findSession,upsertAttendance,createReschedule,findReschedule,listReschedules,updateReschedule,updateSession,listSessions}
+export {withTransaction,listPackages,createPackage,createAttachment,listAttachments,findAttachment,deleteAttachment,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment,findEnrollment,findInstructor,findRoom,findOverlappingSession,createSession,findSession,upsertAttendance,createReschedule,findReschedule,listReschedules,updateReschedule,updateSession,listSessions}
