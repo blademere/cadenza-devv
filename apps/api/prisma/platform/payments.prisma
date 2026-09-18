@@ -1,0 +1,56 @@
+model PaymentObligation {
+  id            String    @id @default(uuid())
+  appId         String
+  referenceType String
+  referenceId   String
+  currency      String
+  totalAmount   Decimal   @db.Decimal(19, 4)
+  status        String    @default("UNPAID")
+  metadata      Json?
+  payments      Payment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([appId, referenceType, referenceId])
+  @@index([appId, status, createdAt])
+  @@index([appId, referenceType, referenceId])
+}
+
+model Payment {
+  id                String            @id @default(uuid())
+  obligationId      String
+  amount            Decimal           @db.Decimal(19, 4)
+  currency          String
+  method            String?
+  status            String            @default("PENDING")
+  provider          String?
+  providerReference String?
+  idempotencyKey    String?           @unique
+  metadata          Json?
+  paidAt            DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  obligation        PaymentObligation @relation(fields: [obligationId], references: [id], onDelete: Restrict)
+  refunds           PaymentRefund[]
+
+  @@index([obligationId, status, createdAt])
+  @@index([provider, providerReference])
+}
+
+model PaymentRefund {
+  id                String    @id @default(uuid())
+  paymentId         String
+  amount            Decimal   @db.Decimal(19, 4)
+  currency          String
+  status            String    @default("PENDING")
+  providerReference String?
+  reason            String?
+  metadata          Json?
+  refundedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId, status, createdAt])
+}
