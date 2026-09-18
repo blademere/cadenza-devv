@@ -1,5 +1,6 @@
 model PaymentObligation {
   id            String    @id @default(uuid())
+  appId         String
   referenceType String
   referenceId   String
   currency      String
@@ -10,9 +11,9 @@ model PaymentObligation {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  @@unique([referenceType, referenceId])
-  @@index([status, createdAt])
-  @@index([referenceType, referenceId])
+  @@unique([appId, referenceType, referenceId])
+  @@index([appId, status, createdAt])
+  @@index([appId, referenceType, referenceId])
 }
 
 model Payment {
@@ -53,4 +54,3 @@ model PaymentRefund {
 
   @@index([paymentId, status, createdAt])
 }
-
