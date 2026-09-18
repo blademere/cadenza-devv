@@ -7,6 +7,7 @@ import applicationRouter from '../platform/applications/application.routes.js'
 import oboRouter from '../apps/obo/obo.routes.js'
 import cadenzaRouter from '../apps/cadenza/cadenza.routes.js'
 import authenticate from '../features/auth/authenticate.secure.js'
+import paymentWebhookRouter from '../platform/payments/payment-webhook.routes.js'
 
 const router = express.Router()
 
@@ -14,6 +15,7 @@ router.use('/auth', authRouter)
 router.use('/users', profileRouter)
 router.use('/audit', auditRouter)
 router.use('/apps', applicationRouter)
+router.use('/payments/webhooks', paymentWebhookRouter)
 router.use('/', createAuthorizationRouter({ authenticate }))
 router.use('/obo', oboRouter)
 router.use('/cadenza', cadenzaRouter)
