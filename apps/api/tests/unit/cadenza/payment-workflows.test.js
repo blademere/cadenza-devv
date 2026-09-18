@@ -17,6 +17,7 @@ vi.mock('../../../src/apps/cadenza/rentals/rental.repository.js', () => ({
   findInstrumentByResource: vi.fn(),
   findRoomByResource: vi.fn(),
   findOverlap: vi.fn(),
+  lockResource: vi.fn(),
   create: vi.fn(),
   attachPaymentObligation: vi.fn(),
   list: vi.fn(),
@@ -101,6 +102,7 @@ describe('Cadenza rental payment workflow', () => {
       requiredDownPayment: '300.00',
     })
 
+    expect(rentalRepository.lockResource).toHaveBeenCalledWith(RESOURCE_ID, APP_ID, expect.anything())
     expect(platformPayments.createPaymentObligation).toHaveBeenCalledWith(expect.objectContaining({
       appId: APP_ID,
       referenceType: 'CADENZA_RENTAL',
