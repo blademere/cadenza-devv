@@ -16,7 +16,7 @@ const handlePaymentWebhook = async ({ provider, rawBody, signature }) => {
     method: event.method,
     provider: String(provider).toUpperCase(),
     providerReference: event.providerReference,
-    idempotencyKey: `${String(provider).toUpperCase()}:${event.eventId || event.providerReference}`,
+    idempotencyKey: `${String(provider).toUpperCase()}:${event.providerReference}`,
     metadata: {
       ...event.metadata,
       checkoutSessionId: event.checkoutSessionId,
