@@ -83,6 +83,7 @@ const recordPayment = async ({
   if (existing) return existing
 
   return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${obligationId} FOR UPDATE`
     const obligation = await findObligationById(obligationId, tx)
     if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
     if (obligation.currency !== currency.toUpperCase()) throw new PaymentStateError('Payment currency does not match the obligation currency.')
