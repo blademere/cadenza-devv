@@ -9,4 +9,10 @@ const createEnrollment=(data,db=prisma)=>db.cadenzaEnrollment.create({data})
 const attachPaymentObligation=(id,appId,paymentObligationId,db=prisma)=>db.cadenzaEnrollment.update({where:{id},data:{paymentObligationId},include:{lessonPackage:true}})
 const listEnrollments=(appId)=>prisma.cadenzaEnrollment.findMany({where:{appId},include:{lessonPackage:true},orderBy:{createdAt:'desc'}})
 const confirmEnrollment=(id,appId,db=prisma)=>db.cadenzaEnrollment.updateMany({where:{id,appId},data:{status:'CONFIRMED',enrolledAt:new Date()}})
-export {withTransaction,listPackages,createPackage,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment}
+const findEnrollment=(id,appId,db=prisma)=>db.cadenzaEnrollment.findFirst({where:{id,appId,status:'CONFIRMED'}})
+const findInstructor=(id,appId,db=prisma)=>db.cadenzaInstructor.findFirst({where:{id,appId,status:'ACTIVE'}})
+const findRoom=(id,appId,db=prisma)=>db.cadenzaRoom.findFirst({where:{id,appId,status:'AVAILABLE'}})
+const findOverlappingSession=({appId,instructorId,roomId,startsAt,endsAt,excludeId},db=prisma)=>db.cadenzaLessonSession.findFirst({where:{appId,status:{not:'CANCELLED'},scheduledStart:{lt:endsAt},scheduledEnd:{gt:startsAt},...(excludeId?{id:{not:excludeId}}:{}),OR:[...(instructorId?[{instructorId}]:[]),...(roomId?[{roomId}]:[])]}})
+const createSession=(data,db=prisma)=>db.cadenzaLessonSession.create({data})
+const listSessions=(appId,db=prisma)=>db.cadenzaLessonSession.findMany({where:{appId},orderBy:{scheduledStart:'asc'},include:{attendance:true}})
+export {withTransaction,listPackages,createPackage,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment,findEnrollment,findInstructor,findRoom,findOverlappingSession,createSession,listSessions}
