@@ -120,7 +120,6 @@ CREATE TABLE "CadenzaLessonSession" (
   "enrollmentId" TEXT NOT NULL,
   "instructorId" TEXT,
   "roomId" TEXT,
-  "appointmentId" TEXT,
   "scheduledStart" TIMESTAMP(3) NOT NULL,
   "scheduledEnd" TIMESTAMP(3) NOT NULL,
   "status" TEXT NOT NULL DEFAULT 'SCHEDULED',
