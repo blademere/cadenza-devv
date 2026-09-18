@@ -1,4 +1,4 @@
-const OBO_PERMIT_FORM_KEY = 'obo-building-permit'
+const OBO_APPLICATION_FORM_KEY = 'obo-building-permit'
 const OBO_FORM_VERSION = 1
 const OBO_APPLICATION_REFERENCE = 'OBO-DEV-20300610-0001'
 
@@ -15,11 +15,11 @@ async function bindOboDevelopmentForm(prisma) {
     where: {
       appId_key: {
         appId,
-        key: OBO_PERMIT_FORM_KEY,
+        key: OBO_APPLICATION_FORM_KEY,
       },
     },
   })
-  if (!form || !form.isActive) throw new Error(`Active OBO form '${OBO_PERMIT_FORM_KEY}' was not seeded.`)
+  if (!form || !form.isActive) throw new Error(`Active OBO form '${OBO_APPLICATION_FORM_KEY}' was not seeded.`)
 
   const formVersion = await prisma.formVersion.findUnique({
     where: {
@@ -30,7 +30,7 @@ async function bindOboDevelopmentForm(prisma) {
     },
   })
   if (!formVersion || formVersion.status !== 'PUBLISHED') {
-    throw new Error(`Published OBO form '${OBO_PERMIT_FORM_KEY}' v${OBO_FORM_VERSION} was not seeded.`)
+    throw new Error(`Published OBO form '${OBO_APPLICATION_FORM_KEY}' v${OBO_FORM_VERSION} was not seeded.`)
   }
 
   const application = await prisma.oboPermitApplication.findUnique({
@@ -48,7 +48,7 @@ async function bindOboDevelopmentForm(prisma) {
     data: { formVersionId: formVersion.id },
   })
 
-  console.log(`OBO application bound to platform form: ${OBO_APPLICATION_REFERENCE} -> ${OBO_PERMIT_FORM_KEY} v${formVersion.version}`)
+  console.log(`OBO application bound to platform form: ${OBO_APPLICATION_REFERENCE} -> ${OBO_APPLICATION_FORM_KEY} v${formVersion.version}`)
   return { form, formVersion, application: updated }
 }
 
