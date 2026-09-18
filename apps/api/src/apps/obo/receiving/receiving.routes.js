@@ -13,9 +13,9 @@ import { applicationDocumentsParamsValidator, updateDocumentReceiptValidator } f
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-receiving', required: true })
 const loadApplication = (id, req) => service.getForAuthorization(id, getApplicationId(req))
-const authorizeReceivingApplication = authorizeResource({ resource: 'obo_plan_permits', action: 'receive', loadResource: loadApplication, policy: hasReceivingTaskAccess, getResourceId: (req) => req.params.id })
+const authorizeReceivingApplication = authorizeResource({ resource: 'obo_applications', action: 'receive', loadResource: loadApplication, policy: hasReceivingTaskAccess, getResourceId: (req) => req.params.id })
 
-router.get('/applications', authenticate, authorize('obo_plan_permits', 'receive'), validate(validation.listValidator), asyncHandler(controller.list))
+router.get('/applications', authenticate, authorize('obo_applications', 'receive'), validate(validation.listValidator), asyncHandler(controller.list))
 router.get('/applications/:id', authenticate, authorizeReceivingApplication, validate(validation.applicationParamsValidator), asyncHandler(controller.get))
 router.post('/applications/:id/receive', authenticate, authorizeReceivingApplication, requireIdempotency, validate(validation.applicationParamsValidator), asyncHandler(controller.receive))
 router.post('/applications/:id/decision', authenticate, authorizeReceivingApplication, requireIdempotency, validate(validation.decisionValidator), asyncHandler(controller.decide))
