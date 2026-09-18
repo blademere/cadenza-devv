@@ -11,6 +11,7 @@ import { getStorageService } from '../../../platform/storage/storage.registry.js
 import { positiveDecimal } from '../../../platform/money/money.js'
 import { createStorageKey } from '../../../platform/storage/storage.key.js'
 import * as repository from './lesson.repository.js'
+import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import {
   ENROLLMENT_STATUS,
   LESSON_PACKAGE_STATUS,
@@ -189,7 +190,7 @@ const enroll = async ({
   if (pkg.status !== LESSON_PACKAGE_STATUS.ACTIVE)
     throw new ConflictError('Lesson package is not active.')
   try {
-    return await repository.withTransaction(async (tx) => {
+    return await runTransaction(async (tx) => {
       const enrollment = await repository.createEnrollment(
         {
           appId: owner,
@@ -251,10 +252,7 @@ const createSession = async ({
     start >= end
   )
     throw new BadRequestError('scheduledEnd must be after scheduledStart.')
-  return repository.withTransaction(async (tx) => {
-    await repository.lockEnrollment(enrollmentId, owner, tx)
-    if (instructorId) await repository.lockInstructor(instructorId, owner, tx)
-    if (roomId) await repository.lockRoom(roomId, owner, tx)
+  return runTransaction(async (tx) => {
     const enrollment = await repository.findEnrollment(enrollmentId, owner, tx)
     if (!enrollment) throw new NotFoundError('Confirmed enrollment not found.')
     const sessionCount = enrollment._count?.sessions ?? 0
@@ -297,7 +295,7 @@ const markAttendance = async ({ appId, sessionId, actorId, status, notes }) => {
   const owner = requireAppId(appId)
   if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
     throw new BadRequestError('Authenticated actor is required.')
-  return repository.withTransaction(async (tx) => {
+  return runTransaction(async (tx) => {
     const session = await repository.findSession(sessionId, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
     await assertSessionActor({ session, actorId, appId: owner })
@@ -335,8 +333,7 @@ const requestReschedule = async ({
     !(start < end)
   )
     throw new BadRequestError('requestedEnd must be after requestedStart.')
-  return repository.withTransaction(async (tx) => {
-    await repository.lockSession(sessionId, owner, tx)
+  return runTransaction(async (tx) => {
     const session = await repository.findSession(sessionId, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
     await assertSessionActor({ session, actorId, appId: owner })
@@ -366,7 +363,7 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
   const owner = requireAppId(appId)
   if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
     throw new BadRequestError('Authenticated actor is required.')
-  return repository.withTransaction(async (tx) => {
+  return runTransaction(async (tx) => {
     const initialRequest = await repository.findReschedule(id, owner, tx)
     if (!initialRequest)
       throw new NotFoundError('Reschedule request not found.')
@@ -380,12 +377,6 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
       tx
     )
     if (!initialSession) throw new NotFoundError('Lesson session not found.')
-    if (initialSession.instructorId)
-      await repository.lockInstructor(initialSession.instructorId, owner, tx)
-    if (initialSession.roomId)
-      await repository.lockRoom(initialSession.roomId, owner, tx)
-    await repository.lockSession(initialSession.id, owner, tx)
-    await repository.lockReschedule(id, owner, tx)
     const request = await repository.findReschedule(id, owner, tx)
     if (!request) throw new NotFoundError('Reschedule request not found.')
     if (request.status !== RESCHEDULE_STATUS.PENDING)
@@ -453,8 +444,7 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
 }
 const transitionSession = async ({ appId, id, status, expectedStatus }) => {
   const owner = requireAppId(appId)
-  return repository.withTransaction(async (tx) => {
-    await repository.lockSession(id, owner, tx)
+  return runTransaction(async (tx) => {
     const session = await repository.findSession(id, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
     if (session.status !== expectedStatus)
