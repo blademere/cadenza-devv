@@ -1,8 +1,6 @@
 import {BadRequestError,NotFoundError} from '../../../common/errors/appError.js'
 import {requireAppId} from '../../../platform/applications/application-scope.js'
-import {getPrismaClient} from '../../../infrastructure/database/prisma.js'
 import {getObligation,recordPayment} from '../../../platform/payments/payment.service.js'
-const prisma=getPrismaClient()
 const pay=async({appId,obligationId,amount,currency,method,provider,providerReference,idempotencyKey,metadata,actorId})=>{const owner=requireAppId(appId);if(Number(amount)<=0)throw new BadRequestError('amount must be greater than zero.');const payment=await recordPayment({appId:owner,obligationId,amount,currency,method,provider,providerReference,idempotencyKey,metadata,actorId});const obligation=await getObligation(obligationId,owner);if(!obligation)throw new NotFoundError('Payment obligation not found.');if(obligation.referenceType==='CADENZA_ENROLLMENT'&&obligation.status==='PAID')await prisma.cadenzaEnrollment.updateMany({where:{id:obligation.referenceId,appId:owner},data:{status:'CONFIRMED',enrolledAt:new Date()}});if(obligation.referenceType==='CADENZA_RENTAL'){const rental=await prisma.cadenzaRental.findFirst({where:{id:obligation.referenceId,appId:owner}});if(rental&&obligation.paidAmount.gte(rental.requiredDownPayment))await prisma.cadenzaRental.updateMany({where:{id:rental.id,appId:owner,status:'PENDING'},data:{status:'RESERVED'}})}return {payment,obligation}}
 const get=async({appId,obligationId})=>{const value=await getObligation(obligationId,requireAppId(appId));if(!value)throw new NotFoundError('Payment obligation not found.');return value}
 export {pay,get}
