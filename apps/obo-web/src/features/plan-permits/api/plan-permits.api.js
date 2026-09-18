@@ -3,7 +3,7 @@ import { apiClient } from '../../../services/api/client'
 const unwrap = (response) => response?.data ?? response
 const encodeId = (id) => encodeURIComponent(id)
 
-export const planPermitsApi = {
+export const applicationsApi = {
   async listApplications() {
     return unwrap(await apiClient.get('/obo/applications/mine'))
   },
