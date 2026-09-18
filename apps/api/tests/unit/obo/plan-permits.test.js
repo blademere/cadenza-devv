@@ -17,7 +17,7 @@ const appointmentService = vi.hoisted(() => ({ getAppointmentForReference: vi.fn
 const taskService = vi.hoisted(() => ({ create: vi.fn(), list: vi.fn(), update: vi.fn() }))
 const documentsService = vi.hoisted(() => ({ getOwnedDocument: vi.fn() }))
 
-vi.mock('../../../src/apps/obo/plan-permits/plan-permit.repository.js', () => repository)
+vi.mock('../../../src/apps/obo/applications/applications.repository.js', () => repository)
 vi.mock('../../../src/apps/obo/permit-types/permit-type.service.js', () => permitTypeService)
 vi.mock('../../../src/apps/obo/permit-types/permit-type-requirement.service.js', () => ({ getRequirementIds: permitTypeService.getRequirementIds }))
 vi.mock('../../../src/features/requirements/requirements.service.js', () => requirementService)
@@ -34,8 +34,8 @@ vi.mock('../../../src/features/tasks/tasks.service.js', () => taskService)
 vi.mock('../../../src/features/documents/document.service.js', () => documentsService)
 vi.mock('../../../src/apps/obo/documents/document.repository.js', () => repository)
 
-import * as service from '../../../src/apps/obo/plan-permits/plan-permit.service.js'
-import { resolveAndValidateForm } from '../../../src/apps/obo/plan-permits/plan-permit.form.js'
+import * as service from '../../../src/apps/obo/applications/applications.service.js'
+import { resolveAndValidateForm } from '../../../src/apps/obo/applications/applications.form.js'
 
 const person = { id: 'person-1', userId: 'user-1', email: 'client@example.com' }
 const permitType = { id: 'permit-1', name: 'Building Permit', isActive: true, formId: null }
