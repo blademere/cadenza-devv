@@ -175,6 +175,7 @@ model CadenzaRental {
   scheduledStart      DateTime
   scheduledEnd        DateTime
   totalAmount         Decimal  @db.Decimal(19,4)
+  requiredDownPayment Decimal  @db.Decimal(19,4)
   paymentObligationId String?
   status              String   @default("PENDING")
   checkedOutAt        DateTime?
