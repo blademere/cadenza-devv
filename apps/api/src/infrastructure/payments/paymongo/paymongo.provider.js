@@ -12,10 +12,10 @@ const timingSafeEqualHex = (expected, actual) => {
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(actual))
 }
 
-const createPayMongoProvider = ({ secretKey, webhookSecret, mode = 'test', baseUrl, webhookToleranceSeconds = 300 }) => {
+const createPayMongoProvider = ({ secretKey, webhookSecret, mode = 'test', baseUrl, webhookToleranceSeconds = 300, successUrl, cancelUrl, paymentMethodTypes = ['card', 'gcash', 'qrph'], passOnFees = false }) => {
   const client = createPayMongoClient({ secretKey, baseUrl })
 
-  const createCheckout = async ({ amount, currency, referenceNumber, description, paymentMethodTypes, successUrl, cancelUrl, metadata, passOnFees = false }) => {
+  const createCheckout = async ({ amount, currency, referenceNumber, description, metadata }) => {
     const minorAmount = Math.round(Number(amount) * 100)
     if (!Number.isSafeInteger(minorAmount) || minorAmount <= 0) throw new TypeError('Checkout amount must be a positive currency amount.')
     const result = await client.request('/v2/checkout_sessions', {
