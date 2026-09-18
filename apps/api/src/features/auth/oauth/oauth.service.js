@@ -10,12 +10,12 @@ import {
   findOAuthAccountByUserAndProvider,
   deleteOAuthAccount,
   countOAuthAccounts,
-  withTransaction,
   createRefreshTokenRecord,
 } from '../auth.repository.js'
 import { createAccessToken, createRefreshToken, hashToken } from '../auth.tokens.js'
 import { env } from '../../../config/index.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
+import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import { getProviderConfig } from './oauth.providers.js'
 
 const OAUTH_REQUEST_TIMEOUT_MS = 5000
