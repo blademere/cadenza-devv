@@ -25,7 +25,7 @@ const authorize = (resourceOrPermission, action) => {
     !resolvedAction.trim()
   ) {
     throw new TypeError(
-      'authorize requires a resource/action pair or a permission key such as "plan_permits:create".'
+      'authorize requires a resource/action pair or a permission key such as "applications:create".'
     )
   }
 
