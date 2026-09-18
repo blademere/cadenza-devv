@@ -31,7 +31,7 @@ describe('authorization repository', () => {
           permissions: [{
             permission: {
               action: 'read',
-              module: { key: 'obo_plan_permits', isActive: true },
+              module: { key: 'obo_applications', isActive: true },
             },
           }],
         },
@@ -43,7 +43,7 @@ describe('authorization repository', () => {
       app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
       membership: { id: 'membership-1' },
       roles: [{ id: 3, name: 'receiving_officer' }],
-      permissions: [{ resource: 'obo_plan_permits', action: 'read' }],
+      permissions: [{ resource: 'obo_applications', action: 'read' }],
     })
   })
 
