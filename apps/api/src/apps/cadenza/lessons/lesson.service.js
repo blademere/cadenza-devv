@@ -6,7 +6,7 @@ import {createPaymentObligation} from '../../../platform/payments/payment.servic
 import {getStorageService} from '../../../platform/storage/storage.registry.js'
 import {createStorageKey} from '../../../platform/storage/storage.key.js'
 import * as repository from './lesson.repository.js'
-import {ENROLLMENT_STATUS,LESSON_PACKAGE_STATUS,RESCHEDULE_STATUS,SESSION_STATUS} from '../cadenza.constants.js'
+import {ENROLLMENT_STATUS,LESSON_PACKAGE_STATUS,RESCHEDULE_STATUS,SESSION_STATUS,STUDENT_STATUS} from '../cadenza.constants.js'
 const canManage=async(userId,appId)=>can({userId:Number(userId),appId,resource:'cadenza_lessons',action:'manage'})
 const assertSessionActor=async({session,actorId,appId,allowStudent=true})=>{if(!Number.isInteger(Number(actorId))||Number(actorId)<=0)throw new BadRequestError('Authenticated actor is required.');if(await canManage(actorId,appId))return;if(allowStudent&&Number(session.enrollment?.student?.person?.userId)===Number(actorId))return;throw new ForbiddenError('You can only act on lesson sessions you are authorized to manage.')}
 const decimalAmount=(value)=>{try{const amount=new Prisma.Decimal(value);if(!amount.isFinite()||amount.lte(0))throw new Error();return amount}catch{throw new BadRequestError('price must be greater than zero.')}}
