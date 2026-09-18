@@ -14,6 +14,8 @@ router.post('/enrollments',authorize('cadenza_enrollments','create'),idempotency
 router.get('/sessions',authorize('cadenza_lessons','read'),asyncHandler(controller.listSessions))
 router.post('/sessions',authorize('cadenza_lessons','create'),idempotency({scope:'cadenza-lesson-sessions',required:true}),validate(sessionValidator),asyncHandler(controller.createSession))
 router.post('/sessions/:sessionId/attendance',authorize('cadenza_lessons','update'),idempotency({scope:'cadenza-attendance',required:true}),validate(attendanceValidator),asyncHandler(controller.markAttendance))
+router.post('/sessions/:sessionId/complete',authorize('cadenza_lessons','manage'),idempotency({scope:'cadenza-session-complete',required:true}),asyncHandler(controller.completeSession))
+router.post('/sessions/:sessionId/cancel',authorize('cadenza_lessons','manage'),idempotency({scope:'cadenza-session-cancel',required:true}),asyncHandler(controller.cancelSession))
 router.post('/reschedules',authorize('cadenza_lessons','create'),idempotency({scope:'cadenza-reschedules',required:true}),validate(rescheduleValidator),asyncHandler(controller.requestReschedule))
 router.post('/reschedules/:id/review',authorize('cadenza_lessons','manage'),idempotency({scope:'cadenza-reschedule-review',required:true}),validate(reviewRescheduleValidator),asyncHandler(controller.reviewReschedule))
 export default router
