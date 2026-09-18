@@ -61,8 +61,19 @@ process.on('unhandledRejection', (reason) => {
   void shutdown('unhandledRejection')
 })
 
-process.on('beforeExit', (code) => {
-  logger.warn({ code }, 'Node process is about to exit while HTTP server is still expected to be running')
+let exitDiagnosticLogged = false
+process.once('beforeExit', (code) => {
+  if (exitDiagnosticLogged) return
+  exitDiagnosticLogged = true
+
+  logger.warn({
+    code,
+    serverListening: server.listening,
+    serverAddress: server.address(),
+    activeHandles: typeof process._getActiveHandles === 'function'
+      ? process._getActiveHandles().map((handle) => handle?.constructor?.name || 'unknown')
+      : [],
+  }, 'Node process is exiting while the HTTP server is expected to be running')
 })
 
 export { server, shutdown }
