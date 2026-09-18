@@ -5,4 +5,6 @@ const listPackages=async(req,res)=>successResponse(res,'Cadenza lesson packages 
 const createPackage=async(req,res)=>successResponse(res,'Cadenza lesson package created successfully.',await service.createPackage({appId:getApplicationId(req),...req.validated.body}),201)
 const listEnrollments=async(req,res)=>successResponse(res,'Cadenza enrollments retrieved successfully.',await service.listEnrollments({appId:getApplicationId(req)}))
 const enroll=async(req,res)=>successResponse(res,'Cadenza enrollment created successfully.',await service.enroll({appId:getApplicationId(req),...req.validated.body}),201)
-export {listPackages,createPackage,listEnrollments,enroll}
+const listSessions=async(req,res)=>successResponse(res,'Cadenza lesson sessions retrieved successfully.',await service.listSessions({appId:getApplicationId(req)}))
+const createSession=async(req,res)=>successResponse(res,'Cadenza lesson session scheduled successfully.',await service.createSession({appId:getApplicationId(req),...req.validated.body}),201)
+export {listPackages,createPackage,listEnrollments,enroll,listSessions,createSession}
