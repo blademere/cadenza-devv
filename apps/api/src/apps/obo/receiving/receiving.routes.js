@@ -5,10 +5,10 @@ import authorize, { authorizeResource } from '../../../platform/authorization/au
 import { getApplicationId } from '../../../platform/applications/application-context.middleware.js'
 import * as service from './receiving.service.js'
 import { hasReceivingTaskAccess } from './receiving.authorization.js'
-import * as applicationDocumentController from '../application-documents/application-document.controller.js'
+import * as applicationDocumentController from '../documents/document.controller.js'
 import * as controller from './receiving.controller.js'
 import * as validation from './receiving.validation.js'
-import { applicationDocumentsParamsValidator, updateDocumentReceiptValidator } from '../application-documents/application-document.validation.js'
+import { applicationDocumentsParamsValidator, updateDocumentReceiptValidator } from '../documents/document.validation.js'
 
 const router = express.Router()
 const requireIdempotency = idempotency({ scope: 'obo-receiving', required: true })
