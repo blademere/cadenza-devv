@@ -21,6 +21,7 @@ const findObligationByReference = (appId, referenceType, referenceId, db) =>
   })
 
 const createPayment = (data, db) => getDb(db).payment.create({ data })
+const updateObligationStatus = (id, status, db) => getDb(db).paymentObligation.update({ where: { id }, data: { status } })
 
 const findPaymentByIdempotencyKey = (idempotencyKey, db) =>
   getDb(db).payment.findUnique({ where: { idempotencyKey } })
@@ -41,6 +42,7 @@ export {
   findObligationById,
   findObligationByReference,
   createPayment,
+  updateObligationStatus,
   findPaymentByIdempotencyKey,
   updatePayment,
   listSuccessfulPayments,
