@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
   withTransaction: vi.fn(),
   findEnrollment: vi.fn(),
+  lockEnrollment: vi.fn(),
+  lockInstructor: vi.fn(),
+  lockRoom: vi.fn(),
   findInstructor: vi.fn(),
   findRoom: vi.fn(),
   findOverlappingSession: vi.fn(),
@@ -24,10 +27,17 @@ describe('Cadenza lesson scheduling', () => {
   it('schedules a session for a confirmed enrollment', async () => {
     repository.withTransaction.mockImplementation((callback) => callback({}))
     repository.findEnrollment.mockResolvedValue({ id: ENROLLMENT_ID, status: 'CONFIRMED' })
+    repository.lockEnrollment.mockResolvedValue([])
+    repository.lockInstructor.mockResolvedValue([])
+    repository.lockRoom.mockResolvedValue([])
     repository.findInstructor.mockResolvedValue({ id: INSTRUCTOR_ID, status: 'ACTIVE' })
     repository.findRoom.mockResolvedValue({ id: ROOM_ID, status: 'AVAILABLE' })
     repository.findOverlappingSession.mockResolvedValue(null)
     repository.createSession.mockResolvedValue({ id: 'session-1', status: 'SCHEDULED' })
+
+    expect(repository.lockEnrollment).toHaveBeenCalledWith(ENROLLMENT_ID, APP_ID, expect.anything())
+    expect(repository.lockInstructor).toHaveBeenCalledWith(INSTRUCTOR_ID, APP_ID, expect.anything())
+    expect(repository.lockRoom).toHaveBeenCalledWith(ROOM_ID, APP_ID, expect.anything())
 
     await expect(service.createSession({
       appId: APP_ID,
