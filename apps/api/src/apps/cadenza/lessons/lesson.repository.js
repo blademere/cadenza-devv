@@ -7,6 +7,9 @@ const createAttachment=(data,db=prisma)=>db.cadenzaLessonAttachment.create({data
 const listAttachments=(lessonPackageId,appId,db=prisma)=>db.cadenzaLessonAttachment.findMany({where:{lessonPackageId,lessonPackage:{appId}},orderBy:{createdAt:'asc'}})
 const findAttachment=(id,lessonPackageId,appId,db=prisma)=>db.cadenzaLessonAttachment.findFirst({where:{id,lessonPackageId,lessonPackage:{appId}}})
 const deleteAttachment=(id,lessonPackageId,appId,db=prisma)=>db.cadenzaLessonAttachment.deleteMany({where:{id,lessonPackageId,lessonPackage:{appId}}})
+const lockEnrollment=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaEnrollment" WHERE "id"=${id} AND "appId"=${appId} FOR UPDATE`
+const lockInstructor=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaInstructor" WHERE "id"=${id} AND "appId"=${appId} AND "status"='ACTIVE' FOR UPDATE`
+const lockRoom=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "CadenzaRoom" WHERE "id"=${id} AND "appId"=${appId} AND "status"='AVAILABLE' FOR UPDATE`
 const findStudent=(id,appId)=>prisma.cadenzaStudent.findFirst({where:{id,appId}})
 const findPackage=(id,appId)=>prisma.cadenzaLessonPackage.findFirst({where:{id,appId}})
 const createEnrollment=(data,db=prisma)=>db.cadenzaEnrollment.create({data})
@@ -26,4 +29,4 @@ const listReschedules=(appId,db=prisma)=>db.cadenzaRescheduleRequest.findMany({w
 const updateReschedule=(id,appId,data,db=prisma)=>db.cadenzaRescheduleRequest.updateMany({where:{id,appId},data})
 const updateSession=(id,appId,data,db=prisma)=>db.cadenzaLessonSession.updateMany({where:{id,appId},data})
 const listSessions=(appId,db=prisma)=>db.cadenzaLessonSession.findMany({where:{appId},orderBy:{scheduledStart:'asc'},include:{attendance:true}})
-export {withTransaction,listPackages,createPackage,createAttachment,listAttachments,findAttachment,deleteAttachment,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment,findEnrollment,findInstructor,findRoom,findOverlappingSession,createSession,findSession,upsertAttendance,createReschedule,findReschedule,listReschedules,updateReschedule,updateSession,listSessions}
+export {withTransaction,listPackages,createPackage,createAttachment,listAttachments,findAttachment,deleteAttachment,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment,findEnrollment,findInstructor,findRoom,findOverlappingSession,createSession,findSession,upsertAttendance,createReschedule,findReschedule,listReschedules,updateReschedule,updateSession,listSessions,lockEnrollment,lockInstructor,lockRoom}
