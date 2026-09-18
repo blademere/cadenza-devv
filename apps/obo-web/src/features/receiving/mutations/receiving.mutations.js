@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { receivingApi } from '../api/receiving.api'
-import { planPermitApplicationQueryKey, planPermitApplicationsQueryKey } from '../../applications/queries/applications.queries'
+import { applicationQueryKey, applicationsQueryKey } from '../../applications/queries/applications.queries'
 import { receivingApplicationQueryKey, receivingDocumentChecklistQueryKey } from '../queries/receiving.queries'
 
 function useReceivingMutation(mutationFn, options = {}) {
@@ -15,8 +15,8 @@ function useReceivingMutation(mutationFn, options = {}) {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: receivingApplicationQueryKey(variables.applicationId) }),
           queryClient.invalidateQueries({ queryKey: receivingDocumentChecklistQueryKey(variables.applicationId) }),
-          queryClient.invalidateQueries({ queryKey: planPermitApplicationQueryKey(variables.applicationId) }),
-          queryClient.invalidateQueries({ queryKey: planPermitApplicationsQueryKey }),
+          queryClient.invalidateQueries({ queryKey: applicationQueryKey(variables.applicationId) }),
+          queryClient.invalidateQueries({ queryKey: applicationsQueryKey }),
         ])
       }
       await options.onSuccess?.(data, variables, context)
