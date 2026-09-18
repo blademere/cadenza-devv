@@ -79,8 +79,7 @@ describe('Cadenza lesson attachment storage', () => {
       contentType: 'application/pdf',
       type: 'LESSON_MATERIAL',
     })).rejects.toThrow('950 KB or smaller')
-    const storage = storageRegistry.getStorageService.mock.results[0].value
-    expect(storage.put).not.toHaveBeenCalled()
+    expect(storageRegistry.getStorageService).not.toHaveBeenCalled()
   })
 
   it('removes the database record and then cleans up the stored object', async () => {
