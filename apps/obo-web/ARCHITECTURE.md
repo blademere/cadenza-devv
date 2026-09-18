@@ -25,14 +25,15 @@ Use business domains, not user roles:
 features/
 ├── auth/
 ├── authorization/
-├── dashboard/
-├── plan-permits/
+├── applications/
 ├── receiving/
 ├── submission-appointments/
 ├── professionals/
 ├── inspections/
 └── users/
 ```
+
+The `applications/` feature owns the OBO application workspace, including application pages, permit-type management, form management, application API access, and application queries.
 
 Do not create role-specific feature or layout folders such as `administrator/`, `receiving-officer/`, or `inspector/`. Roles are represented by server-issued permissions and application-owned capabilities.
 
@@ -63,6 +64,20 @@ OBO Web:                    Capabilities → Navigation → Route → Page → A
 The API authorization platform must remain UI-agnostic. It must not define frontend routes, navigation entries, icons, labels, or capability registries. OBO-specific capability definitions belong under `apps/obo-web/src/config/` and are evaluated against the server-issued permission set.
 
 Frontend code must not branch on role names when a permission/capability can express the requirement.
+
+## Application terminology
+
+The OBO Web application domain uses `applications` as its implementation vocabulary.
+
+Use:
+
+- `applications/` for the feature directory
+- `applications.api.js` for application API access
+- `applications.queries.js` for application queries and mutations
+- `useApplications`, `useApplication`, and related application hooks
+- `permissions.applications` for application authorization
+
+Do not reintroduce legacy permit-specific implementation names for the application feature.
 
 ## Domain extraction
 
