@@ -4,6 +4,7 @@ const withTransaction=(callback)=>prisma.$transaction(callback)
 const list=(appId)=>prisma.cadenzaRental.findMany({where:{appId},orderBy:{createdAt:'desc'}})
 const create=(data,db=prisma)=>db.cadenzaRental.create({data})
 const findResource=(id,appId,db=prisma)=>db.resource.findFirst({where:{id,appId,status:'ACTIVE'}})
+const lockResource=(id,appId,db=prisma)=>db.$queryRaw`SELECT "id" FROM "Resource" WHERE "id"=${id} AND "appId"=${appId} FOR UPDATE`
 const findInstrumentByResource=(resourceId,appId,db=prisma)=>db.cadenzaInstrument.findFirst({where:{resourceId,appId,status:'AVAILABLE'}})
 const findRoomByResource=(resourceId,appId,db=prisma)=>db.cadenzaRoom.findFirst({where:{resourceId,appId,status:'AVAILABLE'}})
 const findById=(id,appId,db=prisma)=>db.cadenzaRental.findFirst({where:{id,appId}})
@@ -13,4 +14,4 @@ const findOverlap=({appId,resourceId,scheduledStart,scheduledEnd,excludeId},db=p
 const checkout=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'RESERVED'},data:{status:'CHECKED_OUT',checkedOutAt:new Date()}})
 const returnRental=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'CHECKED_OUT'},data:{status:'RETURNED',returnedAt:new Date()}})
 const cancel=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:{in:['PENDING','RESERVED']}},data:{status:'CANCELLED'}})
-export {withTransaction,list,create,findResource,findInstrumentByResource,findRoomByResource,findById,attachPaymentObligation,reserve,findOverlap,checkout,returnRental,cancel}
+export {withTransaction,list,create,findResource,lockResource,findInstrumentByResource,findRoomByResource,findById,attachPaymentObligation,reserve,findOverlap,checkout,returnRental,cancel}
