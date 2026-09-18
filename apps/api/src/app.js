@@ -16,6 +16,7 @@ import {
 import { getPrismaClient } from './infrastructure/database/prisma.js'
 import { connectRedis } from './infrastructure/cache/redis.js'
 import './infrastructure/storage/index.js'
+import './infrastructure/payments/payment-provider.bootstrap.js'
 
 import {
   rateLimiter,
@@ -66,6 +67,7 @@ app.use(
 app.use(originProtection)
 app.use(hpp())
 app.use(compression())
+app.use('/api/v1/payments/webhooks', express.raw({ type: 'application/json', limit: '1mb' }))
 app.use(express.json({ limit: '1mb' }))
 app.use(prometheusMiddleware)
 
