@@ -3,12 +3,11 @@ import { recordAudit } from '../audit/audit.service.js'
 import {
   createObligation,
   findObligationById,
-  findObligationByReference,
   createPayment,
   findPaymentByIdempotencyKey,
-  updatePayment,
   listSuccessfulPayments,
   withTransaction,
+  lockObligation,
 } from './payment.repository.js'
 import { OBLIGATION_STATUS, PAYMENT_EVENTS, PAYMENT_STATUS } from './payment.constants.js'
 import { assertWithinBalance } from './payment.policy.js'
