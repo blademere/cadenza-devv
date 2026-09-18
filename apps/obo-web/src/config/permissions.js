@@ -1,11 +1,11 @@
 export const permissions = Object.freeze({
-  planPermits: Object.freeze({
-    read: 'obo_plan_permits:read',
-    create: 'obo_plan_permits:create',
-    update: 'obo_plan_permits:update',
-    submit: 'obo_plan_permits:submit',
-    scheduleSubmission: 'obo_plan_permits:schedule_submission',
-    receive: 'obo_plan_permits:receive',
+  applications: Object.freeze({
+    read: 'obo_applications:read',
+    create: 'obo_applications:create',
+    update: 'obo_applications:update',
+    submit: 'obo_applications:submit',
+    scheduleSubmission: 'obo_applications:schedule_submission',
+    receive: 'obo_applications:receive',
   }),
   permitTypes: Object.freeze({
     read: 'obo_permit_types:read',
@@ -40,7 +40,7 @@ export const permissions = Object.freeze({
 })
 
 export const permissionList = Object.freeze([
-  ...Object.values(permissions.planPermits),
+  ...Object.values(permissions.applications),
   ...Object.values(permissions.permitTypes),
   ...Object.values(permissions.forms),
   ...Object.values(permissions.professionals),
