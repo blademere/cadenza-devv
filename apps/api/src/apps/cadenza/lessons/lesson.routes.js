@@ -1,6 +1,6 @@
 import express from 'express'
 import {asyncHandler,validate,idempotency} from '../../../common/middleware/index.js'
-import authorize from '../../../platform/authorization/authorization.middleware.js'
+import authorize, { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
 import * as controller from './lesson.controller.js'
 import {packageValidator,enrollmentValidator,sessionValidator,attendanceValidator,rescheduleValidator,reviewRescheduleValidator,attachmentValidator} from './lesson.validation.js'
 const router=express.Router()
