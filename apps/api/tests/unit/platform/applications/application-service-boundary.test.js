@@ -80,4 +80,36 @@ describe('application service security boundary', () => {
     expect(repository.createMembership).toHaveBeenCalledWith({ userId: 42, appId: 'app-obo' })
     expect(result).toMatchObject({ id: 'membership-1' })
   })
+
+  it('rejects assigning a role through a membership from another application', async () => {
+    repository.getMembershipById.mockResolvedValue({
+      id: 'membership-admin',
+      appId: 'app-admin',
+      isActive: true,
+    })
+
+    await expect(service.addMembershipRole({
+      membershipId: 'membership-admin',
+      roleId: 11,
+      appId: 'app-obo',
+    })).rejects.toThrow('Membership does not belong to the current application.')
+
+    expect(repository.assignMembershipRole).not.toHaveBeenCalled()
+  })
+
+  it('rejects removing a role through a membership from another application', async () => {
+    repository.getMembershipById.mockResolvedValue({
+      id: 'membership-admin',
+      appId: 'app-admin',
+      isActive: true,
+    })
+
+    await expect(service.removeMembershipRoleAssignment({
+      membershipId: 'membership-admin',
+      roleId: 11,
+      appId: 'app-obo',
+    })).rejects.toThrow('Membership does not belong to the current application.')
+
+    expect(repository.removeMembershipRole).not.toHaveBeenCalled()
+  })
 })

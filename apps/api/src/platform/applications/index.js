@@ -36,6 +36,7 @@ export {
 export {
   requireApplicationContext,
   readApplicationId,
+  getApplicationId,
 } from './application-context.middleware.js'
 
 export {

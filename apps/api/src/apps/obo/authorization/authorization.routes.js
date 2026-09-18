@@ -2,7 +2,8 @@ import express from 'express'
 import { asyncHandler, validate, idempotency } from '../../../common/middleware/index.js'
 import authenticate from '../../../features/auth/authenticate.secure.js'
 import { requireApplicationContext } from '../../../platform/applications/application-context.middleware.js'
-import { authorizeOBO, authorizeOBOResource, getAuthorizationModule, getAuthorizationMembership, getAuthorizationRole } from '../authorization/authorization.service.js'
+import authorize, { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
+import { getModule, getMembership, getRole } from './authorization-management.service.js'
 import {
   listModulesController, createModuleController, createPermissionController, setModuleActiveController,
   listRolesController, createRoleController, getRoleController, replaceRolePermissionsController,
@@ -14,24 +15,24 @@ import {
 } from './authorization.validation.js'
 
 const router = express.Router()
-const manageAuthorization = authorizeOBO('obo_authorization', 'manage')
+const manageAuthorization = authorize('obo_authorization', 'manage')
 const requireIdempotency = idempotency({ scope: 'obo-authorization', required: true })
-const authorizeModuleResource = authorizeOBOResource({
+const authorizeModuleResource = authorizeResource({
   resource: 'obo_authorization',
   action: 'manage',
-  loadResource: getAuthorizationModule,
+  loadResource: getModule,
   getResourceId: (req) => Number(req.params.moduleId),
 })
-const authorizeRoleResource = authorizeOBOResource({
+const authorizeRoleResource = authorizeResource({
   resource: 'obo_authorization',
   action: 'manage',
-  loadResource: (roleId, req) => getAuthorizationRole({ roleId, appId: req.security.app.id }),
+  loadResource: (roleId, req) => getRole({ roleId, appId: req.security.app.id }),
   getResourceId: (req) => Number(req.params.roleId),
 })
-const authorizeMembershipResource = authorizeOBOResource({
+const authorizeMembershipResource = authorizeResource({
   resource: 'obo_authorization',
   action: 'manage',
-  loadResource: (membershipId, req) => getAuthorizationMembership({ membershipId, appId: req.security.app.id }),
+  loadResource: (membershipId, req) => getMembership({ membershipId, appId: req.security.app.id }),
   getResourceId: (req) => req.params.membershipId,
 })
 

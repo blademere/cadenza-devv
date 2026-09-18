@@ -8,7 +8,7 @@ const context = {
   setApplicationContext: vi.fn(),
 }
 
-vi.mock('../../../../src/platform/authorization/authorization-context.repository.js', () => repository)
+vi.mock('../../../../src/platform/authorization/authorization.repository.js', () => repository)
 vi.mock('../../../../src/platform/context/index.js', () => context)
 
 const { requireApplicationContext } = await import('../../../../src/platform/applications/application-context.middleware.js')

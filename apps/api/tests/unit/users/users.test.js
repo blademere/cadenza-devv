@@ -1,78 +1,108 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('bcrypt')
 vi.mock('../../../src/features/users/user.repository.js')
-vi.mock('../../../src/features/auth/auth.repository.js')
-vi.mock('../../../src/platform/authorization/access-control.service.js')
-vi.mock('../../../src/platform/applications/application.service.js')
 vi.mock('../../../src/features/users/user.mapper.js')
 
-const bcrypt = await import('bcrypt')
 const users = await import('../../../src/features/users/user.repository.js')
-const accessControl = await import('../../../src/platform/authorization/access-control.service.js')
-const applications = await import('../../../src/platform/applications/application.service.js')
 const mapper = await import('../../../src/features/users/user.mapper.js')
-const { registerUser } = await import('../../../src/features/users/user.service.js')
+const { listUsers, createUser } = await import('../../../src/features/users/user.service.js')
 
 beforeEach(() => {
   vi.clearAllMocks()
-  bcrypt.default.hash.mockResolvedValue('hashed-password')
+  users.findAllUsers.mockResolvedValue({ users: [], total: 0 })
   users.findUserByEmail.mockResolvedValue(null)
   users.createUser.mockResolvedValue({ id: 100, email: 'new@example.com' })
-  applications.addMembership.mockResolvedValue({ id: 'membership-1' })
   mapper.toUserResponse.mockImplementation((user) => user)
 })
 
-describe('user registration', () => {
-  it('requires application context', async () => {
-    await expect(registerUser({
-      requesterId: 7,
-      email: 'new@example.com',
-      password: 'password123',
-    })).rejects.toThrow('Application context is required to create users.')
-    expect(accessControl.getAuthorizationContext).not.toHaveBeenCalled()
-    expect(users.createUser).not.toHaveBeenCalled()
-  })
+describe('user listing capability', () => {
+  it('accepts an explicit application-scoped service contract', async () => {
+    const pagination = { page: 2, limit: 20, skip: 20, take: 20 }
+    const orderBy = { createdAt: 'desc' }
+    const filters = { email: 'obo@example.com' }
 
-  it('requires an authorized requester before creating a user', async () => {
-    accessControl.getAuthorizationContext.mockResolvedValue(null)
-
-    await expect(registerUser({
-      requesterId: 7,
-      appId: 'app-obo',
-      email: 'new@example.com',
-      password: 'password123',
-    })).rejects.toThrow('Your account is not authorized to create users.')
-    expect(accessControl.getAuthorizationContext).toHaveBeenCalledWith(7, 'app-obo')
-    expect(users.createUser).not.toHaveBeenCalled()
-    expect(applications.addMembership).not.toHaveBeenCalled()
-  })
-
-  it('creates the user and application membership without assigning a role', async () => {
-    accessControl.getAuthorizationContext.mockResolvedValue({
-      roles: [{ id: 1, name: 'administrator' }],
-      permissions: [{ resource: 'users', action: 'create' }],
+    await expect(listUsers({
+      appId: 7,
+      filters,
+      pagination,
+      orderBy,
+    })).resolves.toEqual({
+      data: [],
+      pagination: {
+        page: 2,
+        limit: 20,
+        total: 0,
+        pages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
     })
 
-    await expect(registerUser({
-      requesterId: 7,
-      appId: 'app-obo',
+    expect(users.findAllUsers).toHaveBeenCalledWith({
+      appId: 7,
+      filters,
+      orderBy,
+      skip: 20,
+      take: 20,
+    })
+  })
+
+  it('passes application-scoped roles through the shared mapper', async () => {
+    const user = {
+      id: 100,
+      email: 'obo@example.com',
+      roles: [{ id: 11, name: 'receiving_officer', description: 'Receives applications' }],
+    }
+    users.findAllUsers.mockResolvedValue({ users: [user], total: 1 })
+
+    await expect(listUsers({
+      appId: 7,
+      filters: {},
+      pagination: { page: 1, limit: 20, skip: 0, take: 20 },
+      orderBy: { createdAt: 'desc' },
+    })).resolves.toMatchObject({
+      data: [user],
+      pagination: { total: 1, pages: 1 },
+    })
+
+    expect(mapper.toUserResponse).toHaveBeenCalledWith(user)
+  })
+})
+
+describe('user creation capability', () => {
+  it('creates a global user identity from a prepared password hash', async () => {
+    await expect(createUser({
       email: 'new@example.com',
-      password: 'password123',
+      passwordHash: 'hashed-password',
     })).resolves.toEqual({
       id: 100,
       email: 'new@example.com',
       roles: [],
-      membershipId: 'membership-1',
     })
+
+    expect(users.findUserByEmail).toHaveBeenCalledWith('new@example.com')
     expect(users.createUser).toHaveBeenCalledWith({
       email: 'new@example.com',
       passwordHash: 'hashed-password',
     })
-    expect(applications.addMembership).toHaveBeenCalledWith({
-      userId: 100,
-      appId: 'app-obo',
+    expect(mapper.toUserResponse).toHaveBeenCalledWith({
+      id: 100,
+      email: 'new@example.com',
+      roles: [],
     })
-    expect(applications.addMembershipRole).not.toHaveBeenCalled()
+  })
+
+  it('rejects duplicate email addresses', async () => {
+    users.findUserByEmail.mockResolvedValue({
+      id: 99,
+      email: 'new@example.com',
+    })
+
+    await expect(createUser({
+      email: 'new@example.com',
+      passwordHash: 'hashed-password',
+    })).rejects.toThrow('A user with this email already exists.')
+
+    expect(users.createUser).not.toHaveBeenCalled()
   })
 })

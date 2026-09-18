@@ -2,11 +2,11 @@ import express from 'express'
 import { asyncHandler } from '../../common/middleware/index.js'
 import { successResponse } from '../../common/responses/apiResponse.js'
 import { requireApplicationContext } from '../applications/application-context.middleware.js'
-import { getAuthorizationContextResponse } from './authorization-context.service.js'
+import { getAuthorizationContextResponse } from './authorization.service.js'
 
-const createAuthorizationContextRouter = ({ authenticate }) => {
+const createAuthorizationRouter = ({ authenticate }) => {
   if (typeof authenticate !== 'function') {
-    throw new TypeError('createAuthorizationContextRouter requires authenticate middleware.')
+    throw new TypeError('createAuthorizationRouter requires authenticate middleware.')
   }
 
   const router = express.Router()
@@ -36,4 +36,4 @@ const createAuthorizationContextRouter = ({ authenticate }) => {
   return router
 }
 
-export default createAuthorizationContextRouter
+export default createAuthorizationRouter

@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../src/platform/authorization/access-control.service.js', () => ({ can: vi.fn(), getAuthorizationContext: vi.fn() }))
-vi.mock('../../src/platform/authorization/access-control.policy.js', () => ({ assertPolicy: vi.fn() }))
+vi.mock('../../src/platform/authorization/authorization.service.js', () => ({ can: vi.fn(), getAuthorizationContext: vi.fn() }))
+vi.mock('../../src/platform/authorization/authorization.policy.js', () => ({ assertPolicy: vi.fn() }))
 
-const accessControlService = await import('../../src/platform/authorization/access-control.service.js')
-const { default: authorizeResource } = await import('../../src/platform/authorization/authorization-resource.middleware.js')
+const authorizationService = await import('../../src/platform/authorization/authorization.service.js')
+const { authorizeResource } = await import('../../src/platform/authorization/authorization.middleware.js')
 
 describe('resource authorization security', () => {
   it('passes a numeric route resource ID to the loader before Prisma access', async () => {
-    accessControlService.can.mockResolvedValue(true)
+    authorizationService.can.mockResolvedValue(true)
     const loadResource = vi.fn().mockResolvedValue({ id: 4 })
     const next = vi.fn()
     const req = {

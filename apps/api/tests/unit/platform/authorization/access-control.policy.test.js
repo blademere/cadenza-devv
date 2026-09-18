@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ForbiddenError } from '../../../../src/common/errors/appError.js'
-import { assertPolicy, evaluatePolicy, ownershipPolicy } from '../../../../src/platform/authorization/access-control.policy.js'
+import { assertPolicy, evaluatePolicy, ownershipPolicy } from '../../../../src/platform/authorization/authorization.policy.js'
 
-describe('access-control policy primitives', () => {
+describe('authorization policy primitives', () => {
   it('allows ownership when the authenticated user owns the resource', () => {
     expect(ownershipPolicy({ user: { id: 10, ownerId: 10 }, resource: {} })).toBe(true)
   })

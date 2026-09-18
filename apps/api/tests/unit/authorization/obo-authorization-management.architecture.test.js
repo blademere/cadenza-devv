@@ -8,16 +8,14 @@ describe('OBO authorization management architecture', () => {
   it('keeps management routes inside the OBO application boundary', async () => {
     const routes = await read('apps/obo/authorization/authorization.routes.js')
     expect(routes).not.toContain('/admin/authorization')
-    expect(routes).toContain("authorizeOBO('obo_authorization', 'manage')")
+    expect(routes).toContain("authorize('obo_authorization', 'manage')")
+    expect(routes).toContain('authorizeResource')
   })
 
   it('owns authorization management persistence and service inside OBO', async () => {
-    const service = await read('apps/obo/authorization/authorization.service.js')
     const managementService = await read('apps/obo/authorization/authorization-management.service.js')
     const managementRepository = await read('apps/obo/authorization/authorization-management.repository.js')
 
-    expect(service).toContain("./authorization-management.service.js")
-    expect(service).not.toContain('platform/authorization/authorization-management')
     expect(managementService).toContain("./authorization-management.repository.js")
     expect(managementRepository).toContain('getPrismaClient')
   })

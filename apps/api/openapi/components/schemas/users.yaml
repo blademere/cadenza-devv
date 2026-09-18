@@ -6,17 +6,26 @@ User:
     email:
       type: string
       format: email
-    role:
-      nullable: true
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        description:
-          type: string
-          nullable: true
+    isActive:
+      type: boolean
+    roles:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+          description:
+            type: string
+            nullable: true
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
 
 UserResponse:
   type: object

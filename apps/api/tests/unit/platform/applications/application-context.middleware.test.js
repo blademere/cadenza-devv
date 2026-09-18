@@ -8,10 +8,10 @@ const context = {
   setApplicationContext: vi.fn(),
 }
 
-vi.mock('../../../../src/platform/authorization/authorization-context.repository.js', () => repository)
+vi.mock('../../../../src/platform/authorization/authorization.repository.js', () => repository)
 vi.mock('../../../../src/platform/context/index.js', () => context)
 
-const { requireApplicationContext, readApplicationId } = await import('../../../../src/platform/applications/application-context.middleware.js')
+const { requireApplicationContext, readApplicationId, getApplicationId } = await import('../../../../src/platform/applications/application-context.middleware.js')
 
 const createRequest = ({ appId, tokenAppId = null } = {}) => ({
   user: { id: 42 },
@@ -54,6 +54,11 @@ describe('application context middleware', () => {
     expect(req.security.app.id).toBe('app-1')
     expect(context.setApplicationContext).toHaveBeenCalledWith({ appId: 'app-1', appKey: 'obo' })
     expect(next).toHaveBeenCalledWith()
+  })
+
+  it('exposes the application id from the established application context', () => {
+    expect(getApplicationId({ appContext: { id: 'app-1' } })).toBe('app-1')
+    expect(getApplicationId({ appContext: null })).toBeNull()
   })
 
   it('requires the requested application key when configured', async () => {

@@ -1,5 +1,5 @@
 import { ConflictError, NotFoundError, ValidationError } from '../../../common/errors/appError.js'
-import { clearRolePermissionCache } from '../../../platform/authorization/access-control.service.js'
+import { clearRolePermissionCache } from '../../../platform/authorization/authorization.service.js'
 import * as repository from './authorization-management.repository.js'
 
 const OBO_AUTHORIZATION_MODULE_PREFIX = 'obo_'

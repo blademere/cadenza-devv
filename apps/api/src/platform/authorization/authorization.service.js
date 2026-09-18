@@ -1,5 +1,5 @@
-import { getUserAuthorizationContext, findUserIdsByRoleId } from './access-control.repository.js'
-import { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } from './access-control.cache.js'
+import { getUserAuthorizationContext, findUserIdsByRoleId, listActiveModules } from './authorization.repository.js'
+import { hasCachedPermission, cacheUserPermissions, invalidateUserPermissionCache } from './authorization.cache.js'
 import { getContext } from '../context/context.service.js'
 import { increment } from '../observability/metrics/metrics.service.js'
 import { getConfiguration } from '../configuration/configuration.service.js'
@@ -58,6 +58,31 @@ const getAuthorizationContext = async (userId, appId) => {
   return { userId: Number(userId), roles: context.roles, permissions: new Set(context.permissions) }
 }
 
+const getAuthorizationContextResponse = async ({ userId, appId }) => {
+  const [context, modules] = await Promise.all([
+    getUserAuthorizationContext({ userId, appId }),
+    listActiveModules({ appId }),
+  ])
+
+  const permissions = new Set(
+    (context?.permissions ?? []).map(({ resource, action }) => `${resource}:${action}`),
+  )
+
+  return {
+    userId: context?.userId ?? Number(userId),
+    app: context?.app ?? null,
+    membership: context?.membership ?? null,
+    roles: context?.roles ?? [],
+    permissions: [...permissions].sort(),
+    modules: (modules ?? []).map(({ key, name, description, isActive }) => ({
+      key,
+      name,
+      description,
+      isActive,
+    })),
+  }
+}
+
 const can = async ({ userId, appId, resource, action }) => hasPermission(userId, resource, action, appId)
 
 const canAny = async ({ userId, appId, resource, action, actions }) => {
@@ -89,6 +114,7 @@ export {
   getPermissionKey,
   hasPermission,
   getAuthorizationContext,
+  getAuthorizationContextResponse,
   can,
   canAny,
   canOwn,

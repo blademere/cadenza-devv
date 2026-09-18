@@ -14,7 +14,7 @@ describe('application-owned appointment architecture', () => {
   it('places the OBO appointment HTTP adapter under the OBO application', () => {
     const routePath = path.join(ROOT, 'src/apps/obo/appointments/appointment.routes.js')
     expect(fs.existsSync(routePath)).toBe(true)
-    expect(read('src/apps/obo/appointments/appointment.routes.js')).toContain("authorizeOBO('obo_appointments'")
+    expect(read('src/apps/obo/appointments/appointment.routes.js')).toContain("authorize('obo_appointments'")
   })
 
   it('does not expose a global appointment router', () => {
@@ -70,15 +70,14 @@ describe('appointment application scoping', () => {
   })
 })
 
-
 describe('OBO appointment authorization', () => {
   it('uses OBO-specific appointment capabilities instead of generic appointment permissions', () => {
     const route = read('src/apps/obo/appointments/appointment.routes.js')
 
-    expect(route).toContain("authorizeOBO('obo_appointments', 'read')")
-    expect(route).toContain("authorizeOBO('obo_appointments', 'create')")
+    expect(route).toContain("authorize('obo_appointments', 'read')")
+    expect(route).toContain("authorize('obo_appointments', 'create')")
     expect(route).toContain("authorizeAppointmentResource('cancel')")
-    expect(route).not.toMatch(/authorizeOBO\(['\"]appointments['\"]/) 
+    expect(route).not.toMatch(/authorize(?:OBO)?\(['\"]appointments['\"]/) 
   })
 
   it('uses app-scoped resource loading for appointment authorization', () => {

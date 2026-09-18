@@ -11,7 +11,7 @@ const {
   hasCachedPermission,
   cacheUserPermissions,
   invalidateUserPermissionCache,
-} = require('../../../src/platform/authorization/access-control.cache')
+} = require('../../../src/platform/authorization/authorization.cache')
 const runIntegrationTests = process.env.RUN_REDIS_INTEGRATION_TESTS === 'true'
 const describeIfEnabled = runIntegrationTests ? describe : describe.skip
 

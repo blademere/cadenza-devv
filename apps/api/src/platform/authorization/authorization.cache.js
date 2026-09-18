@@ -23,9 +23,7 @@ const hasCachedPermission = async (userId, appId, resource, action) => {
   const key = getPermissionCacheKey(userId, appId)
   const exists = await redis.exists(key)
 
-  if (!exists) {
-    return null
-  }
+  if (!exists) return null
 
   return Boolean(await redis.sIsMember(key, getPermissionKey(resource, action)))
 }

@@ -26,10 +26,11 @@ describe('OBO permission configuration', () => {
     })
 
     expect(permissions.appointments).toEqual({
-      read: 'appointments:read',
-      create: 'appointments:create',
-      manage: 'appointments:manage',
-      cancel: 'appointments:cancel',
+      read: 'obo_appointments:read',
+      create: 'obo_appointments:create',
+      manage: 'obo_appointments:manage',
+      cancel: 'obo_appointments:cancel',
+      checkIn: 'obo_appointments:check_in',
     })
 
     expect(permissions.professionals).toEqual({
@@ -39,8 +40,8 @@ describe('OBO permission configuration', () => {
       review: 'obo_professionals:review',
     })
 
-    expect(permissions.users.manage).toBe('users:manage')
-    expect(permissions.authorization.manage).toBe('authorization:manage')
+    expect(permissions.users.manage).toBe('obo_users:manage')
+    expect(permissions.authorization.manage).toBe('obo_authorization:manage')
   })
 
   it('contains each permission exactly once', () => {

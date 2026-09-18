@@ -5,7 +5,7 @@ import {
   NotFoundError,
 } from "../../common/errors/appError.js"
 import { recordAudit } from "../audit/audit.service.js"
-import { can } from "../authorization/access-control.service.js"
+import { can } from "../authorization/authorization.service.js"
 import { getContext } from "../context/context.service.js"
 import { publish } from "../event-bus/event-bus.js"
 import { instrument } from "../observability/observability.service.js"

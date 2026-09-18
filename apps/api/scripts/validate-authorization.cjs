@@ -19,7 +19,6 @@ const LEGACY_AUTHORIZATION_PATHS = [
   'src/features/authorization-admin/',
   'src/features/authorization-admin.js',
   'src/features/admin/authorization/',
-  'src/apps/admin/authorization/',
 ]
 
 const LEGACY_AUTHORIZATION_PATTERNS = [
@@ -28,7 +27,6 @@ const LEGACY_AUTHORIZATION_PATTERNS = [
   /findRoleForAssignment\b/,
   /features\/authorization-admin/,
   /features\/authorization\//,
-  /apps\/admin\/authorization/,
 ]
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -64,7 +62,7 @@ for (const file of routeFiles) {
   const source = fs.readFileSync(file, 'utf8')
   const relative = path.relative(path.resolve(__dirname, '..'), file).replaceAll(path.sep, '/')
   const isAuthFile = relative.startsWith('src/features/auth/')
-  const isAuthorizationContext = relative === 'src/platform/authorization/authorization-context.routes.js'
+  const isAuthorizationRoute = relative === 'src/platform/authorization/authorization.routes.js'
   const isApplicationRoute = relative.startsWith('src/apps/')
   const middlewareAliases = new Set(['authenticate'])
   const authorizationAliases = new Set(['authorize', 'authorizeResource'])
@@ -145,7 +143,7 @@ for (const file of routeFiles) {
     const hasAuthorization = inheritedAuthorization || AUTHORIZE.test(statement) || [...authorizationAliases].some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(statement))
 
     if (!hasAuthentication) failures.push(`${relative}:${lineNumber}: route is missing authentication middleware.`)
-    if (!isAuthorizationContext && !hasAuthorization) failures.push(`${relative}:${lineNumber}: route is missing authorization middleware.`)
+    if (!isAuthorizationRoute && !hasAuthorization) failures.push(`${relative}:${lineNumber}: route is missing authorization middleware.`)
   }
 }
 

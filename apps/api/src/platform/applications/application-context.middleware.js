@@ -1,6 +1,6 @@
 import { ForbiddenError } from '../../common/errors/appError.js'
 import { setApplicationContext } from '../context/index.js'
-import { getUserAuthorizationContext } from '../authorization/authorization-context.repository.js'
+import { getUserAuthorizationContext } from '../authorization/authorization.repository.js'
 import { APPLICATION_ID_HEADER } from '../context/context.constants.js'
 import { normalizeAppId } from './application-scope.js'
 
@@ -8,6 +8,8 @@ const readApplicationId = (req) => {
   const value = req.get?.(APPLICATION_ID_HEADER) ?? req.headers?.[APPLICATION_ID_HEADER]
   return typeof value === 'string' ? normalizeAppId(value) : null
 }
+
+const getApplicationId = (req) => req.appContext?.id ?? null
 
 const requireApplicationContext = ({ appKey = null } = {}) => {
   if (appKey !== null && (typeof appKey !== 'string' || !appKey.trim())) {
@@ -72,4 +74,4 @@ const requireApplicationContext = ({ appKey = null } = {}) => {
   }
 }
 
-export { requireApplicationContext, readApplicationId }
+export { requireApplicationContext, readApplicationId, getApplicationId }

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { usersApi } from '../api/users.api'
 
-export const usersQueryKey = ['users']
+export const usersQueryKey = ['obo', 'users']
 
 export function useUsers(options = {}) {
   return useQuery({
