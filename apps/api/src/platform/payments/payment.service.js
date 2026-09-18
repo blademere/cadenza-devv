@@ -186,6 +186,7 @@ const createCheckout = async ({
   idempotencyKey,
   db,
 }) => {
+  if (!idempotencyKey) throw new TypeError('idempotencyKey is required.')
   const obligation = await getObligation(obligationId, appId, db)
   if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
   const checkoutAmount = positiveDecimal(amount, 'amount')
