@@ -1,30 +1,22 @@
 CREATE TABLE "CadenzaStudent" (
   "id" TEXT NOT NULL,
   "appId" TEXT NOT NULL,
-  "userId" INTEGER NOT NULL,
-  "personId" TEXT,
-  "firstName" TEXT NOT NULL,
-  "lastName" TEXT NOT NULL,
-  "email" TEXT,
-  "phone" TEXT,
+  "personId" TEXT NOT NULL,
   "status" TEXT NOT NULL DEFAULT 'ACTIVE',
   "metadata" JSONB,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CadenzaStudent_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "CadenzaStudent_appId_userId_key" ON "CadenzaStudent" ("appId","userId");
+CREATE UNIQUE INDEX "CadenzaStudent_appId_personId_key" ON "CadenzaStudent" ("appId","personId");
 CREATE INDEX "CadenzaStudent_appId_status_idx" ON "CadenzaStudent" ("appId","status");
-CREATE INDEX "CadenzaStudent_appId_lastName_firstName_idx" ON "CadenzaStudent" ("appId","lastName","firstName");
 ALTER TABLE "CadenzaStudent" ADD CONSTRAINT "CadenzaStudent_appId_fkey" FOREIGN KEY ("appId") REFERENCES "App"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CadenzaStudent" ADD CONSTRAINT "CadenzaStudent_personId_fkey" FOREIGN KEY ("personId") REFERENCES "Person"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 CREATE TABLE "CadenzaInstructor" (
   "id" TEXT NOT NULL,
   "appId" TEXT NOT NULL,
-  "userId" INTEGER,
-  "personId" TEXT,
-  "firstName" TEXT NOT NULL,
-  "lastName" TEXT NOT NULL,
+  "personId" TEXT NOT NULL,
   "specialty" TEXT,
   "status" TEXT NOT NULL DEFAULT 'ACTIVE',
   "metadata" JSONB,
@@ -32,9 +24,10 @@ CREATE TABLE "CadenzaInstructor" (
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CadenzaInstructor_pkey" PRIMARY KEY ("id")
 );
+CREATE UNIQUE INDEX "CadenzaInstructor_appId_personId_key" ON "CadenzaInstructor" ("appId","personId");
 CREATE INDEX "CadenzaInstructor_appId_status_idx" ON "CadenzaInstructor" ("appId","status");
-CREATE INDEX "CadenzaInstructor_appId_lastName_firstName_idx" ON "CadenzaInstructor" ("appId","lastName","firstName");
 ALTER TABLE "CadenzaInstructor" ADD CONSTRAINT "CadenzaInstructor_appId_fkey" FOREIGN KEY ("appId") REFERENCES "App"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CadenzaInstructor" ADD CONSTRAINT "CadenzaInstructor_personId_fkey" FOREIGN KEY ("personId") REFERENCES "Person"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 CREATE TABLE "CadenzaInstrument" (
   "id" TEXT NOT NULL,
