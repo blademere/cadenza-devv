@@ -4,7 +4,7 @@ import { Alert, Button, Group, Stack, Text } from '@mantine/core'
 import PageHeader from '../../../components/common/PageHeader'
 import LoadingState from '../../../components/common/LoadingState'
 import StatusChip from '../../../components/common/StatusChip'
-import { usePlanPermitApplication } from '../../plan-permits/queries/plan-permits.queries'
+import { useApplication } from '../../applications/queries/applications.queries'
 import { useSubmissionAppointment } from '../queries/submission-appointments.queries'
 import SubmissionAppointmentScheduler from '../components/SubmissionAppointmentScheduler'
 
@@ -20,7 +20,7 @@ const formatDate = (value) => value ? new Date(value).toLocaleString() : '—'
 export default function SubmissionAppointmentPage() {
   const { applicationId } = useParams()
   const [changing, setChanging] = useState(false)
-  const applicationQuery = usePlanPermitApplication(applicationId)
+  const applicationQuery = useApplication(applicationId)
   const appointmentQuery = useSubmissionAppointment(applicationId)
   const application = unwrap(applicationQuery.data)
   const appointment = normalizeAppointment(appointmentQuery.data)
@@ -40,7 +40,7 @@ export default function SubmissionAppointmentPage() {
   return (
     <Stack className="obo-page">
       <PageHeader
-        eyebrow="Plan Permits / Submission Appointment"
+        eyebrow="Applications / Submission Appointment"
         title={application.referenceNumber ?? 'Submission appointment'}
         description="Schedule the physical hardcopy submission appointment for this application."
         actions={<Button component={Link} to={`/app/applications/${applicationId}`} variant="default">Back to application</Button>}
