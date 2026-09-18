@@ -4,7 +4,7 @@ import { mapAppointment } from '../../../features/appointments/appointment.mappe
 import * as taskService from '../../../features/tasks/tasks.service.js'
 import * as workflowService from '../../../platform/workflow/workflow.service.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
-import * as planPermitService from '../plan-permits/plan-permit.service.js'
+import * as planPermitService from '../applications/applications.service.js'
 import * as repository from './submission-appointment.repository.js'
 import { getNotificationContext } from '../notification-context.js'
 
