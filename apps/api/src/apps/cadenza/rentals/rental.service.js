@@ -156,7 +156,6 @@ const checkout = async ({ appId, id }) => {
 const returnRental = async ({ appId, id }) => {
   const owner = requireAppId(appId)
   return runTransaction(async (tx) => {
-    await repository.lockRental(id, owner, tx)
     const rental = await repository.findById(id, owner, tx)
     if (!rental) throw new NotFoundError('Rental not found.')
     if (rental.status !== RENTAL_STATUS.CHECKED_OUT)
