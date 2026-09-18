@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client'
 import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 import { enqueueEvent } from '../event-bus/event-outbox.service.js'
 import { recordAudit } from '../audit/audit.service.js'
@@ -14,9 +13,10 @@ import {
 import { OBLIGATION_STATUS, PAYMENT_EVENTS, PAYMENT_STATUS } from './payment.constants.js'
 import { assertWithinBalance } from './payment.policy.js'
 import { PaymentStateError } from './payment.errors.js'
+import { toDecimal } from '../money/money.js'
 
 const prisma = getPrismaClient()
-const decimal = (value) => new Prisma.Decimal(value)
+const decimal = toDecimal
 
 const summarizeObligation = (obligation, successfulPayments) => {
   const paidAmount = successfulPayments.reduce(
