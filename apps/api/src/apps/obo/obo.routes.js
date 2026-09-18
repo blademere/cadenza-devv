@@ -4,7 +4,7 @@ import { requireApplicationContext } from '../../platform/applications/applicati
 import permitTypeRoutes from './permit-types/permit-type.routes.js'
 import clientRoutes from './clients/client.routes.js'
 import professionalRoutes from './professionals/professional.routes.js'
-import planPermitRoutes from './plan-permits/plan-permit.routes.js'
+import planPermitRoutes from './applications/applications.routes.js'
 import receivingRoutes from './receiving/receiving.routes.js'
 import submissionAppointmentRoutes from './submission-appointments/submission-appointment.routes.js'
 import appointmentRoutes from './appointments/appointment.routes.js'
