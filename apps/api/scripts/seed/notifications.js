@@ -10,7 +10,7 @@ async function seedOboNotifications(prisma) {
   for (const [status, label, body] of statuses) {
     const keyBase = `obo.application.${status.toLowerCase()}`
     const event = status === 'DECLINED' || status === 'FOR_INSPECTION' ? 'workflow.completed' : 'workflow.transitioned'
-    const conditions = { all: [{ field: 'workflowKey', operator: 'equals', value: 'obo_plan_permit' }, { field: 'workflowStepKey', operator: 'equals', value: status }] }
+    const conditions = { all: [{ field: 'workflowKey', operator: 'equals', value: 'obo_application' }, { field: 'workflowStepKey', operator: 'equals', value: status }] }
     for (const channel of ['IN_APP', 'EMAIL']) {
       const templateKey = `${keyBase}.${channel.toLowerCase()}`
       const template = await prisma.notificationTemplate.upsert({ where: { key: templateKey }, update: { name: `OBO Application ${label} (${channel})`, channel, subject: channel === 'EMAIL' ? `OBO Application — ${label}` : null, body, active: true }, create: { key: templateKey, name: `OBO Application ${label} (${channel})`, channel, subject: channel === 'EMAIL' ? `OBO Application — ${label}` : null, body, active: true } })
