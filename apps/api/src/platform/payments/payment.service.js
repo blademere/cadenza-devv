@@ -13,7 +13,8 @@ import {
 import { OBLIGATION_STATUS, PAYMENT_EVENTS, PAYMENT_STATUS } from './payment.constants.js'
 import { assertWithinBalance } from './payment.policy.js'
 import { PaymentStateError } from './payment.errors.js'
-import { toDecimal } from '../money/money.js'
+import { toDecimal, positiveDecimal, compare } from '../money/money.js'
+import { getPaymentProvider } from './payment-provider.registry.js'
 
 const decimal = toDecimal
 
@@ -178,5 +179,6 @@ export {
   createPaymentObligation,
   getObligation,
   recordPayment,
+  createCheckout,
   summarizeObligation,
 }
