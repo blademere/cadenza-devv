@@ -112,10 +112,11 @@ describe('Cadenza rental payment workflow', () => {
       appId: APP_ID,
       referenceType: 'CADENZA_RENTAL',
       referenceId: RENTAL_ID,
-      totalAmount: '1000.00',
       currency: 'PHP',
       metadata: { requiredDownPayment: '300' },
+      db: expect.anything(),
     }))
+    expect(platformPayments.createPaymentObligation.mock.calls[0][0].totalAmount.toString()).toBe('1000')
   })
 
   it('rejects creating a rental for another customer without management permission', async () => {
@@ -154,7 +155,7 @@ describe('Cadenza payment settlement', () => {
       idempotencyKey: 'payment-key-1',
     })
 
-    expect(paymentRepository.confirmEnrollment).toHaveBeenCalledWith('enrollment-1', APP_ID)
+    expect(paymentRepository.confirmEnrollment).toHaveBeenCalledWith('enrollment-1', APP_ID, expect.anything())
   })
 
   it('reserves a rental when successful payments reach the required down payment', async () => {
@@ -175,6 +176,6 @@ describe('Cadenza payment settlement', () => {
       idempotencyKey: 'payment-key-2',
     })
 
-    expect(paymentRepository.reserveRental).toHaveBeenCalledWith(RENTAL_ID, APP_ID)
+    expect(paymentRepository.reserveRental).toHaveBeenCalledWith(RENTAL_ID, APP_ID, expect.anything())
   })
 })
