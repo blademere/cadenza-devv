@@ -9,7 +9,7 @@ const read = (relativePath) => readFile(path.join(src, relativePath), 'utf8')
 
 describe('phase 15 application ownership boundaries', () => {
   it('does not re-read an OBO permit application by id without appId after a scoped update', async () => {
-    const source = await read('apps/obo/plan-permits/plan-permit.repository.js')
+    const source = await read('apps/obo/applications/applications.repository.js')
     expect(source).toContain('where: withAppId({ id }, owner)')
     expect(source).not.toContain('where: { id },\n    include: applicationInclude')
   })
