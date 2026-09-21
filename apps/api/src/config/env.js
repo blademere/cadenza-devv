@@ -39,15 +39,6 @@ const envSchema = z.object({
   EMAIL_FROM: optionalEnvString,
   STORAGE_PROVIDER: z.enum(['local']).default('local'),
   STORAGE_LOCAL_ROOT: z.string().min(1).default('./storage'),
-  PAYMONGO_SECRET_KEY: optionalEnvString,
-  PAYMONGO_WEBHOOK_SECRET: optionalEnvString,
-  PAYMONGO_MODE: z.enum(['test', 'live']).default('test'),
-  PAYMONGO_API_BASE_URL: z.url().default('https://api.paymongo.com'),
-  PAYMONGO_WEBHOOK_TOLERANCE_SECONDS: z.coerce.number().int().positive().default(300),
-  PAYMONGO_SUCCESS_URL: optionalEnvUrl,
-  PAYMONGO_CANCEL_URL: optionalEnvUrl,
-  PAYMONGO_PAYMENT_METHODS: z.string().default('card,gcash,qrph'),
-  PAYMONGO_PASS_ON_FEES: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   XENDIT_SECRET_KEY: optionalEnvString,
   XENDIT_WEBHOOK_TOKEN: optionalEnvString,
   XENDIT_API_BASE_URL: z.url().default('https://api.xendit.co'),
@@ -56,7 +47,7 @@ const envSchema = z.object({
   XENDIT_CHANNEL_CODE: z.string().min(1).default('GCASH'),
   XENDIT_SUCCESS_URL: optionalEnvUrl,
   XENDIT_FAILURE_URL: optionalEnvUrl,
-  CADENZA_PAYMENT_PROVIDER: z.string().min(1).default('PAYMONGO'),
+  CADENZA_PAYMENT_PROVIDER: z.literal('XENDIT').default('XENDIT'),
   AUTHORIZATION_CACHE_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   AUTHORIZATION_CACHE_TRUST_POSITIVE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 })
@@ -67,11 +58,6 @@ const parseDurationMs = (value) => { const match = value.match(/^(\d+)(ms|s|m|h|
 if (data.COOKIE_SAME_SITE === 'none' && !data.COOKIE_SECURE) throw new Error("COOKIE_SECURE must be true when COOKIE_SAME_SITE is 'none'.")
 if (data.NODE_ENV === 'production' && !data.COOKIE_SECURE) throw new Error('COOKIE_SECURE must be true in production.')
 if (data.NODE_ENV === 'production' && data.CORS_ORIGIN === '*') throw new Error("CORS_ORIGIN must not be '*' in production.")
-const hasPayMongoCredentials = Boolean(data.PAYMONGO_SECRET_KEY || data.PAYMONGO_WEBHOOK_SECRET)
-if (hasPayMongoCredentials && (!data.PAYMONGO_SECRET_KEY || !data.PAYMONGO_WEBHOOK_SECRET)) throw new Error('PayMongo requires PAYMONGO_SECRET_KEY and PAYMONGO_WEBHOOK_SECRET together.')
-if (hasPayMongoCredentials && (!data.PAYMONGO_SUCCESS_URL || !data.PAYMONGO_CANCEL_URL)) throw new Error('PayMongo requires PAYMONGO_SUCCESS_URL and PAYMONGO_CANCEL_URL when enabled.')
-if (hasPayMongoCredentials && data.PAYMONGO_MODE === 'live' && !data.PAYMONGO_SECRET_KEY.startsWith('sk_live_')) throw new Error('PAYMONGO_SECRET_KEY must be a live key when PAYMONGO_MODE is live.')
-if (hasPayMongoCredentials && data.PAYMONGO_MODE === 'test' && !data.PAYMONGO_SECRET_KEY.startsWith('sk_test_')) throw new Error('PAYMONGO_SECRET_KEY must be a test key when PAYMONGO_MODE is test.')
 const hasXenditCredentials = Boolean(data.XENDIT_SECRET_KEY || data.XENDIT_WEBHOOK_TOKEN)
 if (hasXenditCredentials && (!data.XENDIT_SECRET_KEY || !data.XENDIT_WEBHOOK_TOKEN)) throw new Error('Xendit requires XENDIT_SECRET_KEY and XENDIT_WEBHOOK_TOKEN together.')
 if (hasXenditCredentials && (!data.XENDIT_SUCCESS_URL || !data.XENDIT_FAILURE_URL)) throw new Error('Xendit requires XENDIT_SUCCESS_URL and XENDIT_FAILURE_URL when enabled.')
