@@ -9,10 +9,10 @@ const checkout=async({appId,obligationId,amount,description,idempotencyKey})=>cr
   appId:requireAppId(appId),
   obligationId,
   amount,
-  provider:'PAYMONGO',
+  provider:env.CADENZA_PAYMENT_PROVIDER,
   description:description||'Cadenza payment',
-  successUrl:env.PAYMONGO_SUCCESS_URL,
-  cancelUrl:env.PAYMONGO_CANCEL_URL,
+  successUrl:env.CADENZA_PAYMENT_PROVIDER === 'XENDIT' ? env.XENDIT_SUCCESS_URL : env.PAYMONGO_SUCCESS_URL,
+  cancelUrl:env.CADENZA_PAYMENT_PROVIDER === 'XENDIT' ? env.XENDIT_FAILURE_URL : env.PAYMONGO_CANCEL_URL,
   idempotencyKey,
 })
 const get=async({appId,obligationId})=>{const value=await getObligation(obligationId,requireAppId(appId));if(!value)throw new NotFoundError('Payment obligation not found.');return value}
