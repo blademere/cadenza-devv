@@ -48,6 +48,15 @@ const envSchema = z.object({
   PAYMONGO_CANCEL_URL: optionalEnvUrl,
   PAYMONGO_PAYMENT_METHODS: z.string().default('card,gcash,qrph'),
   PAYMONGO_PASS_ON_FEES: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  XENDIT_SECRET_KEY: optionalEnvString,
+  XENDIT_WEBHOOK_TOKEN: optionalEnvString,
+  XENDIT_API_BASE_URL: z.url().default('https://api.xendit.co'),
+  XENDIT_API_VERSION: z.string().default('2024-11-11'),
+  XENDIT_COUNTRY: z.string().length(2).default('PH'),
+  XENDIT_CHANNEL_CODE: z.string().min(1).default('GCASH'),
+  XENDIT_SUCCESS_URL: optionalEnvUrl,
+  XENDIT_FAILURE_URL: optionalEnvUrl,
+  CADENZA_PAYMENT_PROVIDER: z.string().min(1).default('PAYMONGO'),
   AUTHORIZATION_CACHE_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   AUTHORIZATION_CACHE_TRUST_POSITIVE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 })
@@ -63,6 +72,9 @@ if (hasPayMongoCredentials && (!data.PAYMONGO_SECRET_KEY || !data.PAYMONGO_WEBHO
 if (hasPayMongoCredentials && (!data.PAYMONGO_SUCCESS_URL || !data.PAYMONGO_CANCEL_URL)) throw new Error('PayMongo requires PAYMONGO_SUCCESS_URL and PAYMONGO_CANCEL_URL when enabled.')
 if (hasPayMongoCredentials && data.PAYMONGO_MODE === 'live' && !data.PAYMONGO_SECRET_KEY.startsWith('sk_live_')) throw new Error('PAYMONGO_SECRET_KEY must be a live key when PAYMONGO_MODE is live.')
 if (hasPayMongoCredentials && data.PAYMONGO_MODE === 'test' && !data.PAYMONGO_SECRET_KEY.startsWith('sk_test_')) throw new Error('PAYMONGO_SECRET_KEY must be a test key when PAYMONGO_MODE is test.')
+const hasXenditCredentials = Boolean(data.XENDIT_SECRET_KEY || data.XENDIT_WEBHOOK_TOKEN)
+if (hasXenditCredentials && (!data.XENDIT_SECRET_KEY || !data.XENDIT_WEBHOOK_TOKEN)) throw new Error('Xendit requires XENDIT_SECRET_KEY and XENDIT_WEBHOOK_TOKEN together.')
+if (hasXenditCredentials && (!data.XENDIT_SUCCESS_URL || !data.XENDIT_FAILURE_URL)) throw new Error('Xendit requires XENDIT_SUCCESS_URL and XENDIT_FAILURE_URL when enabled.')
 if (data.NODE_ENV === 'production' && !data.METRICS_TOKEN) throw new Error('METRICS_TOKEN is required in production.')
 if (data.METRICS_TOKEN && data.METRICS_TOKEN.length < 32) throw new Error('METRICS_TOKEN must be at least 32 characters.')
 if (data.SEED_ADMIN_PASSWORD && data.SEED_ADMIN_PASSWORD.length < 12) throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters when configured.')
