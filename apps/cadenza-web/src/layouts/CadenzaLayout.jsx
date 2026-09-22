@@ -1,0 +1,10 @@
+import {useMemo,useState} from 'react'
+import {Outlet} from 'react-router-dom'
+import {AppShell,Drawer,useMatches} from '@mantine/core'
+import {useAuth} from '../features/auth/components/AuthProvider'
+import {navigation,normalizeNavigation} from '../config/navigation'
+import {layout} from '../config/layout'
+import Sidebar from './components/Sidebar'
+import TopBar from './components/TopBar'
+import PageContainer from './components/PageContainer'
+export default function CadenzaLayout(){const{user,logout}=useAuth();const desktop=useMatches({base:false,[layout.breakpoint]:true});const[mobileOpen,setMobileOpen]=useState(false);const[collapsed,setCollapsed]=useState(false);const nav=useMemo(()=>normalizeNavigation(navigation),[]);const side=(c=false)=><Sidebar navigation={nav} user={user} collapsed={c} onNavigate={()=>setMobileOpen(false)} onLogout={()=>void logout()} onToggleCollapse={()=>setCollapsed(v=>!v)}/>;return <AppShell className="cadenza-app" header={{height:layout.headerHeight}} navbar={{width:collapsed?layout.sidebarCollapsedWidth:layout.sidebarWidth,breakpoint:layout.breakpoint,collapsed:{mobile:true,desktop:false}}} padding={0}><AppShell.Header className="cadenza-topbar"><TopBar onMenu={()=>setMobileOpen(true)} navigation={nav}/></AppShell.Header><AppShell.Navbar className="cadenza-sidebar">{side(collapsed)}</AppShell.Navbar>{!desktop&&<Drawer opened={mobileOpen} onClose={()=>setMobileOpen(false)} size={320} withCloseButton={false} padding={0}>{side(false)}</Drawer>}<AppShell.Main><PageContainer><main id="cadenza-main"><Outlet/></main></PageContainer></AppShell.Main></AppShell>}
