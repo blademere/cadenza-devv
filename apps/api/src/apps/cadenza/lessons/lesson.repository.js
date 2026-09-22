@@ -1,6 +1,7 @@
 import {getPrismaClient} from '../../../infrastructure/database/prisma.js'
 const prisma=getPrismaClient()
 const listPackages=(appId)=>prisma.cadenzaLessonPackage.findMany({where:{appId},include:{_count:{select:{attachments:true}}},orderBy:{name:'asc'}})
+const updatePackage=(id,appId,data,db=prisma)=>db.cadenzaLessonPackage.updateMany({where:{id,appId},data})
 const createPackage=(data)=>prisma.cadenzaLessonPackage.create({data,include:{attachments:true}})
 const createAttachment=(data,db=prisma)=>db.cadenzaLessonAttachment.create({data})
 const listAttachments=(lessonPackageId,appId,db=prisma)=>db.cadenzaLessonAttachment.findMany({where:{lessonPackageId,lessonPackage:{appId}},orderBy:{createdAt:'asc'}})
@@ -26,4 +27,4 @@ const listReschedules=(appId,db=prisma)=>db.cadenzaRescheduleRequest.findMany({w
 const updateReschedule=(id,appId,data,db=prisma)=>db.cadenzaRescheduleRequest.updateMany({where:{id,appId},data})
 const updateSession=(id,appId,data,db=prisma)=>db.cadenzaLessonSession.updateMany({where:{id,appId},data})
 const listSessions=(appId,db=prisma)=>db.cadenzaLessonSession.findMany({where:{appId},orderBy:{scheduledStart:'asc'},include:{attendance:true,enrollment:{include:{student:{include:{person:true}},lessonPackage:true}},instructor:{include:{person:true}}}})
-export {listPackages,createPackage,createAttachment,listAttachments,findAttachment,deleteAttachment,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment,findEnrollment,findInstructor,findRoom,findOverlappingSession,createSession,findSession,upsertAttendance,createReschedule,findPendingReschedule,findReschedule,listReschedules,updateReschedule,updateSession,listSessions}
+export {listPackages,createPackage,updatePackage,createAttachment,listAttachments,findAttachment,deleteAttachment,findStudent,findPackage,createEnrollment,attachPaymentObligation,listEnrollments,confirmEnrollment,findEnrollment,findInstructor,findRoom,findOverlappingSession,createSession,findSession,upsertAttendance,createReschedule,findPendingReschedule,findReschedule,listReschedules,updateReschedule,updateSession,listSessions}
