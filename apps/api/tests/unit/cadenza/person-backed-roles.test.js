@@ -5,6 +5,7 @@ vi.mock('../../../src/apps/cadenza/students/student.repository.js', () => ({
   findById: vi.fn(),
   list: vi.fn(),
   create: vi.fn(),
+  findPersonByUserId: vi.fn(),
 }))
 
 vi.mock('../../../src/apps/cadenza/instructors/instructor.repository.js', () => ({
@@ -57,15 +58,16 @@ describe('Cadenza person-backed roles', () => {
 
   it('loads student identity through the Person relation', async () => {
     const person = { id: PERSON_ID, firstName: 'Ana', lastName: 'Santos', email: 'ana@example.com', phone: '123' }
+    studentRepository.findPersonByUserId.mockResolvedValue({ id: PERSON_ID })
     studentRepository.findById.mockResolvedValue({
       id: STUDENT_ID,
       appId: APP_ID,
       personId: PERSON_ID,
       status: 'ACTIVE',
-      person,
+      person: { ...person, userId: 42 },
     })
 
-    const result = await studentService.get({ appId: APP_ID, id: STUDENT_ID })
+    const result = await studentService.get({ appId: APP_ID, id: STUDENT_ID, actorId: 42 })
 
     expect(result.person).toEqual(person)
     expect(result).not.toHaveProperty('firstName')
