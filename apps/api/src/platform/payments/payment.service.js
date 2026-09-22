@@ -115,8 +115,15 @@ const recordPayment = async ({
     if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
     if (obligation.currency !== currency.toUpperCase()) throw new PaymentStateError('Payment currency does not match the obligation currency.')
 
-    const successfulPayments = await listSuccessfulPayments(obligationId, tx)
-    const paid = successfulPayments.reduce((sum, payment) => sum.plus(payment.amount), decimal(0))
+    const successfulPayments = obligation.payments.filter(
+      (payment) => payment.status === PAYMENT_STATUS.SUCCEEDED
+    )
+    const paid = successfulPayments.reduce((sum, payment) => {
+      const refunded = (payment.refunds || [])
+        .filter((refund) => refund.status === 'SUCCEEDED')
+        .reduce((inner, refund) => inner.plus(refund.amount), decimal(0))
+      return sum.plus(decimal(payment.amount).minus(refunded))
+    }, decimal(0))
     const balance = decimal(obligation.totalAmount).minus(paid)
     assertWithinBalance(amount, balance)
 
