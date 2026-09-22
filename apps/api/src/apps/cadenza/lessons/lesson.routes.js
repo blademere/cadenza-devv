@@ -13,6 +13,7 @@ router.get('/packages/:lessonPackageId/attachments',authorize('cadenza_lessons',
 router.get('/packages/:lessonPackageId/attachments/:id/url',authorize('cadenza_lessons','read'),asyncHandler(controller.getAttachmentUrl))
 router.delete('/packages/:lessonPackageId/attachments/:id',authorize('cadenza_lessons','manage'),idempotency({scope:'cadenza-lesson-attachment-delete',required:true}),asyncHandler(controller.removeAttachment))
 router.get('/enrollments',authorize('cadenza_enrollments','read'),asyncHandler(controller.listEnrollments))
+router.get('/enrollments/:enrollmentId',authorize('cadenza_enrollments','read'),asyncHandler(controller.getEnrollment))
 router.post('/enrollments',authorize('cadenza_enrollments','create'),idempotency({scope:'cadenza-enrollments',required:true}),validate(enrollmentValidator),asyncHandler(controller.enroll))
 router.get('/sessions',authorize('cadenza_lessons','read'),asyncHandler(controller.listSessions))
 router.post('/sessions',authorize('cadenza_lessons','schedule'),idempotency({scope:'cadenza-lesson-sessions',required:true}),validate(sessionValidator),asyncHandler(controller.createSession))
