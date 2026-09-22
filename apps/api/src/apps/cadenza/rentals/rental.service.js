@@ -85,7 +85,7 @@ const create = async ({
     }
     const rental = await repository.create({
       appId: owner,
-      customerUserId: customer,
+      customerId: resolvedCustomer.id,
       resourceId,
       rentalType,
       scheduledStart: start,
@@ -107,15 +107,7 @@ const create = async ({
     return repository.attachPaymentObligation(rental.id, obligation.id, tx)
   })
 }
-const customers = async ({ appId }) => {
-  const owner = requireAppId(appId)
-  return listUsers({
-    appId: owner,
-    filters: { isActive: 'true' },
-    pagination: { page: 1, limit: 100, skip: 0, take: 100 },
-    orderBy: { email: 'asc' },
-  })
-}
+const customers = async ({ appId }) => customerService.list({ appId })
 const availability = async ({ appId, rentalType, scheduledStart, scheduledEnd }) => {
   const owner = requireAppId(appId)
   const start = new Date(scheduledStart), end = new Date(scheduledEnd)
@@ -124,12 +116,12 @@ const availability = async ({ appId, rentalType, scheduledStart, scheduledEnd })
   if (!['INSTRUMENT', 'ROOM'].includes(rentalType)) throw new BadRequestError('rentalType must be INSTRUMENT or ROOM.')
   return repository.listAvailableResources({ appId: owner, rentalType, scheduledStart: start, scheduledEnd: end })
 }
-const list = async ({ appId, actorId }) => { const owner = requireAppId(appId); const rows = await repository.list(owner); if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_rentals', action: 'manage' })) return rows; return rows.filter((row) => Number(row.customerUserId) === Number(actorId)) }
+const list = async ({ appId, actorId }) => { const owner = requireAppId(appId); const rows = await repository.list(owner); if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_rentals', action: 'manage' })) return rows; return rows.filter((row) => Number(row.customer?.person?.userId) === Number(actorId)) }
 const get = async ({ appId, id, actorId }) => {
   const owner = requireAppId(appId)
   const value = await repository.findById(id, owner)
   if (!value) throw new NotFoundError('Rental not found.')
-  if (!(await assertManage(actorId, owner)) && Number(value.customerUserId) !== Number(actorId)) throw new NotFoundError('Rental not found.')
+  if (!(await assertManage(actorId, owner)) && Number(value.customer?.person?.userId) !== Number(actorId)) throw new NotFoundError('Rental not found.')
   return value
 }
 const checkout = async ({ appId, id, actorId }) => {
@@ -187,7 +179,7 @@ const cancel = async ({ appId, id, actorId }) => {
   return runTransaction(async (tx) => {
     const rental = await repository.findById(id, owner, tx)
     if (!rental) throw new NotFoundError('Rental not found.')
-    if (!manager && Number(rental.customerUserId) !== Number(actorId))
+    if (!manager && Number(rental.customer?.person?.userId) !== Number(actorId))
       throw new ForbiddenError('You can only cancel your own rental.')
     if (![RENTAL_STATUS.PENDING, RENTAL_STATUS.RESERVED].includes(rental.status))
       throw new ConflictError('Only pending or reserved rentals can be cancelled.')
