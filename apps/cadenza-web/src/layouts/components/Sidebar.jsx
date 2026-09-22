@@ -37,7 +37,7 @@ export default function Sidebar({ navigation = [], user, onNavigate, onLogout })
       <SidebarMenu>
         <SidebarMenuItem>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<SidebarMenuButton className="h-10" tooltip={name} />}>
+            <DropdownMenuTrigger render={<SidebarMenuButton className="h-10"  />}>
               <Avatar className="size-7"><AvatarFallback>{initial}</AvatarFallback></Avatar>
               {state === 'expanded' && <><div className="min-w-0 flex-1 text-left"><div className="truncate text-xs font-medium">{name}</div><div className="truncate text-[11px] text-sidebar-foreground/60">Account</div></div><CaretDown className="ml-auto" size={14} /></>}
             </DropdownMenuTrigger>
