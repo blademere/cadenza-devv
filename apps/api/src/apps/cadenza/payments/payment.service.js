@@ -1,7 +1,7 @@
 import { positiveDecimal, compare } from '../../../platform/money/money.js'
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../../common/errors/appError.js'
 import { requireAppId } from '../../../platform/applications/application-scope.js'
-import { getObligation, recordPayment, createCheckout } from '../../../platform/payments/payment.service.js'
+import { getObligation, recordPayment, createCheckout, listPaymentHistory, refundPayment } from '../../../platform/payments/payment.service.js'
 import { can } from '../../../platform/authorization/authorization.service.js'
 import { env } from '../../../config/index.js'
 import * as repository from './payment.repository.js'
@@ -96,4 +96,26 @@ const get = async ({ appId, obligationId, actorId }) => {
   return value
 }
 
-export { pay, get, checkout }
+const history = async ({ appId, obligationId, actorId }) => {
+  await assertOwnership({ appId, obligationId, actorId })
+  return listPaymentHistory({ appId: requireAppId(appId), obligationId })
+}
+
+const refund = async ({ appId, paymentId, amount, currency, reason, actorId, manual = true, idempotencyKey }) => {
+  const owner = requireAppId(appId)
+  if (!(await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_payments', action: 'manage' }))) {
+    throw new ForbiddenError('Only payment management staff can issue refunds.')
+  }
+  return refundPayment({
+    appId: owner,
+    paymentId,
+    amount,
+    currency,
+    reason,
+    actorId,
+    manual,
+    idempotencyKey,
+  })
+}
+
+export { pay, get, checkout, history, refund }
