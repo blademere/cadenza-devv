@@ -1,13 +1,19 @@
+# Dependency trees are installed inside the image/container.
+# Exclude every workspace-level node_modules directory from the Docker build context.
+**/node_modules
+**/node_modules/**
 node_modules
+
+# Local/generated files
 npm-debug.log
 .git
 .gitignore
 .env
 .env.local
 README.md
-tests
 .dockerignore
 Dockerfile
 .vscode
 .idea
 .opencode
+tests
