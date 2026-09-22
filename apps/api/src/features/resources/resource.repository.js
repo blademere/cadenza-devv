@@ -54,7 +54,4 @@ export {
   updateResource,
   activateResource,
   deactivateResource,
-  findOverlappingBookings,
-  findRoomLessonOverlap,
-  isResourceAvailable,
 }
