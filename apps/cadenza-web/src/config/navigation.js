@@ -1,0 +1,5 @@
+import { createElement } from 'react'
+import { Archive, Calendar, Guitar, House, MusicNotes, UsersThree } from '@phosphor-icons/react'
+const icon=(I)=>()=>createElement(I,{size:20,weight:'regular','aria-hidden':true})
+export const navigation=Object.freeze([{key:'workspace',name:'Workspace',items:[{key:'dashboard',name:'Dashboard',route:'/app/dashboard',icon:icon(House)}]},{key:'lessons',name:'Music Lessons',items:[{key:'lessons',name:'Lessons',route:'/app/lessons',icon:icon(MusicNotes)},{key:'lesson-schedule',name:'Schedule',route:'/app/lesson-schedule',icon:icon(Calendar)}]},{key:'rentals',name:'Rentals',items:[{key:'rentals',name:'Rentals',route:'/app/rentals',icon:icon(Guitar)},{key:'resources',name:'Resources',route:'/app/resources',icon:icon(Archive)}]},{key:'administration',name:'Administration',items:[{key:'users',name:'Users',route:'/app/users',icon:icon(UsersThree)}]}])
+export function normalizeNavigation(sections=[]){return Array.isArray(sections)?sections.filter(s=>s?.items?.length):[]}
