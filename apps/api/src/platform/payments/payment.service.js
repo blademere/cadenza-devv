@@ -36,12 +36,13 @@ const summarizeObligation = (obligation, successfulPayments) => {
       ),
     decimal(0)
   )
-  const balance = decimal(obligation.totalAmount).minus(paidAmount)
+  const netPaidAmount = paidAmount.minus(refundedAmount)
+  const balance = decimal(obligation.totalAmount).minus(netPaidAmount)
   return {
     ...obligation,
     paidAmount,
     refundedAmount,
-    netPaidAmount: paidAmount.minus(refundedAmount),
+    netPaidAmount,
     balanceDue: balance,
     status:
       balance.isZero() && refundedAmount.gte(paidAmount) && paidAmount.gt(0)
