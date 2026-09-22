@@ -6,7 +6,7 @@ import {
 } from '../../../common/errors/appError.js'
 import { requireAppId } from '../../../platform/applications/application-scope.js'
 import { can } from '../../../platform/authorization/authorization.service.js'
-import { createPaymentObligation } from '../../../platform/payments/payment.service.js'
+import { createPaymentObligation, getObligation, refundPayment } from '../../../platform/payments/payment.service.js'
 import { getStorageService } from '../../../platform/storage/storage.registry.js'
 import { positiveDecimal } from '../../../platform/money/money.js'
 import { createStorageKey } from '../../../platform/storage/storage.key.js'
@@ -227,6 +227,33 @@ const listEnrollments = async ({ appId, actorId }) => {
       },
     }
   })
+}
+const cancelEnrollment = async ({ appId, id, actorId }) => {
+  const owner = requireAppId(appId)
+  const enrollment = await repository.findEnrollmentById(id, owner)
+  if (!enrollment) throw new NotFoundError('Enrollment not found.')
+  if ([ENROLLMENT_STATUS.CANCELLED, ENROLLMENT_STATUS.COMPLETED].includes(enrollment.status))
+    throw new ConflictError('Enrollment cannot be cancelled from its current state.')
+  const manager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' })
+  const student = Number(enrollment.student?.person?.userId) === Number(actorId)
+  if (!manager && !student) throw new ForbiddenError('You can only cancel your own enrollment.')
+  if (!manager && enrollment.sessions.some((session) => session.status !== SESSION_STATUS.CANCELLED))
+    throw new ConflictError('Student cancellation is only available before a lesson session is scheduled.')
+  if (enrollment.paymentObligationId) {
+    const obligation = await getObligation(enrollment.paymentObligationId, owner)
+    const payments = obligation?.payments?.filter((payment) => payment.status === 'SUCCEEDED') || []
+    if (payments.length && !manager) throw new ForbiddenError('Paid enrollment cancellation requires lesson management staff.')
+    for (const payment of payments) {
+      const refunded = (payment.refunds || []).filter((item) => item.status === 'SUCCEEDED').reduce((sum, item) => sum.plus(item.amount), 0)
+      const refundable = Number(payment.amount) - Number(refunded)
+      if (refundable > 0) {
+        await refundPayment({ appId: owner, paymentId: payment.id, amount: String(refundable), currency: payment.currency, reason: 'Lesson enrollment cancellation', actorId, manual: true, idempotencyKey: `cadenza:enrollment-cancel-refund:${id}:${payment.id}` })
+      }
+    }
+  }
+  const result = await repository.updateEnrollmentStatus(id, owner, [ENROLLMENT_STATUS.PENDING_PAYMENT, ENROLLMENT_STATUS.CONFIRMED, ENROLLMENT_STATUS.IN_PROGRESS], ENROLLMENT_STATUS.CANCELLED)
+  if (result.count !== 1) throw new ConflictError('Enrollment is no longer cancellable.')
+  return repository.findEnrollmentById(id, owner)
 }
 const enroll = async ({
   appId,
@@ -617,6 +644,7 @@ export {
   listEnrollments,
   getEnrollment,
   enroll,
+  cancelEnrollment,
   listSessions,
   getSession,
   getReschedule,
