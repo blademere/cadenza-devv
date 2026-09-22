@@ -1,12 +1,13 @@
 import { BadRequestError, NotFoundError, ConflictError } from '../../../common/errors/appError.js'
 import { requireAppId } from '../../../platform/applications/application-scope.js'
+import { can } from '../../../platform/authorization/authorization.service.js'
 import * as repository from './student.repository.js'
 
 const create=async({appId,personId,actorId})=>{
   const app=requireAppId(appId)
   if(!personId) throw new BadRequestError('personId is required.')
   if(Number(actorId)>0){
-    const manager = await import('../../../platform/authorization/authorization.service.js').then(({can})=>can({userId:Number(actorId),appId:app,resource:'cadenza_students',action:'manage'}))
+    const manager = await can({userId:Number(actorId),appId:app,resource:'cadenza_students',action:'manage'})
     const person = await repository.findPersonByUserId(actorId)
     if(!manager && (!person || String(person.id)!==String(personId))) throw new ConflictError('You can only register your own account as a student.')
   }
