@@ -49,6 +49,7 @@ const paymentRepository = await import('../../../src/apps/cadenza/payments/payme
 const platformAuthorization = await import('../../../src/platform/authorization/authorization.service.js')
 const platformPayments = await import('../../../src/platform/payments/payment.service.js')
 const lessonService = await import('../../../src/apps/cadenza/lessons/lesson.service.js')
+const lessonLifecycle = await import('../../../src/apps/cadenza/lessons/lesson-lifecycle.service.js')
 const rentalService = await import('../../../src/apps/cadenza/rentals/rental.service.js')
 const paymentService = await import('../../../src/apps/cadenza/payments/payment.service.js')
 
@@ -161,7 +162,11 @@ describe('Cadenza payment settlement', () => {
       actorId: 42,
     })
 
-    expect(paymentRepository.confirmEnrollment).toHaveBeenCalledWith('enrollment-1', APP_ID, expect.anything())
+    expect(lessonLifecycle.confirmEnrollment).toHaveBeenCalledWith({
+      appId: APP_ID,
+      enrollmentId: 'enrollment-1',
+      db: expect.anything(),
+    })
   })
 
   it('reserves a rental when successful payments reach the required down payment', async () => {
@@ -172,7 +177,7 @@ describe('Cadenza payment settlement', () => {
       id: RENTAL_ID,
       appId: APP_ID,
       customerUserId: 42,
-      requiredDownPayment: { toString: () => '300.00' },
+      requiredDownPayment: '300.00',
     })
 
     await paymentService.pay({
