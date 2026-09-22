@@ -434,8 +434,14 @@ const createSession = async ({
     if (roomId) {
       const room = await repository.findRoom(roomId, owner, tx)
       if (!room) throw new NotFoundError('Room not found.')
-      if (await repository.findRoomRentalOverlap({ appId: owner, roomResourceId: room.resourceId, startsAt: start, endsAt: end }, tx))
-        throw new ConflictError('Room is already reserved for an overlapping rental.')
+      if (!(await isResourceAvailable({
+        appId: owner,
+        resourceId: room.resourceId,
+        resourceType: 'CADENZA_ROOM',
+        startsAt: start,
+        endsAt: end,
+      }, tx)))
+        throw new ConflictError('Room is already reserved for an overlapping booking.')
     }
     return repository.createSession(
       {
