@@ -161,8 +161,12 @@ const removeAttachment = async ({ appId, lessonPackageId, id }) => {
     .catch(() => {})
   return { id }
 }
-const listEnrollments = ({ appId }) =>
-  repository.listEnrollments(requireAppId(appId))
+const listEnrollments = async ({ appId, actorId }) => {
+  const owner = requireAppId(appId)
+  const rows = await repository.listEnrollments(owner)
+  if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' })) return rows
+  return rows.filter((row) => Number(row.student?.person?.userId) === Number(actorId))
+}
 const enroll = async ({
   appId,
   studentId,
@@ -224,13 +228,23 @@ const enroll = async ({
     throw e
   }
 }
-const listSessions = ({ appId }) => repository.listSessions(requireAppId(appId))
+const listSessions = async ({ appId, actorId }) => {
+  const owner = requireAppId(appId)
+  const rows = await repository.listSessions(owner)
+  if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'manage' })) return rows
+  return rows.filter((row) => Number(row.enrollment?.student?.person?.userId) === Number(actorId) || Number(row.instructor?.person?.userId) === Number(actorId))
+}
 const getSession = async ({ appId, id }) => {
   const value = await repository.findSession(id, requireAppId(appId))
   if (!value) throw new NotFoundError('Lesson session not found.')
   return value
 }
-const listReschedules = ({ appId }) => repository.listReschedules(requireAppId(appId))
+const listReschedules = async ({ appId, actorId }) => {
+  const owner = requireAppId(appId)
+  const rows = await repository.listReschedules(owner)
+  if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'manage' })) return rows
+  return rows.filter((row) => Number(row.session?.enrollment?.student?.person?.userId) === Number(actorId) || Number(row.requestedByUserId) === Number(actorId))
+}
 const getReschedule = async ({ appId, id }) => {
   const value = await repository.findReschedule(id, requireAppId(appId))
   if (!value) throw new NotFoundError('Reschedule request not found.')
