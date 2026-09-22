@@ -23,8 +23,8 @@ const emit = async ({ db, event, enrollment, sessionId = null, actorId = null, c
     idempotencyKey: `cadenza:${event}:${enrollment.id}:${sessionId || enrollment.status}`,
   })
 
-const confirmEnrollment = async ({ appId, enrollmentId, actorId = null, db }) =>
-  runTransaction(async (tx) => {
+const confirmEnrollment = async ({ appId, enrollmentId, actorId = null, db }) => {
+  const execute = async (tx) => {
     const enrollment = await repository.findEnrollmentById(enrollmentId, appId, tx)
     if (!enrollment) return null
     if (enrollment.status !== ENROLLMENT_STATUS.PENDING_PAYMENT) return enrollment
@@ -40,7 +40,8 @@ const confirmEnrollment = async ({ appId, enrollmentId, actorId = null, db }) =>
       actorId,
     })
     return confirmed
-  }, db)
+  }
+  return db ? execute(db) : runTransaction(execute)
 
 const ensureInProgress = async ({ appId, enrollmentId, actorId = null, db }) => {
   const enrollment = await repository.findEnrollmentById(enrollmentId, appId, db)
