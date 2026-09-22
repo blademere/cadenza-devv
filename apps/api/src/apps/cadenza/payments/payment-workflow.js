@@ -14,7 +14,7 @@ const beforeRecord = async ({ appId, obligationId, amount }) => {
 
 const onSettled = async ({ db, obligation, paidAmount }) => {
   if (obligation.referenceType === 'CADENZA_ENROLLMENT' && obligation.status === 'PAID') {
-    await repository.confirmEnrollment(obligation.referenceId, obligation.appId, db)
+    await confirmEnrollment({ appId: obligation.appId, enrollmentId: obligation.referenceId, db })
   }
   if (obligation.referenceType === 'CADENZA_RENTAL') {
     const rental = await repository.findRental(obligation.referenceId, obligation.appId, db)
