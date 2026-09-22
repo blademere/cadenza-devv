@@ -5,6 +5,7 @@ import * as controller from './student.controller.js'
 import * as service from './student.service.js'
 import {createValidator,idValidator} from './student.validation.js'
 const router=express.Router()
+router.post('/me',idempotency({scope:'cadenza-student-self',required:true}),asyncHandler(controller.registerMe))
 router.get('/',authorize('cadenza_students','read'),asyncHandler(controller.list))
 router.post('/',authorize('cadenza_students','create'),idempotency({scope:'cadenza-students',required:true}),validate(createValidator),asyncHandler(controller.create))
 const resource=authorizeResource({resource:'cadenza_students',action:'read',loadResource:(id,req)=>service.get({id,appId:req.security.app.id}),getResourceId:req=>req.params.id})
