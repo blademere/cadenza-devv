@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
-import SelectField from '../../../components/common/SelectField'
-import LoadingState from '../../../components/common/LoadingState'
+import SelectField from '../../../components/select-field'
+import LoadingState from '../../../components/loading-state'
 import { resourcesApi } from '../api/resources.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
 
