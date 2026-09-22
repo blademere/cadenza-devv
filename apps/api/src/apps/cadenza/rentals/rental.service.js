@@ -14,8 +14,8 @@ import {
 } from '../../../platform/payments/payment.service.js'
 import * as repository from './rental.repository.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
-import { RENTAL_STATUS } from '../cadenza.constants.js'\nimport * as customerService from '../customers/customer.service.js'
-import { listUsers } from '../../../features/users/user.service.js'
+import { RENTAL_STATUS } from '../cadenza.constants.js'
+import * as customerService from '../customers/customer.service.js'
 const decimalAmount = (value, field) => {
   try {
     return positiveDecimal(value, field)
@@ -30,7 +30,7 @@ const durationHours = (start, end) =>
 const create = async ({
   appId,
   actorId,
-  customerUserId,
+  customerId,
   resourceId,
   rentalType,
   scheduledStart,
