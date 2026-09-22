@@ -2,55 +2,22 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Badge, Button, Card, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core'
 import LoadingState from '../../../components/common/LoadingState'
-import { resourcesApi }
-import { useAuthorization } from '../../../authorization/components/AuthorizationProvider' from '../api/resources.api'
-
-const unwrap = (response) => response?.data ?? response ?? []
-
-export default function ResourcesPage() {\n  const { can } = useAuthorization()\n  const canCreate = can('cadenza_instruments:create') || can('cadenza_rooms:create')\n  const canUpdate = can('cadenza_instruments:update') || can('cadenza_rooms:update')
-  const client = useQueryClient()
-  const instruments = useQuery({ queryKey: ['cadenza', 'instruments'], queryFn: resourcesApi.listInstruments })
-  const rooms = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms })
-  const [opened, setOpened] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ kind: 'INSTRUMENT', key: '', name: '', type: 'CADENZA_INSTRUMENT', instrumentType: '', roomType: '', capacity: 1, rentalRate: '', brand: '', model: '', serialNumber: '' })
-  const createResource = useMutation({ mutationFn: resourcesApi.createResource })
-  const createInstrument = useMutation({ mutationFn: resourcesApi.createInstrument, onSuccess: () => { setOpened(false); client.invalidateQueries({ queryKey: ['cadenza', 'instruments'] }); client.invalidateQueries({ queryKey: ['cadenza', 'rooms'] }) } })
-  const updateInstrument = useMutation({ mutationFn: ({ id, payload }) => resourcesApi.updateInstrument(id, payload), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'instruments'] }) } })
-  const updateRoom = useMutation({ mutationFn: ({ id, payload }) => resourcesApi.updateRoom(id, payload), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'rooms'] }) } })
-  const createRoom = useMutation({ mutationFn: resourcesApi.createRoom, onSuccess: () => { setOpened(false); client.invalidateQueries({ queryKey: ['cadenza', 'instruments'] }); client.invalidateQueries({ queryKey: ['cadenza', 'rooms'] }) } })
-  if (instruments.isLoading || rooms.isLoading) return <LoadingState label="Loading Cadenza resources…" rows={3} />
-  const error = instruments.error || rooms.error || createResource.error || createInstrument.error || createRoom.error
-  const entries = [...unwrap(instruments.data).map((item) => ({ ...item, resourceType: 'Instrument', label: item.instrumentType })), ...unwrap(rooms.data).map((item) => ({ ...item, resourceType: 'Room', label: item.roomType }))]
-  const submit = async () => {
-    const resource = await createResource.mutateAsync({ key: form.key, name: form.name, type: form.type })
-    const resourceId = resource?.data?.id ?? resource?.id
-    if (!resourceId) throw new Error('Resource creation did not return a resource id.')
-    if (form.kind === 'INSTRUMENT') {
-      createInstrument.mutate({ resourceId, instrumentType: form.instrumentType, brand: form.brand || undefined, model: form.model || undefined, serialNumber: form.serialNumber || undefined, rentalRate: String(form.rentalRate) })
-    } else {
-      createRoom.mutate({ resourceId, roomType: form.roomType, capacity: Number(form.capacity), rentalRate: String(form.rentalRate) })
-    }
-  }
-  return <Stack gap="lg">
-    <Group justify="space-between"><div><Title order={2}>Resources</Title><Text c="dimmed">Manage Cadenza-owned instruments and rooms using the reusable resource capability.</Text></div>{canCreate && <Button onClick={() => setOpened(true)}>Add resource</Button>}</Group>
-    {error && <Alert color="red" title="Resource operation failed">{error.message}</Alert>}
-    {!entries.length ? <Alert color="gray" title="No resources">Add an instrument or band-room resource.</Alert> : <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>{entries.map((resource) =>
-      <Card key={resource.id} withBorder><Stack gap="xs"><Group justify="space-between"><Title order={4}>{resource.label}</Title><Badge variant="light">{resource.status}</Badge></Group><Text c="dimmed">{resource.resourceType}</Text><Text size="sm">Resource ID: {resource.resourceId}</Text><Text size="sm">Rate: ₱{Number(resource.rentalRate).toLocaleString()}</Text>{canUpdate && <Button size="xs" variant="light" onClick={() => setEditing(resource)}>Edit</Button>}</Stack></Card>
-    )}</SimpleGrid>}
-    <Modal opened={Boolean(editing)} onClose={() => setEditing(null)} title="Update resource"><Stack>
-      <Text>Update status and rental rate.</Text>
-      <Select label="Status" data={['AVAILABLE','UNAVAILABLE','RETIRED']} value={editing?.status ?? null} onChange={(value) => setEditing({ ...editing, status: value })} />
-      <NumberInput label="Rental rate" min={0.01} value={editing?.rentalRate ?? ''} onChange={(value) => setEditing({ ...editing, rentalRate: value })} />
-      <Button loading={updateInstrument.isPending || updateRoom.isPending} onClick={() => editing?.resourceType === 'Instrument' ? updateInstrument.mutate({ id: editing.id, payload: { status: editing.status, rentalRate: String(editing.rentalRate) } }) : updateRoom.mutate({ id: editing.id, payload: { status: editing.status, rentalRate: String(editing.rentalRate) } })}>Save</Button>
-    </Stack></Modal>
-    <Modal opened={opened} onClose={() => setOpened(false)} title="Add Cadenza resource"><Stack>
-      <Select label="Resource kind" data={[{ value: 'INSTRUMENT', label: 'Instrument' }, { value: 'ROOM', label: 'Band room' }]} value={form.kind} onChange={(value) => setForm({ ...form, kind: value || 'INSTRUMENT', type: value === 'ROOM' ? 'CADENZA_ROOM' : 'CADENZA_INSTRUMENT' })} />
-      <TextInput label="Resource key" required value={form.key} onChange={(e) => setForm({ ...form, key: e.currentTarget.value })} />
-      <TextInput label="Name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />
-      {form.kind === 'INSTRUMENT' ? <><TextInput label="Instrument type" required value={form.instrumentType} onChange={(e) => setForm({ ...form, instrumentType: e.currentTarget.value })} /><TextInput label="Brand" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.currentTarget.value })} /><TextInput label="Model" value={form.model} onChange={(e) => setForm({ ...form, model: e.currentTarget.value })} /><TextInput label="Serial number" value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.currentTarget.value })} /></> : <><TextInput label="Room type" required value={form.roomType} onChange={(e) => setForm({ ...form, roomType: e.currentTarget.value })} /><NumberInput label="Capacity" min={1} value={form.capacity} onChange={(value) => setForm({ ...form, capacity: value })} /></>}
-      <NumberInput label="Rental rate" min={0.01} value={form.rentalRate} onChange={(value) => setForm({ ...form, rentalRate: value })} />
-      <Button loading={createResource.isPending || createInstrument.isPending || createRoom.isPending} disabled={!form.key || !form.name || !form.rentalRate || (form.kind === 'INSTRUMENT' ? !form.instrumentType : !form.roomType)} onClick={() => submit().catch(() => {})}>Create resource</Button>
-    </Stack></Modal>
-  </Stack>
+import { resourcesApi } from '../api/resources.api'
+import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
+const unwrap=r=>r?.data??r??[]
+export default function ResourcesPage(){
+ const {can}=useAuthorization(),client=useQueryClient(),canCreate=can('cadenza_instruments:create')||can('cadenza_rooms:create'),canUpdate=can('cadenza_instruments:update')||can('cadenza_rooms:update')
+ const instruments=useQuery({queryKey:['cadenza','instruments'],queryFn:resourcesApi.listInstruments}),rooms=useQuery({queryKey:['cadenza','rooms'],queryFn:resourcesApi.listRooms})
+ const [open,setOpen]=useState(false),[editing,setEditing]=useState(null),[form,setForm]=useState({kind:'INSTRUMENT',key:'',name:'',instrumentType:'',roomType:'',capacity:1,rentalRate:''})
+ const createResource=useMutation({mutationFn:resourcesApi.createResource}),createInstrument=useMutation({mutationFn:resourcesApi.createInstrument,onSuccess:()=>{setOpen(false);client.invalidateQueries({queryKey:['cadenza','instruments']})}}),createRoom=useMutation({mutationFn:resourcesApi.createRoom,onSuccess:()=>{setOpen(false);client.invalidateQueries({queryKey:['cadenza','rooms']})}})
+ const updateInstrument=useMutation({mutationFn:({id,payload})=>resourcesApi.updateInstrument(id,payload),onSuccess:()=>{setEditing(null);client.invalidateQueries({queryKey:['cadenza','instruments']})}}),updateRoom=useMutation({mutationFn:({id,payload})=>resourcesApi.updateRoom(id,payload),onSuccess:()=>{setEditing(null);client.invalidateQueries({queryKey:['cadenza','rooms']})}})
+ if(instruments.isLoading||rooms.isLoading)return <LoadingState label="Loading resources…" rows={3}/>
+ if(instruments.error||rooms.error)return <Alert color="red">{(instruments.error||rooms.error).message}</Alert>
+ const entries=[...unwrap(instruments.data).map(x=>({...x,kind:'Instrument',label:x.instrumentType})),...unwrap(rooms.data).map(x=>({...x,kind:'Room',label:x.roomType}))]
+ const submit=async()=>{const r=await createResource.mutateAsync({key:form.key,name:form.name,type:form.kind==='ROOM'?'CADENZA_ROOM':'CADENZA_INSTRUMENT'});const resourceId=r?.data?.id??r?.id;if(!resourceId)throw new Error('Resource creation did not return an id.');if(form.kind==='ROOM')createRoom.mutate({resourceId,roomType:form.roomType,capacity:Number(form.capacity),rentalRate:String(form.rentalRate)});else createInstrument.mutate({resourceId,instrumentType:form.instrumentType,rentalRate:String(form.rentalRate)})}
+ return <Stack gap="lg"><Group justify="space-between"><div><Title order={2}>Resources</Title><Text c="dimmed">Cadenza instruments and band rooms.</Text></div>{canCreate&&<Button onClick={()=>setOpen(true)}>Add resource</Button>}</Group>
+ <SimpleGrid cols={{base:1,sm:2,lg:3}}>{entries.map(x=><Card key={x.id} withBorder><Stack><Group justify="space-between"><Title order={4}>{x.label}</Title><Badge>{x.status}</Badge></Group><Text>{x.kind}</Text><Text size="sm">₱{Number(x.rentalRate).toLocaleString()} / hour</Text>{canUpdate&&<Button size="xs" onClick={()=>setEditing(x)}>Edit</Button>}</Stack></Card>)}</SimpleGrid>
+ <Modal opened={open} onClose={()=>setOpen(false)} title="Add resource"><Stack><Select label="Type" data={[{value:'INSTRUMENT',label:'Instrument'},{value:'ROOM',label:'Band room'}]} value={form.kind} onChange={v=>setForm({...form,kind:v||'INSTRUMENT'})}/><TextInput label="Resource key" value={form.key} onChange={e=>setForm({...form,key:e.currentTarget.value})}/><TextInput label="Name" value={form.name} onChange={e=>setForm({...form,name:e.currentTarget.value})}/>{form.kind==='ROOM'?<><TextInput label="Room type" value={form.roomType} onChange={e=>setForm({...form,roomType:e.currentTarget.value})}/><NumberInput label="Capacity" min={1} value={form.capacity} onChange={v=>setForm({...form,capacity:v})}/></>:<TextInput label="Instrument type" value={form.instrumentType} onChange={e=>setForm({...form,instrumentType:e.currentTarget.value})}/>}<NumberInput label="Hourly rate" min={0.01} value={form.rentalRate} onChange={v=>setForm({...form,rentalRate:v})}/><Button loading={createResource.isPending||createInstrument.isPending||createRoom.isPending} disabled={!form.key||!form.name||!form.rentalRate} onClick={()=>submit().catch(()=>{})}>Create</Button></Stack></Modal>
+ <Modal opened={Boolean(editing)} onClose={()=>setEditing(null)} title="Update resource"><Stack><Select label="Status" data={['AVAILABLE','UNAVAILABLE','RETIRED']} value={editing?.status??null} onChange={v=>setEditing({...editing,status:v})}/><NumberInput label="Hourly rate" min={0.01} value={editing?.rentalRate??''} onChange={v=>setEditing({...editing,rentalRate:v})}/><Button loading={updateInstrument.isPending||updateRoom.isPending} onClick={()=>editing.kind==='Instrument'?updateInstrument.mutate({id:editing.id,payload:{status:editing.status,rentalRate:String(editing.rentalRate)}}):updateRoom.mutate({id:editing.id,payload:{status:editing.status,rentalRate:String(editing.rentalRate)}})}>Save</Button></Stack></Modal>
+ </Stack>
 }
