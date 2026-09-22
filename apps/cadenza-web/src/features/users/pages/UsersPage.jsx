@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Badge, Button, Card, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core'
 import LoadingState from '../../../components/common/LoadingState'
 import { studentsApi } from '../../students/api/students.api'
-import { instructorsApi } from '../../instructors/api/instructors.api'
+import { instructorsApi }
+import { useAuthorization } from '../../../authorization/components/AuthorizationProvider' from '../../instructors/api/instructors.api'
 
 const unwrap = (response) => response?.data ?? response ?? []
 
-export default function UsersPage() {
+export default function UsersPage() {\n  const { can } = useAuthorization()\n  const canManageStudents = can('cadenza_students:manage')\n  const canManageInstructors = can('cadenza_instructors:manage')
   const client = useQueryClient()
   const students = useQuery({ queryKey: ['cadenza', 'students'], queryFn: studentsApi.list })
   const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list })
@@ -23,7 +24,7 @@ export default function UsersPage() {
     <Group justify="space-between"><div><Title order={2}>Users</Title><Text c="dimmed">Cadenza students and instructors.</Text></div><Button loading={register.isPending} onClick={() => register.mutate()}>Register my account as student</Button></Group>
     {!entries.length ? <Alert color="gray" title="No people">No Cadenza students or instructors have been registered yet.</Alert> :
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>{entries.map((item) =>
-        <Card key={item.id} withBorder><Group justify="space-between"><div><Text fw={600}>{item.person?.name ?? item.person?.fullName ?? item.personId ?? item.id}</Text>{item.specialty && <Text size="sm" c="dimmed">{item.specialty}</Text>}</div><Badge variant="light">{item.role}</Badge><Button size="xs" variant="subtle" onClick={() => setEditing(item)}>Edit</Button></Group></Card>
+        <Card key={item.id} withBorder><Group justify="space-between"><div><Text fw={600}>{item.person?.name ?? item.person?.fullName ?? item.personId ?? item.id}</Text>{item.specialty && <Text size="sm" c="dimmed">{item.specialty}</Text>}</div><Badge variant="light">{item.role}</Badge>{((item.role === "Student" && canManageStudents) || (item.role === "Instructor" && canManageInstructors)) && <Button size="xs" variant="subtle" onClick={() => setEditing(item)}>Edit</Button>}</Group></Card>
       )}</SimpleGrid>}
   </Stack>
 }
