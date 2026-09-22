@@ -107,6 +107,15 @@ const create = async ({
     return repository.attachPaymentObligation(rental.id, obligation.id, tx)
   })
 }
+const customers = async ({ appId }) => {
+  const owner = requireAppId(appId)
+  return listUsers({
+    appId: owner,
+    filters: { isActive: 'true' },
+    pagination: { page: 1, limit: 100, skip: 0, take: 100 },
+    orderBy: { email: 'asc' },
+  })
+}
 const availability = async ({ appId, rentalType, scheduledStart, scheduledEnd }) => {
   const owner = requireAppId(appId)
   const start = new Date(scheduledStart), end = new Date(scheduledEnd)
