@@ -9,6 +9,7 @@ vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
   listPackages: vi.fn(),
   listEnrollments: vi.fn(),
   createPackage: vi.fn(),
+  findEnrollmentById: vi.fn(),
 }))
 
 vi.mock('../../../src/apps/cadenza/rentals/rental.repository.js', () => ({
@@ -28,7 +29,11 @@ vi.mock('../../../src/apps/cadenza/payments/payment.repository.js', () => ({
   reserveRental: vi.fn(),
 }))
 
-vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({ can: vi.fn() }))
+vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({ can: vi.fn().mockResolvedValue(false) }))
+
+vi.mock('../../../src/platform/event-bus/event-outbox.service.js', () => ({ enqueueEvent: vi.fn().mockResolvedValue({ id: 'event-1' }) }))
+
+vi.mock('../../../src/apps/cadenza/lessons/lesson-lifecycle.service.js', () => ({ confirmEnrollment: vi.fn().mockResolvedValue({ id: 'enrollment-1', status: 'CONFIRMED' }) }))
 
 vi.mock('../../../src/platform/transactions/transaction.service.js', () => ({ run: vi.fn((callback) => callback({ transaction: true })) }))
 
@@ -89,7 +94,7 @@ describe('Cadenza rental payment workflow', () => {
 
   it('creates a rental obligation carrying the required down payment', async () => {
     rentalRepository.findResource.mockResolvedValue({ id: RESOURCE_ID, appId: APP_ID, type: 'CADENZA_INSTRUMENT' })
-    rentalRepository.findInstrumentByResource.mockResolvedValue({ id: 'instrument-1', resourceId: RESOURCE_ID, status: 'AVAILABLE', rentalRate: { toString: () => '100.00', mul: () => ({ toString: () => '300.00' }) } })
+    rentalRepository.findInstrumentByResource.mockResolvedValue({ id: 'instrument-1', resourceId: RESOURCE_ID, status: 'AVAILABLE', rentalRate: { toString: () => '100.00', mul: () => '300.00' } })
     rentalRepository.create.mockResolvedValue({ id: RENTAL_ID })
     platformPayments.createPaymentObligation.mockResolvedValue({ id: OBLIGATION_ID, status: 'UNPAID' })
     rentalRepository.attachPaymentObligation.mockResolvedValue({ id: RENTAL_ID, paymentObligationId: OBLIGATION_ID })
@@ -141,7 +146,8 @@ describe('Cadenza payment settlement', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('confirms an enrollment only after full payment', async () => {
-    platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: {}, obligation: { referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-1', amount: '1500.00' } })
+    lessonRepository.findEnrollmentById.mockResolvedValue({ id: 'enrollment-1', appId: APP_ID, status: 'PENDING_PAYMENT', paymentExpiresAt: null })
+    platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: { transaction: true }, obligation: { appId: APP_ID, referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-1', amount: '1500.00' } })
     paymentRepository.findEnrollment.mockResolvedValue({ id: 'enrollment-1', appId: APP_ID, student: { person: { userId: 42 } } })
     platformPayments.getObligation.mockResolvedValue({ id: OBLIGATION_ID, appId: APP_ID, referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID' })
 
@@ -152,13 +158,14 @@ describe('Cadenza payment settlement', () => {
       currency: 'PHP',
       method: 'CASH',
       idempotencyKey: 'payment-key-1',
+      actorId: 42,
     })
 
     expect(paymentRepository.confirmEnrollment).toHaveBeenCalledWith('enrollment-1', APP_ID, expect.anything())
   })
 
   it('reserves a rental when successful payments reach the required down payment', async () => {
-    platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: {}, obligation: { referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-2', amount: '300.00' } })
+    platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: {}, obligation: { appId: APP_ID, referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-2', amount: '300.00' } })
     paymentRepository.findRental.mockResolvedValue({ id: RENTAL_ID, appId: APP_ID, customerUserId: 42 })
     platformPayments.getObligation.mockResolvedValue({ id: OBLIGATION_ID, appId: APP_ID, referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID', paidAmount: { gte: vi.fn(() => true) } })
     paymentRepository.findRental.mockResolvedValue({
@@ -174,6 +181,7 @@ describe('Cadenza payment settlement', () => {
       currency: 'PHP',
       method: 'CASH',
       idempotencyKey: 'payment-key-2',
+      actorId: 42,
     })
 
     expect(paymentRepository.reserveRental).toHaveBeenCalledWith(RENTAL_ID, APP_ID, expect.anything())
