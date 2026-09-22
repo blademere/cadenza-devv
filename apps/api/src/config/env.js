@@ -25,6 +25,8 @@ const envSchema = z.object({
   METRICS_TOKEN: optionalEnvString,
   SEED_ADMIN_EMAIL: z.email().optional(),
   SEED_ADMIN_PASSWORD: optionalEnvString,
+  SEED_CADENZA_ADMIN_EMAIL: z.email().optional(),
+  SEED_CADENZA_ADMIN_PASSWORD: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_ID: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_SECRET: optionalEnvString,
   OAUTH_GOOGLE_CALLBACK_URL: optionalEnvUrl,
@@ -65,6 +67,8 @@ if (data.NODE_ENV === 'production' && !data.METRICS_TOKEN) throw new Error('METR
 if (data.METRICS_TOKEN && data.METRICS_TOKEN.length < 32) throw new Error('METRICS_TOKEN must be at least 32 characters.')
 if (data.SEED_ADMIN_PASSWORD && data.SEED_ADMIN_PASSWORD.length < 12) throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters when configured.')
 if ((data.SEED_ADMIN_EMAIL && !data.SEED_ADMIN_PASSWORD) || (!data.SEED_ADMIN_EMAIL && data.SEED_ADMIN_PASSWORD)) throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be configured together.')
+if (data.SEED_CADENZA_ADMIN_PASSWORD && data.SEED_CADENZA_ADMIN_PASSWORD.length < 12) throw new Error('SEED_CADENZA_ADMIN_PASSWORD must be at least 12 characters when configured.')
+if ((data.SEED_CADENZA_ADMIN_EMAIL && !data.SEED_CADENZA_ADMIN_PASSWORD) || (!data.SEED_CADENZA_ADMIN_EMAIL && data.SEED_CADENZA_ADMIN_PASSWORD)) throw new Error('SEED_CADENZA_ADMIN_EMAIL and SEED_CADENZA_ADMIN_PASSWORD must be configured together.')
 const refreshTokenLifetimeMs = parseDurationMs(data.JWT_REFRESH_EXPIRES_IN)
 if (data.COOKIE_REFRESH_MAX_AGE_MS !== refreshTokenLifetimeMs) throw new Error('COOKIE_REFRESH_MAX_AGE_MS must exactly match JWT_REFRESH_EXPIRES_IN.')
 if (data.NODE_ENV === 'production' && data.PASSWORD_RESET_URL.startsWith('http://')) throw new Error('PASSWORD_RESET_URL must use HTTPS in production.')
@@ -75,5 +79,4 @@ const hasFacebookCredentials = Boolean(data.OAUTH_FACEBOOK_CLIENT_ID || data.OAU
 if (hasFacebookCredentials && (!data.OAUTH_FACEBOOK_CLIENT_ID || !data.OAUTH_FACEBOOK_CLIENT_SECRET || !data.OAUTH_FACEBOOK_CALLBACK_URL)) throw new Error('Facebook OAuth requires OAUTH_FACEBOOK_CLIENT_ID, OAUTH_FACEBOOK_CLIENT_SECRET, and OAUTH_FACEBOOK_CALLBACK_URL.')
 if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_SUCCESS_URL.startsWith('http://')) throw new Error('OAUTH_FRONTEND_SUCCESS_URL must use HTTPS in production.')
 if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_FAILURE_URL.startsWith('http://')) throw new Error('OAUTH_FRONTEND_FAILURE_URL must use HTTPS in production.')
-
 export default Object.freeze(data)
