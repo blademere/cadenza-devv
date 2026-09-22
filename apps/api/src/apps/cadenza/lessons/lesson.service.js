@@ -146,6 +146,15 @@ const addAttachment = async ({
     throw error
   }
 }
+const getAttachmentUrl = async ({ appId, lessonPackageId, id, actorId }) => {
+  const owner = requireAppId(appId)
+  if (!(await canManage(actorId, owner)) && !(await repository.findEnrollmentForPackageActor(lessonPackageId, actorId, owner)))
+    throw new NotFoundError('Lesson attachment not found.')
+  const attachment = await repository.findAttachment(id, lessonPackageId, owner)
+  if (!attachment) throw new NotFoundError('Lesson attachment not found.')
+  const url = await getStorageService().getSignedUrl({ key: attachment.storageReference })
+  return { id: attachment.id, type: attachment.type, metadata: attachment.metadata, url }
+}
 const listAttachments = async ({ appId, lessonPackageId, actorId }) => {
   const owner = requireAppId(appId)
   if (!(await repository.findPackage(lessonPackageId, owner)))
@@ -517,6 +526,7 @@ export {
   updatePackage,
   addAttachment,
   listAttachments,
+  getAttachmentUrl,
   removeAttachment,
   listEnrollments,
   enroll,
