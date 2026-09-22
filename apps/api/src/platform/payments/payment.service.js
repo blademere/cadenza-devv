@@ -44,7 +44,9 @@ const summarizeObligation = (obligation, successfulPayments) => {
     netPaidAmount: paidAmount.minus(refundedAmount),
     balanceDue: balance,
     status:
-      balance.isZero()
+      balance.isZero() && refundedAmount.gte(paidAmount) && paidAmount.gt(0)
+        ? OBLIGATION_STATUS.REFUNDED
+        : balance.isZero()
         ? OBLIGATION_STATUS.PAID
         : paidAmount.isZero()
           ? OBLIGATION_STATUS.UNPAID
