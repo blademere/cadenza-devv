@@ -5,7 +5,6 @@ import * as controller from './rental.controller.js'
 import * as service from './rental.service.js'
 import {createValidator,availabilityValidator} from './rental.validation.js'
 const router=express.Router()
-router.get('/customers',authorize('cadenza_rentals','manage'),asyncHandler(controller.customers))
 router.get('/availability',authorize('cadenza_rentals','read'),validate(availabilityValidator),asyncHandler(controller.availability))
 router.get('/',authorize('cadenza_rentals','read'),asyncHandler(controller.list))
 router.post('/',authorize('cadenza_rentals','create'),idempotency({scope:'cadenza-rentals',required:true}),validate(createValidator),asyncHandler(controller.create))
