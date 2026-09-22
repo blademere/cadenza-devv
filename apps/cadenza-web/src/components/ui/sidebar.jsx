@@ -1,5 +1,5 @@
 import { cloneElement, createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { PanelLeft } from '@phosphor-icons/react'
+import { List } from '@phosphor-icons/react'
 import { Sheet, SheetContent } from './sheet'
 import { Button } from './button'
 import { Separator } from './separator'
@@ -21,7 +21,7 @@ export function SidebarProvider({ children, defaultOpen = true, open: controlled
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth < 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
   useEffect(() => { const onKey = (event) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') { event.preventDefault(); isMobile ? setOpenMobile((v) => !v) : setOpen((v) => !v) } }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey) }, [isMobile, open])
   const value = useMemo(() => ({ open, setOpen, openMobile, setOpenMobile, isMobile, state: open ? 'expanded' : 'collapsed', toggleSidebar: () => (isMobile ? setOpenMobile((v) => !v) : setOpen((v) => !v)) }), [open, openMobile, isMobile])
-  return <SidebarContext.Provider value={value}><TooltipProvider delayDuration={0}><div data-sidebar-wrapper="" className={cn('group/sidebar-wrapper flex min-h-svh w-full', className)} style={{ '--sidebar-width': '16rem', '--sidebar-width-icon': '3rem', ...style }}>{children}</div></TooltipProvider></SidebarContext.Provider>
+  return <SidebarContext.Provider value={value}><TooltipProvider delay={0}><div data-sidebar-wrapper="" className={cn('group/sidebar-wrapper flex min-h-svh w-full', className)} style={{ '--sidebar-width': '16rem', '--sidebar-width-icon': '3rem', ...style }}>{children}</div></TooltipProvider></SidebarContext.Provider>
 }
 export function Sidebar({ children, side = 'left', variant = 'sidebar', collapsible = 'icon', className }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
@@ -32,7 +32,7 @@ export function Sidebar({ children, side = 'left', variant = 'sidebar', collapsi
 }
 export function SidebarTrigger({ className, ...props }) {
   const { toggleSidebar } = useSidebar()
-  return <Button variant="ghost" size="icon" className={cn('size-7', className)} onClick={toggleSidebar} {...props}><PanelLeft /><span className="sr-only">Toggle Sidebar</span></Button>
+  return <Button variant="ghost" size="icon" className={cn('size-7', className)} onClick={toggleSidebar} {...props}><List /><span className="sr-only">Toggle Sidebar</span></Button>
 }
 export function SidebarInset({ className, ...props }) { return <main data-sidebar-inset="" className={cn('relative flex min-h-svh min-w-0 flex-1 flex-col bg-background', className)} {...props} /> }
 export function SidebarHeader({ className, ...props }) { return <div className={cn('flex flex-col gap-2 p-2', className)} {...props} /> }
