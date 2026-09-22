@@ -450,6 +450,9 @@ const createSession = async ({
       throw new NotFoundError('Room not found.')
     if (request.requestedStart.getTime() - Date.now() < RESCHEDULE_CUTOFF_HOURS * 60 * 60 * 1000)
       throw new ConflictError('Approved reschedule time must remain at least 24 hours in the future.')
+    if (session.instructorId) {
+      await assertInstructorAvailable({ appId: owner, instructorId: session.instructorId, startsAt: request.requestedStart, endsAt: request.requestedEnd, db: tx })
+    }
     if (
       await repository.findOverlappingSession(
         { appId: owner, instructorId, roomId, startsAt: start, endsAt: end },
