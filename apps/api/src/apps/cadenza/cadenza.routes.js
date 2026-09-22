@@ -9,6 +9,7 @@ import roomRoutes from './rooms/room.routes.js'
 import lessonRoutes from './lessons/lesson.routes.js'
 import rentalRoutes from './rentals/rental.routes.js'
 import paymentRoutes from './payments/payment.routes.js'
+import resourceRoutes from './resources/resource.routes.js'
 
 const router = express.Router()
 router.use(authenticate, requireApplicationContext({ appKey: 'cadenza' }))
@@ -20,4 +21,5 @@ router.use('/rooms', roomRoutes)
 router.use('/lessons', lessonRoutes)
 router.use('/rentals', rentalRoutes)
 router.use('/payments', paymentRoutes)
+router.use('/resources', resourceRoutes)
 export default router
