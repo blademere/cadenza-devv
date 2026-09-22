@@ -37,7 +37,9 @@
     "db:seed:coverage": "nx run api:db:seed:coverage",
     "db:setup": "nx run api:db:setup",
     "db:backup": "nx run api:db:backup",
-    "db:restore": "nx run api:db:restore"
+    "db:restore": "nx run api:db:restore",
+    "dev:cadenza-web": "nx run cadenza-web:dev",
+    "build:cadenza-web": "nx run cadenza-web:build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
