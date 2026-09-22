@@ -203,6 +203,8 @@ const recordPayment = async ({
   })
 }
 
+const getPayment = async (id, appId, db) => findPaymentById(id, appId, db)
+
 const listPaymentHistory = async ({ appId, obligationId }) => {
   const rows = await listPayments(obligationId, appId)
   return rows.map((payment) => ({
@@ -327,5 +329,6 @@ export {
   createCheckout,
   summarizeObligation,
   listPaymentHistory,
+  getPayment,
   refundPayment,
 }
