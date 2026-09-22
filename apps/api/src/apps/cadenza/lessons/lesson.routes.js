@@ -3,7 +3,7 @@ import {asyncHandler,validate,idempotency} from '../../../common/middleware/inde
 import authorize, { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
 import * as controller from './lesson.controller.js'
 import * as service from './lesson.service.js'
-import {packageValidator,enrollmentValidator,sessionValidator,attendanceValidator,rescheduleValidator,reviewRescheduleValidator,attachmentValidator} from './lesson.validation.js'
+import {packageValidator,packageUpdateValidator,enrollmentValidator,sessionValidator,attendanceValidator,rescheduleValidator,reviewRescheduleValidator,attachmentValidator} from './lesson.validation.js'
 const router=express.Router()
 router.get('/packages',authorize('cadenza_lessons','read'),asyncHandler(controller.listPackages))
 router.post('/packages',authorize('cadenza_lessons','create'),idempotency({scope:'cadenza-lesson-packages',required:true}),validate(packageValidator),asyncHandler(controller.createPackage))
@@ -15,7 +15,6 @@ router.get('/enrollments',authorize('cadenza_enrollments','read'),asyncHandler(c
 router.post('/enrollments',authorize('cadenza_enrollments','create'),idempotency({scope:'cadenza-enrollments',required:true}),validate(enrollmentValidator),asyncHandler(controller.enroll))
 router.get('/sessions',authorize('cadenza_lessons','read'),asyncHandler(controller.listSessions))
 router.post('/sessions',authorize('cadenza_lessons','schedule'),idempotency({scope:'cadenza-lesson-sessions',required:true}),validate(sessionValidator),asyncHandler(controller.createSession))
-const sessionResource = (action) => authorizeResource({resource:'cadenza_lessons',action,loadResource:(id,req)=>service.getSession({appId:req.security.app.id,id}),getResourceId:(req)=>req.params.sessionId})
 router.post('/sessions/:sessionId/attendance',authorizeResource({resource:'cadenza_lessons',action:'attendance',loadResource:(id,req)=>service.getSession({appId:req.security.app.id,id}),getResourceId:(req)=>req.params.sessionId}),idempotency({scope:'cadenza-attendance',required:true}),validate(attendanceValidator),asyncHandler(controller.markAttendance))
 router.post('/sessions/:sessionId/complete',authorizeResource({resource:'cadenza_lessons',action:'complete',loadResource:(id,req)=>service.getSession({appId:req.security.app.id,id}),getResourceId:(req)=>req.params.sessionId}),idempotency({scope:'cadenza-session-complete',required:true}),asyncHandler(controller.completeSession))
 router.post('/sessions/:sessionId/cancel',authorizeResource({resource:'cadenza_lessons',action:'cancel',loadResource:(id,req)=>service.getSession({appId:req.security.app.id,id}),getResourceId:(req)=>req.params.sessionId}),idempotency({scope:'cadenza-session-cancel',required:true}),asyncHandler(controller.cancelSession))
