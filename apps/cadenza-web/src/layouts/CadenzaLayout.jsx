@@ -11,7 +11,7 @@ import PageContainer from './components/PageContainer'
 
 export default function CadenzaLayout() {
   const { user, logout } = useAuth()
-  const { context, isLoading: authorizationLoading } = useAuthorization()
+  const { context } = useAuthorization()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const visibleNavigation = useMemo(() => normalizeNavigation(navigation, context?.permissions), [context?.permissions])
