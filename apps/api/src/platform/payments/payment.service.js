@@ -200,7 +200,7 @@ const createCheckout = async ({
     successUrl,
     cancelUrl,
     idempotencyKey,
-    metadata: { appId, obligationId },
+    metadata: { ...(metadata || {}), appId, obligationId },
   })
 }
 
