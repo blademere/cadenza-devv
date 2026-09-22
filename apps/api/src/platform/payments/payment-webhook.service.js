@@ -1,5 +1,5 @@
 import { getPaymentProvider } from './payment-provider.registry.js'
-import { recordPayment, getObligation } from './payment.service.js'
+import { recordPayment } from './payment.service.js'
 import { getPaymentWorkflow } from './payment-workflow.registry.js'
 
 const handlePaymentWebhook = async ({ provider, rawBody, signature }) => {
