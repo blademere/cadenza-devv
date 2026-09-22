@@ -1,5 +1,8 @@
 import { compare } from '../../../platform/money/money.js'
 import { getObligation } from '../../../platform/payments/payment.service.js'
+import { findEnrollmentById } from '../lessons/lesson.repository.js'
+import { confirmEnrollment } from '../lessons/lesson-lifecycle.service.js'
+import { ENROLLMENT_STATUS } from '../cadenza.constants.js'
 import * as repository from './payment.repository.js'
 
 const beforeRecord = async ({ appId, obligationId, amount }) => {
