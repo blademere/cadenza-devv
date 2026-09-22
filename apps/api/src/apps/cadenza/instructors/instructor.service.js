@@ -2,7 +2,6 @@ import { BadRequestError, NotFoundError, ConflictError } from '../../../common/e
 import { requireAppId } from '../../../platform/applications/application-scope.js'
 import * as repository from './instructor.repository.js'
 import * as lessonRepository from '../lessons/lesson.repository.js'
-import { can } from '../../../platform/authorization/authorization.service.js'
 import { ForbiddenError } from '../../../common/errors/appError.js'
 const list=({appId})=>repository.list(requireAppId(appId))
 const get=async({appId,id})=>{const value=await repository.findById(id,requireAppId(appId));if(!value)throw new NotFoundError('Instructor not found.');return value}
