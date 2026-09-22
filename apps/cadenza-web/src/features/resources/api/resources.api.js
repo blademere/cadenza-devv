@@ -1,7 +1,10 @@
 import { apiClient } from '../../../services/api/client'
 
 export const resourcesApi = {
-  list: () => apiClient.get('/cadenza/resources'),
-  create: (payload) => apiClient.post('/cadenza/resources', payload),
-  update: (resourceId, payload) => apiClient.patch(`/cadenza/resources/${resourceId}`, payload),
+  listInstruments: () => apiClient.get('/cadenza/instruments'),
+  createInstrument: (payload) => apiClient.post('/cadenza/instruments', payload),
+  getInstrument: (id) => apiClient.get(`/cadenza/instruments/${id}`),
+  listRooms: () => apiClient.get('/cadenza/rooms'),
+  createRoom: (payload) => apiClient.post('/cadenza/rooms', payload),
+  getRoom: (id) => apiClient.get(`/cadenza/rooms/${id}`),
 }
