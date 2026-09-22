@@ -31,7 +31,7 @@ const rolePermissions = {
 
 
 const cadenzaRolePermissions = {
-  cadenza_client: ['cadenza_students:read', 'cadenza_lessons:read', 'cadenza_enrollments:read', 'cadenza_enrollments:create', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_payments:read', 'cadenza_payments:create'],
+  cadenza_client: ['cadenza_students:read', 'cadenza_instruments:read', 'cadenza_rooms:read', 'cadenza_lessons:read', 'cadenza_enrollments:read', 'cadenza_enrollments:create', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_payments:read', 'cadenza_payments:create'],
   cadenza_frontdesk: ['cadenza_students:read', 'cadenza_students:create', 'cadenza_students:manage', 'cadenza_instructors:read', 'cadenza_instructors:create', 'cadenza_instructors:update', 'cadenza_instruments:read', 'cadenza_instruments:update', 'cadenza_rooms:read', 'cadenza_rooms:update', 'cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:update', 'cadenza_lessons:manage', 'cadenza_enrollments:read', 'cadenza_enrollments:update', 'cadenza_enrollments:manage', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_rentals:update', 'cadenza_rentals:manage', 'cadenza_payments:read', 'cadenza_payments:create', 'cadenza_payments:manage'],
   cadenza_instructor: ['cadenza_students:read', 'cadenza_lessons:read', 'cadenza_lessons:update', 'cadenza_enrollments:read'],
 }
