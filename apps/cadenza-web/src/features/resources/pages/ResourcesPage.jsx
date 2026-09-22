@@ -11,9 +11,12 @@ export default function ResourcesPage() {
   const instruments = useQuery({ queryKey: ['cadenza', 'instruments'], queryFn: resourcesApi.listInstruments })
   const rooms = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms })
   const [opened, setOpened] = useState(false)
+  const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ kind: 'INSTRUMENT', key: '', name: '', type: 'CADENZA_INSTRUMENT', instrumentType: '', roomType: '', capacity: 1, rentalRate: '', brand: '', model: '', serialNumber: '' })
   const createResource = useMutation({ mutationFn: resourcesApi.createResource })
   const createInstrument = useMutation({ mutationFn: resourcesApi.createInstrument, onSuccess: () => { setOpened(false); client.invalidateQueries({ queryKey: ['cadenza', 'instruments'] }); client.invalidateQueries({ queryKey: ['cadenza', 'rooms'] }) } })
+  const updateInstrument = useMutation({ mutationFn: ({ id, payload }) => resourcesApi.updateInstrument(id, payload), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'instruments'] }) } })
+  const updateRoom = useMutation({ mutationFn: ({ id, payload }) => resourcesApi.updateRoom(id, payload), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'rooms'] }) } })
   const createRoom = useMutation({ mutationFn: resourcesApi.createRoom, onSuccess: () => { setOpened(false); client.invalidateQueries({ queryKey: ['cadenza', 'instruments'] }); client.invalidateQueries({ queryKey: ['cadenza', 'rooms'] }) } })
   if (instruments.isLoading || rooms.isLoading) return <LoadingState label="Loading Cadenza resources…" rows={3} />
   const error = instruments.error || rooms.error || createResource.error || createInstrument.error || createRoom.error
@@ -32,8 +35,14 @@ export default function ResourcesPage() {
     <Group justify="space-between"><div><Title order={2}>Resources</Title><Text c="dimmed">Manage Cadenza-owned instruments and rooms using the reusable resource capability.</Text></div><Button onClick={() => setOpened(true)}>Add resource</Button></Group>
     {error && <Alert color="red" title="Resource operation failed">{error.message}</Alert>}
     {!entries.length ? <Alert color="gray" title="No resources">Add an instrument or band-room resource.</Alert> : <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>{entries.map((resource) =>
-      <Card key={resource.id} withBorder><Stack gap="xs"><Group justify="space-between"><Title order={4}>{resource.label}</Title><Badge variant="light">{resource.status}</Badge></Group><Text c="dimmed">{resource.resourceType}</Text><Text size="sm">Resource ID: {resource.resourceId}</Text><Text size="sm">Rate: ₱{Number(resource.rentalRate).toLocaleString()}</Text></Stack></Card>
+      <Card key={resource.id} withBorder><Stack gap="xs"><Group justify="space-between"><Title order={4}>{resource.label}</Title><Badge variant="light">{resource.status}</Badge></Group><Text c="dimmed">{resource.resourceType}</Text><Text size="sm">Resource ID: {resource.resourceId}</Text><Text size="sm">Rate: ₱{Number(resource.rentalRate).toLocaleString()}</Text><Button size="xs" variant="light" onClick={() => setEditing(resource)}>Edit</Button></Stack></Card>
     )}</SimpleGrid>}
+    <Modal opened={Boolean(editing)} onClose={() => setEditing(null)} title="Update resource"><Stack>
+      <Text>Update status and rental rate.</Text>
+      <Select label="Status" data={['AVAILABLE','UNAVAILABLE','RETIRED']} value={editing?.status ?? null} onChange={(value) => setEditing({ ...editing, status: value })} />
+      <NumberInput label="Rental rate" min={0.01} value={editing?.rentalRate ?? ''} onChange={(value) => setEditing({ ...editing, rentalRate: value })} />
+      <Button loading={updateInstrument.isPending || updateRoom.isPending} onClick={() => editing?.resourceType === 'Instrument' ? updateInstrument.mutate({ id: editing.id, payload: { status: editing.status, rentalRate: String(editing.rentalRate) } }) : updateRoom.mutate({ id: editing.id, payload: { status: editing.status, rentalRate: String(editing.rentalRate) } })}>Save</Button>
+    </Stack></Modal>
     <Modal opened={opened} onClose={() => setOpened(false)} title="Add Cadenza resource"><Stack>
       <Select label="Resource kind" data={[{ value: 'INSTRUMENT', label: 'Instrument' }, { value: 'ROOM', label: 'Band room' }]} value={form.kind} onChange={(value) => setForm({ ...form, kind: value || 'INSTRUMENT', type: value === 'ROOM' ? 'CADENZA_ROOM' : 'CADENZA_INSTRUMENT' })} />
       <TextInput label="Resource key" required value={form.key} onChange={(e) => setForm({ ...form, key: e.currentTarget.value })} />
