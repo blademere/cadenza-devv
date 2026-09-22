@@ -10,6 +10,7 @@ router.post('/packages',authorize('cadenza_lessons','create'),idempotency({scope
 router.patch('/packages/:lessonPackageId',authorize('cadenza_lessons','update'),idempotency({scope:'cadenza-lesson-package-update',required:true}),validate(packageUpdateValidator),asyncHandler(controller.updatePackage))
 router.post('/packages/:lessonPackageId/attachments',authorize('cadenza_lessons','create'),idempotency({scope:'cadenza-lesson-attachments',required:true}),validate(attachmentValidator),asyncHandler(controller.addAttachment))
 router.get('/packages/:lessonPackageId/attachments',authorize('cadenza_lessons','read'),asyncHandler(controller.listAttachments))
+router.get('/packages/:lessonPackageId/attachments/:id/url',authorize('cadenza_lessons','read'),asyncHandler(controller.getAttachmentUrl))
 router.delete('/packages/:lessonPackageId/attachments/:id',authorize('cadenza_lessons','manage'),idempotency({scope:'cadenza-lesson-attachment-delete',required:true}),asyncHandler(controller.removeAttachment))
 router.get('/enrollments',authorize('cadenza_enrollments','read'),asyncHandler(controller.listEnrollments))
 router.post('/enrollments',authorize('cadenza_enrollments','create'),idempotency({scope:'cadenza-enrollments',required:true}),validate(enrollmentValidator),asyncHandler(controller.enroll))
