@@ -26,7 +26,7 @@ export const apiClient={
   setCsrfToken:t=>{csrfToken=t??null},
   setRefreshHandler:h=>{refreshHandler=h},
   get:(p,o)=>request(p,{...o,method:'GET'}),
-  post:(p,b,o={})=>request(p,{...o,method:'POST',headers:{'Idempotency-Key':crypto.randomUUID(),...(o.headers||{})},body:JSON.stringify(b)}),
+  post:(p,b,o={})=>request(p,{...o,method:'POST',headers:{'Idempotency-Key':crypto.randomUUID(),...(o.headers||{})},...(b===undefined?{}:{body:JSON.stringify(b)})}),
   put:(p,b,o={})=>request(p,{...o,method:'PUT',body:JSON.stringify(b)}),
   patch:(p,b,o={})=>request(p,{...o,method:'PATCH',body:JSON.stringify(b)}),
   delete:(p,o={})=>request(p,{...o,method:'DELETE'})
