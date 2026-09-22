@@ -10,6 +10,7 @@ import { can } from '../../../platform/authorization/authorization.service.js'
 import {
   createPaymentObligation,
   getObligation,
+  refundPayment,
 } from '../../../platform/payments/payment.service.js'
 import * as repository from './rental.repository.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
@@ -162,7 +163,28 @@ const cancel = async ({ appId, id, actorId }) => {
     if (![RENTAL_STATUS.PENDING, RENTAL_STATUS.RESERVED].includes(rental.status)) throw new ConflictError('Only pending or reserved rentals can be cancelled.')
     if (rental.paymentObligationId) {
       const obligation = await getObligation(rental.paymentObligationId, owner, tx)
-      if (obligation && Number(obligation.paidAmount) > 0) throw new ConflictError('Paid rentals require a refund workflow before cancellation.')
+      const paid = obligation?.payments?.filter((payment) => payment.status === 'SUCCEEDED') || []
+      if (paid.length > 0 && !manager) {
+        throw new ForbiddenError('Paid rentals can only be cancelled by rental management staff.')
+      }
+      for (const payment of paid) {
+        const refunded = (payment.refunds || [])
+          .filter((refund) => refund.status === 'SUCCEEDED')
+          .reduce((sum, refund) => sum.plus(refund.amount), toDecimal('0'))
+        const refundable = toDecimal(String(payment.amount)).minus(refunded)
+        if (refundable.gt(0)) {
+          await refundPayment({
+            appId: owner,
+            paymentId: payment.id,
+            amount: refundable,
+            currency: payment.currency,
+            reason: 'Rental cancellation',
+            actorId,
+            manual: true,
+            idempotencyKey: `cadenza:rental-cancel-refund:${id}:${payment.id}`,
+          })
+        }
+      }
     }
     const result = await repository.cancel(id, owner, tx)
     if (result.count !== 1)
