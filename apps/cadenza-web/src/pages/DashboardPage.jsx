@@ -1,0 +1,6 @@
+import {Card,SimpleGrid,Stack,Text,Title} from '@mantine/core'
+import {MusicNotes,Package,Warehouse,CreditCard} from '@phosphor-icons/react'
+import {useAuth} from '../features/auth/components/AuthProvider'
+import PageHeader from '../components/common/PageHeader'
+const cards=[['Music lessons','Manage lesson packages, enrollments, sessions, attendance, and instructors.',MusicNotes],['Rentals','Coordinate instruments and band rooms, schedules, deposits, and balances.',Package],['Resources','Manage reusable physical resources used by Cadenza workflows.',Warehouse],['Payments','Track deposits, partial payments, and fully settled transactions.',CreditCard]]
+export default function DashboardPage(){const{user}=useAuth();const name=user?.name||user?.email?.split('@')[0]||'User';return <Stack className="cadenza-page" gap="xl"><PageHeader eyebrow="Cadenza Operations" title={`Welcome back, ${name}`} description="Choose a Cadenza workflow to continue."/><SimpleGrid cols={{base:1,sm:2}}>{cards.map(([title,description,Icon])=><Card key={title} className="cadenza-panel" withBorder><Icon size={26}/><Title order={3} mt="md">{title}</Title><Text c="dimmed" size="sm" mt="xs">{description}</Text></Card>)}</SimpleGrid></Stack>}
