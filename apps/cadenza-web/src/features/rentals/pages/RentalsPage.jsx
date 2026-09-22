@@ -28,7 +28,7 @@ export default function RentalsPage() {
   const create = useMutation({ mutationFn: rentalsApi.create, onSuccess: () => { setOpen(false); client.invalidateQueries({ queryKey: ['cadenza', 'rentals'] }) } })
   const lifecycle = useMutation({ mutationFn: ({ type, id }) => rentalsApi[type](id), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'rentals'] }) })
   const pay = useMutation({ mutationFn: ({ id, value }) => paymentsApi.pay(id, { amount: String(value), currency: 'PHP', method: 'CASH' }), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'rentals'] }) })
-  const checkout = useMutation({ mutationFn: (rental) => paymentsApi.checkout(rental.paymentObligationId, { amount: String(rental.requiredDownPayment), description: 'Cadenza rental down payment' }) })
+  const checkout = useMutation({ mutationFn: (rental) => paymentsApi.checkout(rental.paymentObligationId, { amount: String(rental.requiredDownPayment), description: 'Cadenza rental down payment' }), onSuccess: (response) => { const value = response?.data ?? response; if (value?.checkoutUrl) window.open(value.checkoutUrl, '_blank', 'noopener,noreferrer') } })
   const history = useQuery({ queryKey: ['cadenza', 'payment-history', payment?.paymentObligationId], queryFn: () => paymentsApi.history(payment.paymentObligationId), enabled: Boolean(payment?.paymentObligationId) })
   const detail = useQuery({ queryKey: ['cadenza', 'payment', payment?.paymentObligationId], queryFn: () => paymentsApi.get(payment.paymentObligationId), enabled: Boolean(payment?.paymentObligationId) })
   if (rentals.isLoading) return <LoadingState label="Loading rentals…" rows={4} />
