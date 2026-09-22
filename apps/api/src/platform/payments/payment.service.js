@@ -216,9 +216,10 @@ const refundPayment = async ({
   actorId = null,
   idempotencyKey,
   manual = false,
+  db = null,
 }) => {
   if (!idempotencyKey) throw new TypeError('idempotencyKey is required.')
-  const payment = await findPaymentById(paymentId, appId)
+  const payment = await findPaymentById(paymentId, appId, db)
   if (!payment || payment.status !== PAYMENT_STATUS.SUCCEEDED) {
     throw new PaymentStateError('Successful payment was not found.')
   }
@@ -246,7 +247,7 @@ const refundPayment = async ({
     providerReference = result?.providerReference || null
   }
 
-  return withTransaction(async (tx) => {
+  const execute = async (tx) => {
     await lockPayment(paymentId, appId, tx)
     const current = await findPaymentById(paymentId, appId, tx)
     if (!current || current.status !== PAYMENT_STATUS.SUCCEEDED) {
@@ -302,7 +303,8 @@ const refundPayment = async ({
     })
 
     return refund
-  })
+  }
+  return db ? execute(db) : withTransaction(execute))
 }
 
 export {
