@@ -14,7 +14,7 @@ import {
 } from '../../../platform/payments/payment.service.js'
 import * as repository from './rental.repository.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
-import { RENTAL_STATUS } from '../cadenza.constants.js'
+import { RENTAL_STATUS } from '../cadenza.constants.js'\nimport * as customerService from '../customers/customer.service.js'
 import { listUsers } from '../../../features/users/user.service.js'
 const decimalAmount = (value, field) => {
   try {
@@ -42,11 +42,19 @@ const create = async ({
   if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
     throw new BadRequestError('Authenticated actor is required.')
   const manager = await assertManage(actorId, owner)
-  const customer = customerUserId ? Number(customerUserId) : Number(actorId)
-  if (!Number.isInteger(customer) || customer <= 0)
-    throw new BadRequestError('customerUserId is invalid.')
-  if (!manager && customer !== Number(actorId))
-    throw new ForbiddenError('You can only create rentals for your own account.')
+  let resolvedCustomer
+  if (customerId) {
+    resolvedCustomer = await repository.findCustomerById(customerId, owner)
+    if (!resolvedCustomer) throw new NotFoundError('Customer not found.')
+    if (!manager && Number(resolvedCustomer.person?.userId) !== Number(actorId))
+      throw new ForbiddenError('You can only create rentals for your own account.')
+  } else {
+    resolvedCustomer = await repository.findCustomerByUserId(actorId, owner)
+    if (!resolvedCustomer) {
+      const customer = await customerService.ensureMe({ appId: owner, actorId })
+      resolvedCustomer = customer
+    }
+  }
   const resource = await repository.findResource(resourceId, owner)
   if (!resource) throw new NotFoundError('Resource not found.')
   const domainResource =
@@ -217,4 +225,4 @@ const cancel = async ({ appId, id, actorId }) => {
   })
 }
 
-export { create, list, get, customers, availability, checkout, returnRental, cancel }
+export { create, list, get, availability, checkout, returnRental, cancel }
