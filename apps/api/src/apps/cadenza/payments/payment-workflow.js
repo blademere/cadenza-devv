@@ -35,7 +35,12 @@ const onSettled = async ({ db, obligation, paidAmount }) => {
       error.statusCode = 409
       throw error
     }
-    await confirmEnrollment({ appId: obligation.appId, enrollmentId: obligation.referenceId, db })
+    const confirmed = await confirmEnrollment({ appId: obligation.appId, enrollmentId: obligation.referenceId, db })
+    if (!confirmed || ![ENROLLMENT_STATUS.CONFIRMED, ENROLLMENT_STATUS.IN_PROGRESS].includes(confirmed.status)) {
+      const error = new Error('Lesson enrollment could not be confirmed after payment.')
+      error.statusCode = 409
+      throw error
+    }
   }
   if (obligation.referenceType === 'CADENZA_RENTAL') {
     const rental = await repository.findRental(obligation.referenceId, obligation.appId, db)
