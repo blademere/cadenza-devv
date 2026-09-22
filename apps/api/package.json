@@ -6,7 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "start:worker": "node src/platform/platform-worker.js",
+    "start:worker": "node src/worker.js",
     "predev": "npm run prisma:generate",
     "dev": "nodemon --legacy-watch src/server.js",
     "prestart": "npm run prisma:generate",
