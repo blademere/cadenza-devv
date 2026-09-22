@@ -304,7 +304,7 @@ const refundPayment = async ({
 
     return refund
   }
-  return db ? execute(db) : withTransaction(execute))
+  return db ? execute(db) : withTransaction(execute)
 }
 
 export {
