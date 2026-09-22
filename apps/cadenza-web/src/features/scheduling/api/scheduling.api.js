@@ -1,8 +1,11 @@
 import { apiClient } from '../../../services/api/client'
 
 export const schedulingApi = {
-  listSessions: () => apiClient.get('/cadenza/lesson-sessions'),
-  assignInstructor: (sessionId, instructorId) => apiClient.patch(`/cadenza/lesson-sessions/${sessionId}`, { instructorId }),
-  markAttendance: (sessionId, status) => apiClient.post(`/cadenza/lesson-sessions/${sessionId}/attendance`, { status }),
-  requestReschedule: (sessionId, reason) => apiClient.post(`/cadenza/lesson-sessions/${sessionId}/reschedule-requests`, { reason }),
+  listSessions: () => apiClient.get('/cadenza/lessons/sessions'),
+  createSession: (payload) => apiClient.post('/cadenza/lessons/sessions', payload),
+  markAttendance: (sessionId, payload) => apiClient.post(`/cadenza/lessons/sessions/${sessionId}/attendance`, payload),
+  completeSession: (sessionId) => apiClient.post(`/cadenza/lessons/sessions/${sessionId}/complete`),
+  cancelSession: (sessionId) => apiClient.post(`/cadenza/lessons/sessions/${sessionId}/cancel`),
+  requestReschedule: (payload) => apiClient.post('/cadenza/lessons/reschedules', payload),
+  reviewReschedule: (rescheduleId, approve) => apiClient.post(`/cadenza/lessons/reschedules/${rescheduleId}/review`, { approve }),
 }
