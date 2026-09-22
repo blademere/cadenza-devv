@@ -25,6 +25,37 @@ model CadenzaInstructor {
   person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
   @@unique([appId, personId])
   @@index([appId, status])
+  availabilityRules CadenzaInstructorAvailability[]
+  blocks            CadenzaInstructorBlock[]
+}
+
+model CadenzaInstructorAvailability {
+  id           String   @id @default(uuid())
+  appId        String
+  instructorId String
+  dayOfWeek    Int
+  startMinute  Int
+  endMinute    Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  app          App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instructor   CadenzaInstructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  @@unique([appId, instructorId, dayOfWeek, startMinute, endMinute])
+  @@index([appId, instructorId, dayOfWeek])
+}
+
+model CadenzaInstructorBlock {
+  id           String   @id @default(uuid())
+  appId        String
+  instructorId String
+  startsAt     DateTime
+  endsAt       DateTime
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  app          App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instructor   CadenzaInstructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  @@index([appId, instructorId, startsAt, endsAt])
 }
 
 model CadenzaInstrument {
