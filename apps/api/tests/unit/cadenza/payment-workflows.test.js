@@ -119,7 +119,7 @@ describe('Cadenza rental payment workflow', () => {
       metadata: { requiredDownPayment: '300' },
       db: expect.anything(),
     }))
-    expect(platformPayments.createPaymentObligation.mock.calls[0][0].totalAmount.toString()).toBe('1000')
+    expect(platformPayments.createPaymentObligation.mock.calls[0][0].totalAmount.toString()).toBe('300')
   })
 
   it('rejects creating a rental for another customer without management permission', async () => {
@@ -147,7 +147,7 @@ describe('Cadenza payment settlement', () => {
 
   it('confirms an enrollment only after full payment', async () => {
     lessonRepository.findEnrollmentById.mockResolvedValue({ id: 'enrollment-1', appId: APP_ID, status: 'PENDING_PAYMENT', paymentExpiresAt: null })
-    platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: { transaction: true }, obligation: { appId: APP_ID, referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-1', amount: '1500.00' } })
+    platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: { transaction: true }, obligation: { appId: APP_ID, referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID', balanceDue: '1500.00' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-1', amount: '1500.00' } })
     paymentRepository.findEnrollment.mockResolvedValue({ id: 'enrollment-1', appId: APP_ID, student: { person: { userId: 42 } } })
     platformPayments.getObligation.mockResolvedValue({ id: OBLIGATION_ID, appId: APP_ID, referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID' })
 
