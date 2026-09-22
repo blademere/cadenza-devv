@@ -7,6 +7,7 @@ import {packageValidator,enrollmentValidator,sessionValidator,attendanceValidato
 const router=express.Router()
 router.get('/packages',authorize('cadenza_lessons','read'),asyncHandler(controller.listPackages))
 router.post('/packages',authorize('cadenza_lessons','create'),idempotency({scope:'cadenza-lesson-packages',required:true}),validate(packageValidator),asyncHandler(controller.createPackage))
+router.patch('/packages/:lessonPackageId',authorize('cadenza_lessons','update'),idempotency({scope:'cadenza-lesson-package-update',required:true}),validate(packageUpdateValidator),asyncHandler(controller.updatePackage))
 router.post('/packages/:lessonPackageId/attachments',authorize('cadenza_lessons','create'),idempotency({scope:'cadenza-lesson-attachments',required:true}),validate(attachmentValidator),asyncHandler(controller.addAttachment))
 router.get('/packages/:lessonPackageId/attachments',authorize('cadenza_lessons','read'),asyncHandler(controller.listAttachments))
 router.delete('/packages/:lessonPackageId/attachments/:id',authorize('cadenza_lessons','manage'),idempotency({scope:'cadenza-lesson-attachment-delete',required:true}),asyncHandler(controller.removeAttachment))
