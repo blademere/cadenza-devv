@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Badge, Button, Card, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core'
 import LoadingState from '../../../components/common/LoadingState'
-import { resourcesApi } from '../api/resources.api'
+import { resourcesApi }
+import { useAuthorization } from '../../../authorization/components/AuthorizationProvider' from '../api/resources.api'
 
 const unwrap = (response) => response?.data ?? response ?? []
 
-export default function ResourcesPage() {
+export default function ResourcesPage() {\n  const { can } = useAuthorization()\n  const canCreate = can('cadenza_instruments:create') || can('cadenza_rooms:create')\n  const canUpdate = can('cadenza_instruments:update') || can('cadenza_rooms:update')
   const client = useQueryClient()
   const instruments = useQuery({ queryKey: ['cadenza', 'instruments'], queryFn: resourcesApi.listInstruments })
   const rooms = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms })
@@ -32,10 +33,10 @@ export default function ResourcesPage() {
     }
   }
   return <Stack gap="lg">
-    <Group justify="space-between"><div><Title order={2}>Resources</Title><Text c="dimmed">Manage Cadenza-owned instruments and rooms using the reusable resource capability.</Text></div><Button onClick={() => setOpened(true)}>Add resource</Button></Group>
+    <Group justify="space-between"><div><Title order={2}>Resources</Title><Text c="dimmed">Manage Cadenza-owned instruments and rooms using the reusable resource capability.</Text></div>{canCreate && <Button onClick={() => setOpened(true)}>Add resource</Button>}</Group>
     {error && <Alert color="red" title="Resource operation failed">{error.message}</Alert>}
     {!entries.length ? <Alert color="gray" title="No resources">Add an instrument or band-room resource.</Alert> : <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>{entries.map((resource) =>
-      <Card key={resource.id} withBorder><Stack gap="xs"><Group justify="space-between"><Title order={4}>{resource.label}</Title><Badge variant="light">{resource.status}</Badge></Group><Text c="dimmed">{resource.resourceType}</Text><Text size="sm">Resource ID: {resource.resourceId}</Text><Text size="sm">Rate: ₱{Number(resource.rentalRate).toLocaleString()}</Text><Button size="xs" variant="light" onClick={() => setEditing(resource)}>Edit</Button></Stack></Card>
+      <Card key={resource.id} withBorder><Stack gap="xs"><Group justify="space-between"><Title order={4}>{resource.label}</Title><Badge variant="light">{resource.status}</Badge></Group><Text c="dimmed">{resource.resourceType}</Text><Text size="sm">Resource ID: {resource.resourceId}</Text><Text size="sm">Rate: ₱{Number(resource.rentalRate).toLocaleString()}</Text>{canUpdate && <Button size="xs" variant="light" onClick={() => setEditing(resource)}>Edit</Button>}</Stack></Card>
     )}</SimpleGrid>}
     <Modal opened={Boolean(editing)} onClose={() => setEditing(null)} title="Update resource"><Stack>
       <Text>Update status and rental rate.</Text>
