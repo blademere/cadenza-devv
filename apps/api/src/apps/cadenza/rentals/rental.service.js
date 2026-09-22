@@ -226,4 +226,4 @@ const cancel = async ({ appId, id, actorId }) => {
   })
 }
 
-export { create, list, get, availability, checkout, returnRental, cancel }
+export { create, list, get, customers, availability, checkout, returnRental, cancel }
