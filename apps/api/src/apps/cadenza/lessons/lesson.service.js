@@ -211,8 +211,22 @@ const getEnrollment = async ({ appId, id, actorId }) => {
 const listEnrollments = async ({ appId, actorId }) => {
   const owner = requireAppId(appId)
   const rows = await repository.listEnrollments(owner)
-  if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' })) return rows
-  return rows.filter((row) => Number(row.student?.person?.userId) === Number(actorId))
+  const scoped = (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' }))
+    ? rows
+    : rows.filter((row) => Number(row.student?.person?.userId) === Number(actorId))
+  return scoped.map((row) => {
+    const completedSessions = (row.sessions || []).filter((session) => session.status === SESSION_STATUS.COMPLETED).length
+    const totalSessions = Number(row.lessonPackage?.numberOfSessions || 0)
+    return {
+      ...row,
+      progress: {
+        totalSessions,
+        completedSessions,
+        remainingSessions: Math.max(totalSessions - completedSessions, 0),
+        completionPercent: totalSessions ? Math.min(100, Math.round((completedSessions / totalSessions) * 100)) : 0,
+      },
+    }
+  })
 }
 const enroll = async ({
   appId,
