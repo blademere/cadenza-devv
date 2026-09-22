@@ -19,6 +19,7 @@ model App {
   forms                    Form[]
   documents                Document[]
   resources                Resource[]
+  cadenzaCustomers         CadenzaCustomer[]
   cadenzaStudents          CadenzaStudent[]
   cadenzaInstructors        CadenzaInstructor[]
   cadenzaInstructorAvailability CadenzaInstructorAvailability[]
