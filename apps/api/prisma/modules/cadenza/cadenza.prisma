@@ -149,8 +149,8 @@ model CadenzaEnrollment {
   paymentExpiresAt    DateTime?
   enrolledAt          DateTime?
   metadata            Json?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
   app                 App      @relation(fields: [appId], references: [id], onDelete: Cascade)
   lessonPackage       CadenzaLessonPackage @relation(fields: [lessonPackageId], references: [id], onDelete: Restrict)
   student             CadenzaStudent @relation(fields: [studentId], references: [id], onDelete: Restrict)
@@ -204,8 +204,8 @@ model CadenzaRescheduleRequest {
   reviewedByUserId Int?
   reviewedAt    DateTime?
   reason        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   app           App      @relation(fields: [appId], references: [id], onDelete: Cascade)
   session       CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   @@index([appId, status, createdAt])
@@ -230,6 +230,7 @@ model CadenzaRental {
   createdAt            DateTime @default(now())
   updatedAt           DateTime @updatedAt
   app                 App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  customer            CadenzaCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
   @@index([appId, resourceId, scheduledStart, scheduledEnd])
   @@index([appId, customerId, status])
 }
