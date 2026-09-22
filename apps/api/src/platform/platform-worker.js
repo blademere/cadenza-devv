@@ -16,10 +16,13 @@ import {
 } from '../infrastructure/queue/bullmq.js'
 import { logger } from '../config/index.js'
 import { withContext } from './context/context.service.js'
+import { startCadenzaJobWorker } from '../apps/cadenza/cadenza-job.worker.js'
+import { scheduleEvery, removeSchedule } from './scheduler/scheduler.service.js'
 
 const EVENT_QUEUE = 'platform-events'
 const EVENT_JOB_ATTEMPTS = 5
 const EVENT_JOB_BACKOFF_DELAY = 1000
+const CADENZA_LIFECYCLE_SCHEDULER_ID = 'cadenza-lifecycle-maintenance'
 
 const runPlatformMaintenance = async ({ staleLeaseSeconds } = {}) => {
   const recovered = await recoverStale({ timeoutSeconds: staleLeaseSeconds })
@@ -124,11 +127,14 @@ const startWorker = async ({ intervalMs = 5000, batchSize = 50 } = {}) => {
   process.once('SIGINT', shutdown)
   try {
     await startEventWorker()
+    await startCadenzaJobWorker()
+    await scheduleEvery({ schedulerId: CADENZA_LIFECYCLE_SCHEDULER_ID, queue: JOB_QUEUES.CADENZA, jobName: JOB_NAMES.CADENZA_LIFECYCLE_MAINTENANCE, every: 60000 })
     while (!stopping) {
       try { await runWorkerCycle({ batchSize }) } catch (error) { logger.error({ err: error }, 'Platform worker cycle failed') }
       if (!stopping) await new Promise((resolve) => setTimeout(resolve, intervalMs))
     }
   } finally {
+    await removeSchedule({ schedulerId: CADENZA_LIFECYCLE_SCHEDULER_ID, queue: JOB_QUEUES.CADENZA }).catch(() => {})
     await closeQueues()
     await disconnectPrisma()
     logger.info('Platform worker stopped')
