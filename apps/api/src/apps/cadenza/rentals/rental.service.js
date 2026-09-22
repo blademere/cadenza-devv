@@ -124,7 +124,7 @@ const create = async ({
     return repository.attachPaymentObligation(rental.id, obligation.id, tx)
   })
 }
-const list = ({ appId }) => repository.list(requireAppId(appId))
+const list = async ({ appId, actorId }) => { const owner = requireAppId(appId); const rows = await repository.list(owner); if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_rentals', action: 'manage' })) return rows; return rows.filter((row) => Number(row.customerUserId) === Number(actorId)) }
 const get = async ({ appId, id }) => {
   const value = await repository.findById(id, requireAppId(appId))
   if (!value) throw new NotFoundError('Rental not found.')
