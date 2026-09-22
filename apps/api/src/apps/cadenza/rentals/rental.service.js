@@ -96,6 +96,14 @@ const create = async ({
     return repository.attachPaymentObligation(rental.id, obligation.id, tx)
   })
 }
+const availability = async ({ appId, rentalType, scheduledStart, scheduledEnd }) => {
+  const owner = requireAppId(appId)
+  const start = new Date(scheduledStart), end = new Date(scheduledEnd)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || !(start < end))
+    throw new BadRequestError('scheduledEnd must be after scheduledStart.')
+  if (!['INSTRUMENT', 'ROOM'].includes(rentalType)) throw new BadRequestError('rentalType must be INSTRUMENT or ROOM.')
+  return repository.listAvailableResources({ appId: owner, rentalType, scheduledStart: start, scheduledEnd: end })
+}
 const list = async ({ appId, actorId }) => { const owner = requireAppId(appId); const rows = await repository.list(owner); if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_rentals', action: 'manage' })) return rows; return rows.filter((row) => Number(row.customerUserId) === Number(actorId)) }
 const get = async ({ appId, id, actorId }) => {
   const owner = requireAppId(appId)
@@ -194,4 +202,4 @@ const cancel = async ({ appId, id, actorId }) => {
     return repository.findById(id, owner, tx)
   })
 }
-export { create, list, get, checkout, returnRental, cancel }
+export { create, list, get, availability, checkout, returnRental, cancel }
