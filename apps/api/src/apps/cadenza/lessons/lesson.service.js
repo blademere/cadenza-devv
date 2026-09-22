@@ -8,7 +8,7 @@ import { requireAppId } from '../../../platform/applications/application-scope.j
 import { can } from '../../../platform/authorization/authorization.service.js'
 import { createPaymentObligation, getObligation, refundPayment } from '../../../platform/payments/payment.service.js'
 import { getStorageService } from '../../../platform/storage/storage.registry.js'
-import { positiveDecimal } from '../../../platform/money/money.js'
+import { positiveDecimal, toDecimal } from '../../../platform/money/money.js'
 import { createStorageKey } from '../../../platform/storage/storage.key.js'
 import * as repository from './lesson.repository.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
@@ -244,9 +244,9 @@ const cancelEnrollment = async ({ appId, id, actorId }) => {
     const payments = obligation?.payments?.filter((payment) => payment.status === 'SUCCEEDED') || []
     if (payments.length && !manager) throw new ForbiddenError('Paid enrollment cancellation requires lesson management staff.')
     for (const payment of payments) {
-      const refunded = (payment.refunds || []).filter((item) => item.status === 'SUCCEEDED').reduce((sum, item) => sum.plus(item.amount), 0)
-      const refundable = Number(payment.amount) - Number(refunded)
-      if (refundable > 0) {
+      const refunded = (payment.refunds || []).filter((item) => item.status === 'SUCCEEDED').reduce((sum, item) => sum.plus(item.amount), toDecimal('0'))
+      const refundable = toDecimal(String(payment.amount)).minus(refunded)
+      if (refundable.gt(0)) {
         await refundPayment({ appId: owner, paymentId: payment.id, amount: String(refundable), currency: payment.currency, reason: 'Lesson enrollment cancellation', actorId, manual: true, idempotencyKey: `cadenza:enrollment-cancel-refund:${id}:${payment.id}` })
       }
     }
