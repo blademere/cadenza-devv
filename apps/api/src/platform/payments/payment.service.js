@@ -277,8 +277,13 @@ const refundPayment = async ({
       const successfulPayments = obligation.payments.filter((item) => item.status === PAYMENT_STATUS.SUCCEEDED)
       const totalPaid = successfulPayments.reduce((sum, item) => sum.plus(item.amount), decimal(0))
       const totalRefunded = successfulPayments.reduce((sum, item) => sum.plus((item.refunds || []).filter((itemRefund) => itemRefund.status === 'SUCCEEDED').reduce((inner, itemRefund) => inner.plus(itemRefund.amount), decimal(0))), decimal(0)).plus(refund.amount)
-      if (totalPaid.gt(0) && totalRefunded.gte(totalPaid)) {
-        await updateObligationStatus(current.obligationId, OBLIGATION_STATUS.REFUNDED, tx)
+      if (totalPaid.gt(0)) {
+        const refundStatus = totalRefunded.gte(totalPaid)
+          ? OBLIGATION_STATUS.REFUNDED
+          : OBLIGATION_STATUS.PARTIALLY_REFUNDED
+        if (totalRefunded.gt(0)) {
+          await updateObligationStatus(current.obligationId, refundStatus, tx)
+        }
       }
     }
 
