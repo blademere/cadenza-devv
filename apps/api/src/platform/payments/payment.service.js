@@ -271,6 +271,16 @@ const refundPayment = async ({
       metadata: { manual },
     }, tx)
 
+    const obligation = await findObligationById(current.obligationId, appId, tx)
+    if (obligation) {
+      const successfulPayments = obligation.payments.filter((item) => item.status === PAYMENT_STATUS.SUCCEEDED)
+      const totalPaid = successfulPayments.reduce((sum, item) => sum.plus(item.amount), decimal(0))
+      const totalRefunded = successfulPayments.reduce((sum, item) => sum.plus((item.refunds || []).filter((itemRefund) => itemRefund.status === 'SUCCEEDED').reduce((inner, itemRefund) => inner.plus(itemRefund.amount), decimal(0))), decimal(0)).plus(refund.amount)
+      if (totalPaid.gt(0) && totalRefunded.gte(totalPaid)) {
+        await updateObligationStatus(current.obligationId, OBLIGATION_STATUS.REFUNDED, tx)
+      }
+    }
+
     await recordAudit({
       actorId,
       appId,
