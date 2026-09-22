@@ -2,14 +2,15 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Badge, Button, Card, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, Textarea, Title } from '@mantine/core'
 import LoadingState from '../../../components/common/LoadingState'
-import { schedulingApi } from '../api/scheduling.api'
+import { schedulingApi }
+import { useAuthorization } from '../../../authorization/components/AuthorizationProvider' from '../api/scheduling.api'
 import { lessonsApi } from '../../lessons/api/lessons.api'
 import { instructorsApi } from '../../instructors/api/instructors.api'
 import { resourcesApi } from '../../resources/api/resources.api'
 
 const unwrap = (response) => response?.data ?? response ?? []
 
-export default function LessonSchedulePage() {
+export default function LessonSchedulePage() {\n  const { can } = useAuthorization()\n  const canCreate = can('cadenza_lessons:create')\n  const canUpdate = can('cadenza_lessons:update')\n  const canManage = can('cadenza_lessons:manage')
   const client = useQueryClient()
   const query = useQuery({ queryKey: ['cadenza', 'lesson-sessions'], queryFn: schedulingApi.listSessions })
   const enrollments = useQuery({ queryKey: ['cadenza', 'enrollments'], queryFn: lessonsApi.listEnrollments })
@@ -36,7 +37,7 @@ export default function LessonSchedulePage() {
   const roomData = unwrap(rooms.data)
   const rescheduleData = unwrap(reschedules.data)
   return <Stack gap="lg">
-    <Group justify="space-between"><div><Title order={2}>Lesson Schedule</Title><Text c="dimmed">Schedule sessions, assign instructors and rooms, attendance, and reschedules.</Text></div><Button onClick={() => setCreateOpened(true)}>Schedule session</Button></Group>
+    <Group justify="space-between"><div><Title order={2}>Lesson Schedule</Title><Text c="dimmed">Schedule sessions, assign instructors and rooms, attendance, and reschedules.</Text></div>{canCreate && <Button onClick={() => setCreateOpened(true)}>Schedule session</Button>}</Group>
     {(attendance.error || transition.error || create.error || request.error || review.error) && <Alert color="red" title="Schedule operation failed">{(attendance.error || transition.error || create.error || request.error).message}</Alert>}
     <Card withBorder><Stack><Group justify="space-between"><Title order={4}>Pending reschedule requests</Title><Badge>{rescheduleData.filter((r) => r.status === 'PENDING').length}</Badge></Group>{!rescheduleData.filter((r) => r.status === 'PENDING').length ? <Text c="dimmed">No pending requests.</Text> : rescheduleData.filter((r) => r.status === 'PENDING').map((r) => <Card key={r.id} withBorder><Group justify="space-between"><Text size="sm">{new Date(r.requestedStart).toLocaleString()} – {new Date(r.requestedEnd).toLocaleString()}</Text><Group><Button size="xs" loading={review.isPending} onClick={() => review.mutate({ id: r.id, approve: true })}>Approve</Button><Button size="xs" color="red" variant="subtle" loading={review.isPending} onClick={() => review.mutate({ id: r.id, approve: false })}>Reject</Button></Group></Group><Text size="xs" c="dimmed">{r.reason || 'No reason provided'}</Text></Card>)}</Stack></Card>
     {!sessions.length ? <Alert color="gray" title="No scheduled sessions">Confirmed lesson enrollments can be scheduled here.</Alert> :
@@ -48,10 +49,10 @@ export default function LessonSchedulePage() {
           <Text size="sm" c="dimmed">Instructor: {session.instructorId ?? 'Unassigned'}</Text>
           <Text size="sm" c="dimmed">Room: {session.roomId ?? 'Unassigned'}</Text>
           <Group>
-            {session.status === 'SCHEDULED' && <Button variant="light" onClick={() => setSelected(session)}>Attendance</Button>}
-            {session.status === 'SCHEDULED' && <Button variant="subtle" onClick={() => setRescheduleOpened(session)}>Request reschedule</Button>}
-            {session.status === 'SCHEDULED' && <Button loading={transition.isPending} onClick={() => transition.mutate({ id: session.id, type: 'completeSession' })}>Complete</Button>}
-            {session.status === 'SCHEDULED' && <Button color="red" variant="subtle" loading={transition.isPending} onClick={() => transition.mutate({ id: session.id, type: 'cancelSession' })}>Cancel</Button>}
+            {session.status === 'SCHEDULED' && canUpdate && <Button variant="light" onClick={() => setSelected(session)}>Attendance</Button>}
+            {session.status === 'SCHEDULED' && canUpdate && <Button variant="subtle" onClick={() => setRescheduleOpened(session)}>Request reschedule</Button>}
+            {session.status === 'SCHEDULED' && canManage && <Button loading={transition.isPending} onClick={() => transition.mutate({ id: session.id, type: 'completeSession' })}>Complete</Button>}
+            {session.status === 'SCHEDULED' && canManage && <Button color="red" variant="subtle" loading={transition.isPending} onClick={() => transition.mutate({ id: session.id, type: 'cancelSession' })}>Cancel</Button>}
           </Group>
         </Stack></Card>
       )}</SimpleGrid>}
