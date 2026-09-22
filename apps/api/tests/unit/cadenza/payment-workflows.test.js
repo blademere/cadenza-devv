@@ -165,7 +165,7 @@ describe('Cadenza payment settlement', () => {
   })
 
   it('reserves a rental when successful payments reach the required down payment', async () => {
-    platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: {}, obligation: { appId: APP_ID, referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-2', amount: '300.00' } })
+    platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: {}, obligation: { appId: APP_ID, referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID' }, paidAmount: '300.00' }); return { id: 'payment-2', amount: '300.00' } })
     paymentRepository.findRental.mockResolvedValue({ id: RENTAL_ID, appId: APP_ID, customerUserId: 42 })
     platformPayments.getObligation.mockResolvedValue({ id: OBLIGATION_ID, appId: APP_ID, referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID', paidAmount: { gte: vi.fn(() => true) } })
     paymentRepository.findRental.mockResolvedValue({
