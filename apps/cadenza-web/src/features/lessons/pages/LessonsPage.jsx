@@ -31,6 +31,8 @@ export default function LessonsPage() {
   const create = useMutation({ mutationFn: lessonsApi.createPackage, onSuccess: () => { setOpened(false); client.invalidateQueries({ queryKey: ['cadenza', 'lesson-packages'] }) } })
   const enroll = useMutation({ mutationFn: lessonsApi.enroll, onSuccess: (response) => { setEnrollOpened(false); client.invalidateQueries({ queryKey: ['cadenza', 'enrollments'] }); const value=response?.data ?? response; if (value?.paymentObligationId) setPayment(value) } })
   const attach = useMutation({ mutationFn: async ({ packageId, selectedFile }) => lessonsApi.addAttachment(packageId, { fileName: selectedFile.name, contentBase64: await readBase64(selectedFile), contentType: selectedFile.type || 'application/octet-stream', type: attachmentType }), onSuccess: () => { setAttachmentOpened(null); setFile(null); client.invalidateQueries({ queryKey: ['cadenza', 'lesson-packages'] }) } })
+  const paymentQuery = useQuery({ queryKey: ['cadenza', 'payment', payment?.paymentObligationId], queryFn: () => paymentsApi.get(payment.paymentObligationId), enabled: Boolean(payment?.paymentObligationId) })
+  const checkout = useMutation({ mutationFn: ({ id, amount }) => paymentsApi.checkout(id, { amount: String(amount), description: 'Cadenza lesson enrollment' }), onSuccess: () => { setPayment(null); client.invalidateQueries({ queryKey: ['cadenza', 'enrollments'] }) } })
   const pay = useMutation({ mutationFn: ({ id, amount }) => paymentsApi.pay(id, { amount: String(amount), currency: 'PHP', method: 'CASH' }), onSuccess: () => { setPayment(null); client.invalidateQueries({ queryKey: ['cadenza', 'enrollments'] }) } })
   if (packagesQuery.isLoading) return <LoadingState label="Loading lesson packages…" rows={3} />
   if (packagesQuery.error) return <Alert color="red" title="Unable to load lesson packages">{packagesQuery.error.message}</Alert>
@@ -75,7 +77,7 @@ export default function LessonsPage() {
     <Modal opened={Boolean(payment)} onClose={() => setPayment(null)} title="Enrollment payment"><Stack>
       <Text>Enrollment requires full payment.</Text>
       <Text fw={700}>Amount due: ₱{Number(payment?.amount ?? payment?.totalAmount ?? 0).toLocaleString()}</Text>
-      <Button loading={pay.isPending} disabled={!payment?.paymentObligationId} onClick={() => pay.mutate({ id: payment.paymentObligationId, amount: payment.amount ?? payment.totalAmount })}>Record full payment</Button>
+      <Button loading={pay.isPending} disabled={!payment?.paymentObligationId || paymentQuery.isLoading} onClick={() => pay.mutate({ id: payment.paymentObligationId, amount: paymentQuery.data?.totalAmount ?? paymentQuery.data?.data?.totalAmount ?? payment?.amount ?? payment?.totalAmount })}>Record full payment</Button><Button variant="light" loading={checkout.isPending} disabled={!payment?.paymentObligationId || paymentQuery.isLoading} onClick={() => checkout.mutate({ id: payment.paymentObligationId, amount: paymentQuery.data?.totalAmount ?? paymentQuery.data?.data?.totalAmount ?? payment?.amount ?? payment?.totalAmount })}>Pay online</Button>
     </Stack></Modal>
   </Stack>
 }
