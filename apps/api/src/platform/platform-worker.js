@@ -18,6 +18,7 @@ import { logger } from '../config/index.js'
 import { withContext } from './context/context.service.js'
 import { startCadenzaJobWorker } from '../apps/cadenza/cadenza-job.worker.js'
 import { scheduleEvery, removeSchedule } from './scheduler/scheduler.service.js'
+import { JOB_QUEUES, JOB_NAMES } from './jobs/job.constants.js'
 
 const EVENT_QUEUE = 'platform-events'
 const EVENT_JOB_ATTEMPTS = 5
