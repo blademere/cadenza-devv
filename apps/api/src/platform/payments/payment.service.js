@@ -5,9 +5,13 @@ import {
   findObligationById,
   createPayment,
   findPaymentByIdempotencyKey,
+  findPaymentById,
   listSuccessfulPayments,
+  listPayments,
+  createRefund,
   withTransaction,
   lockObligation,
+  lockPayment,
   updateObligationStatus,
 } from './payment.repository.js'
 import { OBLIGATION_STATUS, PAYMENT_EVENTS, PAYMENT_STATUS } from './payment.constants.js'
@@ -23,10 +27,21 @@ const summarizeObligation = (obligation, successfulPayments) => {
     (sum, payment) => sum.plus(payment.amount),
     decimal(0)
   )
+  const refundedAmount = successfulPayments.reduce(
+    (sum, payment) =>
+      sum.plus(
+        (payment.refunds || [])
+          .filter((refund) => refund.status === 'SUCCEEDED')
+          .reduce((refundSum, refund) => refundSum.plus(refund.amount), decimal(0))
+      ),
+    decimal(0)
+  )
   const balance = decimal(obligation.totalAmount).minus(paidAmount)
   return {
     ...obligation,
     paidAmount,
+    refundedAmount,
+    netPaidAmount: paidAmount.minus(refundedAmount),
     balanceDue: balance,
     status:
       balance.isZero()
@@ -41,7 +56,10 @@ const getObligation = async (id, appId, db) => {
   if (!id || !appId) throw new TypeError('id and appId are required.')
   const obligation = await findObligationById(id, appId, db)
   if (!obligation) return null
-  return summarizeObligation(obligation, obligation.payments.filter((p) => p.status === PAYMENT_STATUS.SUCCEEDED))
+  return summarizeObligation(
+    obligation,
+    obligation.payments.filter((p) => p.status === PAYMENT_STATUS.SUCCEEDED)
+  )
 }
 
 const createPaymentObligation = async ({
@@ -175,33 +193,103 @@ const recordPayment = async ({
   })
 }
 
-const createCheckout = async ({
+const listPaymentHistory = async ({ appId, obligationId }) => {
+  const rows = await listPayments(obligationId, appId)
+  return rows.map((payment) => ({
+    ...payment,
+    amount: payment.amount.toString(),
+    refunds: (payment.refunds || []).map((refund) => ({
+      ...refund,
+      amount: refund.amount.toString(),
+    })),
+  }))
+}
+
+const refundPayment = async ({
   appId,
-  obligationId,
+  paymentId,
   amount,
-  provider,
-  description,
-  successUrl,
-  cancelUrl,
+  currency,
+  reason = null,
+  actorId = null,
   idempotencyKey,
-  metadata,
-  db,
+  manual = false,
 }) => {
   if (!idempotencyKey) throw new TypeError('idempotencyKey is required.')
-  const obligation = await getObligation(obligationId, appId, db)
-  if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
-  const checkoutAmount = positiveDecimal(amount, 'amount')
-  if (compare(checkoutAmount, obligation.balanceDue) > 0) throw new PaymentStateError('Payment amount exceeds the outstanding balance.')
-  const paymentProvider = getPaymentProvider(provider)
-  return paymentProvider.createCheckout({
-    amount: checkoutAmount.toString(),
-    currency: obligation.currency,
-    referenceNumber: obligationId,
-    description,
-    successUrl,
-    cancelUrl,
-    idempotencyKey,
-    metadata: { ...(metadata || {}), appId, obligationId },
+  const payment = await findPaymentById(paymentId, appId)
+  if (!payment || payment.status !== PAYMENT_STATUS.SUCCEEDED) {
+    throw new PaymentStateError('Successful payment was not found.')
+  }
+  const refundAmount = positiveDecimal(amount, 'amount')
+  const refunded = (payment.refunds || [])
+    .filter((refund) => refund.status === 'SUCCEEDED')
+    .reduce((sum, refund) => sum.plus(refund.amount), decimal(0))
+  const refundable = decimal(payment.amount).minus(refunded)
+  if (compare(refundAmount, refundable) > 0) {
+    throw new PaymentStateError('Refund amount exceeds the refundable payment amount.')
+  }
+
+  let providerReference = null
+  if (!manual && payment.provider) {
+    const provider = getPaymentProvider(payment.provider)
+    if (typeof provider.refundPayment !== 'function') {
+      throw new PaymentStateError(`Payment provider ${payment.provider} does not support refunds through the configured adapter.`)
+    }
+    const result = await provider.refundPayment({
+      providerReference: payment.providerReference,
+      amount: refundAmount.toString(),
+      currency: currency || payment.currency,
+      reason,
+    })
+    providerReference = result?.providerReference || null
+  }
+
+  return withTransaction(async (tx) => {
+    await lockPayment(paymentId, appId, tx)
+    const current = await findPaymentById(paymentId, appId, tx)
+    if (!current || current.status !== PAYMENT_STATUS.SUCCEEDED) {
+      throw new PaymentStateError('Successful payment was not found.')
+    }
+    const currentRefunded = (current.refunds || [])
+      .filter((refund) => refund.status === 'SUCCEEDED')
+      .reduce((sum, refund) => sum.plus(refund.amount), decimal(0))
+    const currentRefundable = decimal(current.amount).minus(currentRefunded)
+    if (compare(refundAmount, currentRefundable) > 0) {
+      throw new PaymentStateError('Refund amount exceeds the refundable payment amount.')
+    }
+
+    const refund = await createRefund({
+      paymentId,
+      amount: refundAmount,
+      currency: currency || current.currency,
+      status: 'SUCCEEDED',
+      providerReference,
+      reason,
+      refundedAt: new Date(),
+      metadata: { manual },
+    }, tx)
+
+    await recordAudit({
+      actorId,
+      appId,
+      action: 'payment.refunded',
+      entityType: 'PaymentRefund',
+      entityId: refund.id,
+      after: { paymentId, amount: refundAmount.toString(), currency: refund.currency, providerReference, reason },
+      db: tx,
+    })
+
+    await enqueueEvent({
+      db: tx,
+      event: PAYMENT_EVENTS.REFUNDED,
+      entityType: 'PaymentRefund',
+      entityId: refund.id,
+      actorId,
+      context: { appId, paymentId, amount: refundAmount.toString(), currency: refund.currency },
+      idempotencyKey: `payment.refunded:${refund.id}`,
+    })
+
+    return refund
   })
 }
 
@@ -211,4 +299,6 @@ export {
   recordPayment,
   createCheckout,
   summarizeObligation,
+  listPaymentHistory,
+  refundPayment,
 }
