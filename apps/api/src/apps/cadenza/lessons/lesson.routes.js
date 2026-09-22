@@ -18,6 +18,7 @@ const sessionResource = (action) => authorizeResource({resource:'cadenza_lessons
 router.post('/sessions/:sessionId/attendance',sessionResource('update'),idempotency({scope:'cadenza-attendance',required:true}),validate(attendanceValidator),asyncHandler(controller.markAttendance))
 router.post('/sessions/:sessionId/complete',sessionResource('manage'),idempotency({scope:'cadenza-session-complete',required:true}),asyncHandler(controller.completeSession))
 router.post('/sessions/:sessionId/cancel',sessionResource('manage'),idempotency({scope:'cadenza-session-cancel',required:true}),asyncHandler(controller.cancelSession))
+router.get('/reschedules',authorize('cadenza_lessons','read'),asyncHandler(controller.listReschedules))
 router.post('/reschedules',authorize('cadenza_lessons','create'),idempotency({scope:'cadenza-reschedules',required:true}),validate(rescheduleValidator),asyncHandler(controller.requestReschedule))
 const rescheduleResource = authorizeResource({resource:'cadenza_lessons',action:'manage',loadResource:(id,req)=>service.getReschedule({appId:req.security.app.id,id}),getResourceId:(req)=>req.params.id})
 router.post('/reschedules/:id/review',rescheduleResource,idempotency({scope:'cadenza-reschedule-review',required:true}),validate(reviewRescheduleValidator),asyncHandler(controller.reviewReschedule))
