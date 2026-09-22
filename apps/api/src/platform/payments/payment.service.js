@@ -203,6 +203,38 @@ const recordPayment = async ({
   })
 }
 
+const createCheckout = async ({
+  appId,
+  obligationId,
+  amount,
+  provider,
+  description,
+  successUrl,
+  cancelUrl,
+  idempotencyKey,
+  metadata,
+  db,
+}) => {
+  if (!idempotencyKey) throw new TypeError('idempotencyKey is required.')
+  const obligation = await getObligation(obligationId, appId, db)
+  if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
+  const checkoutAmount = positiveDecimal(amount, 'amount')
+  if (compare(checkoutAmount, obligation.balanceDue) > 0) {
+    throw new PaymentStateError('Payment amount exceeds the outstanding balance.')
+  }
+  const paymentProvider = getPaymentProvider(provider)
+  return paymentProvider.createCheckout({
+    amount: checkoutAmount.toString(),
+    currency: obligation.currency,
+    referenceNumber: obligationId,
+    description,
+    successUrl,
+    cancelUrl,
+    idempotencyKey,
+    metadata: { ...(metadata || {}), appId, obligationId },
+  })
+}
+
 const getPayment = async (id, appId, db) => findPaymentById(id, appId, db)
 
 const listPaymentHistory = async ({ appId, obligationId }) => {
