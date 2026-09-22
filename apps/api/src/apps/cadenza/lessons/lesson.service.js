@@ -12,6 +12,8 @@ import { positiveDecimal, toDecimal } from '../../../platform/money/money.js'
 import { createStorageKey } from '../../../platform/storage/storage.key.js'
 import * as repository from './lesson.repository.js'
 import { assertAvailable as assertInstructorAvailable } from '../instructors/instructor-availability.service.js'
+import { enqueueEvent } from '../../../platform/event-bus/event-outbox.service.js'
+import * as lifecycle from './lesson-lifecycle.service.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import {
   ENROLLMENT_STATUS,
@@ -19,6 +21,11 @@ import {
   RESCHEDULE_STATUS,
   SESSION_STATUS,
   STUDENT_STATUS,
+  ENROLLMENT_PAYMENT_EXPIRATION_HOURS,
+  ENROLLMENT_CANCELLATION_CUTOFF_HOURS,
+  RESCHEDULE_CUTOFF_HOURS,
+  MAX_RESCHEDULE_REQUESTS_PER_SESSION,
+  ENROLLMENT_EVENTS,
 } from '../cadenza.constants.js'
 const canManage = async (userId, appId) =>
   can({
@@ -246,13 +253,13 @@ const cancelEnrollment = async ({ appId, id, actorId }) => {
     const student = Number(enrollment.student?.person?.userId) === Number(actorId)
     if (!manager && !student)
       throw new ForbiddenError('You can only cancel your own enrollment.')
-    if (
-      !manager &&
-      enrollment.sessions.some((session) => session.status !== SESSION_STATUS.CANCELLED)
-    )
-      throw new ConflictError(
-        'Student cancellation is only available before a lesson session is scheduled.'
-      )
+    if (!manager) {
+      const now = Date.now()
+      if (enrollment.sessions.some((session) => session.status === SESSION_STATUS.COMPLETED || session.status === SESSION_STATUS.MISSED))
+        throw new ConflictError('Student cancellation is not available after a lesson session has been consumed.')
+      if (enrollment.sessions.some((session) => session.status === SESSION_STATUS.SCHEDULED && session.scheduledStart.getTime() - now < ENROLLMENT_CANCELLATION_CUTOFF_HOURS * 60 * 60 * 1000))
+        throw new ConflictError('Student cancellation must be requested at least 24 hours before the next scheduled lesson.')
+    }
 
     if (enrollment.paymentObligationId) {
       const obligation = await getObligation(enrollment.paymentObligationId, owner, tx)
@@ -284,6 +291,7 @@ const cancelEnrollment = async ({ appId, id, actorId }) => {
       }
     }
 
+    await repository.updateSessionStatusForEnrollment?.(id, owner, SESSION_STATUS.SCHEDULED, SESSION_STATUS.CANCELLED, tx)
     const result = await repository.updateEnrollmentStatus(
       id,
       owner,
@@ -296,7 +304,9 @@ const cancelEnrollment = async ({ appId, id, actorId }) => {
       tx
     )
     if (result.count !== 1) throw new ConflictError('Enrollment is no longer cancellable.')
-    return repository.findEnrollmentById(id, owner, tx)
+    const cancelled = await repository.findEnrollmentById(id, owner, tx)
+    await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.CANCELLED, entityType: 'CadenzaEnrollment', entityId: id, actorId, context: { appId: owner }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.CANCELLED}:${id}` })
+    return cancelled
   })
 }
 
@@ -331,6 +341,7 @@ const enroll = async ({
           studentId: resolvedStudentId,
           lessonPackageId,
           status: ENROLLMENT_STATUS.PENDING_PAYMENT,
+          paymentExpiresAt: new Date(Date.now() + ENROLLMENT_PAYMENT_EXPIRATION_HOURS * 60 * 60 * 1000),
         },
         tx
       )
@@ -402,7 +413,7 @@ const createSession = async ({
   return runTransaction(async (tx) => {
     const enrollment = await repository.findEnrollment(enrollmentId, owner, tx)
     if (!enrollment) throw new NotFoundError('Confirmed enrollment not found.')
-    const sessionCount = enrollment._count?.sessions ?? 0
+    const sessionCount = await repository.countConsumedSessions(enrollmentId, owner, tx)
     const maxSessions = Number(enrollment.lessonPackage?.numberOfSessions)
     if (Number.isFinite(maxSessions) && sessionCount >= maxSessions)
       throw new ConflictError(
@@ -442,7 +453,7 @@ const createSession = async ({
       }, tx))
         throw new ConflictError('Room is already reserved for an overlapping booking.')
     }
-    return repository.createSession(
+    const created = await repository.createSession(
       {
         appId: owner,
         enrollmentId,
@@ -454,6 +465,8 @@ const createSession = async ({
       },
       tx
     )
+    await lifecycle.ensureInProgress({ appId: owner, enrollmentId, actorId, db: tx })
+    return created
   })
 }
 const markAttendance = async ({ appId, sessionId, actorId, status, notes }) => {
@@ -477,20 +490,14 @@ const markAttendance = async ({ appId, sessionId, actorId, status, notes }) => {
       { status, markedByUserId: Number(actorId), notes: notes?.trim() || null },
       tx
     )
-    if ([ENROLLMENT_STATUS.CONFIRMED, ENROLLMENT_STATUS.IN_PROGRESS].includes(session.enrollment?.status)) {
-      await repository.updateEnrollmentStatus(
-        session.enrollment.id,
-        owner,
-        [ENROLLMENT_STATUS.CONFIRMED],
-        ENROLLMENT_STATUS.IN_PROGRESS,
-        tx
-      )
+    await lifecycle.ensureInProgress({ appId: owner, enrollmentId: session.enrollment.id, actorId, db: tx })
+    if (status === ATTENDANCE_STATUS.ABSENT) {
+      await repository.updateSession(sessionId, owner, { status: SESSION_STATUS.MISSED }, tx)
+      await lifecycle.advanceAfterSession({ appId: owner, enrollmentId: session.enrollment.id, sessionId, outcome: SESSION_STATUS.MISSED, actorId, db: tx })
     }
     return attendance
   })
 }
-const RESCHEDULE_CUTOFF_HOURS = 24
-const MAX_RESCHEDULE_REQUESTS_PER_SESSION = 2
 const requestReschedule = async ({
   appId,
   sessionId,
@@ -522,14 +529,14 @@ const requestReschedule = async ({
       )
     )
       throw new ConflictError('Only active lesson sessions can be rescheduled.')
-    if (session.scheduledStart.getTime() - Date.now() < RESCHEDULE_CUTOFF_HOURS * 60 * 60 * 1000)
-      throw new ConflictError('Lesson reschedule requests must be made at least 24 hours before the scheduled session.')
+    if (session.scheduledStart.getTime() - Date.now() < RESCHEDULE_CUTOFF_HOURS * 60 * 60 * 1000 || start.getTime() - Date.now() < RESCHEDULE_CUTOFF_HOURS * 60 * 60 * 1000)
+      throw new ConflictError('Lesson reschedule requests must be made at least 24 hours before the affected lesson time.')
     if (!reason?.trim()) throw new BadRequestError('reason is required for a reschedule request.')
     if (await repository.findPendingReschedule(sessionId, owner, tx))
       throw new ConflictError('A pending reschedule request already exists for this lesson session.')
     if (await repository.countReschedulesForSession(sessionId, owner, tx) >= MAX_RESCHEDULE_REQUESTS_PER_SESSION)
       throw new ConflictError('The maximum number of reschedule requests for this lesson session has been reached.')
-    return repository.createReschedule(
+    const created = await repository.createReschedule(
       {
         appId: owner,
         sessionId,
@@ -551,9 +558,12 @@ const cancelReschedule = async ({ appId, id, actorId }) => {
   const manager = await canManage(actorId, owner)
   if (!manager && Number(request.requestedByUserId) !== Number(actorId)) throw new ForbiddenError('You can only cancel your own reschedule request.')
   if (!session) throw new NotFoundError('Lesson session not found.')
-  const result = await repository.cancelReschedule(id, owner)
-  if (result.count !== 1) throw new ConflictError('Reschedule request is no longer pending.')
-  return repository.findReschedule(id, owner)
+  return runTransaction(async (tx) => {
+    const result = await repository.cancelReschedule(id, owner, tx)
+    if (result.count !== 1) throw new ConflictError('Reschedule request is no longer pending.')
+    await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.RESCHEDULE_CANCELLED, entityType: 'CadenzaRescheduleRequest', entityId: id, actorId, context: { appId: owner, sessionId: request.sessionId }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.RESCHEDULE_CANCELLED}:${id}` })
+    return repository.findReschedule(id, owner, tx)
+  })
 }
 const reviewReschedule = async ({ appId, id, actorId, approve }) => {
   const owner = requireAppId(appId)
@@ -588,16 +598,8 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
     )
       throw new ConflictError('Only active lesson sessions can be rescheduled.')
     if (!approve) {
-      await repository.updateReschedule(
-        id,
-        owner,
-        {
-          status: RESCHEDULE_STATUS.REJECTED,
-          reviewedByUserId: Number(actorId),
-          reviewedAt: new Date(),
-        },
-        tx
-      )
+      await repository.updateReschedule(id, owner, { status: RESCHEDULE_STATUS.REJECTED, reviewedByUserId: Number(actorId), reviewedAt: new Date() }, tx)
+      await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.RESCHEDULE_REJECTED, entityType: 'CadenzaRescheduleRequest', entityId: id, actorId, context: { appId: owner, sessionId: session.id, enrollmentId: session.enrollmentId }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.RESCHEDULE_REJECTED}:${id}` })
       return repository.findReschedule(id, owner, tx)
     }
     if (
@@ -646,6 +648,7 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
       },
       tx
     )
+    await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.RESCHEDULE_APPROVED, entityType: 'CadenzaRescheduleRequest', entityId: id, actorId, context: { appId: owner, sessionId: session.id, enrollmentId: session.enrollmentId }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.RESCHEDULE_APPROVED}:${id}` })
     return repository.findReschedule(id, owner, tx)
   })
 }
@@ -674,16 +677,7 @@ const completeSession = async ({ appId, id, actorId }) => {
     if (session.status !== SESSION_STATUS.SCHEDULED)
       throw new ConflictError('Lesson session is not in the expected state.')
     await repository.updateSession(id, owner, { status: SESSION_STATUS.COMPLETED }, tx)
-    const enrollment = await repository.findEnrollmentById(session.enrollmentId, owner, tx)
-    if (enrollment) {
-      const completed = enrollment.sessions.filter((item) => item.status === SESSION_STATUS.COMPLETED || item.id === id).length
-      const total = Number(enrollment.lessonPackage?.numberOfSessions || 0)
-      if (completed >= total) {
-        await repository.updateEnrollmentStatus(enrollment.id, owner, [ENROLLMENT_STATUS.CONFIRMED, ENROLLMENT_STATUS.IN_PROGRESS], ENROLLMENT_STATUS.COMPLETED, tx)
-      } else {
-        await repository.updateEnrollmentStatus(enrollment.id, owner, [ENROLLMENT_STATUS.CONFIRMED], ENROLLMENT_STATUS.IN_PROGRESS, tx)
-      }
-    }
+    await lifecycle.advanceAfterSession({ appId: owner, enrollmentId: session.enrollmentId, sessionId: id, outcome: SESSION_STATUS.COMPLETED, actorId, db: tx })
     return repository.findSession(id, owner, tx)
   })
 }
