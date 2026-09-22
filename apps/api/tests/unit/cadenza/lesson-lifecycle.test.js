@@ -51,7 +51,7 @@ describe('Cadenza enrollment lifecycle', () => {
       lessonPackage: { numberOfSessions: 4 },
     }
     const progressed = { ...enrollment, status: 'IN_PROGRESS' }
-    repository.findEnrollmentById.mockResolvedValueOnce(enrollment).mockResolvedValueOnce(progressed)
+    repository.findEnrollmentById.mockResolvedValue(enrollment)
     repository.countConsumedSessions.mockResolvedValue(1)
     repository.updateEnrollmentStatus.mockResolvedValue({ count: 1 })
 
