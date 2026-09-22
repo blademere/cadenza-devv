@@ -107,7 +107,6 @@ const create = async ({
     return repository.attachPaymentObligation(rental.id, obligation.id, tx)
   })
 }
-const customers = async ({ appId }) => customerService.list({ appId })
 const availability = async ({ appId, rentalType, scheduledStart, scheduledEnd }) => {
   const owner = requireAppId(appId)
   const start = new Date(scheduledStart), end = new Date(scheduledEnd)
