@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import LoadingState from '../components/common/LoadingState'
+import LoadingState from '../components/loading-state'
 import { apiClient } from '../services/api/client'
 
 const dashboardApi = { get: () => apiClient.get('/cadenza/dashboard') }
