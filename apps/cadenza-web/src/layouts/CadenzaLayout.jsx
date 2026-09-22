@@ -22,7 +22,7 @@ export default function CadenzaLayout() {
       <header className="fixed inset-x-0 top-0 z-40 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"><TopBar onMenu={() => setMobileOpen(true)} navigation={visibleNavigation} onNavigate={() => setMobileOpen(false)} /></header>
       <aside className="fixed bottom-0 left-0 top-16 z-30 hidden border-r bg-sidebar lg:block" style={{ width: sidebarCollapsed ? layout.sidebarCollapsedWidth : layout.sidebarWidth }}>{sidebar(sidebarCollapsed)}</aside>
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetContent side="left" className="w-80 bg-sidebar p-0">{sidebar(false)}</SheetContent></Sheet>
-      <main className="min-h-screen pt-16" style={{ paddingLeft: sidebarCollapsed ? layout.sidebarCollapsedWidth : layout.sidebarWidth }}>
+      <main className={sidebarCollapsed ? "min-h-screen pt-16 lg:pl-[72px]" : "min-h-screen pt-16 lg:pl-[240px]"}>
         <a className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-20 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2" href="#cadenza-main">Skip to content</a>
         <PageContainer><main id="cadenza-main"><Outlet /></main></PageContainer>
       </main>
