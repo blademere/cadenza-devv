@@ -184,6 +184,7 @@ const createCheckout = async ({
   successUrl,
   cancelUrl,
   idempotencyKey,
+  metadata,
   db,
 }) => {
   if (!idempotencyKey) throw new TypeError('idempotencyKey is required.')
