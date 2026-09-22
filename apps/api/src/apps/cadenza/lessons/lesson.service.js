@@ -453,6 +453,17 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
       throw new ConflictError(
         'Instructor or room is already scheduled for an overlapping lesson session.'
       )
+    if (session.roomId) {
+      const room = await repository.findRoom(session.roomId, owner, tx)
+      if (room && await repository.findRoomRentalOverlap({
+        appId: owner,
+        roomResourceId: room.resourceId,
+        startsAt: request.requestedStart,
+        endsAt: request.requestedEnd,
+        excludeId: undefined,
+      }, tx))
+        throw new ConflictError('Room is already reserved for an overlapping rental.')
+    }
     await repository.updateSession(
       session.id,
       owner,
