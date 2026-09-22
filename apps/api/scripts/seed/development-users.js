@@ -45,6 +45,11 @@ async function seedDevelopmentUsers(prisma, { roles }) {
 
   const passwordHash = await bcrypt.hash(adminPassword, 12)
   const admin = await ensureUser(prisma, { email: adminEmail, roleId: roles.admin.id, passwordHash })
+  if (roles.cadenza_admin) {
+    const cadenza = await prisma.app.findUnique({ where: { key: 'cadenza' } })
+    const membership = await prisma.appMembership.upsert({ where: { appId_userId: { appId: cadenza.id, userId: admin.id } }, update: { isActive: true }, create: { appId: cadenza.id, userId: admin.id } })
+    await prisma.appMembershipRole.upsert({ where: { membershipId_roleId: { membershipId: membership.id, roleId: roles.cadenza_admin.id } }, update: {}, create: { membershipId: membership.id, roleId: roles.cadenza_admin.id } })
+  }
   await ensurePerson(prisma, { userId: admin.id, firstName: 'System', lastName: 'Administrator', email: admin.email, phone: '+630000000000' })
   console.log(`Development admin ensured: ${adminEmail}`)
   return { admin, demoPasswordHash }

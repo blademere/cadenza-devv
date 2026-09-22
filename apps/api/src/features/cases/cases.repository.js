@@ -1,5 +1,6 @@
 import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 import { publish } from '../../platform/event-bus/event-bus.js'
+import { run as runTransaction } from '../../platform/transactions/transaction.service.js'
 
 const prisma = getPrismaClient()
 
@@ -25,7 +26,7 @@ const publishCaseCreated = async (record, data, db) => {
 
 const createCase = (data, db = prisma) => {
   if (db === prisma) {
-    return prisma.$transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       const record = await tx.caseRecord.create({ data })
       await publishCaseCreated(record, data, tx)
       return record
@@ -81,7 +82,7 @@ const transitionCase = (id, appId, fromStatus, toStatus, changedByUserId, reason
     await publish({ db: tx, event: 'case.transitioned', entityType: 'Case', entityId: id, actorId: changedByUserId || null, context: { appId, fromStatus, toStatus, reason: reason || null, metadata: metadata || {}, historyId: history.id }, idempotencyKey: `case:${id}:transition:${history.id}` })
     return tx.caseRecord.findFirst({ where: { id, appId } })
   }
-  return db === prisma ? prisma.$transaction(run) : run(db)
+  return db === prisma ? runTransaction(run) : run(db)
 }
 
 export { createCaseType, findCaseTypeByKey, createCase, findCaseById, findCaseTypeById, listCases, countCases, transitionCase }

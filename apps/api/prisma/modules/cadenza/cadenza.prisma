@@ -1,0 +1,181 @@
+model CadenzaStudent {
+  id        String   @id @default(uuid())
+  appId     String
+  personId  String
+  status    String   @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+  @@unique([appId, personId])
+  @@index([appId, status])
+}
+
+model CadenzaInstructor {
+  id        String   @id @default(uuid())
+  appId     String
+  personId  String
+  specialty String?
+  status    String   @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+  @@unique([appId, personId])
+  @@index([appId, status])
+}
+
+model CadenzaInstrument {
+  id             String   @id @default(uuid())
+  appId          String
+  resourceId     String
+  instrumentType String
+  brand          String?
+  model          String?
+  serialNumber   String?
+  rentalRate     Decimal  @db.Decimal(19,4)
+  status         String   @default("AVAILABLE")
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  app            App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  @@unique([appId, resourceId])
+  @@unique([appId, serialNumber])
+  @@index([appId, status])
+}
+
+model CadenzaRoom {
+  id         String   @id @default(uuid())
+  appId      String
+  resourceId String
+  roomType   String
+  capacity   Int
+  rentalRate Decimal  @db.Decimal(19,4)
+  status     String   @default("AVAILABLE")
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  app        App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  @@unique([appId, resourceId])
+  @@index([appId, roomType, status])
+}
+
+model CadenzaLessonPackage {
+  id             String   @id @default(uuid())
+  appId          String
+  name           String
+  description    String?
+  price          Decimal  @db.Decimal(19,4)
+  numberOfSessions Int
+  status         String   @default("ACTIVE")
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  app            App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  attachments    CadenzaLessonAttachment[]
+  enrollments    CadenzaEnrollment[]
+  @@unique([appId, name])
+  @@index([appId, status])
+}
+
+model CadenzaLessonAttachment {
+  id               String   @id @default(uuid())
+  lessonPackageId  String
+  storageReference String
+  type             String
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  lessonPackage    CadenzaLessonPackage @relation(fields: [lessonPackageId], references: [id], onDelete: Cascade)
+  @@index([lessonPackageId])
+}
+
+model CadenzaEnrollment {
+  id                  String   @id @default(uuid())
+  appId               String
+  studentId           String
+  lessonPackageId     String
+  paymentObligationId String?
+  status              String   @default("PENDING_PAYMENT")
+  enrolledAt          DateTime?
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  app                 App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  lessonPackage       CadenzaLessonPackage @relation(fields: [lessonPackageId], references: [id], onDelete: Restrict)
+  sessions            CadenzaLessonSession[]
+  @@index([appId, studentId, status])
+  @@index([appId, lessonPackageId])
+  @@unique([appId, studentId, lessonPackageId])
+}
+
+model CadenzaLessonSession {
+  id           String   @id @default(uuid())
+  appId        String
+  enrollmentId String
+  instructorId String?
+  roomId       String?
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  status       String   @default("SCHEDULED")
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  app          App          @relation(fields: [appId], references: [id], onDelete: Cascade)
+  enrollment   CadenzaEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  attendance   CadenzaAttendance?
+  @@index([appId, scheduledStart, scheduledEnd])
+  @@index([appId, instructorId, scheduledStart])
+  @@index([appId, roomId, scheduledStart])
+}
+
+model CadenzaAttendance {
+  id          String   @id @default(uuid())
+  sessionId   String   @unique
+  status      String
+  markedByUserId Int?
+  markedAt    DateTime @default(now())
+  notes       String?
+  session     CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model CadenzaRescheduleRequest {
+  id            String   @id @default(uuid())
+  appId         String
+  sessionId     String
+  requestedByUserId Int
+  requestedStart DateTime
+  requestedEnd   DateTime
+  status        String   @default("PENDING")
+  reviewedByUserId Int?
+  reviewedAt    DateTime?
+  reason        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  app           App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  @@index([appId, status, createdAt])
+  @@index([sessionId])
+}
+
+model CadenzaRental {
+  id                  String   @id @default(uuid())
+  appId               String
+  customerUserId      Int
+  resourceId          String
+  rentalType          String
+  scheduledStart      DateTime
+  scheduledEnd        DateTime
+  totalAmount         Decimal  @db.Decimal(19,4)
+  requiredDownPayment Decimal  @db.Decimal(19,4)
+  paymentObligationId String?
+  status              String   @default("PENDING")
+  checkedOutAt        DateTime?
+  returnedAt          DateTime?
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  app                 App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  @@index([appId, resourceId, scheduledStart, scheduledEnd])
+  @@index([appId, customerUserId, status])
+}

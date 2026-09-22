@@ -19,6 +19,15 @@ model App {
   forms                    Form[]
   documents                Document[]
   resources                Resource[]
+  cadenzaStudents          CadenzaStudent[]
+  cadenzaInstructors        CadenzaInstructor[]
+  cadenzaInstruments        CadenzaInstrument[]
+  cadenzaRooms              CadenzaRoom[]
+  cadenzaLessonPackages     CadenzaLessonPackage[]
+  cadenzaEnrollments        CadenzaEnrollment[]
+  cadenzaLessonSessions     CadenzaLessonSession[]
+  cadenzaRescheduleRequests CadenzaRescheduleRequest[]
+  cadenzaRentals            CadenzaRental[]
   createdAt                DateTime                     @default(now())
   updatedAt                DateTime                     @updatedAt
 }

@@ -3,6 +3,8 @@ import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 const prisma = getPrismaClient()
 
 const getDb = (db) => db || prisma
+const withTransaction = (callback, db) => getDb(db).$transaction(callback)
+const lockObligation = (id, appId, db) => getDb(db).$queryRaw`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${id} AND "appId" = ${appId} FOR UPDATE`
 
 const createObligation = (data, db) => getDb(db).paymentObligation.create({ data })
 
@@ -19,6 +21,7 @@ const findObligationByReference = (appId, referenceType, referenceId, db) =>
   })
 
 const createPayment = (data, db) => getDb(db).payment.create({ data })
+const updateObligationStatus = (id, status, db) => getDb(db).paymentObligation.update({ where: { id }, data: { status } })
 
 const findPaymentByIdempotencyKey = (idempotencyKey, db) =>
   getDb(db).payment.findUnique({ where: { idempotencyKey } })
@@ -39,8 +42,11 @@ export {
   findObligationById,
   findObligationByReference,
   createPayment,
+  updateObligationStatus,
   findPaymentByIdempotencyKey,
   updatePayment,
   listSuccessfulPayments,
   createRefund,
+  withTransaction,
+  lockObligation,
 }

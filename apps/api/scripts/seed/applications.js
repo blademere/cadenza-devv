@@ -4,6 +4,11 @@ const applications = [
     name: 'One-Stop Business Office',
     description: 'One-Stop Business Office application.',
   },
+  {
+    key: 'cadenza',
+    name: 'Cadenza Music Center',
+    description: 'Music lessons, instrument rentals, and band room rentals.',
+  },
 ]
 
 async function seedApplications(prisma) {

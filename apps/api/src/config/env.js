@@ -39,6 +39,15 @@ const envSchema = z.object({
   EMAIL_FROM: optionalEnvString,
   STORAGE_PROVIDER: z.enum(['local']).default('local'),
   STORAGE_LOCAL_ROOT: z.string().min(1).default('./storage'),
+  XENDIT_SECRET_KEY: optionalEnvString,
+  XENDIT_WEBHOOK_TOKEN: optionalEnvString,
+  XENDIT_API_BASE_URL: z.url().default('https://api.xendit.co'),
+  XENDIT_API_VERSION: z.string().default('2024-11-11'),
+  XENDIT_COUNTRY: z.string().length(2).default('PH'),
+  XENDIT_CHANNEL_CODE: z.string().min(1).default('GCASH'),
+  XENDIT_SUCCESS_URL: optionalEnvUrl,
+  XENDIT_FAILURE_URL: optionalEnvUrl,
+  CADENZA_PAYMENT_PROVIDER: z.literal('XENDIT').default('XENDIT'),
   AUTHORIZATION_CACHE_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   AUTHORIZATION_CACHE_TRUST_POSITIVE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 })
@@ -49,6 +58,9 @@ const parseDurationMs = (value) => { const match = value.match(/^(\d+)(ms|s|m|h|
 if (data.COOKIE_SAME_SITE === 'none' && !data.COOKIE_SECURE) throw new Error("COOKIE_SECURE must be true when COOKIE_SAME_SITE is 'none'.")
 if (data.NODE_ENV === 'production' && !data.COOKIE_SECURE) throw new Error('COOKIE_SECURE must be true in production.')
 if (data.NODE_ENV === 'production' && data.CORS_ORIGIN === '*') throw new Error("CORS_ORIGIN must not be '*' in production.")
+const hasXenditCredentials = Boolean(data.XENDIT_SECRET_KEY || data.XENDIT_WEBHOOK_TOKEN)
+if (hasXenditCredentials && (!data.XENDIT_SECRET_KEY || !data.XENDIT_WEBHOOK_TOKEN)) throw new Error('Xendit requires XENDIT_SECRET_KEY and XENDIT_WEBHOOK_TOKEN together.')
+if (hasXenditCredentials && (!data.XENDIT_SUCCESS_URL || !data.XENDIT_FAILURE_URL)) throw new Error('Xendit requires XENDIT_SUCCESS_URL and XENDIT_FAILURE_URL when enabled.')
 if (data.NODE_ENV === 'production' && !data.METRICS_TOKEN) throw new Error('METRICS_TOKEN is required in production.')
 if (data.METRICS_TOKEN && data.METRICS_TOKEN.length < 32) throw new Error('METRICS_TOKEN must be at least 32 characters.')
 if (data.SEED_ADMIN_PASSWORD && data.SEED_ADMIN_PASSWORD.length < 12) throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters when configured.')

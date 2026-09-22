@@ -10,12 +10,12 @@ import {
   findOAuthAccountByUserAndProvider,
   deleteOAuthAccount,
   countOAuthAccounts,
-  withTransaction,
   createRefreshTokenRecord,
 } from '../auth.repository.js'
 import { createAccessToken, createRefreshToken, hashToken } from '../auth.tokens.js'
 import { env } from '../../../config/index.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
+import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import { getProviderConfig } from './oauth.providers.js'
 
 const OAUTH_REQUEST_TIMEOUT_MS = 5000
@@ -33,7 +33,7 @@ const authenticateWithOAuth = async ({ provider, code, codeVerifier }) => {
   else {
     const existingUser = await findUserByEmail(identity.email)
     if (existingUser) throw new ConflictError('An account already exists for this email. Sign in with your password first, then link the OAuth provider.')
-    user = await withTransaction(async (tx) => {
+    user = await runTransaction(async (tx) => {
       const currentUser = await findUserByEmail(identity.email, tx)
       if (currentUser) throw new ConflictError('An account already exists for this email address.')
       const createdUser = await createUser({ email: identity.email, passwordHash: null, emailVerifiedAt: new Date() }, tx)
@@ -60,7 +60,7 @@ const linkOAuthAccountWithCode = async ({ userId, provider, code, codeVerifier }
   if (!user) throw new UnauthorizedError('User account is inactive or does not exist.')
   if (!user.isActive) throw new UnauthorizedError('User account is inactive or does not exist.')
   try {
-    await withTransaction(async (tx) => {
+    await runTransaction(async (tx) => {
       const account = await findOAuthAccount(identity, tx)
       if (account && account.userId !== Number(userId)) throw new ConflictError('This OAuth account is already linked to another user.')
       if (!account) await createOAuthAccount({ userId, provider: identity.provider, providerAccountId: identity.providerAccountId }, tx)

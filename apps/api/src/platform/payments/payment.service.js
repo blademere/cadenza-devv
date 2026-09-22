@@ -1,22 +1,22 @@
-import { Prisma } from '@prisma/client'
-import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 import { enqueueEvent } from '../event-bus/event-outbox.service.js'
 import { recordAudit } from '../audit/audit.service.js'
 import {
   createObligation,
   findObligationById,
-  findObligationByReference,
   createPayment,
   findPaymentByIdempotencyKey,
-  updatePayment,
   listSuccessfulPayments,
+  withTransaction,
+  lockObligation,
+  updateObligationStatus,
 } from './payment.repository.js'
 import { OBLIGATION_STATUS, PAYMENT_EVENTS, PAYMENT_STATUS } from './payment.constants.js'
 import { assertWithinBalance } from './payment.policy.js'
 import { PaymentStateError } from './payment.errors.js'
+import { toDecimal, positiveDecimal, compare } from '../money/money.js'
+import { getPaymentProvider } from './payment-provider.registry.js'
 
-const prisma = getPrismaClient()
-const decimal = (value) => new Prisma.Decimal(value)
+const decimal = toDecimal
 
 const summarizeObligation = (obligation, successfulPayments) => {
   const paidAmount = successfulPayments.reduce(
@@ -37,9 +37,9 @@ const summarizeObligation = (obligation, successfulPayments) => {
   }
 }
 
-const getObligation = async (id, appId) => {
+const getObligation = async (id, appId, db) => {
   if (!id || !appId) throw new TypeError('id and appId are required.')
-  const obligation = await findObligationById(id, appId)
+  const obligation = await findObligationById(id, appId, db)
   if (!obligation) return null
   return summarizeObligation(obligation, obligation.payments.filter((p) => p.status === PAYMENT_STATUS.SUCCEEDED))
 }
@@ -79,7 +79,8 @@ const recordPayment = async ({
   idempotencyKey,
   metadata = undefined,
   actorId = null,
-  db = prisma,
+  db,
+  onSettled = null,
 }) => {
   if (!appId || !obligationId || !currency) {
     throw new TypeError('appId, obligationId, and currency are required.')
@@ -88,8 +89,8 @@ const recordPayment = async ({
   const existing = await findPaymentByIdempotencyKey(idempotencyKey, db)
   if (existing) return existing
 
-  return db.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "PaymentObligation" WHERE "id" = ${obligationId} AND "appId" = ${appId} FOR UPDATE`
+  return withTransaction(async (tx) => {
+    await lockObligation(obligationId, appId, tx)
     const obligation = await findObligationById(obligationId, appId, tx)
     if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
     if (obligation.currency !== currency.toUpperCase()) throw new PaymentStateError('Payment currency does not match the obligation currency.')
@@ -117,10 +118,17 @@ const recordPayment = async ({
       ? OBLIGATION_STATUS.PAID
       : OBLIGATION_STATUS.PARTIALLY_PAID
 
-    await tx.paymentObligation.update({
-      where: { id: obligationId },
-      data: { status: nextStatus },
-    })
+    await updateObligationStatus(obligationId, nextStatus, tx)
+
+    if (onSettled) {
+      await onSettled({
+        db: tx,
+        obligation: { ...obligation, status: nextStatus },
+        payment,
+        paidAmount: paid.plus(payment.amount),
+        balanceDue: nextBalance,
+      })
+    }
 
     const after = {
       appId,
@@ -167,9 +175,40 @@ const recordPayment = async ({
   })
 }
 
+const createCheckout = async ({
+  appId,
+  obligationId,
+  amount,
+  provider,
+  description,
+  successUrl,
+  cancelUrl,
+  idempotencyKey,
+  metadata,
+  db,
+}) => {
+  if (!idempotencyKey) throw new TypeError('idempotencyKey is required.')
+  const obligation = await getObligation(obligationId, appId, db)
+  if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
+  const checkoutAmount = positiveDecimal(amount, 'amount')
+  if (compare(checkoutAmount, obligation.balanceDue) > 0) throw new PaymentStateError('Payment amount exceeds the outstanding balance.')
+  const paymentProvider = getPaymentProvider(provider)
+  return paymentProvider.createCheckout({
+    amount: checkoutAmount.toString(),
+    currency: obligation.currency,
+    referenceNumber: obligationId,
+    description,
+    successUrl,
+    cancelUrl,
+    idempotencyKey,
+    metadata: { ...(metadata || {}), appId, obligationId },
+  })
+}
+
 export {
   createPaymentObligation,
   getObligation,
   recordPayment,
+  createCheckout,
   summarizeObligation,
 }

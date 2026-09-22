@@ -1,0 +1,5 @@
+import {useMemo} from 'react'
+import {useLocation,useNavigate} from 'react-router-dom'
+import {ActionIcon,Box,Breadcrumbs,Group,Kbd,Text,TextInput} from '@mantine/core'
+import {CaretRight,List,MagnifyingGlass} from '@phosphor-icons/react'
+export default function TopBar({onMenu,navigation=[]}){const nav=useNavigate();const loc=useLocation();const items=useMemo(()=>navigation.flatMap(s=>(s.items||[]).map(i=>({...i,section:s.name}))),[navigation]);const current=items.find(i=>loc.pathname===i.route)||null;return <Group h="100%" px="xl" wrap="nowrap"><ActionIcon hiddenFrom="lg" variant="subtle" onClick={onMenu}><List size={20}/></ActionIcon><Box style={{flex:1}}><Breadcrumbs separator={<CaretRight size={13}/>}><Text size="xs" c="dimmed">Workspace</Text>{current?.section&&<Text size="xs" c="dimmed">{current.section}</Text>}<Text size="sm" fw={650}>{current?.name||'Dashboard'}</Text></Breadcrumbs></Box><TextInput w={300} leftSection={<MagnifyingGlass size={17}/>} rightSection={<Kbd size="xs">Ctrl K</Kbd>} placeholder="Search workspace" onKeyDown={e=>e.key==='Enter'&&nav('/app/dashboard')}/></Group>}
