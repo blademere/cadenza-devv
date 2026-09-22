@@ -4,7 +4,8 @@ import { Alert, Badge, Button, Card, FileInput, Group, Modal, NumberInput, Selec
 import LoadingState from '../../../components/common/LoadingState'
 import { lessonsApi } from '../api/lessons.api'
 import { studentsApi } from '../../students/api/students.api'
-import { paymentsApi } from '../../payments/api/payments.api'
+import { paymentsApi }
+import { useAuthorization } from '../../../features/authorization/components/AuthorizationProvider' from '../../payments/api/payments.api'
 
 const unwrap = (response) => response?.data ?? response ?? []
 
@@ -15,7 +16,7 @@ const readBase64 = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file)
 })
 
-export default function LessonsPage() {
+export default function LessonsPage() {\n  const { can } = useAuthorization()\n  const canCreate = can('cadenza_lessons:create')\n  const canEnroll = can('cadenza_enrollments:create')
   const client = useQueryClient()
   const packagesQuery = useQuery({ queryKey: ['cadenza', 'lesson-packages'], queryFn: lessonsApi.listPackages })
   const studentsQuery = useQuery({ queryKey: ['cadenza', 'students'], queryFn: studentsApi.list })
@@ -42,7 +43,7 @@ export default function LessonsPage() {
   return <Stack gap="lg">
     <Group justify="space-between">
       <div><Title order={2}>Music Lessons</Title><Text c="dimmed">Lesson packages, attachments, and student enrollments.</Text></div>
-      <Group><Button variant="light" onClick={() => setEnrollOpened(true)}>Enroll student</Button><Button onClick={() => setOpened(true)}>Create lesson package</Button></Group>
+      <Group>{canEnroll && <Button variant="light" onClick={() => setEnrollOpened(true)}>Enroll student</Button>}{canCreate && <Button onClick={() => setOpened(true)}>Create lesson package</Button>}</Group>
     </Group>
     {(create.error || enroll.error || attach.error || pay.error) && <Alert color="red" title="Lesson operation failed">{(create.error || enroll.error || attach.error || pay.error).message}</Alert>}
     {!packages.length ? <Alert color="gray" title="No lesson packages">Create a lesson package before accepting enrollments.</Alert> :
@@ -53,7 +54,7 @@ export default function LessonsPage() {
           {pkg.description && <Text size="sm" c="dimmed">{pkg.description}</Text>}
           <Text fw={700} size="lg">₱{Number(pkg.price).toLocaleString()}</Text>
           <Text size="xs" c="dimmed">{pkg._count?.attachments ?? 0} attachment(s)</Text>
-          <Group><Button size="xs" variant="light" onClick={() => setAttachmentOpened(pkg)}>Attach PDF</Button></Group>
+          <Group>{canCreate && <Button size="xs" variant="light" onClick={() => setAttachmentOpened(pkg)}>Attach PDF</Button>}</Group>
         </Stack></Card>
       )}</SimpleGrid>}
     <Card withBorder><Stack><Title order={4}>Recent enrollments</Title>{!enrollments.length ? <Text c="dimmed">No enrollments yet.</Text> : enrollments.slice(0,6).map((item) => <Group key={item.id} justify="space-between"><Text size="sm">{item.studentId} · {item.lessonPackageId}</Text><Badge>{item.status}</Badge></Group>)}</Stack></Card>
