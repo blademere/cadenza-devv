@@ -1,7 +1,6 @@
 import { registerJobWorker } from '../../platform/jobs/job.worker.js'
 import { scheduleEvery, removeSchedule } from '../../platform/scheduler/scheduler.service.js'
 import { JOB_QUEUES, JOB_NAMES } from '../../platform/jobs/job.constants.js'
-import { JOB_QUEUES, JOB_NAMES } from '../../platform/jobs/job.constants.js'
 import { runLifecycleMaintenance } from './lessons/lesson-lifecycle.service.js'
 
 const processCadenzaLifecycleMaintenance = async () => runLifecycleMaintenance()
