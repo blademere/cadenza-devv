@@ -1,3 +1,18 @@
+model CadenzaCustomer {
+  id        String   @id @default(uuid())
+  appId     String
+  personId  String
+  status    String   @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+  rentals   CadenzaRental[]
+  @@unique([appId, personId])
+  @@index([appId, status])
+}
+
 model CadenzaStudent {
   id        String   @id @default(uuid())
   appId     String
@@ -200,7 +215,7 @@ model CadenzaRescheduleRequest {
 model CadenzaRental {
   id                  String   @id @default(uuid())
   appId               String
-  customerUserId      Int
+  customerId          String
   resourceId          String
   rentalType          String
   scheduledStart      DateTime
