@@ -16,7 +16,6 @@ import {
 } from '../infrastructure/queue/bullmq.js'
 import { logger } from '../config/index.js'
 import { withContext } from './context/context.service.js'
-import { JOB_QUEUES, JOB_NAMES } from './jobs/job.constants.js'
 
 const EVENT_QUEUE = 'platform-events'
 const EVENT_JOB_ATTEMPTS = 5
