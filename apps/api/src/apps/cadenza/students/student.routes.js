@@ -8,7 +8,7 @@ const router=express.Router()
 router.post('/me',idempotency({scope:'cadenza-student-self',required:true}),asyncHandler(controller.registerMe))
 router.get('/',authorize('cadenza_students','read'),asyncHandler(controller.list))
 router.post('/',authorize('cadenza_students','create'),idempotency({scope:'cadenza-students',required:true}),validate(createValidator),asyncHandler(controller.create))
-router.patch('/:id',authorize('cadenza_students','manage'),idempotency({scope:'cadenza-students-update',required:true}),validate(updateValidator),asyncHandler(controller.update))
+router.patch('/:id',authorizeResource({resource:'cadenza_students',action:'manage',loadResource:(id,req)=>service.get({id,appId:req.security.app.id,actorId:req.user?.id}),getResourceId:req=>req.params.id}),idempotency({scope:'cadenza-students-update',required:true}),validate(updateValidator),asyncHandler(controller.update))
 const resource=authorizeResource({resource:'cadenza_students',action:'read',loadResource:(id,req)=>service.get({id,appId:req.security.app.id,actorId:req.user?.id}),getResourceId:req=>req.params.id})
 router.get('/:id',resource,validate(idValidator),asyncHandler(controller.get))
 export default router
