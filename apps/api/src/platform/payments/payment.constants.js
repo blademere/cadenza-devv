@@ -10,6 +10,7 @@ const OBLIGATION_STATUS = Object.freeze({
   UNPAID: 'UNPAID',
   PARTIALLY_PAID: 'PARTIALLY_PAID',
   PAID: 'PAID',
+  REFUNDED: 'REFUNDED',
 })
 
 const PAYMENT_METHOD = Object.freeze({
