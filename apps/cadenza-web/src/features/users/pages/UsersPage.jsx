@@ -10,6 +10,9 @@ export default function UsersPage() {
   const client = useQueryClient()
   const students = useQuery({ queryKey: ['cadenza', 'students'], queryFn: studentsApi.list })
   const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list })
+  const [editing, setEditing] = useState(null)
+  const updateStudent = useMutation({ mutationFn: ({ id, status }) => studentsApi.update(id, { status }), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'students'] }) } })
+  const updateInstructor = useMutation({ mutationFn: ({ id, status, specialty }) => instructorsApi.update(id, { status, specialty }), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'instructors'] }) } })
   const register = useMutation({ mutationFn: studentsApi.registerMe, onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'students'] }) })
   if (students.isLoading || instructors.isLoading) return <LoadingState label="Loading Cadenza people…" rows={4} />
   const error = students.error || instructors.error || register.error
@@ -20,7 +23,7 @@ export default function UsersPage() {
     <Group justify="space-between"><div><Title order={2}>Users</Title><Text c="dimmed">Cadenza students and instructors.</Text></div><Button loading={register.isPending} onClick={() => register.mutate()}>Register my account as student</Button></Group>
     {!entries.length ? <Alert color="gray" title="No people">No Cadenza students or instructors have been registered yet.</Alert> :
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>{entries.map((item) =>
-        <Card key={item.id} withBorder><Group justify="space-between"><div><Text fw={600}>{item.person?.name ?? item.person?.fullName ?? item.personId ?? item.id}</Text>{item.specialty && <Text size="sm" c="dimmed">{item.specialty}</Text>}</div><Badge variant="light">{item.role}</Badge></Group></Card>
+        <Card key={item.id} withBorder><Group justify="space-between"><div><Text fw={600}>{item.person?.name ?? item.person?.fullName ?? item.personId ?? item.id}</Text>{item.specialty && <Text size="sm" c="dimmed">{item.specialty}</Text>}</div><Badge variant="light">{item.role}</Badge><Button size="xs" variant="subtle" onClick={() => setEditing(item)}>Edit</Button></Group></Card>
       )}</SimpleGrid>}
   </Stack>
 }
