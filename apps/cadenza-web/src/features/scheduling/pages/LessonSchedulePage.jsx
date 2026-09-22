@@ -13,6 +13,7 @@ export default function LessonSchedulePage() {
   const client = useQueryClient()
   const query = useQuery({ queryKey: ['cadenza', 'lesson-sessions'], queryFn: schedulingApi.listSessions })
   const enrollments = useQuery({ queryKey: ['cadenza', 'enrollments'], queryFn: lessonsApi.listEnrollments })
+  const reschedules = useQuery({ queryKey: ['cadenza', 'reschedules'], queryFn: schedulingApi.listReschedules })
   const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list })
   const rooms = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms })
   const [selected, setSelected] = useState(null)
@@ -25,6 +26,7 @@ export default function LessonSchedulePage() {
   const attendance = useMutation({ mutationFn: ({ id, value }) => schedulingApi.markAttendance(id, value), onSuccess: () => { setSelected(null); client.invalidateQueries({ queryKey: ['cadenza', 'lesson-sessions'] }) } })
   const transition = useMutation({ mutationFn: ({ id, type }) => schedulingApi[type](id), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'lesson-sessions'] }) })
   const create = useMutation({ mutationFn: schedulingApi.createSession, onSuccess: () => { setCreateOpened(false); client.invalidateQueries({ queryKey: ['cadenza', 'lesson-sessions'] }) } })
+  const review = useMutation({ mutationFn: ({ id, approve }) => schedulingApi.reviewReschedule(id, approve), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'reschedules'] }) })
   const request = useMutation({ mutationFn: schedulingApi.requestReschedule, onSuccess: () => setRescheduleOpened(null) })
   if (query.isLoading) return <LoadingState label="Loading lesson schedule…" rows={3} />
   if (query.error) return <Alert color="red" title="Unable to load lesson schedule">{query.error.message}</Alert>
@@ -32,9 +34,11 @@ export default function LessonSchedulePage() {
   const enrollmentData = unwrap(enrollments.data)
   const instructorData = unwrap(instructors.data)
   const roomData = unwrap(rooms.data)
+  const rescheduleData = unwrap(reschedules.data)
   return <Stack gap="lg">
     <Group justify="space-between"><div><Title order={2}>Lesson Schedule</Title><Text c="dimmed">Schedule sessions, assign instructors and rooms, attendance, and reschedules.</Text></div><Button onClick={() => setCreateOpened(true)}>Schedule session</Button></Group>
-    {(attendance.error || transition.error || create.error || request.error) && <Alert color="red" title="Schedule operation failed">{(attendance.error || transition.error || create.error || request.error).message}</Alert>}
+    {(attendance.error || transition.error || create.error || request.error || review.error) && <Alert color="red" title="Schedule operation failed">{(attendance.error || transition.error || create.error || request.error).message}</Alert>}
+    <Card withBorder><Stack><Group justify="space-between"><Title order={4}>Pending reschedule requests</Title><Badge>{rescheduleData.filter((r) => r.status === 'PENDING').length}</Badge></Group>{!rescheduleData.filter((r) => r.status === 'PENDING').length ? <Text c="dimmed">No pending requests.</Text> : rescheduleData.filter((r) => r.status === 'PENDING').map((r) => <Card key={r.id} withBorder><Group justify="space-between"><Text size="sm">{new Date(r.requestedStart).toLocaleString()} – {new Date(r.requestedEnd).toLocaleString()}</Text><Group><Button size="xs" loading={review.isPending} onClick={() => review.mutate({ id: r.id, approve: true })}>Approve</Button><Button size="xs" color="red" variant="subtle" loading={review.isPending} onClick={() => review.mutate({ id: r.id, approve: false })}>Reject</Button></Group></Group><Text size="xs" c="dimmed">{r.reason || 'No reason provided'}</Text></Card>)}</Stack></Card>
     {!sessions.length ? <Alert color="gray" title="No scheduled sessions">Confirmed lesson enrollments can be scheduled here.</Alert> :
       <SimpleGrid cols={{ base: 1, md: 3 }}>{sessions.map((session) =>
         <Card key={session.id} withBorder><Stack gap="xs">
