@@ -491,27 +491,15 @@ const transitionSession = async ({ appId, id, status, expectedStatus }) => {
   })
 }
 const completeSession = async ({ appId, id, actorId }) => {
-  if (!(await canManage(actorId, requireAppId(appId)))) throw new ForbiddenError('Only lesson management staff can complete sessions.')
+  if (!(await canManage(actorId, requireAppId(appId))))
+    throw new ForbiddenError('Only lesson management staff can complete sessions.')
   return transitionSession({ appId, id, status: SESSION_STATUS.COMPLETED, expectedStatus: SESSION_STATUS.SCHEDULED })
 }
 const cancelSession = async ({ appId, id, actorId }) => {
-  if (!(await canManage(actorId, requireAppId(appId)))) throw new ForbiddenError('Only lesson management staff can cancel sessions.')
+  if (!(await canManage(actorId, requireAppId(appId))))
+    throw new ForbiddenError('Only lesson management staff can cancel sessions.')
   return transitionSession({ appId, id, status: SESSION_STATUS.CANCELLED, expectedStatus: SESSION_STATUS.SCHEDULED })
 }
-/*
-  transitionSession({
-    appId,
-    id,
-    status: SESSION_STATUS.COMPLETED,
-    expectedStatus: SESSION_STATUS.SCHEDULED,
-  })
-const cancelSession = ({ appId, id }) =>
-  transitionSession({
-    appId,
-    id,
-    status: SESSION_STATUS.CANCELLED,
-    expectedStatus: SESSION_STATUS.SCHEDULED,
-  })
 export {
   listPackages,
   createPackage,
