@@ -16,12 +16,17 @@ const RESOURCE_ROUTE =
   /router\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
 const IDEMPOTENCY_MIDDLEWARE =
   /\b(?:requireIdempotency|idempotency(?:Middleware)?)\b/
-const IDEMPOTENCY_ALIAS =
-  /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*idempotency\s*\(/g
+const IDENTITY = '[A-Za-z_$][\\w$]*'
+const IDEMPOTENCY_ALIAS = new RegExp(
+  `(?:const|let|var)\\s+(${IDENTITY})\\s*=\\s*idempotency\\s*\\(`,
+  'g'
+)
 const AUTHORIZATION_MIDDLEWARE =
-  /\bauthorizeResource\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/
-const AUTHORIZATION_ALIAS =
-  /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*authorizeResource\s*\(/g
+  /\\bauthorizeResource\\b|\\bauthorize[A-Z][A-Za-z0-9_]*\\b/
+const AUTHORIZATION_ALIAS = new RegExp(
+  `(?:const|let|var)\\s+(${IDENTITY})\\s*=\\s*[^\\n;]*\\bauthorizeResource\\s*\\(`,
+  'g'
+)
 
 const APPLICATION_SECURITY_IMPORT =
   /(?:\.\.\/)+platform\/applications\/(?:application|membership)[^'"`\s)]*/
