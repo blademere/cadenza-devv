@@ -15,6 +15,7 @@ import {
 import * as repository from './rental.repository.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import { RENTAL_STATUS } from '../cadenza.constants.js'
+import { listUsers } from '../../../features/users/user.service.js'
 const decimalAmount = (value, field) => {
   try {
     return positiveDecimal(value, field)
