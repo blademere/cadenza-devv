@@ -15,7 +15,7 @@ export default function CadenzaLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const visibleNavigation = useMemo(() => normalizeNavigation(navigation, context?.permissions), [context?.permissions])
-  const sidebar = (collapsed = false) => <Sidebar navigation={visibleNavigation} navigationLoading={authorizationLoading} user={user} role={context?.role?.name} collapsed={collapsed} onNavigate={() => setMobileOpen(false)} onLogout={() => void logout()} onToggleCollapse={() => setSidebarCollapsed((current) => !current)} />
+  const sidebar = (collapsed = false) => <Sidebar navigation={visibleNavigation} user={user} collapsed={collapsed} onNavigate={() => setMobileOpen(false)} onLogout={() => void logout()} onToggleCollapse={() => setSidebarCollapsed((current) => !current)} />
 
   return (
     <div className="cadenza-app min-h-screen bg-background text-foreground">
