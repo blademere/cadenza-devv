@@ -6,4 +6,4 @@ const registerMe=async(req,res)=>successResponse(res,'Cadenza student registrati
 const create=async(req,res)=>successResponse(res,'Cadenza student created successfully.',await service.create({appId:getApplicationId(req),actorId:req.user?.id,...req.validated.body}),201)
 const update=async(req,res)=>successResponse(res,'Cadenza student updated successfully.',await service.update({appId:getApplicationId(req),id:req.validated.params.id,...req.validated.body}))
 const get=async(req,res)=>successResponse(res,'Cadenza student retrieved successfully.',await service.get({appId:getApplicationId(req),id:req.validated.params.id,actorId:req.user?.id}))
-export {list,create,update,get}
+export {list,registerMe,create,update,get}
