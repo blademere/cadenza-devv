@@ -1,7 +1,7 @@
 import { apiClient } from '../../../services/api/client'
 
 export const lessonsApi = {
-  listPackages: () => apiClient.get('/api/v1/cadenza/lesson-packages'),
-  createPackage: (payload) => apiClient.post('/api/v1/cadenza/lesson-packages', payload),
-  enroll: (payload) => apiClient.post('/api/v1/cadenza/lesson-enrollments', payload),
+  listPackages: () => apiClient.get('/cadenza/lesson-packages'),
+  createPackage: (payload) => apiClient.post('/cadenza/lesson-packages', payload),
+  enroll: (payload) => apiClient.post('/cadenza/lesson-enrollments', payload),
 }
