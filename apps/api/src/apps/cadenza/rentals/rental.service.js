@@ -167,14 +167,17 @@ const cancel = async ({ appId, id, actorId }) => {
   return runTransaction(async (tx) => {
     const rental = await repository.findById(id, owner, tx)
     if (!rental) throw new NotFoundError('Rental not found.')
-    if (!manager && Number(rental.customerUserId) !== Number(actorId)) throw new ForbiddenError('You can only cancel your own rental.')
-    if (![RENTAL_STATUS.PENDING, RENTAL_STATUS.RESERVED].includes(rental.status)) throw new ConflictError('Only pending or reserved rentals can be cancelled.')
+    if (!manager && Number(rental.customerUserId) !== Number(actorId))
+      throw new ForbiddenError('You can only cancel your own rental.')
+    if (![RENTAL_STATUS.PENDING, RENTAL_STATUS.RESERVED].includes(rental.status))
+      throw new ConflictError('Only pending or reserved rentals can be cancelled.')
+
     if (rental.paymentObligationId) {
       const obligation = await getObligation(rental.paymentObligationId, owner, tx)
       const paid = obligation?.payments?.filter((payment) => payment.status === 'SUCCEEDED') || []
-      if (paid.length > 0 && !manager) {
+      if (paid.length > 0 && !manager)
         throw new ForbiddenError('Paid rentals can only be cancelled by rental management staff.')
-      }
+
       for (const payment of paid) {
         const refunded = (payment.refunds || [])
           .filter((refund) => refund.status === 'SUCCEEDED')
@@ -190,16 +193,17 @@ const cancel = async ({ appId, id, actorId }) => {
             actorId,
             manual: true,
             idempotencyKey: `cadenza:rental-cancel-refund:${id}:${payment.id}`,
+            db: tx,
           })
         }
       }
     }
+
     const result = await repository.cancel(id, owner, tx)
     if (result.count !== 1)
-      throw new ConflictError(
-        'Only pending or reserved rentals can be cancelled.'
-      )
+      throw new ConflictError('Only pending or reserved rentals can be cancelled.')
     return repository.findById(id, owner, tx)
   })
 }
+
 export { create, list, get, availability, checkout, returnRental, cancel }
