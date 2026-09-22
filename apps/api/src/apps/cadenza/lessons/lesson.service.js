@@ -480,6 +480,8 @@ const markAttendance = async ({ appId, sessionId, actorId, status, notes }) => {
     return attendance
   })
 }
+const RESCHEDULE_CUTOFF_HOURS = 24
+const MAX_RESCHEDULE_REQUESTS_PER_SESSION = 2
 const requestReschedule = async ({
   appId,
   sessionId,
@@ -511,9 +513,13 @@ const requestReschedule = async ({
       )
     )
       throw new ConflictError('Only active lesson sessions can be rescheduled.')
+    if (session.scheduledStart.getTime() - Date.now() < RESCHEDULE_CUTOFF_HOURS * 60 * 60 * 1000)
+      throw new ConflictError('Lesson reschedule requests must be made at least 24 hours before the scheduled session.')
     if (!reason?.trim()) throw new BadRequestError('reason is required for a reschedule request.')
     if (await repository.findPendingReschedule(sessionId, owner, tx))
       throw new ConflictError('A pending reschedule request already exists for this lesson session.')
+    if (await repository.countReschedulesForSession(sessionId, owner, tx) >= MAX_RESCHEDULE_REQUESTS_PER_SESSION)
+      throw new ConflictError('The maximum number of reschedule requests for this lesson session has been reached.')
     return repository.createReschedule(
       {
         appId: owner,
