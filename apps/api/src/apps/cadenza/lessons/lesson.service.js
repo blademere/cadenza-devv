@@ -448,6 +448,8 @@ const createSession = async ({
     }
     if (roomId && !(await repository.findRoom(roomId, owner, tx)))
       throw new NotFoundError('Room not found.')
+    if (request.requestedStart.getTime() - Date.now() < RESCHEDULE_CUTOFF_HOURS * 60 * 60 * 1000)
+      throw new ConflictError('Approved reschedule time must remain at least 24 hours in the future.')
     if (
       await repository.findOverlappingSession(
         { appId: owner, instructorId, roomId, startsAt: start, endsAt: end },
@@ -563,6 +565,16 @@ const requestReschedule = async ({
       },
       tx
     )
+    await enqueueEvent({
+      db: tx,
+      event: ENROLLMENT_EVENTS.RESCHEDULE_REQUESTED,
+      entityType: 'CadenzaRescheduleRequest',
+      entityId: created.id,
+      actorId,
+      context: { appId: owner, sessionId, enrollmentId: session.enrollment.id },
+      idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.RESCHEDULE_REQUESTED}:${created.id}`,
+    })
+    return created
   })
 }
 const cancelReschedule = async ({ appId, id, actorId }) => {
@@ -613,6 +625,8 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
     )
       throw new ConflictError('Only active lesson sessions can be rescheduled.')
     if (!approve) {
+      if (request.requestedStart.getTime() - Date.now() < RESCHEDULE_CUTOFF_HOURS * 60 * 60 * 1000)
+        throw new ConflictError('Approved reschedule time must remain at least 24 hours in the future.')
       await repository.updateReschedule(id, owner, { status: RESCHEDULE_STATUS.REJECTED, reviewedByUserId: Number(actorId), reviewedAt: new Date() }, tx)
       await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.RESCHEDULE_REJECTED, entityType: 'CadenzaRescheduleRequest', entityId: id, actorId, context: { appId: owner, sessionId: session.id, enrollmentId: session.enrollmentId }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.RESCHEDULE_REJECTED}:${id}` })
       return repository.findReschedule(id, owner, tx)
