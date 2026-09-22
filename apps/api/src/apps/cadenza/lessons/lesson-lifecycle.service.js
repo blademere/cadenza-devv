@@ -42,6 +42,7 @@ const confirmEnrollment = async ({ appId, enrollmentId, actorId = null, db }) =>
     return confirmed
   }
   return db ? execute(db) : runTransaction(execute)
+}
 
 const ensureInProgress = async ({ appId, enrollmentId, actorId = null, db }) => {
   const enrollment = await repository.findEnrollmentById(enrollmentId, appId, db)
