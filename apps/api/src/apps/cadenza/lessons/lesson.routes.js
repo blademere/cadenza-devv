@@ -2,6 +2,7 @@ import express from 'express'
 import {asyncHandler,validate,idempotency} from '../../../common/middleware/index.js'
 import authorize, { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
 import * as controller from './lesson.controller.js'
+import * as service from './lesson.service.js'
 import {packageValidator,enrollmentValidator,sessionValidator,attendanceValidator,rescheduleValidator,reviewRescheduleValidator,attachmentValidator} from './lesson.validation.js'
 const router=express.Router()
 router.get('/packages',authorize('cadenza_lessons','read'),asyncHandler(controller.listPackages))
