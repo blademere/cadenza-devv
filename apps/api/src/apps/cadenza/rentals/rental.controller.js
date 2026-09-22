@@ -8,4 +8,4 @@ const create=async(req,res)=>successResponse(res,'Cadenza rental created success
 const checkout=async(req,res)=>successResponse(res,'Cadenza rental checked out successfully.',await service.checkout({appId:getApplicationId(req),id:req.params.id,actorId:req.user?.id}))
 const returnRental=async(req,res)=>successResponse(res,'Cadenza rental returned successfully.',await service.returnRental({appId:getApplicationId(req),id:req.params.id,actorId:req.user?.id}))
 const cancel=async(req,res)=>successResponse(res,'Cadenza rental cancelled successfully.',await service.cancel({appId:getApplicationId(req),id:req.params.id,actorId:req.user?.id}))
-export {list,availability,create,checkout,returnRental,cancel}
+export {list,customers,availability,create,checkout,returnRental,cancel}
