@@ -1,6 +1,5 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom'
-import App from './App'
-import CadenzaLayout from '../layouts/CadenzaLayout'
+import AppLayout from './layout'
 import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
 import LoginPage from '../features/auth/pages/LoginPage'
@@ -16,7 +15,6 @@ import GuestRoute from './router/GuestRoute'
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <App />,
     children: [
       { index: true, element: <GuestRoute><HomePage /></GuestRoute> },
       { path: 'login', element: <GuestRoute><LoginPage /></GuestRoute> },
@@ -25,15 +23,35 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute />,
         children: [
           {
-            element: <CadenzaLayout />,
+            element: <AppLayout />,
             children: [
               { index: true, element: <Navigate to="dashboard" replace /> },
               { path: 'dashboard', element: <DashboardPage /> },
-              { path: 'lessons', element: <PermissionRoute permission="cadenza_lessons:read" />, children: [{ index: true, element: <LessonsPage /> }] },
-              { path: 'lesson-schedule', element: <PermissionRoute permission="cadenza_lessons:read" />, children: [{ index: true, element: <LessonSchedulePage /> }] },
-              { path: 'rentals', element: <PermissionRoute permission="cadenza_rentals:read" />, children: [{ index: true, element: <RentalsPage /> }] },
-              { path: 'resources', element: <PermissionRoute permission="cadenza_instruments:read" />, children: [{ index: true, element: <ResourcesPage /> }] },
-              { path: 'users', element: <PermissionRoute permission="cadenza_students:read" />, children: [{ index: true, element: <UsersPage /> }] },
+              {
+                path: 'lessons',
+                element: <PermissionRoute permission="cadenza_lessons:read" />,
+                children: [{ index: true, element: <LessonsPage /> }],
+              },
+              {
+                path: 'lesson-schedule',
+                element: <PermissionRoute permission="cadenza_lessons:read" />,
+                children: [{ index: true, element: <LessonSchedulePage /> }],
+              },
+              {
+                path: 'rentals',
+                element: <PermissionRoute permission="cadenza_rentals:read" />,
+                children: [{ index: true, element: <RentalsPage /> }],
+              },
+              {
+                path: 'resources',
+                element: <PermissionRoute permission="cadenza_instruments:read" />,
+                children: [{ index: true, element: <ResourcesPage /> }],
+              },
+              {
+                path: 'users',
+                element: <PermissionRoute permission="cadenza_students:read" />,
+                children: [{ index: true, element: <UsersPage /> }],
+              },
             ],
           },
         ],
