@@ -230,6 +230,7 @@ const getSession = async ({ appId, id }) => {
   if (!value) throw new NotFoundError('Lesson session not found.')
   return value
 }
+const listReschedules = ({ appId }) => repository.listReschedules(requireAppId(appId))
 const getReschedule = async ({ appId, id }) => {
   const value = await repository.findReschedule(id, requireAppId(appId))
   if (!value) throw new NotFoundError('Reschedule request not found.')
@@ -482,6 +483,7 @@ export {
   listSessions,
   getSession,
   getReschedule,
+  listReschedules,
   createSession,
   markAttendance,
   requestReschedule,
