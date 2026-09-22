@@ -9,6 +9,8 @@ const normalizePaymentEvent = (payload) => {
     currency: data.currency,
     method: data.channel_code,
     providerReference: data.payment_id,
+    eventId: event.event_id || data.payment_id,
+    eventType: event.event || 'payment.capture',
     checkoutSessionId: data.payment_request_id,
     metadata: data.metadata || {},
   }
