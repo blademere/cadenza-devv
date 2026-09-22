@@ -28,6 +28,7 @@ const findSession = (id, appId, db = prisma) => db.cadenzaLessonSession.findFirs
 const upsertAttendance = (sessionId, data, db = prisma) => db.cadenzaAttendance.upsert({ where: { sessionId }, create: { sessionId, ...data }, update: data })
 const createReschedule = (data, db = prisma) => db.cadenzaRescheduleRequest.create({ data })
 const findPendingReschedule = (sessionId, appId, db = prisma) => db.cadenzaRescheduleRequest.findFirst({ where: { sessionId, appId, status: 'PENDING' } })
+const countReschedulesForSession = (sessionId, appId, db = prisma) => db.cadenzaRescheduleRequest.count({ where: { sessionId, appId, status: { not: 'CANCELLED' } } })
 const findReschedule = (id, appId, db = prisma) => db.cadenzaRescheduleRequest.findFirst({ where: { id, appId } })
 const listReschedules = (appId, db = prisma) => db.cadenzaRescheduleRequest.findMany({ where: { appId }, orderBy: { createdAt: 'desc' }, include: { session: { include: { enrollment: { include: { student: { include: { person: true } } } } } } } })
 const updateReschedule = (id, appId, data, db = prisma) => db.cadenzaRescheduleRequest.updateMany({ where: { id, appId }, data })
