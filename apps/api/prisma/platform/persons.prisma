@@ -14,6 +14,7 @@ model Person {
   caseParticipants      CaseParticipant[]
   oboProfessionals      OboProfessional[]
   oboClientApplications OboPermitApplication[] @relation("OboApplicationClient")
+  cadenzaCustomers     CadenzaCustomer[]
   cadenzaStudents       CadenzaStudent[]
   cadenzaInstructors    CadenzaInstructor[]
   createdAt             DateTime               @default(now())
