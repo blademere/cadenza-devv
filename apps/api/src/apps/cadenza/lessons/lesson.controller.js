@@ -4,6 +4,7 @@ import * as service from './lesson.service.js'
 const actorId=req=>req.user?.id
 const listPackages=async(req,res)=>successResponse(res,'Cadenza lesson packages retrieved successfully.',await service.listPackages({appId:getApplicationId(req)}))
 const createPackage=async(req,res)=>successResponse(res,'Cadenza lesson package created successfully.',await service.createPackage({appId:getApplicationId(req),...req.validated.body}),201)
+const updatePackage=async(req,res)=>successResponse(res,'Cadenza lesson package updated successfully.',await service.updatePackage({appId:getApplicationId(req),id:req.validated.params.lessonPackageId,...req.validated.body}))
 const addAttachment=async(req,res)=>successResponse(res,'Cadenza lesson attachment added successfully.',await service.addAttachment({appId:getApplicationId(req),lessonPackageId:req.params.lessonPackageId,...req.validated.body}),201)
 const listAttachments=async(req,res)=>successResponse(res,'Cadenza lesson attachments retrieved successfully.',await service.listAttachments({appId:getApplicationId(req),lessonPackageId:req.params.lessonPackageId}))
 const removeAttachment=async(req,res)=>successResponse(res,'Cadenza lesson attachment removed successfully.',await service.removeAttachment({appId:getApplicationId(req),lessonPackageId:req.params.lessonPackageId,id:req.params.id}))
@@ -17,4 +18,4 @@ const requestReschedule=async(req,res)=>successResponse(res,'Cadenza reschedule 
 const reviewReschedule=async(req,res)=>successResponse(res,'Cadenza reschedule reviewed successfully.',await service.reviewReschedule({appId:getApplicationId(req),id:req.params.id,actorId:actorId(req),approve:req.validated.body.approve}))
 const completeSession=async(req,res)=>successResponse(res,'Cadenza lesson session completed successfully.',await service.completeSession({appId:getApplicationId(req),id:req.params.sessionId}))
 const cancelSession=async(req,res)=>successResponse(res,'Cadenza lesson session cancelled successfully.',await service.cancelSession({appId:getApplicationId(req),id:req.params.sessionId}))
-export {listPackages,createPackage,addAttachment,listAttachments,removeAttachment,listEnrollments,enroll,listSessions,listReschedules,createSession,markAttendance,requestReschedule,reviewReschedule,completeSession,cancelSession}
+export {listPackages,createPackage,updatePackage,addAttachment,listAttachments,removeAttachment,listEnrollments,enroll,listSessions,listReschedules,createSession,markAttendance,requestReschedule,reviewReschedule,completeSession,cancelSession}
