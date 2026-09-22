@@ -355,12 +355,26 @@ const enroll = async ({
         db: tx,
         metadata: { requirement: 'FULL_PAYMENT' },
       })
-      return repository.attachPaymentObligation(
+      const attached = await repository.attachPaymentObligation(
         enrollment.id,
         owner,
         obligation.id,
         tx
       )
+      await enqueueEvent({
+        db: tx,
+        event: ENROLLMENT_EVENTS.CREATED,
+        entityType: 'CadenzaEnrollment',
+        entityId: enrollment.id,
+        actorId,
+        context: {
+          appId: owner,
+          paymentObligationId: obligation.id,
+          paymentExpiresAt: enrollment.paymentExpiresAt?.toISOString() || null,
+        },
+        idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.CREATED}:${enrollment.id}`,
+      })
+      return attached
     })
   } catch (e) {
     if (e?.code === 'P2002')
