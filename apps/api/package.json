@@ -32,8 +32,7 @@
     "db:restore": "node scripts/db-restore.cjs",
     "validate:architecture": "node scripts/validate-architecture.cjs",
     "validate:authorization": "node scripts/validate-authorization.cjs",
-    "validate:migrations": "node scripts/validate-migrations.cjs",
-    "start:cadenza-worker": "node src/apps/cadenza/cadenza-worker.js"
+    "validate:migrations": "node scripts/validate-migrations.cjs"
   },
   "type": "module",
   "dependencies": {
