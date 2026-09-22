@@ -40,6 +40,7 @@ const assertSessionActor = async ({
     Number(session.enrollment?.student?.person?.userId) === Number(actorId)
   )
     return
+  if (Number(session.instructor?.person?.userId) === Number(actorId)) return
   throw new ForbiddenError(
     'You can only act on lesson sessions you are authorized to manage.'
   )
@@ -86,6 +87,7 @@ const createPackage = async ({
 const updatePackage = async ({ appId, id, ...data }) => { const owner=requireAppId(appId); const current=await repository.findPackage(id,owner); if(!current) throw new NotFoundError('Lesson package not found.'); if(data.price!==undefined) data.price=decimalAmount(data.price,'price'); if(data.numberOfSessions!==undefined && (!Number.isInteger(Number(data.numberOfSessions))||Number(data.numberOfSessions)<=0)) throw new BadRequestError('numberOfSessions must be greater than zero.'); if(data.name!==undefined && !data.name?.trim()) throw new BadRequestError('name is required.'); if(data.name!==undefined) data.name=data.name.trim(); if(data.description!==undefined) data.description=data.description?.trim()||null; const result=await repository.updatePackage(id,owner,data); if(result.count!==1) throw new ConflictError('Lesson package was modified or no longer exists.'); return repository.findPackage(id,owner) }
 const addAttachment = async ({
   appId,
+  actorId,
   lessonPackageId,
   fileName,
   contentBase64,
@@ -94,6 +96,8 @@ const addAttachment = async ({
   metadata,
 }) => {
   const owner = requireAppId(appId)
+  if (!(await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'manage' })))
+    throw new ForbiddenError('Only lesson management staff can add attachments.')
   if (!(await repository.findPackage(lessonPackageId, owner)))
     throw new NotFoundError('Lesson package not found.')
   if (
@@ -142,14 +146,18 @@ const addAttachment = async ({
     throw error
   }
 }
-const listAttachments = async ({ appId, lessonPackageId }) => {
+const listAttachments = async ({ appId, lessonPackageId, actorId }) => {
   const owner = requireAppId(appId)
   if (!(await repository.findPackage(lessonPackageId, owner)))
     throw new NotFoundError('Lesson package not found.')
+  if (!(await canManage(actorId, owner)) && !(await repository.findEnrollmentForPackageActor(lessonPackageId, actorId, owner)))
+    throw new NotFoundError('Lesson package not found.')
   return repository.listAttachments(lessonPackageId, owner)
 }
-const removeAttachment = async ({ appId, lessonPackageId, id }) => {
+const removeAttachment = async ({ appId, actorId, lessonPackageId, id }) => {
   const owner = requireAppId(appId)
+  if (!(await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'manage' })))
+    throw new ForbiddenError('Only lesson management staff can remove attachments.')
   const attachment = await repository.findAttachment(id, lessonPackageId, owner)
   if (!attachment) throw new NotFoundError('Lesson attachment not found.')
   const result = await repository.deleteAttachment(id, lessonPackageId, owner)
@@ -178,14 +186,11 @@ const enroll = async ({
   const owner = requireAppId(appId)
   if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
     throw new BadRequestError('Authenticated actor is required.')
-  const student = await repository.findStudent(studentId, owner)
+  const isManager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' })
+  const resolvedStudentId = isManager ? studentId : (await repository.findStudentForActor(actorId, owner))?.id
+  if (!resolvedStudentId) throw new NotFoundError('Student not found.')
+  const student = await repository.findStudent(resolvedStudentId, owner)
   if (!student) throw new NotFoundError('Student not found.')
-  const isManager = await can({
-    userId: Number(actorId),
-    appId: owner,
-    resource: 'cadenza_enrollments',
-    action: 'manage',
-  })
   if (!isManager && Number(student.person?.userId) !== Number(actorId))
     throw new ForbiddenError('You can only enroll yourself as a Cadenza student.')
   if (student.status !== STUDENT_STATUS.ACTIVE)
@@ -199,7 +204,7 @@ const enroll = async ({
       const enrollment = await repository.createEnrollment(
         {
           appId: owner,
-          studentId,
+          studentId: resolvedStudentId,
           lessonPackageId,
           status: ENROLLMENT_STATUS.PENDING_PAYMENT,
         },
@@ -253,6 +258,7 @@ const getReschedule = async ({ appId, id }) => {
 }
 const createSession = async ({
   appId,
+  actorId,
   enrollmentId,
   instructorId,
   roomId,
@@ -260,6 +266,7 @@ const createSession = async ({
   scheduledEnd,
 }) => {
   const owner = requireAppId(appId)
+  if (!(await canManage(actorId, owner))) throw new ForbiddenError('Only lesson management staff can schedule sessions.')
   const start = new Date(scheduledStart),
     end = new Date(scheduledEnd)
   if (
@@ -282,6 +289,10 @@ const createSession = async ({
       !(await repository.findInstructor(instructorId, owner, tx))
     )
       throw new NotFoundError('Instructor not found.')
+    if (instructorId) {
+      const instructor = await repository.findInstructor(instructorId, owner, tx)
+      if (!instructor?.person?.userId) throw new NotFoundError('Instructor not found.')
+    }
     if (roomId && !(await repository.findRoom(roomId, owner, tx)))
       throw new NotFoundError('Room not found.')
     if (
@@ -293,6 +304,12 @@ const createSession = async ({
       throw new ConflictError(
         'Instructor or room is already scheduled for an overlapping lesson session.'
       )
+    if (roomId) {
+      const room = await repository.findRoom(roomId, owner, tx)
+      if (!room) throw new NotFoundError('Room not found.')
+      if (await repository.findRoomRentalOverlap({ appId: owner, roomResourceId: room.resourceId, startsAt: start, endsAt: end }, tx))
+        throw new ConflictError('Room is already reserved for an overlapping rental.')
+    }
     return repository.createSession(
       {
         appId: owner,
@@ -473,7 +490,15 @@ const transitionSession = async ({ appId, id, status, expectedStatus }) => {
     return repository.findSession(id, owner, tx)
   })
 }
-const completeSession = ({ appId, id }) =>
+const completeSession = async ({ appId, id, actorId }) => {
+  if (!(await canManage(actorId, requireAppId(appId)))) throw new ForbiddenError('Only lesson management staff can complete sessions.')
+  return transitionSession({ appId, id, status: SESSION_STATUS.COMPLETED, expectedStatus: SESSION_STATUS.SCHEDULED })
+}
+const cancelSession = async ({ appId, id, actorId }) => {
+  if (!(await canManage(actorId, requireAppId(appId)))) throw new ForbiddenError('Only lesson management staff can cancel sessions.')
+  return transitionSession({ appId, id, status: SESSION_STATUS.CANCELLED, expectedStatus: SESSION_STATUS.SCHEDULED })
+}
+/*
   transitionSession({
     appId,
     id,
