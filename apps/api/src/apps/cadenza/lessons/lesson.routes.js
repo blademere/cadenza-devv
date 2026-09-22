@@ -14,6 +14,7 @@ router.get('/packages/:lessonPackageId/attachments/:id/url',authorize('cadenza_l
 router.delete('/packages/:lessonPackageId/attachments/:id',authorize('cadenza_lessons','manage'),idempotency({scope:'cadenza-lesson-attachment-delete',required:true}),asyncHandler(controller.removeAttachment))
 router.get('/enrollments',authorize('cadenza_enrollments','read'),asyncHandler(controller.listEnrollments))
 router.get('/enrollments/:enrollmentId',authorize('cadenza_enrollments','read'),asyncHandler(controller.getEnrollment))
+router.post('/enrollments/:enrollmentId/cancel',authorizeResource({resource:'cadenza_enrollments',action:'read',loadResource:(id,req)=>service.getEnrollment({appId:req.security.app.id,id,actorId:req.user?.id}),getResourceId:req=>req.params.enrollmentId}),idempotency({scope:'cadenza-enrollment-cancel',required:true}),asyncHandler(controller.cancelEnrollment))
 router.post('/enrollments',authorize('cadenza_enrollments','create'),idempotency({scope:'cadenza-enrollments',required:true}),validate(enrollmentValidator),asyncHandler(controller.enroll))
 router.get('/sessions',authorize('cadenza_lessons','read'),asyncHandler(controller.listSessions))
 router.post('/sessions',authorize('cadenza_lessons','schedule'),idempotency({scope:'cadenza-lesson-sessions',required:true}),validate(sessionValidator),asyncHandler(controller.createSession))
