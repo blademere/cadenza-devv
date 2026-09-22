@@ -1,6 +1,7 @@
 import { apiClient } from '../../../services/api/client'
 
 export const rentalsApi = {
+  customers: () => apiClient.get('/cadenza/customers'),
   availability: (params) => apiClient.get(`/cadenza/rentals/availability?${new URLSearchParams(params).toString()}`),
   list: () => apiClient.get('/cadenza/rentals'),
   create: (payload) => apiClient.post('/cadenza/rentals', payload),
