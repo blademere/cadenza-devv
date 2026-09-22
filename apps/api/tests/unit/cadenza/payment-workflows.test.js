@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
   findStudent: vi.fn(),
+  findStudentForActor: vi.fn(),
   findPackage: vi.fn(),
   createEnrollment: vi.fn(),
   attachPaymentObligation: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('../../../src/apps/cadenza/rentals/rental.repository.js', () => ({
 
 vi.mock('../../../src/apps/cadenza/payments/payment.repository.js', () => ({
   confirmEnrollment: vi.fn(),
+  findEnrollment: vi.fn(),
   findRental: vi.fn(),
   reserveRental: vi.fn(),
 }))
@@ -56,6 +58,7 @@ describe('Cadenza lesson payment workflow', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('creates a full-payment obligation when a student enrolls', async () => {
+    lessonRepository.findStudentForActor.mockResolvedValue({ id: STUDENT_ID })
     lessonRepository.findStudent.mockResolvedValue({ id: STUDENT_ID, appId: APP_ID, status: 'ACTIVE', person: { userId: 42 } })
     lessonRepository.findPackage.mockResolvedValue({ id: PACKAGE_ID, appId: APP_ID, price: '1500.00', status: 'ACTIVE' })
     lessonRepository.createEnrollment.mockResolvedValue({ id: 'enrollment-1' })
@@ -86,7 +89,7 @@ describe('Cadenza rental payment workflow', () => {
 
   it('creates a rental obligation carrying the required down payment', async () => {
     rentalRepository.findResource.mockResolvedValue({ id: RESOURCE_ID, appId: APP_ID, type: 'CADENZA_INSTRUMENT' })
-    rentalRepository.findInstrumentByResource.mockResolvedValue({ id: 'instrument-1', resourceId: RESOURCE_ID, status: 'AVAILABLE' })
+    rentalRepository.findInstrumentByResource.mockResolvedValue({ id: 'instrument-1', resourceId: RESOURCE_ID, status: 'AVAILABLE', rentalRate: { toString: () => '100.00', mul: () => ({ toString: () => '300.00' }) } })
     rentalRepository.create.mockResolvedValue({ id: RENTAL_ID })
     platformPayments.createPaymentObligation.mockResolvedValue({ id: OBLIGATION_ID, status: 'UNPAID' })
     rentalRepository.attachPaymentObligation.mockResolvedValue({ id: RENTAL_ID, paymentObligationId: OBLIGATION_ID })
@@ -127,7 +130,7 @@ describe('Cadenza rental payment workflow', () => {
       scheduledEnd: '2026-09-20T12:00:00.000Z',
       totalAmount: '1000.00',
       requiredDownPayment: '300.00',
-    })).rejects.toThrow('another customer with rental management permission')
+    })).rejects.toThrow('You can only create rentals for your own account.')
 
     expect(rentalRepository.findResource).not.toHaveBeenCalled()
   })
@@ -139,6 +142,7 @@ describe('Cadenza payment settlement', () => {
 
   it('confirms an enrollment only after full payment', async () => {
     platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: {}, obligation: { referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-1', amount: '1500.00' } })
+    paymentRepository.findEnrollment.mockResolvedValue({ id: 'enrollment-1', appId: APP_ID, student: { person: { userId: 42 } } })
     platformPayments.getObligation.mockResolvedValue({ id: OBLIGATION_ID, appId: APP_ID, referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID' })
 
     await paymentService.pay({
@@ -155,6 +159,7 @@ describe('Cadenza payment settlement', () => {
 
   it('reserves a rental when successful payments reach the required down payment', async () => {
     platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: {}, obligation: { referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-2', amount: '300.00' } })
+    paymentRepository.findRental.mockResolvedValue({ id: RENTAL_ID, appId: APP_ID, customerUserId: 42 })
     platformPayments.getObligation.mockResolvedValue({ id: OBLIGATION_ID, appId: APP_ID, referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID', paidAmount: { gte: vi.fn(() => true) } })
     paymentRepository.findRental.mockResolvedValue({
       id: RENTAL_ID,
