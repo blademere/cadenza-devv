@@ -22,7 +22,7 @@ const IDEMPOTENCY_ALIAS = new RegExp(
   'g'
 )
 const AUTHORIZATION_MIDDLEWARE =
-  /\\bauthorizeResource\\b|\\bauthorize[A-Z][A-Za-z0-9_]*\\b/
+  /\bauthorizeResource\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/
 const AUTHORIZATION_ALIAS = new RegExp(
   `(?:const|let|var)\\s+(${IDENTITY})\\s*=\\s*[^\\n;]*\\bauthorizeResource\\s*\\(`,
   'g'
