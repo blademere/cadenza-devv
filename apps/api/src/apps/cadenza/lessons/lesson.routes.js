@@ -22,6 +22,7 @@ router.post('/sessions/:sessionId/complete',authorizeResource({resource:'cadenza
 router.post('/sessions/:sessionId/cancel',authorizeResource({resource:'cadenza_lessons',action:'cancel',loadResource:(id,req)=>service.getSession({appId:req.security.app.id,id}),getResourceId:(req)=>req.params.sessionId}),idempotency({scope:'cadenza-session-cancel',required:true}),asyncHandler(controller.cancelSession))
 router.get('/reschedules',authorize('cadenza_lessons','read'),asyncHandler(controller.listReschedules))
 router.post('/reschedules',authorize('cadenza_lessons','request_reschedule'),idempotency({scope:'cadenza-reschedules',required:true}),validate(rescheduleValidator),asyncHandler(controller.requestReschedule))
+router.post('/reschedules/:id/cancel',authorizeResource({resource:'cadenza_lessons',action:'request_reschedule',loadResource:(id,req)=>service.getReschedule({appId:req.security.app.id,id}),getResourceId:req=>req.params.id}),idempotency({scope:'cadenza-reschedule-cancel',required:true}),asyncHandler(controller.cancelReschedule))
 const rescheduleResource = authorizeResource({resource:'cadenza_lessons',action:'review_reschedule',loadResource:(id,req)=>service.getReschedule({appId:req.security.app.id,id}),getResourceId:(req)=>req.params.id})
 router.post('/reschedules/:id/review',rescheduleResource,idempotency({scope:'cadenza-reschedule-review',required:true}),validate(reviewRescheduleValidator),asyncHandler(controller.reviewReschedule))
 export default router
