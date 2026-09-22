@@ -1,0 +1,14 @@
+{
+  "name": "cadenza-web",
+  "projectType": "application",
+  "sourceRoot": "apps/cadenza-web/src",
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config vite.config.mts",
+        "cwd": "apps/cadenza-web"
+      }
+    }
+  }
+}
