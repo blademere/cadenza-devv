@@ -1,2 +1,3 @@
-import {Container} from '@mantine/core'
-export default function PageContainer({children}){return <Container size="xl" px={{base:'md',sm:'lg',lg:'xl'}} py={{base:'lg',md:'xl'}}>{children}</Container>}
+export default function PageContainer({ children }) {
+  return <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
+}
