@@ -5,7 +5,11 @@ import CadenzaLayout from '../layouts/CadenzaLayout'
 import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
 import LoginPage from '../features/auth/pages/LoginPage'
+import LessonsPage from '../features/lessons/pages/LessonsPage'
+import LessonSchedulePage from '../features/scheduling/pages/LessonSchedulePage'
+import RentalsPage from '../features/rentals/pages/RentalsPage'
+import ResourcesPage from '../features/resources/pages/ResourcesPage'
+import UsersPage from '../features/users/pages/UsersPage'
 import ProtectedRoute from './router/ProtectedRoute'
 import GuestRoute from './router/GuestRoute'
-const placeholder=n=>()=> <div className="cadenza-page"><h1>{n}</h1><p>Ready for the Cadenza domain feature.</p></div>
-export const router=createBrowserRouter([{path:'/',element:<App/>,children:[{index:true,element:<GuestRoute><HomePage/></GuestRoute>},{path:'login',element:<GuestRoute><LoginPage/></GuestRoute>},{path:'app',element:<ProtectedRoute><CadenzaLayout/></ProtectedRoute>,children:[{index:true,element:<Navigate to="dashboard" replace/>},{path:'dashboard',element:<DashboardPage/>},{path:'lessons',element:React.createElement(placeholder('Lessons'))},{path:'lesson-schedule',element:React.createElement(placeholder('Lesson Schedule'))},{path:'rentals',element:React.createElement(placeholder('Rentals'))},{path:'resources',element:React.createElement(placeholder('Resources'))},{path:'users',element:React.createElement(placeholder('Users'))}]}]}])
+export const router=createBrowserRouter([{path:'/',element:<App/>,children:[{index:true,element:<GuestRoute><HomePage/></GuestRoute>},{path:'login',element:<GuestRoute><LoginPage/></GuestRoute>},{path:'app',element:<ProtectedRoute><CadenzaLayout/></ProtectedRoute>,children:[{index:true,element:<Navigate to="dashboard" replace/>},{path:'dashboard',element:<DashboardPage/>},{path:'lessons',element:<LessonsPage/>},{path:'lesson-schedule',element:<LessonSchedulePage/>},{path:'rentals',element:<RentalsPage/>},{path:'resources',element:<ResourcesPage/>},{path:'users',element:<UsersPage/>}]}]}])
