@@ -67,6 +67,12 @@ const decimalAmount = (value, field = 'amount') => {
   }
 }
 const listPackages = ({ appId }) => repository.listPackages(requireAppId(appId))
+const getPackage = async ({ appId, id }) => {
+  const owner = requireAppId(appId)
+  const value = await repository.findPackage(id, owner)
+  if (!value) throw new NotFoundError('Lesson package not found.')
+  return value
+}
 const createPackage = async ({
   appId,
   name,
@@ -720,6 +726,7 @@ const cancelSession = async ({ appId, id, actorId }) => {
 }
 export {
   listPackages,
+  getPackage,
   createPackage,
   updatePackage,
   addAttachment,
