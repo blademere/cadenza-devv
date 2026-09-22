@@ -2,6 +2,7 @@ import express from 'express'
 import authenticate from '../../features/auth/authenticate.secure.js'
 import { requireApplicationContext } from '../../platform/applications/application-context.middleware.js'
 import authorizationRoutes from './authorization/authorization.routes.js'
+import customerRoutes from './customers/customer.routes.js'
 import studentRoutes from './students/student.routes.js'
 import instructorRoutes from './instructors/instructor.routes.js'
 import instrumentRoutes from './instruments/instrument.routes.js'
@@ -20,6 +21,7 @@ const router = express.Router()
 router.use(authenticate, requireApplicationContext({ appKey: 'cadenza' }))
 router.use('/dashboard', dashboardRoutes)
 router.use('/authorization', authorizationRoutes)
+router.use('/customers', customerRoutes)
 router.use('/students', studentRoutes)
 router.use('/instructors', instructorRoutes)
 router.use('/instruments', instrumentRoutes)
