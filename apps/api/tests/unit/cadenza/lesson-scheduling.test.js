@@ -13,6 +13,10 @@ vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
   listSessions: vi.fn(),
 }))
 
+vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({
+  can: vi.fn().mockResolvedValue(true),
+}))
+
 vi.mock('../../../src/platform/transactions/transaction.service.js', () => ({
   run: vi.fn((callback) => callback({})),
 }))
@@ -37,6 +41,7 @@ describe('Cadenza lesson scheduling', () => {
 
     await expect(service.createSession({
       appId: APP_ID,
+      actorId: 99,
       enrollmentId: ENROLLMENT_ID,
       instructorId: INSTRUCTOR_ID,
       roomId: ROOM_ID,
@@ -135,6 +140,7 @@ describe('Cadenza lesson scheduling', () => {
     await expect(service.reviewReschedule({
       appId: APP_ID,
       id: request.id,
+      actorId: 99,
       actorId: 99,
       approve: true,
     })).resolves.toMatchObject({ id: request.id, status: 'APPROVED' })
