@@ -18,6 +18,9 @@ const handlePaymentWebhook = async ({ provider, rawBody, signature }) => {
 
   const payloadHash = crypto.createHash('sha256').update(rawBody).digest('hex')
   const existing = await eventRepository.findEvent(normalizedProvider, eventId, eventType)
+  if (existing?.payloadHash && existing.payloadHash !== payloadHash) {
+    throw new Error('Payment provider webhook payload does not match the previously received event.')
+  }
   if (existing?.status === 'PROCESSED') return { processed: false, duplicate: true, eventId }
 
   const eventRow = existing || await eventRepository.createEvent({
