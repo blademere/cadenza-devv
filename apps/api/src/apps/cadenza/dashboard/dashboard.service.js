@@ -2,8 +2,6 @@ import { requireAppId } from '../../../platform/applications/application-scope.j
 import { can } from '../../../platform/authorization/authorization.service.js'
 import * as lessonRepository from '../lessons/lesson.repository.js'
 import * as rentalRepository from '../rentals/rental.repository.js'
-import * as studentRepository from '../students/student.repository.js'
-import * as instructorRepository from '../instructors/instructor.repository.js'
 import { listObligationsByApp } from '../../../platform/payments/payment.repository.js'
 import { ENROLLMENT_STATUS, RENTAL_STATUS } from '../cadenza.constants.js'
 
