@@ -27,9 +27,8 @@ const passwordResetSchema = z.object({
     newPassword: z.string().min(8).max(72),
   }),
 })
-const emailVerificationSchema = z.object({
-  body: z.object({ token: z.string().min(32).max(128) }),
-})
+const emailVerificationSchema = z.object({ body: z.object({ token: z.string().min(32).max(128) }) })
+const applicationSelectionSchema = z.object({ body: z.object({ appKey: z.string().trim().min(1).max(128) }) })
 const sessionIdSchema = z.object({ params: z.object({ id: z.uuid() }) })
 const loginValidator = async (req) => loginSchema.parse({ body: req.body || {} })
 const registrationValidator = async (req) => registrationSchema.parse({ body: req.body || {} })
@@ -37,6 +36,7 @@ const passwordChangeValidator = async (req) => passwordChangeSchema.parse({ body
 const passwordResetRequestValidator = async (req) => passwordResetRequestSchema.parse({ body: req.body || {} })
 const passwordResetValidator = async (req) => passwordResetSchema.parse({ body: req.body || {} })
 const emailVerificationValidator = async (req) => emailVerificationSchema.parse({ body: req.body || {} })
+const applicationSelectionValidator = async (req) => applicationSelectionSchema.parse({ body: req.body || {} })
 const sessionIdValidator = async (req) => sessionIdSchema.parse({ params: req.params || {} })
 
-export { loginValidator, registrationValidator, passwordChangeValidator, passwordResetRequestValidator, passwordResetValidator, emailVerificationValidator, sessionIdValidator }
+export { loginValidator, registrationValidator, passwordChangeValidator, passwordResetRequestValidator, passwordResetValidator, emailVerificationValidator, applicationSelectionValidator, sessionIdValidator }
