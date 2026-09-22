@@ -13,7 +13,7 @@ const findStudentForActor = (actorId, appId, db = prisma) => db.cadenzaStudent.f
 const findPackage = (id, appId) => prisma.cadenzaLessonPackage.findFirst({ where: { id, appId } })
 const createEnrollment = (data, db = prisma) => db.cadenzaEnrollment.create({ data })
 const attachPaymentObligation = (id, appId, paymentObligationId, db = prisma) => db.cadenzaEnrollment.update({ where: { id }, data: { paymentObligationId }, include: { lessonPackage: true } })
-const listEnrollments = (appId, db = prisma) => db.cadenzaEnrollment.findMany({ where: { appId }, include: { lessonPackage: true, student: { include: { person: true } }, _count: { select: { sessions: true } } }, orderBy: { createdAt: 'desc' } })
+const listEnrollments = (appId, db = prisma) => db.cadenzaEnrollment.findMany({ where: { appId }, include: { lessonPackage: true, student: { include: { person: true } }, sessions: { select: { status: true, attendance: { select: { status: true } } } } }, orderBy: { createdAt: 'desc' } })
 const findEnrollmentById = (id, appId, db = prisma) => db.cadenzaEnrollment.findFirst({ where: { id, appId }, include: { lessonPackage: true, student: { include: { person: true } }, sessions: { orderBy: { scheduledStart: 'asc' }, include: { attendance: true, instructor: { include: { person: true } } } } } })
 const confirmEnrollment = (id, appId, db = prisma) => db.cadenzaEnrollment.updateMany({ where: { id, appId, status: 'PENDING_PAYMENT' }, data: { status: 'CONFIRMED', enrolledAt: new Date() } })
 const updateEnrollmentStatus = (id, appId, fromStatuses, status, db = prisma) => db.cadenzaEnrollment.updateMany({ where: { id, appId, status: { in: fromStatuses } }, data: { status } })
