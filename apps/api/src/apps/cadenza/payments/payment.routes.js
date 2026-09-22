@@ -3,7 +3,7 @@ import { asyncHandler, validate, idempotency } from '../../../common/middleware/
 import { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
 import * as controller from './payment.controller.js'
 import * as service from './payment.service.js'
-import { getValidator, payValidator, checkoutValidator } from './payment.validation.js'
+import { getValidator, payValidator, checkoutValidator, refundValidator } from './payment.validation.js'
 
 const router = express.Router()
 const resource = authorizeResource({
@@ -26,14 +26,9 @@ router.post('/:obligationId/pay', payResource, idempotency({ scope: 'cadenza-pay
 
 router.post(
   '/refunds/:paymentId',
-  authorizeResource({
-    resource: 'cadenza_payments',
-    action: 'manage',
-    loadResource: (id, req) => service.get({ obligationId: id, appId: req.security.app.id, actorId: req.user?.id }),
-    getResourceId: (req) => req.params.paymentId,
-  }),
+  authorizeResource({ resource: 'cadenza_payments', action: 'manage' }),
   idempotency({ scope: 'cadenza-payment-refunds', required: true }),
-  validate(payValidator),
+  validate(refundValidator),
   asyncHandler(controller.refund)
 )
 export default router
