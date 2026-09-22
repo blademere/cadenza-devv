@@ -5,5 +5,6 @@ const findPersonByUserId=(userId)=>prisma.person.findUnique({where:{userId},sele
 const personExists=(personId)=>prisma.person.findUnique({where:{id:personId},select:{id:true}})
 const findById=(id,appId)=>prisma.cadenzaStudent.findFirst({where:{id,appId},include:{person:{select:personSelect}}})
 const list=(appId)=>prisma.cadenzaStudent.findMany({where:{appId},include:{person:{select:personSelect}},orderBy:{createdAt:'desc'}})
+const update=(id,appId,data)=>prisma.cadenzaStudent.updateMany({where:{id,appId},data})
 const create=(data)=>prisma.cadenzaStudent.create({data,include:{person:{select:personSelect}}})
-export {findById,list,create,personExists,findPersonByUserId}
+export {findById,list,create,update,personExists,findPersonByUserId}
