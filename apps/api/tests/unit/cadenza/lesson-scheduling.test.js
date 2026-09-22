@@ -20,6 +20,10 @@ vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({
   can: vi.fn().mockResolvedValue(true),
 }))
 
+vi.mock('../../../src/apps/cadenza/instructors/instructor-availability.service.js', () => ({
+  assertAvailable: vi.fn().mockResolvedValue(true),
+}))
+
 vi.mock('../../../src/platform/event-bus/event-outbox.service.js', () => ({
   enqueueEvent: vi.fn().mockResolvedValue({ id: 'event-1' }),
 }))
@@ -65,6 +69,7 @@ describe('Cadenza lesson scheduling', () => {
       lessonPackage: { numberOfSessions: 4 },
       _count: { sessions: 4 },
     })
+    repository.countConsumedSessions.mockResolvedValue(4)
 
     await expect(service.createSession({
       appId: APP_ID,
