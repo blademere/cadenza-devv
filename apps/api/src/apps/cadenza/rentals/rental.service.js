@@ -159,6 +159,11 @@ const cancel = async ({ appId, id, actorId }) => {
     const rental = await repository.findById(id, owner, tx)
     if (!rental) throw new NotFoundError('Rental not found.')
     if (!manager && Number(rental.customerUserId) !== Number(actorId)) throw new ForbiddenError('You can only cancel your own rental.')
+    if (![RENTAL_STATUS.PENDING, RENTAL_STATUS.RESERVED].includes(rental.status)) throw new ConflictError('Only pending or reserved rentals can be cancelled.')
+    if (rental.paymentObligationId) {
+      const obligation = await getObligation(rental.paymentObligationId, owner, tx)
+      if (obligation && Number(obligation.paidAmount) > 0) throw new ConflictError('Paid rentals require a refund workflow before cancellation.')
+    }
     const result = await repository.cancel(id, owner, tx)
     if (result.count !== 1)
       throw new ConflictError(
