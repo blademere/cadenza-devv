@@ -10,6 +10,7 @@ model CadenzaStudent {
   person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
   @@unique([appId, personId])
   @@index([appId, status])
+  enrollments CadenzaEnrollment[]
 }
 
 model CadenzaInstructor {
@@ -27,6 +28,7 @@ model CadenzaInstructor {
   @@index([appId, status])
   availabilityRules CadenzaInstructorAvailability[]
   blocks            CadenzaInstructorBlock[]
+  sessions          CadenzaLessonSession[]
 }
 
 model CadenzaInstructorAvailability {
@@ -136,6 +138,7 @@ model CadenzaEnrollment {
   updatedAt           DateTime @updatedAt
   app                 App      @relation(fields: [appId], references: [id], onDelete: Cascade)
   lessonPackage       CadenzaLessonPackage @relation(fields: [lessonPackageId], references: [id], onDelete: Restrict)
+  student             CadenzaStudent @relation(fields: [studentId], references: [id], onDelete: Restrict)
   sessions            CadenzaLessonSession[]
   @@index([appId, studentId, status])
   @@index([appId, lessonPackageId])
@@ -157,7 +160,9 @@ model CadenzaLessonSession {
   updatedAt    DateTime @updatedAt
   app          App          @relation(fields: [appId], references: [id], onDelete: Cascade)
   enrollment   CadenzaEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  instructor   CadenzaInstructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   attendance   CadenzaAttendance?
+  rescheduleRequests CadenzaRescheduleRequest[]
   @@index([appId, scheduledStart, scheduledEnd])
   @@index([appId, instructorId, scheduledStart])
   @@index([appId, roomId, scheduledStart])
@@ -187,6 +192,7 @@ model CadenzaRescheduleRequest {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   app           App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  session       CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   @@index([appId, status, createdAt])
   @@index([sessionId])
 }
