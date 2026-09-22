@@ -1,7 +1,7 @@
 import { positiveDecimal, compare } from '../../../platform/money/money.js'
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../../common/errors/appError.js'
 import { requireAppId } from '../../../platform/applications/application-scope.js'
-import { getObligation, recordPayment, createCheckout, listPaymentHistory, refundPayment } from '../../../platform/payments/payment.service.js'
+import { getObligation, getPayment, recordPayment, createCheckout, listPaymentHistory, refundPayment } from '../../../platform/payments/payment.service.js'
 import { can } from '../../../platform/authorization/authorization.service.js'
 import { env } from '../../../config/index.js'
 import * as repository from './payment.repository.js'
@@ -101,6 +101,15 @@ const history = async ({ appId, obligationId, actorId }) => {
   return listPaymentHistory({ appId: requireAppId(appId), obligationId })
 }
 
+const getPaymentResource = async ({ appId, paymentId }) => {
+  const owner = requireAppId(appId)
+  const payment = await getPayment(paymentId, owner)
+  if (!payment) return null
+  const obligation = await getObligation(payment.obligationId, owner)
+  if (!obligation || !['CADENZA_RENTAL', 'CADENZA_ENROLLMENT'].includes(obligation.referenceType)) return null
+  return { ...payment, appId: owner }
+}
+
 const refund = async ({ appId, paymentId, amount, currency, reason, actorId, manual = true, idempotencyKey }) => {
   const owner = requireAppId(appId)
   if (!(await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_payments', action: 'manage' }))) {
@@ -118,4 +127,4 @@ const refund = async ({ appId, paymentId, amount, currency, reason, actorId, man
   })
 }
 
-export { pay, get, checkout, history, refund }
+export { pay, get, checkout, history, getPaymentResource, refund }
