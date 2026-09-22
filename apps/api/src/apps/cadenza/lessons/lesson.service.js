@@ -83,6 +83,7 @@ const createPackage = async ({
     throw e
   }
 }
+const updatePackage = async ({ appId, id, ...data }) => { const owner=requireAppId(appId); const current=await repository.findPackage(id,owner); if(!current) throw new NotFoundError('Lesson package not found.'); if(data.price!==undefined) data.price=decimalAmount(data.price,'price'); if(data.numberOfSessions!==undefined && (!Number.isInteger(Number(data.numberOfSessions))||Number(data.numberOfSessions)<=0)) throw new BadRequestError('numberOfSessions must be greater than zero.'); if(data.name!==undefined && !data.name?.trim()) throw new BadRequestError('name is required.'); if(data.name!==undefined) data.name=data.name.trim(); if(data.description!==undefined) data.description=data.description?.trim()||null; const result=await repository.updatePackage(id,owner,data); if(result.count!==1) throw new ConflictError('Lesson package was modified or no longer exists.'); return repository.findPackage(id,owner) }
 const addAttachment = async ({
   appId,
   lessonPackageId,
@@ -489,6 +490,7 @@ const cancelSession = ({ appId, id }) =>
 export {
   listPackages,
   createPackage,
+  updatePackage,
   addAttachment,
   listAttachments,
   removeAttachment,
