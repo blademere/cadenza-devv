@@ -1,12 +1,11 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '../../features/auth/components/AuthProvider'
 
-import { useAuth } from '../../features/auth/components/AuthProvider';
+export default function GuestRoute({ children }) {
+  const { isAuthenticated, isLoading } = useAuth()
 
-export default function GuestRoute() {
-  const { isAuthenticated, loading } = useAuth();
+  if (isLoading) return null
+  if (isAuthenticated) return <Navigate to="/app/dashboard" replace />
 
-  if (loading) return null;
-  if (isAuthenticated) return <Navigate to="/app/dashboard" replace />;
-
-  return <Outlet />;
+  return children
 }
