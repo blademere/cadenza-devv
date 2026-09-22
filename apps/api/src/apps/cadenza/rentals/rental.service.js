@@ -68,7 +68,7 @@ const create = async ({
     const overlap =
       (await repository.findOverlap({ appId: owner, resourceId, scheduledStart: start, scheduledEnd: end }, tx)) ||
       (rentalType === 'ROOM'
-        ? await repository.findLessonSessionOverlap({ appId: owner, roomResourceId: resourceId, scheduledStart: start, scheduledEnd: end }, tx)
+        ? await repository.findLessonSessionOverlap({ appId: owner, roomId: domainResource.id, scheduledStart: start, scheduledEnd: end }, tx)
         : null)
     if (overlap) throw new ConflictError('Resource is already reserved for an overlapping booking.')
     const rental = await repository.create({
