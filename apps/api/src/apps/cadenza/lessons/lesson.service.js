@@ -292,7 +292,7 @@ const cancelEnrollment = async ({ appId, id, actorId }) => {
       }
     }
 
-    await repository.updateSessionStatusForEnrollment?.(id, owner, SESSION_STATUS.SCHEDULED, SESSION_STATUS.CANCELLED, tx)
+    await repository.updateSessionStatusForEnrollment(id, owner, SESSION_STATUS.SCHEDULED, SESSION_STATUS.CANCELLED, tx)
     const result = await repository.updateEnrollmentStatus(
       id,
       owner,
