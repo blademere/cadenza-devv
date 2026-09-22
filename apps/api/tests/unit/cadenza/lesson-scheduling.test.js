@@ -9,6 +9,7 @@ vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
   findInstructor: vi.fn(),
   findRoom: vi.fn(),
   findOverlappingSession: vi.fn(),
+  findRoomRentalOverlap: vi.fn(),
   createSession: vi.fn(),
   listSessions: vi.fn(),
   countConsumedSessions: vi.fn(),
@@ -17,6 +18,10 @@ vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
 
 vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({
   can: vi.fn().mockResolvedValue(true),
+}))
+
+vi.mock('../../../src/platform/event-bus/event-outbox.service.js', () => ({
+  enqueueEvent: vi.fn().mockResolvedValue({ id: 'event-1' }),
 }))
 
 vi.mock('../../../src/platform/transactions/transaction.service.js', () => ({
@@ -37,7 +42,7 @@ describe('Cadenza lesson scheduling', () => {
   it('schedules a session for a confirmed enrollment', async () => {
     repository.findEnrollment.mockResolvedValue({ id: ENROLLMENT_ID, status: 'CONFIRMED' })
     repository.countConsumedSessions.mockResolvedValue(0)
-    repository.findInstructor.mockResolvedValue({ id: INSTRUCTOR_ID, status: 'ACTIVE' })
+    repository.findInstructor.mockResolvedValue({ id: INSTRUCTOR_ID, status: 'ACTIVE', person: { userId: 77 } })
     repository.findRoom.mockResolvedValue({ id: ROOM_ID, status: 'AVAILABLE' })
     repository.findOverlappingSession.mockResolvedValue(null)
     repository.createSession.mockResolvedValue({ id: 'session-1', status: 'SCHEDULED' })
