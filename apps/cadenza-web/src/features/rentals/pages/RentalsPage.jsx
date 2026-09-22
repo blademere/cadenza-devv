@@ -5,11 +5,12 @@ import LoadingState from '../../../components/common/LoadingState'
 import { rentalsApi } from '../api/rentals.api'
 import { paymentsApi } from '../../payments/api/payments.api'
 import { studentsApi } from '../../students/api/students.api'
-import { resourcesApi } from '../../resources/api/resources.api'
+import { resourcesApi }
+import { useAuthorization } from '../../../features/authorization/components/AuthorizationProvider' from '../../resources/api/resources.api'
 
 const unwrap = (response) => response?.data ?? response ?? []
 
-export default function RentalsPage() {
+export default function RentalsPage() {\n  const { can } = useAuthorization()\n  const canCreateRental = can('cadenza_rentals:create')\n  const canManageRental = can('cadenza_rentals:manage')\n  const canCreatePayment = can('cadenza_payments:create')
   const client = useQueryClient()
   const query = useQuery({ queryKey: ['cadenza', 'rentals'], queryFn: rentalsApi.list })
   const students = useQuery({ queryKey: ['cadenza', 'students'], queryFn: studentsApi.list })
@@ -33,7 +34,7 @@ export default function RentalsPage() {
   const run = (type, id) => action.mutate({ type, id })
   const submit = () => create.mutate({ ...form, customerUserId: Number(form.customerUserId), scheduledStart: new Date(form.scheduledStart).toISOString(), scheduledEnd: new Date(form.scheduledEnd).toISOString(), totalAmount: String(form.totalAmount), requiredDownPayment: String(form.requiredDownPayment) })
   return <Stack gap="lg">
-    <Group justify="space-between"><div><Title order={2}>Rentals</Title><Text c="dimmed">Instrument and band-room reservations with down-payment and balance tracking.</Text></div><Button onClick={() => setCreateOpened(true)}>Book rental</Button></Group>
+    <Group justify="space-between"><div><Title order={2}>Rentals</Title><Text c="dimmed">Instrument and band-room reservations with down-payment and balance tracking.</Text></div>{canCreateRental && <Button onClick={() => setCreateOpened(true)}>Book rental</Button>}</Group>
     {(action.error || pay.error || checkout.error || create.error) && <Alert color="red" title="Rental operation failed">{(action.error || pay.error || checkout.error || create.error).message}</Alert>}
     {!rentals.length ? <Alert color="gray" title="No rentals">Book an instrument or band-room rental.</Alert> :
       <SimpleGrid cols={{ base: 1, md: 2 }}>{rentals.map((rental) =>
@@ -45,11 +46,11 @@ export default function RentalsPage() {
           <Text fw={600}>Total: ₱{Number(rental.totalAmount).toLocaleString()}</Text>
           <Text size="sm">Down payment: ₱{Number(rental.requiredDownPayment).toLocaleString()}</Text>
           <Group>
-            {rental.paymentObligationId && <Button variant="light" onClick={() => { setPayment(rental); setAmount(rental.requiredDownPayment) }}>Payment details</Button>}
-            {rental.paymentObligationId && rental.status === 'PENDING' && <Button variant="light" loading={checkout.isPending} onClick={() => checkout.mutate(rental)}>Online checkout</Button>}
-            {rental.status === 'RESERVED' && <Button loading={action.isPending} onClick={() => run('checkout', rental.id)}>Check out</Button>}
-            {rental.status === 'CHECKED_OUT' && <Button loading={action.isPending} onClick={() => run('returnRental', rental.id)}>Return</Button>}
-            {['PENDING', 'RESERVED'].includes(rental.status) && <Button color="red" variant="subtle" loading={action.isPending} onClick={() => run('cancel', rental.id)}>Cancel</Button>}
+            {rental.paymentObligationId && canCreatePayment && <Button variant="light" onClick={() => { setPayment(rental); setAmount(rental.requiredDownPayment) }}>Payment details</Button>}
+            {rental.paymentObligationId && rental.status === 'PENDING' && canCreatePayment && <Button variant="light" loading={checkout.isPending} onClick={() => checkout.mutate(rental)}>Online checkout</Button>}
+            {rental.status === 'RESERVED' && canManageRental && <Button loading={action.isPending} onClick={() => run('checkout', rental.id)}>Check out</Button>}
+            {rental.status === 'CHECKED_OUT' && canManageRental && <Button loading={action.isPending} onClick={() => run('returnRental', rental.id)}>Return</Button>}
+            {['PENDING', 'RESERVED'].includes(rental.status) && canManageRental && <Button color="red" variant="subtle" loading={action.isPending} onClick={() => run('cancel', rental.id)}>Cancel</Button>}
           </Group>
         </Stack></Card>
       )}</SimpleGrid>}
