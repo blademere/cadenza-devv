@@ -179,6 +179,30 @@ const removeAttachment = async ({ appId, actorId, lessonPackageId, id }) => {
     .catch(() => {})
   return { id }
 }
+const getEnrollment = async ({ appId, id, actorId }) => {
+  const owner = requireAppId(appId)
+  const enrollment = await repository.findEnrollmentById(id, owner)
+  if (!enrollment) throw new NotFoundError('Enrollment not found.')
+  const manager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' })
+  if (!manager && Number(enrollment.student?.person?.userId) !== Number(actorId))
+    throw new NotFoundError('Enrollment not found.')
+  const sessions = enrollment.sessions || []
+  const completedSessions = sessions.filter((session) => session.status === SESSION_STATUS.COMPLETED).length
+  const scheduledSessions = sessions.filter((session) => session.status === SESSION_STATUS.SCHEDULED).length
+  const attendedSessions = sessions.filter((session) => ['PRESENT', 'LATE', 'EXCUSED'].includes(session.attendance?.status)).length
+  const totalSessions = Number(enrollment.lessonPackage?.numberOfSessions || 0)
+  return {
+    ...enrollment,
+    progress: {
+      totalSessions,
+      scheduledSessions,
+      completedSessions,
+      attendedSessions,
+      remainingSessions: Math.max(totalSessions - completedSessions, 0),
+      completionPercent: totalSessions ? Math.min(100, Math.round((completedSessions / totalSessions) * 100)) : 0,
+    },
+  }
+}
 const listEnrollments = async ({ appId, actorId }) => {
   const owner = requireAppId(appId)
   const rows = await repository.listEnrollments(owner)
@@ -349,11 +373,21 @@ const markAttendance = async ({ appId, sessionId, actorId, status, notes }) => {
       throw new ConflictError(
         'Attendance cannot be changed for a cancelled or completed session.'
       )
-    return repository.upsertAttendance(
+    const attendance = await repository.upsertAttendance(
       sessionId,
       { status, markedByUserId: Number(actorId), notes: notes?.trim() || null },
       tx
     )
+    if ([ENROLLMENT_STATUS.CONFIRMED, ENROLLMENT_STATUS.IN_PROGRESS].includes(session.enrollment?.status)) {
+      await repository.updateEnrollmentStatus(
+        session.enrollment.id,
+        owner,
+        [ENROLLMENT_STATUS.CONFIRMED],
+        ENROLLMENT_STATUS.IN_PROGRESS,
+        tx
+      )
+    }
+    return attendance
   })
 }
 const requestReschedule = async ({
@@ -511,9 +545,27 @@ const transitionSession = async ({ appId, id, status, expectedStatus }) => {
   })
 }
 const completeSession = async ({ appId, id, actorId }) => {
-  if (!(await canManage(actorId, requireAppId(appId))))
+  const owner = requireAppId(appId)
+  if (!(await canManage(actorId, owner)))
     throw new ForbiddenError('Only lesson management staff can complete sessions.')
-  return transitionSession({ appId, id, status: SESSION_STATUS.COMPLETED, expectedStatus: SESSION_STATUS.SCHEDULED })
+  return runTransaction(async (tx) => {
+    const session = await repository.findSession(id, owner, tx)
+    if (!session) throw new NotFoundError('Lesson session not found.')
+    if (session.status !== SESSION_STATUS.SCHEDULED)
+      throw new ConflictError('Lesson session is not in the expected state.')
+    await repository.updateSession(id, owner, { status: SESSION_STATUS.COMPLETED }, tx)
+    const enrollment = await repository.findEnrollmentById(session.enrollmentId, owner, tx)
+    if (enrollment) {
+      const completed = enrollment.sessions.filter((item) => item.status === SESSION_STATUS.COMPLETED || item.id === id).length
+      const total = Number(enrollment.lessonPackage?.numberOfSessions || 0)
+      if (completed >= total) {
+        await repository.updateEnrollmentStatus(enrollment.id, owner, [ENROLLMENT_STATUS.CONFIRMED, ENROLLMENT_STATUS.IN_PROGRESS], ENROLLMENT_STATUS.COMPLETED, tx)
+      } else {
+        await repository.updateEnrollmentStatus(enrollment.id, owner, [ENROLLMENT_STATUS.CONFIRMED], ENROLLMENT_STATUS.IN_PROGRESS, tx)
+      }
+    }
+    return repository.findSession(id, owner, tx)
+  })
 }
 const cancelSession = async ({ appId, id, actorId }) => {
   if (!(await canManage(actorId, requireAppId(appId))))
@@ -529,6 +581,7 @@ export {
   getAttachmentUrl,
   removeAttachment,
   listEnrollments,
+  getEnrollment,
   enroll,
   listSessions,
   getSession,
