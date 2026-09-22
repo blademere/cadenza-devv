@@ -13,7 +13,6 @@ import {
   refundPayment,
 } from '../../../platform/payments/payment.service.js'
 import * as repository from './rental.repository.js'
-import { isResourceAvailable } from '../../../features/resources/resource.repository.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import { RENTAL_STATUS } from '../cadenza.constants.js'
 const decimalAmount = (value, field) => {
@@ -67,8 +66,22 @@ const create = async ({
   if (compare(down, total) > 0)
     throw new BadRequestError('requiredDownPayment must be no greater than the calculated rental total.')
   return runTransaction(async (tx) => {
-    const available = await isResourceAvailable({ appId: owner, resourceId, resourceType: expectedType, startsAt: start, endsAt: end }, tx)
-    if (!available) throw new ConflictError('Resource is already reserved for an overlapping booking.')
+    const overlap = await repository.findOverlap({
+      appId: owner,
+      resourceId,
+      scheduledStart: start,
+      scheduledEnd: end,
+    }, tx)
+    if (overlap) throw new ConflictError('Resource is already reserved for an overlapping booking.')
+    if (rentalType === 'ROOM') {
+      const roomOverlap = await repository.findLessonSessionOverlap({
+        appId: owner,
+        roomId: domainResource.id,
+        scheduledStart: start,
+        scheduledEnd: end,
+      }, tx)
+      if (roomOverlap) throw new ConflictError('Room is already reserved for an overlapping booking.')
+    }
     const rental = await repository.create({
       appId: owner,
       customerUserId: customer,
