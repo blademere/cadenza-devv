@@ -167,11 +167,10 @@ const markExpiredSessionsMissed = async ({ now = new Date() } = {}) => {
       const session = await repository.findSession(candidate.id, candidate.appId, tx)
       if (!session || session.status !== SESSION_STATUS.SCHEDULED || session.scheduledEnd > now) return
 
-      const attendanceStatus = session.attendance?.status
       const result = await repository.updateSession(
         session.id,
         candidate.appId,
-        { status: attendanceStatus === 'ABSENT' ? SESSION_STATUS.MISSED : SESSION_STATUS.MISSED },
+        { status: SESSION_STATUS.MISSED },
         tx,
       )
       if (result.count !== 1) return
