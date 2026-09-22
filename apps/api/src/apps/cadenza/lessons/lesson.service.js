@@ -26,6 +26,11 @@ const canManage = async (userId, appId) =>
     resource: 'cadenza_lessons',
     action: 'manage',
   })
+const assertInstructorOrManager = async ({ session, actorId, appId }) => {
+  if (await canManage(actorId, appId)) return
+  if (Number(session.instructor?.person?.userId) === Number(actorId)) return
+  throw new ForbiddenError('Only the assigned instructor or lesson management staff can act on attendance.')
+}
 const assertSessionActor = async ({
   session,
   actorId,
@@ -364,7 +369,7 @@ const markAttendance = async ({ appId, sessionId, actorId, status, notes }) => {
   return runTransaction(async (tx) => {
     const session = await repository.findSession(sessionId, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
-    await assertSessionActor({ session, actorId, appId: owner })
+    await assertInstructorOrManager({ session, actorId, appId: owner })
     if (
       [SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED].includes(
         session.status
@@ -412,13 +417,16 @@ const requestReschedule = async ({
   return runTransaction(async (tx) => {
     const session = await repository.findSession(sessionId, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
-    await assertSessionActor({ session, actorId, appId: owner })
+    const manager = await canManage(actorId, owner)
+    const student = Number(session.enrollment?.student?.person?.userId) === Number(actorId)
+    if (!manager && !student) throw new ForbiddenError('Only the enrolled student can request a reschedule.')
     if (
       [SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED].includes(
         session.status
       )
     )
       throw new ConflictError('Only active lesson sessions can be rescheduled.')
+    if (!reason?.trim()) throw new BadRequestError('reason is required for a reschedule request.')
     if (await repository.findPendingReschedule(sessionId, owner, tx))
       throw new ConflictError('A pending reschedule request already exists for this lesson session.')
     return repository.createReschedule(
@@ -435,10 +443,22 @@ const requestReschedule = async ({
     )
   })
 }
+const cancelReschedule = async ({ appId, id, actorId }) => {
+  const owner = requireAppId(appId)
+  const request = await repository.findReschedule(id, owner)
+  if (!request || request.status !== RESCHEDULE_STATUS.PENDING) throw new NotFoundError('Pending reschedule request not found.')
+  const session = await repository.findSession(request.sessionId, owner)
+  const manager = await canManage(actorId, owner)
+  if (!manager && Number(request.requestedByUserId) !== Number(actorId)) throw new ForbiddenError('You can only cancel your own reschedule request.')
+  if (!session) throw new NotFoundError('Lesson session not found.')
+  const result = await repository.cancelReschedule(id, owner)
+  if (result.count !== 1) throw new ConflictError('Reschedule request is no longer pending.')
+  return repository.findReschedule(id, owner)
+}
 const reviewReschedule = async ({ appId, id, actorId, approve }) => {
   const owner = requireAppId(appId)
-  if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
-    throw new BadRequestError('Authenticated actor is required.')
+  if (!(await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'review_reschedule' })))
+    throw new ForbiddenError('Only lesson management staff can review reschedule requests.')
   return runTransaction(async (tx) => {
     const initialRequest = await repository.findReschedule(id, owner, tx)
     if (!initialRequest)
@@ -591,6 +611,7 @@ export {
   markAttendance,
   requestReschedule,
   reviewReschedule,
+  cancelReschedule,
   completeSession,
   cancelSession,
 }
