@@ -2,78 +2,32 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Badge, Button, Card, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, Textarea, Title } from '@mantine/core'
 import LoadingState from '../../../components/common/LoadingState'
-import { schedulingApi }
-import { useAuthorization } from '../../../authorization/components/AuthorizationProvider' from '../api/scheduling.api'
+import { schedulingApi } from '../api/scheduling.api'
 import { lessonsApi } from '../../lessons/api/lessons.api'
 import { instructorsApi } from '../../instructors/api/instructors.api'
 import { resourcesApi } from '../../resources/api/resources.api'
-
-const unwrap = (response) => response?.data ?? response ?? []
-
-export default function LessonSchedulePage() {\n  const { can } = useAuthorization()\n  const canCreate = can('cadenza_lessons:create')\n  const canUpdate = can('cadenza_lessons:update')\n  const canManage = can('cadenza_lessons:manage')
-  const client = useQueryClient()
-  const query = useQuery({ queryKey: ['cadenza', 'lesson-sessions'], queryFn: schedulingApi.listSessions })
-  const enrollments = useQuery({ queryKey: ['cadenza', 'enrollments'], queryFn: lessonsApi.listEnrollments })
-  const reschedules = useQuery({ queryKey: ['cadenza', 'reschedules'], queryFn: schedulingApi.listReschedules })
-  const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list })
-  const rooms = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms })
-  const [selected, setSelected] = useState(null)
-  const [createOpened, setCreateOpened] = useState(false)
-  const [rescheduleOpened, setRescheduleOpened] = useState(null)
-  const [status, setStatus] = useState('PRESENT')
-  const [notes, setNotes] = useState('')
-  const [form, setForm] = useState({ enrollmentId: null, instructorId: null, roomId: null, scheduledStart: '', scheduledEnd: '' })
-  const [reschedule, setReschedule] = useState({ requestedStart: '', requestedEnd: '', reason: '' })
-  const attendance = useMutation({ mutationFn: ({ id, value }) => schedulingApi.markAttendance(id, value), onSuccess: () => { setSelected(null); client.invalidateQueries({ queryKey: ['cadenza', 'lesson-sessions'] }) } })
-  const transition = useMutation({ mutationFn: ({ id, type }) => schedulingApi[type](id), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'lesson-sessions'] }) })
-  const create = useMutation({ mutationFn: schedulingApi.createSession, onSuccess: () => { setCreateOpened(false); client.invalidateQueries({ queryKey: ['cadenza', 'lesson-sessions'] }) } })
-  const review = useMutation({ mutationFn: ({ id, approve }) => schedulingApi.reviewReschedule(id, approve), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'reschedules'] }) })
-  const request = useMutation({ mutationFn: schedulingApi.requestReschedule, onSuccess: () => setRescheduleOpened(null) })
-  if (query.isLoading) return <LoadingState label="Loading lesson schedule…" rows={3} />
-  if (query.error) return <Alert color="red" title="Unable to load lesson schedule">{query.error.message}</Alert>
-  const sessions = unwrap(query.data)
-  const enrollmentData = unwrap(enrollments.data)
-  const instructorData = unwrap(instructors.data)
-  const roomData = unwrap(rooms.data)
-  const rescheduleData = unwrap(reschedules.data)
-  return <Stack gap="lg">
-    <Group justify="space-between"><div><Title order={2}>Lesson Schedule</Title><Text c="dimmed">Schedule sessions, assign instructors and rooms, attendance, and reschedules.</Text></div>{canCreate && <Button onClick={() => setCreateOpened(true)}>Schedule session</Button>}</Group>
-    {(attendance.error || transition.error || create.error || request.error || review.error) && <Alert color="red" title="Schedule operation failed">{(attendance.error || transition.error || create.error || request.error).message}</Alert>}
-    <Card withBorder><Stack><Group justify="space-between"><Title order={4}>Pending reschedule requests</Title><Badge>{rescheduleData.filter((r) => r.status === 'PENDING').length}</Badge></Group>{!rescheduleData.filter((r) => r.status === 'PENDING').length ? <Text c="dimmed">No pending requests.</Text> : rescheduleData.filter((r) => r.status === 'PENDING').map((r) => <Card key={r.id} withBorder><Group justify="space-between"><Text size="sm">{new Date(r.requestedStart).toLocaleString()} – {new Date(r.requestedEnd).toLocaleString()}</Text><Group><Button size="xs" loading={review.isPending} onClick={() => review.mutate({ id: r.id, approve: true })}>Approve</Button><Button size="xs" color="red" variant="subtle" loading={review.isPending} onClick={() => review.mutate({ id: r.id, approve: false })}>Reject</Button></Group></Group><Text size="xs" c="dimmed">{r.reason || 'No reason provided'}</Text></Card>)}</Stack></Card>
-    {!sessions.length ? <Alert color="gray" title="No scheduled sessions">Confirmed lesson enrollments can be scheduled here.</Alert> :
-      <SimpleGrid cols={{ base: 1, md: 3 }}>{sessions.map((session) =>
-        <Card key={session.id} withBorder><Stack gap="xs">
-          <Group justify="space-between"><Text fw={700}>{new Date(session.scheduledStart).toLocaleString()}</Text><Badge variant="light">{session.status}</Badge></Group>
-          <Text size="sm">Session {session.id.slice(0, 8)}</Text>
-          {session.attendance && <Text size="sm">Attendance: {session.attendance.status}</Text>}
-          <Text size="sm" c="dimmed">Instructor: {session.instructorId ?? 'Unassigned'}</Text>
-          <Text size="sm" c="dimmed">Room: {session.roomId ?? 'Unassigned'}</Text>
-          <Group>
-            {session.status === 'SCHEDULED' && canUpdate && <Button variant="light" onClick={() => setSelected(session)}>Attendance</Button>}
-            {session.status === 'SCHEDULED' && canUpdate && <Button variant="subtle" onClick={() => setRescheduleOpened(session)}>Request reschedule</Button>}
-            {session.status === 'SCHEDULED' && canManage && <Button loading={transition.isPending} onClick={() => transition.mutate({ id: session.id, type: 'completeSession' })}>Complete</Button>}
-            {session.status === 'SCHEDULED' && canManage && <Button color="red" variant="subtle" loading={transition.isPending} onClick={() => transition.mutate({ id: session.id, type: 'cancelSession' })}>Cancel</Button>}
-          </Group>
-        </Stack></Card>
-      )}</SimpleGrid>}
-    <Modal opened={createOpened} onClose={() => setCreateOpened(false)} title="Schedule lesson session"><Stack>
-      <Select label="Confirmed enrollment" data={enrollmentData.filter((e) => e.status === 'CONFIRMED').map((e) => ({ value: e.id, label: `${e.studentId} · ${e.lessonPackageId}` }))} value={form.enrollmentId} onChange={(value) => setForm({ ...form, enrollmentId: value })} />
-      <Select label="Instructor" clearable data={instructorData.map((i) => ({ value: i.id, label: i.person?.name ?? i.person?.fullName ?? i.personId ?? i.id }))} value={form.instructorId} onChange={(value) => setForm({ ...form, instructorId: value })} />
-      <Select label="Room" clearable data={roomData.map((r) => ({ value: r.id, label: r.roomType ?? r.resourceId ?? r.id }))} value={form.roomId} onChange={(value) => setForm({ ...form, roomId: value })} />
-      <TextInput label="Start" type="datetime-local" value={form.scheduledStart} onChange={(e) => setForm({ ...form, scheduledStart: e.currentTarget.value })} />
-      <TextInput label="End" type="datetime-local" value={form.scheduledEnd} onChange={(e) => setForm({ ...form, scheduledEnd: e.currentTarget.value })} />
-      <Button loading={create.isPending} disabled={!form.enrollmentId || !form.scheduledStart || !form.scheduledEnd} onClick={() => create.mutate({ ...form, scheduledStart: new Date(form.scheduledStart).toISOString(), scheduledEnd: new Date(form.scheduledEnd).toISOString() })}>Schedule</Button>
-    </Stack></Modal>
-    <Modal opened={Boolean(selected)} onClose={() => setSelected(null)} title="Mark attendance"><Stack>
-      <Select label="Attendance" data={['PRESENT','ABSENT','LATE','EXCUSED']} value={status} onChange={(value) => setStatus(value || 'PRESENT')} />
-      <Textarea label="Notes" value={notes} onChange={(e) => setNotes(e.currentTarget.value)} />
-      <Button loading={attendance.isPending} onClick={() => attendance.mutate({ id: selected.id, value: { status, notes: notes || undefined } })}>Save attendance</Button>
-    </Stack></Modal>
-    <Modal opened={Boolean(rescheduleOpened)} onClose={() => setRescheduleOpened(null)} title="Request reschedule"><Stack>
-      <TextInput label="Requested start" type="datetime-local" value={reschedule.requestedStart} onChange={(e) => setReschedule({ ...reschedule, requestedStart: e.currentTarget.value })} />
-      <TextInput label="Requested end" type="datetime-local" value={reschedule.requestedEnd} onChange={(e) => setReschedule({ ...reschedule, requestedEnd: e.currentTarget.value })} />
-      <Textarea label="Reason" value={reschedule.reason} onChange={(e) => setReschedule({ ...reschedule, reason: e.currentTarget.value })} />
-      <Button loading={request.isPending} disabled={!reschedule.requestedStart || !reschedule.requestedEnd} onClick={() => request.mutate({ sessionId: rescheduleOpened.id, requestedStart: new Date(reschedule.requestedStart).toISOString(), requestedEnd: new Date(reschedule.requestedEnd).toISOString(), reason: reschedule.reason || undefined })}>Submit request</Button>
-    </Stack></Modal>
-  </Stack>
+import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
+const unwrap=r=>r?.data??r??[]
+export default function LessonSchedulePage(){
+ const {can}=useAuthorization(),client=useQueryClient()
+ const canCreate=can('cadenza_lessons:create'),canUpdate=can('cadenza_lessons:update'),canManage=can('cadenza_lessons:manage')
+ const sessions=useQuery({queryKey:['cadenza','sessions'],queryFn:schedulingApi.listSessions}),enrollments=useQuery({queryKey:['cadenza','enrollments'],queryFn:lessonsApi.listEnrollments}),instructors=useQuery({queryKey:['cadenza','instructors'],queryFn:instructorsApi.list}),rooms=useQuery({queryKey:['cadenza','rooms'],queryFn:resourcesApi.listRooms}),reschedules=useQuery({queryKey:['cadenza','reschedules'],queryFn:schedulingApi.listReschedules})
+ const [form,setForm]=useState({enrollmentId:null,instructorId:null,roomId:null,scheduledStart:'',scheduledEnd:''}),[selected,setSelected]=useState(null),[requestOpen,setRequestOpen]=useState(null),[attendance,setAttendance]=useState('PRESENT'),[notes,setNotes]=useState('')
+ const create=useMutation({mutationFn:schedulingApi.createSession,onSuccess:()=>{setForm({enrollmentId:null,instructorId:null,roomId:null,scheduledStart:'',scheduledEnd:''});client.invalidateQueries({queryKey:['cadenza','sessions']})}})
+ const mark=useMutation({mutationFn:({id,payload})=>schedulingApi.markAttendance(id,payload),onSuccess:()=>{setSelected(null);client.invalidateQueries({queryKey:['cadenza','sessions']})}})
+ const transition=useMutation({mutationFn:({type,id})=>schedulingApi[type](id),onSuccess:()=>client.invalidateQueries({queryKey:['cadenza','sessions']})})
+ const request=useMutation({mutationFn:schedulingApi.requestReschedule,onSuccess:()=>setRequestOpen(null)})
+ const review=useMutation({mutationFn:({id,approve})=>schedulingApi.reviewReschedule(id,approve),onSuccess:()=>client.invalidateQueries({queryKey:['cadenza','reschedules']})})
+ if(sessions.isLoading)return <LoadingState label="Loading schedule…" rows={4}/>
+ if(sessions.error)return <Alert color="red">{sessions.error.message}</Alert>
+ const rows=unwrap(sessions.data),confirmed=unwrap(enrollments.data).filter(e=>e.status==='CONFIRMED'),instructorRows=unwrap(instructors.data),roomRows=unwrap(rooms.data),pending=unwrap(reschedules.data).filter(r=>r.status==='PENDING')
+ const openSchedule=()=>setForm({...form,enrollmentId:confirmed[0]?.id??null})
+ return <Stack gap="lg"><Group justify="space-between"><div><Title order={2}>Lesson Schedule</Title><Text c="dimmed">Session scheduling, attendance, assignments, and rescheduling.</Text></div>{canCreate&&<Button onClick={openSchedule}>Schedule session</Button>}</Group>
+ {(create.error||mark.error||transition.error||request.error||review.error)&&<Alert color="red">{(create.error||mark.error||transition.error||request.error||review.error).message}</Alert>}
+ {canManage&&<Card withBorder><Group justify="space-between"><Title order={4}>Pending reschedules</Title><Badge>{pending.length}</Badge></Group>{pending.map(r=><Group key={r.id} justify="space-between" mt="sm"><Text size="sm">{new Date(r.requestedStart).toLocaleString()}</Text><Group><Button size="xs" onClick={()=>review.mutate({id:r.id,approve:true})}>Approve</Button><Button size="xs" color="red" onClick={()=>review.mutate({id:r.id,approve:false})}>Reject</Button></Group></Group>)}</Card>}
+ <SimpleGrid cols={{base:1,md:2,lg:3}}>{rows.map(s=><Card key={s.id} withBorder><Stack><Group justify="space-between"><Text fw={700}>{new Date(s.scheduledStart).toLocaleString()}</Text><Badge>{s.status}</Badge></Group><Text size="sm">Instructor: {s.instructor?.person?.name??s.instructorId??'Unassigned'}</Text><Text size="sm">Room: {s.roomId??'Unassigned'}</Text>{s.attendance&&<Text size="sm">Attendance: {s.attendance.status}</Text>}<Group>{canUpdate&&s.status==='SCHEDULED'&&<Button size="xs" onClick={()=>setSelected(s)}>Attendance</Button>}{canUpdate&&s.status==='SCHEDULED'&&<Button size="xs" variant="light" onClick={()=>setRequestOpen({id:s.id,requestedStart:'',requestedEnd:'',reason:''})}>Reschedule</Button>}{canManage&&s.status==='SCHEDULED'&&<><Button size="xs" onClick={()=>transition.mutate({type:'completeSession',id:s.id})}>Complete</Button><Button size="xs" color="red" onClick={()=>transition.mutate({type:'cancelSession',id:s.id})}>Cancel</Button></>}</Group></Stack></Card>)}</SimpleGrid>
+ <Modal opened={Boolean(form.enrollmentId)} onClose={()=>setForm({...form,enrollmentId:null})} title="Schedule session"><Stack><Select label="Enrollment" data={confirmed.map(e=>({value:e.id,label:e.lessonPackage?.name??e.id}))} value={form.enrollmentId} onChange={v=>setForm({...form,enrollmentId:v})}/><Select label="Instructor" clearable data={instructorRows.map(i=>({value:i.id,label:i.person?.name??i.id}))} value={form.instructorId} onChange={v=>setForm({...form,instructorId:v})}/><Select label="Room" clearable data={roomRows.map(r=>({value:r.id,label:r.roomType??r.id}))} value={form.roomId} onChange={v=>setForm({...form,roomId:v})}/><TextInput label="Start" type="datetime-local" value={form.scheduledStart} onChange={e=>setForm({...form,scheduledStart:e.currentTarget.value})}/><TextInput label="End" type="datetime-local" value={form.scheduledEnd} onChange={e=>setForm({...form,scheduledEnd:e.currentTarget.value})}/><Button loading={create.isPending} disabled={!form.enrollmentId||!form.scheduledStart||!form.scheduledEnd} onClick={()=>create.mutate({...form,scheduledStart:new Date(form.scheduledStart).toISOString(),scheduledEnd:new Date(form.scheduledEnd).toISOString()})}>Schedule</Button></Stack></Modal>
+ <Modal opened={Boolean(selected)} onClose={()=>setSelected(null)} title="Attendance"><Stack><Select label="Status" data={['PRESENT','ABSENT','LATE','EXCUSED']} value={attendance} onChange={v=>setAttendance(v||'PRESENT')}/><Textarea label="Notes" value={notes} onChange={e=>setNotes(e.currentTarget.value)}/><Button loading={mark.isPending} onClick={()=>mark.mutate({id:selected.id,payload:{status:attendance,notes:notes||undefined}})}>Save</Button></Stack></Modal>
+ <Modal opened={Boolean(requestOpen)} onClose={()=>setRequestOpen(null)} title="Request reschedule"><Stack><TextInput label="Start" type="datetime-local" value={requestOpen?.requestedStart??''} onChange={e=>setRequestOpen({...requestOpen,requestedStart:e.currentTarget.value})}/><TextInput label="End" type="datetime-local" value={requestOpen?.requestedEnd??''} onChange={e=>setRequestOpen({...requestOpen,requestedEnd:e.currentTarget.value})}/><Textarea label="Reason" value={requestOpen?.reason??''} onChange={e=>setRequestOpen({...requestOpen,reason:e.currentTarget.value})}/><Button loading={request.isPending} onClick={()=>request.mutate({sessionId:requestOpen.id,requestedStart:new Date(requestOpen.requestedStart).toISOString(),requestedEnd:new Date(requestOpen.requestedEnd).toISOString(),reason:requestOpen.reason||undefined})}>Submit</Button></Stack></Modal>
+ </Stack>
 }
