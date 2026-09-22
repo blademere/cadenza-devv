@@ -6,11 +6,26 @@ import { navigation, normalizeNavigation } from '../config/navigation'
 import { SidebarProvider, SidebarInset } from '../components/ui/sidebar'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
-import PageContainer from './components/PageContainer'
 
 export default function CadenzaLayout() {
   const { user, logout } = useAuth()
   const { context } = useAuthorization()
-  const visibleNavigation = useMemo(() => normalizeNavigation(navigation, context?.permissions), [context?.permissions])
-  return <SidebarProvider><Sidebar navigation={visibleNavigation} user={user} onLogout={() => void logout()} /><SidebarInset><TopBar navigation={visibleNavigation} /><PageContainer><div id="cadenza-main"><Outlet /></div></PageContainer></SidebarInset></SidebarProvider>
+  const visibleNavigation = useMemo(
+    () => normalizeNavigation(navigation, context?.permissions),
+    [context?.permissions],
+  )
+
+  return (
+    <SidebarProvider>
+      <Sidebar navigation={visibleNavigation} user={user} onLogout={() => void logout()} />
+      <SidebarInset>
+        <TopBar navigation={visibleNavigation} />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <main id="cadenza-main" className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <Outlet />
+          </main>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  )
 }
