@@ -37,6 +37,12 @@ export const PERMISSIONS = Object.freeze({
     create: 'cadenza_lessons:create',
     update: 'cadenza_lessons:update',
     manage: 'cadenza_lessons:manage',
+    schedule: 'cadenza_lessons:schedule',
+    attendance: 'cadenza_lessons:attendance',
+    requestReschedule: 'cadenza_lessons:request_reschedule',
+    reviewReschedule: 'cadenza_lessons:review_reschedule',
+    complete: 'cadenza_lessons:complete',
+    cancel: 'cadenza_lessons:cancel',
   }),
   enrollments: Object.freeze({
     read: 'cadenza_enrollments:read',
