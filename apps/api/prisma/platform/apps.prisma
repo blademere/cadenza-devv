@@ -21,6 +21,8 @@ model App {
   resources                Resource[]
   cadenzaStudents          CadenzaStudent[]
   cadenzaInstructors        CadenzaInstructor[]
+  cadenzaInstructorAvailability CadenzaInstructorAvailability[]
+  cadenzaInstructorBlocks   CadenzaInstructorBlock[]
   cadenzaInstruments        CadenzaInstrument[]
   cadenzaRooms              CadenzaRoom[]
   cadenzaLessonPackages     CadenzaLessonPackage[]
