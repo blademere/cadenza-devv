@@ -11,6 +11,7 @@ import { getStorageService } from '../../../platform/storage/storage.registry.js
 import { positiveDecimal, toDecimal } from '../../../platform/money/money.js'
 import { createStorageKey } from '../../../platform/storage/storage.key.js'
 import * as repository from './lesson.repository.js'
+import { assertAvailable as assertInstructorAvailable } from '../instructors/instructor-availability.service.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import {
   ENROLLMENT_STATUS,
@@ -415,6 +416,9 @@ const createSession = async ({
     if (instructorId) {
       const instructor = await repository.findInstructor(instructorId, owner, tx)
       if (!instructor?.person?.userId) throw new NotFoundError('Instructor not found.')
+    }
+    if (instructorId) {
+      await assertInstructorAvailable({ appId: owner, instructorId, startsAt: start, endsAt: end, db: tx })
     }
     if (roomId && !(await repository.findRoom(roomId, owner, tx)))
       throw new NotFoundError('Room not found.')
