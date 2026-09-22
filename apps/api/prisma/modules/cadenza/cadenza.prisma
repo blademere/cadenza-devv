@@ -231,5 +231,5 @@ model CadenzaRental {
   updatedAt           DateTime @updatedAt
   app                 App      @relation(fields: [appId], references: [id], onDelete: Cascade)
   @@index([appId, resourceId, scheduledStart, scheduledEnd])
-  @@index([appId, customerUserId, status])
+  @@index([appId, customerId, status])
 }
