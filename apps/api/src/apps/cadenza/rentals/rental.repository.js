@@ -8,7 +8,7 @@ const findRoomByResource=(resourceId,appId,db=prisma)=>db.cadenzaRoom.findFirst(
 const findById=(id,appId,db=prisma)=>db.cadenzaRental.findFirst({where:{id,appId}})
 const attachPaymentObligation=(id,paymentObligationId,db=prisma)=>db.cadenzaRental.update({where:{id},data:{paymentObligationId}})
 const reserve=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'PENDING'},data:{status:'RESERVED'}})
-const findOverlap=({appId,resourceId,scheduledStart,scheduledEnd,excludeId},db=prisma)=>db.cadenzaRental.findFirst({where:{appId,resourceId,status:{in:['RESERVED','CHECKED_OUT']},scheduledStart:{lt:scheduledEnd},scheduledEnd:{gt:scheduledStart},...(excludeId?{id:{not:excludeId}}:{})}})
+const findOverlap=({appId,resourceId,scheduledStart,scheduledEnd,excludeId},db=prisma)=>db.cadenzaRental.findFirst({where:{appId,resourceId,status:{in:['PENDING','RESERVED','CHECKED_OUT']},scheduledStart:{lt:scheduledEnd},scheduledEnd:{gt:scheduledStart},...(excludeId?{id:{not:excludeId}}:{})}})
 const checkout=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'RESERVED'},data:{status:'CHECKED_OUT',checkedOutAt:new Date()}})
 const returnRental=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:'CHECKED_OUT'},data:{status:'RETURNED',returnedAt:new Date()}})
 const listAvailableResources = async ({ appId, rentalType, scheduledStart, scheduledEnd }, db = prisma) => {
