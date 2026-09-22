@@ -13,7 +13,7 @@ const resource = authorizeResource({
   resource: 'cadenza_payments',
   action: 'read',
   loadResource: (id, req) =>
-    service.get({ obligationId: id, appId: req.security.app.id }),
+    service.get({ obligationId: id, appId: req.security.app.id, actorId: req.user?.id }),
   getResourceId: (req) => req.params.obligationId,
 })
 router.get(
