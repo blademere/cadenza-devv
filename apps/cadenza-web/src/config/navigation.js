@@ -34,7 +34,7 @@ export const navigation = Object.freeze([
     key: 'administration',
     name: 'Administration',
     items: [
-      { key: 'users', name: 'Users', route: '/app/users', icon: icon(UsersThree), permission: PERMISSIONS.students.read },
+      { key: 'users', name: 'Users', route: '/app/users', icon: icon(UsersThree), permission: PERMISSIONS.customers.read },
     ],
   },
 ])
