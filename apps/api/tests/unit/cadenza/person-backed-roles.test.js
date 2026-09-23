@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../../src/apps/cadenza/students/student.repository.js', () => ({
-  personExists: vi.fn(),
+vi.mock('../../../src/apps/cadenza/customers/customer.repository.js', () => ({
+  findByPersonId: vi.fn(),
   findById: vi.fn(),
-  list: vi.fn(),
+  findByUserId: vi.fn(),
   create: vi.fn(),
-  findPersonByUserId: vi.fn(),
+  list: vi.fn(),
+  update: vi.fn(),
+}))
+
+vi.mock('../../../src/features/people/people.service.js', () => ({
+  getById: vi.fn(),
+  getByUserId: vi.fn(),
 }))
 
 vi.mock('../../../src/apps/cadenza/instructors/instructor.repository.js', () => ({
@@ -15,59 +21,53 @@ vi.mock('../../../src/apps/cadenza/instructors/instructor.repository.js', () => 
   create: vi.fn(),
 }))
 
-const studentRepository = await import('../../../src/apps/cadenza/students/student.repository.js')
+const customerRepository = await import('../../../src/apps/cadenza/customers/customer.repository.js')
+const peopleService = await import('../../../src/features/people/people.service.js')
 const instructorRepository = await import('../../../src/apps/cadenza/instructors/instructor.repository.js')
-const studentService = await import('../../../src/apps/cadenza/students/student.service.js')
+const customerService = await import('../../../src/apps/cadenza/customers/customer.service.js')
 const instructorService = await import('../../../src/apps/cadenza/instructors/instructor.service.js')
 
 const APP_ID = '550e8400-e29b-41d4-a716-446655440000'
 const PERSON_ID = '550e8400-e29b-41d4-a716-446655440001'
-const STUDENT_ID = '550e8400-e29b-41d4-a716-446655440002'
+const CUSTOMER_ID = '550e8400-e29b-41d4-a716-446655440002'
 const INSTRUCTOR_ID = '550e8400-e29b-41d4-a716-446655440003'
 
 describe('Cadenza person-backed roles', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('creates a student by Person reference and does not accept duplicated identity fields', async () => {
-    studentRepository.personExists.mockResolvedValue(true)
-    studentRepository.create.mockResolvedValue({
-      id: STUDENT_ID,
+  it('creates a customer by Person reference and does not accept duplicated identity fields', async () => {
+    peopleService.getById.mockResolvedValue({ id: PERSON_ID, userId: 42, isActive: true })
+    customerRepository.findByPersonId.mockResolvedValue(null)
+    customerRepository.create.mockResolvedValue({
+      id: CUSTOMER_ID,
       appId: APP_ID,
       personId: PERSON_ID,
       status: 'ACTIVE',
       person: { id: PERSON_ID, firstName: 'Ana', lastName: 'Santos', email: 'ana@example.com' },
     })
 
-    const result = await studentService.create({ appId: APP_ID, personId: PERSON_ID })
+    const result = await customerService.create({ appId: APP_ID, personId: PERSON_ID, actorId: 42 })
 
     expect(result.personId).toBe(PERSON_ID)
-    expect(studentRepository.create).toHaveBeenCalledWith({ appId: APP_ID, personId: PERSON_ID })
-    expect(studentRepository.create.mock.calls[0][0]).not.toHaveProperty('firstName')
-    expect(studentRepository.create.mock.calls[0][0]).not.toHaveProperty('lastName')
-    expect(studentRepository.create.mock.calls[0][0]).not.toHaveProperty('email')
-    expect(studentRepository.create.mock.calls[0][0]).not.toHaveProperty('phone')
+    expect(customerRepository.create).toHaveBeenCalledWith({ appId: APP_ID, personId: PERSON_ID })
+    expect(customerRepository.create.mock.calls[0][0]).not.toHaveProperty('firstName')
+    expect(customerRepository.create.mock.calls[0][0]).not.toHaveProperty('lastName')
+    expect(customerRepository.create.mock.calls[0][0]).not.toHaveProperty('email')
+    expect(customerRepository.create.mock.calls[0][0]).not.toHaveProperty('phone')
   })
 
-  it('rejects a student when the referenced Person does not exist', async () => {
-    studentRepository.personExists.mockResolvedValue(false)
-
-    await expect(studentService.create({ appId: APP_ID, personId: PERSON_ID }))
-      .rejects.toThrow('Person not found.')
-    expect(studentRepository.create).not.toHaveBeenCalled()
-  })
-
-  it('loads student identity through the Person relation', async () => {
+  it('loads customer identity through the Person relation', async () => {
     const person = { id: PERSON_ID, firstName: 'Ana', lastName: 'Santos', email: 'ana@example.com', phone: '123' }
-    studentRepository.findPersonByUserId.mockResolvedValue({ id: PERSON_ID })
-    studentRepository.findById.mockResolvedValue({
-      id: STUDENT_ID,
+    customerRepository.findById.mockResolvedValue({
+      id: CUSTOMER_ID,
       appId: APP_ID,
       personId: PERSON_ID,
       status: 'ACTIVE',
       person: { ...person, userId: 42 },
     })
+    peopleService.getById.mockResolvedValue({ ...person, userId: 42, isActive: true })
 
-    const result = await studentService.get({ appId: APP_ID, id: STUDENT_ID, actorId: 42 })
+    const result = await customerService.get({ appId: APP_ID, id: CUSTOMER_ID, actorId: 42 })
 
     expect(result.person).toEqual(person)
     expect(result).not.toHaveProperty('firstName')
