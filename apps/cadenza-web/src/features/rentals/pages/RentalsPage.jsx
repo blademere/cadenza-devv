@@ -340,11 +340,11 @@ export default function RentalsPage() {
                   <div className="mt-5 grid gap-4">
                     <div className="grid gap-2">
                       <Label>Start</Label>
-                      <Input type="datetime-local" value={form.scheduledStart} onChange={(event) => setForm((value) => ({ ...value, scheduledStart: event.currentTarget.value, resourceId: '' }))} />
+                      <Input type="datetime-local" value={form.scheduledStart} onChange={(event) => { const { value } = event.currentTarget; setForm((current) => ({ ...(current || {}), scheduledStart: value, resourceId: '' })) }} />
                     </div>
                     <div className="grid gap-2">
                       <Label>End</Label>
-                      <Input type="datetime-local" value={form.scheduledEnd} onChange={(event) => setForm((value) => ({ ...value, scheduledEnd: event.currentTarget.value, resourceId: '' }))} />
+                      <Input type="datetime-local" value={form.scheduledEnd} onChange={(event) => { const { value } = event.currentTarget; setForm((current) => ({ ...(current || {}), scheduledEnd: value, resourceId: '' })) }} />
                     </div>
                     {form.scheduledStart && form.scheduledEnd && form.scheduledStart >= form.scheduledEnd && (
                       <p className="text-sm text-destructive">End time must be after the start time.</p>
@@ -534,8 +534,8 @@ export default function RentalsPage() {
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={form.scheduledStart} onChange={(event) => setForm((value) => ({ ...(value || {}), scheduledStart: event.currentTarget.value }))} /></div>
-              <div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={(event) => setForm((value) => ({ ...(value || {}), scheduledEnd: event.currentTarget.value }))} /></div>
+              <div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={form.scheduledStart} onChange={(event) => { const { value } = event.currentTarget; setForm((current) => ({ ...(current || {}), scheduledStart: value })) }} /></div>
+              <div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={(event) => { const { value } = event.currentTarget; setForm((current) => ({ ...(current || {}), scheduledEnd: value })) }} /></div>
             </div>
 
             {availability.isSuccess && form.resourceId && !availableRows.some((item) => (item.resourceId ?? item.id) === form.resourceId) && (
@@ -545,7 +545,7 @@ export default function RentalsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Booking deposit</Label>
-                <Input type="number" min="0.01" step="0.01" value={form.requiredDownPayment} onChange={(event) => setForm((value) => ({ ...(value || {}), requiredDownPayment: event.currentTarget.value }))} />
+                <Input type="number" min="0.01" step="0.01" value={form.requiredDownPayment} onChange={(event) => { const { value } = event.currentTarget; setForm((current) => ({ ...(current || {}), requiredDownPayment: value })) }} />
                 <p className="text-xs text-muted-foreground">The deposit is due at booking. The remaining balance is paid when the rental is used.</p>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3">
