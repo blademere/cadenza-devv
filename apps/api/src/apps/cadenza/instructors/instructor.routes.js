@@ -13,6 +13,7 @@ router.put('/:instructorId/availability',instructorResource('update'),idempotenc
 router.post('/:instructorId/availability/blocks',instructorResource('update'),idempotency({scope:'cadenza-instructor-availability-block',required:true}),validate(availabilityValidation.blockValidator),asyncHandler(availabilityController.addBlock))
 router.delete('/:instructorId/availability/blocks/:blockId',instructorResource('update'),idempotency({scope:'cadenza-instructor-availability-block-delete',required:true}),validate(availabilityValidation.blockParamsValidator),asyncHandler(availabilityController.removeBlock))
 router.get('/me/schedule',authorize('cadenza_instructors','read'),asyncHandler(controller.listMySchedule))
+router.get('/candidates',authorize('cadenza_instructors','create'),asyncHandler(controller.listCandidates))
 router.get('/',authorize('cadenza_instructors','read'),asyncHandler(controller.list))
 router.post('/',authorize('cadenza_instructors','create'),idempotency({scope:'cadenza-instructors',required:true}),validate(createValidator),asyncHandler(controller.create))
 router.patch('/:id',instructorResource('update'),idempotency({scope:'cadenza-instructors-update',required:true}),validate(updateValidator),asyncHandler(controller.update))
