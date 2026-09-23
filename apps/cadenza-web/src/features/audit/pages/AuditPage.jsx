@@ -14,7 +14,10 @@ import { useAuthorization } from '../authorization/components/AuthorizationProvi
 const unwrap = (value) => value?.data ?? value ?? []
 
 const auditApi = {
-  list: (params) => apiClient.get('/audit', { params }),
+  list: (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== ''))
+    return apiClient.get(`/audit?${query.toString()}`)
+  },
 }
 
 export default function AuditPage() {
