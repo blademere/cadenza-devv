@@ -192,7 +192,18 @@ export default function RentalsPage() {
   const instrumentRows = unwrap(instruments.data)
   const roomRows = unwrap(rooms.data)
   const catalogRows = bookingType === 'ROOM' ? roomRows : instrumentRows
-  const availableRows = availability.isSuccess ? unwrap(availability.data).map((entry) => entry.domain) : catalogRows
+  const availabilityRows = availability.isSuccess ? unwrap(availability.data) : []
+  const availableResourceIds = useMemo(
+    () => new Set(
+      availabilityRows
+        .map((entry) => entry?.resource?.id ?? entry?.domain?.resourceId)
+        .filter(Boolean),
+    ),
+    [availabilityRows],
+  )
+  const availableRows = availability.isSuccess
+    ? catalogRows.filter((item) => availableResourceIds.has(item.resourceId ?? item.id))
+    : catalogRows
 
   const resourceNameMap = useMemo(() => {
     const map = new Map()
