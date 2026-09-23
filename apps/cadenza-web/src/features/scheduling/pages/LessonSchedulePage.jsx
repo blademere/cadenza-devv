@@ -1,42 +1,470 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, AlertDescription } from '../../../components/ui/alert'
-import { Badge } from '../../../components/ui/badge'
-import { Button } from '../../../components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
-import DataTable from '../../../components/data-table'
-import PageHeader from '../../../components/page-header'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog'
-import { Input } from '../../../components/ui/input'
-import { Label } from '../../../components/ui/label'
-import { Textarea } from '../../../components/ui/textarea'
-import SelectField from '../../../components/select-field'
-import LoadingState from '../../../components/loading-state'
-import { schedulingApi } from '../api/scheduling.api'
-import { lessonsApi } from '../../lessons/api/lessons.api'
-import { instructorsApi } from '../../instructors/api/instructors.api'
-import { resourcesApi } from '../../resources/api/resources.api'
-import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
-const unwrap = (r) => r?.data ?? r ?? []
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, AlertDescription } from '../../../components/ui/alert';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../../../components/ui/card';
+import DataTable from '../../../components/data-table';
+import PageHeader from '../../../components/page-header';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../../components/ui/dialog';
+import { Input } from '../../../components/ui/input';
+import { Label } from '../../../components/ui/label';
+import { Textarea } from '../../../components/ui/textarea';
+import SelectField from '../../../components/select-field';
+import LoadingState from '../../../components/loading-state';
+import { schedulingApi } from '../api/scheduling.api';
+import { lessonsApi } from '../../lessons/api/lessons.api';
+import { instructorsApi } from '../../instructors/api/instructors.api';
+import { resourcesApi } from '../../resources/api/resources.api';
+import { useAuthorization } from '../../authorization/components/AuthorizationProvider';
+const unwrap = (r) => r?.data ?? r ?? [];
 export default function LessonSchedulePage() {
- const { can } = useAuthorization(), client = useQueryClient()
- const canCreate = can('cadenza_lessons:schedule'), canAttendance = can('cadenza_lessons:attendance'), canRequest = can('cadenza_lessons:request_reschedule'), canManage = can('cadenza_lessons:manage'), canInstructorRead = can('cadenza_instructors:read'), canRoomRead = can('cadenza_rooms:read')
- const sessions = useQuery({ queryKey: ['cadenza', 'sessions'], queryFn: schedulingApi.listSessions }), enrollments = useQuery({ queryKey: ['cadenza', 'enrollments'], queryFn: lessonsApi.listEnrollments }), instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list, enabled: canInstructorRead }), rooms = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms, enabled: canRoomRead }), reschedules = useQuery({ queryKey: ['cadenza', 'reschedules'], queryFn: schedulingApi.listReschedules })
- const [form, setForm] = useState({ enrollmentId: '', instructorId: '', roomId: '', scheduledStart: '', scheduledEnd: '' }), [selected, setSelected] = useState(null), [requestOpen, setRequestOpen] = useState(null), [attendance, setAttendance] = useState('PRESENT'), [notes, setNotes] = useState('')
- const create = useMutation({ mutationFn: schedulingApi.createSession, onSuccess: () => { setForm({ enrollmentId: '', instructorId: '', roomId: '', scheduledStart: '', scheduledEnd: '' }); client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] }) } })
- const mark = useMutation({ mutationFn: ({ id, payload }) => schedulingApi.markAttendance(id, payload), onSuccess: () => { setSelected(null); client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] }) } })
- const transition = useMutation({ mutationFn: ({ type, id }) => schedulingApi[type](id), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] }) })
- const request = useMutation({ mutationFn: schedulingApi.requestReschedule, onSuccess: () => setRequestOpen(null) })
- const review = useMutation({ mutationFn: ({ id, approve }) => schedulingApi.reviewReschedule(id, approve), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'reschedules'] }) })
- if (sessions.isLoading) return <LoadingState label="Loading schedule…" rows={4} />
- if (sessions.error) return <Alert variant="destructive"><AlertDescription>{sessions.error.message}</AlertDescription></Alert>
- const rows = unwrap(sessions.data), confirmed = unwrap(enrollments.data).filter((e) => e.status === 'CONFIRMED'), instructorRows = unwrap(instructors.data), roomRows = unwrap(rooms.data), pending = unwrap(reschedules.data).filter((r) => r.status === 'PENDING')
- const openSchedule = () => setForm({ ...form, enrollmentId: confirmed[0]?.id ?? '' })
- const error = create.error || mark.error || transition.error || request.error || review.error
- return <div className="grid gap-6"><PageHeader title="Lesson Schedule" description="Session scheduling, attendance, assignments, and rescheduling." actions={canCreate && <Button onClick={openSchedule}>Schedule session</Button>} />{error && <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>}
- {canManage && <Card><CardHeader className="flex flex-row items-center justify-between space-y-0"><CardTitle className="text-base">Pending reschedules</CardTitle><Badge>{pending.length}</Badge></CardHeader><CardContent className="space-y-2">{pending.map((r) => <div key={r.id} className="flex items-center justify-between gap-3 border-b py-2 last:border-0"><span className="text-sm">{new Date(r.requestedStart).toLocaleString()}</span><div className="flex gap-2"><Button size="sm" onClick={() => review.mutate({ id: r.id, approve: true })}>Approve</Button><Button size="sm" variant="destructive" onClick={() => review.mutate({ id: r.id, approve: false })}>Reject</Button></div></div>)}</CardContent></Card>}
- <Card><CardContent className="pt-6"><DataTable columns={[{ key: "date", header: "Date", value: (s) => new Date(s.scheduledStart).toLocaleString() }, { key: "instructor", header: "Instructor", value: (s) => s.instructor?.person?.name ?? s.instructorId ?? "Unassigned" }, { key: "room", header: "Room", value: (s) => s.roomId ?? "Unassigned" }, { key: "attendance", header: "Attendance", value: (s) => s.attendance?.status ?? "—" }, { key: "status", header: "Status", render: (s) => <Badge variant="secondary">{s.status}</Badge> }, { key: "actions", header: "Actions", searchable: false, render: (s) => <div className="flex flex-wrap gap-2">{canAttendance && s.status === "SCHEDULED" && <Button size="sm" onClick={() => setSelected(s)}>Attendance</Button>}{canRequest && s.status === "SCHEDULED" && <Button size="sm" variant="outline" onClick={() => setRequestOpen({ id: s.id, requestedStart: "", requestedEnd: "", reason: "" })}>Reschedule</Button>}{canManage && s.status === "SCHEDULED" && <><Button size="sm" onClick={() => transition.mutate({ type: "completeSession", id: s.id })}>Complete</Button><Button size="sm" variant="destructive" onClick={() => transition.mutate({ type: "cancelSession", id: s.id })}>Cancel</Button></>}</div> }]} rows={rows} searchPlaceholder="Search sessions…" /></CardContent></Card>\n <Dialog open={Boolean(form.enrollmentId)} onOpenChange={(value) => !value && setForm({ ...form, enrollmentId: '' })}><DialogContent><DialogHeader><DialogTitle>Schedule session</DialogTitle></DialogHeader><div className="grid gap-4"><SelectField label="Enrollment" options={confirmed.map((e) => ({ value: e.id, label: e.lessonPackage?.name ?? e.id }))} value={form.enrollmentId} onChange={(v) => setForm({ ...form, enrollmentId: v || '' })} /><SelectField label="Instructor" options={instructorRows.map((i) => ({ value: i.id, label: i.person?.name ?? i.id }))} value={form.instructorId} onChange={(v) => setForm({ ...form, instructorId: v || '' })} placeholder="Optional instructor" /><SelectField label="Room" options={roomRows.map((r) => ({ value: r.id, label: r.roomType ?? r.id }))} value={form.roomId} onChange={(v) => setForm({ ...form, roomId: v || '' })} placeholder="Optional room" /><div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={form.scheduledStart} onChange={(e) => setForm({ ...form, scheduledStart: e.currentTarget.value })} /></div><div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={(e) => setForm({ ...form, scheduledEnd: e.currentTarget.value })} /></div></div><DialogFooter><Button disabled={!form.enrollmentId || !form.scheduledStart || !form.scheduledEnd} onClick={() => create.mutate({ ...form, scheduledStart: new Date(form.scheduledStart).toISOString(), scheduledEnd: new Date(form.scheduledEnd).toISOString() })}>{create.isPending ? 'Scheduling…' : 'Schedule'}</Button></DialogFooter></DialogContent></Dialog>
- <Dialog open={Boolean(selected)} onOpenChange={(value) => !value && setSelected(null)}><DialogContent><DialogHeader><DialogTitle>Attendance</DialogTitle></DialogHeader><div className="grid gap-4"><SelectField label="Status" options={['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'].map((x) => ({ value: x, label: x }))} value={attendance} onChange={(v) => setAttendance(v || 'PRESENT')} /><div className="grid gap-2"><Label>Notes</Label><Textarea value={notes} onChange={(e) => setNotes(e.currentTarget.value)} /></div></div><DialogFooter><Button onClick={() => mark.mutate({ id: selected.id, payload: { status: attendance, notes: notes || undefined } })}>{mark.isPending ? 'Saving…' : 'Save'}</Button></DialogFooter></DialogContent></Dialog>
- <Dialog open={Boolean(requestOpen)} onOpenChange={(value) => !value && setRequestOpen(null)}><DialogContent><DialogHeader><DialogTitle>Request reschedule</DialogTitle><DialogDescription>Submit a new requested time for this lesson session.</DialogDescription></DialogHeader><div className="grid gap-4"><div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={requestOpen?.requestedStart ?? ''} onChange={(e) => setRequestOpen({ ...requestOpen, requestedStart: e.currentTarget.value })} /></div><div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={requestOpen?.requestedEnd ?? ''} onChange={(e) => setRequestOpen({ ...requestOpen, requestedEnd: e.currentTarget.value })} /></div><div className="grid gap-2"><Label>Reason</Label><Textarea value={requestOpen?.reason ?? ''} onChange={(e) => setRequestOpen({ ...requestOpen, reason: e.currentTarget.value })} /></div></div><DialogFooter><Button disabled={!requestOpen?.requestedStart || !requestOpen?.requestedEnd} onClick={() => request.mutate({ sessionId: requestOpen.id, requestedStart: new Date(requestOpen.requestedStart).toISOString(), requestedEnd: new Date(requestOpen.requestedEnd).toISOString(), reason: requestOpen.reason || undefined })}>{request.isPending ? 'Submitting…' : 'Submit'}</Button></DialogFooter></DialogContent></Dialog>
- </div>
+  const { can } = useAuthorization(),
+    client = useQueryClient();
+  const canCreate = can('cadenza_lessons:schedule'),
+    canAttendance = can('cadenza_lessons:attendance'),
+    canRequest = can('cadenza_lessons:request_reschedule'),
+    canManage = can('cadenza_lessons:manage'),
+    canInstructorRead = can('cadenza_instructors:read'),
+    canRoomRead = can('cadenza_rooms:read');
+  const sessions = useQuery({
+      queryKey: ['cadenza', 'sessions'],
+      queryFn: schedulingApi.listSessions,
+    }),
+    enrollments = useQuery({
+      queryKey: ['cadenza', 'enrollments'],
+      queryFn: lessonsApi.listEnrollments,
+    }),
+    instructors = useQuery({
+      queryKey: ['cadenza', 'instructors'],
+      queryFn: instructorsApi.list,
+      enabled: canInstructorRead,
+    }),
+    rooms = useQuery({
+      queryKey: ['cadenza', 'rooms'],
+      queryFn: resourcesApi.listRooms,
+      enabled: canRoomRead,
+    }),
+    reschedules = useQuery({
+      queryKey: ['cadenza', 'reschedules'],
+      queryFn: schedulingApi.listReschedules,
+    });
+  const [form, setForm] = useState({
+      enrollmentId: '',
+      instructorId: '',
+      roomId: '',
+      scheduledStart: '',
+      scheduledEnd: '',
+    }),
+    [selected, setSelected] = useState(null),
+    [requestOpen, setRequestOpen] = useState(null),
+    [attendance, setAttendance] = useState('PRESENT'),
+    [notes, setNotes] = useState('');
+  const create = useMutation({
+    mutationFn: schedulingApi.createSession,
+    onSuccess: () => {
+      setForm({
+        enrollmentId: '',
+        instructorId: '',
+        roomId: '',
+        scheduledStart: '',
+        scheduledEnd: '',
+      });
+      client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] });
+    },
+  });
+  const mark = useMutation({
+    mutationFn: ({ id, payload }) => schedulingApi.markAttendance(id, payload),
+    onSuccess: () => {
+      setSelected(null);
+      client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] });
+    },
+  });
+  const transition = useMutation({
+    mutationFn: ({ type, id }) => schedulingApi[type](id),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] }),
+  });
+  const request = useMutation({
+    mutationFn: schedulingApi.requestReschedule,
+    onSuccess: () => setRequestOpen(null),
+  });
+  const review = useMutation({
+    mutationFn: ({ id, approve }) =>
+      schedulingApi.reviewReschedule(id, approve),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: ['cadenza', 'reschedules'] }),
+  });
+  if (sessions.isLoading)
+    return <LoadingState label="Loading schedule…" rows={4} />;
+  if (sessions.error)
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{sessions.error.message}</AlertDescription>
+      </Alert>
+    );
+  const rows = unwrap(sessions.data),
+    confirmed = unwrap(enrollments.data).filter(
+      (e) => e.status === 'CONFIRMED',
+    ),
+    instructorRows = unwrap(instructors.data),
+    roomRows = unwrap(rooms.data),
+    pending = unwrap(reschedules.data).filter((r) => r.status === 'PENDING');
+  const openSchedule = () =>
+    setForm({ ...form, enrollmentId: confirmed[0]?.id ?? '' });
+  const error =
+    create.error ||
+    mark.error ||
+    transition.error ||
+    request.error ||
+    review.error;
+  return (
+    <div className="grid gap-6">
+      <PageHeader
+        title="Lesson Schedule"
+        description="Session scheduling, attendance, assignments, and rescheduling."
+        actions={
+          canCreate && <Button onClick={openSchedule}>Schedule session</Button>
+        }
+      />
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      )}
+      {canManage && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Pending reschedules</CardTitle>
+            <Badge>{pending.length}</Badge>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {pending.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between gap-3 border-b py-2 last:border-0"
+              >
+                <span className="text-sm">
+                  {new Date(r.requestedStart).toLocaleString()}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => review.mutate({ id: r.id, approve: true })}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => review.mutate({ id: r.id, approve: false })}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+      <Card>
+        <CardContent className="pt-6">
+          <DataTable
+            columns={[
+              {
+                key: 'date',
+                header: 'Date',
+                value: (s) => new Date(s.scheduledStart).toLocaleString(),
+              },
+              {
+                key: 'instructor',
+                header: 'Instructor',
+                value: (s) =>
+                  s.instructor?.person?.name ?? s.instructorId ?? 'Unassigned',
+              },
+              {
+                key: 'room',
+                header: 'Room',
+                value: (s) => s.roomId ?? 'Unassigned',
+              },
+              {
+                key: 'attendance',
+                header: 'Attendance',
+                value: (s) => s.attendance?.status ?? '—',
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (s) => <Badge variant="secondary">{s.status}</Badge>,
+              },
+              {
+                key: 'actions',
+                header: 'Actions',
+                searchable: false,
+                render: (s) => (
+                  <div className="flex flex-wrap gap-2">
+                    {canAttendance && s.status === 'SCHEDULED' && (
+                      <Button size="sm" onClick={() => setSelected(s)}>
+                        Attendance
+                      </Button>
+                    )}
+                    {canRequest && s.status === 'SCHEDULED' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setRequestOpen({
+                            id: s.id,
+                            requestedStart: '',
+                            requestedEnd: '',
+                            reason: '',
+                          })
+                        }
+                      >
+                        Reschedule
+                      </Button>
+                    )}
+                    {canManage && s.status === 'SCHEDULED' && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            transition.mutate({
+                              type: 'completeSession',
+                              id: s.id,
+                            })
+                          }
+                        >
+                          Complete
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            transition.mutate({
+                              type: 'cancelSession',
+                              id: s.id,
+                            })
+                          }
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+            rows={rows}
+            searchPlaceholder="Search sessions…"
+          />
+        </CardContent>
+      </Card>{' '}
+      <Dialog
+        open={Boolean(form.enrollmentId)}
+        onOpenChange={(value) =>
+          !value && setForm({ ...form, enrollmentId: '' })
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schedule session</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <SelectField
+              label="Enrollment"
+              options={confirmed.map((e) => ({
+                value: e.id,
+                label: e.lessonPackage?.name ?? e.id,
+              }))}
+              value={form.enrollmentId}
+              onChange={(v) => setForm({ ...form, enrollmentId: v || '' })}
+            />
+            <SelectField
+              label="Instructor"
+              options={instructorRows.map((i) => ({
+                value: i.id,
+                label: i.person?.name ?? i.id,
+              }))}
+              value={form.instructorId}
+              onChange={(v) => setForm({ ...form, instructorId: v || '' })}
+              placeholder="Optional instructor"
+            />
+            <SelectField
+              label="Room"
+              options={roomRows.map((r) => ({
+                value: r.id,
+                label: r.roomType ?? r.id,
+              }))}
+              value={form.roomId}
+              onChange={(v) => setForm({ ...form, roomId: v || '' })}
+              placeholder="Optional room"
+            />
+            <div className="grid gap-2">
+              <Label>Start</Label>
+              <Input
+                type="datetime-local"
+                value={form.scheduledStart}
+                onChange={(e) =>
+                  setForm({ ...form, scheduledStart: e.currentTarget.value })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>End</Label>
+              <Input
+                type="datetime-local"
+                value={form.scheduledEnd}
+                onChange={(e) =>
+                  setForm({ ...form, scheduledEnd: e.currentTarget.value })
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              disabled={
+                !form.enrollmentId || !form.scheduledStart || !form.scheduledEnd
+              }
+              onClick={() =>
+                create.mutate({
+                  ...form,
+                  scheduledStart: new Date(form.scheduledStart).toISOString(),
+                  scheduledEnd: new Date(form.scheduledEnd).toISOString(),
+                })
+              }
+            >
+              {create.isPending ? 'Scheduling…' : 'Schedule'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(selected)}
+        onOpenChange={(value) => !value && setSelected(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Attendance</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <SelectField
+              label="Status"
+              options={['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'].map((x) => ({
+                value: x,
+                label: x,
+              }))}
+              value={attendance}
+              onChange={(v) => setAttendance(v || 'PRESENT')}
+            />
+            <div className="grid gap-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.currentTarget.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() =>
+                mark.mutate({
+                  id: selected.id,
+                  payload: { status: attendance, notes: notes || undefined },
+                })
+              }
+            >
+              {mark.isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(requestOpen)}
+        onOpenChange={(value) => !value && setRequestOpen(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request reschedule</DialogTitle>
+            <DialogDescription>
+              Submit a new requested time for this lesson session.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>Start</Label>
+              <Input
+                type="datetime-local"
+                value={requestOpen?.requestedStart ?? ''}
+                onChange={(e) =>
+                  setRequestOpen({
+                    ...requestOpen,
+                    requestedStart: e.currentTarget.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>End</Label>
+              <Input
+                type="datetime-local"
+                value={requestOpen?.requestedEnd ?? ''}
+                onChange={(e) =>
+                  setRequestOpen({
+                    ...requestOpen,
+                    requestedEnd: e.currentTarget.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Reason</Label>
+              <Textarea
+                value={requestOpen?.reason ?? ''}
+                onChange={(e) =>
+                  setRequestOpen({
+                    ...requestOpen,
+                    reason: e.currentTarget.value,
+                  })
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              disabled={
+                !requestOpen?.requestedStart || !requestOpen?.requestedEnd
+              }
+              onClick={() =>
+                request.mutate({
+                  sessionId: requestOpen.id,
+                  requestedStart: new Date(
+                    requestOpen.requestedStart,
+                  ).toISOString(),
+                  requestedEnd: new Date(
+                    requestOpen.requestedEnd,
+                  ).toISOString(),
+                  reason: requestOpen.reason || undefined,
+                })
+              }
+            >
+              {request.isPending ? 'Submitting…' : 'Submit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
