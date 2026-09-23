@@ -15,7 +15,6 @@ model Person {
   oboProfessionals      OboProfessional[]
   oboClientApplications OboPermitApplication[] @relation("OboApplicationClient")
   cadenzaCustomers     CadenzaCustomer[]
-  cadenzaStudents       CadenzaStudent[]
   cadenzaInstructors    CadenzaInstructor[]
   cadenzaAttendanceMarkers CadenzaAttendance[]
   cadenzaRescheduleRequests CadenzaRescheduleRequest[] @relation("CadenzaRescheduleRequestedBy")
