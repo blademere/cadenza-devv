@@ -101,6 +101,7 @@ describe('Cadenza person-backed roles', () => {
   })
 
   it('rejects duplicate Person roles within the same Cadenza app', async () => {
+    instructorRepository.findEligiblePerson.mockResolvedValue({ id: PERSON_ID, userId: 42 })
     instructorRepository.personExists.mockResolvedValue(true)
     instructorRepository.create.mockRejectedValue({ code: 'P2002' })
 
