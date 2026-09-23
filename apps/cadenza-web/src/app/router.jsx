@@ -61,7 +61,7 @@ export const router = createBrowserRouter([
               },
               {
                 path: 'users',
-                element: <PermissionRoute permission="cadenza_students:read" />,
+                element: <PermissionRoute permission="cadenza_rentals:manage" />,
                 children: [{ index: true, element: <UsersPage /> }],
               },
             ],
