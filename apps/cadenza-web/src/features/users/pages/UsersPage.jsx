@@ -27,7 +27,7 @@ export default function UsersPage() {
   const canInstructorRead = can('cadenza_instructors:read')
   const canInstructorCreate = can('cadenza_instructors:create')
   const canInstructorManage = can('cadenza_instructors:manage')
-  const canCustomerManage = can('cadenza_rentals:manage')
+  const canCustomerManage = can('cadenza_customers:manage')
 
   const customers = useQuery({ queryKey: ['cadenza', 'customers'], queryFn: customersApi.list })
   const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list, enabled: canInstructorRead })
