@@ -94,6 +94,7 @@ describe('Cadenza rental payment workflow', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('creates a rental obligation carrying the required down payment', async () => {
+    rentalRepository.findCustomerById.mockResolvedValue({ id: 'customer-1', appId: APP_ID, person: { id: 'person-1', userId: 42 } })
     rentalRepository.findResource.mockResolvedValue({ id: RESOURCE_ID, appId: APP_ID, type: 'CADENZA_INSTRUMENT' })
     rentalRepository.findInstrumentByResource.mockResolvedValue({ id: 'instrument-1', resourceId: RESOURCE_ID, status: 'AVAILABLE', rentalRate: { toString: () => '100.00', mul: () => '300.00' } })
     rentalRepository.create.mockResolvedValue({ id: RENTAL_ID })
@@ -103,7 +104,7 @@ describe('Cadenza rental payment workflow', () => {
     await rentalService.create({
       appId: APP_ID,
       actorId: 42,
-      customerUserId: 42,
+      customerId: 'customer-1',
       resourceId: RESOURCE_ID,
       rentalType: 'INSTRUMENT',
       scheduledStart: '2026-09-20T09:00:00.000Z',
@@ -171,12 +172,12 @@ describe('Cadenza payment settlement', () => {
 
   it('reserves a rental when successful payments reach the required down payment', async () => {
     platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: {}, obligation: { appId: APP_ID, referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID' }, paidAmount: '300.00' }); return { id: 'payment-2', amount: '300.00' } })
-    paymentRepository.findRental.mockResolvedValue({ id: RENTAL_ID, appId: APP_ID, customerUserId: 42 })
+    paymentRepository.findRental.mockResolvedValue({ id: RENTAL_ID, appId: APP_ID, customer: { person: { userId: 42 } } })
     platformPayments.getObligation.mockResolvedValue({ id: OBLIGATION_ID, appId: APP_ID, referenceType: 'CADENZA_RENTAL', referenceId: RENTAL_ID, status: 'PARTIALLY_PAID', paidAmount: { gte: vi.fn(() => true) } })
     paymentRepository.findRental.mockResolvedValue({
       id: RENTAL_ID,
       appId: APP_ID,
-      customerUserId: 42,
+      customerId: 'customer-1',
       requiredDownPayment: '300.00',
     })
 
