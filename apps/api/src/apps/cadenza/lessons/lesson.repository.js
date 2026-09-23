@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
+import { BLOCKING_LESSON_SESSION_STATUSES, BLOCKING_RENTAL_STATUSES } from '../cadenza.constants.js'
 
 const prisma = getPrismaClient()
 
@@ -36,8 +37,8 @@ const findEnrollment = (id, appId, db = prisma) => db.cadenzaEnrollment.findFirs
 const findEnrollmentForPackageActor = (lessonPackageId, actorId, appId, db = prisma) => db.cadenzaEnrollment.findFirst({ where: { appId, lessonPackageId, customer: { person: { userId: Number(actorId) } }, status: { in: ['CONFIRMED', 'IN_PROGRESS'] } } })
 const findInstructor = (id, appId, db = prisma) => db.cadenzaInstructor.findFirst({ where: { id, appId, status: 'ACTIVE' }, include: { person: true } })
 const findRoom = (id, appId, db = prisma) => db.cadenzaRoom.findFirst({ where: { id, appId, status: 'AVAILABLE' } })
-const findOverlappingSession = ({ appId, instructorId, roomId, startsAt, endsAt, excludeId }, db = prisma) => db.cadenzaLessonSession.findFirst({ where: { appId, status: { not: 'CANCELLED' }, scheduledStart: { lt: endsAt }, scheduledEnd: { gt: startsAt }, ...(excludeId ? { id: { not: excludeId } } : {}), OR: [...(instructorId ? [{ instructorId }] : []), ...(roomId ? [{ roomId }] : [])] } })
-const findRoomRentalOverlap = ({ appId, roomResourceId, startsAt, endsAt, excludeId }, db = prisma) => db.cadenzaRental.findFirst({ where: { appId, resourceId: roomResourceId, rentalType: 'ROOM', status: { in: ['PENDING', 'RESERVED', 'CHECKED_OUT'] }, scheduledStart: { lt: endsAt }, scheduledEnd: { gt: startsAt }, ...(excludeId ? { id: { not: excludeId } } : {}) } })
+const findOverlappingSession = ({ appId, instructorId, roomId, startsAt, endsAt, excludeId }, db = prisma) => db.cadenzaLessonSession.findFirst({ where: { appId, status: { in: BLOCKING_LESSON_SESSION_STATUSES }, scheduledStart: { lt: endsAt }, scheduledEnd: { gt: startsAt }, ...(excludeId ? { id: { not: excludeId } } : {}), OR: [...(instructorId ? [{ instructorId }] : []), ...(roomId ? [{ roomId }] : [])] } })
+const findRoomRentalOverlap = ({ appId, roomResourceId, startsAt, endsAt, excludeId }, db = prisma) => db.cadenzaRental.findFirst({ where: { appId, resourceId: roomResourceId, rentalType: 'ROOM', status: { in: BLOCKING_RENTAL_STATUSES }, scheduledStart: { lt: endsAt }, scheduledEnd: { gt: startsAt }, ...(excludeId ? { id: { not: excludeId } } : {}) } })
 const createSession = (data, db = prisma) => db.cadenzaLessonSession.create({ data })
 const findSession = (id, appId, db = prisma) => db.cadenzaLessonSession.findFirst({ where: { id, appId }, include: { attendance: true, instructor: { include: { person: true } }, enrollment: { include: { customer: { include: { person: true } }, lessonPackage: true } } } })
 const upsertAttendance = (sessionId, data, db = prisma) => db.cadenzaAttendance.upsert({
