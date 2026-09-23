@@ -29,20 +29,9 @@ export default function UsersPage() {
   const canInstructorManage = can('cadenza_instructors:manage')
   const canStudentManage = can('cadenza_students:manage')
 
-  const students = useQuery({
-    queryKey: ['cadenza', 'students'],
-    queryFn: studentsApi.list,
-  })
-  const instructors = useQuery({
-    queryKey: ['cadenza', 'instructors'],
-    queryFn: instructorsApi.list,
-    enabled: canInstructorRead,
-  })
-  const candidates = useQuery({
-    queryKey: ['cadenza', 'instructor-candidates'],
-    queryFn: instructorsApi.listCandidates,
-    enabled: canInstructorCreate,
-  })
+  const students = useQuery({ queryKey: ['cadenza', 'students'], queryFn: studentsApi.list })
+  const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list, enabled: canInstructorRead })
+  const candidates = useQuery({ queryKey: ['cadenza', 'instructor-candidates'], queryFn: instructorsApi.listCandidates, enabled: canInstructorCreate })
 
   const [editing, setEditing] = useState(null)
   const [availabilityInstructor, setAvailabilityInstructor] = useState(null)
@@ -58,20 +47,12 @@ export default function UsersPage() {
 
   const updateStudent = useMutation({
     mutationFn: ({ id, status }) => studentsApi.update(id, { status }),
-    onSuccess: () => {
-      setEditing(null)
-      client.invalidateQueries({ queryKey: ['cadenza', 'students'] })
-    },
+    onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'students'] }) },
   })
-
   const updateInstructor = useMutation({
     mutationFn: ({ id, status, specialty }) => instructorsApi.update(id, { status, specialty }),
-    onSuccess: () => {
-      setEditing(null)
-      client.invalidateQueries({ queryKey: ['cadenza', 'instructors'] })
-    },
+    onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'instructors'] }) },
   })
-
   const createInstructor = useMutation({
     mutationFn: instructorsApi.create,
     onSuccess: () => {
@@ -81,7 +62,6 @@ export default function UsersPage() {
       client.invalidateQueries({ queryKey: ['cadenza', 'instructor-candidates'] })
     },
   })
-
   const replaceAvailability = useMutation({
     mutationFn: ({ id, rules }) => instructorsApi.replaceAvailability(id, { rules }),
     onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id] }),
@@ -97,31 +77,17 @@ export default function UsersPage() {
     mutationFn: ({ id, blockId }) => instructorsApi.removeAvailabilityBlock(id, blockId),
     onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id] }),
   })
+  const register = useMutation({ mutationFn: studentsApi.registerMe, onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'students'] }) })
 
-  const register = useMutation({
-    mutationFn: studentsApi.registerMe,
-    onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'students'] }),
-  })
-
-  if (students.isLoading || (canInstructorRead && instructors.isLoading)) {
-    return <LoadingState label="Loading people…" rows={4} />
-  }
-
-  if (students.error || instructors.error) {
-    return <Alert variant="destructive"><AlertDescription>{(students.error || instructors.error).message}</AlertDescription></Alert>
-  }
+  if (students.isLoading || (canInstructorRead && instructors.isLoading)) return <LoadingState label="Loading people…" rows={4} />
+  if (students.error || instructors.error) return <Alert variant="destructive"><AlertDescription>{(students.error || instructors.error).message}</AlertDescription></Alert>
 
   const entries = [
     ...unwrap(students.data).map((x) => ({ ...x, role: 'Student' })),
     ...(canInstructorRead ? unwrap(instructors.data).map((x) => ({ ...x, role: 'Instructor' })) : []),
   ]
-
   const error = updateStudent.error || updateInstructor.error || createInstructor.error || register.error || candidates.error || availability.error || replaceAvailability.error || addBlock.error || removeBlock.error
-  const candidateOptions = unwrap(candidates.data).map((person) => ({
-    value: person.id,
-    label: personName(person) + (person.email ? ` — ${person.email}` : ''),
-  }))
-
+  const candidateOptions = unwrap(candidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
   const availabilityData = availability.data?.data ?? availability.data ?? { rules: [], blocks: [] }
   const openAvailability = (instructor) => {
     setAvailabilityInstructor(instructor)
@@ -129,9 +95,9 @@ export default function UsersPage() {
     setBlockDraft({ startsAt: '', endsAt: '', reason: '' })
   }
   const rulesForEditor = availabilityRules ?? (availabilityData.rules ?? [])
-  const addRule = () => setAvailabilityRules((rules) => [...rules, { dayOfWeek: 1, startMinute: 540, endMinute: 1020 }])
-  const updateRule = (index, patch) => setAvailabilityRules((rules) => rules.map((rule, i) => i === index ? { ...rule, ...patch } : rule))
-  const removeRule = (index) => setAvailabilityRules((rules) => rules.filter((_, i) => i !== index))
+  const addRule = () => setAvailabilityRules((rules) => [...(rules ?? availabilityData.rules ?? []), { dayOfWeek: 1, startMinute: 540, endMinute: 1020 }])
+  const updateRule = (index, patch) => setAvailabilityRules((rules) => (rules ?? availabilityData.rules ?? []).map((rule, i) => i === index ? { ...rule, ...patch } : rule))
+  const removeRule = (index) => setAvailabilityRules((rules) => (rules ?? availabilityData.rules ?? []).filter((_, i) => i !== index))
   const minutesToTime = (minutes) => String(Math.floor(Number(minutes) / 60)).padStart(2, '0') + ':' + String(Number(minutes) % 60).padStart(2, '0')
   const timeToMinutes = (value) => { const [hours, minutes] = value.split(':').map(Number); return hours * 60 + minutes }
   const formatDateTime = (value) => value ? new Date(value).toLocaleString() : '—'
@@ -142,165 +108,22 @@ export default function UsersPage() {
     { key: 'role', header: 'Role', render: (x) => <Badge variant="secondary">{x.role}</Badge> },
     { key: 'specialty', header: 'Specialty', value: (x) => x.specialty ?? '—' },
     { key: 'status', header: 'Status', render: (x) => <Badge variant={x.status === 'ACTIVE' ? 'default' : 'outline'}>{x.status ?? '—'}</Badge> },
-    {
-      key: 'actions',
-      header: 'Actions',
-      searchable: false,
-      render: (x) =>
-        ((x.role === 'Student' && canStudentManage) || (x.role === 'Instructor' && canInstructorManage))
-          ? <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => setEditing(x)}>Edit</Button>
-              {x.role === 'Instructor' && <Button size="sm" variant="outline" onClick={() => openAvailability(x)}>Availability</Button>}
-            </div>
-          : null,
-    },
+    { key: 'actions', header: 'Actions', searchable: false, render: (x) => ((x.role === 'Student' && canStudentManage) || (x.role === 'Instructor' && canInstructorManage)) ? <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setEditing(x)}>Edit</Button>{x.role === 'Instructor' && <Button size="sm" variant="outline" onClick={() => openAvailability(x)}>Availability</Button>}</div> : null },
   ]
 
   return <div className="space-y-6">
-    <PageHeader
-      title="Users"
-      description="Cadenza students and instructors."
-      actions={
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={register.isPending} onClick={() => register.mutate()}>
-            {register.isPending ? 'Registering…' : 'Register my account as student'}
-          </Button>
-          {canInstructorCreate && (
-            <Button variant="outline" onClick={() => setAddInstructorOpen(true)}>
-              Add instructor
-            </Button>
-          )}
-        </div>
-      }
-    />
-
+    <PageHeader title="Users" description="Cadenza students and instructors." actions={<div className="flex flex-wrap gap-2"><Button disabled={register.isPending} onClick={() => register.mutate()}>{register.isPending ? 'Registering…' : 'Register my account as student'}</Button>{canInstructorCreate && <Button variant="outline" onClick={() => setAddInstructorOpen(true)}>Add instructor</Button>}</div>} />
     {error && <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>}
-
-    <Card>
-      <CardContent className="pt-6">
-        <DataTable columns={columns} rows={entries} searchPlaceholder="Search users…" />
-      </CardContent>
-    </Card>
+    <Card><CardContent className="pt-6"><DataTable columns={columns} rows={entries} searchPlaceholder="Search users…" /></CardContent></Card>
 
     <Dialog open={addInstructorOpen} onOpenChange={setAddInstructorOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add instructor</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <SelectField
-            label="Person"
-            options={candidateOptions}
-            value={newInstructor.personId}
-            onChange={(value) => setNewInstructor({ ...newInstructor, personId: value })}
-          />
-          <div className="grid gap-2">
-            <Label htmlFor="instructor-specialty">Specialty</Label>
-            <Input
-              id="instructor-specialty"
-              value={newInstructor.specialty}
-              onChange={(e) => setNewInstructor({ ...newInstructor, specialty: e.currentTarget.value })}
-              placeholder="e.g. Piano, Guitar, Vocal"
-              maxLength={100}
-            />
-          </div>
-          {candidates.isLoading && <p className="text-sm text-muted-foreground">Loading eligible people…</p>}
-          {!candidates.isLoading && !candidates.error && candidateOptions.length === 0 && (
-            <p className="text-sm text-muted-foreground">No eligible people are available to add as an instructor.</p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setAddInstructorOpen(false)}>Cancel</Button>
-          <Button
-            disabled={!newInstructor.personId || createInstructor.isPending}
-            onClick={() => createInstructor.mutate({
-              personId: newInstructor.personId,
-              specialty: newInstructor.specialty || undefined,
-            })}
-          >
-            {createInstructor.isPending ? 'Adding…' : 'Add instructor'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+      <DialogContent><DialogHeader><DialogTitle>Add instructor</DialogTitle></DialogHeader><div className="grid gap-4"><SelectField label="Person" options={candidateOptions} value={newInstructor.personId} onChange={(value) => setNewInstructor({ ...newInstructor, personId: value })} /><div className="grid gap-2"><Label htmlFor="instructor-specialty">Specialty</Label><Input id="instructor-specialty" value={newInstructor.specialty} onChange={(e) => setNewInstructor({ ...newInstructor, specialty: e.currentTarget.value })} placeholder="e.g. Piano, Guitar, Vocal" maxLength={100} /></div>{candidates.isLoading && <p className="text-sm text-muted-foreground">Loading eligible people…</p>}{!candidates.isLoading && !candidates.error && candidateOptions.length === 0 && <p className="text-sm text-muted-foreground">No eligible people are available to add as an instructor.</p>}</div><DialogFooter><Button variant="outline" onClick={() => setAddInstructorOpen(false)}>Cancel</Button><Button disabled={!newInstructor.personId || createInstructor.isPending} onClick={() => createInstructor.mutate({ personId: newInstructor.personId, specialty: newInstructor.specialty || undefined })}>{createInstructor.isPending ? 'Adding…' : 'Add instructor'}</Button></DialogFooter></DialogContent>
     </Dialog>
-
 
     <Dialog open={Boolean(availabilityInstructor)} onOpenChange={(value) => !value && setAvailabilityInstructor(null)}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader><DialogTitle>Instructor availability — {personName(availabilityInstructor?.person)}</DialogTitle></DialogHeader>
-        {availability.isLoading ? <LoadingState label="Loading availability…" rows={3} /> : (
-          <div className="grid gap-6">
-            <div className="grid gap-3">
-              <div className="flex items-center justify-between gap-2">
-                <div><h3 className="font-medium">Weekly availability</h3><p className="text-sm text-muted-foreground">Define recurring time windows per day.</p></div>
-                {canInstructorManage && <Button variant="outline" size="sm" onClick={addRule}>Add time window</Button>}
-              </div>
-              {rulesForEditor.length === 0 && <p className="text-sm text-muted-foreground">No weekly availability configured.</p>}
-              {rulesForEditor.map((rule, index) => (
-                <div key={index} className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
-                  <SelectField label="Day" options={['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((label, dayOfWeek) => ({ value: String(dayOfWeek), label }))} value={String(rule.dayOfWeek)} onChange={(value) => updateRule(index, { dayOfWeek: Number(value) })} disabled={!canInstructorManage} />
-                  <div className="grid gap-2"><Label>Start</Label><Input type="time" value={minutesToTime(rule.startMinute)} disabled={!canInstructorManage} onChange={(e) => updateRule(index, { startMinute: timeToMinutes(e.currentTarget.value) })} /></div>
-                  <div className="grid gap-2"><Label>End</Label><Input type="time" value={minutesToTime(rule.endMinute)} disabled={!canInstructorManage} onChange={(e) => updateRule(index, { endMinute: timeToMinutes(e.currentTarget.value) })} /></div>
-                  {canInstructorManage && <Button variant="ghost" onClick={() => removeRule(index)}>Remove</Button>}
-                </div>
-              ))}
-              {canInstructorManage && <Button disabled={replaceAvailability.isPending} onClick={() => replaceAvailability.mutate({ id: availabilityInstructor.id, rules: rulesForEditor })}>{replaceAvailability.isPending ? 'Saving…' : 'Save weekly availability'}</Button>}
-            </div>
-            <div className="grid gap-3 border-t pt-5">
-              <div><h3 className="font-medium">Blocked periods</h3><p className="text-sm text-muted-foreground">Add one-off periods when the instructor cannot be scheduled.</p></div>
-              {availabilityData.blocks?.length > 0 ? availabilityData.blocks.map((block) => (
-                <div key={block.id} className="flex flex-col gap-2 rounded-md border p-3 md:flex-row md:items-center md:justify-between">
-                  <div><div className="font-medium">{formatDateTime(block.startsAt)} → {formatDateTime(block.endsAt)}</div><div className="text-sm text-muted-foreground">{block.reason || 'No reason provided'}</div></div>
-                  {canInstructorManage && <Button variant="ghost" size="sm" disabled={removeBlock.isPending} onClick={() => removeBlock.mutate({ id: availabilityInstructor.id, blockId: block.id })}>Remove</Button>}
-                </div>
-              )) : <p className="text-sm text-muted-foreground">No blocked periods configured.</p>}
-              {canInstructorManage && <div className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_1fr_1.5fr_auto] md:items-end">
-                <div className="grid gap-2"><Label>Starts</Label><Input type="datetime-local" value={blockDraft.startsAt} onChange={(e) => setBlockDraft({ ...blockDraft, startsAt: e.currentTarget.value })} /></div>
-                <div className="grid gap-2"><Label>Ends</Label><Input type="datetime-local" value={blockDraft.endsAt} onChange={(e) => setBlockDraft({ ...blockDraft, endsAt: e.currentTarget.value })} /></div>
-                <div className="grid gap-2"><Label>Reason</Label><Input value={blockDraft.reason} maxLength={500} placeholder="Optional" onChange={(e) => setBlockDraft({ ...blockDraft, reason: e.currentTarget.value })} /></div>
-                <Button disabled={!blockDraft.startsAt || !blockDraft.endsAt || addBlock.isPending} onClick={() => addBlock.mutate({ id: availabilityInstructor.id, payload: { startsAt: new Date(blockDraft.startsAt).toISOString(), endsAt: new Date(blockDraft.endsAt).toISOString(), reason: blockDraft.reason || undefined } })}>{addBlock.isPending ? 'Adding…' : 'Block time'}</Button>
-              </div>}
-            </div>
-          </div>
-        )}
-      </DialogContent>
+      <DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>Instructor availability — {personName(availabilityInstructor?.person)}</DialogTitle></DialogHeader>{availability.isLoading ? <LoadingState label="Loading availability…" rows={3} /> : <div className="grid gap-6"><div className="grid gap-3"><div className="flex items-center justify-between gap-2"><div><h3 className="font-medium">Weekly availability</h3><p className="text-sm text-muted-foreground">Define recurring time windows per day.</p></div>{canInstructorManage && <Button variant="outline" size="sm" onClick={addRule}>Add time window</Button>}</div>{rulesForEditor.length === 0 && <p className="text-sm text-muted-foreground">No weekly availability configured.</p>}{rulesForEditor.map((rule, index) => <div key={index} className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end"><SelectField label="Day" options={['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((label, dayOfWeek) => ({ value: String(dayOfWeek), label }))} value={String(rule.dayOfWeek)} onChange={(value) => updateRule(index, { dayOfWeek: Number(value) })} disabled={!canInstructorManage} /><div className="grid gap-2"><Label>Start</Label><Input type="time" value={minutesToTime(rule.startMinute)} disabled={!canInstructorManage} onChange={(e) => updateRule(index, { startMinute: timeToMinutes(e.currentTarget.value) })} /></div><div className="grid gap-2"><Label>End</Label><Input type="time" value={minutesToTime(rule.endMinute)} disabled={!canInstructorManage} onChange={(e) => updateRule(index, { endMinute: timeToMinutes(e.currentTarget.value) })} /></div>{canInstructorManage && <Button variant="ghost" onClick={() => removeRule(index)}>Remove</Button>}</div>)}{canInstructorManage && <Button disabled={replaceAvailability.isPending} onClick={() => replaceAvailability.mutate({ id: availabilityInstructor.id, rules: rulesForEditor })}>{replaceAvailability.isPending ? 'Saving…' : 'Save weekly availability'}</Button>}</div><div className="grid gap-3 border-t pt-5"><div><h3 className="font-medium">Blocked periods</h3><p className="text-sm text-muted-foreground">Add one-off periods when the instructor cannot be scheduled.</p></div>{availabilityData.blocks?.length > 0 ? availabilityData.blocks.map((block) => <div key={block.id} className="flex flex-col gap-2 rounded-md border p-3 md:flex-row md:items-center md:justify-between"><div><div className="font-medium">{formatDateTime(block.startsAt)} → {formatDateTime(block.endsAt)}</div><div className="text-sm text-muted-foreground">{block.reason || 'No reason provided'}</div></div>{canInstructorManage && <Button variant="ghost" size="sm" disabled={removeBlock.isPending} onClick={() => removeBlock.mutate({ id: availabilityInstructor.id, blockId: block.id })}>Remove</Button>}</div>) : <p className="text-sm text-muted-foreground">No blocked periods configured.</p>}{canInstructorManage && <div className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_1fr_1.5fr_auto] md:items-end"><div className="grid gap-2"><Label>Starts</Label><Input type="datetime-local" value={blockDraft.startsAt} onChange={(e) => setBlockDraft({ ...blockDraft, startsAt: e.currentTarget.value })} /></div><div className="grid gap-2"><Label>Ends</Label><Input type="datetime-local" value={blockDraft.endsAt} onChange={(e) => setBlockDraft({ ...blockDraft, endsAt: e.currentTarget.value })} /></div><div className="grid gap-2"><Label>Reason</Label><Input value={blockDraft.reason} maxLength={500} placeholder="Optional" onChange={(e) => setBlockDraft({ ...blockDraft, reason: e.currentTarget.value })} /></div><Button disabled={!blockDraft.startsAt || !blockDraft.endsAt || addBlock.isPending} onClick={() => addBlock.mutate({ id: availabilityInstructor.id, payload: { startsAt: new Date(blockDraft.startsAt).toISOString(), endsAt: new Date(blockDraft.endsAt).toISOString(), reason: blockDraft.reason || undefined } })}>{addBlock.isPending ? 'Adding…' : 'Block time'}</Button></div>}</div></div>}</DialogContent>
     </Dialog>
-    <Dialog open={Boolean(editing)} onOpenChange={(value) => !value && setEditing(null)}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Update {editing?.role?.toLowerCase()}</DialogTitle></DialogHeader>
-        <div className="grid gap-4">
-          {editing?.role === 'Instructor' && (
-            <div className="grid gap-2">
-              <Label>Specialty</Label>
-              <Input
-                value={editing.specialty ?? ''}
-                onChange={(e) => setEditing({ ...editing, specialty: e.currentTarget.value })}
-              />
-            </div>
-          )}
-          <SelectField
-            label="Status"
-            options={['ACTIVE', 'INACTIVE'].map((x) => ({ value: x, label: x }))}
-            value={editing?.status}
-            onChange={(value) => setEditing({ ...editing, status: value })}
-          />
-        </div>
-        <DialogFooter>
-          <Button
-            onClick={() =>
-              editing.role === 'Student'
-                ? updateStudent.mutate({ id: editing.id, status: editing.status })
-                : updateInstructor.mutate({
-                    id: editing.id,
-                    status: editing.status,
-                    specialty: editing.specialty,
-                  })
-            }
-          >
-            {updateStudent.isPending || updateInstructor.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+    <Dialog open={Boolean(editing)} onOpenChange={(value) => !value && setEditing(null)}><DialogContent><DialogHeader><DialogTitle>Update {editing?.role?.toLowerCase()}</DialogTitle></DialogHeader><div className="grid gap-4">{editing?.role === 'Instructor' && <div className="grid gap-2"><Label>Specialty</Label><Input value={editing.specialty ?? ''} onChange={(e) => setEditing({ ...editing, specialty: e.currentTarget.value })} /></div>}<SelectField label="Status" options={['ACTIVE', 'INACTIVE'].map((x) => ({ value: x, label: x }))} value={editing?.status} onChange={(value) => setEditing({ ...editing, status: value })} /></div><DialogFooter><Button onClick={() => editing.role === 'Student' ? updateStudent.mutate({ id: editing.id, status: editing.status }) : updateInstructor.mutate({ id: editing.id, status: editing.status, specialty: editing.specialty })}>{updateStudent.isPending || updateInstructor.isPending ? 'Saving…' : 'Save'}</Button></DialogFooter></DialogContent></Dialog>
   </div>
 }
