@@ -328,10 +328,11 @@ const enroll = async ({
   if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
     throw new BadRequestError('Authenticated actor is required.')
   const isManager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' })
-  const resolvedStudentId = isManager ? studentId : (await repository.findStudentForActor(actorId, owner))?.id
-  if (!resolvedStudentId) throw new NotFoundError('Student not found.')
-  const student = await repository.findStudent(resolvedStudentId, owner)
-  if (!student) throw new NotFoundError('Student not found.')
+  const student = isManager
+    ? await repository.findStudent(studentId, owner)
+    : await repository.ensureStudentForActor(actorId, owner)
+  const resolvedStudentId = student?.id
+  if (!student) throw new NotFoundError('Create your profile before enrolling as a student.')
   if (!isManager && Number(student.person?.userId) !== Number(actorId))
     throw new ForbiddenError('You can only enroll yourself as a Cadenza student.')
   if (student.status !== STUDENT_STATUS.ACTIVE)
