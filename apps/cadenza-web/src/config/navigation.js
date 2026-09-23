@@ -26,7 +26,8 @@ export const navigation = Object.freeze([
     key: 'rentals',
     name: 'Rentals',
     items: [
-      { key: 'rentals', name: 'Rentals', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.read },
+      { key: 'rentals', name: 'Walk-in Rentals', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
+      { key: 'online-rentals', name: 'Online Rental', route: '/app/rentals/online', icon: icon(Guitar), permission: PERMISSIONS.rentals.read },
       { key: 'resources', name: 'Resources', route: '/app/resources', icon: icon(Archive), permission: PERMISSIONS.instruments.read },
     ],
   },
