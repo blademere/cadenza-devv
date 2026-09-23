@@ -20,7 +20,6 @@ model App {
   documents                Document[]
   resources                Resource[]
   cadenzaCustomers         CadenzaCustomer[]
-  cadenzaStudents          CadenzaStudent[]
   cadenzaInstructors        CadenzaInstructor[]
   cadenzaInstructorAvailability CadenzaInstructorAvailability[]
   cadenzaInstructorBlocks   CadenzaInstructorBlock[]
