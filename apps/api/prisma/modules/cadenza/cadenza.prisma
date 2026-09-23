@@ -9,6 +9,7 @@ model CadenzaCustomer {
   app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
   person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
   rentals   CadenzaRental[]
+  enrollments CadenzaEnrollment[]
   @@unique([appId, personId])
   @@index([appId, status])
 }
