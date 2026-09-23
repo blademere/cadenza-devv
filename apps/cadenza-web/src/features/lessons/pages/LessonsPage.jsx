@@ -59,7 +59,7 @@ export default function LessonsPage() {
   const enrollmentsQuery = useQuery({
     queryKey: ['cadenza', 'enrollments'],
     queryFn: lessonsApi.listEnrollments,
-    enabled: !customerView,
+    enabled: canEnrollmentCreate || canEnrollmentManage,
   })
   const sessionsQuery = useQuery({ queryKey: ['cadenza', 'sessions'], queryFn: schedulingApi.listSessions })
   const instructorsQuery = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list, enabled: canInstructorRead })
@@ -70,6 +70,7 @@ export default function LessonsPage() {
   const [enrollOpen, setEnrollOpen] = useState(false)
   const [attachmentPackage, setAttachmentPackage] = useState(null)
   const [payment, setPayment] = useState(null)
+  const [selectedEnrollment, setSelectedEnrollment] = useState(null)
   const [file, setFile] = useState(null)
   const [form, setForm] = useState({ name: '', description: '', price: '', numberOfSessions: 1 })
   const [enrollForm, setEnrollForm] = useState({ customerId: '', lessonPackageId: '' })
@@ -299,6 +300,59 @@ export default function LessonsPage() {
                 ))}
             </div>
           )}
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base">My enrollments</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Your current and previous lesson enrollments, payment status, and session progress.
+                  </p>
+                </div>
+                <Badge variant="outline">{enrollments.length}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {enrollments.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                  You have no lesson enrollments yet.
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {enrollments.map((item) => {
+                    const pendingPayment = item.status === 'PENDING_PAYMENT' && item.paymentObligationId
+                    return (
+                      <div key={item.id} className="rounded-lg border p-4">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0 space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold">{item.lessonPackage?.name ?? item.lessonPackageId}</p>
+                              <Badge variant={item.status === 'PENDING_PAYMENT' ? 'outline' : 'secondary'}>{item.status}</Badge>
+                            </div>
+                            <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
+                              <span>Enrolled {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}</span>
+                              <span>{item.progress?.completedSessions ?? 0}/{item.progress?.totalSessions ?? item.lessonPackage?.numberOfSessions ?? 0} sessions completed</span>
+                              <span>{item.progress?.remainingSessions ?? item.lessonPackage?.numberOfSessions ?? 0} remaining</span>
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setSelectedEnrollment(item)}>View details</Button>
+                            {pendingPayment && canPay && (
+                              <Button size="sm" onClick={() => setPayment(item)}>Pay online</Button>
+                            )}
+                            {!pendingPayment && item.paymentObligationId && canPay && (
+                              <Button size="sm" variant="outline" onClick={() => setPayment(item)}>Payment history</Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </section>
       ) : (
         <>
@@ -683,12 +737,67 @@ export default function LessonsPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={Boolean(selectedEnrollment)} onOpenChange={(open) => !open && setSelectedEnrollment(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{selectedEnrollment?.lessonPackage?.name ?? 'Lesson enrollment'}</DialogTitle>
+            <DialogDescription>
+              Enrollment details, payment state, and scheduled lesson sessions.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEnrollment && (
+            <div className="grid gap-5">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Enrollment status</p>
+                  <p className="mt-1 font-semibold">{selectedEnrollment.status}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Progress</p>
+                  <p className="mt-1 font-semibold">{selectedEnrollment.progress?.completedSessions ?? 0}/{selectedEnrollment.progress?.totalSessions ?? selectedEnrollment.lessonPackage?.numberOfSessions ?? 0}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Payment</p>
+                  <p className="mt-1 font-semibold">{selectedEnrollment.status === 'PENDING_PAYMENT' ? 'Payment due' : 'Paid / linked'}</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold">Lesson sessions</h3>
+                <div className="mt-2 grid gap-2">
+                  {(selectedEnrollment.sessions ?? []).length === 0 ? (
+                    <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No lesson sessions have been scheduled yet.</p>
+                  ) : (
+                    (selectedEnrollment.sessions ?? []).map((session) => (
+                      <div key={session.id} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{session.scheduledStart ? new Date(session.scheduledStart).toLocaleString() : 'Schedule pending'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {session.instructor?.person?.name ?? 'Instructor unassigned'} · {session.room?.name ?? 'Room unassigned'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{session.status}</Badge>
+                          {session.attendance?.status && <Badge variant="outline">{session.attendance.status}</Badge>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={Boolean(payment)} onOpenChange={(open) => !open && setPayment(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Complete lesson enrollment</DialogTitle>
+            <DialogTitle>{customerView ? 'Lesson payment' : 'Complete lesson enrollment'}</DialogTitle>
             <DialogDescription>
-              This package requires full payment before the enrollment is confirmed.
+              {customerView
+                ? 'Complete the outstanding balance online. Your enrollment is confirmed after the payment settles.'
+                : 'This package requires full payment before the enrollment is confirmed.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
@@ -708,19 +817,23 @@ export default function LessonsPage() {
             ))}
 
             <div className="grid gap-2 sm:grid-cols-2">
-              <Button
-                disabled={!due || !canPay || pay.isPending}
-                onClick={() => pay.mutate({ id: payment.paymentObligationId, amount: due })}
-              >
-                {pay.isPending ? 'Recording…' : 'Pay at front desk'}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={!due || !canPay || online.isPending}
-                onClick={() => online.mutate({ id: payment.paymentObligationId, amount: due })}
-              >
-                {online.isPending ? 'Opening…' : 'Pay online'}
-              </Button>
+              {!customerView && (
+                <Button
+                  disabled={!due || !canPay || pay.isPending}
+                  onClick={() => pay.mutate({ id: payment.paymentObligationId, amount: due })}
+                >
+                  {pay.isPending ? 'Recording…' : 'Pay at front desk'}
+                </Button>
+              )}
+              {payment?.status !== 'PENDING_PAYMENT' && !due ? null : (
+                <Button
+                  variant={customerView ? 'default' : 'outline'}
+                  disabled={!due || !canPay || online.isPending}
+                  onClick={() => online.mutate({ id: payment.paymentObligationId, amount: due })}
+                >
+                  {online.isPending ? 'Opening…' : 'Pay online'}
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>
