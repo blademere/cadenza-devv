@@ -405,7 +405,7 @@ const listReschedules = async ({ appId, actorId }) => {
   const owner = requireAppId(appId)
   const rows = await repository.listReschedules(owner)
   if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'manage' })) return rows
-  return rows.filter((row) => Number(row.session?.enrollment?.student?.person?.userId) === Number(actorId) || Number(row.requestedByUserId) === Number(actorId))
+  return rows.filter((row) => Number(row.session?.enrollment?.student?.person?.userId) === Number(actorId) || row.requestedByPersonId === row.session?.enrollment?.student?.person?.id)
 }
 const getReschedule = async ({ appId, id }) => {
   const value = await repository.findReschedule(id, requireAppId(appId))
@@ -504,7 +504,7 @@ const markAttendance = async ({ appId, sessionId, actorId, status, notes }) => {
       )
     const attendance = await repository.upsertAttendance(
       sessionId,
-      { status, markedByUserId: Number(actorId), notes: notes?.trim() || null },
+      { status, markedByPersonId: person.id, notes: notes?.trim() || null },
       tx
     )
     await lifecycle.ensureInProgress({ appId: owner, enrollmentId: session.enrollment.id, actorId, db: tx })
@@ -557,7 +557,7 @@ const requestReschedule = async ({
       {
         appId: owner,
         sessionId,
-        requestedByUserId: Number(actorId),
+        requestedByPersonId: person.id,
         requestedStart: start,
         requestedEnd: end,
         reason: reason?.trim() || null,
@@ -625,7 +625,7 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
     )
       throw new ConflictError('Only active lesson sessions can be rescheduled.')
     if (!approve) {
-      await repository.updateReschedule(id, owner, { status: RESCHEDULE_STATUS.REJECTED, reviewedByUserId: Number(actorId), reviewedAt: new Date() }, tx)
+      await repository.updateReschedule(id, owner, { status: RESCHEDULE_STATUS.REJECTED, reviewedByPersonId: person.id, reviewedAt: new Date() }, tx)
       await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.RESCHEDULE_REJECTED, entityType: 'CadenzaRescheduleRequest', entityId: id, actorId, context: { appId: owner, sessionId: session.id, enrollmentId: session.enrollmentId }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.RESCHEDULE_REJECTED}:${id}` })
       return repository.findReschedule(id, owner, tx)
     }
@@ -672,7 +672,7 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
       owner,
       {
         status: RESCHEDULE_STATUS.APPROVED,
-        reviewedByUserId: Number(actorId),
+        reviewedByPersonId: person.id,
         reviewedAt: new Date(),
       },
       tx
