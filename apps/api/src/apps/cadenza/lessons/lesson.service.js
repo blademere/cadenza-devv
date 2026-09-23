@@ -444,6 +444,8 @@ const markAttendance = async ({ appId, sessionId, actorId, status, notes }) => {
     const session = await repository.findSession(sessionId, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
     await assertInstructorOrManager({ session, actorId, appId: owner })
+    const person = await repository.findPersonByUserId(actorId, tx)
+    if (!person) throw new ForbiddenError('Authenticated actor must have a Person profile.')
     if (
       [SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED].includes(
         session.status
