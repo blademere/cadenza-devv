@@ -1,7 +1,7 @@
 import { positiveDecimal, compare } from '../../../platform/money/money.js'
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../../common/errors/appError.js'
 import { requireAppId } from '../../../platform/applications/application-scope.js'
-import { getObligation, getPayment, recordPayment, createCheckout, listPaymentHistory, refundPayment } from '../../../platform/payments/payment.service.js'
+import { getObligation, getPayment, recordPayment, createCheckout, getCheckoutStatus, listPaymentHistory, refundPayment } from '../../../platform/payments/payment.service.js'
 import { can } from '../../../platform/authorization/authorization.service.js'
 import { env } from '../../../config/index.js'
 import * as repository from './payment.repository.js'
@@ -95,6 +95,39 @@ const checkout = async ({ appId, obligationId, amount, description, idempotencyK
   })
 }
 
+const sync = async ({ appId, obligationId, actorId }) => {
+  const owner = requireAppId(appId)
+  await assertOwnership({ appId: owner, obligationId, actorId })
+  const obligation = await getObligation(obligationId, owner)
+  if (!obligation) throw new NotFoundError('Payment obligation not found.')
+  if (obligation.status === 'PAID') return { status: obligation.status, obligation, reconciled: false }
+
+  const checkout = await getCheckoutStatus({ appId: owner, obligationId, provider: 'XENDIT' })
+  if (!checkout) return { status: 'NOT_STARTED', obligation, reconciled: false }
+  if (checkout.referenceId !== obligationId) throw new BadRequestError('Payment provider reference does not match the payment obligation.')
+  if (checkout.currency?.toUpperCase() !== obligation.currency.toUpperCase()) throw new BadRequestError('Payment provider currency does not match the payment obligation.')
+  if (checkout.status !== 'SUCCEEDED') return { status: checkout.status || 'PENDING', obligation, reconciled: false }
+  if (!checkout.providerReference) return { status: 'SUCCEEDED', obligation, reconciled: false }
+
+  const amount = checkout.amount
+  if (!amount || compare(amount, obligation.balanceDue) > 0) throw new BadRequestError('Payment provider amount exceeds the outstanding balance.')
+  await beforeRecord({ appId: owner, obligationId, amount })
+  await recordPayment({
+    appId: owner,
+    obligationId,
+    amount,
+    currency: checkout.currency,
+    method: checkout.method,
+    provider: 'XENDIT',
+    providerReference: checkout.providerReference,
+    idempotencyKey: `XENDIT:${checkout.providerReference}`,
+    metadata: { ...checkout.metadata, appId: owner, applicationKey: 'cadenza', checkoutSessionId: checkout.paymentRequestId, reconciled: true },
+    actorId,
+    onSettled: async ({ db, obligation: settled, paidAmount }) => onSettled({ db, obligation: settled, paidAmount }),
+  })
+  return { status: 'RECONCILED', obligation: await getObligation(obligationId, owner), reconciled: true }
+}
+
 const get = async ({ appId, obligationId, actorId }) => {
   await assertOwnership({ appId, obligationId, actorId })
   const value = await getObligation(obligationId, requireAppId(appId))
@@ -133,4 +166,4 @@ const refund = async ({ appId, paymentId, amount, currency, reason, actorId, man
   })
 }
 
-export { pay, get, checkout, history, getPaymentResource, refund }
+export { pay, get, checkout, sync, history, getPaymentResource, refund }
