@@ -330,12 +330,11 @@ export default function RentalsPage() {
         <CardContent>
           <DataTable
             columns={[
-              {
+              ...(!customerView ? [{
                 key: 'customer',
                 header: 'Customer',
                 value: (r) => customerName(r.customer),
-                hidden: customerView,
-              },
+              }] : []),
               {
                 key: 'resource',
                 header: 'Rental',
@@ -485,7 +484,8 @@ export default function RentalsPage() {
                 !form.resourceId ||
                 !form.scheduledStart ||
                 !form.scheduledEnd ||
-                !form.requiredDownPayment
+                !form.requiredDownPayment ||
+                (canManage && !form.customerId)
               }
               onClick={submit}
             >
