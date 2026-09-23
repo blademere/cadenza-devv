@@ -16,6 +16,8 @@ vi.mock('../../../src/apps/cadenza/rentals/rental.repository.js', () => ({
   findResource: vi.fn(),
   findInstrumentByResource: vi.fn(),
   findRoomByResource: vi.fn(),
+  findCustomerById: vi.fn(),
+  findCustomerByUserId: vi.fn(),
   findOverlap: vi.fn(),
   create: vi.fn(),
   attachPaymentObligation: vi.fn(),
@@ -126,6 +128,7 @@ describe('Cadenza rental payment workflow', () => {
 
   it('rejects creating a rental for another customer without management permission', async () => {
     platformAuthorization.can.mockResolvedValue(false)
+    rentalRepository.findCustomerById.mockResolvedValue({ id: 'customer-1', appId: APP_ID, person: { userId: 99 } })
 
     await expect(rentalService.create({
       appId: APP_ID,
@@ -177,7 +180,7 @@ describe('Cadenza payment settlement', () => {
     paymentRepository.findRental.mockResolvedValue({
       id: RENTAL_ID,
       appId: APP_ID,
-      customerId: 'customer-1',
+      customer: { person: { userId: 42 } },
       requiredDownPayment: '300.00',
     })
 
