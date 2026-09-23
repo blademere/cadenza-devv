@@ -56,9 +56,6 @@ const customerName = (customer) => {
   )
 }
 
-const channelLabel = (rental) =>
-  rental?.metadata?.channel === 'WALK_IN' ? 'Walk-in' : 'Online'
-
 const workflowSteps = ['Booking', 'Reserved / Prepare', 'Active rental', 'Returned / Settled']
 
 export default function RentalsPage() {
@@ -338,11 +335,6 @@ export default function RentalsPage() {
                   (r.rentalType === 'ROOM' ? 'Band room' : 'Instrument'),
               },
               {
-                key: 'channel',
-                header: 'Source',
-                render: (r) => <Badge variant="outline">{channelLabel(r)}</Badge>,
-              },
-              {
                 key: 'schedule',
                 header: 'Schedule',
                 value: (r) =>
@@ -502,7 +494,7 @@ export default function RentalsPage() {
             </DialogTitle>
             <DialogDescription>
               {selectedRental
-                ? `${customerName(selectedRental.customer)} · ${selectedRental.rentalType === 'ROOM' ? 'Band room' : 'Instrument'} · ${channelLabel(selectedRental)}`
+                ? `${customerName(selectedRental.customer)} · ${selectedRental.rentalType === 'ROOM' ? 'Band room' : 'Instrument'}`
                 : 'Loading rental…'}
             </DialogDescription>
           </DialogHeader>
@@ -548,7 +540,6 @@ export default function RentalsPage() {
                     <div className="flex justify-between gap-4"><span className="text-muted-foreground">Email</span><span>{selectedRental.customer?.person?.email || '—'}</span></div>
                     <div className="flex justify-between gap-4"><span className="text-muted-foreground">Phone</span><span>{selectedRental.customer?.person?.phone || '—'}</span></div>
 
-                    <div className="flex justify-between"><span className="text-muted-foreground">Source</span><span>{channelLabel(selectedRental)}</span></div>
                     <div className="flex justify-between gap-4"><span className="text-muted-foreground">Rental ID</span><span className="font-mono text-xs">{selectedRental.id}</span></div>
                     <div className="flex justify-between gap-4"><span className="text-muted-foreground">Resource</span><span className="text-right">{selectedRental.resource?.name || resourceNameMap.get(selectedRental.resourceId) || selectedRental.resourceId}</span></div>
                     <div className="flex justify-between gap-4"><span className="text-muted-foreground">Resource type</span><span>{selectedRental.resource?.type || selectedRental.rentalType}</span></div>
