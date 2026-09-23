@@ -19,7 +19,7 @@ const assertOwnership = async ({ appId, obligationId, actorId }) => {
       : obligation.referenceType === 'CADENZA_ENROLLMENT'
         ? await repository.findEnrollment(obligation.referenceId, owner)
         : null
-  const userId = row?.customerUserId ?? row?.student?.person?.userId
+  const userId = row?.customer?.person?.userId ?? row?.student?.person?.userId
   if (Number(userId) !== Number(actorId))
     throw new NotFoundError('Payment obligation not found.')
 }
