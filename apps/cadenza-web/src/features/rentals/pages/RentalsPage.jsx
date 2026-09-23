@@ -538,7 +538,7 @@ export default function RentalsPage() {
               <div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={(event) => { const { value } = event.currentTarget; setForm((current) => ({ ...(current || {}), scheduledEnd: value })) }} /></div>
             </div>
 
-            {availability.isSuccess && form.resourceId && !availableRows.some((item) => (item.resourceId ?? item.id) === form.resourceId) && (
+            {availability.isSuccess && form.resourceId && !availableResourceIds.has(form.resourceId) && (
               <Alert variant="destructive"><AlertDescription>The selected resource is no longer available for this time. Choose another resource or adjust the rental window.</AlertDescription></Alert>
             )}
 
@@ -577,7 +577,7 @@ export default function RentalsPage() {
                 Number(form.requiredDownPayment) <= 0 ||
                 (estimatedTotal > 0 && Number(form.requiredDownPayment) > estimatedTotal) ||
                 (canManage && !form.customerId) ||
-                (availability.isSuccess && !availableRows.some((item) => (item.resourceId ?? item.id) === form.resourceId))
+                (availability.isSuccess && !availableResourceIds.has(form.resourceId))
               }
               onClick={submit}
             >
