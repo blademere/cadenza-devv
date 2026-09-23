@@ -47,7 +47,7 @@ export default function PaymentPage() {
   })
 
   useEffect(() => {
-    if (obligationId && result === 'success') syncPayment()
+    if (obligationId && ['success', 'failure'].includes(result)) syncPayment()
   }, [obligationId, result, syncPayment])
 
   const obligationQuery = useQuery({
