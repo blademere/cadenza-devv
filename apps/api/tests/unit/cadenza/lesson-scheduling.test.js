@@ -14,6 +14,7 @@ vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
   listSessions: vi.fn(),
   countConsumedSessions: vi.fn(),
   findEnrollmentById: vi.fn(),
+  findPersonByUserId: vi.fn(),
 }))
 
 vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({
