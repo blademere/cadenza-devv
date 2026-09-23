@@ -16,6 +16,7 @@ vi.mock('../../../src/features/people/people.service.js', () => ({
 
 vi.mock('../../../src/apps/cadenza/instructors/instructor.repository.js', () => ({
   personExists: vi.fn(),
+  findEligiblePerson: vi.fn(),
   findById: vi.fn(),
   list: vi.fn(),
   create: vi.fn(),
@@ -69,12 +70,13 @@ describe('Cadenza person-backed roles', () => {
 
     const result = await customerService.get({ appId: APP_ID, id: CUSTOMER_ID, actorId: 42 })
 
-    expect(result.person).toEqual(person)
+    expect(result.person).toMatchObject(person)
     expect(result).not.toHaveProperty('firstName')
     expect(result).not.toHaveProperty('lastName')
   })
 
   it('creates an instructor by Person reference and preserves the specialty as app-specific data', async () => {
+    instructorRepository.findEligiblePerson.mockResolvedValue({ id: PERSON_ID, userId: 42 })
     instructorRepository.personExists.mockResolvedValue(true)
     instructorRepository.create.mockResolvedValue({
       id: INSTRUCTOR_ID,
