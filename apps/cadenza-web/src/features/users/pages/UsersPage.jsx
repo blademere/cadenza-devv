@@ -51,7 +51,7 @@ export default function UsersPage() {
 
   const [editing, setEditing] = useState(null)
   const [availabilityInstructor, setAvailabilityInstructor] = useState(null)
-  const [availabilityRules, setAvailabilityRules] = useState([])
+  const [availabilityRules, setAvailabilityRules] = useState(null)
   const [blockDraft, setBlockDraft] = useState({ startsAt: '', endsAt: '', reason: '' })
   const [addInstructorOpen, setAddInstructorOpen] = useState(false)
   const [newInstructor, setNewInstructor] = useState({ personId: '', specialty: '' })
@@ -125,10 +125,10 @@ export default function UsersPage() {
   const availabilityData = availability.data?.data ?? availability.data ?? { rules: [], blocks: [] }
   const openAvailability = (instructor) => {
     setAvailabilityInstructor(instructor)
-    setAvailabilityRules([])
+    setAvailabilityRules(null)
     setBlockDraft({ startsAt: '', endsAt: '', reason: '' })
   }
-  const rulesForEditor = availabilityRules.length ? availabilityRules : (availabilityData.rules ?? [])
+  const rulesForEditor = availabilityRules ?? (availabilityData.rules ?? [])
   const addRule = () => setAvailabilityRules((rules) => [...rules, { dayOfWeek: 1, startMinute: 540, endMinute: 1020 }])
   const updateRule = (index, patch) => setAvailabilityRules((rules) => rules.map((rule, i) => i === index ? { ...rule, ...patch } : rule))
   const removeRule = (index) => setAvailabilityRules((rules) => rules.filter((_, i) => i !== index))
