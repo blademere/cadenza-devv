@@ -43,11 +43,6 @@ export default function UsersPage() {
     queryFn: instructorsApi.listCandidates,
     enabled: canInstructorCreate,
   })
-  const availability = useQuery({
-    queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id],
-    queryFn: () => instructorsApi.getAvailability(availabilityInstructor.id),
-    enabled: Boolean(availabilityInstructor),
-  })
 
   const [editing, setEditing] = useState(null)
   const [availabilityInstructor, setAvailabilityInstructor] = useState(null)
@@ -55,6 +50,11 @@ export default function UsersPage() {
   const [blockDraft, setBlockDraft] = useState({ startsAt: '', endsAt: '', reason: '' })
   const [addInstructorOpen, setAddInstructorOpen] = useState(false)
   const [newInstructor, setNewInstructor] = useState({ personId: '', specialty: '' })
+  const availability = useQuery({
+    queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id],
+    queryFn: () => instructorsApi.getAvailability(availabilityInstructor.id),
+    enabled: Boolean(availabilityInstructor),
+  })
 
   const updateStudent = useMutation({
     mutationFn: ({ id, status }) => studentsApi.update(id, { status }),
