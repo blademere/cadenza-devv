@@ -142,6 +142,7 @@ describe('Cadenza lesson scheduling', () => {
       requestedStart: new Date('2026-09-25T11:00:00.000Z'),
       requestedEnd: new Date('2026-09-25T12:00:00.000Z'),
     }
+    repository.findPersonByUserId.mockResolvedValue({ id: 'person-99', userId: 99 })
     repository.findReschedule
       .mockResolvedValueOnce(request)
       .mockResolvedValueOnce(request)
