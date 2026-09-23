@@ -34,4 +34,4 @@ const listAvailableResources = async ({ appId, rentalType, scheduledStart, sched
 }
 const findLessonSessionOverlap = ({ appId, roomId, scheduledStart, scheduledEnd }, db = prisma) => db.cadenzaLessonSession.findFirst({ where: { appId, roomId, status: { not: 'CANCELLED' }, scheduledStart: { lt: scheduledEnd }, scheduledEnd: { gt: scheduledStart } } })
 const cancel=(id,appId,db=prisma)=>db.cadenzaRental.updateMany({where:{id,appId,status:{in:['PENDING','RESERVED']}},data:{status:'CANCELLED'}})
-export {list,create,findCustomerById,findCustomerByUserId,findResource,findInstrumentByResource,findRoomByResource,findById,attachPaymentObligation,reserve,findOverlap,findLessonSessionOverlap,listAvailableResources,checkout,returnRental,cancel}
+export {list,create,findCustomerById,findCustomerByUserId,findResource,findInstrumentByResource,findRoomByResource,findById,findDetails,attachPaymentObligation,reserve,findOverlap,findLessonSessionOverlap,listAvailableResources,checkout,returnRental,cancel}
