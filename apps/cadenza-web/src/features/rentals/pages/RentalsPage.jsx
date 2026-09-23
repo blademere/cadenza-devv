@@ -450,7 +450,7 @@ export default function RentalsPage() {
                 <CardTitle>Rental operations</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">Search bookings and operate each rental through its lifecycle.</p>
               </div>
-              <div className="w-56"><SelectField label="Status" options={STATUS} value={statusFilter} onChange={(value) => setStatusFilter(value || 'ALL')} /></div>
+              <div className="w-56"><SelectField label="Status" options={STATUS} value={statusFilter} onChange={(value) => setStatusFilter(value ?? 'ALL')} /></div>
             </CardHeader>
             <CardContent>
               <DataTable
@@ -491,20 +491,51 @@ export default function RentalsPage() {
               </div>
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant={form.rentalType === 'INSTRUMENT' ? 'default' : 'outline'}
+                className="h-auto justify-start p-4 text-left"
+                onClick={() => setForm((current) => ({ ...(current || {}), rentalType: 'INSTRUMENT', resourceId: '' }))}
+              >
+                <span><span className="block font-semibold">Instrument rental</span><span className="mt-1 block text-xs font-normal opacity-80">Choose an instrument from the available inventory.</span></span>
+              </Button>
+              <Button
+                type="button"
+                variant={form.rentalType === 'ROOM' ? 'default' : 'outline'}
+                className="h-auto justify-start p-4 text-left"
+                onClick={() => setForm((current) => ({ ...(current || {}), rentalType: 'ROOM', resourceId: '' }))}
+              >
+                <span><span className="block font-semibold">Band room rental</span><span className="mt-1 block text-xs font-normal opacity-80">Choose a room for the scheduled session.</span></span>
+              </Button>
+            </div>
+
             {canManage && (
               <SelectField
                 label="Customer"
                 options={customerRows.map((customer) => ({ value: customer.id, label: customerName(customer) }))}
                 value={form.customerId}
-                onChange={(value) => setForm((current) => ({ ...current, customerId: value || '' }))}
+                onChange={(value) => setForm((current) => ({ ...(current || {}), customerId: value ?? '' }))}
                 placeholder="Choose a customer"
                 disabled={customers.isLoading}
               />
             )}
 
+            <SelectField
+              label={form.rentalType === 'ROOM' ? 'Band room' : 'Instrument'}
+              options={catalogRows.map((resource) => ({
+                value: resource.resourceId ?? resource.id,
+                label: resourceTitle(resource, form.rentalType),
+              }))}
+              value={form.resourceId}
+              onChange={(value) => setForm((current) => ({ ...(current || {}), resourceId: value ?? '' }))}
+              placeholder={form.rentalType === 'ROOM' ? 'Choose a band room' : 'Choose an instrument'}
+              disabled={availability.isLoading}
+            />
+
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={form.scheduledStart} onChange={(event) => setForm((value) => ({ ...value, scheduledStart: event.currentTarget.value, resourceId: value.resourceId }))} /></div>
-              <div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={(event) => setForm((value) => ({ ...value, scheduledEnd: event.currentTarget.value, resourceId: value.resourceId }))} /></div>
+              <div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={form.scheduledStart} onChange={(event) => setForm((value) => ({ ...(value || {}), scheduledStart: event.currentTarget.value }))} /></div>
+              <div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={(event) => setForm((value) => ({ ...(value || {}), scheduledEnd: event.currentTarget.value }))} /></div>
             </div>
 
             {availability.isSuccess && form.resourceId && !availableRows.some((item) => (item.resourceId ?? item.id) === form.resourceId) && (
@@ -514,7 +545,7 @@ export default function RentalsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Booking deposit</Label>
-                <Input type="number" min="0.01" step="0.01" value={form.requiredDownPayment} onChange={(event) => setForm((value) => ({ ...value, requiredDownPayment: event.currentTarget.value }))} />
+                <Input type="number" min="0.01" step="0.01" value={form.requiredDownPayment} onChange={(event) => setForm((value) => ({ ...(value || {}), requiredDownPayment: event.currentTarget.value }))} />
                 <p className="text-xs text-muted-foreground">The deposit is due at booking. The remaining balance is paid when the rental is used.</p>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3">
