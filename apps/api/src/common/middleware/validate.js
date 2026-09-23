@@ -4,7 +4,14 @@ import { ZodError } from 'zod'
 const validate = (validator) => {
   return async (req, _res, next) => {
     try {
-      const validated = await validator(req)
+      const validated =
+        typeof validator === 'function'
+          ? await validator(req)
+          : await validator.parse({
+              body: req.body || {},
+              params: req.params || {},
+              query: req.query || {},
+            })
 
       req.validated = validated
 
