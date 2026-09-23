@@ -17,9 +17,7 @@ export const navigation = Object.freeze([
     name: 'Music Lessons',
     items: [
       { key: 'lessons', name: 'Lessons', route: '/app/lessons', icon: icon(MusicNotes), permission: PERMISSIONS.lessons.read },
-      { key: 'payments', name: 'Payments', route: '/app/payments', icon: icon(Calendar), permission: PERMISSIONS.payments.read },
       { key: 'audit', name: 'Audit', route: '/app/audit', icon: icon(Calendar), permission: PERMISSIONS.audit.read },
-      { key: 'lesson-schedule', name: 'Schedule', route: '/app/lesson-schedule', icon: icon(Calendar), permission: PERMISSIONS.lessons.read },
     ],
   },
   {
