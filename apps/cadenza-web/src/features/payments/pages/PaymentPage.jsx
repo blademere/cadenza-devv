@@ -38,7 +38,7 @@ export default function PaymentPage() {
     },
   })
 
-  const syncPayment = useMutation({
+  const { mutate: syncPayment, isPending: isSyncing } = useMutation({
     mutationFn: () => paymentsApi.sync(obligationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cadenza', 'payment-page', obligationId] })
@@ -47,8 +47,8 @@ export default function PaymentPage() {
   })
 
   useEffect(() => {
-    if (obligationId && result === 'success') syncPayment.mutate()
-  }, [obligationId, result])
+    if (obligationId && result === 'success') syncPayment()
+  }, [obligationId, result, syncPayment])
 
   const obligationQuery = useQuery({
     queryKey: ['cadenza', 'payment-page', obligationId],
@@ -184,8 +184,8 @@ export default function PaymentPage() {
           <AlertTitle>Still waiting for confirmation?</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center gap-3">
             <span>Cadenza can reconcile the Xendit payment directly if the webhook is delayed.</span>
-            <Button variant="outline" size="sm" onClick={() => syncPayment.mutate()} disabled={syncPayment.isPending}>
-              {syncPayment.isPending ? 'Checking…' : 'Check payment status'}
+            <Button variant="outline" size="sm" onClick={() => syncPayment()} disabled={isSyncing}>
+              {isSyncing ? 'Checking…' : 'Check payment status'}
             </Button>
           </AlertDescription>
         </Alert>
