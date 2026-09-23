@@ -184,32 +184,39 @@ model CadenzaLessonSession {
 }
 
 model CadenzaAttendance {
-  id          String   @id @default(uuid())
-  sessionId   String   @unique
-  status      String
-  markedByUserId Int?
-  markedAt    DateTime @default(now())
-  notes       String?
-  session     CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id               String   @id @default(uuid())
+  sessionId        String   @unique
+  status           String
+  markedByPersonId String?
+  markedAt         DateTime @default(now())
+  notes            String?
+  session          CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  markedByPerson   Person   @relation(fields: [markedByPersonId], references: [id], onDelete: SetNull)
+
+  @@index([markedByPersonId])
 }
 
 model CadenzaRescheduleRequest {
-  id            String   @id @default(uuid())
-  appId         String
-  sessionId     String
-  requestedByUserId Int
-  requestedStart DateTime
-  requestedEnd   DateTime
-  status        String   @default("PENDING")
-  reviewedByUserId Int?
-  reviewedAt    DateTime?
-  reason        String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  app           App      @relation(fields: [appId], references: [id], onDelete: Cascade)
-  session       CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id                   String   @id @default(uuid())
+  appId                String
+  sessionId            String
+  requestedByPersonId  String
+  requestedStart       DateTime
+  requestedEnd         DateTime
+  status               String   @default("PENDING")
+  reviewedByPersonId   String?
+  reviewedAt           DateTime?
+  reason               String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  app                  App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  session              CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  requestedByPerson    Person   @relation("CadenzaRescheduleRequestedBy", fields: [requestedByPersonId], references: [id], onDelete: Restrict)
+  reviewedByPerson     Person?  @relation("CadenzaRescheduleReviewedBy", fields: [reviewedByPersonId], references: [id], onDelete: SetNull)
   @@index([appId, status, createdAt])
   @@index([sessionId])
+  @@index([requestedByPersonId])
+  @@index([reviewedByPersonId])
 }
 
 model CadenzaRental {
