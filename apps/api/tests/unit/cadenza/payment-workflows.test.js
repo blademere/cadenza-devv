@@ -133,7 +133,7 @@ describe('Cadenza rental payment workflow', () => {
     await expect(rentalService.create({
       appId: APP_ID,
       actorId: 42,
-      customerUserId: 99,
+      customerId: 'customer-1',
       resourceId: RESOURCE_ID,
       rentalType: 'INSTRUMENT',
       scheduledStart: '2026-09-20T09:00:00.000Z',
