@@ -8,6 +8,7 @@ import AuditPage from '../features/audit/pages/AuditPage'
 import RentalsPage from '../features/rentals/pages/RentalsPage'
 import ResourcesPage from '../features/resources/pages/ResourcesPage'
 import UsersPage from '../features/users/pages/UsersPage'
+import PaymentPage from '../features/payments/pages/PaymentPage'
 import ProtectedRoute from './router/ProtectedRoute'
 import PermissionRoute from './router/PermissionRoute'
 import GuestRoute from './router/GuestRoute'
@@ -19,6 +20,13 @@ export const router = createBrowserRouter([
       { index: true, element: <GuestRoute><HomePage /></GuestRoute> },
       { path: 'login', element: <GuestRoute><LoginPage /></GuestRoute> },
       {
+        element: <ProtectedRoute />,
+        children: [
+          { path: 'payment/success', element: <PaymentPage /> },
+          { path: 'payment/failure', element: <PaymentPage /> },
+        ],
+      },
+      {
         path: 'app',
         element: <ProtectedRoute />,
         children: [
@@ -27,6 +35,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <Navigate to="dashboard" replace /> },
               { path: 'dashboard', element: <DashboardPage /> },
+              { path: 'payments/:obligationId', element: <PaymentPage /> },
               {
                 path: 'lessons',
                 element: <PermissionRoute permission="cadenza_lessons:read" />,
