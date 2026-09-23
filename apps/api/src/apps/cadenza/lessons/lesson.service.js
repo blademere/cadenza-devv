@@ -583,7 +583,7 @@ const cancelReschedule = async ({ appId, id, actorId }) => {
   if (!request || request.status !== RESCHEDULE_STATUS.PENDING) throw new NotFoundError('Pending reschedule request not found.')
   const session = await repository.findSession(request.sessionId, owner)
   const manager = await canManage(actorId, owner)
-  if (!manager && Number(request.requestedByUserId) !== Number(actorId)) throw new ForbiddenError('You can only cancel your own reschedule request.')
+  if (!manager && Number(request.requestedByPersonId) !== Number(actorId)) throw new ForbiddenError('You can only cancel your own reschedule request.')
   if (!session) throw new NotFoundError('Lesson session not found.')
   return runTransaction(async (tx) => {
     const result = await repository.cancelReschedule(id, owner, tx)
