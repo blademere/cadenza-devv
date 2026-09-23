@@ -165,7 +165,7 @@ export default function RentalsPage() {
         title="Rentals"
         description={
           canManage
-            ? 'Book rentals for walk-in customers, record payments, and manage check-out and returns.'
+            ? 'Book rentals for walk-in customers, record payments, and manage check-out and returns. Online payment is also available.'
             : 'Book an instrument or band room rental and pay the required down payment online.'
         }
         actions={
@@ -228,12 +228,12 @@ export default function RentalsPage() {
                         Payment
                       </Button>
                     )}
-                    {!canManage &&
-                      r.paymentObligationId &&
+                    {r.paymentObligationId &&
                       r.status === 'PENDING' &&
                       canPay && (
                         <Button
                           size="sm"
+                          variant={canManage ? 'outline' : 'default'}
                           onClick={() => checkout.mutate(r)}
                         >
                           Pay down payment online
