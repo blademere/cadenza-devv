@@ -26,8 +26,9 @@ import { useAuthorization } from '../../authorization/components/AuthorizationPr
 
 const unwrap = (r) => r?.data ?? r ?? [];
 
-export default function RentalsPage() {
+export default function RentalsPage({ mode = 'walkin' }) {
   const { can } = useAuthorization();
+  const onlineMode = mode === 'online';
   const client = useQueryClient();
   const canCreate = can('cadenza_rentals:create'),
     canManage = can('cadenza_rentals:manage'),
@@ -39,7 +40,7 @@ export default function RentalsPage() {
   const customers = useQuery({
     queryKey: ['cadenza', 'customers'],
     queryFn: rentalsApi.customers,
-    enabled: canManage,
+    enabled: canManage && !onlineMode,
   });
   const instruments = useQuery({
     queryKey: ['cadenza', 'instruments'],
@@ -152,11 +153,11 @@ export default function RentalsPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Rentals"
-        description="Scheduled instrument and band-room rentals with server-calculated pricing."
+        title={onlineMode ? 'Online Rental' : 'Walk-in Rentals'}
+        description={onlineMode ? 'Book an instrument or band room online and pay the required down payment online.' : 'Book rentals for walk-in customers, record payments, and manage check-out and returns.'}
         actions={
           canCreate && (
-            <Button onClick={() => setOpen(true)}>Book rental</Button>
+            <Button onClick={() => setOpen(true)}>{onlineMode ? 'Book online rental' : 'Book walk-in rental'}</Button>
           )
         }
       />
@@ -207,7 +208,7 @@ export default function RentalsPage() {
                           setAmount(String(r.requiredDownPayment));
                         }}
                       >
-                        Payment
+                        {onlineMode ? 'Online payment' : 'Payment'}
                       </Button>
                     )}
                     {r.paymentObligationId &&
@@ -218,7 +219,7 @@ export default function RentalsPage() {
                           variant="outline"
                           onClick={() => checkout.mutate(r)}
                         >
-                          Online
+                          Pay online
                         </Button>
                       )}
                     {r.status === 'RESERVED' && canManage && (
@@ -264,14 +265,14 @@ export default function RentalsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Book rental</DialogTitle>
+            <DialogTitle>{onlineMode ? 'Book online rental' : 'Book walk-in rental'}</DialogTitle>
             <DialogDescription>
               Availability is checked against existing rentals and lesson-room
               bookings. The server calculates the rental total.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            {canManage && (
+            {canManage && !onlineMode && (
               <SelectField
                 label="Customer"
                 options={customerRows.map((c) => ({
@@ -365,7 +366,7 @@ export default function RentalsPage() {
               }
               onClick={submit}
             >
-              {create.isPending ? 'Booking…' : 'Book rental'}
+              {create.isPending ? 'Booking…' : onlineMode ? 'Create online booking' : 'Create walk-in booking'}
             </Button>
           </DialogFooter>
         </DialogContent>
