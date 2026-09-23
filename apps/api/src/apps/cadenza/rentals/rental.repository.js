@@ -1,9 +1,9 @@
 import {getPrismaClient} from '../../../infrastructure/database/prisma.js'
 const prisma=getPrismaClient()
-const list=(appId,db=prisma)=>db.cadenzaRental.findMany({where:{appId},orderBy:{createdAt:'desc'}})
+const list=(appId,db=prisma)=>db.cadenzaRental.findMany({where:{appId},orderBy:{createdAt:'desc'},include:{customer:{include:{person:true}}}})
 const create=(data,db=prisma)=>db.cadenzaRental.create({data,include:{customer:{include:{person:true}}}})
 const findCustomerById=(id,appId,db=prisma)=>db.cadenzaCustomer.findFirst({where:{id,appId,status:'ACTIVE',person:{isActive:true}},include:{person:true}})
-const findCustomerByUserId=(userId,appId,db=prisma)=>db.cadenzaCustomer.findFirst({where:{appId,status:'ACTIVE',person:{isActive:true,userId:Number(userId)}}})
+const findCustomerByUserId=(userId,appId,db=prisma)=>db.cadenzaCustomer.findFirst({where:{appId,status:'ACTIVE',person:{isActive:true,userId:Number(userId)}},include:{person:true}})
 const findResource=(id,appId,db=prisma)=>db.resource.findFirst({where:{id,appId,status:'ACTIVE'}})
 const findInstrumentByResource=(resourceId,appId,db=prisma)=>db.cadenzaInstrument.findFirst({where:{resourceId,appId,status:'AVAILABLE'}})
 const findRoomByResource=(resourceId,appId,db=prisma)=>db.cadenzaRoom.findFirst({where:{resourceId,appId,status:'AVAILABLE'}})
