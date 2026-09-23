@@ -17,6 +17,12 @@ import { paymentsApi } from '../api/payments.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
 
 const unwrap = (value) => value?.data ?? value ?? []
+const customerName = (customer) => {
+  const person = customer?.person
+  return [person?.firstName, person?.middleName, person?.lastName, person?.suffix]
+    .filter(Boolean)
+    .join(' ') || person?.email || customer?.id || 'Unknown customer'
+}
 
 export default function PaymentsPage() {
   const { can } = useAuthorization()
@@ -84,7 +90,7 @@ export default function PaymentsPage() {
       <CardContent className="pt-6">
         <DataTable
           columns={[
-            { key: 'student', header: 'Student', value: (row) => row.student?.person?.name ?? row.student?.person?.fullName ?? row.student?.person?.email ?? row.student?.id },
+            { key: 'customer', header: 'Customer', value: (row) => customerName(row.customer) },
             { key: 'package', header: 'Package', value: (row) => row.lessonPackage?.name ?? row.lessonPackageId },
             { key: 'total', header: 'Total', value: (row) => formatCurrency(row.obligation.totalAmount) },
             { key: 'paid', header: 'Paid', value: (row) => formatCurrency(row.obligation.netPaidAmount ?? row.obligation.paidAmount) },
@@ -102,7 +108,7 @@ export default function PaymentsPage() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Payment details</DialogTitle>
-          <DialogDescription>{selected?.lessonPackage?.name ?? 'Lesson enrollment'}</DialogDescription>
+          <DialogDescription>{customerName(selected?.customer)} · {selected?.lessonPackage?.name ?? 'Lesson enrollment'}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
           <div className="grid grid-cols-3 gap-3 text-sm">
