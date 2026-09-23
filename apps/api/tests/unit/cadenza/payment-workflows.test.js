@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
-  findStudent: vi.fn(),
-  findStudentForActor: vi.fn(),
+  findCustomer: vi.fn(),
+  ensureCustomerForActor: vi.fn(),
   findPackage: vi.fn(),
   createEnrollment: vi.fn(),
   attachPaymentObligation: vi.fn(),
