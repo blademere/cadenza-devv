@@ -29,9 +29,9 @@ const getDashboard = async ({ appId, actorId }) => {
     const mine = sessions.filter((session) => Number(session.instructor?.person?.userId) === Number(actorId))
     return { ...base, assignedSessions: mine.slice(0, 20), attendancePending: mine.filter((session) => session.status === 'SCHEDULED' && !session.attendance).length }
   }
-  const studentEnrollments = enrollments.filter((item) => Number(item.student?.person?.userId) === Number(actorId))
-  const studentRentals = rentals.filter((item) => Number(item.customerUserId) === Number(actorId))
-  const studentObligations = obligations.filter((item) => studentEnrollments.some((enrollment) => enrollment.paymentObligationId === item.id) || studentRentals.some((rental) => rental.paymentObligationId === item.id))
-  return { ...base, enrollments: studentEnrollments.slice(0, 10), rentals: studentRentals.slice(0, 10), payments: studentObligations.slice(0, 10) }
+  const customerEnrollments = enrollments.filter((item) => Number(item.customer?.person?.userId) === Number(actorId))
+  const customerRentals = rentals.filter((item) => Number(item.customer?.person?.userId) === Number(actorId))
+  const customerObligations = obligations.filter((item) => customerEnrollments.some((enrollment) => enrollment.paymentObligationId === item.id) || customerRentals.some((rental) => rental.paymentObligationId === item.id))
+  return { ...base, enrollments: customerEnrollments.slice(0, 10), rentals: customerRentals.slice(0, 10), payments: customerObligations.slice(0, 10) }
 }
 export { getDashboard }
