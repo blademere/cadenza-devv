@@ -25,7 +25,7 @@ export const navigation = Object.freeze([
     name: 'Rentals',
     items: [
       { key: 'rentals', name: 'Rentals', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.read },
-      { key: 'resources', name: 'Resources', route: '/app/resources', icon: icon(Archive), permission: PERMISSIONS.instruments.manage },
+      { key: 'resources', name: 'Resources', route: '/app/resources', icon: icon(Archive), anyPermissions: [PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update] },
     ],
   },
   {
@@ -45,6 +45,7 @@ export function normalizeNavigation(sections = [], permissions = []) {
       ...section,
       items: Array.isArray(section.items)
         ? section.items.filter((item) => !item.permission || permissions.includes(item.permission))
+          .filter((item) => !item.anyPermissions || item.anyPermissions.some((permission) => permissions.includes(permission)))
         : [],
     }))
     .filter((section) => section.items.length)
