@@ -19,6 +19,7 @@ const resource = authorizeResource({
   getResourceId: (req) => req.params.obligationId,
 })
 router.post('/:obligationId/sync', payResource, validate(getValidator), asyncHandler(controller.sync))
+router.post('/:obligationId/sync', payResource, validate(getValidator), asyncHandler(controller.sync))
 router.get('/:obligationId', resource, validate(getValidator), asyncHandler(controller.get))
 router.get('/:obligationId/history', resource, validate(getValidator), asyncHandler(controller.history))
 
