@@ -42,6 +42,7 @@ const create = async ({
   if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
     throw new BadRequestError('Authenticated actor is required.')
   const manager = await assertManage(actorId, owner)
+  const channel = manager ? 'WALK_IN' : 'ONLINE'
   let resolvedCustomer
   if (customerId) {
     resolvedCustomer = await repository.findCustomerById(customerId, owner)
