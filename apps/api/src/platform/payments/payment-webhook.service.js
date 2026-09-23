@@ -3,13 +3,17 @@ import { getPaymentProvider } from './payment-provider.registry.js'
 import { recordPayment } from './payment.service.js'
 import { getPaymentWorkflow } from './payment-workflow.registry.js'
 import * as eventRepository from './payment-provider-event.repository.js'
+import { findObligationByIdGlobal } from './payment.repository.js'
 
 const handlePaymentWebhook = async ({ provider, rawBody, signature }) => {
   const paymentProvider = getPaymentProvider(provider)
   const event = paymentProvider.parseWebhook({ rawBody, signature })
   if (!event) return { processed: false, reason: 'IGNORED_EVENT' }
 
-  if (!event.metadata?.appId) throw new Error('Payment provider webhook is missing appId metadata.')
+  const webhookObligation = event.referenceId ? await findObligationByIdGlobal(event.referenceId) : null
+  const appId = event.metadata?.appId || webhookObligation?.appId
+  if (!appId) throw new Error('Payment provider webhook could not resolve application context.')
+  const applicationKey = event.metadata?.applicationKey || (webhookObligation?.referenceType?.startsWith('CADENZA_') ? 'cadenza' : null)
 
   const normalizedProvider = String(provider).toUpperCase()
   const eventId = event.eventId || event.providerReference
@@ -34,17 +38,17 @@ const handlePaymentWebhook = async ({ provider, rawBody, signature }) => {
   })
 
   try {
-    const workflow = getPaymentWorkflow(event.metadata?.applicationKey)
+    const workflow = getPaymentWorkflow(applicationKey)
     if (workflow) {
       await workflow.beforeRecord({
-        appId: event.metadata.appId,
+        appId,
         obligationId: event.referenceId,
         amount: event.amount,
       })
     }
 
     const payment = await recordPayment({
-      appId: event.metadata.appId,
+      appId,
       obligationId: event.referenceId,
       amount: event.amount,
       currency: event.currency,
@@ -52,7 +56,7 @@ const handlePaymentWebhook = async ({ provider, rawBody, signature }) => {
       provider: normalizedProvider,
       providerReference: event.providerReference,
       idempotencyKey: `${normalizedProvider}:${event.providerReference}`,
-      metadata: { ...event.metadata, checkoutSessionId: event.checkoutSessionId, webhookEventId: eventId },
+      metadata: { ...event.metadata, appId, applicationKey, checkoutSessionId: event.checkoutSessionId, webhookEventId: eventId },
       onSettled: workflow ? ({ db, obligation, paidAmount }) => workflow.onSettled({ db, obligation, paidAmount }) : null,
     })
 
