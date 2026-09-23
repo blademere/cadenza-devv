@@ -220,7 +220,7 @@ export default function RentalsPage() {
   )
   const customerRows = unwrap(customers.data)
   const selectedRental = selected.data
-  const obligation = unwrap(payment.data)
+  const obligation = selectedRental?.payment ?? unwrap(payment.data)
   const balanceDue = Number(obligation?.balanceDue ?? selectedRental?.totalAmount ?? 0)
   const onlineAmount =
     selectedRental?.status === 'PENDING'
@@ -494,7 +494,7 @@ export default function RentalsPage() {
       </Dialog>
 
       <Dialog open={Boolean(selectedId)} onOpenChange={(value) => !value && closeDetail()}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Rental {selectedRental?.id ? selectedRental.id.slice(0, 8).toUpperCase() : ''}
@@ -539,12 +539,33 @@ export default function RentalsPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <Card>
-                  <CardHeader><CardTitle className="text-base">Rental</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-base">Customer & rental</CardTitle></CardHeader>
                   <CardContent className="grid gap-2 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Status</span><Badge>{stageFor(selectedRental.status)}</Badge></div>
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Customer</span><span>{customerName(selectedRental.customer)}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Email</span><span>{selectedRental.customer?.person?.email || '—'}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Phone</span><span>{selectedRental.customer?.person?.phone || '—'}</span></div>
+
                     <div className="flex justify-between"><span className="text-muted-foreground">Source</span><span>{channelLabel(selectedRental)}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Resource</span><span>{resourceNameMap.get(selectedRental.resourceId) || selectedRental.resourceId}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Start</span><span>{new Date(selectedRental.scheduledStart).toLocaleString()}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Rental ID</span><span className="font-mono text-xs">{selectedRental.id}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Resource</span><span className="text-right">{selectedRental.resource?.name || resourceNameMap.get(selectedRental.resourceId) || selectedRental.resourceId}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Resource type</span><span>{selectedRental.resource?.type || selectedRental.rentalType}</span></div>
+                    {selectedRental.rentalType === 'INSTRUMENT' && selectedRental.instrument && (
+                      <>
+                        <div className="flex justify-between gap-4"><span className="text-muted-foreground">Instrument</span><span>{selectedRental.instrument.instrumentType}</span></div>
+                        <div className="flex justify-between gap-4"><span className="text-muted-foreground">Brand / model</span><span>{[selectedRental.instrument.brand, selectedRental.instrument.model].filter(Boolean).join(' / ') || '—'}</span></div>
+                        <div className="flex justify-between gap-4"><span className="text-muted-foreground">Serial number</span><span>{selectedRental.instrument.serialNumber || '—'}</span></div>
+                        <div className="flex justify-between gap-4"><span className="text-muted-foreground">Rental rate</span><span>{formatCurrency(selectedRental.instrument.rentalRate)} / hour</span></div>
+                      </>
+                    )}
+                    {selectedRental.rentalType === 'ROOM' && selectedRental.room && (
+                      <>
+                        <div className="flex justify-between gap-4"><span className="text-muted-foreground">Room type</span><span>{selectedRental.room.roomType}</span></div>
+                        <div className="flex justify-between gap-4"><span className="text-muted-foreground">Capacity</span><span>{selectedRental.room.capacity}</span></div>
+                        <div className="flex justify-between gap-4"><span className="text-muted-foreground">Rental rate</span><span>{formatCurrency(selectedRental.room.rentalRate)} / hour</span></div>
+                      </>
+                    )}
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Start</span><span className="text-right">{new Date(selectedRental.scheduledStart).toLocaleString()}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">End</span><span>{new Date(selectedRental.scheduledEnd).toLocaleString()}</span></div>
                     {selectedRental.checkedOutAt && <div className="flex justify-between"><span className="text-muted-foreground">Checked out</span><span>{new Date(selectedRental.checkedOutAt).toLocaleString()}</span></div>}
                     {selectedRental.returnedAt && <div className="flex justify-between"><span className="text-muted-foreground">Returned</span><span>{new Date(selectedRental.returnedAt).toLocaleString()}</span></div>}
@@ -552,7 +573,7 @@ export default function RentalsPage() {
                 </Card>
 
                 <Card>
-                  <CardHeader><CardTitle className="text-base">Payment</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-base">Financial summary</CardTitle></CardHeader>
                   <CardContent className="grid gap-2 text-sm">
                     {payment.isLoading ? (
                       <p className="text-muted-foreground">Loading payment…</p>
