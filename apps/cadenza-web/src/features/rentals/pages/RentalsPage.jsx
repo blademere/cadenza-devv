@@ -495,7 +495,7 @@ export default function RentalsPage() {
       </Dialog>
 
       <Dialog open={Boolean(selectedId)} onOpenChange={(value) => !value && closeDetail()}>
-        <DialogContent className="flex h-[92vh] w-[96vw] max-w-[1400px] flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1400px]">
           <DialogHeader className="shrink-0 border-b px-6 py-5 pr-14">
             <DialogTitle className="text-lg">
               Rental {selectedRental?.id ? selectedRental.id.slice(0, 8).toUpperCase() : ''}
