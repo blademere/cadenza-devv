@@ -8,7 +8,7 @@ import DataTable from '../../../components/data-table'
 import PageHeader from '../../../components/page-header'
 import { Input } from '../../../components/ui/input'
 import LoadingState from '../../../components/loading-state'
-import { apiClient } from '../../services/api/client'
+import { apiClient } from '../../../services/api/client'
 import { useAuthorization } from '../authorization/components/AuthorizationProvider'
 
 const unwrap = (value) => value?.data ?? value ?? []
