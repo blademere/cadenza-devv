@@ -13,7 +13,7 @@ import { Textarea } from '../../../components/ui/textarea'
 import LoadingState from '../../../components/loading-state'
 import { formatCurrency } from '../../../utils/currency'
 import { lessonsApi } from '../../lessons/api/lessons.api'
-import { paymentsApi } from './api/payments.api'
+import { paymentsApi } from '../api/payments.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
 
 const unwrap = (value) => value?.data ?? value ?? []
