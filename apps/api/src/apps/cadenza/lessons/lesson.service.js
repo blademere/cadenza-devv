@@ -422,7 +422,7 @@ const createSession = async ({
   scheduledEnd,
 }) => {
   const owner = requireAppId(appId)
-  if (!(await canManage(actorId, owner))) throw new ForbiddenError('Only lesson management staff can schedule sessions.')
+  if (!(await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'schedule' }))) throw new ForbiddenError('Only users with lesson scheduling permission can schedule sessions.')
   const start = new Date(scheduledStart),
     end = new Date(scheduledEnd)
   if (
