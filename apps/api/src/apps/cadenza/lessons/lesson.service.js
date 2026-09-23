@@ -535,6 +535,8 @@ const requestReschedule = async ({
   )
     throw new BadRequestError('requestedEnd must be after requestedStart.')
   return runTransaction(async (tx) => {
+    const person = await repository.findPersonByUserId(actorId, tx)
+    if (!person) throw new ForbiddenError('Authenticated actor must have a Person profile.')
     const session = await repository.findSession(sessionId, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
     const manager = await canManage(actorId, owner)
@@ -582,8 +584,10 @@ const cancelReschedule = async ({ appId, id, actorId }) => {
   const request = await repository.findReschedule(id, owner)
   if (!request || request.status !== RESCHEDULE_STATUS.PENDING) throw new NotFoundError('Pending reschedule request not found.')
   const session = await repository.findSession(request.sessionId, owner)
+  const person = await repository.findPersonByUserId(actorId)
+  if (!person) throw new ForbiddenError('Authenticated actor must have a Person profile.')
   const manager = await canManage(actorId, owner)
-  if (!manager && Number(request.requestedByPersonId) !== Number(actorId)) throw new ForbiddenError('You can only cancel your own reschedule request.')
+  if (!manager && request.requestedByPersonId !== person.id) throw new ForbiddenError('You can only cancel your own reschedule request.')
   if (!session) throw new NotFoundError('Lesson session not found.')
   return runTransaction(async (tx) => {
     const result = await repository.cancelReschedule(id, owner, tx)
@@ -594,6 +598,8 @@ const cancelReschedule = async ({ appId, id, actorId }) => {
 }
 const reviewReschedule = async ({ appId, id, actorId, approve }) => {
   const owner = requireAppId(appId)
+  const person = await repository.findPersonByUserId(actorId)
+  if (!person) throw new ForbiddenError('Authenticated actor must have a Person profile.')
   if (!(await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'review_reschedule' })))
     throw new ForbiddenError('Only lesson management staff can review reschedule requests.')
   return runTransaction(async (tx) => {
