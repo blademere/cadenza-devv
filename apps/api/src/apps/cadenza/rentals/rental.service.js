@@ -127,10 +127,14 @@ const availability = async ({ appId, rentalType, scheduledStart, scheduledEnd })
 const list = async ({ appId, actorId }) => { const owner = requireAppId(appId); const rows = await repository.list(owner); if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_rentals', action: 'manage' })) return rows; return rows.filter((row) => Number(row.customer?.person?.userId) === Number(actorId)) }
 const get = async ({ appId, id, actorId }) => {
   const owner = requireAppId(appId)
-  const value = await repository.findById(id, owner)
+  const value = await repository.findDetails(id, owner)
   if (!value) throw new NotFoundError('Rental not found.')
-  if (!(await assertManage(actorId, owner)) && Number(value.customer?.person?.userId) !== Number(actorId)) throw new NotFoundError('Rental not found.')
-  return value
+  if (!(await assertManage(actorId, owner)) && Number(value.customer?.person?.userId) !== Number(actorId))
+    throw new NotFoundError('Rental not found.')
+  const payment = value.paymentObligationId
+    ? await getObligation(value.paymentObligationId, owner)
+    : null
+  return { ...value, payment }
 }
 const checkout = async ({ appId, id, actorId }) => {
   const owner = requireAppId(appId)
