@@ -37,6 +37,23 @@ const createXenditProvider = ({ secretKey, webhookToken, baseUrl, apiVersion = '
       raw: result,
     }
   }
+  const getCheckoutStatus = async ({ checkoutSessionId }) => {
+    if (!checkoutSessionId) throw new TypeError('checkoutSessionId is required.')
+    const result = await client.request(`/v3/payment_requests/${encodeURIComponent(checkoutSessionId)}`, { method: 'GET' })
+    const latestPayment = result?.latest_payment || {}
+    const captureAmount = latestPayment?.captures?.[0]?.capture_amount
+    return {
+      status: result?.status,
+      referenceId: result?.reference_id,
+      paymentRequestId: result?.payment_request_id,
+      providerReference: result?.latest_payment_id || latestPayment?.payment_id || null,
+      amount: String(captureAmount ?? result?.request_amount ?? ''),
+      currency: result?.currency,
+      method: result?.channel_code,
+      metadata: result?.metadata || {},
+      raw: result,
+    }
+  }
   const parseWebhook = ({ rawBody, signature }) => {
     const provided = String(signature || '')
     if (!webhookToken || !provided || provided !== webhookToken) {
@@ -46,6 +63,6 @@ const createXenditProvider = ({ secretKey, webhookToken, baseUrl, apiVersion = '
     }
     return normalizePaymentEvent(JSON.parse(rawBody.toString('utf8')))
   }
-  return createPaymentProvider({ createCheckout, parseWebhook })
+  return createPaymentProvider({ createCheckout, parseWebhook, getCheckoutStatus })
 }
 export { createXenditProvider }
