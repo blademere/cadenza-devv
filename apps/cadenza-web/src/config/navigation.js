@@ -25,7 +25,7 @@ export const navigation = Object.freeze([
     name: 'Rentals',
     items: [
       { key: 'rentals', name: 'Rentals', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.read },
-      { key: 'resources', name: 'Resources', route: '/app/resources', icon: icon(Archive), permission: PERMISSIONS.instruments.read },
+      { key: 'resources', name: 'Resources', route: '/app/resources', icon: icon(Archive), permission: PERMISSIONS.instruments.manage },
     ],
   },
   {
