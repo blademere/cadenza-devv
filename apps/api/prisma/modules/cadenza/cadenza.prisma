@@ -13,21 +13,6 @@ model CadenzaCustomer {
   @@index([appId, status])
 }
 
-model CadenzaStudent {
-  id        String   @id @default(uuid())
-  appId     String
-  personId  String
-  status    String   @default("ACTIVE")
-  metadata  Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
-  person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
-  @@unique([appId, personId])
-  @@index([appId, status])
-  enrollments CadenzaEnrollment[]
-}
-
 model CadenzaInstructor {
   id        String   @id @default(uuid())
   appId     String
@@ -142,7 +127,7 @@ model CadenzaLessonAttachment {
 model CadenzaEnrollment {
   id                  String   @id @default(uuid())
   appId               String
-  studentId           String
+  customerId          String
   lessonPackageId     String
   paymentObligationId String?
   status              String   @default("PENDING_PAYMENT")
@@ -153,12 +138,12 @@ model CadenzaEnrollment {
   updatedAt           DateTime   @updatedAt
   app                 App      @relation(fields: [appId], references: [id], onDelete: Cascade)
   lessonPackage       CadenzaLessonPackage @relation(fields: [lessonPackageId], references: [id], onDelete: Restrict)
-  student             CadenzaStudent @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  customer            CadenzaCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
   sessions            CadenzaLessonSession[]
-  @@index([appId, studentId, status])
+  @@index([appId, customerId, status])
   @@index([appId, lessonPackageId])
   @@index([appId, status, paymentExpiresAt])
-  @@unique([appId, studentId, lessonPackageId])
+  @@unique([appId, customerId, lessonPackageId])
 }
 
 model CadenzaLessonSession {
