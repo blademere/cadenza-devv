@@ -101,7 +101,7 @@ export default function PaymentPage() {
       <PageHeader
         title={title}
         description={description}
-        action={(
+        actions={(
           <Button variant="outline" onClick={() => navigate(backTo)}>
             <ArrowLeft size={16} />
             Back to {obligation.referenceType === 'CADENZA_ENROLLMENT' ? 'Lessons' : 'Rentals'}
