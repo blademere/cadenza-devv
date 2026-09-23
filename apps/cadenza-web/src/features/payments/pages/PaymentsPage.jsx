@@ -12,9 +12,9 @@ import { Label } from '../../../components/ui/label'
 import { Textarea } from '../../../components/ui/textarea'
 import LoadingState from '../../../components/loading-state'
 import { formatCurrency } from '../../../utils/currency'
-import { lessonsApi } from '../lessons/api/lessons.api'
+import { lessonsApi } from '../../lessons/api/lessons.api'
 import { paymentsApi } from './api/payments.api'
-import { useAuthorization } from '../authorization/components/AuthorizationProvider'
+import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
 
 const unwrap = (value) => value?.data ?? value ?? []
 
@@ -25,6 +25,7 @@ export default function PaymentsPage() {
   const [refundOpen, setRefundOpen] = useState(false)
   const [refundAmount, setRefundAmount] = useState('')
   const [refundReason, setRefundReason] = useState('')
+  const [refundPaymentId, setRefundPaymentId] = useState(null)
 
   const enrollmentsQuery = useQuery({
     queryKey: ['cadenza', 'enrollments'],
@@ -60,6 +61,7 @@ export default function PaymentsPage() {
       setRefundOpen(false)
       setRefundAmount('')
       setRefundReason('')
+      setRefundPaymentId(null)
       client.invalidateQueries({ queryKey: ['cadenza', 'lesson-payment-obligations'] })
       client.invalidateQueries({ queryKey: ['cadenza', 'payment-history', selected?.obligation?.id] })
       client.invalidateQueries({ queryKey: ['cadenza', 'enrollments'] })
@@ -113,7 +115,7 @@ export default function PaymentsPage() {
             {!historyQuery.isLoading && unwrap(historyQuery.data).length === 0 && <p className="text-sm text-muted-foreground">No recorded payments yet.</p>}
           </div>
         </div>
-        {can('cadenza_payments:manage') && (selected?.obligation?.netPaidAmount ?? 0) > 0 && <DialogFooter><Button variant="destructive" onClick={() => { setRefundAmount(String(selected.obligation.netPaidAmount)); setRefundOpen(true) }}>Refund payment</Button></DialogFooter>}
+        {can('cadenza_payments:manage') && (selected?.obligation?.netPaidAmount ?? 0) > 0 && <DialogFooter><Button variant="destructive" onClick={() => { const payment = unwrap(historyQuery.data).find((entry) => entry.status === 'SUCCEEDED'); if (!payment) return; setRefundPaymentId(payment.id); setRefundAmount(String(payment.amount)); setRefundOpen(true) }}>Refund payment</Button></DialogFooter>}
       </DialogContent>
     </Dialog>
 
@@ -125,7 +127,7 @@ export default function PaymentsPage() {
           <div className="grid gap-2"><Label>Reason</Label><Textarea value={refundReason} onChange={(e) => setRefundReason(e.currentTarget.value)} /></div>
         </div>
         <DialogFooter><Button variant="destructive" disabled={!refundAmount || refund.isPending} onClick={() => {
-          const payment = unwrap(historyQuery.data)[0]
+          const payment = unwrap(historyQuery.data).find((entry) => entry.id === refundPaymentId)
           if (!payment) return
           refund.mutate({ paymentId: payment.id, amount: refundAmount, currency: payment.currency, reason: refundReason || undefined })
         }}>{refund.isPending ? 'Refunding…' : 'Confirm refund'}</Button></DialogFooter>
