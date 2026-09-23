@@ -7,7 +7,7 @@ import { env } from '../../../config/index.js'
 import * as repository from './payment.repository.js'
 import { beforeRecord, onSettled } from './payment-workflow.js'
 
-const assertOwnership = async ({ appId, obligationId, actorId }) => {
+const withObligationQuery = (baseUrl, obligationId, result) => {\n  if (!baseUrl) return baseUrl\n  const separator = baseUrl.includes('?') ? '&' : '?'\n  return `${baseUrl}${separator}obligationId=${encodeURIComponent(obligationId)}&result=${encodeURIComponent(result)}`\n}\n\nconst assertOwnership = async ({ appId, obligationId, actorId }) => {
   const owner = requireAppId(appId)
   if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_payments', action: 'manage' }))
     return
