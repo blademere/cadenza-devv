@@ -131,7 +131,7 @@ export default function LessonsPage() {
       paymentsApi.checkout(id, { amount: String(amount), description: 'Cadenza lesson enrollment' }),
     onSuccess: (response) => {
       const value = response?.data ?? response
-      if (value?.checkoutUrl) window.open(value.checkoutUrl, '_blank', 'noopener,noreferrer')
+      if (value?.checkoutUrl) window.location.assign(value.checkoutUrl)
       client.invalidateQueries({ queryKey: ['cadenza', 'enrollments'] })
     },
   })
