@@ -9,10 +9,10 @@ export const PERMISSIONS = Object.freeze({
   authorization: Object.freeze({
     manage: 'cadenza_authorization:manage',
   }),
-  students: Object.freeze({
-    read: 'cadenza_students:read',
-    create: 'cadenza_students:create',
-    manage: 'cadenza_students:manage',
+  customers: Object.freeze({
+    read: 'cadenza_rentals:manage',
+    create: 'cadenza_rentals:manage',
+    manage: 'cadenza_rentals:manage',
   }),
   instructors: Object.freeze({
     read: 'cadenza_instructors:read',
