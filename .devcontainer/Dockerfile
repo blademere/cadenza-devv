@@ -17,7 +17,7 @@ RUN set -eux; \
       armv7) ngrok_arch="arm" ;; \
       *) echo "Unsupported ngrok architecture: $arch" >&2; exit 1 ;; \
     esac; \
-    curl -fsSL "https://bin.equinox.io/c/bNyj1mQV4Yc/ngrok-v3-stable-linux-${ngrok_arch}.tgz" -o /tmp/ngrok.tgz; \
+    curl -fsSL "https://bin.ngrok.com/c/bNyj1mQV4Yc/ngrok-v3-stable-linux-${ngrok_arch}.tgz" -o /tmp/ngrok.tgz; \
     tar -xzf /tmp/ngrok.tgz -C /usr/local/bin; \
     rm /tmp/ngrok.tgz; \
     ngrok version
