@@ -20,7 +20,6 @@ const createSchema = z.object({
     rentalType: z.enum(['INSTRUMENT', 'ROOM']),
     scheduledStart: z.string().datetime(),
     scheduledEnd: z.string().datetime(),
-    totalAmount: money,
     requiredDownPayment: money,
     currency: z.string().length(3).default('PHP'),
   }),
