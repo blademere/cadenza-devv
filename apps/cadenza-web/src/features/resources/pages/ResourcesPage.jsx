@@ -18,12 +18,16 @@ import { useAuthorization } from '../../authorization/components/AuthorizationPr
 const unwrap = (r) => r?.data ?? r ?? []
 export default function ResourcesPage() {
   const { can } = useAuthorization(), client = useQueryClient()
-  const canCreate = can('cadenza_instruments:create') || can('cadenza_rooms:create'), canUpdate = can('cadenza_instruments:update') || can('cadenza_rooms:update')
-  const instruments = useQuery({ queryKey: ['cadenza', 'instruments'], queryFn: resourcesApi.listInstruments }), rooms = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms })
+  const canCreate = can('cadenza_instruments:create') || can('cadenza_rooms:create')
+  const canUpdate = can('cadenza_instruments:update') || can('cadenza_rooms:update')
+  const canView = canCreate || canUpdate
+  const instruments = useQuery({ queryKey: ['cadenza', 'instruments'], queryFn: resourcesApi.listInstruments, enabled: canView })
+  const rooms = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms, enabled: canView })
   const [open, setOpen] = useState(false), [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ kind: 'INSTRUMENT', key: '', name: '', instrumentType: '', roomType: '', capacity: 1, rentalRate: '' })
   const createResource = useMutation({ mutationFn: resourcesApi.createResource }), createInstrument = useMutation({ mutationFn: resourcesApi.createInstrument, onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'instruments'] }) }), createRoom = useMutation({ mutationFn: resourcesApi.createRoom, onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'rooms'] }) })
   const updateInstrument = useMutation({ mutationFn: ({ id, payload }) => resourcesApi.updateInstrument(id, payload), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'instruments'] }) } }), updateRoom = useMutation({ mutationFn: ({ id, payload }) => resourcesApi.updateRoom(id, payload), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'rooms'] }) } })
+  if (!canView) return <Alert variant="destructive"><AlertDescription>You are not authorized to view Cadenza resources.</AlertDescription></Alert>
   if (instruments.isLoading || rooms.isLoading) return <LoadingState label="Loading resources…" rows={3} />
   if (instruments.error || rooms.error) return <Alert variant="destructive"><AlertDescription>{(instruments.error || rooms.error).message}</AlertDescription></Alert>
   const entries = [...unwrap(instruments.data).map((x) => ({ ...x, kind: 'Instrument', label: x.instrumentType })), ...unwrap(rooms.data).map((x) => ({ ...x, kind: 'Room', label: x.roomType }))]
