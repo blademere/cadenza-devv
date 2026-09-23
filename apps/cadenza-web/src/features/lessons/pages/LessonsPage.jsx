@@ -209,6 +209,7 @@ export default function LessonsPage() {
   const pendingReschedules = unwrap(reschedulesQuery.data).filter((item) => item.status === 'PENDING')
   const obligation = obligationQuery.data?.data ?? obligationQuery.data
   const due = obligation?.balanceDue ?? obligation?.totalAmount ?? payment?.amount
+  const canCheckout = Boolean(canPay && payment?.status === 'PENDING_PAYMENT' && Number(due) > 0)
   const error = create.error || enroll.error || attach.error || pay.error || online.error || createSession.error || markAttendance.error || sessionTransition.error || requestReschedule.error || reviewReschedule.error
 
   const openCustomerEnrollment = (lessonPackageId) => {
@@ -795,9 +796,11 @@ export default function LessonsPage() {
           <DialogHeader>
             <DialogTitle>{customerView ? 'Lesson payment' : 'Complete lesson enrollment'}</DialogTitle>
             <DialogDescription>
-              {customerView
-                ? 'Complete the outstanding balance online. Your enrollment is confirmed after the payment settles.'
-                : 'This package requires full payment before the enrollment is confirmed.'}
+              {payment?.status === 'PENDING_PAYMENT'
+                ? customerView
+                  ? 'Complete the outstanding balance online. Your enrollment is confirmed after the payment settles.'
+                  : 'This package requires full payment before the enrollment is confirmed.'
+                : 'Review the payment history for this lesson enrollment.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
@@ -825,10 +828,10 @@ export default function LessonsPage() {
                   {pay.isPending ? 'Recording…' : 'Pay at front desk'}
                 </Button>
               )}
-              {payment?.status !== 'PENDING_PAYMENT' && !due ? null : (
+              {canCheckout && (
                 <Button
                   variant={customerView ? 'default' : 'outline'}
-                  disabled={!due || !canPay || online.isPending}
+                  disabled={!canCheckout || online.isPending}
                   onClick={() => online.mutate({ id: payment.paymentObligationId, amount: due })}
                 >
                   {online.isPending ? 'Opening…' : 'Pay online'}
