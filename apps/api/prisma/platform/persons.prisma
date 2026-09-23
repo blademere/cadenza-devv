@@ -17,6 +17,9 @@ model Person {
   cadenzaCustomers     CadenzaCustomer[]
   cadenzaStudents       CadenzaStudent[]
   cadenzaInstructors    CadenzaInstructor[]
+  cadenzaAttendanceMarkers CadenzaAttendance[]
+  cadenzaRescheduleRequests CadenzaRescheduleRequest[] @relation("CadenzaRescheduleRequestedBy")
+  cadenzaRescheduleReviews CadenzaRescheduleRequest[] @relation("CadenzaRescheduleReviewedBy")
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
