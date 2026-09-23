@@ -1,5 +1,6 @@
 import { ArrowLeft, CheckCircle, Clock, CreditCard, XCircle } from '@phosphor-icons/react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle } from '../../../components/ui/alert'
 import { Badge } from '../../../components/ui/badge'
@@ -24,6 +25,7 @@ export default function PaymentPage() {
   const { obligationId: routeObligationId } = useParams()
   const [searchParams] = useSearchParams()
   const { can } = useAuthorization()
+  const queryClient = useQueryClient()
   const obligationId = routeObligationId || searchParams.get('obligationId')
   const result = searchParams.get('result')
   const canPay = can('cadenza_payments:create')
@@ -35,6 +37,18 @@ export default function PaymentPage() {
       if (value?.checkoutUrl) window.location.assign(value.checkoutUrl)
     },
   })
+
+  const syncPayment = useMutation({
+    mutationFn: () => paymentsApi.sync(obligationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cadenza', 'payment-page', obligationId] })
+      queryClient.invalidateQueries({ queryKey: ['cadenza', 'payment-page-history', obligationId] })
+    },
+  })
+
+  useEffect(() => {
+    if (obligationId && result === 'success') syncPayment.mutate()
+  }, [obligationId, result])
 
   const obligationQuery = useQuery({
     queryKey: ['cadenza', 'payment-page', obligationId],
@@ -162,6 +176,19 @@ export default function PaymentPage() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {!isPaid && result === 'success' && (
+        <Alert>
+          <Clock size={18} />
+          <AlertTitle>Still waiting for confirmation?</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-3">
+            <span>Cadenza can reconcile the Xendit payment directly if the webhook is delayed.</span>
+            <Button variant="outline" size="sm" onClick={() => syncPayment.mutate()} disabled={syncPayment.isPending}>
+              {syncPayment.isPending ? 'Checking…' : 'Check payment status'}
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
 
       <Card>
