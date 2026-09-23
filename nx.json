@@ -4,7 +4,7 @@
   "plugins": [
     {
       "plugin": "@nx/vite/plugin",
-      "include": ["apps/obo-web/**"],
+      "include": ["apps/obo-web/**", "apps/api/cadenza-web/**"],
       "options": {
         "buildTargetName": "build",
         "devTargetName": "dev",
@@ -13,14 +13,14 @@
     },
     {
       "plugin": "@nx/eslint/plugin",
-      "include": ["apps/api/**", "apps/obo-web/**"],
+      "include": ["apps/api/**", "apps/obo-web/**", "apps/api/cadenza-web/**"],
       "options": {
         "targetName": "lint"
       }
     },
     {
       "plugin": "@nx/vitest",
-      "include": ["apps/api/**", "apps/obo-web/**"],
+      "include": ["apps/api/**", "apps/obo-web/**", "apps/api/cadenza-web/**"],
       "options": {
         "testTargetName": "test"
       }
