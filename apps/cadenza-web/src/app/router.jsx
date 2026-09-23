@@ -51,8 +51,13 @@ export const router = createBrowserRouter([
               },
               {
                 path: 'rentals',
+                element: <PermissionRoute permission="cadenza_rentals:manage" />,
+                children: [{ index: true, element: <RentalsPage mode="walkin" /> }],
+              },
+              {
+                path: 'rentals/online',
                 element: <PermissionRoute permission="cadenza_rentals:read" />,
-                children: [{ index: true, element: <RentalsPage /> }],
+                children: [{ index: true, element: <RentalsPage mode="online" /> }],
               },
               {
                 path: 'resources',
