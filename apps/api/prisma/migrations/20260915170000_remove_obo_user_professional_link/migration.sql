@@ -5,4 +5,4 @@ ALTER TABLE "OboProfessional"
 DROP INDEX IF EXISTS "OboProfessional_userId_key";
 
 ALTER TABLE "OboProfessional"
-  DROP COLUMN IF EXISTS "userId";
+  DROP COLUMN IF EXISTS "userId"
