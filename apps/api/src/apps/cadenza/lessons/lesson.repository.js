@@ -13,6 +13,18 @@ const findPersonByUserId = (userId, db = prisma) => db.person.findUnique({ where
 
 const findStudent = (id, appId) => prisma.cadenzaStudent.findFirst({ where: { id, appId }, include: { person: true } })
 const findStudentForActor = (actorId, appId, db = prisma) => db.cadenzaStudent.findFirst({ where: { appId, person: { userId: Number(actorId) } }, include: { person: true } })
+const ensureStudentForActor = async (actorId, appId, db = prisma) => {
+  const existing = await findStudentForActor(actorId, appId, db)
+  if (existing) return existing
+  const person = await db.person.findUnique({ where: { userId: Number(actorId) }, select: { id: true } })
+  if (!person) return null
+  try {
+    return await db.cadenzaStudent.create({ data: { appId, personId: person.id }, include: { person: true } })
+  } catch (error) {
+    if (error?.code !== 'P2002') throw error
+    return findStudentForActor(actorId, appId, db)
+  }
+}
 const findPackage = (id, appId) => prisma.cadenzaLessonPackage.findFirst({ where: { id, appId } })
 const createEnrollment = (data, db = prisma) => db.cadenzaEnrollment.create({ data })
 const attachPaymentObligation = (id, appId, paymentObligationId, db = prisma) => db.cadenzaEnrollment.update({ where: { id }, data: { paymentObligationId }, include: { lessonPackage: true } })
@@ -86,4 +98,4 @@ const findExpiredSessions = (now = new Date(), db = prisma) =>
     orderBy: { scheduledEnd: 'asc' },
   })
 
-export { listPackages, createPackage, updatePackage, createAttachment, listAttachments, findAttachment, deleteAttachment, findPersonByUserId, findStudent, findStudentForActor, findPackage, createEnrollment, attachPaymentObligation, listEnrollments, findEnrollmentById, confirmEnrollment, updateEnrollmentStatus, findEnrollment, findEnrollmentForPackageActor, findInstructor, findRoom, findOverlappingSession, findRoomRentalOverlap, createSession, findSession, upsertAttendance, createReschedule, findPendingReschedule, findReschedule, listReschedules, updateReschedule, updateSession, listSessions, listSessionsForInstructorActor, updateSessionStatusForEnrollment, cancelReschedule, findExpiredPendingEnrollments, countConsumedSessions, findExpiredSessions }
+export { listPackages, createPackage, updatePackage, createAttachment, listAttachments, findAttachment, deleteAttachment, findPersonByUserId, findStudent, findStudentForActor, ensureStudentForActor, findPackage, createEnrollment, attachPaymentObligation, listEnrollments, findEnrollmentById, confirmEnrollment, updateEnrollmentStatus, findEnrollment, findEnrollmentForPackageActor, findInstructor, findRoom, findOverlappingSession, findRoomRentalOverlap, createSession, findSession, upsertAttendance, createReschedule, findPendingReschedule, findReschedule, listReschedules, updateReschedule, updateSession, listSessions, listSessionsForInstructorActor, updateSessionStatusForEnrollment, cancelReschedule, findExpiredPendingEnrollments, countConsumedSessions, findExpiredSessions }
