@@ -56,7 +56,7 @@ const rentalService = await import('../../../src/apps/cadenza/rentals/rental.ser
 const paymentService = await import('../../../src/apps/cadenza/payments/payment.service.js')
 
 const APP_ID = '550e8400-e29b-41d4-a716-446655440000'
-const STUDENT_ID = '550e8400-e29b-41d4-a716-446655440001'
+const CUSTOMER_ID = '550e8400-e29b-41d4-a716-446655440001'
 const PACKAGE_ID = '550e8400-e29b-41d4-a716-446655440002'
 const RENTAL_ID = '550e8400-e29b-41d4-a716-446655440003'
 const RESOURCE_ID = '550e8400-e29b-41d4-a716-446655440004'
@@ -66,14 +66,14 @@ describe('Cadenza lesson payment workflow', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('creates a full-payment obligation when a student enrolls', async () => {
-    lessonRepository.findStudentForActor.mockResolvedValue({ id: STUDENT_ID })
-    lessonRepository.findStudent.mockResolvedValue({ id: STUDENT_ID, appId: APP_ID, status: 'ACTIVE', person: { userId: 42 } })
+    lessonRepository.ensureCustomerForActor.mockResolvedValue({ id: CUSTOMER_ID, appId: APP_ID, status: 'ACTIVE', person: { userId: 42 } })
+    lessonRepository.findCustomer.mockResolvedValue({ id: CUSTOMER_ID, appId: APP_ID, status: 'ACTIVE', person: { userId: 42 } })
     lessonRepository.findPackage.mockResolvedValue({ id: PACKAGE_ID, appId: APP_ID, price: '1500.00', status: 'ACTIVE' })
     lessonRepository.createEnrollment.mockResolvedValue({ id: 'enrollment-1' })
     platformPayments.createPaymentObligation.mockResolvedValue({ id: OBLIGATION_ID, status: 'UNPAID' })
     lessonRepository.attachPaymentObligation.mockResolvedValue({ id: 'enrollment-1', paymentObligationId: OBLIGATION_ID })
 
-    await lessonService.enroll({ appId: APP_ID, studentId: STUDENT_ID, lessonPackageId: PACKAGE_ID, actorId: 42 })
+    await lessonService.enroll({ appId: APP_ID, customerId: CUSTOMER_ID, lessonPackageId: PACKAGE_ID, actorId: 42 })
 
     expect(platformPayments.createPaymentObligation).toHaveBeenCalledWith(expect.objectContaining({
       appId: APP_ID,
@@ -153,7 +153,7 @@ describe('Cadenza payment settlement', () => {
   it('confirms an enrollment only after full payment', async () => {
     lessonRepository.findEnrollmentById.mockResolvedValue({ id: 'enrollment-1', appId: APP_ID, status: 'PENDING_PAYMENT', paymentExpiresAt: null })
     platformPayments.recordPayment.mockImplementation(async ({ onSettled }) => { await onSettled({ db: { transaction: true }, obligation: { appId: APP_ID, referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID', balanceDue: '1500.00' }, paidAmount: { gte: vi.fn(() => true) } }); return { id: 'payment-1', amount: '1500.00' } })
-    paymentRepository.findEnrollment.mockResolvedValue({ id: 'enrollment-1', appId: APP_ID, student: { person: { userId: 42 } } })
+    paymentRepository.findEnrollment.mockResolvedValue({ id: 'enrollment-1', appId: APP_ID, customer: { person: { userId: 42 } } })
     platformPayments.getObligation.mockResolvedValue({ id: OBLIGATION_ID, appId: APP_ID, referenceType: 'CADENZA_ENROLLMENT', referenceId: 'enrollment-1', status: 'PAID', balanceDue: '1500.00' })
 
     await paymentService.pay({
