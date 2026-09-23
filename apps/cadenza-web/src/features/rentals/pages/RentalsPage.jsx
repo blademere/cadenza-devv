@@ -185,7 +185,7 @@ export default function RentalsPage() {
     }),
     onSuccess: (response) => {
       const value = unwrap(response)
-      if (value?.checkoutUrl) window.open(value.checkoutUrl, '_blank', 'noopener,noreferrer')
+      if (value?.checkoutUrl) window.location.assign(value.checkoutUrl)
     },
   })
 
