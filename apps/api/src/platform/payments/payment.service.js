@@ -13,6 +13,7 @@ import {
   lockObligation,
   lockPayment,
   updateObligationStatus,
+  updateObligationMetadata,
 } from './payment.repository.js'
 import { OBLIGATION_STATUS, PAYMENT_EVENTS, PAYMENT_STATUS } from './payment.constants.js'
 import { assertWithinBalance } from './payment.policy.js'
@@ -223,7 +224,7 @@ const createCheckout = async ({
     throw new PaymentStateError('Payment amount exceeds the outstanding balance.')
   }
   const paymentProvider = getPaymentProvider(provider)
-  return paymentProvider.createCheckout({
+  const checkout = await paymentProvider.createCheckout({
     amount: checkoutAmount.toString(),
     currency: obligation.currency,
     referenceNumber: obligationId,
@@ -233,6 +234,34 @@ const createCheckout = async ({
     idempotencyKey,
     metadata: { ...(metadata || {}), appId, obligationId },
   })
+  if (checkout?.checkoutSessionId) {
+    const currentMetadata = obligation.metadata && typeof obligation.metadata === 'object' ? obligation.metadata : {}
+    await updateObligationMetadata(obligationId, {
+      ...currentMetadata,
+      paymentCheckout: {
+        provider: String(provider).toUpperCase(),
+        checkoutSessionId: checkout.checkoutSessionId,
+        amount: checkoutAmount.toString(),
+        currency: obligation.currency,
+      },
+    })
+  }
+  return checkout
+}
+
+const getCheckoutStatus = async ({ appId, obligationId, provider = 'XENDIT', db }) => {
+  const obligation = await getObligation(obligationId, appId, db)
+  if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
+  const checkoutMetadata = obligation.metadata?.paymentCheckout
+  if (!checkoutMetadata?.checkoutSessionId) return null
+  if (String(checkoutMetadata.provider).toUpperCase() !== String(provider).toUpperCase()) {
+    throw new PaymentStateError('Payment checkout provider does not match the payment reconciliation request.')
+  }
+  const paymentProvider = getPaymentProvider(provider)
+  if (typeof paymentProvider.getCheckoutStatus !== 'function') {
+    throw new PaymentStateError(`Payment provider ${provider} does not support checkout status reconciliation.`)
+  }
+  return paymentProvider.getCheckoutStatus({ checkoutSessionId: checkoutMetadata.checkoutSessionId })
 }
 
 const getPayment = async (id, appId, db) => findPaymentById(id, appId, db)
@@ -362,5 +391,6 @@ export {
   summarizeObligation,
   listPaymentHistory,
   getPayment,
+  getCheckoutStatus,
   refundPayment,
 }
