@@ -495,9 +495,9 @@ export default function RentalsPage() {
       </Dialog>
 
       <Dialog open={Boolean(selectedId)} onOpenChange={(value) => !value && closeDetail()}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="flex h-[92vh] w-[96vw] max-w-[1400px] flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="shrink-0 border-b px-6 py-5 pr-14">
+            <DialogTitle className="text-lg">
               Rental {selectedRental?.id ? selectedRental.id.slice(0, 8).toUpperCase() : ''}
             </DialogTitle>
             <DialogDescription>
@@ -507,6 +507,7 @@ export default function RentalsPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
           {selected.isLoading ? (
             <LoadingState label="Loading rental…" rows={3} />
           ) : selectedRental ? (
@@ -670,6 +671,7 @@ export default function RentalsPage() {
           ) : (
             <p className="text-sm text-muted-foreground">Rental not found.</p>
           )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
