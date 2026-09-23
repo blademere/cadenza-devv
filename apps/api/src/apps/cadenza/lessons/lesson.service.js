@@ -19,9 +19,7 @@ import {
   ENROLLMENT_STATUS,
   LESSON_PACKAGE_STATUS,
   RESCHEDULE_STATUS,
-  SESSION_STATUS,
-  STUDENT_STATUS,
-  ATTENDANCE_STATUS,
+  SESSION_STATUS,  ATTENDANCE_STATUS,
   ENROLLMENT_PAYMENT_EXPIRATION_HOURS,
   ENROLLMENT_CANCELLATION_CUTOFF_HOURS,
   RESCHEDULE_CUTOFF_HOURS,
@@ -44,13 +42,13 @@ const assertSessionActor = async ({
   session,
   actorId,
   appId,
-  allowStudent = true,
+  allowCustomer = true,
 }) => {
   if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
     throw new BadRequestError('Authenticated actor is required.')
   if (await canManage(actorId, appId)) return
   if (
-    allowStudent &&
+    allowCustomer &&
     Number(session.enrollment?.customer?.person?.userId) === Number(actorId)
   )
     return
@@ -257,15 +255,15 @@ const cancelEnrollment = async ({ appId, id, actorId }) => {
       resource: 'cadenza_enrollments',
       action: 'manage',
     })
-    const student = Number(enrollment.customer?.person?.userId) === Number(actorId)
-    if (!manager && !student)
+    const customerActor = Number(enrollment.customer?.person?.userId) === Number(actorId)
+    if (!manager && !customerActor)
       throw new ForbiddenError('You can only cancel your own enrollment.')
     if (!manager) {
       const now = Date.now()
       if (enrollment.sessions.some((session) => session.status === SESSION_STATUS.COMPLETED || session.status === SESSION_STATUS.MISSED))
-        throw new ConflictError('Student cancellation is not available after a lesson session has been consumed.')
+        throw new ConflictError('Customer cancellation is not available after a lesson session has been consumed.')
       if (enrollment.sessions.some((session) => session.status === SESSION_STATUS.SCHEDULED && session.scheduledStart.getTime() - now < ENROLLMENT_CANCELLATION_CUTOFF_HOURS * 60 * 60 * 1000))
-        throw new ConflictError('Student cancellation must be requested at least 24 hours before the next scheduled lesson.')
+        throw new ConflictError('Customer cancellation must be requested at least 24 hours before the next scheduled lesson.')
     }
 
     if (enrollment.paymentObligationId) {
@@ -492,8 +490,8 @@ const requestReschedule = async ({
     const session = await repository.findSession(sessionId, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
     const manager = await canManage(actorId, owner)
-    const student = Number(session.enrollment?.customer?.person?.userId) === Number(actorId)
-    if (!manager && !student) throw new ForbiddenError('Only the enrolled student can request a reschedule.')
+    const customerActor = Number(session.enrollment?.customer?.person?.userId) === Number(actorId)
+    if (!manager && !customerActor) throw new ForbiddenError('Only the enrolled customer can request a reschedule.')
     if (
       [SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED].includes(
         session.status
