@@ -93,6 +93,8 @@ export default function RentalsPage() {
     enabled: Boolean(selectedId),
   })
 
+  const selectedRental = unwrap(selected.data)
+
   const customers = useQuery({
     queryKey: ['cadenza', 'customers'],
     queryFn: rentalsApi.customers,
@@ -131,15 +133,15 @@ export default function RentalsPage() {
   })
 
   const payment = useQuery({
-    queryKey: ['cadenza', 'rental-payment', selectedId, selected.data?.paymentObligationId],
-    queryFn: () => paymentsApi.get(selected.data.paymentObligationId),
-    enabled: Boolean(selected.data?.paymentObligationId),
+    queryKey: ['cadenza', 'rental-payment', selectedId, selectedRental?.paymentObligationId],
+    queryFn: () => paymentsApi.get(selectedRental.paymentObligationId),
+    enabled: Boolean(selectedRental?.paymentObligationId),
   })
 
   const history = useQuery({
-    queryKey: ['cadenza', 'rental-payment-history', selected.data?.paymentObligationId],
-    queryFn: () => paymentsApi.history(selected.data.paymentObligationId),
-    enabled: Boolean(selected.data?.paymentObligationId && canManage),
+    queryKey: ['cadenza', 'rental-payment-history', selectedRental?.paymentObligationId],
+    queryFn: () => paymentsApi.history(selectedRental.paymentObligationId),
+    enabled: Boolean(selectedRental?.paymentObligationId && canManage),
   })
 
   const create = useMutation({
@@ -219,7 +221,6 @@ export default function RentalsPage() {
     (rental) => statusFilter === 'ALL' || rental.status === statusFilter,
   )
   const customerRows = unwrap(customers.data)
-  const selectedRental = selected.data
   const obligation = selectedRental?.payment ?? unwrap(payment.data)
   const balanceDue = Number(obligation?.balanceDue ?? selectedRental?.totalAmount ?? 0)
   const onlineAmount =
