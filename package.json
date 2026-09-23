@@ -39,8 +39,7 @@
     "db:backup": "nx run api:db:backup",
     "db:restore": "nx run api:db:restore",
     "dev:cadenza-web": "nx run cadenza-web:dev",
-    "build:cadenza-web": "nx run cadenza-web:build",
-    "dev:ngrok": "sh -c 'if [ -z \"$NGROK_AUTHTOKEN\" ]; then echo \"NGROK_AUTHTOKEN is required. Add it to your local .env file.\" >&2; exit 1; fi; ngrok config add-authtoken \"$NGROK_AUTHTOKEN\" >/dev/null; exec ngrok http \"${PORT:-3000}\"'"
+    "build:cadenza-web": "nx run cadenza-web:build"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
