@@ -27,7 +27,7 @@ export default function LessonsPage() {
   const client = useQueryClient()
   const canCreate = can('cadenza_lessons:create'), canEnroll = can('cadenza_enrollments:create'), canManage = can('cadenza_lessons:manage'), canEnrollmentManage = can('cadenza_enrollments:manage'), canPay = can('cadenza_payments:create')
   const packagesQuery = useQuery({ queryKey: ['cadenza', 'lesson-packages'], queryFn: lessonsApi.listPackages })
-  const studentsQuery = useQuery({ queryKey: ['cadenza', 'students'], queryFn: studentsApi.list })
+  const studentsQuery = useQuery({ queryKey: ['cadenza', 'students'], queryFn: studentsApi.list, enabled: canEnrollmentManage })
   const enrollmentsQuery = useQuery({ queryKey: ['cadenza', 'enrollments'], queryFn: lessonsApi.listEnrollments })
   const [packageOpen, setPackageOpen] = useState(false), [enrollOpen, setEnrollOpen] = useState(false), [attachmentPackage, setAttachmentPackage] = useState(null), [payment, setPayment] = useState(null), [file, setFile] = useState(null)
   const [form, setForm] = useState({ name: '', description: '', price: '', numberOfSessions: 1 })
@@ -41,8 +41,8 @@ export default function LessonsPage() {
   const attachmentsQuery = useQuery({ queryKey: ['cadenza', 'attachments', attachmentPackage?.id], queryFn: () => lessonsApi.listAttachments(attachmentPackage.id), enabled: Boolean(attachmentPackage?.id) })
   const deleteAttachment = useMutation({ mutationFn: ({ packageId, id }) => lessonsApi.deleteAttachment(packageId, id), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'attachments', attachmentPackage?.id] }) })
   const obligationQuery = useQuery({ queryKey: ['cadenza', 'payment', payment?.paymentObligationId], queryFn: () => paymentsApi.get(payment.paymentObligationId), enabled: Boolean(payment?.paymentObligationId) })
-  if (packagesQuery.isLoading) return <LoadingState label="Loading lesson packages…" rows={3} />
-  if (packagesQuery.error) return <Alert variant="destructive"><AlertDescription>{packagesQuery.error.message}</AlertDescription></Alert>
+  if (packagesQuery.isLoading || (canEnrollmentManage && studentsQuery.isLoading)) return <LoadingState label="Loading lesson packages…" rows={3} />
+  if (packagesQuery.error || studentsQuery.error) return <Alert variant="destructive"><AlertDescription>{(packagesQuery.error || studentsQuery.error).message}</AlertDescription></Alert>
   const packages = unwrap(packagesQuery.data), students = unwrap(studentsQuery.data), enrollments = unwrap(enrollmentsQuery.data)
   const obligation = obligationQuery.data?.data ?? obligationQuery.data
   const due = obligation?.balanceDue ?? obligation?.totalAmount ?? payment?.amount
