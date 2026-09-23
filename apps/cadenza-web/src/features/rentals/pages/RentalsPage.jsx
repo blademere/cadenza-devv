@@ -64,6 +64,7 @@ export default function RentalsPage() {
   const canCreate = can('cadenza_rentals:create')
   const canManage = can('cadenza_rentals:manage')
   const canPay = can('cadenza_payments:create')
+  const customerView = canCreate && !canManage
 
   const [open, setOpen] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
@@ -138,14 +139,16 @@ export default function RentalsPage() {
   const history = useQuery({
     queryKey: ['cadenza', 'rental-payment-history', selectedRental?.paymentObligationId],
     queryFn: () => paymentsApi.history(selectedRental.paymentObligationId),
-    enabled: Boolean(selectedRental?.paymentObligationId && canManage),
+    enabled: Boolean(selectedRental?.paymentObligationId),
   })
 
   const create = useMutation({
     mutationFn: rentalsApi.create,
-    onSuccess: async () => {
+    onSuccess: async (response) => {
       setOpen(false)
       await client.invalidateQueries({ queryKey: ['cadenza', 'rentals'] })
+      const value = unwrap(response)
+      if (value?.id) setSelectedId(value.id)
     },
   })
 
@@ -276,8 +279,12 @@ export default function RentalsPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Rentals"
-        description="One operational workspace for online and walk-in rentals, from booking through return and payment settlement."
+        title={customerView ? 'My Rentals' : 'Rental Management'}
+        description={
+          customerView
+            ? 'Book an instrument or band room, pay the booking down payment online, and track your rental history.'
+            : 'Manage customer rentals from booking through checkout, return, and payment settlement.'
+        }
         actions={
           canCreate && (
             <Button onClick={openNewRental}>
@@ -293,23 +300,24 @@ export default function RentalsPage() {
         </Alert>
       )}
 
-      <div className="grid gap-3 md:grid-cols-5">
-        {STATUS.slice(1).map((item) => {
-          const count = unwrap(rentals.data).filter((r) => r.status === item.value).length
-          return (
-            <Card key={item.value}>
-              <CardContent className="pt-5">
-                <p className="text-sm text-muted-foreground">{item.label}</p>
-                <p className="text-2xl font-semibold">{count}</p>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+      {customerView ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card><CardContent className="pt-5"><p className="text-sm text-muted-foreground">My rentals</p><p className="mt-1 text-2xl font-semibold">{rows.length}</p></CardContent></Card>
+          <Card><CardContent className="pt-5"><p className="text-sm text-muted-foreground">Upcoming</p><p className="mt-1 text-2xl font-semibold">{rows.filter((r) => ['PENDING', 'RESERVED'].includes(r.status)).length}</p></CardContent></Card>
+          <Card><CardContent className="pt-5"><p className="text-sm text-muted-foreground">Active</p><p className="mt-1 text-2xl font-semibold">{rows.filter((r) => r.status === 'CHECKED_OUT').length}</p></CardContent></Card>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-5">
+          {STATUS.slice(1).map((item) => {
+            const count = unwrap(rentals.data).filter((r) => r.status === item.value).length
+            return <Card key={item.value}><CardContent className="pt-5"><p className="text-sm text-muted-foreground">{item.label}</p><p className="text-2xl font-semibold">{count}</p></CardContent></Card>
+          })}
+        </div>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <CardTitle>Rental workflow</CardTitle>
+          <div><CardTitle>{customerView ? 'My rental history' : 'Rental workflow'}</CardTitle><p className="mt-1 text-sm text-muted-foreground">{customerView ? 'Open a rental to view booking details, payment status, and the current rental stage.' : 'Track every customer rental and operate the booking lifecycle from this workspace.'}</p></div>
           <div className="w-56">
             <SelectField
               label="Status"
@@ -326,6 +334,7 @@ export default function RentalsPage() {
                 key: 'customer',
                 header: 'Customer',
                 value: (r) => customerName(r.customer),
+                hidden: customerView,
               },
               {
                 key: 'resource',
@@ -369,7 +378,7 @@ export default function RentalsPage() {
               },
             ]}
             rows={rows}
-            searchPlaceholder="Search rentals by customer or rental…"
+            searchPlaceholder={customerView ? 'Search my rentals…' : 'Search rentals by customer or rental…'}
           />
         </CardContent>
       </Card>
@@ -639,8 +648,7 @@ export default function RentalsPage() {
                 )}
               </div>
 
-              {canManage && (
-                <Card>
+              <Card>
                   <CardHeader><CardTitle className="text-base">Payment history</CardTitle></CardHeader>
                   <CardContent className="grid gap-2">
                     {history.isLoading ? (
@@ -657,7 +665,6 @@ export default function RentalsPage() {
                     )}
                   </CardContent>
                 </Card>
-              )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">Rental not found.</p>
