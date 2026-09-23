@@ -191,7 +191,7 @@ model CadenzaAttendance {
   markedAt         DateTime @default(now())
   notes            String?
   session          CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  markedByPerson   Person   @relation(fields: [markedByPersonId], references: [id], onDelete: SetNull)
+  markedByPerson   Person?  @relation(fields: [markedByPersonId], references: [id], onDelete: SetNull)
 
   @@index([markedByPersonId])
 }
