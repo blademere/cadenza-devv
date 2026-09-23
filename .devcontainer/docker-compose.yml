@@ -25,6 +25,16 @@ services:
 
     command: sleep infinity
 
+  ngrok:
+    image: ngrok/ngrok:3-alpine
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    command:
+      - http
+      - app:3000
+    depends_on:
+      - app
+
   db:
     image: postgres:18-alpine
 
