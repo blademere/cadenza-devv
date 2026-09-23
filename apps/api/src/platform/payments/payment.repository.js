@@ -12,10 +12,11 @@ const findObligationByReference = (appId, referenceType, referenceId, db) => get
 const listObligationsByApp = (appId, db = prisma) => db.paymentObligation.findMany({ where: { appId }, orderBy: { createdAt: 'desc' }, include: { payments: { orderBy: { createdAt: 'asc' }, include: { refunds: { orderBy: { createdAt: 'asc' } } } } } })
 const createPayment = (data, db) => getDb(db).payment.create({ data })
 const updateObligationStatus = (id, status, db) => getDb(db).paymentObligation.update({ where: { id }, data: { status } })
+const updateObligationMetadata = (id, metadata, db) => getDb(db).paymentObligation.update({ where: { id }, data: { metadata } })
 const findPaymentByIdempotencyKey = (idempotencyKey, db) => getDb(db).payment.findUnique({ where: { idempotencyKey } })
 const findPaymentById = (id, appId, db) => getDb(db).payment.findFirst({ where: { id, obligation: { appId } }, include: { refunds: { orderBy: { createdAt: 'asc' } }, obligation: true } })
 const updatePayment = (id, data, db) => getDb(db).payment.update({ where: { id }, data })
 const listSuccessfulPayments = (obligationId, db) => getDb(db).payment.findMany({ where: { obligationId, status: 'SUCCEEDED' }, orderBy: { createdAt: 'asc' } })
 const listPayments = (obligationId, appId, db) => getDb(db).payment.findMany({ where: { obligationId, obligation: { appId } }, orderBy: { createdAt: 'asc' }, include: { refunds: { orderBy: { createdAt: 'asc' } } } })
 const createRefund = (data, db) => getDb(db).paymentRefund.create({ data })
-export { createObligation, findObligationById, findObligationByIdGlobal, findObligationByReference, listObligationsByApp, createPayment, updateObligationStatus, findPaymentByIdempotencyKey, findPaymentById, updatePayment, listSuccessfulPayments, listPayments, createRefund, withTransaction, lockObligation, lockPayment }
+export { createObligation, findObligationById, findObligationByIdGlobal, findObligationByReference, listObligationsByApp, createPayment, updateObligationStatus, updateObligationMetadata, findPaymentByIdempotencyKey, findPaymentById, updatePayment, listSuccessfulPayments, listPayments, createRefund, withTransaction, lockObligation, lockPayment }
