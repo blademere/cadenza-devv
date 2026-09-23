@@ -51,7 +51,7 @@ const assertSessionActor = async ({
   if (await canManage(actorId, appId)) return
   if (
     allowStudent &&
-    Number(session.enrollment?.student?.person?.userId) === Number(actorId)
+    Number(session.enrollment?.customer?.person?.userId) === Number(actorId)
   )
     return
   if (Number(session.instructor?.person?.userId) === Number(actorId)) return
@@ -204,7 +204,7 @@ const getEnrollment = async ({ appId, id, actorId }) => {
   const enrollment = await repository.findEnrollmentById(id, owner)
   if (!enrollment) throw new NotFoundError('Enrollment not found.')
   const manager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' })
-  if (!manager && Number(enrollment.student?.person?.userId) !== Number(actorId))
+  if (!manager && Number(enrollment.customer?.person?.userId) !== Number(actorId))
     throw new NotFoundError('Enrollment not found.')
   const sessions = enrollment.sessions || []
   const completedSessions = sessions.filter((session) => session.status === SESSION_STATUS.COMPLETED).length
@@ -228,7 +228,7 @@ const listEnrollments = async ({ appId, actorId }) => {
   const rows = await repository.listEnrollments(owner)
   const scoped = (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' }))
     ? rows
-    : rows.filter((row) => Number(row.student?.person?.userId) === Number(actorId))
+    : rows.filter((row) => Number(row.customer?.person?.userId) === Number(actorId))
   return scoped.map((row) => {
     const completedSessions = (row.sessions || []).filter((session) => session.status === SESSION_STATUS.COMPLETED).length
     const totalSessions = Number(row.lessonPackage?.numberOfSessions || 0)
@@ -257,7 +257,7 @@ const cancelEnrollment = async ({ appId, id, actorId }) => {
       resource: 'cadenza_enrollments',
       action: 'manage',
     })
-    const student = Number(enrollment.student?.person?.userId) === Number(actorId)
+    const student = Number(enrollment.customer?.person?.userId) === Number(actorId)
     if (!manager && !student)
       throw new ForbiddenError('You can only cancel your own enrollment.')
     if (!manager) {
@@ -317,77 +317,28 @@ const cancelEnrollment = async ({ appId, id, actorId }) => {
   })
 }
 
-const enroll = async ({
-  appId,
-  studentId,
-  lessonPackageId,
-  currency = 'PHP',
-  actorId,
-}) => {
+const enroll = async ({ appId, customerId, lessonPackageId, currency = 'PHP', actorId }) => {
   const owner = requireAppId(appId)
-  if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
-    throw new BadRequestError('Authenticated actor is required.')
+  if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0) throw new BadRequestError('Authenticated actor is required.')
   const isManager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'manage' })
-  const student = isManager
-    ? await repository.findStudent(studentId, owner)
-    : await repository.ensureStudentForActor(actorId, owner)
-  const resolvedStudentId = student?.id
-  if (!student) throw new NotFoundError('Create your profile before enrolling as a student.')
-  if (!isManager && Number(student.person?.userId) !== Number(actorId))
-    throw new ForbiddenError('You can only enroll yourself as a Cadenza student.')
-  if (student.status !== STUDENT_STATUS.ACTIVE)
-    throw new ConflictError('Student is not active.')
+  const customer = isManager ? await repository.findCustomer(customerId, owner) : await repository.ensureCustomerForActor(actorId, owner)
+  const resolvedCustomerId = customer?.id
+  if (!customer) throw new NotFoundError('Create your profile before enrolling as a customer.')
+  if (!isManager && Number(customer.person?.userId) !== Number(actorId)) throw new ForbiddenError('You can only enroll yourself as a Cadenza customer.')
+  if (customer.status !== 'ACTIVE') throw new ConflictError('Customer is not active.')
   const pkg = await repository.findPackage(lessonPackageId, owner)
   if (!pkg) throw new NotFoundError('Lesson package not found.')
-  if (pkg.status !== LESSON_PACKAGE_STATUS.ACTIVE)
-    throw new ConflictError('Lesson package is not active.')
+  if (pkg.status !== LESSON_PACKAGE_STATUS.ACTIVE) throw new ConflictError('Lesson package is not active.')
   try {
     return await runTransaction(async (tx) => {
-      const enrollment = await repository.createEnrollment(
-        {
-          appId: owner,
-          studentId: resolvedStudentId,
-          lessonPackageId,
-          status: ENROLLMENT_STATUS.PENDING_PAYMENT,
-          paymentExpiresAt: new Date(Date.now() + ENROLLMENT_PAYMENT_EXPIRATION_HOURS * 60 * 60 * 1000),
-        },
-        tx
-      )
-      const obligation = await createPaymentObligation({
-        appId: owner,
-        referenceType: 'CADENZA_ENROLLMENT',
-        referenceId: enrollment.id,
-        totalAmount: pkg.price,
-        currency,
-        db: tx,
-        metadata: { requirement: 'FULL_PAYMENT' },
-      })
-      const attached = await repository.attachPaymentObligation(
-        enrollment.id,
-        owner,
-        obligation.id,
-        tx
-      )
-      await enqueueEvent({
-        db: tx,
-        event: ENROLLMENT_EVENTS.CREATED,
-        entityType: 'CadenzaEnrollment',
-        entityId: enrollment.id,
-        actorId,
-        context: {
-          appId: owner,
-          paymentObligationId: obligation.id,
-          paymentExpiresAt: enrollment.paymentExpiresAt?.toISOString() || null,
-        },
-        idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.CREATED}:${enrollment.id}`,
-      })
+      const enrollment = await repository.createEnrollment({ appId: owner, customerId: resolvedCustomerId, lessonPackageId, status: ENROLLMENT_STATUS.PENDING_PAYMENT, paymentExpiresAt: new Date(Date.now() + ENROLLMENT_PAYMENT_EXPIRATION_HOURS * 60 * 60 * 1000) }, tx)
+      const obligation = await createPaymentObligation({ appId: owner, referenceType: 'CADENZA_ENROLLMENT', referenceId: enrollment.id, totalAmount: pkg.price, currency, db: tx, metadata: { requirement: 'FULL_PAYMENT' } })
+      const attached = await repository.attachPaymentObligation(enrollment.id, owner, obligation.id, tx)
+      await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.CREATED, entityType: 'CadenzaEnrollment', entityId: enrollment.id, actorId, context: { appId: owner, paymentObligationId: obligation.id, paymentExpiresAt: enrollment.paymentExpiresAt?.toISOString() || null }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.CREATED}:${enrollment.id}` })
       return attached
     })
   } catch (e) {
-    if (e?.code === 'P2002')
-      throw new ConflictError(
-        'Student is already enrolled in this lesson package.'
-      )
+    if (e?.code === 'P2002') throw new ConflictError('Customer is already enrolled in this lesson package.')
     throw e
   }
 }
@@ -395,7 +346,7 @@ const listSessions = async ({ appId, actorId }) => {
   const owner = requireAppId(appId)
   const rows = await repository.listSessions(owner)
   if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'manage' })) return rows
-  return rows.filter((row) => Number(row.enrollment?.student?.person?.userId) === Number(actorId) || Number(row.instructor?.person?.userId) === Number(actorId))
+  return rows.filter((row) => Number(row.enrollment?.customer?.person?.userId) === Number(actorId) || Number(row.instructor?.person?.userId) === Number(actorId))
 }
 const getSession = async ({ appId, id }) => {
   const value = await repository.findSession(id, requireAppId(appId))
@@ -406,7 +357,7 @@ const listReschedules = async ({ appId, actorId }) => {
   const owner = requireAppId(appId)
   const rows = await repository.listReschedules(owner)
   if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'manage' })) return rows
-  return rows.filter((row) => Number(row.session?.enrollment?.student?.person?.userId) === Number(actorId) || row.requestedByPersonId === row.session?.enrollment?.student?.person?.id)
+  return rows.filter((row) => Number(row.session?.enrollment?.customer?.person?.userId) === Number(actorId) || row.requestedByPersonId === row.session?.enrollment?.customer?.person?.id)
 }
 const getReschedule = async ({ appId, id }) => {
   const value = await repository.findReschedule(id, requireAppId(appId))
@@ -541,7 +492,7 @@ const requestReschedule = async ({
     const session = await repository.findSession(sessionId, owner, tx)
     if (!session) throw new NotFoundError('Lesson session not found.')
     const manager = await canManage(actorId, owner)
-    const student = Number(session.enrollment?.student?.person?.userId) === Number(actorId)
+    const student = Number(session.enrollment?.customer?.person?.userId) === Number(actorId)
     if (!manager && !student) throw new ForbiddenError('Only the enrolled student can request a reschedule.')
     if (
       [SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED].includes(
