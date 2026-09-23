@@ -4,6 +4,7 @@ import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import LessonsPage from '../features/lessons/pages/LessonsPage'
+import PaymentsPage from '../features/payments/pages/PaymentsPage'
 import LessonSchedulePage from '../features/scheduling/pages/LessonSchedulePage'
 import RentalsPage from '../features/rentals/pages/RentalsPage'
 import ResourcesPage from '../features/resources/pages/ResourcesPage'
@@ -31,6 +32,11 @@ export const router = createBrowserRouter([
                 path: 'lessons',
                 element: <PermissionRoute permission="cadenza_lessons:read" />,
                 children: [{ index: true, element: <LessonsPage /> }],
+              },
+              {
+                path: 'payments',
+                element: <PermissionRoute permission="cadenza_payments:read" />,
+                children: [{ index: true, element: <PaymentsPage /> }],
               },
               {
                 path: 'lesson-schedule',
