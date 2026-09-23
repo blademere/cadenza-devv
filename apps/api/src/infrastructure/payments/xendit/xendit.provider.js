@@ -31,7 +31,7 @@ const createXenditProvider = ({ secretKey, webhookToken, baseUrl, apiVersion = '
       provider: 'XENDIT',
       checkoutSessionId: result?.payment_request_id,
       providerReference: result?.payment_id,
-      checkoutUrl: findAction('WEB_URL'),
+      checkoutUrl: findAction('WEB_URL') || findAction('DEEPLINK_URL') || actions.find((action) => action.type === 'REDIRECT_CUSTOMER')?.value,
       deepLink: findAction('DEEPLINK_URL'),
       qrString: findAction('QR_STRING'),
       raw: result,
