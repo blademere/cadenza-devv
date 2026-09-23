@@ -82,11 +82,31 @@ const removeBlock = async ({ appId, instructorId, blockId, actorId }) => {
   return { id: blockId }
 }
 
+const getLocalParts = (date, timeZone = process.env.CADENZA_TIMEZONE || 'Asia/Manila') => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.filter(({ type }) => type !== 'literal').map(({ type, value }) => [type, value]))
+  const weekdays = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+  return {
+    day: weekdays[values.weekday],
+    minute: Number(values.hour) * 60 + Number(values.minute),
+  }
+}
+
 const isWithinWeeklyAvailability = (rules, start, end) => {
-  const day = start.getUTCDay()
-  const startMinute = start.getUTCHours() * 60 + start.getUTCMinutes()
-  const endMinute = end.getUTCHours() * 60 + end.getUTCMinutes()
-  return rules.some((rule) => rule.dayOfWeek === day && rule.startMinute <= startMinute && rule.endMinute >= endMinute)
+  const localStart = getLocalParts(start)
+  const localEnd = getLocalParts(end)
+  return rules.some((rule) =>
+    rule.dayOfWeek === localStart.day &&
+    rule.startMinute <= localStart.minute &&
+    rule.endMinute >= localEnd.minute &&
+    localEnd.day === localStart.day
+  )
 }
 
 const assertAvailable = async ({ appId, instructorId, startsAt, endsAt, db }) => {
@@ -103,4 +123,4 @@ const assertAvailable = async ({ appId, instructorId, startsAt, endsAt, db }) =>
   return true
 }
 
-export { get, replace, addBlock, removeBlock, assertAvailable, normalizeRules }
+export { get, replace, addBlock, removeBlock, assertAvailable, normalizeRules, isWithinWeeklyAvailability }
