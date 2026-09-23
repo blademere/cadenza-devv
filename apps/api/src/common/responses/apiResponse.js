@@ -1,4 +1,7 @@
+import { Prisma } from '@prisma/client'
+
 const serializeJsonValue = (value) => {
+  if (Prisma.Decimal.isDecimal(value)) return value.toString()
   if (typeof value === 'bigint') return value.toString()
   if (value instanceof Date) return value
   if (Array.isArray(value)) return value.map(serializeJsonValue)
