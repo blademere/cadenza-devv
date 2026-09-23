@@ -69,6 +69,7 @@ export default function LessonSchedulePage() {
       scheduledEnd: '',
     }),
     [selected, setSelected] = useState(null),
+    [scheduleOpen, setScheduleOpen] = useState(false),
     [requestOpen, setRequestOpen] = useState(null),
     [attendance, setAttendance] = useState('PRESENT'),
     [notes, setNotes] = useState('');
@@ -122,8 +123,10 @@ export default function LessonSchedulePage() {
     instructorRows = unwrap(instructors.data),
     roomRows = unwrap(rooms.data),
     pending = unwrap(reschedules.data).filter((r) => r.status === 'PENDING');
-  const openSchedule = () =>
+  const openSchedule = () => {
     setForm({ ...form, enrollmentId: confirmed[0]?.id ?? '' });
+    setScheduleOpen(true);
+  }
   const error =
     create.error ||
     mark.error ||
@@ -273,16 +276,24 @@ export default function LessonSchedulePage() {
         </CardContent>
       </Card>{' '}
       <Dialog
-        open={Boolean(form.enrollmentId)}
-        onOpenChange={(value) =>
-          !value && setForm({ ...form, enrollmentId: '' })
-        }
+        open={scheduleOpen}
+        onOpenChange={(value) => {
+          setScheduleOpen(value);
+          if (!value) setForm({ ...form, enrollmentId: '' });
+        }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Schedule session</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
+            {confirmed.length === 0 && (
+              <Alert>
+                <AlertDescription>
+                  There are no confirmed, fully paid enrollments available to schedule. Complete the enrollment payment first.
+                </AlertDescription>
+              </Alert>
+            )}
             <SelectField
               label="Enrollment"
               options={confirmed.map((e) => ({
@@ -336,7 +347,7 @@ export default function LessonSchedulePage() {
           <DialogFooter>
             <Button
               disabled={
-                !form.enrollmentId || !form.scheduledStart || !form.scheduledEnd
+                !form.enrollmentId || !form.scheduledStart || !form.scheduledEnd || confirmed.length === 0
               }
               onClick={() =>
                 create.mutate({
