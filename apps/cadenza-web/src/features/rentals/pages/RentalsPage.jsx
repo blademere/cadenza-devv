@@ -26,13 +26,13 @@ import { useAuthorization } from '../../authorization/components/AuthorizationPr
 
 const unwrap = (r) => r?.data ?? r ?? [];
 
-export default function RentalsPage({ mode = 'walkin' }) {
+export default function RentalsPage() {
   const { can } = useAuthorization();
-  const onlineMode = mode === 'online';
   const client = useQueryClient();
-  const canCreate = can('cadenza_rentals:create'),
-    canManage = can('cadenza_rentals:manage'),
-    canPay = can('cadenza_payments:create');
+  const canCreate = can('cadenza_rentals:create');
+  const canManage = can('cadenza_rentals:manage');
+  const canPay = can('cadenza_payments:create');
+
   const rentals = useQuery({
     queryKey: ['cadenza', 'rentals'],
     queryFn: rentalsApi.list,
@@ -40,7 +40,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
   const customers = useQuery({
     queryKey: ['cadenza', 'customers'],
     queryFn: rentalsApi.customers,
-    enabled: canManage && !onlineMode,
+    enabled: canManage,
   });
   const instruments = useQuery({
     queryKey: ['cadenza', 'instruments'],
@@ -50,9 +50,10 @@ export default function RentalsPage({ mode = 'walkin' }) {
     queryKey: ['cadenza', 'rooms'],
     queryFn: resourcesApi.listRooms,
   });
-  const [open, setOpen] = useState(false),
-    [payment, setPayment] = useState(null),
-    [amount, setAmount] = useState('');
+
+  const [open, setOpen] = useState(false);
+  const [payment, setPayment] = useState(null);
+  const [amount, setAmount] = useState('');
   const [form, setForm] = useState({
     customerId: '',
     resourceId: '',
@@ -62,6 +63,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
     requiredDownPayment: '',
     currency: 'PHP',
   });
+
   const availability = useQuery({
     queryKey: [
       'cadenza',
@@ -78,10 +80,11 @@ export default function RentalsPage({ mode = 'walkin' }) {
       }),
     enabled: Boolean(
       form.scheduledStart &&
-      form.scheduledEnd &&
-      form.scheduledStart < form.scheduledEnd,
+        form.scheduledEnd &&
+        form.scheduledStart < form.scheduledEnd,
     ),
   });
+
   const create = useMutation({
     mutationFn: rentalsApi.create,
     onSuccess: () => {
@@ -116,16 +119,18 @@ export default function RentalsPage({ mode = 'walkin' }) {
         window.open(value.checkoutUrl, '_blank', 'noopener,noreferrer');
     },
   });
+
   const history = useQuery({
     queryKey: ['cadenza', 'payment-history', payment?.paymentObligationId],
     queryFn: () => paymentsApi.history(payment.paymentObligationId),
-    enabled: Boolean(payment?.paymentObligationId),
+    enabled: Boolean(payment?.paymentObligationId && canManage),
   });
   const detail = useQuery({
     queryKey: ['cadenza', 'payment', payment?.paymentObligationId],
     queryFn: () => paymentsApi.get(payment.paymentObligationId),
-    enabled: Boolean(payment?.paymentObligationId),
+    enabled: Boolean(payment?.paymentObligationId && canManage),
   });
+
   if (rentals.isLoading)
     return <LoadingState label="Loading rentals…" rows={4} />;
   if (rentals.error)
@@ -134,6 +139,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
         <AlertDescription>{rentals.error.message}</AlertDescription>
       </Alert>
     );
+
   const rows = unwrap(rentals.data);
   const resourceRows = availability.isSuccess
     ? unwrap(availability.data).map((entry) => entry.domain)
@@ -141,31 +147,42 @@ export default function RentalsPage({ mode = 'walkin' }) {
       ? unwrap(rooms.data)
       : unwrap(instruments.data);
   const customerRows = unwrap(customers.data);
+
   const submit = () =>
     create.mutate({
       ...form,
-      customerId: form.customerId || undefined,
+      customerId: canManage && form.customerId ? form.customerId : undefined,
       scheduledStart: new Date(form.scheduledStart).toISOString(),
       scheduledEnd: new Date(form.scheduledEnd).toISOString(),
       requiredDownPayment: String(form.requiredDownPayment),
     });
+
   const error = create.error || lifecycle.error || pay.error || checkout.error;
+
   return (
     <div className="grid gap-6">
       <PageHeader
-        title={onlineMode ? 'Online Rental' : 'Walk-in Rentals'}
-        description={onlineMode ? 'Book an instrument or band room online and pay the required down payment online.' : 'Book rentals for walk-in customers, record payments, and manage check-out and returns.'}
+        title="Rentals"
+        description={
+          canManage
+            ? 'Book rentals for walk-in customers, record payments, and manage check-out and returns.'
+            : 'Book an instrument or band room rental and pay the required down payment online.'
+        }
         actions={
           canCreate && (
-            <Button onClick={() => setOpen(true)}>{onlineMode ? 'Book online rental' : 'Book walk-in rental'}</Button>
+            <Button onClick={() => setOpen(true)}>
+              {canManage ? 'Book walk-in rental' : 'Book rental'}
+            </Button>
           )
         }
       />
+
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error.message}</AlertDescription>
         </Alert>
       )}
+
       <Card>
         <CardContent className="pt-6">
           <DataTable
@@ -200,7 +217,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
                 searchable: false,
                 render: (r) => (
                   <div className="flex flex-wrap gap-2">
-                    {r.paymentObligationId && canPay && (
+                    {canManage && r.paymentObligationId && canPay && (
                       <Button
                         size="sm"
                         onClick={() => {
@@ -208,18 +225,18 @@ export default function RentalsPage({ mode = 'walkin' }) {
                           setAmount(String(r.requiredDownPayment));
                         }}
                       >
-                        {onlineMode ? 'Online payment' : 'Payment'}
+                        Payment
                       </Button>
                     )}
-                    {r.paymentObligationId &&
+                    {!canManage &&
+                      r.paymentObligationId &&
                       r.status === 'PENDING' &&
                       canPay && (
                         <Button
                           size="sm"
-                          variant="outline"
                           onClick={() => checkout.mutate(r)}
                         >
-                          Pay online
+                          Pay down payment online
                         </Button>
                       )}
                     {r.status === 'RESERVED' && canManage && (
@@ -242,17 +259,18 @@ export default function RentalsPage({ mode = 'walkin' }) {
                         Return
                       </Button>
                     )}
-                    {(r.status === 'PENDING' || r.status === 'RESERVED') && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() =>
-                          lifecycle.mutate({ type: 'cancel', id: r.id })
-                        }
-                      >
-                        Cancel
-                      </Button>
-                    )}
+                    {canManage &&
+                      (r.status === 'PENDING' || r.status === 'RESERVED') && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            lifecycle.mutate({ type: 'cancel', id: r.id })
+                          }
+                        >
+                          Cancel
+                        </Button>
+                      )}
                   </div>
                 ),
               },
@@ -261,18 +279,22 @@ export default function RentalsPage({ mode = 'walkin' }) {
             searchPlaceholder="Search rentals…"
           />
         </CardContent>
-      </Card>{' '}
+      </Card>
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{onlineMode ? 'Book online rental' : 'Book walk-in rental'}</DialogTitle>
+            <DialogTitle>
+              {canManage ? 'Book walk-in rental' : 'Book rental'}
+            </DialogTitle>
             <DialogDescription>
               Availability is checked against existing rentals and lesson-room
               bookings. The server calculates the rental total.
             </DialogDescription>
           </DialogHeader>
+
           <div className="grid gap-4">
-            {canManage && !onlineMode && (
+            {canManage && (
               <SelectField
                 label="Customer"
                 options={customerRows.map((c) => ({
@@ -290,6 +312,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
                 disabled={customers.isLoading}
               />
             )}
+
             <SelectField
               label="Type"
               options={[
@@ -305,6 +328,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
                 })
               }
             />
+
             <SelectField
               label="Resource"
               options={resourceRows.map((r) => ({
@@ -320,6 +344,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
               onChange={(v) => setForm({ ...form, resourceId: v || '' })}
               placeholder="Choose a resource"
             />
+
             <div className="grid gap-2">
               <Label>Start</Label>
               <Input
@@ -330,6 +355,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
                 }
               />
             </div>
+
             <div className="grid gap-2">
               <Label>End</Label>
               <Input
@@ -340,6 +366,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
                 }
               />
             </div>
+
             <div className="grid gap-2">
               <Label>Required down payment</Label>
               <Input
@@ -356,6 +383,7 @@ export default function RentalsPage({ mode = 'walkin' }) {
               />
             </div>
           </div>
+
           <DialogFooter>
             <Button
               disabled={
@@ -366,11 +394,12 @@ export default function RentalsPage({ mode = 'walkin' }) {
               }
               onClick={submit}
             >
-              {create.isPending ? 'Booking…' : onlineMode ? 'Create online booking' : 'Create walk-in booking'}
+              {create.isPending ? 'Booking…' : 'Create rental'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <Dialog
         open={Boolean(payment)}
         onOpenChange={(value) => !value && setPayment(null)}
@@ -403,7 +432,10 @@ export default function RentalsPage({ mode = 'walkin' }) {
             <Button
               disabled={!amount || !payment}
               onClick={() =>
-                pay.mutate({ id: payment.paymentObligationId, value: amount })
+                pay.mutate({
+                  id: payment.paymentObligationId,
+                  value: amount,
+                })
               }
             >
               {pay.isPending ? 'Recording…' : 'Record payment'}
