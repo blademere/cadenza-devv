@@ -17,6 +17,9 @@ import { formatCurrency } from '../../../utils/currency'
 import { lessonsApi } from '../api/lessons.api'
 import { customersApi } from '../../customers/api/customers.api'
 import { paymentsApi } from '../../payments/api/payments.api'
+import { schedulingApi } from '../../scheduling/api/scheduling.api'
+import { instructorsApi } from '../../instructors/api/instructors.api'
+import { resourcesApi } from '../../resources/api/resources.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
 
 const unwrap = (value) => value?.data ?? value ?? []
@@ -37,6 +40,11 @@ export default function LessonsPage() {
   const canEnrollmentCreate = can('cadenza_enrollments:create')
   const canEnrollmentManage = can('cadenza_enrollments:manage')
   const canPay = can('cadenza_payments:create')
+  const canSchedule = can('cadenza_lessons:schedule')
+  const canAttendance = can('cadenza_lessons:attendance')
+  const canRequestReschedule = can('cadenza_lessons:request_reschedule')
+  const canInstructorRead = can('cadenza_instructors:read')
+  const canRoomRead = can('cadenza_rooms:read')
   const customerView = canEnrollmentCreate && !canCreate && !canManage && !canEnrollmentManage
 
   const packagesQuery = useQuery({
@@ -53,6 +61,10 @@ export default function LessonsPage() {
     queryFn: lessonsApi.listEnrollments,
     enabled: !customerView,
   })
+  const sessionsQuery = useQuery({ queryKey: ['cadenza', 'sessions'], queryFn: schedulingApi.listSessions })
+  const instructorsQuery = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list, enabled: canInstructorRead })
+  const roomsQuery = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms, enabled: canRoomRead })
+  const reschedulesQuery = useQuery({ queryKey: ['cadenza', 'reschedules'], queryFn: schedulingApi.listReschedules, enabled: canManage })
 
   const [packageOpen, setPackageOpen] = useState(false)
   const [enrollOpen, setEnrollOpen] = useState(false)
@@ -61,6 +73,12 @@ export default function LessonsPage() {
   const [file, setFile] = useState(null)
   const [form, setForm] = useState({ name: '', description: '', price: '', numberOfSessions: 1 })
   const [enrollForm, setEnrollForm] = useState({ customerId: '', lessonPackageId: '' })
+  const [scheduleForm, setScheduleForm] = useState({ enrollmentId: '', instructorId: '', roomId: '', scheduledStart: '', scheduledEnd: '' })
+  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [selectedSession, setSelectedSession] = useState(null)
+  const [attendance, setAttendance] = useState('PRESENT')
+  const [attendanceNotes, setAttendanceNotes] = useState('')
+  const [requestOpen, setRequestOpen] = useState(null)
 
   const create = useMutation({
     mutationFn: lessonsApi.createPackage,
@@ -117,6 +135,36 @@ export default function LessonsPage() {
     },
   })
 
+  const createSession = useMutation({
+    mutationFn: schedulingApi.createSession,
+    onSuccess: () => {
+      setScheduleOpen(false)
+      setScheduleForm({ enrollmentId: '', instructorId: '', roomId: '', scheduledStart: '', scheduledEnd: '' })
+      client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] })
+    },
+  })
+  const markAttendance = useMutation({
+    mutationFn: ({ id, payload }) => schedulingApi.markAttendance(id, payload),
+    onSuccess: () => {
+      setSelectedSession(null)
+      client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] })
+    },
+  })
+  const sessionTransition = useMutation({
+    mutationFn: ({ type, id }) => schedulingApi[type](id),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] }),
+  })
+  const requestReschedule = useMutation({
+    mutationFn: schedulingApi.requestReschedule,
+    onSuccess: () => setRequestOpen(null),
+  })
+  const reviewReschedule = useMutation({
+    mutationFn: ({ id, approve }) => schedulingApi.reviewReschedule(id, approve),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ['cadenza', 'reschedules'] })
+      client.invalidateQueries({ queryKey: ['cadenza', 'sessions'] })
+    },
+  })
   const paymentHistory = useQuery({
     queryKey: ['cadenza', 'payment-history', payment?.paymentObligationId],
     queryFn: () => paymentsApi.history(payment.paymentObligationId),
@@ -141,10 +189,10 @@ export default function LessonsPage() {
       client.invalidateQueries({ queryKey: ['cadenza', 'attachments', attachmentPackage?.id] }),
   })
 
-  if (packagesQuery.isLoading || (canEnrollmentManage && customersQuery.isLoading))
+  if (packagesQuery.isLoading || sessionsQuery.isLoading || (canEnrollmentManage && customersQuery.isLoading))
     return <LoadingState label="Loading lesson packages…" rows={4} />
 
-  if (packagesQuery.error || customersQuery.error)
+  if (packagesQuery.error || customersQuery.error || sessionsQuery.error)
     return (
       <Alert variant="destructive">
         <AlertDescription>{(packagesQuery.error || customersQuery.error).message}</AlertDescription>
@@ -154,9 +202,13 @@ export default function LessonsPage() {
   const packages = unwrap(packagesQuery.data)
   const customers = unwrap(customersQuery.data)
   const enrollments = unwrap(enrollmentsQuery.data)
+  const sessions = unwrap(sessionsQuery.data)
+  const instructors = unwrap(instructorsQuery.data)
+  const rooms = unwrap(roomsQuery.data)
+  const pendingReschedules = unwrap(reschedulesQuery.data).filter((item) => item.status === 'PENDING')
   const obligation = obligationQuery.data?.data ?? obligationQuery.data
   const due = obligation?.balanceDue ?? obligation?.totalAmount ?? payment?.amount
-  const error = create.error || enroll.error || attach.error || pay.error || online.error
+  const error = create.error || enroll.error || attach.error || pay.error || online.error || createSession.error || markAttendance.error || sessionTransition.error || requestReschedule.error || reviewReschedule.error
 
   const openCustomerEnrollment = (lessonPackageId) => {
     setEnrollForm({ customerId: '', lessonPackageId })
@@ -381,6 +433,98 @@ export default function LessonsPage() {
           </Card>
         </>
       )}
+
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base">{customerView ? 'My lesson schedule' : 'Lesson sessions'}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{customerView ? 'View your sessions and request a new time when needed.' : 'Schedule, assign, track attendance, reschedule, and complete every lesson session here.'}</p>
+                </div>
+                {canSchedule && (
+                  <Button onClick={() => {
+                    const confirmed = enrollments.filter((item) => item.status === 'CONFIRMED')
+                    setScheduleForm({ enrollmentId: confirmed[0]?.id ?? '', instructorId: '', roomId: '', scheduledStart: '', scheduledEnd: '' })
+                    setScheduleOpen(true)
+                  }}>Schedule session</Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {sessions.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">No lesson sessions scheduled yet.</p>
+              ) : (
+                <DataTable
+                  columns={[
+                    { key: 'date', header: 'Date', value: (item) => new Date(item.scheduledStart).toLocaleString() },
+                    { key: 'student', header: 'Student', value: (item) => item.enrollment?.customer?.person?.name ?? item.enrollment?.customer?.person?.fullName ?? item.enrollmentId ?? '—' },
+                    { key: 'instructor', header: 'Instructor', value: (item) => item.instructor?.person?.name ?? item.instructorId ?? 'Unassigned' },
+                    { key: 'room', header: 'Room', value: (item) => item.room?.name ?? item.roomId ?? 'Unassigned' },
+                    { key: 'attendance', header: 'Attendance', value: (item) => item.attendance?.status ?? '—' },
+                    { key: 'status', header: 'Status', render: (item) => <Badge variant="secondary">{item.status}</Badge> },
+                    { key: 'actions', header: 'Actions', searchable: false, render: (item) => (
+                      <div className="flex flex-wrap gap-2">
+                        {canAttendance && item.status === 'SCHEDULED' && <Button size="sm" onClick={() => { setSelectedSession(item); setAttendance(item.attendance?.status ?? 'PRESENT'); setAttendanceNotes(item.attendance?.notes ?? '') }}>Attendance</Button>}
+                        {canRequestReschedule && item.status === 'SCHEDULED' && <Button size="sm" variant="outline" onClick={() => setRequestOpen({ id: item.id, requestedStart: '', requestedEnd: '', reason: '' })}>Reschedule</Button>}
+                        {canManage && item.status === 'SCHEDULED' && <><Button size="sm" variant="outline" onClick={() => sessionTransition.mutate({ type: 'completeSession', id: item.id })}>Complete</Button><Button size="sm" variant="destructive" onClick={() => sessionTransition.mutate({ type: 'cancelSession', id: item.id })}>Cancel</Button></>}
+                      </div>
+                    )},
+                  ]}
+                  rows={sessions}
+                  searchPlaceholder="Search lesson sessions…"
+                />
+              )}
+            </CardContent>
+          </Card>
+          {canManage && (
+            <Card>
+              <CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle className="text-base">Reschedule requests</CardTitle><p className="text-sm text-muted-foreground">Review student requests before changing a session.</p></div><Badge variant="outline">{pendingReschedules.length}</Badge></div></CardHeader>
+              <CardContent>
+                {pendingReschedules.length === 0 ? <p className="text-sm text-muted-foreground">No pending reschedule requests.</p> : <div className="space-y-2">{pendingReschedules.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"><div><p className="text-sm font-medium">{new Date(item.requestedStart).toLocaleString()}</p>{item.reason && <p className="text-xs text-muted-foreground">{item.reason}</p>}</div><div className="flex gap-2"><Button size="sm" onClick={() => reviewReschedule.mutate({ id: item.id, approve: true })}>Approve</Button><Button size="sm" variant="destructive" onClick={() => reviewReschedule.mutate({ id: item.id, approve: false })}>Reject</Button></div></div>)}</div>}
+              </CardContent>
+            </Card>
+          )}
+
+      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Schedule lesson session</DialogTitle><DialogDescription>Only confirmed, fully paid enrollments can be scheduled.</DialogDescription></DialogHeader>
+          <div className="grid gap-4">
+            {enrollments.filter((item) => item.status === 'CONFIRMED').length === 0 && <Alert><AlertDescription>No confirmed enrollments are available. Complete enrollment payment first.</AlertDescription></Alert>}
+            <SelectField label="Enrollment" options={enrollments.filter((item) => item.status === 'CONFIRMED').map((item) => ({ value: item.id, label: item.lessonPackage?.name ?? item.id }))} value={scheduleForm.enrollmentId} onChange={(value) => setScheduleForm({ ...scheduleForm, enrollmentId: value || '' })} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SelectField label="Instructor" options={instructors.map((item) => ({ value: item.id, label: item.person?.name ?? item.id }))} value={scheduleForm.instructorId} onChange={(value) => setScheduleForm({ ...scheduleForm, instructorId: value || '' })} placeholder="Select instructor" />
+              <SelectField label="Room" options={rooms.map((item) => ({ value: item.id, label: item.name ?? item.roomType ?? item.id }))} value={scheduleForm.roomId} onChange={(value) => setScheduleForm({ ...scheduleForm, roomId: value || '' })} placeholder="Select room" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={scheduleForm.scheduledStart} onChange={(event) => setScheduleForm({ ...scheduleForm, scheduledStart: event.currentTarget.value })} /></div>
+              <div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={scheduleForm.scheduledEnd} onChange={(event) => setScheduleForm({ ...scheduleForm, scheduledEnd: event.currentTarget.value })} /></div>
+            </div>
+          </div>
+          <DialogFooter><Button disabled={!scheduleForm.enrollmentId || !scheduleForm.scheduledStart || !scheduleForm.scheduledEnd || createSession.isPending} onClick={() => createSession.mutate({ ...scheduleForm, scheduledStart: new Date(scheduleForm.scheduledStart).toISOString(), scheduledEnd: new Date(scheduleForm.scheduledEnd).toISOString() })}>{createSession.isPending ? 'Scheduling…' : 'Schedule session'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(selectedSession)} onOpenChange={(open) => !open && setSelectedSession(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Record attendance</DialogTitle><DialogDescription>Save attendance for this lesson session.</DialogDescription></DialogHeader>
+          <div className="grid gap-4">
+            <SelectField label="Attendance" options={['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'].map((value) => ({ value, label: value }))} value={attendance} onChange={(value) => setAttendance(value || 'PRESENT')} />
+            <div className="grid gap-2"><Label>Notes</Label><Textarea value={attendanceNotes} onChange={(event) => setAttendanceNotes(event.currentTarget.value)} /></div>
+          </div>
+          <DialogFooter><Button disabled={markAttendance.isPending} onClick={() => markAttendance.mutate({ id: selectedSession.id, payload: { status: attendance, notes: attendanceNotes || undefined } })}>{markAttendance.isPending ? 'Saving…' : 'Save attendance'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(requestOpen)} onOpenChange={(open) => !open && setRequestOpen(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Request reschedule</DialogTitle><DialogDescription>Choose the requested replacement time for this lesson session.</DialogDescription></DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2"><Label>Requested start</Label><Input type="datetime-local" value={requestOpen?.requestedStart ?? ''} onChange={(event) => setRequestOpen({ ...requestOpen, requestedStart: event.currentTarget.value })} /></div>
+            <div className="grid gap-2"><Label>Requested end</Label><Input type="datetime-local" value={requestOpen?.requestedEnd ?? ''} onChange={(event) => setRequestOpen({ ...requestOpen, requestedEnd: event.currentTarget.value })} /></div>
+            <div className="grid gap-2"><Label>Reason</Label><Textarea value={requestOpen?.reason ?? ''} onChange={(event) => setRequestOpen({ ...requestOpen, reason: event.currentTarget.value })} /></div>
+          </div>
+          <DialogFooter><Button disabled={!requestOpen?.requestedStart || !requestOpen?.requestedEnd || requestReschedule.isPending} onClick={() => requestReschedule.mutate({ sessionId: requestOpen.id, requestedStart: new Date(requestOpen.requestedStart).toISOString(), requestedEnd: new Date(requestOpen.requestedEnd).toISOString(), reason: requestOpen.reason || undefined })}>{requestReschedule.isPending ? 'Submitting…' : 'Submit request'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={packageOpen} onOpenChange={setPackageOpen}>
         <DialogContent>
