@@ -3,6 +3,7 @@ import { asyncHandler, validate } from '../../../common/middleware/index.js'
 import authorize, { authorizeResource } from '../../../platform/authorization/authorization.middleware.js'
 import * as service from './actor.service.js'
 import * as controller from './actor.controller.js'
+import * as validation from './actor.validation.js'
 
 const router = express.Router()
 const read = authorize('cadenza_staff', 'read')
@@ -13,7 +14,7 @@ const actorResource = authorizeResource({
   getResourceId: (req) => Number(req.params.userId),
 })
 
-router.get('/', read, asyncHandler(controller.listController))
-router.get('/:userId', actorResource, asyncHandler(controller.getController))
+router.get('/', read, validate(validation.listActorsValidator), asyncHandler(controller.listController))
+router.get('/:userId', validate(validation.actorParamsValidator), actorResource, asyncHandler(controller.getController))
 
 export default router
