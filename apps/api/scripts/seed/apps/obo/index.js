@@ -1,5 +1,5 @@
 import { seedApplication } from '../../applications.js'
-import { seedAuthorization } from '../../authorization.js'
+import { seedOboAuthorization } from './authorization.js'
 import { seedPlatformForms } from './forms.js'
 import { seedOboReferenceData } from './reference.js'
 import { seedOboDevelopmentScenario, verifyOboDevelopmentScenario } from './development.js'
@@ -11,10 +11,7 @@ import { seedOboNotifications } from './notifications.js'
 
 async function seedObo(prisma, { profile = 'default' } = {}) {
   const obo = await seedApplication(prisma, 'obo')
-  const { roles, permissionRecords } = await seedAuthorization(prisma, {
-    applications: { obo },
-    applicationKeys: ['obo'],
-  })
+  const { roles, permissionRecords } = await seedOboAuthorization(prisma, obo)
   const { form: applicationForm } = await seedPlatformForms(prisma)
   await seedOboReferenceData(prisma, { applicationForm })
 
