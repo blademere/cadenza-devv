@@ -34,18 +34,30 @@ const findByUserId = (userId, appId, db = prisma) =>
 
 const list = (appId, db = prisma) =>
   db.cadenzaCustomer.findMany({
-    where: { appId, status: 'ACTIVE', person: { isActive: true } },
+    where: { appId },
     include: { person: { select: personSelect } },
     orderBy: [{ person: { lastName: 'asc' } }, { person: { firstName: 'asc' } }],
   })
 
-const create = (data, db = prisma) =>
-  db.cadenzaCustomer.create({
-    data,
-    include: { person: { select: personSelect } },
+const listCandidates = (appId, db = prisma) =>
+  db.person.findMany({
+    where: { isActive: true, userId: { not: null }, cadenzaCustomers: { none: { appId } } },
+    select: personSelect,
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   })
+
+const create = async (data, db = prisma) => db.$transaction(async (tx) => {
+  const person = await tx.person.findUnique({ where: { id: data.personId }, select: { userId: true } })
+  if (!person?.userId) return null
+  await tx.appMembership.upsert({
+    where: { appId_userId: { appId: data.appId, userId: person.userId } },
+    update: { isActive: true },
+    create: { appId: data.appId, userId: person.userId },
+  })
+  return tx.cadenzaCustomer.create({ data, include: { person: { select: personSelect } } })
+})
 
 const update = (id, appId, data, db = prisma) =>
   db.cadenzaCustomer.updateMany({ where: { id, appId }, data })
 
-export { findById, findByPersonId, findByUserId, list, create, update }
+export { findById, findByPersonId, findByUserId, list, listCandidates, create, update }
