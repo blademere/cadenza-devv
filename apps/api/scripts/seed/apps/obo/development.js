@@ -239,4 +239,4 @@ async function verifyOboDevelopmentScenario(prisma) {
   return true
 }
 
-export { OBO_DEVELOPMENT_FIXTURE, OBO_WORKFLOW, seedOboDevelopmentScenario, seedOboWorkflow, verifyOboDevelopmentScenario }
+export { OBO_DEVELOPMENT_FIXTURE, seedOboDevelopmentScenario, verifyOboDevelopmentScenario }
