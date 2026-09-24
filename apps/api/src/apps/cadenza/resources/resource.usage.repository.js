@@ -4,9 +4,15 @@ const prisma = getPrismaClient()
 
 const listUsage = (resourceId, appId, db = prisma) =>
   db.cadenzaRental.findMany({
-    where: { resourceId, appId },
+    where: {
+      appId,
+      ...(resourceId ? { resourceId } : {}),
+    },
     orderBy: [{ scheduledStart: 'desc' }, { createdAt: 'desc' }],
-    include: { customer: { include: { person: true } } },
+    include: {
+      customer: { include: { person: true } },
+      resource: true,
+    },
   })
 
 export { listUsage }
