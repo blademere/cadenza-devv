@@ -54,7 +54,9 @@ const generate = async ({ appId, actorId, enrollmentId, instructorId, roomId = n
     const rules = await repository.listInstructorAvailability(instructorId, owner, tx)
     if (!rules.length) throw new ConflictError('The instructor has no configured availability.')
     const duration = Number(enrollment.lessonPackage?.sessionDurationMinutes || 60)
+    const sessionsPerWeek = Number(enrollment.lessonPackage?.sessionsPerWeek || 1)
     if (!Number.isInteger(duration) || duration < 15 || duration > 480) throw new ConflictError('The lesson package has an invalid session duration.')
+    if (!Number.isInteger(sessionsPerWeek) || sessionsPerWeek < 1 || sessionsPerWeek > 7) throw new ConflictError('The lesson package has an invalid sessions-per-week value.')
     const rooms = roomId ? [await repository.findRoom(roomId, owner, tx)] : await repository.listRooms(owner, tx)
     if (!rooms.length || rooms.some((room) => !room)) throw new ConflictError('No available lesson room can be used for the generated schedule.')
     let anchor = anchorSessionId ? await repository.findSession(anchorSessionId, owner, tx) : null
@@ -69,14 +71,17 @@ const generate = async ({ appId, actorId, enrollmentId, instructorId, roomId = n
     if (Number.isNaN(cursor.getTime())) throw new BadRequestError('startAt must be a valid date.')
     if (anchor) cursor = addLocalDays(anchor.scheduledEnd, 1)
     const generated = []
-    for (let scanned = 0; generated.length < remaining && scanned < MAX_SEARCH_DAYS; scanned += 1) {
-      const day = getLocalParts(cursor)
-      const slot = await findSlot({ appId: owner, instructorId, rooms, rules, day, duration, db: tx })
-      if (slot) {
-        const created = await repository.createSession({ appId: owner, enrollmentId, instructorId, roomId: slot.roomId, scheduledStart: slot.start, scheduledEnd: slot.end, status: SESSION_STATUS.SCHEDULED, metadata: { generated: true, generator: 'availability', generatedAt: new Date().toISOString() } }, tx)
+    for (let scanned = 0; generated.length < remaining && scanned < MAX_SEARCH_DAYS; scanned += 7) {
+      for (let offset = 0; offset < 7 && generated.length < remaining; offset += 1) {
+        const day = getLocalParts(addLocalDays(cursor, offset))
+        const slot = await findSlot({ appId: owner, instructorId, rooms, rules, day, duration, db: tx })
+        if (!slot) continue
+        const created = await repository.createSession({ appId: owner, enrollmentId, instructorId, roomId: slot.roomId, scheduledStart: slot.start, scheduledEnd: slot.end, status: SESSION_STATUS.SCHEDULED, metadata: { generated: true, generator: 'availability', sessionsPerWeek, generatedAt: new Date().toISOString() } }, tx)
         generated.push(created)
+        if (generated.length >= remaining) break
+        if (generated.filter((item) => getLocalParts(item.scheduledStart).dayOfWeek >= 0).length % sessionsPerWeek === 0) break
       }
-      cursor = addLocalDays(cursor, 1)
+      cursor = addLocalDays(cursor, 7)
     }
     if (generated.length < remaining) throw new ConflictError(`Unable to generate all remaining lesson sessions from instructor availability and room capacity. Generated ${generated.length} of ${remaining}.`)
     return { generated, remaining: 0, regenerated: Boolean(regenerate) }
