@@ -37,7 +37,10 @@
     "db:seed:obo": "node scripts/db-seed.js --app=obo",
     "db:seed:cadenza": "node scripts/db-seed.js --app=cadenza",
     "db:seed:all": "node scripts/db-seed.js --app=all",
-    "db:reset": "prisma migrate reset --config ./prisma.config.ts --force && node scripts/db-seed.js --app=all --profile=development"
+    "db:reset": "prisma migrate reset --config ./prisma.config.ts --force && node scripts/db-seed.js --app=all --profile=development",
+    "db:seed:obo:development": "node scripts/db-seed.js --app=obo --profile=development",
+    "db:seed:cadenza:development": "node scripts/db-seed.js --app=cadenza --profile=development",
+    "db:seed:all:development": "node scripts/db-seed.js --app=all --profile=development"
   },
   "type": "module",
   "dependencies": {

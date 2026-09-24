@@ -14,7 +14,8 @@ function readOption(name, fallback) {
 }
 
 async function main() {
-  const profile = readOption('profile', 'default')
+  const defaultProfile = process.env.NODE_ENV === 'development' ? 'development' : 'default'
+  const profile = readOption('profile', defaultProfile)
   const app = readOption('app', 'all')
   await runSeed(prisma, profile, app)
 }
