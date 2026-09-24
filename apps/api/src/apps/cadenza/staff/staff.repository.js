@@ -33,6 +33,13 @@ const list = (appId, db = prisma) =>
     orderBy: [{ status: 'asc' }, { person: { lastName: 'asc' } }, { person: { firstName: 'asc' } }],
   })
 
+const listCandidates = (appId, db = prisma) =>
+  db.person.findMany({
+    where: { isActive: true, userId: { not: null }, cadenzaStaff: { none: { appId } } },
+    select: personSelect,
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+  })
+
 const create = async (data, db = prisma) => db.$transaction(async (tx) => {
   const person = await tx.person.findUnique({
     where: { id: data.personId },
@@ -55,4 +62,4 @@ const create = async (data, db = prisma) => db.$transaction(async (tx) => {
 const update = (id, appId, data, db = prisma) =>
   db.cadenzaStaff.updateMany({ where: { id, appId }, data })
 
-export { findById, findByPersonId, list, create, update }
+export { findById, findByPersonId, list, listCandidates, create, update }
