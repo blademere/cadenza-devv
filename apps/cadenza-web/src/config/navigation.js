@@ -8,32 +8,43 @@ export const navigation = Object.freeze([
   {
     key: 'workspace',
     name: 'Workspace',
+    items: [{ key: 'dashboard', name: 'Dashboard', route: '/app/dashboard', icon: icon(House) }],
+  },
+  {
+    key: 'customer',
+    name: 'Customer',
     items: [
-      { key: 'dashboard', name: 'Dashboard', route: '/app/dashboard', icon: icon(House) },
+      { key: 'lessons', name: 'My Lessons', route: '/app/lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
+      { key: 'rentals', name: 'My Rentals', route: '/app/rentals', icon: icon(Guitar), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
     ],
   },
   {
-    key: 'lessons',
-    name: 'Music Lessons',
+    key: 'instructor',
+    name: 'Instructor',
     items: [
-      { key: 'lessons', name: 'Lessons', route: '/app/lessons', icon: icon(MusicNotes), permission: PERMISSIONS.lessons.read },
+      { key: 'instructor-workspace', name: 'My Teaching', route: '/app/instructor', icon: icon(MusicNotes), permission: PERMISSIONS.lessons.attendance },
+    ],
+  },
+  {
+    key: 'lessons-management',
+    name: 'Lesson Management',
+    items: [
+      { key: 'lessons', name: 'Lessons', route: '/app/lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage, PERMISSIONS.lessons.schedule] },
       { key: 'audit', name: 'Audit', route: '/app/audit', icon: icon(Calendar), permission: PERMISSIONS.audit.read },
     ],
   },
   {
-    key: 'rentals',
-    name: 'Rentals',
+    key: 'rentals-management',
+    name: 'Rental Management',
     items: [
-      { key: 'rentals', name: 'Rentals', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.read },
+      { key: 'rentals', name: 'Rentals', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
       { key: 'resources', name: 'Resources', route: '/app/resources', icon: icon(Archive), anyPermissions: [PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update] },
     ],
   },
   {
     key: 'administration',
     name: 'Administration',
-    items: [
-      { key: 'users', name: 'Users', route: '/app/users', icon: icon(UsersThree), permission: PERMISSIONS.customers.read },
-    ],
+    items: [{ key: 'users', name: 'Users', route: '/app/users', icon: icon(UsersThree), permission: PERMISSIONS.customers.manage }],
   },
 ])
 
@@ -44,8 +55,13 @@ export function normalizeNavigation(sections = [], permissions = []) {
     .map((section) => ({
       ...section,
       items: Array.isArray(section.items)
-        ? section.items.filter((item) => !item.permission || permissions.includes(item.permission))
-          .filter((item) => !item.anyPermissions || item.anyPermissions.some((permission) => permissions.includes(permission)))
+        ? section.items
+            .filter((item) => !item.permission || permissions.includes(item.permission))
+            .filter(
+              (item) =>
+                !item.anyPermissions ||
+                item.anyPermissions.some((permission) => permissions.includes(permission)),
+            )
         : [],
     }))
     .filter((section) => section.items.length)
