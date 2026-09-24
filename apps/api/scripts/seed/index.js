@@ -1,6 +1,6 @@
 import { seedPlatform } from './platform.js'
-import { seedObo } from './apps/obo.js'
-import { seedCadenza } from './apps/cadenza.js'
+import { seedObo } from './apps/obo/index.js'
+import { seedCadenza } from './apps/cadenza/index.js'
 
 const PROFILES = new Set(['default', 'development', 'fixtures'])
 const APPS = new Set(['platform', 'obo', 'cadenza', 'all'])
