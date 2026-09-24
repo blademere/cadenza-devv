@@ -44,7 +44,7 @@ export default function InstructorPage() {
 
   const columns = [
     { key: 'time', header: 'Schedule', value: (row) => formatDate(row.scheduledStart) },
-    { key: 'student', header: 'Student', value: (row) => row.enrollment?.customer?.person?.fullName ?? [row.enrollment?.customer?.person?.firstName, row.enrollment?.customer?.person?.lastName].filter(Boolean).join(' ') || 'Student' },
+    { key: 'student', header: 'Student', value: (row) => row.enrollment?.customer?.person?.fullName ?? ([row.enrollment?.customer?.person?.firstName, row.enrollment?.customer?.person?.lastName].filter(Boolean).join(' ') || 'Student') },
     { key: 'package', header: 'Lesson', value: (row) => row.enrollment?.lessonPackage?.name ?? 'Lesson' },
     { key: 'status', header: 'Status', render: (row) => <Badge variant="secondary">{row.attendance?.status ?? row.status}</Badge> },
     { key: 'action', header: 'Action', searchable: false, render: (row) => row.status === 'SCHEDULED' ? <Button size="sm" onClick={() => setSelected(row)}>{row.attendance ? 'Update attendance' : 'Mark attendance'}</Button> : null },
@@ -68,7 +68,7 @@ export default function InstructorPage() {
             <SelectField label="Attendance" options={[{ value: 'PRESENT', label: 'Present' }, { value: 'LATE', label: 'Late' }, { value: 'EXCUSED', label: 'Excused' }, { value: 'ABSENT', label: 'Absent' }]} value={attendance} onChange={(value) => setAttendance(value || 'PRESENT')} />
             <div className="grid gap-2"><Label>Notes</Label><Textarea value={notes} onChange={(event) => setNotes(event.currentTarget.value)} placeholder="Optional lesson or attendance note" /></div>
           </div>}
-          <DialogFooter><Button variant="outline" onClick={() => setSelected(null)}>Cancel</Button><Button disabled={markAttendance.isPending} onClick={() => markAttendance.mutate({ id: selected.id, status: attendance, note: notes })}>{markAttendance.isPending ? 'Saving…' : 'Save attendance'}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setSelected(null)}>Cancel</Button><Button disabled={markAttendance.isPending} onClick={() => selected && markAttendance.mutate({ id: selected.id, status: attendance, note: notes })}>{markAttendance.isPending ? 'Saving…' : 'Save attendance'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
