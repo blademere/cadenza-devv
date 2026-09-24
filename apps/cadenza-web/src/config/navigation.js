@@ -45,7 +45,7 @@ export const navigation = Object.freeze([
       ],
     }],
   },
-  { key: 'administration', name: 'Administration', items: [{ key: 'users', name: 'Users', route: '/app/users', icon: icon(UsersThree), permission: PERMISSIONS.customers.manage }] },
+  { key: 'administration', name: 'Administration', items: [{ key: 'users', name: 'Users', route: '/app/users', icon: icon(UsersThree), anyPermissions: [PERMISSIONS.customers.manage, PERMISSIONS.staff.manage, PERMISSIONS.instructors.manage] }] },
 ])
 
 export function normalizeNavigation(sections = [], permissions = []) {
