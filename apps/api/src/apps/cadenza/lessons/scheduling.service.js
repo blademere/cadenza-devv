@@ -72,14 +72,14 @@ const generate = async ({ appId, actorId, enrollmentId, instructorId, roomId = n
     if (anchor) cursor = addLocalDays(anchor.scheduledEnd, 1)
     const generated = []
     for (let scanned = 0; generated.length < remaining && scanned < MAX_SEARCH_DAYS; scanned += 7) {
-      for (let offset = 0; offset < 7 && generated.length < remaining; offset += 1) {
+      let generatedThisWeek = 0
+      for (let offset = 0; offset < 7 && generated.length < remaining && generatedThisWeek < sessionsPerWeek; offset += 1) {
         const day = getLocalParts(addLocalDays(cursor, offset))
         const slot = await findSlot({ appId: owner, instructorId, rooms, rules, day, duration, db: tx })
         if (!slot) continue
         const created = await repository.createSession({ appId: owner, enrollmentId, instructorId, roomId: slot.roomId, scheduledStart: slot.start, scheduledEnd: slot.end, status: SESSION_STATUS.SCHEDULED, metadata: { generated: true, generator: 'availability', sessionsPerWeek, generatedAt: new Date().toISOString() } }, tx)
         generated.push(created)
-        if (generated.length >= remaining) break
-        if (generated.filter((item) => getLocalParts(item.scheduledStart).dayOfWeek >= 0).length % sessionsPerWeek === 0) break
+        generatedThisWeek += 1
       }
       cursor = addLocalDays(cursor, 7)
     }
