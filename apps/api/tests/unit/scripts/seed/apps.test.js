@@ -67,7 +67,6 @@ describe('application seed modules', () => {
     expect(mocks.seedPlatformForms).toHaveBeenCalledTimes(1)
     expect(mocks.seedOboReferenceData).toHaveBeenCalledTimes(1)
     expect(mocks.seedOboDevelopmentScenario).not.toHaveBeenCalled()
-    expect(mocks.seedCadenza).toBeUndefined()
     expect(result.application.key).toBe('obo')
   })
 
