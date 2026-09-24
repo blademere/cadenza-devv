@@ -70,6 +70,11 @@ export default function FindRentalsPage() {
     })
   }
 
+  const updateFormField = (field) => (event) => {
+    const value = event.currentTarget.value
+    setForm((current) => ({ ...current, [field]: value }))
+  }
+
   const submit = () => create.mutate({
     customerId: undefined,
     resourceId: form.resourceId,
@@ -93,8 +98,8 @@ export default function FindRentalsPage() {
                 <p className="text-sm text-muted-foreground">Set the rental window first so we can show what is available.</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={form.scheduledStart} onChange={(e) => setForm((v) => ({ ...v, scheduledStart: e.currentTarget.value }))} /></div>
-                <div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={(e) => setForm((v) => ({ ...v, scheduledEnd: e.currentTarget.value }))} /></div>
+                <div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={form.scheduledStart} onChange={updateFormField('scheduledStart')} /></div>
+                <div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={updateFormField('scheduledEnd')} /></div>
               </div>
             </div>
             <div className="rounded-xl border bg-background p-4">
@@ -143,7 +148,7 @@ export default function FindRentalsPage() {
             <SelectField label="Resource" options={available.map((item) => ({ value: normalizeId(item.resourceId ?? item.id), label: resourceName(item, type) }))} value={form.resourceId} onChange={(value) => { const item = available.find((row) => normalizeId(row.resourceId ?? row.id) === normalizeId(value)); setForm((v) => ({ ...v, resourceId: normalizeId(value) })); if (item) setSelectedResource(item) }} />
             <div className="grid gap-4 sm:grid-cols-2"><div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={form.scheduledStart} onChange={(e) => setForm((v) => ({ ...v, scheduledStart: e.currentTarget.value }))} /></div><div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={(e) => setForm((v) => ({ ...v, scheduledEnd: e.currentTarget.value }))} /></div></div>
             <div className="rounded-xl border p-4"><div className="grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-muted-foreground">Duration</p><p className="font-semibold">{durationHours ? `${durationHours.toFixed(2)} hrs` : '—'}</p></div><div><p className="text-xs text-muted-foreground">Estimated total</p><p className="font-semibold">{formatCurrency(total)}</p></div><div><p className="text-xs text-muted-foreground">Deposit due now</p><p className="font-semibold">{formatCurrency(form.requiredDownPayment)}</p></div></div><p className="mt-3 text-xs text-muted-foreground">The deposit is due at booking. The remaining balance is paid when the rental is used.</p></div>
-            <div className="grid gap-2"><Label>Booking deposit</Label><Input type="number" min="0.01" step="0.01" value={form.requiredDownPayment} onChange={(e) => setForm((v) => ({ ...v, requiredDownPayment: e.currentTarget.value }))}/></div>
+            <div className="grid gap-2"><Label>Booking deposit</Label><Input type="number" min="0.01" step="0.01" value={form.requiredDownPayment} onChange={updateFormField('requiredDownPayment')}/></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setSelectedResource(null)}>Back</Button><Button disabled={create.isPending || !form.resourceId || !form.scheduledStart || !form.scheduledEnd || form.scheduledStart >= form.scheduledEnd || !form.requiredDownPayment || Number(form.requiredDownPayment) <= 0 || (total > 0 && Number(form.requiredDownPayment) > total) || (availability.isSuccess && !availableIds.has(form.resourceId))} onClick={submit}>{create.isPending ? 'Reserving…' : 'Confirm & reserve'}</Button></DialogFooter>
         </DialogContent>
