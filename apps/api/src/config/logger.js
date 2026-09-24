@@ -36,7 +36,8 @@ const logger = pino({
             ignore: 'pid,hostname',
           },
         },
-      }),
+      }
+    : {}),
 })
 
 const requestLogger = pinoHttp({
