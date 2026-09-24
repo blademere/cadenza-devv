@@ -1,7 +1,13 @@
 import { getPrismaClient } from '../../../infrastructure/database/prisma.js'
 import { BLOCKING_LESSON_SESSION_STATUSES, BLOCKING_RENTAL_STATUSES } from '../cadenza.constants.js'
 const prisma=getPrismaClient()
-const list=(appId,db=prisma)=>db.cadenzaRental.findMany({where:{appId},orderBy:{createdAt:'desc'},include:{customer:{include:{person:true}}}})
+const list = async (appId, db = prisma) => {
+  const rows = await db.cadenzaRental.findMany({ where: { appId }, orderBy: { createdAt: 'desc' }, include: { customer: { include: { person: true } } } })
+  return Promise.all(rows.map(async (rental) => ({
+    ...rental,
+    resource: await db.resource.findFirst({ where: { id: rental.resourceId, appId } }),
+  })))
+}
 const create=(data,db=prisma)=>db.cadenzaRental.create({data,include:{customer:{include:{person:true}}}})
 const findCustomerById=(id,appId,db=prisma)=>db.cadenzaCustomer.findFirst({where:{id,appId,status:'ACTIVE',person:{isActive:true}},include:{person:true}})
 const findCustomerByUserId=(userId,appId,db=prisma)=>db.cadenzaCustomer.findFirst({where:{appId,status:'ACTIVE',person:{isActive:true,userId:Number(userId)}},include:{person:true}})
