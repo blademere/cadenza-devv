@@ -33,7 +33,7 @@ export default function UsersPage() {
   const canStaffCreate = can('cadenza_staff:create')
   const canStaffManage = can('cadenza_staff:manage')
 
-  const customers = useQuery({ queryKey: ['cadenza', 'customers'], queryFn: customersApi.list })
+  const customers = useQuery({ queryKey: ['cadenza', 'customers'], queryFn: customersApi.list, enabled: canCustomerManage })
   const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list, enabled: canInstructorRead })
   const candidates = useQuery({ queryKey: ['cadenza', 'instructor-candidates'], queryFn: instructorsApi.listCandidates, enabled: canInstructorCreate })
   const customerCandidates = useQuery({ queryKey: ['cadenza', 'customer-candidates'], queryFn: customersApi.listCandidates, enabled: canCustomerManage })
