@@ -4,7 +4,7 @@
   "plugins": [
     {
       "plugin": "@nx/vite/plugin",
-      "include": ["apps/obo-web/**", "apps/api/cadenza-web/**"],
+      "include": ["apps/obo-web/**", "apps/cadenza-web/**"],
       "options": {
         "buildTargetName": "build",
         "devTargetName": "dev",
