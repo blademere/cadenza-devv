@@ -36,7 +36,8 @@
     "db:seed:platform": "node scripts/db-seed.js --app=platform",
     "db:seed:obo": "node scripts/db-seed.js --app=obo",
     "db:seed:cadenza": "node scripts/db-seed.js --app=cadenza",
-    "db:seed:all": "node scripts/db-seed.js --app=all"
+    "db:seed:all": "node scripts/db-seed.js --app=all",
+    "db:reset": "prisma migrate reset --config ./prisma.config.ts --force && npm run db:seed:all"
   },
   "type": "module",
   "dependencies": {
