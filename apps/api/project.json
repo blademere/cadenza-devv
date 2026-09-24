@@ -91,17 +91,33 @@
       "executor": "nx:run-commands",
       "options": { "command": "node scripts/db-seed.js", "cwd": "apps/api" }
     },
-    "db:seed:development": {
+    "db:seed:platform": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --profile=development", "cwd": "apps/api" }
+      "options": { "command": "node scripts/db-seed.js --app=platform", "cwd": "apps/api" }
     },
-    "db:seed:fixtures": {
+    "db:seed:obo": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --profile=fixtures", "cwd": "apps/api" }
+      "options": { "command": "node scripts/db-seed.js --app=obo", "cwd": "apps/api" }
+    },
+    "db:seed:obo:development": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/db-seed.js --app=obo --profile=development", "cwd": "apps/api" }
+    },
+    "db:seed:obo:fixtures": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/db-seed.js --app=obo --profile=fixtures", "cwd": "apps/api" }
+    },
+    "db:seed:cadenza": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/db-seed.js --app=cadenza", "cwd": "apps/api" }
+    },
+    "db:seed:cadenza:development": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/db-seed.js --app=cadenza --profile=development", "cwd": "apps/api" }
     },
     "db:seed:coverage": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --profile=coverage", "cwd": "apps/api" }
+      "options": { "command": "node scripts/db-seed.js --app=all --profile=coverage", "cwd": "apps/api" }
     },
     "db:setup": {
       "executor": "nx:run-commands",
