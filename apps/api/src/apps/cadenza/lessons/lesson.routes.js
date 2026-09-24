@@ -6,7 +6,7 @@ import * as service from './lesson.service.js'
 import {packageValidator,packageUpdateValidator,enrollmentValidator,sessionValidator,attendanceValidator,rescheduleValidator,reviewRescheduleValidator,attachmentValidator} from './lesson.validation.js'
 const router=express.Router()
 const packageResource=(action)=>authorizeResource({resource:'cadenza_lessons',action,loadResource:(id,req)=>service.getPackage({appId:req.security.app.id,id}),getResourceId:req=>req.params.lessonPackageId})
-const enrollmentResource=authorizeResource({resource:'cadenza_enrollments',action:'read',loadResource:(id,req)=>service.getEnrollment({appId:req.security.app.id,id,actorId:req.user?.id}),getResourceId:req=>req.params.enrollmentId})
+const enrollmentResource=authorizeResource({resource:'cadenza_enrollments',action:'cancel',loadResource:(id,req)=>service.getEnrollment({appId:req.security.app.id,id,actorId:req.user?.id}),getResourceId:req=>req.params.enrollmentId})
 router.get('/packages',authorize('cadenza_lessons','read'),asyncHandler(controller.listPackages))
 router.post('/packages',authorize('cadenza_lessons','create'),idempotency({scope:'cadenza-lesson-packages',required:true}),validate(packageValidator),asyncHandler(controller.createPackage))
 router.patch('/packages/:lessonPackageId',packageResource('update'),idempotency({scope:'cadenza-lesson-package-update',required:true}),validate(packageUpdateValidator),asyncHandler(controller.updatePackage))
