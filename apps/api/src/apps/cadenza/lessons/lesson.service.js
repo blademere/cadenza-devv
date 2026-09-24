@@ -599,6 +599,10 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
       await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.RESCHEDULE_REJECTED, entityType: 'CadenzaRescheduleRequest', entityId: id, actorId, context: { appId: owner, sessionId: session.id, enrollmentId: session.enrollmentId }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.RESCHEDULE_REJECTED}:${id}` })
       return repository.findReschedule(id, owner, tx)
     }
+    const packageDurationMinutes = Number(session.enrollment?.lessonPackage?.sessionDurationMinutes || Math.round((session.scheduledEnd.getTime() - session.scheduledStart.getTime()) / 60000))
+    const requestedDurationMinutes = Math.round((request.requestedEnd.getTime() - request.requestedStart.getTime()) / 60000)
+    if (requestedDurationMinutes !== packageDurationMinutes) throw new ConflictError('The rescheduled lesson must keep the lesson package duration.')
+    await assertInstructorAvailable({ appId: owner, instructorId: session.instructorId, startsAt: request.requestedStart, endsAt: request.requestedEnd, db: tx })
     if (request.requestedStart.getTime() - Date.now() < RESCHEDULE_CUTOFF_HOURS * 60 * 60 * 1000)
       throw new ConflictError('Approved reschedule time must remain at least 24 hours in the future.')
     if (
