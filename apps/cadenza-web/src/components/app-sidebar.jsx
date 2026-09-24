@@ -19,9 +19,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
   useSidebar,
 } from './ui/sidebar'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'\nimport { branding } from '../config/branding'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'
+import { branding } from '../config/branding'
 
 export default function AppSidebar({ navigation = [], user, onNavigate, onLogout }) {
   const location = useLocation()
@@ -63,22 +66,74 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => {
-                  const active =
-                    location.pathname === item.route ||
-                    location.pathname.startsWith(item.route + '/')
                   const Icon = item.icon
 
+                  if (!item.children) {
+                    const active =
+                      location.pathname === item.route ||
+                      location.pathname.startsWith(item.route + '/')
+
+                    return (
+                      <SidebarMenuItem key={item.key}>
+                        <SidebarMenuButton
+                          render={<NavLink to={item.route} onClick={onNavigate} />}
+                          isActive={active}
+                          tooltip={item.name}
+                        >
+                          {Icon && <Icon />}
+                          <span>{item.name}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  }
+
+                  const activeChild = item.children.some(
+                    (child) =>
+                      location.pathname === child.route ||
+                      location.pathname.startsWith(child.route + '/'),
+                  )
+
                   return (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton
-                        render={<NavLink to={item.route} onClick={onNavigate} />}
-                        isActive={active}
-                        tooltip={item.name}
-                      >
-                        {Icon && <Icon />}
-                        <span>{item.name}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                    <Collapsible key={item.key} defaultOpen={activeChild} className="group/collapsible">
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger
+                          render={
+                            <SidebarMenuButton
+                              isActive={activeChild}
+                              tooltip={item.name}
+                            />
+                          }
+                        >
+                          {Icon && <Icon />}
+                          <span>{item.name}</span>
+                          <CaretRight
+                            size={14}
+                            className="ml-auto transition-transform group-data-open/collapsible:rotate-90"
+                          />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.children.map((child) => {
+                              const childActive =
+                                location.pathname === child.route ||
+                                location.pathname.startsWith(child.route + '/')
+
+                              return (
+                                <SidebarMenuSubItem key={child.key}>
+                                  <SidebarMenuButton
+                                    render={<NavLink to={child.route} onClick={onNavigate} />}
+                                    isActive={childActive}
+                                    className="h-7 px-2 text-xs"
+                                  >
+                                    <span>{child.name}</span>
+                                  </SidebarMenuButton>
+                                </SidebarMenuSubItem>
+                              )
+                            })}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
                   )
                 })}
               </SidebarMenu>
