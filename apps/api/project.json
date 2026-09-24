@@ -160,7 +160,7 @@
     "db:setup": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.js --app=platform",
+        "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.js --app=all",
         "cwd": "apps/api"
       }
     },
@@ -223,7 +223,7 @@
     "db:seed:all": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node scripts/db-seed.js --app=all --profile=development",
+        "command": "node scripts/db-seed.js --app=all",
         "cwd": "apps/api"
       }
     }
