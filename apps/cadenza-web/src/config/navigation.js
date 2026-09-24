@@ -38,9 +38,8 @@ export const navigation = Object.freeze([
   },
   {
     key: 'resources', name: 'Resources', items: [{
-      key: 'resources', name: 'Resources', route: '/app/resources', icon: icon(Archive), anyPermissions: [PERMISSIONS.instruments.read, PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.rooms.read, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update],
-    }, {
-      key: 'resource-operations', name: 'Resource Operations', children: [
+      key: 'resources', name: 'Resources', icon: icon(Archive), children: [
+        { key: 'resource-center', name: 'Resource Center', route: '/app/resources', anyPermissions: [PERMISSIONS.instruments.read, PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.rooms.read, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update] },
         { key: 'resource-usage', name: 'Usage History', route: '/app/resources/usage-history', permission: PERMISSIONS.rentals.manage },
         { key: 'resource-audit', name: 'Audit Trail', route: '/app/resources/audit', permission: PERMISSIONS.audit.read },
       ],
