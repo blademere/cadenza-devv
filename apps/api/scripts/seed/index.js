@@ -17,6 +17,7 @@ async function runSeed(prisma, profile = 'default', app = 'platform') {
 
   if (app === 'platform' || app === 'all') {
     const platform = await seedPlatform(prisma)
+    Object.assign(context.applications, platform.applications)
     for (const [key, permission] of platform.permissionRecords) context.permissionRecords.set(key, permission)
   }
 
