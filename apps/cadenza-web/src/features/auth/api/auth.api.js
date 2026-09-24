@@ -3,7 +3,7 @@ const A='/auth'
 export const authApi={
   async csrf(){const r=await apiClient.get(A+'/csrf');apiClient.setCsrfToken(r.data.csrfToken);return r.data},
   async login(c){const r=await apiClient.post(A+'/login',c,{skipRefresh:true});if(r.data.csrfToken)apiClient.setCsrfToken(r.data.csrfToken);return r.data},
-  async selectApplication(appKey){return (await apiClient.post(A+'/application/select',{appKey},{skipRefresh:true})).data},
+  async selectApplication(appKey){return (await apiClient.post(`/apps/${encodeURIComponent(appKey)}/select`,undefined,{skipRefresh:true})).data},
   async refresh(){return (await apiClient.post(A+'/refresh',undefined,{skipRefresh:true})).data},
   async me(){return (await apiClient.get(A+'/me')).data},
   async logout(){await apiClient.post(A+'/logout',undefined,{skipRefresh:true})}
