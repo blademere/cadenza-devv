@@ -12,13 +12,13 @@ export const navigation = Object.freeze([
     items: [
       { key: 'lessons', name: 'Lessons', icon: icon(MusicNotes), children: [
         { key: 'find-lessons', name: 'Find Lessons', route: '/app/find-lessons', allPermissions: [PERMISSIONS.portals.customer, PERMISSIONS.enrollments.create] },
-        { key: 'my-lessons', name: 'My Lessons', route: '/app/my-lessons', anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
-        { key: 'lesson-history', name: 'Lesson History', route: '/app/lesson-history', anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
+        { key: 'my-lessons', name: 'My Lessons', route: '/app/my-lessons', allPermissions: [PERMISSIONS.portals.customer, PERMISSIONS.enrollments.read] },
+        { key: 'lesson-history', name: 'Lesson History', route: '/app/lesson-history', allPermissions: [PERMISSIONS.portals.customer, PERMISSIONS.enrollments.read] },
       ] },
       { key: 'rentals', name: 'Rentals', icon: icon(Guitar), children: [
         { key: 'find-rentals', name: 'Find Rentals', route: '/app/find-rentals', allPermissions: [PERMISSIONS.portals.customer, PERMISSIONS.rentals.create] },
-        { key: 'my-rentals', name: 'My Rentals', route: '/app/my-rentals', anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
-        { key: 'rental-history', name: 'Rental History', route: '/app/rental-history', anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
+        { key: 'my-rentals', name: 'My Rentals', route: '/app/my-rentals', allPermissions: [PERMISSIONS.portals.customer, PERMISSIONS.rentals.read] },
+        { key: 'rental-history', name: 'Rental History', route: '/app/rental-history', allPermissions: [PERMISSIONS.portals.customer, PERMISSIONS.rentals.read] },
       ] },
     ],
   },
