@@ -8,7 +8,7 @@ const usage = async (req, res) =>
     'Cadenza resource usage history retrieved successfully.',
     await service.listUsage({
       appId: getApplicationId(req),
-      resourceId: req.validated.params.id,
+      resourceId: req.validated?.params?.id,
     }),
   )
 
