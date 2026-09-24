@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { authorizationCatalog, rolePermissions } from '../../../../scripts/seed/authorization.js'
+import { oboAuthorizationCatalog as authorizationCatalog, oboRolePermissions as rolePermissions } from '../../../../scripts/seed/apps/obo/authorization.js'
 
 describe('OBO authorization seed', () => {
   it('defines OBO appointment permissions in the authorization catalog', () => {

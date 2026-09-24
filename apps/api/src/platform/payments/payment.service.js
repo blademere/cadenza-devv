@@ -5,10 +5,15 @@ import {
   findObligationById,
   createPayment,
   findPaymentByIdempotencyKey,
+  findPaymentById,
   listSuccessfulPayments,
+  listPayments,
+  createRefund,
   withTransaction,
   lockObligation,
+  lockPayment,
   updateObligationStatus,
+  updateObligationMetadata,
 } from './payment.repository.js'
 import { OBLIGATION_STATUS, PAYMENT_EVENTS, PAYMENT_STATUS } from './payment.constants.js'
 import { assertWithinBalance } from './payment.policy.js'
@@ -23,13 +28,27 @@ const summarizeObligation = (obligation, successfulPayments) => {
     (sum, payment) => sum.plus(payment.amount),
     decimal(0)
   )
-  const balance = decimal(obligation.totalAmount).minus(paidAmount)
+  const refundedAmount = successfulPayments.reduce(
+    (sum, payment) =>
+      sum.plus(
+        (payment.refunds || [])
+          .filter((refund) => refund.status === 'SUCCEEDED')
+          .reduce((refundSum, refund) => refundSum.plus(refund.amount), decimal(0))
+      ),
+    decimal(0)
+  )
+  const netPaidAmount = paidAmount.minus(refundedAmount)
+  const balance = decimal(obligation.totalAmount).minus(netPaidAmount)
   return {
     ...obligation,
     paidAmount,
+    refundedAmount,
+    netPaidAmount,
     balanceDue: balance,
     status:
-      balance.isZero()
+      balance.isZero() && refundedAmount.gte(paidAmount) && paidAmount.gt(0)
+        ? OBLIGATION_STATUS.REFUNDED
+        : balance.isZero()
         ? OBLIGATION_STATUS.PAID
         : paidAmount.isZero()
           ? OBLIGATION_STATUS.UNPAID
@@ -41,7 +60,10 @@ const getObligation = async (id, appId, db) => {
   if (!id || !appId) throw new TypeError('id and appId are required.')
   const obligation = await findObligationById(id, appId, db)
   if (!obligation) return null
-  return summarizeObligation(obligation, obligation.payments.filter((p) => p.status === PAYMENT_STATUS.SUCCEEDED))
+  return summarizeObligation(
+    obligation,
+    obligation.payments.filter((p) => p.status === PAYMENT_STATUS.SUCCEEDED)
+  )
 }
 
 const createPaymentObligation = async ({
@@ -95,8 +117,15 @@ const recordPayment = async ({
     if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
     if (obligation.currency !== currency.toUpperCase()) throw new PaymentStateError('Payment currency does not match the obligation currency.')
 
-    const successfulPayments = await listSuccessfulPayments(obligationId, tx)
-    const paid = successfulPayments.reduce((sum, payment) => sum.plus(payment.amount), decimal(0))
+    const successfulPayments = obligation.payments.filter(
+      (payment) => payment.status === PAYMENT_STATUS.SUCCEEDED
+    )
+    const paid = successfulPayments.reduce((sum, payment) => {
+      const refunded = (payment.refunds || [])
+        .filter((refund) => refund.status === 'SUCCEEDED')
+        .reduce((inner, refund) => inner.plus(refund.amount), decimal(0))
+      return sum.plus(decimal(payment.amount).minus(refunded))
+    }, decimal(0))
     const balance = decimal(obligation.totalAmount).minus(paid)
     assertWithinBalance(amount, balance)
 
@@ -191,9 +220,11 @@ const createCheckout = async ({
   const obligation = await getObligation(obligationId, appId, db)
   if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
   const checkoutAmount = positiveDecimal(amount, 'amount')
-  if (compare(checkoutAmount, obligation.balanceDue) > 0) throw new PaymentStateError('Payment amount exceeds the outstanding balance.')
+  if (compare(checkoutAmount, obligation.balanceDue) > 0) {
+    throw new PaymentStateError('Payment amount exceeds the outstanding balance.')
+  }
   const paymentProvider = getPaymentProvider(provider)
-  return paymentProvider.createCheckout({
+  const checkout = await paymentProvider.createCheckout({
     amount: checkoutAmount.toString(),
     currency: obligation.currency,
     referenceNumber: obligationId,
@@ -203,6 +234,153 @@ const createCheckout = async ({
     idempotencyKey,
     metadata: { ...(metadata || {}), appId, obligationId },
   })
+  if (checkout?.checkoutSessionId) {
+    const currentMetadata = obligation.metadata && typeof obligation.metadata === 'object' ? obligation.metadata : {}
+    await updateObligationMetadata(obligationId, {
+      ...currentMetadata,
+      paymentCheckout: {
+        provider: String(provider).toUpperCase(),
+        checkoutSessionId: checkout.checkoutSessionId,
+        amount: checkoutAmount.toString(),
+        currency: obligation.currency,
+      },
+    })
+  }
+  return checkout
+}
+
+const getCheckoutStatus = async ({ appId, obligationId, provider = 'XENDIT', db }) => {
+  const obligation = await getObligation(obligationId, appId, db)
+  if (!obligation) throw new PaymentStateError('Payment obligation was not found.')
+  const checkoutMetadata = obligation.metadata?.paymentCheckout
+  if (!checkoutMetadata?.checkoutSessionId) return null
+  if (String(checkoutMetadata.provider).toUpperCase() !== String(provider).toUpperCase()) {
+    throw new PaymentStateError('Payment checkout provider does not match the payment reconciliation request.')
+  }
+  const paymentProvider = getPaymentProvider(provider)
+  if (typeof paymentProvider.getCheckoutStatus !== 'function') {
+    throw new PaymentStateError(`Payment provider ${provider} does not support checkout status reconciliation.`)
+  }
+  return paymentProvider.getCheckoutStatus({ checkoutSessionId: checkoutMetadata.checkoutSessionId })
+}
+
+const getPayment = async (id, appId, db) => findPaymentById(id, appId, db)
+
+const listPaymentHistory = async ({ appId, obligationId }) => {
+  const rows = await listPayments(obligationId, appId)
+  return rows.map((payment) => ({
+    ...payment,
+    amount: payment.amount.toString(),
+    refunds: (payment.refunds || []).map((refund) => ({
+      ...refund,
+      amount: refund.amount.toString(),
+    })),
+  }))
+}
+
+const refundPayment = async ({
+  appId,
+  paymentId,
+  amount,
+  currency,
+  reason = null,
+  actorId = null,
+  idempotencyKey,
+  manual = false,
+  db = null,
+}) => {
+  if (!idempotencyKey) throw new TypeError('idempotencyKey is required.')
+  const payment = await findPaymentById(paymentId, appId, db)
+  if (!payment || payment.status !== PAYMENT_STATUS.SUCCEEDED) {
+    throw new PaymentStateError('Successful payment was not found.')
+  }
+  const refundAmount = positiveDecimal(amount, 'amount')
+  const refunded = (payment.refunds || [])
+    .filter((refund) => refund.status === 'SUCCEEDED')
+    .reduce((sum, refund) => sum.plus(refund.amount), decimal(0))
+  const refundable = decimal(payment.amount).minus(refunded)
+  if (compare(refundAmount, refundable) > 0) {
+    throw new PaymentStateError('Refund amount exceeds the refundable payment amount.')
+  }
+
+  let providerReference = null
+  if (!manual && payment.provider) {
+    const provider = getPaymentProvider(payment.provider)
+    if (typeof provider.refundPayment !== 'function') {
+      throw new PaymentStateError(`Payment provider ${payment.provider} does not support refunds through the configured adapter.`)
+    }
+    const result = await provider.refundPayment({
+      providerReference: payment.providerReference,
+      amount: refundAmount.toString(),
+      currency: currency || payment.currency,
+      reason,
+    })
+    providerReference = result?.providerReference || null
+  }
+
+  const execute = async (tx) => {
+    await lockPayment(paymentId, appId, tx)
+    const current = await findPaymentById(paymentId, appId, tx)
+    if (!current || current.status !== PAYMENT_STATUS.SUCCEEDED) {
+      throw new PaymentStateError('Successful payment was not found.')
+    }
+    const currentRefunded = (current.refunds || [])
+      .filter((refund) => refund.status === 'SUCCEEDED')
+      .reduce((sum, refund) => sum.plus(refund.amount), decimal(0))
+    const currentRefundable = decimal(current.amount).minus(currentRefunded)
+    if (compare(refundAmount, currentRefundable) > 0) {
+      throw new PaymentStateError('Refund amount exceeds the refundable payment amount.')
+    }
+
+    const refund = await createRefund({
+      paymentId,
+      amount: refundAmount,
+      currency: currency || current.currency,
+      status: 'SUCCEEDED',
+      providerReference,
+      reason,
+      refundedAt: new Date(),
+      metadata: { manual },
+    }, tx)
+
+    const obligation = await findObligationById(current.obligationId, appId, tx)
+    if (obligation) {
+      const successfulPayments = obligation.payments.filter((item) => item.status === PAYMENT_STATUS.SUCCEEDED)
+      const totalPaid = successfulPayments.reduce((sum, item) => sum.plus(item.amount), decimal(0))
+      const totalRefunded = successfulPayments.reduce((sum, item) => sum.plus((item.refunds || []).filter((itemRefund) => itemRefund.status === 'SUCCEEDED').reduce((inner, itemRefund) => inner.plus(itemRefund.amount), decimal(0))), decimal(0)).plus(refund.amount)
+      if (totalPaid.gt(0)) {
+        const refundStatus = totalRefunded.gte(totalPaid)
+          ? OBLIGATION_STATUS.REFUNDED
+          : OBLIGATION_STATUS.PARTIALLY_REFUNDED
+        if (totalRefunded.gt(0)) {
+          await updateObligationStatus(current.obligationId, refundStatus, tx)
+        }
+      }
+    }
+
+    await recordAudit({
+      actorId,
+      appId,
+      action: 'payment.refunded',
+      entityType: 'PaymentRefund',
+      entityId: refund.id,
+      after: { paymentId, amount: refundAmount.toString(), currency: refund.currency, providerReference, reason },
+      db: tx,
+    })
+
+    await enqueueEvent({
+      db: tx,
+      event: PAYMENT_EVENTS.REFUNDED,
+      entityType: 'PaymentRefund',
+      entityId: refund.id,
+      actorId,
+      context: { appId, paymentId, amount: refundAmount.toString(), currency: refund.currency },
+      idempotencyKey: `payment.refunded:${refund.id}`,
+    })
+
+    return refund
+  }
+  return db ? execute(db) : withTransaction(execute)
 }
 
 export {
@@ -211,4 +389,8 @@ export {
   recordPayment,
   createCheckout,
   summarizeObligation,
+  listPaymentHistory,
+  getPayment,
+  getCheckoutStatus,
+  refundPayment,
 }

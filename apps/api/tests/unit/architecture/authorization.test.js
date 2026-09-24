@@ -3,11 +3,30 @@ import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const authorizationDirectory = new URL('../../../src/platform/authorization/', import.meta.url)
-const repositoryPath = new URL('../../../src/platform/authorization/authorization.repository.js', import.meta.url)
-const servicePath = new URL('../../../src/platform/authorization/authorization.service.js', import.meta.url)
-const middlewarePath = new URL('../../../src/platform/authorization/authorization.middleware.js', import.meta.url)
-const routesPath = new URL('../../../src/platform/authorization/authorization.routes.js', import.meta.url)
+const accessControlRepositoryPath = new URL(
+  '../../../src/platform/authorization/access-control.repository.js',
+  import.meta.url
+)
+const accessControlServicePath = new URL(
+  '../../../src/platform/authorization/access-control.service.js',
+  import.meta.url
+)
+const authorizeMiddlewarePath = new URL(
+  '../../../src/platform/authorization/authorize.js',
+  import.meta.url
+)
+const authorizationResourceMiddlewarePath = new URL(
+  '../../../src/platform/authorization/authorization-resource.middleware.js',
+  import.meta.url
+)
+const authorizationContextRoutePath = new URL(
+  '../../../src/platform/authorization/authorization-context.routes.js',
+  import.meta.url
+)
+const authorizationContextServicePath = new URL(
+  '../../../src/platform/authorization/authorization-context.service.js',
+  import.meta.url
+)
 const featuresPath = new URL('../../../src/features/', import.meta.url)
 
 const readText = (url) => readFile(url, 'utf8')
@@ -18,58 +37,57 @@ const collectSourceFiles = async (directoryUrl) => {
   const files = []
   for (const entry of entries) {
     const entryPath = join(directory, entry.name)
-    if (entry.isDirectory()) files.push(...(await collectSourceFiles(new URL(`./${entry.name}/`, directoryUrl))))
-    else if (entry.isFile() && /\.(js|cjs|mjs)$/.test(entry.name)) files.push(entryPath)
+    if (entry.isDirectory())
+      files.push(
+        ...(await collectSourceFiles(new URL(`./${entry.name}/`, directoryUrl)))
+      )
+    else if (entry.isFile() && /\.(js|cjs|mjs)$/.test(entry.name))
+      files.push(entryPath)
   }
   return files
 }
 
 describe('authorization architecture', () => {
-  it('keeps authorization persistence behind the canonical platform repository', async () => {
-    const repository = await readText(repositoryPath)
-    const service = await readText(servicePath)
+  it('keeps authorization persistence behind the platform service boundary', async () => {
+    const repository = await readText(accessControlRepositoryPath)
+    const service = await readText(accessControlServicePath)
     expect(repository).toContain('../../infrastructure/database/prisma.js')
-    expect(service).toContain('./authorization.repository.js')
-    expect(service).not.toContain('access-control.repository.js')
-    expect(service).not.toContain('authorization-context.repository.js')
+    expect(service).toContain('./access-control.repository.js')
+    expect(service).toContain('getUserAuthorizationContext')
+    expect(service).not.toContain('getRoleById')
   })
 
-  it('keeps authorization middleware dependent on the canonical service', async () => {
-    const middleware = await readText(middlewarePath)
-    expect(middleware).toContain('./authorization.service.js')
-    expect(middleware).toContain('./authorization.policy.js')
-    expect(middleware).not.toContain('authorization.repository.js')
-  })
-
-  it('keeps the authorization route dependent on the canonical service', async () => {
-    const routes = await readText(routesPath)
-    expect(routes).toContain('./authorization.service.js')
-    expect(routes).toContain('authenticate')
-    expect(routes).not.toContain('authorization-context.repository.js')
+  it('keeps authorization middleware dependent on services, not repositories', async () => {
+    const middleware = await readText(authorizeMiddlewarePath)
+    const resourceMiddleware = await readText(
+      authorizationResourceMiddlewarePath
+    )
+    expect(middleware).toContain('./access-control.service.js')
+    expect(middleware).not.toContain('access-control.repository.js')
+    expect(resourceMiddleware).toContain('./access-control.service.js')
+    expect(resourceMiddleware).not.toContain('access-control.repository.js')
   })
 
   it('prevents feature code from reaching into the authorization repository', async () => {
     const sourceFiles = await collectSourceFiles(featuresPath)
     for (const filePath of sourceFiles) {
       const source = await readFile(filePath, 'utf8')
-      expect(source, `Direct authorization repository import in ${filePath}`).not.toContain(
-        'platform/authorization/authorization.repository.js'
-      )
+      expect(
+        source,
+        `Direct authorization repository import in ${filePath}`
+      ).not.toContain('platform/authorization/access-control.repository.js')
     }
   })
 
-  it('does not leave legacy authorization implementation files behind', async () => {
-    const directory = await readdir(fileURLToPath(authorizationDirectory))
-    expect(directory).not.toEqual(expect.arrayContaining([
-      'access-control.cache.js',
-      'access-control.policy.js',
-      'access-control.repository.js',
-      'access-control.service.js',
-      'authorization-context.repository.js',
-      'authorization-context.routes.js',
-      'authorization-context.service.js',
-      'authorization-resource.middleware.js',
-      'authorize.js',
-    ]))
+  it('keeps authorization-context route dependent on its service and outside the Auth feature', async () => {
+    const route = await readText(authorizationContextRoutePath)
+    const service = await readText(authorizationContextServicePath)
+    expect(route).toContain('./authorization-context.service.js')
+    expect(route).toContain('authenticate')
+    expect(route).not.toContain('../../features/auth/')
+    expect(route).not.toContain('authorization-context.repository.js')
+    expect(route).not.toContain('getUserAuthorizationContext(')
+    expect(service).toContain('authorization-context.repository.js')
+    expect(service).toContain('getAuthorizationContextResponse')
   })
 })

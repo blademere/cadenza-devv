@@ -116,7 +116,7 @@ const refreshAccessToken = async ({ refreshToken }) => {
   const newRefreshToken = createRefreshToken(storedToken.user, newTokenId, appId)
   const rotation = await rotateRefreshToken({ currentTokenId: storedToken.id, newTokenId, newTokenHash: hashToken(newRefreshToken), userId: storedToken.user.id, expiresAt: getRefreshTokenExpiration() })
   if (!rotation.success) { await revokeAllRefreshTokensForUser(storedToken.userId); await publish({ event: 'auth.session.reuse_detected', entityType: 'RefreshToken', entityId: storedToken.id, actorId: storedToken.userId, context: { user: { id: storedToken.userId } }, idempotencyKey: `auth.session.reuse:${storedToken.id}:race` }); throw new UnauthorizedError('Refresh token has already been used.') }
-  return { accessToken: createAccessToken(storedToken.user, appId), refreshToken: newRefreshToken }
+  return { accessToken: createAccessToken(storedToken.user, appId), refreshToken: newRefreshToken, applicationId: appId }
 }
 const logout = async ({ refreshToken }) => { if (!refreshToken) return; let payload; try { payload = verifyRefreshToken(refreshToken) } catch { return }; if (payload.type !== 'refresh' || !payload.tokenId) return; const storedToken = await findRefreshToken(hashToken(refreshToken)); if (!storedToken || storedToken.id !== payload.tokenId || storedToken.revokedAt) return; await revokeRefreshToken(storedToken.id); await publish({ event: 'auth.session.revoked', entityType: 'RefreshToken', entityId: storedToken.userId, actorId: storedToken.userId, context: { user: { id: storedToken.userId } }, idempotencyKey: `auth.session.logout:${storedToken.id}` }) }
 

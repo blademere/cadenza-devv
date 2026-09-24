@@ -1,49 +1,21 @@
 import express from 'express'
 import {
-  csrfTokenController,
-  registerUserController,
-  loginController,
-  requestPasswordResetController,
-  resetPasswordController,
-  currentUserController,
-  changePasswordController,
-  listSessionsController,
-  revokeSessionController,
-  revokeAllSessionsController,
-  refreshAccessTokenController,
-  logoutController,
-  verifyEmailController,
-  requestEmailVerificationController,
+  csrfTokenController, registerUserController, loginController, selectApplicationController,
+  requestPasswordResetController, resetPasswordController, currentUserController,
+  changePasswordController, listSessionsController, revokeSessionController,
+  revokeAllSessionsController, refreshAccessTokenController, logoutController,
+  verifyEmailController, requestEmailVerificationController,
 } from './auth.controller.js'
 import {
-  loginValidator,
-  registrationValidator,
-  passwordChangeValidator,
-  passwordResetRequestValidator,
-  passwordResetValidator,
-  emailVerificationValidator,
-  sessionIdValidator,
+  loginValidator, registrationValidator, passwordChangeValidator,
+  passwordResetRequestValidator, passwordResetValidator, emailVerificationValidator,
+  applicationSelectionValidator, sessionIdValidator,
 } from './auth.validation.js'
 import authenticate from './authenticate.secure.js'
-import {
-  asyncHandler,
-  loginRateLimiter,
-  loginAccountRateLimiter,
-  registerRateLimiter,
-  refreshRateLimiter,
-  logoutRateLimiter,
-  oauthRateLimiter,
-  idempotency,
-} from '../../common/middleware/index.js'
+import { asyncHandler, loginRateLimiter, loginAccountRateLimiter, registerRateLimiter, refreshRateLimiter, logoutRateLimiter, oauthRateLimiter, idempotency } from '../../common/middleware/index.js'
 import validate from '../../common/middleware/validate.js'
 import { csrfProtection } from '../../common/middleware/csrf.js'
-import {
-  startOAuth,
-  handleOAuthCallback,
-  startOAuthLink,
-  listOAuthAccountsController,
-  unlinkOAuthAccountController,
-} from './oauth/oauth.controller.js'
+import { startOAuth, handleOAuthCallback, startOAuthLink, listOAuthAccountsController, unlinkOAuthAccountController } from './oauth/oauth.controller.js'
 
 const authRouter = express.Router()
 const requireAuthIdempotency = idempotency({ scope: 'auth', required: true })
@@ -53,6 +25,7 @@ const requireEmailVerificationIdempotency = idempotency({ scope: 'auth-email-ver
 authRouter.get('/csrf', asyncHandler(csrfTokenController))
 authRouter.post('/register', registerRateLimiter, validate(registrationValidator), requireRegistrationIdempotency, asyncHandler(registerUserController))
 authRouter.post('/login', loginRateLimiter, loginAccountRateLimiter, validate(loginValidator), asyncHandler(loginController))
+authRouter.post('/application/select', authenticate, csrfProtection, validate(applicationSelectionValidator), requireAuthIdempotency, asyncHandler(selectApplicationController))
 authRouter.post('/password/reset/request', loginRateLimiter, validate(passwordResetRequestValidator), requirePasswordResetIdempotency, asyncHandler(requestPasswordResetController))
 authRouter.post('/password/reset', loginRateLimiter, validate(passwordResetValidator), requirePasswordResetIdempotency, asyncHandler(resetPasswordController))
 authRouter.post('/email/verify', loginRateLimiter, validate(emailVerificationValidator), requireEmailVerificationIdempotency, asyncHandler(verifyEmailController))

@@ -10,10 +10,12 @@ import { can } from '../../../platform/authorization/authorization.service.js'
 import {
   createPaymentObligation,
   getObligation,
+  refundPayment,
 } from '../../../platform/payments/payment.service.js'
 import * as repository from './rental.repository.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import { RENTAL_STATUS } from '../cadenza.constants.js'
+import * as customerService from '../customers/customer.service.js'
 const decimalAmount = (value, field) => {
   try {
     return positiveDecimal(value, field)
@@ -28,7 +30,7 @@ const durationHours = (start, end) =>
 const create = async ({
   appId,
   actorId,
-  customerUserId,
+  customerId,
   resourceId,
   rentalType,
   scheduledStart,
@@ -40,11 +42,20 @@ const create = async ({
   if (!Number.isInteger(Number(actorId)) || Number(actorId) <= 0)
     throw new BadRequestError('Authenticated actor is required.')
   const manager = await assertManage(actorId, owner)
-  const customer = customerUserId ? Number(customerUserId) : Number(actorId)
-  if (!Number.isInteger(customer) || customer <= 0)
-    throw new BadRequestError('customerUserId is invalid.')
-  if (!manager && customer !== Number(actorId))
-    throw new ForbiddenError('You can only create rentals for your own account.')
+  const channel = manager ? 'WALK_IN' : 'ONLINE'
+  let resolvedCustomer
+  if (customerId) {
+    resolvedCustomer = await repository.findCustomerById(customerId, owner)
+    if (!resolvedCustomer) throw new NotFoundError('Customer not found.')
+    if (!manager && Number(resolvedCustomer.person?.userId) !== Number(actorId))
+      throw new ForbiddenError('You can only create rentals for your own account.')
+  } else {
+    resolvedCustomer = await repository.findCustomerByUserId(actorId, owner)
+    if (!resolvedCustomer) {
+      const customer = await customerService.ensureMe({ appId: owner, actorId })
+      resolvedCustomer = customer
+    }
+  }
   const resource = await repository.findResource(resourceId, owner)
   if (!resource) throw new NotFoundError('Resource not found.')
   const domainResource =
@@ -65,15 +76,25 @@ const create = async ({
   if (compare(down, total) > 0)
     throw new BadRequestError('requiredDownPayment must be no greater than the calculated rental total.')
   return runTransaction(async (tx) => {
-    const overlap =
-      (await repository.findOverlap({ appId: owner, resourceId, scheduledStart: start, scheduledEnd: end }, tx)) ||
-      (rentalType === 'ROOM'
-        ? await repository.findLessonSessionOverlap({ appId: owner, roomId: domainResource.id, scheduledStart: start, scheduledEnd: end }, tx)
-        : null)
+    const overlap = await repository.findOverlap({
+      appId: owner,
+      resourceId,
+      scheduledStart: start,
+      scheduledEnd: end,
+    }, tx)
     if (overlap) throw new ConflictError('Resource is already reserved for an overlapping booking.')
+    if (rentalType === 'ROOM') {
+      const roomOverlap = await repository.findLessonSessionOverlap({
+        appId: owner,
+        roomId: domainResource.id,
+        scheduledStart: start,
+        scheduledEnd: end,
+      }, tx)
+      if (roomOverlap) throw new ConflictError('Room is already reserved for an overlapping booking.')
+    }
     const rental = await repository.create({
       appId: owner,
-      customerUserId: customer,
+      customerId: resolvedCustomer.id,
       resourceId,
       rentalType,
       scheduledStart: start,
@@ -95,13 +116,25 @@ const create = async ({
     return repository.attachPaymentObligation(rental.id, obligation.id, tx)
   })
 }
-const list = async ({ appId, actorId }) => { const owner = requireAppId(appId); const rows = await repository.list(owner); if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_rentals', action: 'manage' })) return rows; return rows.filter((row) => Number(row.customerUserId) === Number(actorId)) }
+const availability = async ({ appId, rentalType, scheduledStart, scheduledEnd }) => {
+  const owner = requireAppId(appId)
+  const start = new Date(scheduledStart), end = new Date(scheduledEnd)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || !(start < end))
+    throw new BadRequestError('scheduledEnd must be after scheduledStart.')
+  if (!['INSTRUMENT', 'ROOM'].includes(rentalType)) throw new BadRequestError('rentalType must be INSTRUMENT or ROOM.')
+  return repository.listAvailableResources({ appId: owner, rentalType, scheduledStart: start, scheduledEnd: end })
+}
+const list = async ({ appId, actorId }) => { const owner = requireAppId(appId); const rows = await repository.list(owner); if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_rentals', action: 'manage' })) return rows; return rows.filter((row) => Number(row.customer?.person?.userId) === Number(actorId)) }
 const get = async ({ appId, id, actorId }) => {
   const owner = requireAppId(appId)
-  const value = await repository.findById(id, owner)
+  const value = await repository.findDetails(id, owner)
   if (!value) throw new NotFoundError('Rental not found.')
-  if (!(await assertManage(actorId, owner)) && Number(value.customerUserId) !== Number(actorId)) throw new NotFoundError('Rental not found.')
-  return value
+  if (!(await assertManage(actorId, owner)) && Number(value.customer?.person?.userId) !== Number(actorId))
+    throw new NotFoundError('Rental not found.')
+  const payment = value.paymentObligationId
+    ? await getObligation(value.paymentObligationId, owner)
+    : null
+  return { ...value, payment }
 }
 const checkout = async ({ appId, id, actorId }) => {
   const owner = requireAppId(appId)
@@ -158,18 +191,43 @@ const cancel = async ({ appId, id, actorId }) => {
   return runTransaction(async (tx) => {
     const rental = await repository.findById(id, owner, tx)
     if (!rental) throw new NotFoundError('Rental not found.')
-    if (!manager && Number(rental.customerUserId) !== Number(actorId)) throw new ForbiddenError('You can only cancel your own rental.')
-    if (![RENTAL_STATUS.PENDING, RENTAL_STATUS.RESERVED].includes(rental.status)) throw new ConflictError('Only pending or reserved rentals can be cancelled.')
+    if (!manager && Number(rental.customer?.person?.userId) !== Number(actorId))
+      throw new ForbiddenError('You can only cancel your own rental.')
+    if (![RENTAL_STATUS.PENDING, RENTAL_STATUS.RESERVED].includes(rental.status))
+      throw new ConflictError('Only pending or reserved rentals can be cancelled.')
+
     if (rental.paymentObligationId) {
       const obligation = await getObligation(rental.paymentObligationId, owner, tx)
-      if (obligation && Number(obligation.paidAmount) > 0) throw new ConflictError('Paid rentals require a refund workflow before cancellation.')
+      const paid = obligation?.payments?.filter((payment) => payment.status === 'SUCCEEDED') || []
+      if (paid.length > 0 && !manager)
+        throw new ForbiddenError('Paid rentals can only be cancelled by rental management staff.')
+
+      for (const payment of paid) {
+        const refunded = (payment.refunds || [])
+          .filter((refund) => refund.status === 'SUCCEEDED')
+          .reduce((sum, refund) => sum.plus(refund.amount), toDecimal('0'))
+        const refundable = toDecimal(String(payment.amount)).minus(refunded)
+        if (refundable.gt(0)) {
+          await refundPayment({
+            appId: owner,
+            paymentId: payment.id,
+            amount: refundable,
+            currency: payment.currency,
+            reason: 'Rental cancellation',
+            actorId,
+            manual: true,
+            idempotencyKey: `cadenza:rental-cancel-refund:${id}:${payment.id}`,
+            db: tx,
+          })
+        }
+      }
     }
+
     const result = await repository.cancel(id, owner, tx)
     if (result.count !== 1)
-      throw new ConflictError(
-        'Only pending or reserved rentals can be cancelled.'
-      )
+      throw new ConflictError('Only pending or reserved rentals can be cancelled.')
     return repository.findById(id, owner, tx)
   })
 }
-export { create, list, get, checkout, returnRental, cancel }
+
+export { create, list, get, availability, checkout, returnRental, cancel }

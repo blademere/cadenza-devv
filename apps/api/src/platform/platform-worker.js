@@ -117,18 +117,20 @@ const startEventWorker = async (options = {}) =>
 const processOutbox = publishOutbox
 const runWorkerCycle = async (options = {}) => ({ maintenance: await runPlatformMaintenance(options), outbox: await publishOutbox(options) })
 
-const startWorker = async ({ intervalMs = 5000, batchSize = 50 } = {}) => {
+const startWorker = async ({ intervalMs = 5000, batchSize = 50, beforeStart = async () => {}, afterStop = async () => {} } = {}) => {
   let stopping = false
   const shutdown = () => { stopping = true; logger.info('Platform worker shutdown requested') }
   process.once('SIGTERM', shutdown)
   process.once('SIGINT', shutdown)
   try {
     await startEventWorker()
+    await beforeStart()
     while (!stopping) {
       try { await runWorkerCycle({ batchSize }) } catch (error) { logger.error({ err: error }, 'Platform worker cycle failed') }
       if (!stopping) await new Promise((resolve) => setTimeout(resolve, intervalMs))
     }
   } finally {
+    await afterStop()
     await closeQueues()
     await disconnectPrisma()
     logger.info('Platform worker stopped')

@@ -1,69 +1,42 @@
-import { seedAuthorization } from './authorization.js'
-import { seedApplications } from './applications.js'
-import { seedOboDevelopmentScenario, verifyOboDevelopmentScenario } from './obo-development.js'
-import { seedOboNotifications } from './notifications.js'
-import { seedOboReferenceData } from './obo-reference.js'
-import { seedPlatformForms } from './platform-forms.js'
-import { seedOboPlatformConfiguration, verifyOboPlatformConfiguration } from './obo-platform-configuration.js'
-import { bindOboDevelopmentForm } from './obo-form-bindings.js'
-import { seedDevelopmentUsers } from './development-users.js'
-import { seedRolePersons } from './people.js'
-import { seedOboProfessionalVerificationFixtures, verifyOboProfessionalVerificationFixtures } from './obo-professional-verification.js'
-import { seedModelCoverage } from '../seed-model-coverage.js'
+import { seedPlatform } from './platform.js'
+import { seedObo } from './apps/obo/index.js'
+import { seedCadenza } from './apps/cadenza/index.js'
 
-const PROFILES = new Set(['default', 'development', 'fixtures', 'coverage'])
+const PROFILES = new Set(['default', 'development', 'fixtures'])
+const APPS = new Set(['platform', 'obo', 'cadenza', 'all'])
 
-async function seedCore(prisma) {
-  const applications = await seedApplications(prisma)
-  const { roles, permissionRecords } = await seedAuthorization(prisma, { applications })
-  const { form: applicationForm } = await seedPlatformForms(prisma)
-  await seedOboReferenceData(prisma, { applicationForm })
-
-  return { applications, roles, permissionRecords }
-}
-
-async function seedDevelopment(prisma, context) {
-  const { roles } = context
-  const { demoPasswordHash } = await seedDevelopmentUsers(prisma, { roles })
-  await seedOboDevelopmentScenario(prisma, { roles, passwordHash: demoPasswordHash })
-  await seedOboPlatformConfiguration(prisma)
-  await bindOboDevelopmentForm(prisma)
-  await seedRolePersons(prisma)
-  await verifyOboPlatformConfiguration(prisma)
-  await verifyOboDevelopmentScenario(prisma)
-}
-
-async function seedFixtures(prisma, context) {
-  const { roles } = context
-  await seedOboProfessionalVerificationFixtures(prisma, { roles, passwordHash: null })
-  await seedOboNotifications(prisma)
-  await verifyOboProfessionalVerificationFixtures(prisma)
-}
-
-async function seedCoverage(prisma) {
-  await seedModelCoverage(prisma)
-}
-
-async function runSeed(prisma, profile = 'default') {
+async function runSeed(prisma, profile = 'default', app = 'platform') {
   if (!PROFILES.has(profile)) {
     throw new Error(`Unknown seed profile '${profile}'. Expected one of: ${[...PROFILES].join(', ')}.`)
   }
+  if (!APPS.has(app)) {
+    throw new Error(`Unknown seed app '${app}'. Expected one of: ${[...APPS].join(', ')}.`)
+  }
 
-  const context = await seedCore(prisma)
+  const context = { applications: {}, roles: {}, permissionRecords: new Map() }
 
-  if (profile === 'development') await seedDevelopment(prisma, context)
-  if (profile === 'fixtures') await seedFixtures(prisma, context)
-  if (profile === 'coverage') await seedCoverage(prisma)
+  if (app === 'platform' || app === 'all') {
+    const platform = await seedPlatform(prisma)
+    Object.assign(context.applications, platform.applications)
+    for (const [key, permission] of platform.permissionRecords) context.permissionRecords.set(key, permission)
+  }
 
-  const profileDescription = {
-    default: 'required application, authorization, platform form, and OBO reference data',
-    development: 'required data plus deterministic OBO development users, scenario, platform configuration, form binding, and person profiles',
-    fixtures: 'required data plus professional-verification and notification fixtures',
-    coverage: 'required data plus complete Prisma model coverage',
-  }[profile]
+  if (app === 'obo' || app === 'all') {
+    const obo = await seedObo(prisma, { profile })
+    context.applications.obo = obo.application
+    Object.assign(context.roles, obo.roles)
+    for (const [key, permission] of obo.permissionRecords) context.permissionRecords.set(key, permission)
+  }
 
-  console.log(`Seed complete (${profile}): ${context.permissionRecords.size} canonical permissions, ${Object.keys(context.applications).length} application(s), ${profileDescription}.`)
+  if (app === 'cadenza' || app === 'all') {
+    const cadenza = await seedCadenza(prisma, { profile })
+    context.applications.cadenza = cadenza.application
+    Object.assign(context.roles, cadenza.roles)
+    for (const [key, permission] of cadenza.permissionRecords) context.permissionRecords.set(key, permission)
+  }
+
+  console.log(`Seed complete (${profile}, ${app}): ${context.permissionRecords.size} permissions, ${Object.keys(context.applications).length} application(s).`)
   return context
 }
 
-export { PROFILES, runSeed, seedCore, seedDevelopment, seedFixtures, seedCoverage }
+export { PROFILES, APPS, runSeed }

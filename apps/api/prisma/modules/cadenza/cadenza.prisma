@@ -1,4 +1,21 @@
-model CadenzaStudent {
+model CadenzaStaff {
+  id        String   @id @default(uuid())
+  appId     String
+  personId  String
+  staffType String   @default("STAFF")
+  status    String   @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([appId, personId])
+  @@index([appId, status])
+  @@index([appId, staffType, status])
+}
+
+model CadenzaCustomer {
   id        String   @id @default(uuid())
   appId     String
   personId  String
@@ -8,6 +25,8 @@ model CadenzaStudent {
   updatedAt DateTime @updatedAt
   app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
   person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+  rentals   CadenzaRental[]
+  enrollments CadenzaEnrollment[]
   @@unique([appId, personId])
   @@index([appId, status])
 }
@@ -25,6 +44,38 @@ model CadenzaInstructor {
   person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
   @@unique([appId, personId])
   @@index([appId, status])
+  availabilityRules CadenzaInstructorAvailability[]
+  blocks            CadenzaInstructorBlock[]
+  sessions          CadenzaLessonSession[]
+}
+
+model CadenzaInstructorAvailability {
+  id           String   @id @default(uuid())
+  appId        String
+  instructorId String
+  dayOfWeek    Int
+  startMinute  Int
+  endMinute    Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  app          App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instructor   CadenzaInstructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  @@unique([appId, instructorId, dayOfWeek, startMinute, endMinute])
+  @@index([appId, instructorId, dayOfWeek])
+}
+
+model CadenzaInstructorBlock {
+  id           String   @id @default(uuid())
+  appId        String
+  instructorId String
+  startsAt     DateTime
+  endsAt       DateTime
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  app          App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instructor   CadenzaInstructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  @@index([appId, instructorId, startsAt, endsAt])
 }
 
 model CadenzaInstrument {
@@ -69,6 +120,8 @@ model CadenzaLessonPackage {
   description    String?
   price          Decimal  @db.Decimal(19,4)
   numberOfSessions Int
+  sessionDurationMinutes Int @default(60)
+  sessionsPerWeek Int @default(1)
   status         String   @default("ACTIVE")
   metadata       Json?
   createdAt      DateTime @default(now())
@@ -94,20 +147,23 @@ model CadenzaLessonAttachment {
 model CadenzaEnrollment {
   id                  String   @id @default(uuid())
   appId               String
-  studentId           String
+  customerId          String
   lessonPackageId     String
   paymentObligationId String?
   status              String   @default("PENDING_PAYMENT")
+  paymentExpiresAt    DateTime?
   enrolledAt          DateTime?
   metadata            Json?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
   app                 App      @relation(fields: [appId], references: [id], onDelete: Cascade)
   lessonPackage       CadenzaLessonPackage @relation(fields: [lessonPackageId], references: [id], onDelete: Restrict)
+  customer            CadenzaCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
   sessions            CadenzaLessonSession[]
-  @@index([appId, studentId, status])
+  @@index([appId, customerId, status])
   @@index([appId, lessonPackageId])
-  @@unique([appId, studentId, lessonPackageId])
+  @@index([appId, status, paymentExpiresAt])
+  @@unique([appId, customerId, lessonPackageId])
 }
 
 model CadenzaLessonSession {
@@ -124,44 +180,54 @@ model CadenzaLessonSession {
   updatedAt    DateTime @updatedAt
   app          App          @relation(fields: [appId], references: [id], onDelete: Cascade)
   enrollment   CadenzaEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  instructor   CadenzaInstructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   attendance   CadenzaAttendance?
+  rescheduleRequests CadenzaRescheduleRequest[]
   @@index([appId, scheduledStart, scheduledEnd])
   @@index([appId, instructorId, scheduledStart])
   @@index([appId, roomId, scheduledStart])
 }
 
 model CadenzaAttendance {
-  id          String   @id @default(uuid())
-  sessionId   String   @unique
-  status      String
-  markedByUserId Int?
-  markedAt    DateTime @default(now())
-  notes       String?
-  session     CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id               String   @id @default(uuid())
+  sessionId        String   @unique
+  status           String
+  markedByPersonId String?
+  markedAt         DateTime @default(now())
+  notes            String?
+  session          CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  markedByPerson   Person?  @relation(fields: [markedByPersonId], references: [id], onDelete: SetNull)
+
+  @@index([markedByPersonId])
 }
 
 model CadenzaRescheduleRequest {
-  id            String   @id @default(uuid())
-  appId         String
-  sessionId     String
-  requestedByUserId Int
-  requestedStart DateTime
-  requestedEnd   DateTime
-  status        String   @default("PENDING")
-  reviewedByUserId Int?
-  reviewedAt    DateTime?
-  reason        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  app           App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  id                   String   @id @default(uuid())
+  appId                String
+  sessionId            String
+  requestedByPersonId  String
+  requestedStart       DateTime
+  requestedEnd         DateTime
+  status               String   @default("PENDING")
+  reviewedByPersonId   String?
+  reviewedAt           DateTime?
+  reason               String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  app                  App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  session              CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  requestedByPerson    Person   @relation("CadenzaRescheduleRequestedBy", fields: [requestedByPersonId], references: [id], onDelete: Restrict)
+  reviewedByPerson     Person?  @relation("CadenzaRescheduleReviewedBy", fields: [reviewedByPersonId], references: [id], onDelete: SetNull)
   @@index([appId, status, createdAt])
   @@index([sessionId])
+  @@index([requestedByPersonId])
+  @@index([reviewedByPersonId])
 }
 
 model CadenzaRental {
   id                  String   @id @default(uuid())
   appId               String
-  customerUserId      Int
+  customerId          String
   resourceId          String
   rentalType          String
   scheduledStart      DateTime
@@ -169,13 +235,14 @@ model CadenzaRental {
   totalAmount         Decimal  @db.Decimal(19,4)
   requiredDownPayment Decimal  @db.Decimal(19,4)
   paymentObligationId String?
-  status              String   @default("PENDING")
+  status               String   @default("PENDING")
   checkedOutAt        DateTime?
   returnedAt          DateTime?
   metadata            Json?
-  createdAt           DateTime @default(now())
+  createdAt            DateTime @default(now())
   updatedAt           DateTime @updatedAt
   app                 App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  customer            CadenzaCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
   @@index([appId, resourceId, scheduledStart, scheduledEnd])
-  @@index([appId, customerUserId, status])
+  @@index([appId, customerId, status])
 }

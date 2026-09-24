@@ -11,6 +11,10 @@ vi.mock('../../../src/platform/storage/storage.registry.js', () => ({
   getStorageService: vi.fn(),
 }))
 
+vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({
+  can: vi.fn().mockResolvedValue(true),
+}))
+
 const repository = await import('../../../src/apps/cadenza/lessons/lesson.repository.js')
 const storageRegistry = await import('../../../src/platform/storage/storage.registry.js')
 const service = await import('../../../src/apps/cadenza/lessons/lesson.service.js')
@@ -35,6 +39,7 @@ describe('Cadenza lesson attachment storage', () => {
     const result = await service.addAttachment({
       appId: APP_ID,
       lessonPackageId: PACKAGE_ID,
+      actorId: 42,
       fileName: 'lesson.pdf',
       contentBase64: Buffer.from('lesson content').toString('base64'),
       contentType: 'application/pdf',
@@ -92,6 +97,7 @@ describe('Cadenza lesson attachment storage', () => {
     await service.removeAttachment({
       appId: APP_ID,
       lessonPackageId: PACKAGE_ID,
+      actorId: 42,
       id: ATTACHMENT_ID,
     })
 

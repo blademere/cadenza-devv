@@ -9,8 +9,28 @@ vi.mock('../../../src/apps/cadenza/lessons/lesson.repository.js', () => ({
   findInstructor: vi.fn(),
   findRoom: vi.fn(),
   findOverlappingSession: vi.fn(),
+  findRoomRentalOverlap: vi.fn(),
   createSession: vi.fn(),
   listSessions: vi.fn(),
+  countConsumedSessions: vi.fn(),
+  findEnrollmentById: vi.fn(),
+  findPersonByUserId: vi.fn(),
+}))
+
+vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({
+  can: vi.fn().mockResolvedValue(true),
+}))
+
+vi.mock('../../../src/apps/cadenza/lessons/scheduling.service.js', () => ({
+  generateSchedule: vi.fn().mockResolvedValue({ generated: [], remaining: 0 }),
+}))
+
+vi.mock('../../../src/apps/cadenza/instructors/instructor-availability.service.js', () => ({
+  assertAvailable: vi.fn().mockResolvedValue(true),
+}))
+
+vi.mock('../../../src/platform/event-bus/event-outbox.service.js', () => ({
+  enqueueEvent: vi.fn().mockResolvedValue({ id: 'event-1' }),
 }))
 
 vi.mock('../../../src/platform/transactions/transaction.service.js', () => ({
@@ -30,13 +50,15 @@ describe('Cadenza lesson scheduling', () => {
 
   it('schedules a session for a confirmed enrollment', async () => {
     repository.findEnrollment.mockResolvedValue({ id: ENROLLMENT_ID, status: 'CONFIRMED' })
-    repository.findInstructor.mockResolvedValue({ id: INSTRUCTOR_ID, status: 'ACTIVE' })
+    repository.countConsumedSessions.mockResolvedValue(0)
+    repository.findInstructor.mockResolvedValue({ id: INSTRUCTOR_ID, status: 'ACTIVE', person: { userId: 77 } })
     repository.findRoom.mockResolvedValue({ id: ROOM_ID, status: 'AVAILABLE' })
     repository.findOverlappingSession.mockResolvedValue(null)
     repository.createSession.mockResolvedValue({ id: 'session-1', status: 'SCHEDULED' })
 
     await expect(service.createSession({
       appId: APP_ID,
+      actorId: 99,
       enrollmentId: ENROLLMENT_ID,
       instructorId: INSTRUCTOR_ID,
       roomId: ROOM_ID,
@@ -52,6 +74,7 @@ describe('Cadenza lesson scheduling', () => {
       lessonPackage: { numberOfSessions: 4 },
       _count: { sessions: 4 },
     })
+    repository.countConsumedSessions.mockResolvedValue(4)
 
     await expect(service.createSession({
       appId: APP_ID,
@@ -97,9 +120,11 @@ describe('Cadenza lesson scheduling', () => {
 
   it('serializes session state transitions through the platform transaction service', async () => {
     repository.findSession
-      .mockResolvedValueOnce({ id: 'session-1', status: 'SCHEDULED' })
+      .mockResolvedValueOnce({ id: 'session-1', status: 'SCHEDULED', enrollmentId: ENROLLMENT_ID })
       .mockResolvedValueOnce({ id: 'session-1', status: 'COMPLETED' })
     repository.updateSession.mockResolvedValue({ count: 1 })
+    repository.findEnrollmentById.mockResolvedValue({ id: ENROLLMENT_ID, appId: APP_ID, status: 'IN_PROGRESS', lessonPackage: { numberOfSessions: 4 } })
+    repository.countConsumedSessions.mockResolvedValue(1)
 
     await expect(service.completeSession({ appId: APP_ID, id: 'session-1' }))
       .resolves.toMatchObject({ id: 'session-1', status: 'COMPLETED' })
@@ -113,14 +138,15 @@ describe('Cadenza lesson scheduling', () => {
   })
 
   it('approves a reschedule atomically through the platform transaction service', async () => {
-    const session = { id: 'session-1', status: 'SCHEDULED', instructorId: INSTRUCTOR_ID, roomId: ROOM_ID }
+    const session = { id: 'session-1', status: 'SCHEDULED', instructorId: INSTRUCTOR_ID, roomId: ROOM_ID, scheduledStart: new Date('2026-09-25T10:00:00.000Z'), scheduledEnd: new Date('2026-09-25T11:00:00.000Z'), enrollmentId: ENROLLMENT_ID, enrollment: { lessonPackage: { sessionDurationMinutes: 60 } } }
     const request = {
       id: 'request-1',
       sessionId: 'session-1',
       status: 'PENDING',
-      requestedStart: new Date('2026-09-21T11:00:00.000Z'),
-      requestedEnd: new Date('2026-09-21T12:00:00.000Z'),
+      requestedStart: new Date('2026-09-25T11:00:00.000Z'),
+      requestedEnd: new Date('2026-09-25T12:00:00.000Z'),
     }
+    repository.findPersonByUserId.mockResolvedValue({ id: 'person-99', userId: 99 })
     repository.findReschedule
       .mockResolvedValueOnce(request)
       .mockResolvedValueOnce(request)

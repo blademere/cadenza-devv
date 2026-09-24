@@ -1,23 +1,178 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Badge, Button, Card, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core'
-import LoadingState from '../../../components/common/LoadingState'
-import { studentsApi } from '../../students/api/students.api'
+import { Alert, AlertDescription } from '../../../components/ui/alert'
+import { Badge } from '../../../components/ui/badge'
+import { Button } from '../../../components/ui/button'
+import { Card, CardContent } from '../../../components/ui/card'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog'
+import { Input } from '../../../components/ui/input'
+import { Label } from '../../../components/ui/label'
+import DataTable from '../../../components/data-table'
+import PageHeader from '../../../components/page-header'
+import SelectField from '../../../components/select-field'
+import LoadingState from '../../../components/loading-state'
+import { customersApi } from '../../customers/api/customers.api'
 import { instructorsApi } from '../../instructors/api/instructors.api'
+import { staffApi } from '../api/staff.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
-const unwrap=r=>r?.data??r??[]
-export default function UsersPage(){
- const {can}=useAuthorization(),client=useQueryClient(),canInstructorRead=can('cadenza_instructors:read')
- const students=useQuery({queryKey:['cadenza','students'],queryFn:studentsApi.list}),instructors=useQuery({queryKey:['cadenza','instructors'],queryFn:instructorsApi.list})
- const [editing,setEditing]=useState(null)
- const updateStudent=useMutation({mutationFn:({id,status})=>studentsApi.update(id,{status}),onSuccess:()=>{setEditing(null);client.invalidateQueries({queryKey:['cadenza','students']})}})
- const updateInstructor=useMutation({mutationFn:({id,status,specialty})=>instructorsApi.update(id,{status,specialty}),onSuccess:()=>{setEditing(null);client.invalidateQueries({queryKey:['cadenza','instructors']})}})
- const register=useMutation({mutationFn:studentsApi.registerMe,onSuccess:()=>client.invalidateQueries({queryKey:['cadenza','students']})})
- if(students.isLoading||instructors.isLoading)return <LoadingState label="Loading people…" rows={4}/>
- if(students.error||instructors.error)return <Alert color="red">{(students.error||instructors.error).message}</Alert>
- const entries=[...unwrap(students.data).map(x=>({...x,role:'Student'})),...(canInstructorRead?unwrap(instructors.data).map(x=>({...x,role:'Instructor'})):[])]
- return <Stack gap="lg"><Group justify="space-between"><div><Title order={2}>Users</Title><Text c="dimmed">Cadenza students and instructors.</Text></div><Button loading={register.isPending} onClick={()=>register.mutate()}>Register my account as student</Button></Group>
- <SimpleGrid cols={{base:1,sm:2,lg:3}}>{entries.map(x=><Card key={x.id} withBorder><Group justify="space-between"><div><Text fw={600}>{x.person?.name??x.person?.fullName??x.personId??x.id}</Text>{x.specialty&&<Text size="sm" c="dimmed">{x.specialty}</Text>}</div><Badge>{x.role}</Badge>{((x.role==='Student'&&can('cadenza_students:manage'))||(x.role==='Instructor'&&can('cadenza_instructors:manage')))&&<Button size="xs" onClick={()=>setEditing(x)}>Edit</Button>}</Group></Card>)}</SimpleGrid>
- <Modal opened={Boolean(editing)} onClose={()=>setEditing(null)} title="Update person"><Stack>{editing?.role==='Instructor'&&<TextInput label="Specialty" value={editing.specialty??''} onChange={e=>setEditing({...editing,specialty:e.currentTarget.value})}/>}<Select label="Status" data={['ACTIVE','INACTIVE']} value={editing?.status??null} onChange={v=>setEditing({...editing,status:v})}/><Button loading={updateStudent.isPending||updateInstructor.isPending} onClick={()=>editing.role==='Student'?updateStudent.mutate({id:editing.id,status:editing.status}):updateInstructor.mutate({id:editing.id,status:editing.status,specialty:editing.specialty})}>Save</Button></Stack></Modal>
- </Stack>
+import { DotsThree, Plus } from '@phosphor-icons/react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../../../components/ui/dropdown-menu'
+
+const unwrap = (r) => r?.data ?? r ?? []
+const personName = (person) =>
+  [person?.firstName, person?.middleName, person?.lastName, person?.suffix]
+    .filter(Boolean)
+    .join(' ') || person?.email || 'Unknown person'
+
+export default function UsersPage() {
+  const { can } = useAuthorization()
+  const client = useQueryClient()
+  const canInstructorRead = can('cadenza_instructors:read')
+  const canInstructorCreate = can('cadenza_instructors:create')
+  const canInstructorManage = can('cadenza_instructors:manage')
+  const canCustomerManage = can('cadenza_customers:manage')
+  const canStaffRead = can('cadenza_staff:read')
+  const canStaffCreate = can('cadenza_staff:create')
+  const canStaffManage = can('cadenza_staff:manage')
+
+  const customers = useQuery({ queryKey: ['cadenza', 'customers'], queryFn: customersApi.list, enabled: canCustomerManage })
+  const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list, enabled: canInstructorRead })
+  const candidates = useQuery({ queryKey: ['cadenza', 'instructor-candidates'], queryFn: instructorsApi.listCandidates, enabled: canInstructorCreate })
+  const customerCandidates = useQuery({ queryKey: ['cadenza', 'customer-candidates'], queryFn: customersApi.listCandidates, enabled: canCustomerManage })
+  const staff = useQuery({ queryKey: ['cadenza', 'staff'], queryFn: staffApi.list, enabled: canStaffRead })
+  const staffCandidates = useQuery({ queryKey: ['cadenza', 'staff-candidates'], queryFn: staffApi.listCandidates, enabled: canStaffCreate })
+
+  const [editing, setEditing] = useState(null)
+  const [availabilityInstructor, setAvailabilityInstructor] = useState(null)
+  const [availabilityRules, setAvailabilityRules] = useState(null)
+  const [blockDraft, setBlockDraft] = useState({ startsAt: '', endsAt: '', reason: '' })
+  const [addInstructorOpen, setAddInstructorOpen] = useState(false)
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false)
+  const [addStaffOpen, setAddStaffOpen] = useState(false)
+  const [newCustomer, setNewCustomer] = useState({ personId: '' })
+  const [newStaff, setNewStaff] = useState({ personId: '', staffType: 'STAFF' })
+  const [newInstructor, setNewInstructor] = useState({ personId: '', specialty: '' })
+  const availability = useQuery({
+    queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id],
+    queryFn: () => instructorsApi.getAvailability(availabilityInstructor.id),
+    enabled: Boolean(availabilityInstructor),
+  })
+
+  const updateCustomer = useMutation({
+    mutationFn: ({ id, status }) => customersApi.update(id, { status }),
+    onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'customers'] }) },
+  })
+  const updateStaff = useMutation({ mutationFn: ({ id, status, staffType }) => staffApi.update(id, { status, staffType }), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'staff'] }) } })
+  const createCustomer = useMutation({ mutationFn: customersApi.create, onSuccess: () => { setAddCustomerOpen(false); setNewCustomer({ personId: '' }); client.invalidateQueries({ queryKey: ['cadenza', 'customers'] }); client.invalidateQueries({ queryKey: ['cadenza', 'customer-candidates'] }) } })
+  const createStaff = useMutation({ mutationFn: staffApi.create, onSuccess: () => { setAddStaffOpen(false); setNewStaff({ personId: '', staffType: 'STAFF' }); client.invalidateQueries({ queryKey: ['cadenza', 'staff'] }); client.invalidateQueries({ queryKey: ['cadenza', 'staff-candidates'] }) } })
+  const updateInstructor = useMutation({
+    mutationFn: ({ id, status, specialty }) => instructorsApi.update(id, { status, specialty }),
+    onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'instructors'] }) },
+  })
+  const createInstructor = useMutation({
+    mutationFn: instructorsApi.create,
+    onSuccess: () => {
+      setAddInstructorOpen(false)
+      setNewInstructor({ personId: '', specialty: '' })
+      client.invalidateQueries({ queryKey: ['cadenza', 'instructors'] })
+      client.invalidateQueries({ queryKey: ['cadenza', 'instructor-candidates'] })
+    },
+  })
+  const replaceAvailability = useMutation({
+    mutationFn: ({ id, rules }) => instructorsApi.replaceAvailability(id, { rules }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id] }),
+  })
+  const addBlock = useMutation({
+    mutationFn: ({ id, payload }) => instructorsApi.addAvailabilityBlock(id, payload),
+    onSuccess: () => {
+      setBlockDraft({ startsAt: '', endsAt: '', reason: '' })
+      client.invalidateQueries({ queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id] })
+    },
+  })
+  const removeBlock = useMutation({
+    mutationFn: ({ id, blockId }) => instructorsApi.removeAvailabilityBlock(id, blockId),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id] }),
+  })
+  if ((canCustomerManage && customers.isLoading) || (canInstructorRead && instructors.isLoading) || (canStaffRead && staff.isLoading)) return <LoadingState label="Loading people…" rows={4} />
+  if ((canCustomerManage && customers.error) || (canInstructorRead && instructors.error) || (canStaffRead && staff.error)) return <Alert variant="destructive"><AlertDescription>{(customers.error || instructors.error || staff.error).message}</AlertDescription></Alert>
+
+  const entriesByPerson = new Map()
+  const addEntry = (record, role, key) => {
+    const personKey = record.person?.id ?? record.personId ?? record.id
+    const current = entriesByPerson.get(personKey) ?? { id: personKey, person: record.person, roles: [], customer: null, instructor: null, staff: null }
+    current.roles = current.roles.includes(role) ? current.roles : [...current.roles, role]
+    current[key] = record
+    entriesByPerson.set(personKey, current)
+  }
+  if (canCustomerManage) unwrap(customers.data).forEach((x) => addEntry(x, 'Customer', 'customer'))
+  if (canInstructorRead) unwrap(instructors.data).forEach((x) => addEntry(x, 'Instructor', 'instructor'))
+  if (canStaffRead) unwrap(staff.data).forEach((x) => addEntry(x, 'Staff', 'staff'))
+  const entries = Array.from(entriesByPerson.values())
+  const error = updateCustomer.error || updateInstructor.error || updateStaff.error || createCustomer.error || createStaff.error || createInstructor.error || candidates.error || customerCandidates.error || staffCandidates.error || availability.error || replaceAvailability.error || addBlock.error || removeBlock.error
+  const candidateOptions = unwrap(candidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
+  const customerCandidateOptions = unwrap(customerCandidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
+  const staffCandidateOptions = unwrap(staffCandidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
+  const availabilityData = availability.data?.data ?? availability.data ?? { rules: [], blocks: [] }
+  const openAvailability = (instructor) => {
+    setAvailabilityInstructor(instructor)
+    setAvailabilityRules(null)
+    setBlockDraft({ startsAt: '', endsAt: '', reason: '' })
+  }
+  const rulesForEditor = availabilityRules ?? (availabilityData.rules ?? [])
+  const addRule = () => setAvailabilityRules((rules) => [...(rules ?? availabilityData.rules ?? []), { dayOfWeek: 1, startMinute: 540, endMinute: 1020 }])
+  const updateRule = (index, patch) => setAvailabilityRules((rules) => (rules ?? availabilityData.rules ?? []).map((rule, i) => i === index ? { ...rule, ...patch } : rule))
+  const removeRule = (index) => setAvailabilityRules((rules) => (rules ?? availabilityData.rules ?? []).filter((_, i) => i !== index))
+  const minutesToTime = (minutes) => String(Math.floor(Number(minutes) / 60)).padStart(2, '0') + ':' + String(Number(minutes) % 60).padStart(2, '0')
+  const timeToMinutes = (value) => { const [hours, minutes] = value.split(':').map(Number); return hours * 60 + minutes }
+  const formatDateTime = (value) => value ? new Date(value).toLocaleString() : '—'
+
+  const columns = [
+    { key: 'name', header: 'Name', value: (x) => personName(x.person) },
+    { key: 'email', header: 'Email', value: (x) => x.person?.email ?? '—' },
+    { key: 'role', header: 'Roles', render: (x) => <div className="flex flex-wrap gap-1">{x.roles.map((role) => <Badge key={role} variant="secondary">{role}</Badge>)}</div> },
+    { key: 'specialty', header: 'Specialty', value: (x) => x.instructor?.specialty ?? '—' },
+    { key: 'status', header: 'Status', render: (x) => <div className="flex flex-wrap gap-1">{[['Customer', x.customer?.status], ['Staff', x.staff?.status], ['Instructor', x.instructor?.status]].filter(([, status]) => status).map(([role, status]) => <Badge key={role} variant={status === 'ACTIVE' ? 'default' : 'outline'}>{role}: {status}</Badge>)}</div> },
+    { key: 'actions', header: '', searchable: false, render: (x) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${personName(x.person)}`} />}>
+          <DotsThree size={20} weight="bold" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          {x.customer && canCustomerManage && <DropdownMenuItem onClick={() => setEditing({ ...x.customer, role: 'Customer' })}>Customer</DropdownMenuItem>}
+          {x.staff && canStaffManage && <DropdownMenuItem onClick={() => setEditing({ ...x.staff, role: 'Staff' })}>Staff</DropdownMenuItem>}
+          {x.instructor && canInstructorManage && <DropdownMenuItem onClick={() => setEditing({ ...x.instructor, role: 'Instructor' })}>Instructor</DropdownMenuItem>}
+          {x.instructor && canInstructorManage && <><DropdownMenuSeparator /><DropdownMenuItem onClick={() => openAvailability(x.instructor)}>Availability</DropdownMenuItem></>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) },
+  ]
+
+  return <div className="space-y-6">
+    <PageHeader title="Users" description="Manage Cadenza customers, staff, and instructors." actions={
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button type="button"><Plus size={16} />Add role</Button>} />
+        <DropdownMenuContent align="end" className="w-44">
+          {canCustomerManage && <DropdownMenuItem onClick={() => setAddCustomerOpen(true)}>Customer</DropdownMenuItem>}
+          {canStaffCreate && <DropdownMenuItem onClick={() => setAddStaffOpen(true)}>Staff</DropdownMenuItem>}
+          {canInstructorCreate && <DropdownMenuItem onClick={() => setAddInstructorOpen(true)}>Instructor</DropdownMenuItem>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    } />
+    {error && <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>}
+    <Card><CardContent className="pt-6"><DataTable columns={columns} rows={entries} searchPlaceholder="Search users…" /></CardContent></Card>
+
+    <Dialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen}><DialogContent><DialogHeader><DialogTitle>Add customer</DialogTitle></DialogHeader><div className="grid gap-4"><SelectField label="Person" options={customerCandidateOptions} value={newCustomer.personId} onChange={(value) => setNewCustomer({ personId: value })} />{customerCandidates.isLoading && <p className="text-sm text-muted-foreground">Loading eligible people…</p>}{!customerCandidates.isLoading && !customerCandidates.error && customerCandidateOptions.length === 0 && <p className="text-sm text-muted-foreground">No eligible people are available to add as a customer.</p>}</div><DialogFooter><Button variant="outline" onClick={() => setAddCustomerOpen(false)}>Cancel</Button><Button disabled={!newCustomer.personId || createCustomer.isPending} onClick={() => createCustomer.mutate(newCustomer)}>{createCustomer.isPending ? 'Adding…' : 'Add customer'}</Button></DialogFooter></DialogContent></Dialog>
+
+    <Dialog open={addStaffOpen} onOpenChange={setAddStaffOpen}><DialogContent><DialogHeader><DialogTitle>Add staff</DialogTitle></DialogHeader><div className="grid gap-4"><SelectField label="Person" options={staffCandidateOptions} value={newStaff.personId} onChange={(value) => setNewStaff({ ...newStaff, personId: value })} /><SelectField label="Staff type" options={[{ value: 'STAFF', label: 'Staff' }, { value: 'FRONT_DESK', label: 'Front desk' }, { value: 'MANAGER', label: 'Manager' }, { value: 'INSTRUCTOR', label: 'Instructor' }]} value={newStaff.staffType} onChange={(value) => setNewStaff({ ...newStaff, staffType: value })} />{staffCandidates.isLoading && <p className="text-sm text-muted-foreground">Loading eligible people…</p>}{!staffCandidates.isLoading && !staffCandidates.error && staffCandidateOptions.length === 0 && <p className="text-sm text-muted-foreground">No eligible people are available to add as staff.</p>}</div><DialogFooter><Button variant="outline" onClick={() => setAddStaffOpen(false)}>Cancel</Button><Button disabled={!newStaff.personId || createStaff.isPending} onClick={() => createStaff.mutate(newStaff)}>{createStaff.isPending ? 'Adding…' : 'Add staff'}</Button></DialogFooter></DialogContent></Dialog>
+
+    <Dialog open={addInstructorOpen} onOpenChange={setAddInstructorOpen}>
+      <DialogContent><DialogHeader><DialogTitle>Add instructor</DialogTitle></DialogHeader><div className="grid gap-4"><SelectField label="Person" options={candidateOptions} value={newInstructor.personId} onChange={(value) => setNewInstructor({ ...newInstructor, personId: value })} /><div className="grid gap-2"><Label htmlFor="instructor-specialty">Specialty</Label><Input id="instructor-specialty" value={newInstructor.specialty} onChange={(e) => setNewInstructor({ ...newInstructor, specialty: e.currentTarget.value })} placeholder="e.g. Piano, Guitar, Vocal" maxLength={100} /></div>{candidates.isLoading && <p className="text-sm text-muted-foreground">Loading eligible people…</p>}{!candidates.isLoading && !candidates.error && candidateOptions.length === 0 && <p className="text-sm text-muted-foreground">No eligible people are available to add as an instructor.</p>}</div><DialogFooter><Button variant="outline" onClick={() => setAddInstructorOpen(false)}>Cancel</Button><Button disabled={!newInstructor.personId || createInstructor.isPending} onClick={() => createInstructor.mutate({ personId: newInstructor.personId, specialty: newInstructor.specialty || undefined })}>{createInstructor.isPending ? 'Adding…' : 'Add instructor'}</Button></DialogFooter></DialogContent>
+    </Dialog>
+
+    <Dialog open={Boolean(availabilityInstructor)} onOpenChange={(value) => !value && setAvailabilityInstructor(null)}>
+      <DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>Instructor availability — {personName(availabilityInstructor?.person)}</DialogTitle></DialogHeader>{availability.isLoading ? <LoadingState label="Loading availability…" rows={3} /> : <div className="grid gap-6"><div className="grid gap-3"><div className="flex items-center justify-between gap-2"><div><h3 className="font-medium">Weekly availability</h3><p className="text-sm text-muted-foreground">Define recurring time windows per day.</p></div>{canInstructorManage && <Button variant="outline" size="sm" onClick={addRule}>Add time window</Button>}</div>{rulesForEditor.length === 0 && <p className="text-sm text-muted-foreground">No weekly availability configured.</p>}{rulesForEditor.map((rule, index) => <div key={index} className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end"><SelectField label="Day" options={['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((label, dayOfWeek) => ({ value: String(dayOfWeek), label }))} value={String(rule.dayOfWeek)} onChange={(value) => updateRule(index, { dayOfWeek: Number(value) })} disabled={!canInstructorManage} /><div className="grid gap-2"><Label>Start</Label><Input type="time" value={minutesToTime(rule.startMinute)} disabled={!canInstructorManage} onChange={(e) => updateRule(index, { startMinute: timeToMinutes(e.currentTarget.value) })} /></div><div className="grid gap-2"><Label>End</Label><Input type="time" value={minutesToTime(rule.endMinute)} disabled={!canInstructorManage} onChange={(e) => updateRule(index, { endMinute: timeToMinutes(e.currentTarget.value) })} /></div>{canInstructorManage && <Button variant="ghost" onClick={() => removeRule(index)}>Remove</Button>}</div>)}{canInstructorManage && <Button disabled={replaceAvailability.isPending} onClick={() => replaceAvailability.mutate({ id: availabilityInstructor.id, rules: rulesForEditor })}>{replaceAvailability.isPending ? 'Saving…' : 'Save weekly availability'}</Button>}</div><div className="grid gap-3 border-t pt-5"><div><h3 className="font-medium">Blocked periods</h3><p className="text-sm text-muted-foreground">Add one-off periods when the instructor cannot be scheduled.</p></div>{availabilityData.blocks?.length > 0 ? availabilityData.blocks.map((block) => <div key={block.id} className="flex flex-col gap-2 rounded-md border p-3 md:flex-row md:items-center md:justify-between"><div><div className="font-medium">{formatDateTime(block.startsAt)} → {formatDateTime(block.endsAt)}</div><div className="text-sm text-muted-foreground">{block.reason || 'No reason provided'}</div></div>{canInstructorManage && <Button variant="ghost" size="sm" disabled={removeBlock.isPending} onClick={() => removeBlock.mutate({ id: availabilityInstructor.id, blockId: block.id })}>Remove</Button>}</div>) : <p className="text-sm text-muted-foreground">No blocked periods configured.</p>}{canInstructorManage && <div className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_1fr_1.5fr_auto] md:items-end"><div className="grid gap-2"><Label>Starts</Label><Input type="datetime-local" value={blockDraft.startsAt} onChange={(e) => setBlockDraft({ ...blockDraft, startsAt: e.currentTarget.value })} /></div><div className="grid gap-2"><Label>Ends</Label><Input type="datetime-local" value={blockDraft.endsAt} onChange={(e) => setBlockDraft({ ...blockDraft, endsAt: e.currentTarget.value })} /></div><div className="grid gap-2"><Label>Reason</Label><Input value={blockDraft.reason} maxLength={500} placeholder="Optional" onChange={(e) => setBlockDraft({ ...blockDraft, reason: e.currentTarget.value })} /></div><Button disabled={!blockDraft.startsAt || !blockDraft.endsAt || addBlock.isPending} onClick={() => addBlock.mutate({ id: availabilityInstructor.id, payload: { startsAt: new Date(blockDraft.startsAt).toISOString(), endsAt: new Date(blockDraft.endsAt).toISOString(), reason: blockDraft.reason || undefined } })}>{addBlock.isPending ? 'Adding…' : 'Block time'}</Button></div>}</div></div>}</DialogContent>
+    </Dialog>
+
+    <Dialog open={Boolean(editing)} onOpenChange={(value) => !value && setEditing(null)}><DialogContent><DialogHeader><DialogTitle>Update {editing?.role?.toLowerCase()}</DialogTitle></DialogHeader><div className="grid gap-4">{editing?.role === 'Staff' && <div className="grid gap-2"><Label>Staff type</Label><SelectField options={[{ value: 'STAFF', label: 'Staff' }, { value: 'FRONT_DESK', label: 'Front desk' }, { value: 'MANAGER', label: 'Manager' }, { value: 'INSTRUCTOR', label: 'Instructor' }]} value={editing?.staffType ?? 'STAFF'} onChange={(value) => setEditing({ ...editing, staffType: value })} /></div>}{editing?.role === 'Instructor' && <div className="grid gap-2"><Label>Specialty</Label><Input value={editing.specialty ?? ''} onChange={(e) => setEditing({ ...editing, specialty: e.currentTarget.value })} /></div>}<SelectField label="Status" options={['ACTIVE', 'INACTIVE'].map((x) => ({ value: x, label: x }))} value={editing?.status} onChange={(value) => setEditing({ ...editing, status: value })} /></div><DialogFooter><Button onClick={() => editing.role === 'Customer' ? updateCustomer.mutate({ id: editing.id, status: editing.status }) : editing.role === 'Staff' ? updateStaff.mutate({ id: editing.id, status: editing.status, staffType: editing.staffType }) : updateInstructor.mutate({ id: editing.id, status: editing.status, specialty: editing.specialty })}>{updateCustomer.isPending || updateInstructor.isPending || updateStaff.isPending ? 'Saving…' : 'Save'}</Button></DialogFooter></DialogContent></Dialog>
+  </div>
 }

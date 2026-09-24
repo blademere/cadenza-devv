@@ -24,12 +24,25 @@
       "command": "npm --workspace @express-app/obo-web run dev",
       "cwd": "${workspaceFolder}",
       "env": { "BROWSER": "none" }
+    },
+    {
+      "name": "Cadenza Web: React",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm --workspace @express-app/cadenza-web run dev",
+      "cwd": "${workspaceFolder}",
+      "env": { "BROWSER": "none" }
     }
   ],
   "compounds": [
     {
       "name": "Full Stack: API + OBO Web",
       "configurations": ["API: Express", "OBO Web: React"],
+      "stopAll": true
+    },
+    {
+      "name": "Full Stack: API + Cadenza Web",
+      "configurations": ["API: Express", "Cadenza Web: React"],
       "stopAll": true
     }
   ]

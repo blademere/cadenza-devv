@@ -16,8 +16,17 @@ const RESOURCE_ROUTE =
   /router\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]*\/:[^'"`]*)['"`]/g
 const IDEMPOTENCY_MIDDLEWARE =
   /\b(?:requireIdempotency|idempotency(?:Middleware)?)\b/
+const IDENTITY = '[A-Za-z_$][\\w$]*'
+const IDEMPOTENCY_ALIAS = new RegExp(
+  `(?:const|let|var)\\s+(${IDENTITY})\\s*=\\s*idempotency\\s*\\(`,
+  'g'
+)
 const AUTHORIZATION_MIDDLEWARE =
   /\bauthorizeResource\b|\bauthorize[A-Z][A-Za-z0-9_]*\b/
+const AUTHORIZATION_ALIAS = new RegExp(
+  `(?:const|let|var)\\s+(${IDENTITY})\\s*=\\s*[^\\n;]*\\bauthorizeResource\\s*\\(`,
+  'g'
+)
 
 const APPLICATION_SECURITY_IMPORT =
   /(?:\.\.\/)+platform\/applications\/(?:application|membership)[^'"`\s)]*/
@@ -202,6 +211,14 @@ const findCallEnd = (source, start) => {
 
 const getRouteViolations = (relative, source) => {
   const failures = []
+  const idempotencyAliases = [...source.matchAll(IDEMPOTENCY_ALIAS)].map((match) => match[1])
+  const authorizationAliases = [...source.matchAll(AUTHORIZATION_ALIAS)].map((match) => match[1])
+  const hasIdempotency = (statement) =>
+    IDEMPOTENCY_MIDDLEWARE.test(statement) ||
+    idempotencyAliases.some((alias) => new RegExp(`\\b${alias}\\b`).test(statement))
+  const hasResourceAuthorization = (statement) =>
+    AUTHORIZATION_MIDDLEWARE.test(statement) ||
+    authorizationAliases.some((alias) => new RegExp(`\\b${alias}\\b`).test(statement))
 
   for (const match of source.matchAll(MUTATION)) {
     const operationStart = match.index
@@ -211,7 +228,7 @@ const getRouteViolations = (relative, source) => {
     const context = source.slice(contextStart, statementEnd)
     const explicitlyExempt = /idempotency\s*:\s*exempt/i.test(context)
 
-    if (!IDEMPOTENCY_MIDDLEWARE.test(statement) && !explicitlyExempt) {
+    if (!hasIdempotency(statement) && !explicitlyExempt) {
       failures.push(
         `${relative}: ${match[1].toUpperCase()} mutation must use shared idempotency middleware or an explicit 'idempotency: exempt' comment with justification.`
       )
@@ -223,7 +240,7 @@ const getRouteViolations = (relative, source) => {
     const statementEnd = findCallEnd(source, operationStart)
     const statement = source.slice(operationStart, statementEnd)
 
-    if (!AUTHORIZATION_MIDDLEWARE.test(statement)) {
+    if (!hasResourceAuthorization(statement)) {
       failures.push(
         `${relative}: resource route '${match[2]}' must use authorizeResource or an explicit resource-authorization helper.`
       )

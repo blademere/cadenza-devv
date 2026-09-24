@@ -6,7 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "start:worker": "node src/platform/platform-worker.js",
+    "start:worker": "node src/worker.js",
     "predev": "npm run prisma:generate",
     "dev": "nodemon --legacy-watch src/server.js",
     "prestart": "npm run prisma:generate",
@@ -26,13 +26,18 @@
     "prisma:validate": "prisma validate --config ./prisma.config.ts",
     "prisma:migrate": "prisma migrate dev --config ./prisma.config.ts",
     "prisma:migrate:deploy": "prisma migrate deploy --config ./prisma.config.ts",
-    "db:seed": "node scripts/db-seed.js",
-    "db:setup": "npm run prisma:generate && npm run prisma:migrate && npm run db:seed",
+    "db:seed": "node scripts/db-seed.js --app=all",
+    "db:setup": "npm run prisma:generate && npm run prisma:migrate && node scripts/db-seed.js --app=all --profile=development",
     "db:backup": "node scripts/db-backup.cjs",
     "db:restore": "node scripts/db-restore.cjs",
     "validate:architecture": "node scripts/validate-architecture.cjs",
     "validate:authorization": "node scripts/validate-authorization.cjs",
-    "validate:migrations": "node scripts/validate-migrations.cjs"
+    "validate:migrations": "node scripts/validate-migrations.cjs",
+    "db:seed:platform": "node scripts/db-seed.js --app=platform",
+    "db:seed:obo": "node scripts/db-seed.js --app=obo",
+    "db:seed:cadenza": "node scripts/db-seed.js --app=cadenza",
+    "db:seed:all": "node scripts/db-seed.js --app=all",
+    "db:reset": "prisma migrate reset --config ./prisma.config.ts --force && node scripts/db-seed.js --app=all --profile=development"
   },
   "type": "module",
   "dependencies": {
