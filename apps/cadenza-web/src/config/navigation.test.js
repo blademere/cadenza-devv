@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { navigation, normalizeNavigation } from '../../../src/config/navigation'
+import { navigation, normalizeNavigation } from './navigation'
 
 const sectionKeys = (permissions) =>
   normalizeNavigation(navigation, permissions).map((section) => ({
