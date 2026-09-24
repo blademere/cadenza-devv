@@ -21,9 +21,11 @@ async function seedObo(prisma, { profile = 'default' } = {}) {
   await seedOboWorkflow(prisma)
 
   if (profile === 'development') {
+    const bcrypt = await import('bcrypt')
+    const passwordHash = await bcrypt.hash('112233445566', 12)
     const { form: applicationForm } = await seedPlatformForms(prisma)
     await seedOboReferenceData(prisma, { applicationForm })
-    await seedOboDevelopmentScenario(prisma, { roles, passwordHash: null })
+    await seedOboDevelopmentScenario(prisma, { roles, passwordHash })
     await seedOboPlatformConfiguration(prisma)
     await bindOboDevelopmentForm(prisma)
     await seedRolePersons(prisma)
