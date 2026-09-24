@@ -3,7 +3,10 @@ import AppLayout from './layout'
 import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
 import LoginPage from '../features/auth/pages/LoginPage'
-import LessonManagementPage from '../features/lessons/pages/LessonManagementPage'\nimport LessonPackagesPage from '../features/lessons/pages/LessonPackagesPage'\nimport LessonEnrollmentsPage from '../features/lessons/pages/LessonEnrollmentsPage'\nimport LessonSchedulePage from '../features/lessons/pages/LessonSchedulePage'
+import LessonManagementPage from '../features/lessons/pages/LessonManagementPage'
+import LessonPackagesPage from '../features/lessons/pages/LessonPackagesPage'
+import LessonEnrollmentsPage from '../features/lessons/pages/LessonEnrollmentsPage'
+import LessonSchedulePage from '../features/lessons/pages/LessonSchedulePage'
 import FindLessonsPage from '../features/lessons/pages/FindLessonsPage'
 import MyLessonsPage from '../features/lessons/pages/MyLessonsPage'
 import LessonHistoryPage from '../features/lessons/pages/LessonHistoryPage'
@@ -39,7 +42,10 @@ export const router = createBrowserRouter([
             { path: 'find-lessons', element: <PermissionRoute anyPermissions={['cadenza_enrollments:create', 'cadenza_enrollments:read']} />, children: [{ index: true, element: <FindLessonsPage /> }] },
             { path: 'my-lessons', element: <PermissionRoute anyPermissions={['cadenza_enrollments:create', 'cadenza_enrollments:read']} />, children: [{ index: true, element: <MyLessonsPage /> }] },
             { path: 'lesson-history', element: <PermissionRoute anyPermissions={['cadenza_enrollments:create', 'cadenza_enrollments:read']} />, children: [{ index: true, element: <LessonHistoryPage /> }] },
-            { path: 'lessons', element: <PermissionRoute anyPermissions={['cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:manage', 'cadenza_lessons:schedule']} />, children: [{ index: true, element: <LessonManagementPage /> }] },\n            { path: 'lesson-packages', element: <PermissionRoute anyPermissions={['cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:manage']} />, children: [{ index: true, element: <LessonPackagesPage /> }] },\n            { path: 'lesson-enrollments', element: <PermissionRoute anyPermissions={['cadenza_enrollments:read', 'cadenza_enrollments:create', 'cadenza_enrollments:manage']} />, children: [{ index: true, element: <LessonEnrollmentsPage /> }] },\n            { path: 'lesson-schedule', element: <PermissionRoute anyPermissions={['cadenza_lessons:schedule', 'cadenza_lessons:attendance', 'cadenza_lessons:manage']} />, children: [{ index: true, element: <LessonSchedulePage /> }] },
+            { path: 'lessons', element: <PermissionRoute anyPermissions={['cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:manage', 'cadenza_lessons:schedule']} />, children: [{ index: true, element: <LessonManagementPage /> }] },
+            { path: 'lesson-packages', element: <PermissionRoute anyPermissions={['cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:manage']} />, children: [{ index: true, element: <LessonPackagesPage /> }] },
+            { path: 'lesson-enrollments', element: <PermissionRoute anyPermissions={['cadenza_enrollments:read', 'cadenza_enrollments:create', 'cadenza_enrollments:manage']} />, children: [{ index: true, element: <LessonEnrollmentsPage /> }] },
+            { path: 'lesson-schedule', element: <PermissionRoute anyPermissions={['cadenza_lessons:schedule', 'cadenza_lessons:attendance', 'cadenza_lessons:manage']} />, children: [{ index: true, element: <LessonSchedulePage /> }] },
             { path: 'my-teaching', element: <PermissionRoute permission="cadenza_lessons:attendance" />, children: [{ index: true, element: <InstructorTeachingPage /> }] },
             { path: 'audit', element: <PermissionRoute permission="audit_logs:read" />, children: [{ index: true, element: <AuditPage /> }] },
             { path: 'find-rentals', element: <PermissionRoute anyPermissions={['cadenza_rentals:read', 'cadenza_rentals:create']} />, children: [{ index: true, element: <FindRentalsPage /> }] },
