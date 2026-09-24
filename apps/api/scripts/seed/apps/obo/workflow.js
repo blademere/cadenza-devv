@@ -19,42 +19,6 @@ const OBO_WORKFLOW = {
   ],
 }
 
-const OBO_DEVELOPMENT_FIXTURE = {
-  clientEmail: 'obo-client@example.test',
-  professionalEmail: 'obo-professional@example.test',
-  receivingOfficerEmail: 'obo-receiving-officer@example.test',
-  registrationNumber: 'DEV-OBO-PRC-0001',
-  professionalRole: 'ARCHITECT',
-  referenceNumber: 'OBO-DEV-20300610-0001',
-  appointmentReferenceNumber: 'OBO-APPT-DEV-0001',
-  formKey: 'obo-building-permit',
-  formVersion: 1,
-  professionalFieldKey: 'architect',
-}
-
-const ensureUser = async (prisma, { appId, email, roleId, passwordHash }) => {
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { isActive: true, ...(passwordHash ? { passwordHash } : {}) },
-    create: { email, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
-  })
-
-  if (roleId) {
-    const membership = await prisma.appMembership.upsert({
-      where: { appId_userId: { appId, userId: user.id } },
-      update: { isActive: true },
-      create: { appId, userId: user.id },
-    })
-    await prisma.appMembershipRole.upsert({
-      where: { membershipId_roleId: { membershipId: membership.id, roleId } },
-      update: {},
-      create: { membershipId: membership.id, roleId },
-    })
-  }
-
-  return user
-}
-
 async function seedOboWorkflow(prisma) {
   const workflow = await prisma.workflow.upsert({
     where: { key: OBO_WORKFLOW.key },
