@@ -13,6 +13,7 @@ import SelectField from '../../../components/select-field'
 import LoadingState from '../../../components/loading-state'
 import { customersApi } from '../../customers/api/customers.api'
 import { instructorsApi } from '../../instructors/api/instructors.api'
+import { actorsApi } from '../api/actors.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
 
 const unwrap = (r) => r?.data ?? r ?? []
@@ -28,8 +29,10 @@ export default function UsersPage() {
   const canInstructorCreate = can('cadenza_instructors:create')
   const canInstructorManage = can('cadenza_instructors:manage')
   const canCustomerManage = can('cadenza_customers:manage')
+  const canActorRead = can('cadenza_staff:read')
 
   const customers = useQuery({ queryKey: ['cadenza', 'customers'], queryFn: customersApi.list })
+  const actors = useQuery({ queryKey: ['cadenza', 'actors'], queryFn: () => actorsApi.list({ limit: 100 }), enabled: canActorRead })
   const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list, enabled: canInstructorRead })
   const candidates = useQuery({ queryKey: ['cadenza', 'instructor-candidates'], queryFn: instructorsApi.listCandidates, enabled: canInstructorCreate })
 
@@ -79,8 +82,8 @@ export default function UsersPage() {
   })
   const register = useMutation({ mutationFn: customersApi.registerMe, onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'customers'] }) })
 
-  if (customers.isLoading || (canInstructorRead && instructors.isLoading)) return <LoadingState label="Loading people…" rows={4} />
-  if (customers.error || instructors.error) return <Alert variant="destructive"><AlertDescription>{(customers.error || instructors.error).message}</AlertDescription></Alert>
+  if (customers.isLoading || (canInstructorRead && instructors.isLoading) || (canActorRead && actors.isLoading)) return <LoadingState label="Loading people…" rows={4} />
+  if (customers.error || instructors.error || actors.error) return <Alert variant="destructive"><AlertDescription>{(customers.error || instructors.error || actors.error).message}</AlertDescription></Alert>
 
   const entries = [
     ...unwrap(customers.data).map((x) => ({ ...x, role: 'Customer' })),
@@ -102,6 +105,14 @@ export default function UsersPage() {
   const timeToMinutes = (value) => { const [hours, minutes] = value.split(':').map(Number); return hours * 60 + minutes }
   const formatDateTime = (value) => value ? new Date(value).toLocaleString() : '—'
 
+  const actorColumns = [
+    { key: 'name', header: 'Name', value: (x) => personName(x.person) },
+    { key: 'email', header: 'Account', value: (x) => x.email },
+    { key: 'types', header: 'Profiles', render: (x) => <div className="flex flex-wrap gap-1">{x.actorTypes.length ? x.actorTypes.map((type) => <Badge key={type} variant="secondary">{type}</Badge>) : <span className="text-muted-foreground">Membership only</span>}</div> },
+    { key: 'roles', header: 'Roles', render: (x) => <div className="flex flex-wrap gap-1">{x.roleNames.map((role) => <Badge key={role} variant="outline">{role}</Badge>)}</div> },
+    { key: 'status', header: 'Account', render: (x) => <Badge variant={x.isActive ? 'default' : 'outline'}>{x.isActive ? 'ACTIVE' : 'INACTIVE'}</Badge> },
+  ]
+
   const columns = [
     { key: 'name', header: 'Name', value: (x) => personName(x.person) },
     { key: 'email', header: 'Email', value: (x) => x.person?.email ?? '—' },
@@ -114,6 +125,7 @@ export default function UsersPage() {
   return <div className="space-y-6">
     <PageHeader title="Users" description="Cadenza customers and instructors." actions={<div className="flex flex-wrap gap-2"><Button disabled={register.isPending} onClick={() => register.mutate()}>{register.isPending ? 'Registering…' : 'Register my account as customer'}</Button>{canInstructorCreate && <Button variant="outline" onClick={() => setAddInstructorOpen(true)}>Add instructor</Button>}</div>} />
     {error && <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>}
+    {canActorRead && <Card><CardContent className="pt-6"><PageHeader title="All Cadenza actors" description="One authenticated User can hold multiple Cadenza profiles and roles." /><DataTable columns={actorColumns} rows={unwrap(actors.data)} searchPlaceholder="Search Cadenza actors…" /></CardContent></Card>}
     <Card><CardContent className="pt-6"><DataTable columns={columns} rows={entries} searchPlaceholder="Search users…" /></CardContent></Card>
 
     <Dialog open={addInstructorOpen} onOpenChange={setAddInstructorOpen}>
