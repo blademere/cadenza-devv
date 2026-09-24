@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { CaretDown, SignOut } from '@phosphor-icons/react'
+import { CaretDown, CaretRight, SignOut } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import {
   DropdownMenu,
@@ -21,7 +21,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from './ui/sidebar'
-import { branding } from '../config/branding'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'\nimport { branding } from '../config/branding'
 
 export default function AppSidebar({ navigation = [], user, onNavigate, onLogout }) {
   const location = useLocation()
