@@ -12,18 +12,14 @@ const authorizationCatalog = {
   obo_professionals: ['read', 'create', 'update', 'review'],
   obo_appointments: ['read', 'create', 'cancel', 'check_in', 'manage'],
   cadenza_authorization: ['manage'],
-  cadenza_customer_portal: ['access'],
-  cadenza_instructor_portal: ['access'],
-  cadenza_customers: ['read', 'create', 'update', 'manage'],
-  cadenza_instructors: ['read', 'read_own', 'create', 'update', 'manage'],
+  cadenza_students: ['read', 'create', 'manage'],
+  cadenza_instructors: ['read', 'create', 'update', 'manage'],
   cadenza_instruments: ['read', 'create', 'update', 'manage'],
   cadenza_rooms: ['read', 'create', 'update', 'manage'],
   cadenza_lessons: ['read', 'create', 'update', 'manage', 'schedule', 'attendance', 'request_reschedule', 'review_reschedule', 'complete', 'cancel'],
-  cadenza_enrollments: ['read', 'create', 'update', 'manage', 'cancel'],
-  cadenza_rentals: ['read', 'create', 'update', 'manage', 'cancel'],
+  cadenza_enrollments: ['read', 'create', 'update', 'manage'],
+  cadenza_rentals: ['read', 'create', 'update', 'manage'],
   cadenza_payments: ['read', 'create', 'manage'],
-  cadenza_dashboard: ['read'],
-  audit_logs: ['read'],
 }
 
 const rolePermissions = {
@@ -35,9 +31,9 @@ const rolePermissions = {
 
 
 const cadenzaRolePermissions = {
-  cadenza_client: ['cadenza_customer_portal:access', 'cadenza_lessons:read', 'cadenza_lessons:request_reschedule', 'cadenza_enrollments:cancel', 'cadenza_rentals:cancel', 'cadenza_enrollments:read', 'cadenza_enrollments:create', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_payments:read', 'cadenza_payments:create', 'cadenza_dashboard:read'],
-  cadenza_frontdesk: ['cadenza_customers:read', 'cadenza_customers:create', 'cadenza_customers:update', 'cadenza_customers:manage', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_rentals:manage', 'cadenza_rentals:cancel', 'cadenza_instructors:read', 'cadenza_instructors:create', 'cadenza_instructors:update', 'cadenza_instructors:manage', 'cadenza_instruments:read', 'cadenza_instruments:update', 'cadenza_rooms:read', 'cadenza_rooms:update', 'cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:update', 'cadenza_lessons:manage', 'cadenza_lessons:schedule', 'cadenza_lessons:attendance', 'cadenza_lessons:request_reschedule', 'cadenza_lessons:review_reschedule', 'cadenza_lessons:complete', 'cadenza_lessons:cancel', 'cadenza_enrollments:read', 'cadenza_enrollments:update', 'cadenza_enrollments:manage', 'cadenza_enrollments:cancel', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_rentals:update', 'cadenza_rentals:manage', 'cadenza_rentals:cancel', 'cadenza_payments:read', 'cadenza_payments:create', 'cadenza_payments:manage', 'cadenza_dashboard:read', 'audit_logs:read'],
-  cadenza_instructor: ['cadenza_instructor_portal:access', 'cadenza_instructors:read_own', 'cadenza_lessons:read', 'cadenza_lessons:update', 'cadenza_lessons:attendance', 'cadenza_lessons:request_reschedule', 'cadenza_dashboard:read'],
+  cadenza_client: ['cadenza_students:read', 'cadenza_instruments:read', 'cadenza_rooms:read', 'cadenza_lessons:read', 'cadenza_lessons:request_reschedule', 'cadenza_enrollments:read', 'cadenza_enrollments:create', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_payments:read', 'cadenza_payments:create'],
+  cadenza_frontdesk: ['cadenza_students:read', 'cadenza_students:create', 'cadenza_students:manage', 'cadenza_instructors:read', 'cadenza_instructors:create', 'cadenza_instructors:update', 'cadenza_instruments:read', 'cadenza_instruments:update', 'cadenza_rooms:read', 'cadenza_rooms:update', 'cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:update', 'cadenza_lessons:manage', 'cadenza_lessons:schedule', 'cadenza_lessons:attendance', 'cadenza_lessons:request_reschedule', 'cadenza_lessons:review_reschedule', 'cadenza_lessons:complete', 'cadenza_lessons:cancel', 'cadenza_enrollments:read', 'cadenza_enrollments:update', 'cadenza_enrollments:manage', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_rentals:update', 'cadenza_rentals:manage', 'cadenza_payments:read', 'cadenza_payments:create', 'cadenza_payments:manage'],
+  cadenza_instructor: ['cadenza_students:read', 'cadenza_lessons:read', 'cadenza_lessons:update', 'cadenza_lessons:attendance', 'cadenza_lessons:request_reschedule', 'cadenza_enrollments:read'],
 }
 const moduleName = (key) => key.split(/[_-]+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 
@@ -121,7 +117,7 @@ async function seedAuthorization(prisma, { applications } = {}) {
   const cadenzaDescriptions = {
     cadenza_client: 'Cadenza customer who enrolls in lessons and creates rentals.',
     cadenza_frontdesk: 'Cadenza front desk staff who manages customer, lesson, rental, and payment operations.',
-    cadenza_instructor: 'Cadenza instructor who can view assigned lessons and record attendance.',
+    cadenza_instructor: 'Cadenza instructor who can view lesson assignments and update lesson records.',
   }
   for (const [roleName, keys] of Object.entries(cadenzaRolePermissions)) {
     const role = await prisma.role.upsert({
@@ -130,17 +126,6 @@ async function seedAuthorization(prisma, { applications } = {}) {
       create: { appId: cadenza.id, name: roleName, description: cadenzaDescriptions[roleName] },
     })
     roles[roleName] = role
-    await prisma.rolePermission.deleteMany({
-      where: {
-        roleId: role.id,
-        permission: {
-          OR: [
-            { module: { key: { startsWith: 'cadenza_' } } },
-            { module: { key: 'audit_logs' } },
-          ],
-        },
-      },
-    })
     for (const key of keys) {
       const permission = permissionRecords.get(key)
       if (!permission) throw new Error(`Unknown Cadenza permission declared for ${roleName}: ${key}`)
@@ -154,19 +139,8 @@ async function seedAuthorization(prisma, { applications } = {}) {
 
   const cadenzaAdmin = await prisma.role.upsert({ where: { appId_name: { appId: cadenza.id, name: 'admin' } }, update: { description: 'Application administrator for Cadenza.' }, create: { appId: cadenza.id, name: 'admin', description: 'Application administrator for Cadenza.' } })
   roles.cadenza_admin = cadenzaAdmin
-  await prisma.rolePermission.deleteMany({
-    where: {
-      roleId: cadenzaAdmin.id,
-      permission: {
-        OR: [
-          { module: { key: { startsWith: 'cadenza_' } } },
-          { module: { key: 'audit_logs' } },
-        ],
-      },
-    },
-  })
   for (const [key, permission] of permissionRecords) {
-    if (!key.startsWith('cadenza_') && key !== 'audit_logs:read') continue
+    if (!key.startsWith('cadenza_')) continue
     await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: cadenzaAdmin.id, permissionId: permission.id } }, update: {}, create: { roleId: cadenzaAdmin.id, permissionId: permission.id } })
   }
 
