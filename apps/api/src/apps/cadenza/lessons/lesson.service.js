@@ -496,7 +496,8 @@ const requestReschedule = async ({
     if (!session) throw new NotFoundError('Lesson session not found.')
     const manager = await canManage(actorId, owner)
     const customerActor = Number(session.enrollment?.customer?.person?.userId) === Number(actorId)
-    if (!manager && !customerActor) throw new ForbiddenError('Only the enrolled customer can request a reschedule.')
+    const instructorActor = Number(session.instructor?.person?.userId) === Number(actorId)
+    if (!manager && !customerActor && !instructorActor) throw new ForbiddenError('Only the enrolled customer or assigned instructor can request a reschedule.')
     if (
       [SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED].includes(
         session.status
