@@ -24,7 +24,7 @@ export default function ResourceUsageHistoryPage() {
   const [status, setStatus] = useState('ALL')
   const [period, setPeriod] = useState('ALL')
   const resources = useMemo(() => [
-    ...unwrap(instruments.data).map((x) => ({ id: x.resourceId, name: x.resource?.name ?? x.name ?? x.resourceId, type: 'Instrument' })),
+    ...unwrap(instruments.data).map((x) => ({ id: x.resourceId, name: x.resource?.name || x.name || 'Unnamed resource', type: 'Instrument' })),
     ...unwrap(rooms.data).map((x) => ({ id: x.resourceId, name: x.resource?.name ?? x.name ?? x.resourceId, type: 'Band room' })),
   ].filter((x) => x.id), [instruments.data, rooms.data])
 
