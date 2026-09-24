@@ -1,5 +1,5 @@
 import { successResponse } from '../../common/responses/apiResponse.js'
-import { login, selectApplication, requestPasswordReset, resetPassword, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout } from './auth.service.js'
+import { login, requestPasswordReset, resetPassword, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout } from './auth.service.js'
 import { registerUser } from './registration.service.js'
 import { issueEmailVerification, verifyEmail } from './email-verification.service.js'
 import { findUserById } from './auth.repository.js'
