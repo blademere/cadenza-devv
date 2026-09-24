@@ -3,16 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   getUserApplications: vi.fn(),
   getApplicationByKey: vi.fn(),
-  selectApplication: vi.fn(),
+  issueApplicationSession: vi.fn(),
 }))
 
 vi.mock('../../../../src/platform/applications/application.service.js', () => ({
   getUserApplications: mocks.getUserApplications,
   getApplicationByKey: mocks.getApplicationByKey,
-}))
-
-vi.mock('../../../../src/features/auth/auth.service.js', () => ({
-  selectApplication: mocks.selectApplication,
 }))
 
 import {
@@ -57,12 +53,12 @@ describe('application controllers', () => {
       application: { id: 'obo-id', key: 'obo', name: 'One-Stop Business Office' },
       membership: { id: 'membership-id', app: { id: 'obo-id', key: 'obo' }, roles: [] },
     }
-    mocks.selectApplication.mockResolvedValue(result)
+    mocks.issueApplicationSession.mockResolvedValue(result)
     const res = response()
 
-    await selectApplicationController({ user: { id: 42 }, params: { appKey: 'obo' } }, res)
+    await selectApplicationController(mocks.issueApplicationSession)({ user: { id: 42 }, params: { appKey: 'obo' } }, res)
 
-    expect(mocks.selectApplication).toHaveBeenCalledWith({ userId: 42, appKey: 'obo' })
+    expect(mocks.issueApplicationSession).toHaveBeenCalledWith({ userId: 42, appKey: 'obo' })
     expect(res.cookie).toHaveBeenCalledWith('refreshToken', 'refresh-token', expect.objectContaining({ httpOnly: true }))
     expect(res.json).toHaveBeenCalled()
   })
