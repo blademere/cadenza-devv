@@ -106,7 +106,7 @@
     "db:setup": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.js",
+        "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.js --app=all --profile=development",
         "cwd": "apps/api"
       }
     },

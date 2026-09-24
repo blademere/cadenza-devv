@@ -4,7 +4,7 @@ import { seedCadenza } from './apps/cadenza.js'
 import { seedModelCoverage } from '../seed-model-coverage.js'
 
 const PROFILES = new Set(['default', 'development', 'fixtures', 'coverage'])
-const APPS = new Set(['all', 'obo', 'cadenza'])
+const APPS = new Set(['platform', 'all', 'obo', 'cadenza'])
 
 async function runSeed(prisma, profile = 'default', app = 'all') {
   if (!PROFILES.has(profile)) {
