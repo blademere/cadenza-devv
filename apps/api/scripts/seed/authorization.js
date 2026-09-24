@@ -80,6 +80,10 @@ async function seedAuthorization(prisma, { applications, applicationKeys = ['obo
   if (applicationKeys.includes('cadenza') && !cadenza) throw new Error("Application 'cadenza' must be seeded before authorization roles.")
 
   for (const [moduleKey, actions] of Object.entries(authorizationCatalog)) {
+    const isSharedModule = moduleKey === 'audit_logs'
+    const belongsToSelectedApp = applicationKeys.some((appKey) => moduleKey.startsWith(`${appKey}_`))
+    if (!isSharedModule && !belongsToSelectedApp) continue
+
     const module = await prisma.module.upsert({ where: { key: moduleKey }, update: { name: moduleName(moduleKey), isActive: true }, create: { key: moduleKey, name: moduleName(moduleKey), isActive: true } })
     for (const action of actions) {
       const permission = await prisma.permission.upsert({ where: { moduleId_action: { moduleId: module.id, action } }, update: {}, create: { moduleId: module.id, action } })
