@@ -93,11 +93,11 @@ export default function UsersPage() {
   })
   const register = useMutation({ mutationFn: customersApi.registerMe, onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'customers'] }) })
 
-  if (customers.isLoading || (canInstructorRead && instructors.isLoading) || (canStaffRead && staff.isLoading)) return <LoadingState label="Loading people…" rows={4} />
-  if (customers.error || (canInstructorRead && instructors.error) || (canStaffRead && staff.error)) return <Alert variant="destructive"><AlertDescription>{(customers.error || instructors.error || staff.error).message}</AlertDescription></Alert>
+  if ((canCustomerManage && customers.isLoading) || (canInstructorRead && instructors.isLoading) || (canStaffRead && staff.isLoading)) return <LoadingState label="Loading people…" rows={4} />
+  if ((canCustomerManage && customers.error) || (canInstructorRead && instructors.error) || (canStaffRead && staff.error)) return <Alert variant="destructive"><AlertDescription>{(customers.error || instructors.error || staff.error).message}</AlertDescription></Alert>
 
   const entries = [
-    ...unwrap(customers.data).map((x) => ({ ...x, role: 'Customer' })),
+    ...(canCustomerManage ? unwrap(customers.data).map((x) => ({ ...x, role: 'Customer' })) : []),
     ...(canInstructorRead ? unwrap(instructors.data).map((x) => ({ ...x, role: 'Instructor' })) : []),
     ...(canStaffRead ? unwrap(staff.data).map((x) => ({ ...x, role: 'Staff' })) : []),
   ]
