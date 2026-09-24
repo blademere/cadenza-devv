@@ -59,4 +59,23 @@ describe('Cadenza navigation authorization', () => {
       'administration',
     ])
   })
+  it('does not expose customer or instructor portals to front desk permissions', () => {
+    const visible = sectionKeys([
+      'cadenza_dashboard:read',
+      'cadenza_customers:manage',
+      'cadenza_enrollments:read',
+      'cadenza_enrollments:manage',
+      'cadenza_rentals:manage',
+      'cadenza_lessons:manage',
+      'cadenza_lessons:schedule',
+      'cadenza_instruments:update',
+      'cadenza_rooms:update',
+      'audit_logs:read',
+    ])
+
+    expect(visible.some((section) => section.key === 'customer')).toBe(false)
+    expect(visible.some((section) => section.key === 'instructor')).toBe(false)
+    expect(visible.map((section) => section.key)).toContain('lessons-management')
+  })
+
 })
