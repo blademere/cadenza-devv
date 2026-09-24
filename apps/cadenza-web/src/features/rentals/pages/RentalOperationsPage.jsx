@@ -15,8 +15,8 @@ import { rentalsApi } from '../api/rentals.api'
 import { paymentsApi } from '../../payments/api/payments.api'
 
 const unwrap = (value) => value?.data ?? value ?? []
-const nameOf = (r) => r.customer?.person?.firstName || r.customer?.person?.email || r.customerId || 'Customer'
-const resourceOf = (r) => r.resource?.name || (r.rentalType === 'ROOM' ? 'Band room' : 'Instrument')
+const nameOf = (r) => [r.customer?.person?.firstName, r.customer?.person?.middleName, r.customer?.person?.lastName, r.customer?.person?.suffix].filter(Boolean).join(' ') || r.customer?.person?.email || 'Customer'
+const resourceOf = (r) => r.resource?.name || [r.instrument?.instrumentType, r.instrument?.brand, r.instrument?.model].filter(Boolean).join(' · ') || r.room?.resource?.name || r.room?.roomType || (r.rentalType === 'ROOM' ? 'Band room' : 'Instrument')
 const statusLabel = (s) => ({ PENDING: 'Booking', RESERVED: 'Reserved', CHECKED_OUT: 'Checked out', ACTIVE: 'Checked out', RETURNED: 'Returned', CANCELLED: 'Cancelled' }[s] || s)
 
 const CONFIG = {
