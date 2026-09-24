@@ -2,7 +2,6 @@ import { successResponse } from '../../common/responses/apiResponse.js'
 import { ForbiddenError } from '../../common/errors/appError.js'
 import { mapApplication } from './application.mapper.js'
 import { getUserApplications, getApplicationByKey } from './application.service.js'
-import { selectApplication } from '../../features/auth/auth.service.js'
 import { env } from '../../config/index.js'
 
 const refreshCookieOptions = {
@@ -27,8 +26,9 @@ const getUserApplicationController = async (req, res) => {
   return successResponse(res, 'Application retrieved successfully.', { app: mapApplication(application) })
 }
 
-const selectApplicationController = async (req, res) => {
-  const result = await selectApplication({ userId: req.user.id, appKey: req.params.appKey })
+const selectApplicationController = (issueApplicationSession) => async (req, res) => {
+  if (typeof issueApplicationSession !== 'function') throw new TypeError('Application selection requires an authentication session issuer.')
+  const result = await issueApplicationSession({ userId: req.user.id, appKey: req.params.appKey })
   res.cookie('refreshToken', result.refreshToken, refreshCookieOptions)
   return successResponse(res, 'Application selected successfully.', {
     accessToken: result.accessToken,
