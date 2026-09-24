@@ -16,6 +16,7 @@ const resource = authorizeResource({
   getResourceId: (req) => req.params.id,
 })
 
+router.get('/candidates', manage, asyncHandler(controller.listCandidatesController))
 router.get('/', read, asyncHandler(controller.listController))
 router.get('/:id', read, validate(validation.idParamsValidator), asyncHandler(controller.getController))
 router.post('/', manage, idem, validate(validation.createStaffValidator), asyncHandler(controller.createController))
