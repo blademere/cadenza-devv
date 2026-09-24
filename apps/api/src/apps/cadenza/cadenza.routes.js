@@ -12,7 +12,6 @@ import paymentRoutes from './payments/payment.routes.js'
 import dashboardRoutes from './dashboard/dashboard.routes.js'
 import resourceRoutes from './resources/resource.routes.js'
 import staffRoutes from './staff/staff.routes.js'
-import actorRoutes from './actors/actor.routes.js'
 import { registerPaymentWorkflow } from '../../platform/payments/payment-workflow.registry.js'
 import * as cadenzaPaymentWorkflow from './payments/payment-workflow.js'
 
@@ -31,5 +30,4 @@ router.use('/rentals', rentalRoutes)
 router.use('/payments', paymentRoutes)
 router.use('/resources', resourceRoutes)
 router.use('/staff', staffRoutes)
-router.use('/actors', actorRoutes)
 export default router
