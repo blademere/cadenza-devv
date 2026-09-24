@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription } from '../../../components/ui/alert'
 import { Badge } from '../../../components/ui/badge'
@@ -65,10 +65,8 @@ export default function RentalManagementPage() {
 
   const allRows = unwrap(rentals.data)
   const outstandingCount = allRows.filter((r) => !['CANCELLED', 'RETURNED'].includes(r.status) && Number(r.balanceDue ?? r.outstandingAmount ?? 0) > 0).length
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    return allRows.filter((r) => matchesFilter(r, filter) && (!term || [nameOf(r), resourceOf(r), r.rentalType, r.id].join(' ').toLowerCase().includes(term)))
-  }, [allRows, filter, search])
+  const term = search.trim().toLowerCase()
+  const filtered = allRows.filter((r) => matchesFilter(r, filter) && (!term || [nameOf(r), resourceOf(r), r.rentalType, r.id].join(' ').toLowerCase().includes(term)))
 
   const obligation = selectedRental?.payment ?? unwrap(payment.data)
   const balance = Number(obligation?.balanceDue ?? selectedRental?.balanceDue ?? selectedRental?.outstandingAmount ?? 0)
