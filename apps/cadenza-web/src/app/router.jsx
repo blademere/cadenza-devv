@@ -10,7 +10,9 @@ import LessonHistoryPage from '../features/lessons/pages/LessonHistoryPage'
 import InstructorTeachingPage from '../features/instructors/pages/InstructorTeachingPage'
 import AuditPage from '../features/audit/pages/AuditPage'
 import RentalManagementPage from '../features/rentals/pages/RentalManagementPage'
-import CustomerRentalsPage from '../features/rentals/pages/CustomerRentalsPage'
+import FindRentalsPage from '../features/rentals/pages/FindRentalsPage'
+import MyRentalsPage from '../features/rentals/pages/MyRentalsPage'
+import RentalHistoryPage from '../features/rentals/pages/RentalHistoryPage'
 import ResourcesPage from '../features/resources/pages/ResourcesPage'
 import UsersPage from '../features/users/pages/UsersPage'
 import PaymentPage from '../features/payments/pages/PaymentPage'
@@ -40,7 +42,9 @@ export const router = createBrowserRouter([
             { path: 'lessons', element: <PermissionRoute anyPermissions={['cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:manage', 'cadenza_lessons:schedule']} />, children: [{ index: true, element: <LessonManagementPage /> }] },
             { path: 'my-teaching', element: <PermissionRoute permission="cadenza_lessons:attendance" />, children: [{ index: true, element: <InstructorTeachingPage /> }] },
             { path: 'audit', element: <PermissionRoute permission="audit_logs:read" />, children: [{ index: true, element: <AuditPage /> }] },
-            { path: 'my-rentals', element: <PermissionRoute anyPermissions={['cadenza_rentals:read', 'cadenza_rentals:create']} />, children: [{ index: true, element: <CustomerRentalsPage /> }] },
+            { path: 'find-rentals', element: <PermissionRoute anyPermissions={['cadenza_rentals:read', 'cadenza_rentals:create']} />, children: [{ index: true, element: <FindRentalsPage /> }] },
+            { path: 'my-rentals', element: <PermissionRoute anyPermissions={['cadenza_rentals:read', 'cadenza_rentals:create']} />, children: [{ index: true, element: <MyRentalsPage /> }] },
+            { path: 'rental-history', element: <PermissionRoute anyPermissions={['cadenza_rentals:read', 'cadenza_rentals:create']} />, children: [{ index: true, element: <RentalHistoryPage /> }] },
             { path: 'rentals', element: <PermissionRoute permission="cadenza_rentals:manage" />, children: [{ index: true, element: <RentalManagementPage /> }] },
             { path: 'resources', element: <PermissionRoute anyPermissions={['cadenza_instruments:read', 'cadenza_instruments:create', 'cadenza_instruments:update', 'cadenza_rooms:read', 'cadenza_rooms:create', 'cadenza_rooms:update']} />, children: [{ index: true, element: <ResourcesPage /> }] },
             { path: 'users', element: <PermissionRoute permission="cadenza_rentals:manage" />, children: [{ index: true, element: <UsersPage /> }] },
