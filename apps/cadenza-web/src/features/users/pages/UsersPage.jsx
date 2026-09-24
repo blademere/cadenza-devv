@@ -122,10 +122,14 @@ export default function UsersPage() {
   const columns = [
     { key: 'name', header: 'Name', value: (x) => personName(x.person) },
     { key: 'email', header: 'Email', value: (x) => x.person?.email ?? '—' },
-    { key: 'role', header: 'Role', render: (x) => <Badge variant="secondary">{x.role}</Badge> },
-    { key: 'specialty', header: 'Specialty', value: (x) => x.specialty ?? '—' },
-    { key: 'status', header: 'Status', render: (x) => <Badge variant={x.status === 'ACTIVE' ? 'default' : 'outline'}>{x.status ?? '—'}</Badge> },
-    { key: 'actions', header: 'Actions', searchable: false, render: (x) => ((x.role === 'Customer' && canCustomerManage) || (x.role === 'Instructor' && canInstructorManage) || (x.role === 'Staff' && canStaffManage)) ? <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setEditing(x)}>Edit</Button>{x.role === 'Instructor' && <Button size="sm" variant="outline" onClick={() => openAvailability(x)}>Availability</Button>}</div> : null },
+    { key: 'role', header: 'Roles', render: (x) => <div className="flex flex-wrap gap-1">{x.roles.map((role) => <Badge key={role} variant="secondary">{role}</Badge>)}</div> },
+    { key: 'specialty', header: 'Specialty', value: (x) => x.instructor?.specialty ?? '—' },
+    { key: 'status', header: 'Status', render: (x) => <div className="flex flex-wrap gap-1">{[['Customer', x.customer?.status], ['Staff', x.staff?.status], ['Instructor', x.instructor?.status]].filter(([, status]) => status).map(([role, status]) => <Badge key={role} variant={status === 'ACTIVE' ? 'default' : 'outline'}>{role}: {status}</Badge>)}</div> },
+    { key: 'actions', header: 'Actions', searchable: false, render: (x) => <div className="flex flex-wrap gap-2">
+      {x.customer && canCustomerManage && <Button size="sm" variant="outline" onClick={() => setEditing({ ...x.customer, role: 'Customer' })}>Customer</Button>}
+      {x.staff && canStaffManage && <Button size="sm" variant="outline" onClick={() => setEditing({ ...x.staff, role: 'Staff' })}>Staff</Button>}
+      {x.instructor && canInstructorManage && <><Button size="sm" variant="outline" onClick={() => setEditing({ ...x.instructor, role: 'Instructor' })}>Instructor</Button><Button size="sm" variant="outline" onClick={() => openAvailability(x.instructor)}>Availability</Button></>}
+    </div> },
   ]
 
   return <div className="space-y-6">
