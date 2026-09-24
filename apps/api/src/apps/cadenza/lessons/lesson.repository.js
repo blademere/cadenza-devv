@@ -29,8 +29,14 @@ const ensureCustomerForActor = async (actorId, appId, db = prisma) => {
 const findPackage = (id, appId) => prisma.cadenzaLessonPackage.findFirst({ where: { id, appId } })
 const createEnrollment = (data, db = prisma) => db.cadenzaEnrollment.create({ data })
 const attachPaymentObligation = (id, appId, paymentObligationId, db = prisma) => db.cadenzaEnrollment.update({ where: { id }, data: { paymentObligationId }, include: { lessonPackage: true } })
-const listEnrollments = (appId, db = prisma) => db.cadenzaEnrollment.findMany({ where: { appId }, include: { lessonPackage: true, customer: { include: { person: true } }, sessions: { select: { status: true, attendance: { select: { status: true } } } } }, orderBy: { createdAt: 'desc' } })
-const findEnrollmentById = (id, appId, db = prisma) => db.cadenzaEnrollment.findFirst({ where: { id, appId }, include: { lessonPackage: true, customer: { include: { person: true } }, sessions: { orderBy: { scheduledStart: 'asc' }, include: { attendance: true, instructor: { include: { person: true } } } } } })
+const listEnrollments = async (appId, db = prisma) => {
+  const rows = await db.cadenzaEnrollment.findMany({ where: { appId }, include: { lessonPackage: true, customer: { include: { person: true } }, sessions: { select: { id: true, roomId: true, scheduledStart: true, scheduledEnd: true, status: true, attendance: { select: { status: true } }, instructor: { include: { person: true } } } } }, orderBy: { createdAt: 'desc' } })
+  return Promise.all(rows.map(async (row) => ({ ...row, sessions: await hydrateSessions(row.sessions || [], db) })))
+}
+const findEnrollmentById = async (id, appId, db = prisma) => {
+  const row = await db.cadenzaEnrollment.findFirst({ where: { id, appId }, include: { lessonPackage: true, customer: { include: { person: true } }, sessions: { orderBy: { scheduledStart: 'asc' }, include: { attendance: true, instructor: { include: { person: true } } } } } })
+  return row ? { ...row, sessions: await hydrateSessions(row.sessions || [], db) } : null
+}
 const confirmEnrollment = (id, appId, db = prisma) => db.cadenzaEnrollment.updateMany({ where: { id, appId, status: 'PENDING_PAYMENT' }, data: { status: 'CONFIRMED', enrolledAt: new Date(), paymentExpiresAt: null } })
 const updateEnrollmentStatus = (id, appId, fromStatuses, status, db = prisma) => db.cadenzaEnrollment.updateMany({ where: { id, appId, status: { in: fromStatuses } }, data: { status } })
 const findEnrollment = (id, appId, db = prisma) => db.cadenzaEnrollment.findFirst({ where: { id, appId, status: { in: ['CONFIRMED', 'IN_PROGRESS'] } }, include: { lessonPackage: true, customer: { include: { person: true } }, _count: { select: { sessions: true } } } })
@@ -42,7 +48,7 @@ const listInstructorAvailability = (instructorId, appId, db = prisma) => db.cade
 const findOverlappingSession = ({ appId, instructorId, roomId, startsAt, endsAt, excludeId }, db = prisma) => db.cadenzaLessonSession.findFirst({ where: { appId, status: { in: BLOCKING_LESSON_SESSION_STATUSES }, scheduledStart: { lt: endsAt }, scheduledEnd: { gt: startsAt }, ...(excludeId ? { id: { not: excludeId } } : {}), OR: [...(instructorId ? [{ instructorId }] : []), ...(roomId ? [{ roomId }] : [])] } })
 const findRoomRentalOverlap = ({ appId, roomResourceId, startsAt, endsAt, excludeId }, db = prisma) => db.cadenzaRental.findFirst({ where: { appId, resourceId: roomResourceId, rentalType: 'ROOM', status: { in: BLOCKING_RENTAL_STATUSES }, scheduledStart: { lt: endsAt }, scheduledEnd: { gt: startsAt }, ...(excludeId ? { id: { not: excludeId } } : {}) } })
 const createSession = (data, db = prisma) => db.cadenzaLessonSession.create({ data })
-const findSession = (id, appId, db = prisma) => db.cadenzaLessonSession.findFirst({ where: { id, appId }, include: { attendance: true, instructor: { include: { person: true } }, enrollment: { include: { customer: { include: { person: true } }, lessonPackage: true } } } })
+const findSession = async (id, appId, db = prisma) => hydrateSessionRoom(await db.cadenzaLessonSession.findFirst({ where: { id, appId }, include: { attendance: true, instructor: { include: { person: true } }, enrollment: { include: { customer: { include: { person: true } }, lessonPackage: true } } } }), db)
 const upsertAttendance = (sessionId, data, db = prisma) => db.cadenzaAttendance.upsert({
   where: { sessionId },
   create: { sessionId, ...data },
@@ -73,8 +79,8 @@ const updateSession = (id, appId, data, db = prisma) => db.cadenzaLessonSession.
 const updateSessionStatusForEnrollment = (enrollmentId, appId, fromStatus, toStatus, db = prisma) => db.cadenzaLessonSession.updateMany({ where: { enrollmentId, appId, status: fromStatus }, data: { status: toStatus } })
 const cancelFutureScheduledSessions = (enrollmentId, appId, from, excludeId = null, db = prisma) => db.cadenzaLessonSession.updateMany({ where: { enrollmentId, appId, status: 'SCHEDULED', scheduledStart: { gte: from }, ...(excludeId ? { id: { not: excludeId } } : {}) }, data: { status: 'CANCELLED' } })
 const cancelReschedule = (id, appId, db = prisma) => db.cadenzaRescheduleRequest.updateMany({ where: { id, appId, status: 'PENDING' }, data: { status: 'CANCELLED' } })
-const listSessionsForInstructorActor = (appId, userId, db = prisma) => db.cadenzaLessonSession.findMany({ where: { appId, instructor: { person: { userId: Number(userId) } } }, orderBy: { scheduledStart: 'asc' }, include: { attendance: true, enrollment: { include: { customer: { include: { person: true } }, lessonPackage: true } }, instructor: { include: { person: true } } } })
-const listSessions = (appId, db = prisma) => db.cadenzaLessonSession.findMany({ where: { appId }, orderBy: { scheduledStart: 'asc' }, include: { attendance: true, enrollment: { include: { customer: { include: { person: true } }, lessonPackage: true } }, instructor: { include: { person: true } } } })
+const listSessionsForInstructorActor = async (appId, userId, db = prisma) => hydrateSessions(await db.cadenzaLessonSession.findMany({ where: { appId, instructor: { person: { userId: Number(userId) } } }, orderBy: { scheduledStart: 'asc' }, include: { attendance: true, enrollment: { include: { customer: { include: { person: true } }, lessonPackage: true } }, instructor: { include: { person: true } } } }), db)
+const listSessions = async (appId, db = prisma) => hydrateSessions(await db.cadenzaLessonSession.findMany({ where: { appId }, orderBy: { scheduledStart: 'asc' }, include: { attendance: true, enrollment: { include: { customer: { include: { person: true } }, lessonPackage: true } }, instructor: { include: { person: true } } } }), db)
 
 const findExpiredPendingEnrollments = (now = new Date(), db = prisma) =>
   db.cadenzaEnrollment.findMany({
