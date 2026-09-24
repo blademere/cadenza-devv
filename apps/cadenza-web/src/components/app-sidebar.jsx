@@ -42,7 +42,7 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip={branding.workspaceName}>
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground shadow-sm">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-none bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground shadow-sm">
                 {branding.shortName}
               </div>
               {state === 'expanded' && (
@@ -80,7 +80,7 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
                           render={<NavLink to={item.route} onClick={onNavigate} />}
                           isActive={active}
                           tooltip={item.name}
-                          className="rounded-md font-medium data-active:shadow-sm"
+                          className="rounded-none font-medium"
                         >
                           {Icon && <Icon />}
                           <span>{item.name}</span>
@@ -126,7 +126,7 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
                                   <SidebarMenuButton
                                     render={<NavLink to={child.route} onClick={onNavigate} />}
                                     isActive={childActive}
-                                    className="h-8 rounded-md px-2.5 text-xs"
+                                    className="h-8 rounded-none px-2.5 text-xs"
                                   >
                                     <span>{child.name}</span>
                                   </SidebarMenuButton>
@@ -149,9 +149,9 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="rounded-lg" />} >
-                <Avatar className="size-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-sidebar-accent text-sidebar-foreground font-medium">{initial}</AvatarFallback>
+              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="rounded-none" />} >
+                <Avatar className="size-8 rounded-none">
+                  <AvatarFallback className="rounded-none bg-sidebar-accent text-sidebar-foreground font-medium">{initial}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1 text-left leading-tight">
                   <div className="truncate text-xs font-medium">{name}</div>
