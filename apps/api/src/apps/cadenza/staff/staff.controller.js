@@ -26,4 +26,6 @@ const updateController = async (req, res) =>
     ...req.validated.body,
   }))
 
-export { listController, getController, createController, updateController }
+const listCandidatesController = async (req, res) => successResponse(res, 'Cadenza staff candidates retrieved successfully.', await service.listCandidates({ appId: getApplicationId(req) }))
+
+export { listController, listCandidatesController, getController, createController, updateController }
