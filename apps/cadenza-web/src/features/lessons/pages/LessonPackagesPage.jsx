@@ -26,11 +26,11 @@ export default function LessonPackagesPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [materialsPackage, setMaterialsPackage] = useState(null)
   const [file, setFile] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', price: '', numberOfSessions: 1, sessionDurationMinutes: 60 })
+  const [form, setForm] = useState({ name: '', description: '', price: '', numberOfSessions: 1, sessionDurationMinutes: 60, sessionsPerWeek: 1 })
   const packagesQuery = useQuery({ queryKey: ['cadenza', 'lesson-packages'], queryFn: lessonsApi.listPackages })
   const attachmentsQuery = useQuery({ queryKey: ['cadenza', 'attachments', materialsPackage?.id], queryFn: () => lessonsApi.listAttachments(materialsPackage.id), enabled: Boolean(materialsPackage?.id) })
 
-  const create = useMutation({ mutationFn: lessonsApi.createPackage, onSuccess: () => { setCreateOpen(false); setForm({ name: '', description: '', price: '', numberOfSessions: 1, sessionDurationMinutes: 60 }); client.invalidateQueries({ queryKey: ['cadenza', 'lesson-packages'] }) } })
+  const create = useMutation({ mutationFn: lessonsApi.createPackage, onSuccess: () => { setCreateOpen(false); setForm({ name: '', description: '', price: '', numberOfSessions: 1, sessionDurationMinutes: 60, sessionsPerWeek: 1 }); client.invalidateQueries({ queryKey: ['cadenza', 'lesson-packages'] }) } })
   const upload = useMutation({ mutationFn: async ({ packageId, selectedFile }) => lessonsApi.addAttachment(packageId, { fileName: selectedFile.name, contentBase64: await readBase64(selectedFile), contentType: selectedFile.type || 'application/pdf', type: 'PDF' }), onSuccess: () => { setFile(null); client.invalidateQueries({ queryKey: ['cadenza', 'attachments', materialsPackage?.id] }); client.invalidateQueries({ queryKey: ['cadenza', 'lesson-packages'] }) } })
   const remove = useMutation({ mutationFn: ({ packageId, id }) => lessonsApi.deleteAttachment(packageId, id), onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'attachments', materialsPackage?.id] }) })
 
@@ -47,6 +47,7 @@ export default function LessonPackagesPage() {
       { key: 'name', header: 'Package', value: (item) => item.name },
       { key: 'sessions', header: 'Sessions', value: (item) => item.numberOfSessions },
       { key: 'duration', header: 'Duration', value: (item) => `${item.sessionDurationMinutes ?? 60} min` },
+      { key: 'frequency', header: 'Per week', value: (item) => item.sessionsPerWeek ?? 1 },
       { key: 'price', header: 'Price', value: (item) => money(item.price) },
       { key: 'status', header: 'Status', render: (item) => <Badge variant="secondary">{item.status}</Badge> },
       { key: 'materials', header: 'Materials', value: (item) => item._count?.attachments ?? 0 },
@@ -60,8 +61,9 @@ export default function LessonPackagesPage() {
         <Field label="Price"><Input type="number" min="0.01" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.currentTarget.value })} /></Field>
         <Field label="Sessions"><Input type="number" min="1" value={form.numberOfSessions} onChange={(e) => setForm({ ...form, numberOfSessions: e.currentTarget.value })} /></Field>
         <Field label="Session duration (minutes)"><Input type="number" min="15" max="480" step="15" value={form.sessionDurationMinutes} onChange={(e) => setForm({ ...form, sessionDurationMinutes: e.currentTarget.value })} /></Field>
+        <Field label="Sessions per week"><Input type="number" min="1" max="7" value={form.sessionsPerWeek} onChange={(e) => setForm({ ...form, sessionsPerWeek: e.currentTarget.value })} /></Field>
       </div>
-      <DialogFooter><Button disabled={!form.name || !form.price || create.isPending} onClick={() => create.mutate({ ...form, price: String(form.price), numberOfSessions: Number(form.numberOfSessions), sessionDurationMinutes: Number(form.sessionDurationMinutes) })}>{create.isPending ? 'Creating…' : 'Create package'}</Button></DialogFooter>
+      <DialogFooter><Button disabled={!form.name || !form.price || create.isPending} onClick={() => create.mutate({ ...form, price: String(form.price), numberOfSessions: Number(form.numberOfSessions), sessionDurationMinutes: Number(form.sessionDurationMinutes), sessionsPerWeek: Number(form.sessionsPerWeek) })}>{create.isPending ? 'Creating…' : 'Create package'}</Button></DialogFooter>
     </DialogContent></Dialog>
 
     <Dialog open={Boolean(materialsPackage)} onOpenChange={(open) => !open && setMaterialsPackage(null)}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Lesson materials</DialogTitle><DialogDescription>PDF materials attached to {materialsPackage?.name ?? 'this package'}.</DialogDescription></DialogHeader>
