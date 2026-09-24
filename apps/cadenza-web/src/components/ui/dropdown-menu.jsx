@@ -62,7 +62,7 @@ function DropdownMenuLabel({
   ...props
 }) {
   return (
-    <div
+    <MenuPrimitive.GroupLabel
       data-slot="dropdown-menu-label"
       data-inset={inset}
       className={cn(
