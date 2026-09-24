@@ -28,7 +28,6 @@ export const navigation = Object.freeze([
       { key: 'lesson-packages', name: 'Packages', route: '/app/lesson-packages', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage] },
       { key: 'lesson-enrollments', name: 'Enrollments', route: '/app/lesson-enrollments', icon: icon(UsersThree), permission: PERMISSIONS.enrollments.manage },
       { key: 'lesson-schedule', name: 'Schedule & Sessions', route: '/app/lesson-schedule', icon: icon(Calendar), anyPermissions: [PERMISSIONS.lessons.schedule, PERMISSIONS.lessons.manage] },
-      { key: 'audit', name: 'Audit', route: '/app/audit', icon: icon(ClockCounterClockwise), permission: PERMISSIONS.audit.read },
     ],
   },
   {
@@ -40,10 +39,12 @@ export const navigation = Object.freeze([
     key: 'resources', name: 'Resources', items: [
       { key: 'resource-center', name: 'Resource Center', route: '/app/resources', icon: icon(Archive), anyPermissions: [PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.instruments.manage, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update, PERMISSIONS.rooms.manage] },
       { key: 'resource-usage', name: 'Usage History', route: '/app/resources/usage-history', icon: icon(ClockCounterClockwise), permission: PERMISSIONS.rentals.manage },
-      { key: 'resource-audit', name: 'Audit Trail', route: '/app/resources/audit', icon: icon(ClockCounterClockwise), permission: PERMISSIONS.audit.read },
     ],
   },
-  { key: 'administration', name: 'Administration', items: [{ key: 'users', name: 'Users', route: '/app/users', icon: icon(UsersThree), anyPermissions: [PERMISSIONS.customers.manage, PERMISSIONS.staff.manage, PERMISSIONS.instructors.manage] }] },
+  { key: 'administration', name: 'Administration', items: [
+    { key: 'users', name: 'Users', route: '/app/users', icon: icon(UsersThree), anyPermissions: [PERMISSIONS.customers.manage, PERMISSIONS.staff.manage, PERMISSIONS.instructors.manage] },
+    { key: 'audit', name: 'Audit Trail', route: '/app/audit', icon: icon(ClockCounterClockwise), permission: PERMISSIONS.audit.read },
+  ] },
 ])
 
 export function normalizeNavigation(sections = [], permissions = []) {
