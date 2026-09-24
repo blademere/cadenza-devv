@@ -20,6 +20,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
+  SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
   useSidebar,
@@ -103,7 +104,7 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
                             <SidebarMenuButton
                               isActive={activeChild}
                               tooltip={item.name}
-                              className="rounded-md font-medium data-active:shadow-sm"
+                              className="rounded-none font-medium"
                             />
                           }
                         >
@@ -123,13 +124,13 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
 
                               return (
                                 <SidebarMenuSubItem key={child.key}>
-                                  <SidebarMenuButton
+                                  <SidebarMenuSubButton
                                     render={<NavLink to={child.route} onClick={onNavigate} />}
                                     isActive={childActive}
-                                    className="h-8 rounded-none px-2.5 text-xs"
+                                    size="md"
                                   >
                                     <span>{child.name}</span>
-                                  </SidebarMenuButton>
+                                  </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                               )
                             })}
