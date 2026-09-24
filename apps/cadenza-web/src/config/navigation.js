@@ -14,12 +14,26 @@ export const navigation = Object.freeze([
     key: 'customer',
     name: 'Customer',
     items: [
-      { key: 'find-lessons', name: 'Find Lessons', route: '/app/find-lessons', icon: icon(MagnifyingGlass), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
-      { key: 'my-lessons', name: 'My Lessons', route: '/app/my-lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
-      { key: 'lesson-history', name: 'Lesson History', route: '/app/lesson-history', icon: icon(ClockCounterClockwise), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
-      { key: 'find-rentals', name: 'Find Rentals', route: '/app/find-rentals', icon: icon(Guitar), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
-      { key: 'my-rentals', name: 'My Rentals', route: '/app/my-rentals', icon: icon(Guitar), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
-      { key: 'rental-history', name: 'Rental History', route: '/app/rental-history', icon: icon(ClockCounterClockwise), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
+      {
+        key: 'lessons',
+        name: 'Lessons',
+        icon: icon(MusicNotes),
+        children: [
+          { key: 'find-lessons', name: 'Find Lessons', route: '/app/find-lessons', anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
+          { key: 'my-lessons', name: 'My Lessons', route: '/app/my-lessons', anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
+          { key: 'lesson-history', name: 'Lesson History', route: '/app/lesson-history', anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
+        ],
+      },
+      {
+        key: 'rentals',
+        name: 'Rentals',
+        icon: icon(Guitar),
+        children: [
+          { key: 'find-rentals', name: 'Find Rentals', route: '/app/find-rentals', anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
+          { key: 'my-rentals', name: 'My Rentals', route: '/app/my-rentals', anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
+          { key: 'rental-history', name: 'Rental History', route: '/app/rental-history', anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
+        ],
+      },
     ],
   },
   {
@@ -66,6 +80,19 @@ export function normalizeNavigation(sections = [], permissions = []) {
                 !item.anyPermissions ||
                 item.anyPermissions.some((permission) => permissions.includes(permission)),
             )
+            .map((item) => ({
+              ...item,
+              children: Array.isArray(item.children)
+                ? item.children
+                    .filter((child) => !child.permission || permissions.includes(child.permission))
+                    .filter(
+                      (child) =>
+                        !child.anyPermissions ||
+                        child.anyPermissions.some((permission) => permissions.includes(permission)),
+                    )
+                : undefined,
+            }))
+            .filter((item) => !Array.isArray(item.children) || item.children.length > 0)
         : [],
     }))
     .filter((section) => section.items.length)
