@@ -90,3 +90,7 @@ export default function MyLessonsPage() {
     </div>
   )
 }
+
+function SummaryCard({ label, value, detail }) {
+  return <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></CardContent></Card>
+}
