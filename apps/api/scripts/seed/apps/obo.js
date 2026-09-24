@@ -4,7 +4,6 @@ import { seedOboReferenceData } from '../obo-reference.js'
 import { seedOboDevelopmentScenario, verifyOboDevelopmentScenario } from '../obo-development.js'
 import { seedOboPlatformConfiguration, verifyOboPlatformConfiguration } from '../obo-platform-configuration.js'
 import { bindOboDevelopmentForm } from '../obo-form-bindings.js'
-import { seedDevelopmentUsers } from '../development-users.js'
 import { seedRolePersons } from '../people.js'
 import { seedOboProfessionalVerificationFixtures, verifyOboProfessionalVerificationFixtures } from '../obo-professional-verification.js'
 import { seedOboNotifications } from '../notifications.js'
@@ -22,8 +21,7 @@ async function seedObo(prisma, { profile = 'default' } = {}) {
   await seedOboReferenceData(prisma, { applicationForm })
 
   if (profile === 'development') {
-    const { demoPasswordHash } = await seedDevelopmentUsers(prisma, { roles })
-    await seedOboDevelopmentScenario(prisma, { roles, passwordHash: demoPasswordHash })
+    await seedOboDevelopmentScenario(prisma, { roles, passwordHash: null })
     await seedOboPlatformConfiguration(prisma)
     await bindOboDevelopmentForm(prisma)
     await seedRolePersons(prisma)
