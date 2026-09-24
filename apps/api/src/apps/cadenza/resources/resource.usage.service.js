@@ -1,4 +1,3 @@
-import { NotFoundError } from '../../../common/errors/appError.js'
 import { requireAppId } from '../../../platform/applications/application-scope.js'
 import * as resourceService from '../../../features/resources/resource.service.js'
 import * as repository from './resource.usage.repository.js'
@@ -13,19 +12,12 @@ const listUsage = async ({ appId, resourceId }) => {
     const end = new Date(row.scheduledEnd).getTime()
     return total + (Number.isFinite(start) && Number.isFinite(end) && end > start ? (end - start) / 3600000 : 0)
   }, 0)
-  const revenue = rows
-    .filter((row) => row.status !== 'CANCELLED')
-    .reduce((total, row) => total + Number(row.totalAmount ?? 0), 0)
+  const revenue = rows.filter((row) => row.status !== 'CANCELLED').reduce((total, row) => total + Number(row.totalAmount ?? 0), 0)
 
   return {
     resource,
     data: rows,
-    summary: {
-      bookings: rows.length,
-      completed,
-      hours: Number(hours.toFixed(2)),
-      revenue: Number(revenue.toFixed(2)),
-    },
+    summary: { bookings: rows.length, completed, hours: Number(hours.toFixed(2)), revenue: Number(revenue.toFixed(2)) },
   }
 }
 
