@@ -11,18 +11,18 @@ export const navigation = Object.freeze([
     name: 'Customer',
     items: [
       { key: 'lessons', name: 'Lessons', icon: icon(MusicNotes), children: [
-        { key: 'find-lessons', name: 'Find Lessons', route: '/app/find-lessons', anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
+        { key: 'find-lessons', name: 'Find Lessons', route: '/app/find-lessons', allPermissions: [PERMISSIONS.portals.customer, PERMISSIONS.enrollments.create] },
         { key: 'my-lessons', name: 'My Lessons', route: '/app/my-lessons', anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
         { key: 'lesson-history', name: 'Lesson History', route: '/app/lesson-history', anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
       ] },
       { key: 'rentals', name: 'Rentals', icon: icon(Guitar), children: [
-        { key: 'find-rentals', name: 'Find Rentals', route: '/app/find-rentals', anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
+        { key: 'find-rentals', name: 'Find Rentals', route: '/app/find-rentals', allPermissions: [PERMISSIONS.portals.customer, PERMISSIONS.rentals.create] },
         { key: 'my-rentals', name: 'My Rentals', route: '/app/my-rentals', anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
         { key: 'rental-history', name: 'Rental History', route: '/app/rental-history', anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
       ] },
     ],
   },
-  { key: 'instructor', name: 'Instructor', items: [{ key: 'my-teaching', name: 'My Teaching', route: '/app/my-teaching', icon: icon(MusicNotes), permission: PERMISSIONS.lessons.attendance }] },
+  { key: 'instructor', name: 'Instructor', items: [{ key: 'my-teaching', name: 'My Teaching', route: '/app/my-teaching', icon: icon(MusicNotes), allPermissions: [PERMISSIONS.portals.instructor, PERMISSIONS.lessons.attendance] }] },
   {
     key: 'lessons-management', name: 'Lesson Management', items: [
       { key: 'lesson-packages', name: 'Packages', route: '/app/lesson-packages', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage] },
@@ -57,12 +57,14 @@ export function normalizeNavigation(sections = [], permissions = []) {
         ? section.items
             .filter((item) => !item.permission || permissions.includes(item.permission))
             .filter((item) => !item.anyPermissions || item.anyPermissions.some((permission) => permissions.includes(permission)))
+            .filter((item) => !item.allPermissions || item.allPermissions.every((permission) => permissions.includes(permission)))
             .map((item) => ({
               ...item,
               children: Array.isArray(item.children)
                 ? item.children
                     .filter((child) => !child.permission || permissions.includes(child.permission))
                     .filter((child) => !child.anyPermissions || child.anyPermissions.some((permission) => permissions.includes(permission)))
+                    .filter((child) => !child.allPermissions || child.allPermissions.every((permission) => permissions.includes(permission)))
                 : undefined,
             }))
             .filter((item) => !Array.isArray(item.children) || item.children.length > 0)
