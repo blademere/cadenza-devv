@@ -10,7 +10,9 @@ export const resourcesApi = {
   createRoom: (payload) => apiClient.post('/cadenza/rooms', payload),
   updateRoom: (id, payload) => apiClient.patch(`/cadenza/rooms/${id}`, payload),
   getRoom: (id) => apiClient.get(`/cadenza/rooms/${id}`),
-  getUsage: (resourceId) => apiClient.get(`/cadenza/resources/${resourceId}/usage`),
+  getUsage: (resourceId) => resourceId
+    ? apiClient.get(`/cadenza/resources/${resourceId}/usage`)
+    : apiClient.get('/cadenza/resources/usage'),
   getAudit: (params = {}) => apiClient.get('/audit', { params: { entityType: 'Resource', page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc', ...params } }),
   getResourceTimeline: (resourceId) => apiClient.get(`/audit/timeline/Resource/${resourceId}`, { params: { page: 1, limit: 100 } }),
 }
