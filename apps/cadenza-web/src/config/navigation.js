@@ -25,7 +25,6 @@ export const navigation = Object.freeze([
   { key: 'instructor', name: 'Instructor', items: [{ key: 'my-teaching', name: 'My Teaching', route: '/app/my-teaching', icon: icon(MusicNotes), permission: PERMISSIONS.lessons.attendance }] },
   {
     key: 'lessons-management', name: 'Lesson Management', items: [
-      { key: 'lesson-management', name: 'Overview', route: '/app/lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.read, PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage, PERMISSIONS.lessons.schedule] },
       { key: 'lesson-packages', name: 'Packages', route: '/app/lesson-packages', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.read, PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage] },
       { key: 'lesson-enrollments', name: 'Enrollments', route: '/app/lesson-enrollments', icon: icon(UsersThree), anyPermissions: [PERMISSIONS.enrollments.read, PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.manage] },
       { key: 'lesson-schedule', name: 'Schedule & Sessions', route: '/app/lesson-schedule', icon: icon(Calendar), anyPermissions: [PERMISSIONS.lessons.schedule, PERMISSIONS.lessons.attendance, PERMISSIONS.lessons.manage] },
@@ -40,7 +39,6 @@ export const navigation = Object.freeze([
   {
     key: 'resources', name: 'Resources', items: [{
       key: 'resources', name: 'Resource Center', icon: icon(Archive), children: [
-        { key: 'resources-overview', name: 'Overview', route: '/app/resources', anyPermissions: [PERMISSIONS.instruments.read, PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.rooms.read, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update] },
         { key: 'resource-instruments', name: 'Instruments', route: '/app/resources/instruments', anyPermissions: [PERMISSIONS.instruments.read, PERMISSIONS.instruments.create, PERMISSIONS.instruments.update] },
         { key: 'resource-rooms', name: 'Band Rooms', route: '/app/resources/rooms', anyPermissions: [PERMISSIONS.rooms.read, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update] },
         { key: 'resource-usage', name: 'Usage History', route: '/app/resources/usage-history', permission: PERMISSIONS.rentals.manage },
