@@ -43,10 +43,10 @@ const findSlot = async ({ appId, instructorId, rooms, rules, day, duration, db }
   return null
 }
 
-const generate = async ({ appId, actorId, enrollmentId, instructorId, roomId = null, startAt = null, regenerate = false, anchorSessionId = null }) => {
+const generate = async ({ appId, actorId, enrollmentId, instructorId, roomId = null, startAt = null, regenerate = false, anchorSessionId = null, db = null }) => {
   const owner = requireAppId(appId)
   if (!(await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'schedule' }))) throw new ForbiddenError('Only users with lesson scheduling permission can generate lesson schedules.')
-  return runTransaction(async (tx) => {
+  const execute = async (tx) => {
     const enrollment = await repository.findEnrollmentById(enrollmentId, owner, tx)
     if (!enrollment || !['CONFIRMED', 'IN_PROGRESS'].includes(enrollment.status)) throw new NotFoundError('Confirmed enrollment not found.')
     const instructor = await repository.findInstructor(instructorId, owner, tx)
@@ -80,6 +80,7 @@ const generate = async ({ appId, actorId, enrollmentId, instructorId, roomId = n
     }
     if (generated.length < remaining) throw new ConflictError(`Unable to generate all remaining lesson sessions from instructor availability and room capacity. Generated ${generated.length} of ${remaining}.`)
     return { generated, remaining: 0, regenerated: Boolean(regenerate) }
-  })
+  }
+  return db ? execute(db) : runTransaction(execute)
 }
 export { generate, getLocalParts, fromLocalParts }
