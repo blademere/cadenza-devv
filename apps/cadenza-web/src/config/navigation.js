@@ -1,5 +1,5 @@
 import { createElement } from 'react'
-import { Archive, ClockCounterClockwise, Guitar, House, MusicNotes, UsersThree } from '@phosphor-icons/react'
+import { Archive, Calendar, ClockCounterClockwise, Guitar, House, MusicNotes, UsersThree } from '@phosphor-icons/react'
 import { PERMISSIONS } from './permissions'
 
 const icon = (I) => () => createElement(I, { size: 20, weight: 'regular', 'aria-hidden': true })
