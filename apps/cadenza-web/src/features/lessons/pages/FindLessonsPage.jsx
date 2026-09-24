@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription } from '../../../components/ui/alert'
 import { Badge } from '../../../components/ui/badge'
@@ -49,39 +49,54 @@ export default function FindLessonsPage() {
   if (error) return <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>
 
   const enrolledPackageIds = new Set(unwrap(enrollments.data).map((item) => item.lessonPackageId))
-  const rows = unwrap(packages.data)
+  const rows = useMemo(() => unwrap(packages.data)
     .filter((item) => item.status === 'ACTIVE')
     .filter((item) => {
       const term = search.trim().toLowerCase()
       return !term || [item.name, item.description].filter(Boolean).some((value) => value.toLowerCase().includes(term))
-    })
+    }), [packages.data, search])
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Find Lessons" description="Discover available lesson packages and enroll in the program that fits you." />
-      <div className="max-w-xl">
-        <Input value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="Search lessons by name or description…" aria-label="Search lessons" />
+      <PageHeader title="Find Lessons" description="Explore lesson programs, compare what is included, and enroll when you are ready." />
+
+      <Card className="overflow-hidden">
+        <CardContent className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-lg font-semibold">Find your next lesson program</p>
+            <p className="mt-1 text-sm text-muted-foreground">Choose a package based on session count, price, and what you want to learn.</p>
+          </div>
+          <div className="w-full md:max-w-sm">
+            <Input value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="Search programs…" aria-label="Search lesson programs" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-lg font-semibold">Available programs</h2><p className="text-sm text-muted-foreground">{rows.length} program{rows.length === 1 ? '' : 's'} available</p></div>
       </div>
+
       {rows.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">{search ? 'No lesson packages match your search.' : 'No lesson packages are currently available.'}</CardContent></Card>
+        <Card><CardContent className="py-14 text-center"><p className="font-medium">{search ? 'No programs match your search' : 'No lesson programs are available right now'}</p><p className="mt-1 text-sm text-muted-foreground">{search ? 'Try another name or description.' : 'Check back later for new programs.'}</p></CardContent></Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {rows.map((item) => {
             const enrolled = enrolledPackageIds.has(item.id)
             return (
-              <Card key={item.id} className="flex h-full flex-col">
-                <CardHeader>
+              <Card key={item.id} className="group flex h-full flex-col transition-shadow hover:shadow-md">
+                <CardHeader className="space-y-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div><CardTitle className="text-base">{item.name}</CardTitle><p className="mt-1 text-sm text-muted-foreground">{item.numberOfSessions} sessions</p></div>
-                    <Badge variant="secondary">Available</Badge>
+                    <Badge variant="secondary">Lesson program</Badge>
+                    {enrolled && <Badge>Enrolled</Badge>}
                   </div>
+                  <div><CardTitle className="text-xl">{item.name}</CardTitle><p className="mt-2 text-sm text-muted-foreground">{item.description || 'A structured music lesson program.'}</p></div>
                 </CardHeader>
-                <CardContent className="flex flex-1 flex-col">
-                  <p className="min-h-12 text-sm text-muted-foreground">{item.description || 'Music lesson package'}</p>
-                  <div className="mt-6 flex items-end justify-between gap-4">
-                    <div><p className="text-xs text-muted-foreground">Package price</p><p className="text-xl font-bold">{formatCurrency(item.price)}</p></div>
-                    <Button disabled={enrolled} onClick={() => setSelectedPackage(item)}>{enrolled ? 'Enrolled' : 'Enroll'}</Button>
+                <CardContent className="mt-auto space-y-5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoStat label="Sessions" value={item.numberOfSessions ?? '—'} />
+                    <InfoStat label="Program price" value={formatCurrency(item.price)} />
                   </div>
+                  <Button className="w-full" disabled={enrolled} onClick={() => setSelectedPackage(item)}>{enrolled ? 'Already enrolled' : 'View program & enroll'}</Button>
                 </CardContent>
               </Card>
             )
@@ -90,25 +105,34 @@ export default function FindLessonsPage() {
       )}
 
       <Dialog open={Boolean(selectedPackage)} onOpenChange={(open) => !open && setSelectedPackage(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Enroll in {selectedPackage?.name}</DialogTitle><DialogDescription>Enrollment requires full payment before the lesson package becomes active.</DialogDescription></DialogHeader>
-          {selectedPackage && <div className="rounded-lg border p-4"><div className="flex justify-between"><span>Sessions</span><span>{selectedPackage.numberOfSessions}</span></div><div className="mt-2 flex justify-between font-semibold"><span>Total</span><span>{formatCurrency(selectedPackage.price)}</span></div></div>}
-          <DialogFooter><Button variant="outline" onClick={() => setSelectedPackage(null)}>Cancel</Button><Button disabled={enroll.isPending} onClick={() => enroll.mutate({ lessonPackageId: selectedPackage.id })}>{enroll.isPending ? 'Enrolling…' : 'Enroll & continue to payment'}</Button></DialogFooter>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader><DialogTitle>{selectedPackage?.name}</DialogTitle><DialogDescription>Review the program before starting enrollment.</DialogDescription></DialogHeader>
+          {selectedPackage && (
+            <div className="space-y-5">
+              <div className="rounded-xl border p-5"><p className="text-sm text-muted-foreground">{selectedPackage.description || 'Music lesson program'}</p><div className="mt-5 grid grid-cols-2 gap-4"><InfoStat label="Sessions" value={selectedPackage.numberOfSessions ?? '—'} /><InfoStat label="Full price" value={formatCurrency(selectedPackage.price)} /></div></div>
+              <div className="rounded-lg bg-muted/50 p-4 text-sm"><p className="font-medium">Payment</p><p className="mt-1 text-muted-foreground">Enrollment requires the full package amount. You will continue to checkout after enrollment is created.</p></div>
+            </div>
+          )}
+          <DialogFooter><Button variant="outline" onClick={() => setSelectedPackage(null)}>Back</Button><Button disabled={enroll.isPending} onClick={() => enroll.mutate({ lessonPackageId: selectedPackage.id })}>{enroll.isPending ? 'Starting enrollment…' : 'Enroll & continue'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={Boolean(payment)} onOpenChange={(open) => !open && setPayment(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Complete lesson payment</DialogTitle><DialogDescription>Your enrollment is pending until the full package amount is paid.</DialogDescription></DialogHeader>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader><DialogTitle>Complete your enrollment</DialogTitle><DialogDescription>Your place is pending until the lesson program is fully paid.</DialogDescription></DialogHeader>
           {payment && <PaymentSummary obligation={unwrap(obligation.data)} payment={payment} />}
-          <DialogFooter><Button variant="outline" onClick={() => setPayment(null)}>Later</Button>{payment && <Button onClick={() => checkout.mutate({ id: payment.paymentObligationId, amount: Number(unwrap(obligation.data)?.balanceDue ?? payment.amount ?? 0) })} disabled={checkout.isPending}>{checkout.isPending ? 'Opening checkout…' : 'Pay full amount'}</Button>}</DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setPayment(null)}>Pay later</Button>{payment && <Button onClick={() => checkout.mutate({ id: payment.paymentObligationId, amount: Number(unwrap(obligation.data)?.balanceDue ?? payment.amount ?? 0) })} disabled={checkout.isPending}>{checkout.isPending ? 'Opening checkout…' : 'Pay full amount'}</Button>}</DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
 
+function InfoStat({ label, value }) {
+  return <div className="rounded-lg border bg-muted/20 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-semibold">{value}</p></div>
+}
+
 function PaymentSummary({ obligation, payment }) {
   const due = Number(obligation?.balanceDue ?? payment?.amount ?? 0)
-  return <div className="rounded-lg border p-4"><div className="flex justify-between"><span>Total</span><span>{formatCurrency(obligation?.totalAmount ?? payment?.amount)}</span></div><div className="mt-2 flex justify-between font-semibold"><span>Balance due</span><span>{formatCurrency(due)}</span></div></div>
+  return <div className="rounded-xl border p-5"><div className="flex justify-between text-sm"><span>Total</span><span>{formatCurrency(obligation?.totalAmount ?? payment?.amount)}</span></div><div className="mt-3 flex justify-between text-lg font-semibold"><span>Balance due</span><span>{formatCurrency(due)}</span></div></div>
 }
