@@ -8,6 +8,8 @@ vi.mock('../../../src/apps/cadenza/staff/staff.repository.js', () => ({
   update: vi.fn(),
 }))
 
+vi.mock('../../../src/apps/cadenza/authorization/authorization-management.service.js', () => ({ ensureMembershipRole: vi.fn() }))
+
 vi.mock('../../../src/features/people/people.service.js', () => ({
   getById: vi.fn(),
 }))
