@@ -8,6 +8,7 @@ import { usageValidator } from './resource.usage.validation.js'
 
 const router = express.Router()
 
+router.get('/usage', authorize('cadenza_rentals', 'manage'), asyncHandler(usageController.usage))
 router.get('/:id/usage', authorize('cadenza_rentals', 'manage'), validate(usageValidator), asyncHandler(usageController.usage))
 
 router.post(
