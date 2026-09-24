@@ -7,12 +7,14 @@ import {
   selectApplicationController,
 } from './application.controller.js'
 
-const createApplicationRouter = ({ issueApplicationSession } = {}) => {
-const router = express.Router()
+const createApplicationRouter = ({ authenticate, issueApplicationSession } = {}) => {
+  if (typeof authenticate !== 'function') throw new TypeError('createApplicationRouter requires authenticate middleware.')
+  if (typeof issueApplicationSession !== 'function') throw new TypeError('createApplicationRouter requires an application session issuer.')
+  const router = express.Router()
   const requireApplicationSelectionIdempotency = idempotency({ scope: 'application-selection', required: true })
 
   router.get('/', authenticate, asyncHandler(listUserApplicationsController) /* authorization: auth-boundary */)
-router.get('/:appKey', authenticate, asyncHandler(getUserApplicationController) /* authorization: auth-boundary */)
+  router.get('/:appKey', authenticate, asyncHandler(getUserApplicationController) /* authorization: auth-boundary */)
   router.post(
   '/:appKey/select',
   authenticate,
