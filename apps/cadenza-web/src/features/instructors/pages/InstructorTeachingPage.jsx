@@ -17,7 +17,7 @@ const unwrap = (value) => value?.data ?? value ?? []
 const formatDate = (value) =>
   value ? new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : '—'
 
-export default function InstructorPage() {
+export default function InstructorTeachingPage() {
   const client = useQueryClient()
   const [selected, setSelected] = useState(null)
   const [attendance, setAttendance] = useState('PRESENT')
