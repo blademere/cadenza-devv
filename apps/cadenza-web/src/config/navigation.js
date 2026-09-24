@@ -37,13 +37,11 @@ export const navigation = Object.freeze([
     ],
   },
   {
-    key: 'resources', name: 'Resources', items: [{
-      key: 'resources', name: 'Resources', icon: icon(Archive), children: [
-        { key: 'resource-center', name: 'Resource Center', route: '/app/resources', anyPermissions: [PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.instruments.manage, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update, PERMISSIONS.rooms.manage] },
-        { key: 'resource-usage', name: 'Usage History', route: '/app/resources/usage-history', permission: PERMISSIONS.rentals.manage },
-        { key: 'resource-audit', name: 'Audit Trail', route: '/app/resources/audit', permission: PERMISSIONS.audit.read },
-      ],
-    }],
+    key: 'resources', name: 'Resources', items: [
+      { key: 'resource-center', name: 'Resource Center', route: '/app/resources', icon: icon(Archive), anyPermissions: [PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.instruments.manage, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update, PERMISSIONS.rooms.manage] },
+      { key: 'resource-usage', name: 'Usage History', route: '/app/resources/usage-history', icon: icon(ClockCounterClockwise), permission: PERMISSIONS.rentals.manage },
+      { key: 'resource-audit', name: 'Audit Trail', route: '/app/resources/audit', icon: icon(ClockCounterClockwise), permission: PERMISSIONS.audit.read },
+    ],
   },
   { key: 'administration', name: 'Administration', items: [{ key: 'users', name: 'Users', route: '/app/users', icon: icon(UsersThree), anyPermissions: [PERMISSIONS.customers.manage, PERMISSIONS.staff.manage, PERMISSIONS.instructors.manage] }] },
 ])
