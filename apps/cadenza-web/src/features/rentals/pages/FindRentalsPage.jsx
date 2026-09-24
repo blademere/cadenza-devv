@@ -15,6 +15,7 @@ import { rentalsApi } from '../api/rentals.api'
 import { resourcesApi } from '../../resources/api/resources.api'
 
 const unwrap = (value) => value?.data ?? value ?? []
+const normalizeId = (value) => (value === null || value === undefined ? '' : String(value))
 const resourceName = (item, type) => item?.resource?.name || item?.name || item?.instrumentType || item?.roomType || (type === 'ROOM' ? 'Band room' : 'Instrument')
 const resourceDescription = (item, type) => type === 'ROOM'
   ? [item?.roomType, item?.capacity ? `Up to ${item.capacity} people` : null].filter(Boolean).join(' · ')
@@ -44,12 +45,12 @@ export default function FindRentalsPage() {
   })
 
   const catalog = type === 'ROOM' ? unwrap(rooms.data) : unwrap(instruments.data)
-  const availableIds = useMemo(() => new Set(unwrap(availability.data).map((entry) => entry?.resource?.id ?? entry?.domain?.resourceId).filter(Boolean)), [availability.data])
+  const availableIds = useMemo(() => new Set(unwrap(availability.data).map((entry) => normalizeId(entry?.resource?.id ?? entry?.domain?.resourceId)).filter(Boolean)), [availability.data])
   const filteredCatalog = catalog.filter((item) => {
     const haystack = [resourceName(item, type), resourceDescription(item, type)].join(' ').toLowerCase()
     return haystack.includes(search.trim().toLowerCase())
   })
-  const available = availability.isSuccess ? filteredCatalog.filter((item) => availableIds.has(item.resourceId ?? item.id)) : filteredCatalog
+  const available = availability.isSuccess ? filteredCatalog.filter((item) => availableIds.has(normalizeId(item.resourceId ?? item.id))) : filteredCatalog
   const durationHours = form.scheduledStart && form.scheduledEnd && form.scheduledStart < form.scheduledEnd
     ? (new Date(form.scheduledEnd) - new Date(form.scheduledStart)) / 3600000 : 0
   const rate = Number(selectedResource?.rentalRate ?? 0)
@@ -62,7 +63,7 @@ export default function FindRentalsPage() {
   const openBooking = (resource) => {
     setSelectedResource(resource)
     setForm({
-      resourceId: resource.resourceId ?? resource.id,
+      resourceId: normalizeId(resource.resourceId ?? resource.id),
       scheduledStart: form.scheduledStart,
       scheduledEnd: form.scheduledEnd,
       requiredDownPayment: resource.requiredDownPayment ?? '',
@@ -139,7 +140,7 @@ export default function FindRentalsPage() {
           <DialogHeader><DialogTitle>Reserve {resourceName(selectedResource, type)}</DialogTitle><DialogDescription>Confirm your rental window and the deposit required to place the booking.</DialogDescription></DialogHeader>
           <div className="grid gap-5">
             <div className="rounded-xl border bg-muted/30 p-4"><div className="flex items-center justify-between gap-4"><div><p className="font-medium">{resourceName(selectedResource, type)}</p><p className="text-sm text-muted-foreground">{resourceDescription(selectedResource, type) || 'Rental resource'}</p></div><Badge>{formatCurrency(rate)} / hour</Badge></div></div>
-            <SelectField label="Resource" options={available.map((item) => ({ value: item.resourceId ?? item.id, label: resourceName(item, type) }))} value={form.resourceId} onChange={(value) => { const item = available.find((row) => (row.resourceId ?? row.id) === value); setForm((v) => ({ ...v, resourceId: value })); if (item) setSelectedResource(item) }} />
+            <SelectField label="Resource" options={available.map((item) => ({ value: normalizeId(item.resourceId ?? item.id), label: resourceName(item, type) }))} value={form.resourceId} onChange={(value) => { const item = available.find((row) => normalizeId(row.resourceId ?? row.id) === normalizeId(value)); setForm((v) => ({ ...v, resourceId: normalizeId(value) })); if (item) setSelectedResource(item) }} />
             <div className="grid gap-4 sm:grid-cols-2"><div className="grid gap-2"><Label>Start</Label><Input type="datetime-local" value={form.scheduledStart} onChange={(e) => setForm((v) => ({ ...v, scheduledStart: e.currentTarget.value }))} /></div><div className="grid gap-2"><Label>End</Label><Input type="datetime-local" value={form.scheduledEnd} onChange={(e) => setForm((v) => ({ ...v, scheduledEnd: e.currentTarget.value }))} /></div></div>
             <div className="rounded-xl border p-4"><div className="grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-muted-foreground">Duration</p><p className="font-semibold">{durationHours ? `${durationHours.toFixed(2)} hrs` : '—'}</p></div><div><p className="text-xs text-muted-foreground">Estimated total</p><p className="font-semibold">{formatCurrency(total)}</p></div><div><p className="text-xs text-muted-foreground">Deposit due now</p><p className="font-semibold">{formatCurrency(form.requiredDownPayment)}</p></div></div><p className="mt-3 text-xs text-muted-foreground">The deposit is due at booking. The remaining balance is paid when the rental is used.</p></div>
             <div className="grid gap-2"><Label>Booking deposit</Label><Input type="number" min="0.01" step="0.01" value={form.requiredDownPayment} onChange={(e) => setForm((v) => ({ ...v, requiredDownPayment: e.currentTarget.value }))}/></div>
