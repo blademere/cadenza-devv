@@ -13,9 +13,12 @@ const unwrap = (value) => value?.data ?? value ?? []
 
 export default function LessonManagementPage() {
   const { can } = useAuthorization()
-  const packages = useQuery({ queryKey: ['cadenza', 'lesson-packages'], queryFn: lessonsApi.listPackages })
-  const enrollments = useQuery({ queryKey: ['cadenza', 'enrollments'], queryFn: lessonsApi.listEnrollments })
-  const sessions = useQuery({ queryKey: ['cadenza', 'sessions'], queryFn: schedulingApi.listSessions })
+  const canPackages = can('cadenza_lessons:read') || can('cadenza_lessons:create') || can('cadenza_lessons:manage')
+  const canEnrollments = can('cadenza_enrollments:read') || can('cadenza_enrollments:create') || can('cadenza_enrollments:manage')
+  const canSchedule = can('cadenza_lessons:schedule') || can('cadenza_lessons:attendance') || can('cadenza_lessons:manage')
+  const packages = useQuery({ queryKey: ['cadenza', 'lesson-packages'], queryFn: lessonsApi.listPackages, enabled: canPackages })
+  const enrollments = useQuery({ queryKey: ['cadenza', 'enrollments'], queryFn: lessonsApi.listEnrollments, enabled: canEnrollments })
+  const sessions = useQuery({ queryKey: ['cadenza', 'sessions'], queryFn: schedulingApi.listSessions, enabled: canSchedule })
   if (packages.isLoading || enrollments.isLoading || sessions.isLoading) return <LoadingState label="Loading lesson operations…" rows={4} />
   const error = packages.error || enrollments.error || sessions.error
   if (error) return <p className="text-sm text-destructive">{error.message}</p>
