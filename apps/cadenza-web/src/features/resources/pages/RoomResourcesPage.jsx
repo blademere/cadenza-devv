@@ -1,5 +1,5 @@
-import ResourcesPage from './ResourcesPage'
+import ResourceManagementPage from './ResourceManagementPage'
 
 export default function RoomResourcesPage() {
-  return <ResourcesPage kind="ROOM" />
+  return <ResourceManagementPage kind="ROOM" />
 }
