@@ -1,5 +1,5 @@
 import { createElement } from 'react'
-import { Archive, Calendar, Guitar, House, MusicNotes, UsersThree } from '@phosphor-icons/react'
+import { Archive, Calendar, ClockCounterClockwise, Guitar, House, MagnifyingGlass, MusicNotes, UsersThree } from '@phosphor-icons/react'
 import { PERMISSIONS } from './permissions'
 
 const icon = (I) => () => createElement(I, { size: 20, weight: 'regular', 'aria-hidden': true })
@@ -14,7 +14,9 @@ export const navigation = Object.freeze([
     key: 'customer',
     name: 'Customer',
     items: [
+      { key: 'find-lessons', name: 'Find Lessons', route: '/app/find-lessons', icon: icon(MagnifyingGlass), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
       { key: 'my-lessons', name: 'My Lessons', route: '/app/my-lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
+      { key: 'lesson-history', name: 'Lesson History', route: '/app/lesson-history', icon: icon(ClockCounterClockwise), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
       { key: 'my-rentals', name: 'My Rentals', route: '/app/my-rentals', icon: icon(Guitar), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
     ],
   },
