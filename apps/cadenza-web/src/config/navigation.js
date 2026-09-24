@@ -1,5 +1,5 @@
 import { createElement } from 'react'
-import { Archive, Calendar, ClockCounterClockwise, Guitar, House, MusicNotes, UsersThree } from '@phosphor-icons/react'
+import { Archive, ClockCounterClockwise, Guitar, House, MusicNotes, UsersThree } from '@phosphor-icons/react'
 import { PERMISSIONS } from './permissions'
 
 const icon = (I) => () => createElement(I, { size: 20, weight: 'regular', 'aria-hidden': true })
@@ -34,11 +34,7 @@ export const navigation = Object.freeze([
   },
   {
     key: 'rentals-management', name: 'Rental Management', items: [
-      { key: 'rental-management', name: 'Overview', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
-      { key: 'rental-bookings', name: 'Bookings', route: '/app/rental-bookings', icon: icon(Calendar), permission: PERMISSIONS.rentals.manage },
-      { key: 'rental-checkout', name: 'Checkout', route: '/app/rental-checkout', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
-      { key: 'rental-returns', name: 'Returns', route: '/app/rental-returns', icon: icon(Archive), permission: PERMISSIONS.rentals.manage },
-      { key: 'rental-payments', name: 'Payments', route: '/app/rental-payments', icon: icon(ClockCounterClockwise), anyPermissions: [PERMISSIONS.rentals.manage, PERMISSIONS.payments.create] },
+      { key: 'rental-management', name: 'Rental Operations', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
     ],
   },
   {
