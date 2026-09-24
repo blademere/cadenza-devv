@@ -8,6 +8,7 @@ import {
   selectApplicationController,
 } from './application.controller.js'
 
+const createApplicationRouter = ({ issueApplicationSession } = {}) => {
 const router = express.Router()
 const requireApplicationSelectionIdempotency = idempotency({ scope: 'application-selection', required: true })
 
@@ -18,7 +19,10 @@ router.post(
   authenticate,
   csrfProtection,
   requireApplicationSelectionIdempotency,
-  asyncHandler(selectApplicationController) /* authorization: auth-boundary */,
+  asyncHandler(selectApplicationController(issueApplicationSession)) /* authorization: auth-boundary */,
 )
 
-export default router
+return router
+}
+
+export default createApplicationRouter
