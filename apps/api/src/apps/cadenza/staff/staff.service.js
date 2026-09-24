@@ -4,6 +4,7 @@ import { recordAudit } from '../../../platform/audit/audit.service.js'
 import * as peopleService from '../../../features/people/people.service.js'
 import * as repository from './staff.repository.js'
 import { STAFF_STATUS, STAFF_TYPE } from '../cadenza.constants.js'
+import { ensureMembershipRole } from '../authorization/authorization-management.service.js'
 
 const VALID_TYPES = new Set(Object.values(STAFF_TYPE))
 const VALID_STATUSES = new Set(Object.values(STAFF_STATUS))
@@ -42,6 +43,7 @@ const create = async ({ appId, personId, staffType = STAFF_TYPE.STAFF, status = 
       entityId: created.id,
       after: created,
     })
+    await ensureMembershipRole({ userId: person.userId, appId: app, roleName: 'cadenza_frontdesk', actorId })
     return created
   } catch (error) {
     if (error?.code === 'P2002')
@@ -49,6 +51,8 @@ const create = async ({ appId, personId, staffType = STAFF_TYPE.STAFF, status = 
     throw error
   }
 }
+
+const listCandidates = ({ appId }) => repository.listCandidates(requireAppId(appId))
 
 const update = async ({ appId, id, staffType, status, metadata, actorId }) => {
   const app = requireAppId(appId)
@@ -74,4 +78,4 @@ const update = async ({ appId, id, staffType, status, metadata, actorId }) => {
   return updated
 }
 
-export { list, get, create, update }
+export { list, get, create, listCandidates, update }
