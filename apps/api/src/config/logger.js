@@ -4,6 +4,8 @@ import pinoHttp from 'pino-http'
 import { getContext } from '../platform/context/context.service.js'
 
 const isProduction = process.env.NODE_ENV === 'production'
+const isVercel = process.env.VERCEL === '1'
+const usePrettyTransport = !isProduction && !isVercel
 
 const logger = pino({
   level: isProduction ? 'info' : 'debug',
@@ -24,9 +26,8 @@ const logger = pino({
     ],
     censor: '[REDACTED]',
   },
-  ...(isProduction
-    ? {}
-    : {
+  ...(usePrettyTransport
+    ? {
         transport: {
           target: 'pino-pretty',
           options: {
@@ -35,7 +36,8 @@ const logger = pino({
             ignore: 'pid,hostname',
           },
         },
-      }),
+      }
+    : {}),
 })
 
 const requestLogger = pinoHttp({
