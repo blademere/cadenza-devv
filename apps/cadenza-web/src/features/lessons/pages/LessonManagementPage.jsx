@@ -31,7 +31,7 @@ const readBase64 = (file) =>
     reader.readAsDataURL(file)
   })
 
-export default function LessonsPage() {
+export default function LessonManagementPage() {
   const { can } = useAuthorization()
   const client = useQueryClient()
 
