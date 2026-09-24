@@ -25,8 +25,6 @@ import ProtectedRoute from './router/ProtectedRoute'
 import PermissionRoute from './router/PermissionRoute'
 import GuestRoute from './router/GuestRoute'
 
-const resourceReadPermissions = ['cadenza_instruments:read', 'cadenza_instruments:create', 'cadenza_instruments:update', 'cadenza_rooms:read', 'cadenza_rooms:create', 'cadenza_rooms:update']
-
 export const router = createBrowserRouter([
   {
     path: '/',
