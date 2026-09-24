@@ -29,15 +29,11 @@ const getDashboard = async ({ appId, actorId }) => {
   const outstandingPayments = obligations.filter((item) => ['UNPAID', 'PARTIALLY_PAID'].includes(item.status))
   const openRentals = rentals.filter((item) => [RENTAL_STATUS.RESERVED, RENTAL_STATUS.CHECKED_OUT].includes(item.status))
 
-  const base = {
-    today: { sessions: todaysSessions.length },
-    outstandingPayments: outstandingPayments.length,
-    openRentals: openRentals.length,
-  }
-
   if (manager || frontdesk) {
     return {
-      ...base,
+      today: { sessions: todaysSessions.length },
+      outstandingPayments: outstandingPayments.length,
+      openRentals: openRentals.length,
       mode: 'operations',
       pendingEnrollments: pendingEnrollments.length,
       todaysSessions,
@@ -64,8 +60,20 @@ const getDashboard = async ({ appId, actorId }) => {
       )
     : []
 
+  const visibleSessions = instructor ? mine : []
+  const visibleEnrollments = customer ? customerEnrollments : []
+  const visibleRentals = customer ? customerRentals : []
+  const visibleObligations = customer ? customerObligations : []
+
   return {
-    ...base,
+    today: {
+      sessions: visibleSessions.filter((session) => {
+        const start = new Date(session.scheduledStart)
+        return start >= today && start <= endOfDay
+      }).length,
+    },
+    outstandingPayments: visibleObligations.filter((item) => ['UNPAID', 'PARTIALLY_PAID'].includes(item.status)).length,
+    openRentals: visibleRentals.filter((item) => [RENTAL_STATUS.RESERVED, RENTAL_STATUS.CHECKED_OUT].includes(item.status)).length,
     ...(instructor
       ? {
           instructor: {
