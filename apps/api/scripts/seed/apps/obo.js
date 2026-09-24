@@ -1,3 +1,4 @@
+import { seedApplication } from '../applications.js'
 import { seedAuthorization } from '../authorization.js'
 import { seedPlatformForms } from '../platform-forms.js'
 import { seedOboReferenceData } from '../obo-reference.js'
@@ -8,15 +9,12 @@ import { seedRolePersons } from '../people.js'
 import { seedOboProfessionalVerificationFixtures, verifyOboProfessionalVerificationFixtures } from '../obo-professional-verification.js'
 import { seedOboNotifications } from '../notifications.js'
 
-async function requireApplication(prisma, key) {
-  const app = await prisma.app.findUnique({ where: { key } })
-  if (!app) throw new Error(`Application '${key}' must be seeded before its application seed.`)
-  return app
-}
-
 async function seedObo(prisma, { profile = 'default' } = {}) {
-  const obo = await requireApplication(prisma, 'obo')
-  const { roles, permissionRecords } = await seedAuthorization(prisma, { applications: { obo }, applicationKeys: ['obo'] })
+  const obo = await seedApplication(prisma, 'obo')
+  const { roles, permissionRecords } = await seedAuthorization(prisma, {
+    applications: { obo },
+    applicationKeys: ['obo'],
+  })
   const { form: applicationForm } = await seedPlatformForms(prisma)
   await seedOboReferenceData(prisma, { applicationForm })
 
