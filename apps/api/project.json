@@ -6,24 +6,38 @@
     "dev": {
       "executor": "nx:run-commands",
       "continuous": true,
-      "dependsOn": ["prisma:generate"],
+      "dependsOn": [
+        "prisma:generate"
+      ],
       "options": {
         "command": "nodemon --legacy-watch src/server.js",
         "cwd": "apps/api"
       }
     },
     "test": {
-      "dependsOn": ["prisma:generate"]
+      "dependsOn": [
+        "prisma:generate"
+      ]
     },
     "test:unit": {
       "executor": "nx:run-commands",
-      "dependsOn": ["prisma:generate"],
-      "options": { "command": "vitest run --dir tests/unit", "cwd": "apps/api" }
+      "dependsOn": [
+        "prisma:generate"
+      ],
+      "options": {
+        "command": "vitest run --dir tests/unit",
+        "cwd": "apps/api"
+      }
     },
     "test:seed": {
       "executor": "nx:run-commands",
-      "dependsOn": ["prisma:generate"],
-      "options": { "command": "vitest run tests/unit/scripts/seed/*.test.js", "cwd": "apps/api" }
+      "dependsOn": [
+        "prisma:generate"
+      ],
+      "options": {
+        "command": "vitest run tests/unit/scripts/seed/*.test.js",
+        "cwd": "apps/api"
+      }
     },
     "test:integration": {
       "executor": "nx:run-commands",
@@ -48,7 +62,9 @@
     },
     "test:all": {
       "executor": "nx:run-commands",
-      "dependsOn": ["prisma:generate"],
+      "dependsOn": [
+        "prisma:generate"
+      ],
       "options": {
         "command": "vitest run --dir tests/unit && prisma migrate deploy --config ./prisma.config.ts && RUN_INTEGRATION_TESTS=true RUN_REDIS_INTEGRATION_TESTS=true vitest run --dir tests/integration",
         "cwd": "apps/api"
@@ -56,8 +72,13 @@
     },
     "test:coverage": {
       "executor": "nx:run-commands",
-      "dependsOn": ["prisma:generate"],
-      "options": { "command": "vitest run --coverage", "cwd": "apps/api" }
+      "dependsOn": [
+        "prisma:generate"
+      ],
+      "options": {
+        "command": "vitest run --coverage",
+        "cwd": "apps/api"
+      }
     },
     "prisma:generate": {
       "executor": "nx:run-commands",
@@ -89,50 +110,80 @@
     },
     "db:seed": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-seed.js --app=platform",
+        "cwd": "apps/api"
+      }
     },
     "db:seed:platform": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --app=platform", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-seed.js --app=platform",
+        "cwd": "apps/api"
+      }
     },
     "db:seed:obo": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --app=obo", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-seed.js --app=obo",
+        "cwd": "apps/api"
+      }
     },
     "db:seed:obo:development": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --app=obo --profile=development", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-seed.js --app=obo --profile=development",
+        "cwd": "apps/api"
+      }
     },
     "db:seed:obo:fixtures": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --app=obo --profile=fixtures", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-seed.js --app=obo --profile=fixtures",
+        "cwd": "apps/api"
+      }
     },
     "db:seed:cadenza": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --app=cadenza", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-seed.js --app=cadenza",
+        "cwd": "apps/api"
+      }
     },
     "db:seed:cadenza:development": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --app=cadenza --profile=development", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-seed.js --app=cadenza --profile=development",
+        "cwd": "apps/api"
+      }
     },
     "db:seed:coverage": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-seed.js --app=all --profile=coverage", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-seed.js --app=coverage",
+        "cwd": "apps/api"
+      }
     },
     "db:setup": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.js --app=all --profile=development",
+        "command": "prisma generate --config ./prisma.config.ts && prisma migrate dev --config ./prisma.config.ts && node scripts/db-seed.js --app=platform",
         "cwd": "apps/api"
       }
     },
     "db:backup": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-backup.cjs", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-backup.cjs",
+        "cwd": "apps/api"
+      }
     },
     "db:restore": {
       "executor": "nx:run-commands",
-      "options": { "command": "node scripts/db-restore.cjs", "cwd": "apps/api" }
+      "options": {
+        "command": "node scripts/db-restore.cjs",
+        "cwd": "apps/api"
+      }
     },
     "openapi:lint": {
       "executor": "nx:run-commands",
@@ -173,6 +224,13 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "node scripts/validate-migrations.cjs",
+        "cwd": "apps/api"
+      }
+    },
+    "db:seed:all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/db-seed.js --app=all --profile=development",
         "cwd": "apps/api"
       }
     }
