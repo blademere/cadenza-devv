@@ -16,14 +16,25 @@ export default function LessonHistoryPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('ALL')
   const sessions = useQuery({ queryKey: ['cadenza', 'customer', 'sessions'], queryFn: schedulingApi.listSessions })
-  if (sessions.isLoading) return <LoadingState label="Loading lesson history…" rows={6} />
-  if (sessions.error) return <Alert variant="destructive"><AlertDescription>{sessions.error.message}</AlertDescription></Alert>
-  const allRows = unwrap(sessions.data).filter((item) => HISTORY_STATUSES.includes(item.status)).sort((a, b) => new Date(b.scheduledStart ?? 0).getTime() - new Date(a.scheduledStart ?? 0).getTime())
+
+  const allRows = useMemo(() => unwrap(sessions.data)
+    .filter((item) => HISTORY_STATUSES.includes(item.status))
+    .sort((a, b) => new Date(b.scheduledStart ?? 0).getTime() - new Date(a.scheduledStart ?? 0).getTime()), [sessions.data])
+
   const rows = useMemo(() => allRows.filter((item) => {
     const term = search.trim().toLowerCase()
-    const matchesSearch = !term || [item.enrollment?.lessonPackage?.name, item.instructor?.person?.fullName, item.room?.name, item.room?.resource?.name].filter(Boolean).some((value) => value.toLowerCase().includes(term))
+    const matchesSearch = !term || [
+      item.enrollment?.lessonPackage?.name,
+      item.instructor?.person?.fullName,
+      item.room?.name,
+      item.room?.resource?.name,
+    ].filter(Boolean).some((value) => value.toLowerCase().includes(term))
+
     return matchesSearch && (status === 'ALL' || item.status === status)
   }), [allRows, search, status])
+
+  if (sessions.isLoading) return <LoadingState label="Loading lesson history…" rows={6} />
+  if (sessions.error) return <Alert variant="destructive"><AlertDescription>{sessions.error.message}</AlertDescription></Alert>
 
   return (
     <div className="space-y-6">
