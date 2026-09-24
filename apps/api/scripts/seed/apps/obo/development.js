@@ -13,6 +13,29 @@ const OBO_DEVELOPMENT_FIXTURE = {
   professionalFieldKey: 'architect',
 }
 
+const ensureUser = async (prisma, { appId, email, roleId, passwordHash }) => {
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: { isActive: true, ...(passwordHash ? { passwordHash } : {}) },
+    create: { email, isActive: true, ...(passwordHash ? { passwordHash } : {}) },
+  })
+
+  if (roleId) {
+    const membership = await prisma.appMembership.upsert({
+      where: { appId_userId: { appId, userId: user.id } },
+      update: { isActive: true },
+      create: { appId, userId: user.id },
+    })
+    await prisma.appMembershipRole.upsert({
+      where: { membershipId_roleId: { membershipId: membership.id, roleId } },
+      update: {},
+      create: { membershipId: membership.id, roleId },
+    })
+  }
+
+  return user
+}
+
 
 async function ensureDevelopmentProfessional(prisma, { appId, roles, passwordHash, receivingOfficer, now }) {
   const professionalUser = await ensureUser(prisma, { appId, email: OBO_DEVELOPMENT_FIXTURE.professionalEmail, roleId: roles.professional.id, passwordHash })
