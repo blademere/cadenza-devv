@@ -51,14 +51,20 @@ export const PERMISSIONS = Object.freeze({
     create: 'cadenza_enrollments:create',
     update: 'cadenza_enrollments:update',
     manage: 'cadenza_enrollments:manage',
+    cancel: 'cadenza_enrollments:cancel',
   }),
   rentals: Object.freeze({
     read: 'cadenza_rentals:read',
     create: 'cadenza_rentals:create',
     update: 'cadenza_rentals:update',
     manage: 'cadenza_rentals:manage',
+    cancel: 'cadenza_rentals:cancel',
   }),
   dashboard: Object.freeze({ read: 'cadenza_dashboard:read' }),
+  portals: Object.freeze({
+    customer: 'cadenza_customer_portal:access',
+    instructor: 'cadenza_instructor_portal:access',
+  }),
   audit: Object.freeze({ read: 'audit_logs:read' }),
   payments: Object.freeze({
     read: 'cadenza_payments:read',
