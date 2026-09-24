@@ -74,7 +74,7 @@ export default function RentalOperationsPage({ mode = 'bookings' }) {
       <PageHeader
         title={config.title}
         description={config.description}
-        actions={<div className="flex gap-2"><Button variant="outline" asChild><Link to="/app/rentals">Overview</Link></Button>{mode === 'bookings' && <Button asChild><Link to="/app/find-rentals">Create booking</Link></Button>}</div>}
+        actions={<Button variant="outline" asChild><Link to="/app/rentals">Overview</Link></Button>}
       />
       {detailError && <Alert variant="destructive"><AlertDescription>{detailError.message}</AlertDescription></Alert>}
       <Card>
