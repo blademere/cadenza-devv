@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription } from '../../../components/ui/alert'
 import { Badge } from '../../../components/ui/badge'
@@ -40,7 +40,6 @@ export default function MyRentalsPage() {
     return matchesFilter && matchesSearch
   })
   const next = [...rows].sort((a, b) => new Date(a.scheduledStart ?? 0) - new Date(b.scheduledStart ?? 0))[0]
-  const outstanding = rows.reduce((sum, item) => sum + Number(item.balanceDue ?? item.totalAmount ?? 0), 0)
 
   return (
     <div className="space-y-8">
@@ -62,7 +61,7 @@ export default function MyRentalsPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <SummaryCard label="Upcoming rentals" value={rows.filter((item) => item.status === 'RESERVED' || item.status === 'PENDING').length} />
         <SummaryCard label="Active rentals" value={rows.filter((item) => item.status === 'ACTIVE').length} />
-        <SummaryCard label="Outstanding balance" value={money(outstanding)} />
+        <SummaryCard label="Total bookings" value={rows.length} />
       </div>
 
       <section className="space-y-4">
@@ -97,7 +96,7 @@ function RentalCard({ rental, onOpen }) {
   return <Card className="transition-shadow hover:shadow-sm"><CardContent className="space-y-5 p-5">
     <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{rentalLabel(rental)}</p><Badge variant={rental.status === 'ACTIVE' ? 'default' : 'secondary'}>{rental.status}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{rental.rentalType === 'ROOM' ? 'Band room' : 'Instrument'}</p></div><p className="text-sm font-medium">{money(rental.totalAmount)}</p></div>
     <div className="grid gap-3 rounded-lg bg-muted/40 p-4 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Start</p><p className="mt-1 text-sm font-medium">{start?.toLocaleString() ?? '—'}</p></div><div><p className="text-xs text-muted-foreground">End</p><p className="mt-1 text-sm font-medium">{end?.toLocaleString() ?? '—'}</p></div></div>
-    <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs text-muted-foreground">Payment</p><p className="text-sm font-medium">{balance > 0 ? `${money(balance)} remaining` : 'Paid'}</p></div><Button variant="outline" onClick={onOpen}>View rental</Button></div>
+    <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs text-muted-foreground">Booking deposit</p><p className="text-sm font-medium">{money(rental.requiredDownPayment)}</p></div><Button variant="outline" onClick={onOpen}>View rental</Button></div>
   </CardContent></Card>
 }
 
