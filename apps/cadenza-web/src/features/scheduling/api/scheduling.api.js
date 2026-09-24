@@ -3,6 +3,7 @@ import { apiClient } from '../../../services/api/client'
 export const schedulingApi = {
   listSessions: () => apiClient.get('/cadenza/lessons/sessions'),
   createSession: (payload) => apiClient.post('/cadenza/lessons/sessions', payload),
+  generateSchedule: (payload) => apiClient.post('/cadenza/lessons/enrollments/' + payload.enrollmentId + '/schedule/generate', payload),
   markAttendance: (sessionId, payload) => apiClient.post(`/cadenza/lessons/sessions/${sessionId}/attendance`, payload),
   completeSession: (sessionId) => apiClient.post(`/cadenza/lessons/sessions/${sessionId}/complete`),
   cancelSession: (sessionId) => apiClient.post(`/cadenza/lessons/sessions/${sessionId}/cancel`),
