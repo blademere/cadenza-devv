@@ -16,7 +16,7 @@ import { instructorsApi } from '../../instructors/api/instructors.api'
 import { staffApi } from '../api/staff.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
 import { DotsThree, Plus } from '@phosphor-icons/react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../../../components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../../../components/ui/dropdown-menu'
 
 const unwrap = (r) => r?.data ?? r ?? []
 const personName = (person) =>
@@ -138,7 +138,6 @@ export default function UsersPage() {
           <DotsThree size={20} weight="bold" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuLabel>Manage</DropdownMenuLabel>
           {x.customer && canCustomerManage && <DropdownMenuItem onClick={() => setEditing({ ...x.customer, role: 'Customer' })}>Customer</DropdownMenuItem>}
           {x.staff && canStaffManage && <DropdownMenuItem onClick={() => setEditing({ ...x.staff, role: 'Staff' })}>Staff</DropdownMenuItem>}
           {x.instructor && canInstructorManage && <DropdownMenuItem onClick={() => setEditing({ ...x.instructor, role: 'Instructor' })}>Instructor</DropdownMenuItem>}
@@ -153,7 +152,6 @@ export default function UsersPage() {
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button type="button"><Plus size={16} />Add role</Button>} />
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuLabel>Add to an existing person</DropdownMenuLabel>
           {canCustomerManage && <DropdownMenuItem onClick={() => setAddCustomerOpen(true)}>Customer</DropdownMenuItem>}
           {canStaffCreate && <DropdownMenuItem onClick={() => setAddStaffOpen(true)}>Staff</DropdownMenuItem>}
           {canInstructorCreate && <DropdownMenuItem onClick={() => setAddInstructorOpen(true)}>Instructor</DropdownMenuItem>}
