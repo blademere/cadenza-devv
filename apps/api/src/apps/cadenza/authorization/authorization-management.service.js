@@ -1,5 +1,6 @@
 import { ConflictError, NotFoundError, ValidationError } from '../../../common/errors/appError.js'
 import { clearRolePermissionCache } from '../../../platform/authorization/authorization.service.js'
+import { recordAudit } from '../../../platform/audit/audit.service.js'
 import * as repository from './authorization-management.repository.js'
 const PREFIX='cadenza_'
 const assertModule=async(id)=>{const m=await repository.findModuleById(id);if(!m||!m.key.startsWith(PREFIX))throw new NotFoundError('Cadenza authorization module not found.');return m}
