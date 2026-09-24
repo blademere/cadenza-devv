@@ -13,11 +13,11 @@ const unwrap = (value) => value?.data ?? value ?? []
 const HISTORY_STATUSES = ['COMPLETED', 'MISSED', 'CANCELLED']
 
 export default function LessonHistoryPage() {
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('ALL')
   const sessions = useQuery({ queryKey: ['cadenza', 'customer', 'sessions'], queryFn: schedulingApi.listSessions })
   if (sessions.isLoading) return <LoadingState label="Loading lesson history…" rows={6} />
   if (sessions.error) return <Alert variant="destructive"><AlertDescription>{sessions.error.message}</AlertDescription></Alert>
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('ALL')
   const allRows = unwrap(sessions.data).filter((item) => HISTORY_STATUSES.includes(item.status)).sort((a, b) => new Date(b.scheduledStart ?? 0).getTime() - new Date(a.scheduledStart ?? 0).getTime())
   const rows = useMemo(() => allRows.filter((item) => {
     const term = search.trim().toLowerCase()
@@ -31,7 +31,7 @@ export default function LessonHistoryPage() {
       <Card><CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
         <div><p className="font-semibold">Your lesson history</p><p className="text-sm text-muted-foreground">{rows.length} of {allRows.length} sessions</p></div>
         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row"><Input className="md:w-64" value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="Search lessons…" aria-label="Search lesson history" /><div className="flex gap-2">{['ALL', ...HISTORY_STATUSES].map((value) => <Button key={value} size="sm" variant={status === value ? 'default' : 'outline'} onClick={() => setStatus(value)}>{value === 'ALL' ? 'All' : value}</Button>)}</div></div>
-      </CardContent></Card>}
+      </CardContent></Card>
       {rows.length === 0 ? <Card><CardContent className="py-12 text-center"><p className="font-medium">{allRows.length ? 'No matching lessons' : 'No lesson history yet'}</p><p className="mt-1 text-sm text-muted-foreground">{allRows.length ? 'Try a different search or status.' : 'Completed and past lesson sessions will appear here.'}</p></CardContent></Card> :
         <div className="overflow-hidden rounded-xl border">
           <div className="hidden grid-cols-[1.2fr_1.2fr_1fr_120px] gap-4 border-b bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground md:grid"><span>Lesson</span><span>Date & time</span><span>Instructor / room</span><span>Status</span></div>
