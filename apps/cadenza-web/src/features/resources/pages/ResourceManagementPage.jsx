@@ -162,7 +162,7 @@ export default function ResourceManagementPage() {
         </div>
         <DataTable
           columns={[
-            { key: 'name', header: 'Resource', value: (x) => x.name ?? x.id },
+            { key: 'name', header: 'Resource', value: (x) => x.resource?.name || x.name || 'Unnamed resource' },
             { key: 'kind', header: 'Type', render: (x) => <Badge variant="secondary">{x.kind}</Badge> },
             { key: 'label', header: 'Category', value: (x) => x.label || '—' },
             { key: 'status', header: 'Status', render: (x) => <Badge variant={statusVariant(x.status)}>{x.status || '—'}</Badge> },
