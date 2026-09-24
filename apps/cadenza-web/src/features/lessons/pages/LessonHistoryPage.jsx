@@ -11,6 +11,7 @@ import { schedulingApi } from '../../scheduling/api/scheduling.api'
 
 const unwrap = (value) => value?.data ?? value ?? []
 const HISTORY_STATUSES = ['COMPLETED', 'MISSED', 'CANCELLED']
+const personName = (person) => [person?.firstName, person?.middleName, person?.lastName, person?.suffix].filter(Boolean).join(' ') || person?.email || '—'
 
 export default function LessonHistoryPage() {
   const [search, setSearch] = useState('')
@@ -46,7 +47,7 @@ export default function LessonHistoryPage() {
       {rows.length === 0 ? <Card><CardContent className="py-12 text-center"><p className="font-medium">{allRows.length ? 'No matching lessons' : 'No lesson history yet'}</p><p className="mt-1 text-sm text-muted-foreground">{allRows.length ? 'Try a different search or status.' : 'Completed and past lesson sessions will appear here.'}</p></CardContent></Card> :
         <div className="overflow-hidden rounded-xl border">
           <div className="hidden grid-cols-[1.2fr_1.2fr_1fr_120px] gap-4 border-b bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground md:grid"><span>Lesson</span><span>Date & time</span><span>Instructor / room</span><span>Status</span></div>
-          <div className="divide-y">{rows.map((item) => <div key={item.id} className="grid gap-3 px-5 py-4 md:grid-cols-[1.2fr_1.2fr_1fr_120px] md:items-center md:gap-4"><div><p className="font-medium">{item.enrollment?.lessonPackage?.name ?? 'Music lesson'}</p><p className="text-xs text-muted-foreground">{item.attendance?.status ? ('Attendance: ' + item.attendance.status) : 'Session record'}</p></div><div className="text-sm">{item.scheduledStart ? new Date(item.scheduledStart).toLocaleString() : '—'}</div><div className="text-sm text-muted-foreground">{item.instructor?.person?.fullName ?? item.instructor?.person?.firstName ?? '—'}{item.room?.name || item.room?.resource?.name ? ' · ' + (item.room?.name ?? item.room?.resource?.name) : ''}</div><div><Badge variant={item.status === 'COMPLETED' ? 'secondary' : 'outline'}>{item.status}</Badge></div></div>)}</div>
+          <div className="divide-y">{rows.map((item) => <div key={item.id} className="grid gap-3 px-5 py-4 md:grid-cols-[1.2fr_1.2fr_1fr_120px] md:items-center md:gap-4"><div><p className="font-medium">{item.enrollment?.lessonPackage?.name ?? 'Music lesson'}</p><p className="text-xs text-muted-foreground">{item.attendance?.status ? ('Attendance: ' + item.attendance.status) : 'Session record'}</p></div><div className="text-sm">{item.scheduledStart ? new Date(item.scheduledStart).toLocaleString() : '—'}</div><div className="text-sm text-muted-foreground">{personName(item.instructor?.person)}{item.room?.name || item.room?.resource?.name ? ' · ' + (item.room?.name ?? item.room?.resource?.name) : ''}</div><div><Badge variant={item.status === 'COMPLETED' ? 'secondary' : 'outline'}>{item.status}</Badge></div></div>)}</div>
         </div>}
     </div>
   )
