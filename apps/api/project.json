@@ -111,7 +111,7 @@
     "db:seed": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node scripts/db-seed.js --app=platform",
+        "command": "node scripts/db-seed.js --app=all",
         "cwd": "apps/api"
       }
     },
