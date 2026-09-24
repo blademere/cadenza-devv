@@ -5,12 +5,11 @@ model User {
   isActive                             Boolean                               @default(true)
   authVersion                          Int                                   @default(0)
   emailVerifiedAt                      DateTime?
-  roleId                               Int
-  role                                 Role                                  @relation(fields: [roleId], references: [id])
   oauthAccounts                        OAuthAccount[]
   refreshTokens                        RefreshToken[]
   passwordResetTokens                  PasswordResetToken[]
   emailVerificationTokens              EmailVerificationToken[]
+  appMemberships                       AppMembership[]
   workflowInstancesStarted             WorkflowInstance[]                    @relation("WorkflowInstanceStartedBy")
   workflowHistoryActions               WorkflowHistory[]                     @relation("WorkflowHistoryActor")
   auditLogs                            AuditLog[]                            @relation("AuditLogActor")
@@ -25,15 +24,12 @@ model User {
   caseStatusChanges                    CaseStatusHistory[]                   @relation("CaseStatusChangedBy")
   assignedTasks                        Task[]                                @relation("TaskAssignee")
   tasksCreated                         Task[]                                @relation("TaskCreatedBy")
-  oboProfessional                      OboProfessional?                      @relation("OboProfessionalUser")
   oboProfessionalsVerified             OboProfessional[]                     @relation("OboProfessionalVerifiedBy")
   oboApplicationsAccepted              OboPermitApplication[]                @relation("OboApplicationAcceptedBy")
   oboReceivingDecisions                OboReceivingDecision[]                @relation("OboReceivingDecisionUser")
   oboProfessionalVerificationDecisions OboProfessionalVerificationDecision[] @relation("OboProfessionalVerificationDecisionUser")
   createdAt                            DateTime                              @default(now())
   updatedAt                            DateTime                              @updatedAt
-
-  @@index([roleId])
 }
 
 model OAuthAccount {
@@ -50,13 +46,18 @@ model OAuthAccount {
 }
 
 model Role {
-  id          Int              @id @default(autoincrement())
-  name        String           @unique
+  id          Int                 @id @default(autoincrement())
+  appId       String
+  app         App                 @relation(fields: [appId], references: [id], onDelete: Cascade)
+  name        String
   description String?
-  users       User[]
   permissions RolePermission[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  membershipRoles AppMembershipRole[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([appId, name])
+  @@index([appId])
 }
 
 model Module {
@@ -67,7 +68,7 @@ model Module {
   isActive    Boolean      @default(true)
   permissions Permission[]
   createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  updatedAt   DateTime      @updatedAt
 }
 
 model Permission {
@@ -102,7 +103,7 @@ model RefreshToken {
   revokedAt         DateTime?
   replacedByTokenId String?       @unique
   replacedByToken   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
-  replacesToken     RefreshToken? @relation("RefreshTokenReplacement")
+  replacesToken     RefreshToken?  @relation("RefreshTokenReplacement")
   createdAt         DateTime      @default(now())
 
   @@index([userId])
@@ -111,13 +112,13 @@ model RefreshToken {
 }
 
 model PasswordResetToken {
-  id         String   @id @default(uuid())
+  id         String   @id
   tokenHash  String   @unique
   userId     Int
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt  DateTime
   usedAt     DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -125,7 +126,7 @@ model PasswordResetToken {
 }
 
 model EmailVerificationToken {
-  id         String   @id @default(uuid())
+  id         String   @id
   userId     Int
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash  String   @unique

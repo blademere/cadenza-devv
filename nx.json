@@ -4,10 +4,7 @@
   "plugins": [
     {
       "plugin": "@nx/vite/plugin",
-      "include": [
-        "apps/web/**",
-        "apps/obo-web/**"
-      ],
+      "include": ["apps/obo-web/**", "apps/api/cadenza-web/**"],
       "options": {
         "buildTargetName": "build",
         "devTargetName": "dev",
@@ -16,31 +13,56 @@
     },
     {
       "plugin": "@nx/eslint/plugin",
-      "include": [
-        "apps/api/**",
-        "apps/web/**",
-        "apps/obo-web/**"
-      ],
+      "include": ["apps/api/**", "apps/obo-web/**", "apps/api/cadenza-web/**"],
       "options": {
         "targetName": "lint"
       }
     },
     {
       "plugin": "@nx/vitest",
-      "include": [
-        "apps/api/**",
-        "apps/obo-web/**"
-      ],
+      "include": ["apps/api/**", "apps/obo-web/**", "apps/api/cadenza-web/**"],
       "options": {
         "testTargetName": "test"
+      }
+    },
+    {
+      "plugin": "@nx/vite/plugin",
+      "options": {
+        "buildTargetName": "vite:build",
+        "serveTargetName": "vite:serve",
+        "devTargetName": "vite:dev",
+        "previewTargetName": "vite:preview",
+        "serveStaticTargetName": "vite:serve-static",
+        "typecheckTargetName": "typecheck",
+        "buildDepsTargetName": "vite:build-deps",
+        "watchDepsTargetName": "vite:watch-deps"
+      }
+    },
+    {
+      "plugin": "@nx/vitest",
+      "options": {
+        "testTargetName": "vitest:test",
+        "ciTargetName": "test-ci",
+        "testMode": "watch"
+      }
+    },
+    {
+      "plugin": "@nx/js/typescript",
+      "options": {
+        "typecheck": {
+          "targetName": "typecheck"
+        },
+        "build": {
+          "targetName": "build",
+          "configName": "tsconfig.lib.json",
+          "buildDepsName": "build-deps",
+          "watchDepsName": "watch-deps"
+        }
       }
     }
   ],
   "namedInputs": {
-    "default": [
-      "{projectRoot}/**/*",
-      "sharedGlobals"
-    ],
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "sharedGlobals": [
       "{workspaceRoot}/package.json",
       "{workspaceRoot}/package-lock.json",
@@ -53,11 +75,29 @@
       "cache": true
     },
     "test": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["^build"]
     },
     "build": {
       "cache": true
     }
   },
-  "nxCloudId": "6a9a5023480d25cbeaa11c9f"
+  "nxCloudId": "6a9a5023480d25cbeaa11c9f",
+  "generators": {
+    "@nx/react": {
+      "application": {
+        "babel": true,
+        "style": "css",
+        "linter": "eslint",
+        "bundler": "vite"
+      },
+      "component": {
+        "style": "css"
+      },
+      "library": {
+        "style": "css",
+        "linter": "eslint"
+      }
+    }
+  }
 }

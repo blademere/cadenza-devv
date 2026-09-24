@@ -7,8 +7,6 @@ const optionalEnvString = z.preprocess(emptyToUndefined, z.string().optional())
 const optionalEnvUrl = z.preprocess(emptyToUndefined, z.url().optional())
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  APP_NAME: z.string().min(1).default('Express App'),
-  APP_SLUG: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'APP_SLUG must contain only lowercase letters, numbers, and hyphens.').default('express-app'),
   PORT: z.coerce.number().int().positive().max(65535).default(3000),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required.'),
   REDIS_URL: z.url().default('redis://localhost:6379'),
@@ -27,6 +25,8 @@ const envSchema = z.object({
   METRICS_TOKEN: optionalEnvString,
   SEED_ADMIN_EMAIL: z.email().optional(),
   SEED_ADMIN_PASSWORD: optionalEnvString,
+  SEED_CADENZA_ADMIN_EMAIL: z.email().optional(),
+  SEED_CADENZA_ADMIN_PASSWORD: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_ID: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_SECRET: optionalEnvString,
   OAUTH_GOOGLE_CALLBACK_URL: optionalEnvUrl,
@@ -41,6 +41,17 @@ const envSchema = z.object({
   EMAIL_FROM: optionalEnvString,
   STORAGE_PROVIDER: z.enum(['local']).default('local'),
   STORAGE_LOCAL_ROOT: z.string().min(1).default('./storage'),
+  XENDIT_SECRET_KEY: optionalEnvString,
+  XENDIT_WEBHOOK_TOKEN: optionalEnvString,
+  XENDIT_API_BASE_URL: z.url().default('https://api.xendit.co'),
+  XENDIT_API_VERSION: z.string().default('2024-11-11'),
+  XENDIT_COUNTRY: z.string().length(2).default('PH'),
+  XENDIT_CHANNEL_CODE: z.string().min(1).default('GCASH'),
+  XENDIT_SUCCESS_URL: optionalEnvUrl,
+  XENDIT_FAILURE_URL: optionalEnvUrl,
+  CADENZA_PAYMENT_PROVIDER: z.literal('XENDIT').default('XENDIT'),
+  AUTHORIZATION_CACHE_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
+  AUTHORIZATION_CACHE_TRUST_POSITIVE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 })
 const parsed = envSchema.safeParse(process.env)
 if (!parsed.success) { const details = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; '); throw new Error(`Invalid environment configuration. ${details}`) }
@@ -49,10 +60,15 @@ const parseDurationMs = (value) => { const match = value.match(/^(\d+)(ms|s|m|h|
 if (data.COOKIE_SAME_SITE === 'none' && !data.COOKIE_SECURE) throw new Error("COOKIE_SECURE must be true when COOKIE_SAME_SITE is 'none'.")
 if (data.NODE_ENV === 'production' && !data.COOKIE_SECURE) throw new Error('COOKIE_SECURE must be true in production.')
 if (data.NODE_ENV === 'production' && data.CORS_ORIGIN === '*') throw new Error("CORS_ORIGIN must not be '*' in production.")
+const hasXenditCredentials = Boolean(data.XENDIT_SECRET_KEY || data.XENDIT_WEBHOOK_TOKEN)
+if (hasXenditCredentials && (!data.XENDIT_SECRET_KEY || !data.XENDIT_WEBHOOK_TOKEN)) throw new Error('Xendit requires XENDIT_SECRET_KEY and XENDIT_WEBHOOK_TOKEN together.')
+if (hasXenditCredentials && (!data.XENDIT_SUCCESS_URL || !data.XENDIT_FAILURE_URL)) throw new Error('Xendit requires XENDIT_SUCCESS_URL and XENDIT_FAILURE_URL when enabled.')
 if (data.NODE_ENV === 'production' && !data.METRICS_TOKEN) throw new Error('METRICS_TOKEN is required in production.')
 if (data.METRICS_TOKEN && data.METRICS_TOKEN.length < 32) throw new Error('METRICS_TOKEN must be at least 32 characters.')
 if (data.SEED_ADMIN_PASSWORD && data.SEED_ADMIN_PASSWORD.length < 12) throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters when configured.')
 if ((data.SEED_ADMIN_EMAIL && !data.SEED_ADMIN_PASSWORD) || (!data.SEED_ADMIN_EMAIL && data.SEED_ADMIN_PASSWORD)) throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be configured together.')
+if (data.SEED_CADENZA_ADMIN_PASSWORD && data.SEED_CADENZA_ADMIN_PASSWORD.length < 12) throw new Error('SEED_CADENZA_ADMIN_PASSWORD must be at least 12 characters when configured.')
+if ((data.SEED_CADENZA_ADMIN_EMAIL && !data.SEED_CADENZA_ADMIN_PASSWORD) || (!data.SEED_CADENZA_ADMIN_EMAIL && data.SEED_CADENZA_ADMIN_PASSWORD)) throw new Error('SEED_CADENZA_ADMIN_EMAIL and SEED_CADENZA_ADMIN_PASSWORD must be configured together.')
 const refreshTokenLifetimeMs = parseDurationMs(data.JWT_REFRESH_EXPIRES_IN)
 if (data.COOKIE_REFRESH_MAX_AGE_MS !== refreshTokenLifetimeMs) throw new Error('COOKIE_REFRESH_MAX_AGE_MS must exactly match JWT_REFRESH_EXPIRES_IN.')
 if (data.NODE_ENV === 'production' && data.PASSWORD_RESET_URL.startsWith('http://')) throw new Error('PASSWORD_RESET_URL must use HTTPS in production.')
@@ -63,5 +79,4 @@ const hasFacebookCredentials = Boolean(data.OAUTH_FACEBOOK_CLIENT_ID || data.OAU
 if (hasFacebookCredentials && (!data.OAUTH_FACEBOOK_CLIENT_ID || !data.OAUTH_FACEBOOK_CLIENT_SECRET || !data.OAUTH_FACEBOOK_CALLBACK_URL)) throw new Error('Facebook OAuth requires OAUTH_FACEBOOK_CLIENT_ID, OAUTH_FACEBOOK_CLIENT_SECRET, and OAUTH_FACEBOOK_CALLBACK_URL.')
 if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_SUCCESS_URL.startsWith('http://')) throw new Error('OAUTH_FRONTEND_SUCCESS_URL must use HTTPS in production.')
 if (data.NODE_ENV === 'production' && data.OAUTH_FRONTEND_FAILURE_URL.startsWith('http://')) throw new Error('OAUTH_FRONTEND_FAILURE_URL must use HTTPS in production.')
-
 export default Object.freeze(data)

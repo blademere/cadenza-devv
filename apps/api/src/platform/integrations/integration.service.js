@@ -1,48 +1,22 @@
-import { getPrismaClient } from '../../infrastructure/database/prisma.js'
-import {
-  BadRequestError,
-  ConflictError,
-  NotFoundError,
-} from '../../common/errors/appError.js'
+import { BadRequestError, ConflictError, NotFoundError } from '../../common/errors/appError.js'
+import * as repository from './integration.repository.js'
 
-const prisma = getPrismaClient()
-
-const createIntegration = async ({
-  key,
-  name,
-  type,
-  config = null,
-  secretRef = null,
-}) => {
+const createIntegration = async ({ key, name, type, config = null, secretRef = null }) => {
   if (!key || !name || !type)
     throw new BadRequestError('Integration key, name, and type are required.')
-  if (await prisma.integration.findUnique({ where: { key } }))
+  if (await repository.findByKey(key))
     throw new ConflictError(`Integration '${key}' already exists.`)
-  return prisma.integration.create({
-    data: { key, name, type, config, secretRef },
-  })
+  return repository.create({ key, name, type, config, secretRef })
 }
 
 const subscribeEvent = async ({ integrationKey, event, config = null }) => {
   if (!event) throw new BadRequestError('Integration event is required.')
-  const integration = await prisma.integration.findUnique({
-    where: { key: integrationKey },
-  })
+  const integration = await repository.findByKey(integrationKey)
   if (!integration || !integration.active)
-    throw new NotFoundError(
-      `Active integration '${integrationKey}' was not found.`
-    )
-  return prisma.integrationEvent.upsert({
-    where: { integrationId_event: { integrationId: integration.id, event } },
-    create: { integrationId: integration.id, event, config },
-    update: { active: true, config },
-  })
+    throw new NotFoundError(`Active integration '${integrationKey}' was not found.`)
+  return repository.upsertEvent({ integrationId: integration.id, event, config })
 }
 
-const getActiveSubscribers = async (event) =>
-  prisma.integrationEvent.findMany({
-    where: { event, active: true, integration: { active: true } },
-    include: { integration: true },
-  })
+const getActiveSubscribers = async (event) => repository.findActiveSubscribers(event)
 
 export { createIntegration, subscribeEvent, getActiveSubscribers }

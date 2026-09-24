@@ -1,4 +1,3 @@
-import { getPrismaClient } from "../../infrastructure/database/prisma.js"
 import {
   BadRequestError,
   ConflictError,
@@ -6,17 +5,24 @@ import {
   NotFoundError,
 } from "../../common/errors/appError.js"
 import { recordAudit } from "../audit/audit.service.js"
-import { can } from "../authorization/access-control.service.js"
+import { can } from "../authorization/authorization.service.js"
+import { getContext } from "../context/context.service.js"
 import { publish } from "../event-bus/event-bus.js"
+import { instrument } from "../observability/observability.service.js"
 import {
   findWorkflowByKey,
   findPublishedVersion,
   findInstance,
   findInstanceWithHistory,
+  createWorkflow as createWorkflowRecord,
+  runTransaction,
+  findTransition,
+  updateInstanceStep,
+  createHistory,
+  findInstanceWithCurrentStep,
+  createInstance,
 } from "./workflow.repository.js"
-import { WORKFLOW_ACTIONS, WORKFLOW_STATUS } from "./workflow.constants.js"
-
-const prisma = getPrismaClient()
+import { WORKFLOW_ACTIONS } from "./workflow.constants.js"
 
 const parsePermissionKey = (permissionKey) => {
   if (!permissionKey) return null
@@ -163,6 +169,8 @@ const assertTransitionPermission = async ({ transition, actorId }) => {
   }
 }
 
+const resolveCorrelationId = () => getContext()?.correlationId || null
+
 const createWorkflow = async ({
   key,
   name,
@@ -182,62 +190,12 @@ const createWorkflow = async ({
     throw new ConflictError(`Workflow '${key}' already exists.`)
   }
 
-  const workflow = await prisma.$transaction(async (tx) => {
-    const created = await tx.workflow.create({
-      data: {
-        key,
-        name,
-        description,
-        versions: {
-          create: {
-            version: 1,
-            status: WORKFLOW_STATUS.PUBLISHED,
-            steps: {
-              create: steps.map((step, index) => ({
-                key: step.key,
-                name: step.name,
-                description: step.description || null,
-                sortOrder: step.sortOrder ?? index,
-                isInitial: Boolean(step.isInitial),
-                isFinal: Boolean(step.isFinal),
-              })),
-            },
-          },
-        },
-      },
-      include: {
-        versions: {
-          include: { steps: true },
-        },
-      },
-    })
-
-    const version = created.versions[0]
-    const stepByKey = new Map(version.steps.map((step) => [step.key, step]))
-
-    for (const transition of transitions) {
-      await tx.workflowTransition.create({
-        data: {
-          workflowVersionId: version.id,
-          fromStepId: stepByKey.get(transition.fromStepKey).id,
-          toStepId: stepByKey.get(transition.toStepKey).id,
-          key: transition.key,
-          name: transition.name,
-          description: transition.description || null,
-          permissionKey: transition.permissionKey || null,
-        },
-      })
-    }
-
-    return tx.workflow.findUnique({
-      where: { id: created.id },
-      include: {
-        versions: {
-          include: { steps: true, transitions: true },
-          orderBy: { version: "desc" },
-        },
-      },
-    })
+  const workflow = await createWorkflowRecord({
+    key,
+    name,
+    description,
+    steps,
+    transitions,
   })
 
   await recordAudit({
@@ -257,7 +215,7 @@ const startWorkflow = async ({
   subjectId,
   actorId = null,
   metadata,
-  db = prisma,
+  db,
 }) => {
   if (!subjectType || subjectId === undefined || subjectId === null) {
     throw new BadRequestError("subjectType and subjectId are required.")
@@ -274,26 +232,24 @@ const startWorkflow = async ({
   }
 
   const normalizedSubjectId = String(subjectId)
+  const correlationId = resolveCorrelationId()
 
-  const createInstance = async (tx) => {
-    const created = await tx.workflowInstance.create({
-      data: {
-        workflowVersionId: version.id,
-        currentStepId: initialStep.id,
-        subjectType,
-        subjectId: normalizedSubjectId,
-        startedByUserId: actorId,
-      },
-    })
+  const createInstanceRecord = async (tx) => {
+    const created = await createInstance({
+      workflowVersionId: version.id,
+      currentStepId: initialStep.id,
+      subjectType,
+      subjectId: normalizedSubjectId,
+      startedByUserId: actorId,
+    }, tx)
 
-    await tx.workflowHistory.create({
-      data: {
-        instanceId: created.id,
-        toStepId: initialStep.id,
-        actorId,
-        metadata: metadata || undefined,
-      },
-    })
+    await createHistory({
+      instanceId: created.id,
+      toStepId: initialStep.id,
+      actorId,
+      correlationId,
+      metadata: metadata || undefined,
+    }, tx)
 
     await publish({
       db: tx,
@@ -313,10 +269,7 @@ const startWorkflow = async ({
     return created
   }
 
-  const instance =
-    db === prisma
-      ? await prisma.$transaction(createInstance)
-      : await createInstance(db)
+  const instance = await runTransaction(createInstanceRecord, db)
 
   await recordAudit({
     actorId,
@@ -328,11 +281,12 @@ const startWorkflow = async ({
       workflowKey,
       subjectType,
       subjectId: normalizedSubjectId,
+      correlationId,
     },
-    db: db === prisma ? undefined : db,
+    db,
   })
 
-  return db === prisma ? findInstance(instance.id) : instance
+  return db ? instance : findInstance(instance.id)
 }
 
 const transitionWorkflow = async ({
@@ -340,7 +294,7 @@ const transitionWorkflow = async ({
   transitionKey,
   actorId = null,
   metadata,
-  db = prisma,
+  db,
 }) => {
   const instance = await findInstance(instanceId, db)
 
@@ -352,14 +306,7 @@ const transitionWorkflow = async ({
     throw new ConflictError("Workflow instance is already completed.")
   }
 
-  const transition = await db.workflowTransition.findFirst({
-    where: {
-      workflowVersionId: instance.workflowVersionId,
-      fromStepId: instance.currentStepId,
-      key: transitionKey,
-    },
-    include: { toStep: true },
-  })
+  const transition = await findTransition(instance, transitionKey, db)
 
   if (!transition) {
     throw new BadRequestError(
@@ -369,18 +316,16 @@ const transitionWorkflow = async ({
 
   await assertTransitionPermission({ transition, actorId })
 
+  const correlationId = resolveCorrelationId()
+
   const executeTransition = async (tx) => {
-    const result = await tx.workflowInstance.updateMany({
-      where: {
-        id: instanceId,
-        currentStepId: instance.currentStepId,
-        completedAt: null,
-      },
-      data: {
-        currentStepId: transition.toStepId,
-        completedAt: transition.toStep.isFinal ? new Date() : null,
-      },
-    })
+    const result = await updateInstanceStep(
+      instanceId,
+      instance.currentStepId,
+      transition.toStepId,
+      transition.toStep.isFinal ? new Date() : null,
+      tx,
+    )
 
     if (result.count !== 1) {
       throw new ConflictError(
@@ -388,16 +333,15 @@ const transitionWorkflow = async ({
       )
     }
 
-    await tx.workflowHistory.create({
-      data: {
-        instanceId,
-        fromStepId: instance.currentStepId,
-        toStepId: transition.toStepId,
-        transitionId: transition.id,
-        actorId,
-        metadata: metadata || undefined,
-      },
-    })
+    await createHistory({
+      instanceId,
+      fromStepId: instance.currentStepId,
+      toStepId: transition.toStepId,
+      transitionId: transition.id,
+      actorId,
+      correlationId,
+      metadata: metadata || undefined,
+    }, tx)
 
     await publish({
       db: tx,
@@ -419,16 +363,20 @@ const transitionWorkflow = async ({
       idempotencyKey: `workflow:${instanceId}:transition:${transition.id}:${transition.toStepId}`,
     })
 
-    return tx.workflowInstance.findUnique({
-      where: { id: instanceId },
-      include: { currentStep: true },
-    })
+    return findInstanceWithCurrentStep(instanceId, tx)
   }
 
-  const updated =
-    db === prisma
-      ? await prisma.$transaction(executeTransition)
-      : await executeTransition(db)
+  const updated = await instrument(
+    'workflow.transition',
+    () => runTransaction(executeTransition, db),
+    {
+      metric: 'platform.workflow.transition',
+      labels: {
+        transition: transitionKey,
+        workflow: instance.workflowVersion.workflow.key,
+      },
+    },
+  )
 
   const action = transition.toStep.isFinal
     ? WORKFLOW_ACTIONS.COMPLETED
@@ -450,9 +398,10 @@ const transitionWorkflow = async ({
     metadata: {
       transitionKey,
       transitionId: transition.id,
+      correlationId,
       ...metadata,
     },
-    db: db === prisma ? undefined : db,
+    db,
   })
 
   return updated

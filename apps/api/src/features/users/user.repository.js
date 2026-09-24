@@ -1,21 +1,83 @@
 import { getPrismaClient } from '../../infrastructure/database/prisma.js'
+
 const prisma = getPrismaClient()
 
-const findAllUsers = async ({ skip, take, filters = {}, orderBy }) => {
-  const where = {}
-  if (filters.email) where.email = { contains: filters.email, mode: 'insensitive' }
-  if (filters.isActive !== undefined) where.isActive = filters.isActive === 'true'
+const findAllUsers = async ({ appId, skip, take, filters = {}, orderBy }) => {
+  const userWhere = {
+    ...(filters.email ? { email: { contains: filters.email, mode: 'insensitive' } } : {}),
+    ...(filters.isActive !== undefined ? { isActive: filters.isActive === 'true' } : {}),
+    ...(appId ? {
+      appMemberships: {
+        some: {
+          appId,
+          isActive: true,
+          app: { isActive: true },
+        },
+      },
+    } : {}),
+  }
+
+  const select = {
+    id: true,
+    email: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+    ...(appId ? {
+      appMemberships: {
+        where: {
+          appId,
+          isActive: true,
+          app: { isActive: true },
+        },
+        select: {
+          roles: {
+            where: { role: { appId } },
+            select: { role: true },
+          },
+        },
+      },
+    } : {}),
+  }
+
   const [users, total] = await Promise.all([
-    prisma.user.findMany({ skip, take, where, orderBy, select: { id: true, email: true, isActive: true, createdAt: true, updatedAt: true, role: { select: { id: true, name: true, description: true } } } }),
-    prisma.user.count({ where }),
+    prisma.user.findMany({
+      skip,
+      take,
+      where: userWhere,
+      orderBy,
+      select,
+    }),
+    prisma.user.count({ where: userWhere }),
   ])
-  return { users, total }
+
+  return {
+    users: users.map((user) => {
+      if (!appId) return user
+
+      const roles = user.appMemberships.flatMap((membership) =>
+        membership.roles.map(({ role }) => role)
+      )
+      const { appMemberships, ...userWithoutMemberships } = user
+      return { ...userWithoutMemberships, roles }
+    }),
+    total,
+  }
 }
 
-const findUserByEmail = async (email, db = prisma) => db.user.findUnique({ where: { email }, select: { id: true, email: true, isActive: true, createdAt: true, updatedAt: true, role: { select: { id: true, name: true, description: true } } } })
-const createUser = async ({ email, roleId, passwordHash }, db = prisma) => db.user.create({ data: { email, passwordHash, roleId }, select: { id: true, email: true, isActive: true, createdAt: true, updatedAt: true, role: { select: { id: true, name: true, description: true } } } })
-const findUserWithRole = async (userId, db = prisma) => db.user.findUnique({ where: { id: userId }, select: { id: true, email: true, isActive: true, roleId: true, role: { select: { id: true, name: true, description: true } } } })
-const findRoleForAssignment = async (roleId, db = prisma) => db.role.findUnique({ where: { id: roleId }, select: { id: true, name: true, description: true, permissions: { select: { permission: { select: { action: true, module: { select: { key: true, isActive: true } } } } } } } })
-const updateUserRole = async (userId, roleId, db = prisma) => db.user.update({ where: { id: userId }, data: { roleId }, select: { id: true, email: true, isActive: true, createdAt: true, updatedAt: true, role: { select: { id: true, name: true, description: true } } } })
+const findUserByEmail = async (email, db = prisma) => db.user.findUnique({
+  where: { email },
+  select: { id: true, email: true, isActive: true, createdAt: true, updatedAt: true },
+})
 
-export { findAllUsers, findUserByEmail, createUser, findUserWithRole, findRoleForAssignment, updateUserRole }
+const createUser = async ({ email, passwordHash }, db = prisma) => db.user.create({
+  data: { email, passwordHash },
+  select: { id: true, email: true, isActive: true, createdAt: true, updatedAt: true },
+})
+
+const findUser = async (userId, db = prisma) => db.user.findUnique({
+  where: { id: Number(userId) },
+  select: { id: true, email: true, isActive: true, createdAt: true, updatedAt: true },
+})
+
+export { findAllUsers, findUserByEmail, createUser, findUser }

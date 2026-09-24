@@ -1,5 +1,6 @@
 model Task {
   id              String      @id @default(uuid())
+  appId           String
   caseId          String?
   title           String
   description     String?
@@ -10,13 +11,15 @@ model Task {
   dueAt           DateTime?
   completedAt     DateTime?
   metadata        Json?
-  caseRecord      CaseRecord? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  app             App         @relation(fields: [appId], references: [id], onDelete: Restrict)
+  caseRecord      CaseRecord? @relation(fields: [caseId, appId], references: [id, appId], onDelete: Restrict)
   assigneeUser    User?       @relation("TaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   createdByUser   User?       @relation("TaskCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  @@index([caseId, status])
-  @@index([assigneeUserId, status])
-  @@index([status, dueAt])
+  @@index([appId])
+  @@index([appId, caseId, status])
+  @@index([appId, assigneeUserId, status])
+  @@index([appId, status, dueAt])
 }

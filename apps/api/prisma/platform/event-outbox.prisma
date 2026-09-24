@@ -13,6 +13,7 @@ model EventOutbox {
   availableAt    DateTime  @default(now())
   idempotencyKey String?   @unique
   processedAt    DateTime?
+  deadAt         DateTime?
   lockedAt       DateTime?
   leaseUntil     DateTime?
   lockToken      String?
@@ -22,6 +23,7 @@ model EventOutbox {
 
   @@index([status, availableAt, createdAt])
   @@index([status, leaseUntil])
+  @@index([status, deadAt])
   @@index([entityType, entityId])
   @@index([correlationId])
 }

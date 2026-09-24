@@ -1,11 +1,10 @@
-import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 import {
   normalizePagination,
   createPaginationMeta,
   createOrderBy,
 } from '../../common/pagination/pagination.js'
-
-const prisma = getPrismaClient()
+import { getContext } from '../context/context.service.js'
+import * as repository from './audit.query.repository.js'
 
 const parseDate = (value) => {
   if (!value) return undefined
@@ -20,15 +19,15 @@ const parseOptionalInt = (value) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
 }
 
-const buildAuditWhere = ({ entityType, entityId, actorId, action, from, to } = {}) => {
+const buildAuditWhere = ({ entityType, entityId, actorId, action, appId, from, to } = {}) => {
   const where = {}
   if (entityType) where.entityType = entityType
   if (entityId) where.entityId = String(entityId)
   if (action) where.action = action
-
   const parsedActorId = parseOptionalInt(actorId)
   if (parsedActorId) where.actorId = parsedActorId
-
+  const resolvedAppId = appId ?? getContext()?.appId ?? null
+  if (resolvedAppId) where.appId = resolvedAppId
   const fromDate = parseDate(from)
   const toDate = parseDate(to)
   if (fromDate || toDate) {
@@ -37,67 +36,21 @@ const buildAuditWhere = ({ entityType, entityId, actorId, action, from, to } = {
       ...(toDate ? { lte: toDate } : {}),
     }
   }
-
   return where
 }
 
-const listAuditLogs = async ({
-  page,
-  limit,
-  sortBy,
-  sortOrder,
-  entityType,
-  entityId,
-  actorId,
-  action,
-  from,
-  to,
-} = {}, db = prisma) => {
+const listAuditLogs = async ({ page, limit, sortBy, sortOrder, entityType, entityId, actorId, action, appId, from, to } = {}, db) => {
   const pagination = normalizePagination({ page, limit })
-  const where = buildAuditWhere({ entityType, entityId, actorId, action, from, to })
-  const orderBy = createOrderBy(
-    { sortBy, sortOrder },
-    ['createdAt', 'action', 'entityType'],
-    'createdAt',
-  )
-
-  const [data, total] = await Promise.all([
-    db.auditLog.findMany({
-      where,
-      orderBy,
-      skip: pagination.skip,
-      take: pagination.take,
-      include: {
-        actor: {
-          select: { id: true, email: true },
-        },
-      },
-    }),
-    db.auditLog.count({ where }),
-  ])
-
+  const where = buildAuditWhere({ entityType, entityId, actorId, action, appId, from, to })
+  const orderBy = createOrderBy({ sortBy, sortOrder }, ['createdAt', 'action', 'entityType'], 'createdAt')
+  const [data, total] = await repository.findPage({ where, orderBy, skip: pagination.skip, take: pagination.take }, db)
   return {
     data,
-    pagination: createPaginationMeta({
-      page: pagination.page,
-      limit: pagination.limit,
-      total,
-    }),
+    pagination: createPaginationMeta({ page: pagination.page, limit: pagination.limit, total }),
   }
 }
 
-const getEntityTimeline = async ({ entityType, entityId, ...query } = {}, db = prisma) => {
-  return listAuditLogs({
-    ...query,
-    entityType,
-    entityId,
-    sortBy: 'createdAt',
-    sortOrder: 'asc',
-  }, db)
-}
+const getEntityTimeline = async ({ entityType, entityId, ...query } = {}, db) =>
+  listAuditLogs({ ...query, entityType, entityId, sortBy: 'createdAt', sortOrder: 'asc' }, db)
 
-export {
-  buildAuditWhere,
-  listAuditLogs,
-  getEntityTimeline,
-}
+export { buildAuditWhere, listAuditLogs, getEntityTimeline }

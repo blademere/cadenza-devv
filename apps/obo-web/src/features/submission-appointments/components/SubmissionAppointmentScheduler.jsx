@@ -99,7 +99,7 @@ export default function SubmissionAppointmentScheduler({ applicationId, reschedu
 
   return (
     <PermissionGate
-      permission={permissions.planPermits.scheduleSubmission}
+      permission={permissions.applications.scheduleSubmission}
       fallback={<Alert color="gray" title="Scheduling unavailable">You do not have permission to schedule a submission appointment.</Alert>}
     >
       <Stack className="obo-panel" p="lg" gap="lg">

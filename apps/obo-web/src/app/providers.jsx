@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '../features/auth/components/AuthProvider'
+import { ApplicationProvider } from '../features/applications/components/ApplicationProvider'
 import { AuthorizationProvider } from '../features/authorization/components/AuthorizationProvider'
 import { oboTheme } from './theme'
 
@@ -11,7 +12,9 @@ export function AppProviders({ children }) {
     <MantineProvider theme={oboTheme} defaultColorScheme="light">
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <AuthorizationProvider>{children}</AuthorizationProvider>
+          <ApplicationProvider>
+            <AuthorizationProvider>{children}</AuthorizationProvider>
+          </ApplicationProvider>
         </AuthProvider>
       </QueryClientProvider>
     </MantineProvider>

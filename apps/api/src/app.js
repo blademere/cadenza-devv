@@ -16,6 +16,7 @@ import {
 import { getPrismaClient } from './infrastructure/database/prisma.js'
 import { connectRedis } from './infrastructure/cache/redis.js'
 import './infrastructure/storage/index.js'
+import './infrastructure/payments/payment-provider.bootstrap.js'
 
 import {
   rateLimiter,
@@ -24,6 +25,7 @@ import {
   errorHandler,
 } from './common/middleware/index.js'
 import originProtection from './common/middleware/originProtection.js'
+import { contextMiddleware } from './platform/context/index.js'
 
 import { env, requestLogger } from './config/index.js'
 import apiRoutes from './routes/index.js'
@@ -35,6 +37,7 @@ const allowedCorsOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.tri
 
 app.set('trust proxy', 1)
 app.use(requestId)
+app.use(contextMiddleware)
 app.use(cookieParser())
 app.use(requestLogger)
 app.use(helmet())
@@ -48,13 +51,23 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'Idempotency-Key'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-CSRF-Token',
+      'Idempotency-Key',
+      'X-Request-ID',
+      'X-Correlation-ID',
+      'X-App-ID',
+    ],
+    exposedHeaders: ['X-Request-ID', 'X-Correlation-ID'],
   })
 )
 
 app.use(originProtection)
 app.use(hpp())
 app.use(compression())
+app.use('/api/v1/payments/webhooks', express.raw({ type: 'application/json', limit: '1mb' }))
 app.use(express.json({ limit: '1mb' }))
 app.use(prometheusMiddleware)
 

@@ -1,6 +1,5 @@
-import { getPrismaClient } from '../../infrastructure/database/prisma.js'
-
-const prisma = getPrismaClient()
+import { getContext } from '../context/context.service.js'
+import { createAuditLog } from './audit.repository.js'
 
 const SENSITIVE_KEYS = new Set([
   'password',
@@ -35,6 +34,7 @@ const sanitizeJson = (value) => {
 
 const recordAudit = async ({
   actorId = null,
+  appId,
   action,
   entityType,
   entityId,
@@ -43,28 +43,71 @@ const recordAudit = async ({
   metadata,
   ipAddress,
   userAgent,
-  db = prisma,
+  db,
 }) => {
   if (!action || !entityType || !entityId) {
     throw new TypeError('Audit action, entityType, and entityId are required.')
   }
 
-  return db.auditLog.create({
-    data: {
+  const context = getContext()
+  const resolvedAppId = appId ?? context?.appId ?? null
+  const resolvedActorId = actorId ?? context?.actorId ?? null
+
+  return createAuditLog({
+    actorId: resolvedActorId,
+    appId: resolvedAppId,
+    action,
+    entityType,
+    entityId: String(entityId),
+    before: sanitizeJson(before),
+    after: sanitizeJson(after),
+    metadata: sanitizeJson(metadata),
+    ipAddress: ipAddress || null,
+    userAgent: userAgent || null,
+  }, db)
+}
+
+const recordAuthorizationDenied = async ({
+  actorId,
+  appId,
+  resource,
+  action,
+  resourceId = null,
+  ipAddress = null,
+  userAgent = null,
+  requestId = null,
+  correlationId = null,
+  reason = 'permission_denied',
+}) => {
+  try {
+    const entityId = resourceId == null
+      ? `${String(resource)}:${String(action)}`
+      : String(resourceId)
+
+    return await recordAudit({
       actorId,
-      action,
-      entityType,
-      entityId: String(entityId),
-      before: sanitizeJson(before),
-      after: sanitizeJson(after),
-      metadata: sanitizeJson(metadata),
-      ipAddress: ipAddress || null,
-      userAgent: userAgent || null,
-    },
-  })
+      appId,
+      action: 'AUTHORIZATION_DENIED',
+      entityType: String(resource),
+      entityId,
+      metadata: {
+        authorizationAction: String(action),
+        reason,
+        requestId,
+        correlationId,
+      },
+      ipAddress,
+      userAgent,
+    })
+  } catch {
+    // Authorization failures must remain fail-closed even when the audit store
+    // is unavailable. The denial metric/logging path remains independent.
+    return null
+  }
 }
 
 export {
   recordAudit,
+  recordAuthorizationDenied,
   sanitizeJson,
 }

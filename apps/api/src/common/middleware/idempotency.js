@@ -3,8 +3,31 @@ import { connectRedis } from '../../infrastructure/cache/redis.js'
 import { ConflictError } from '../errors/appError.js'
 
 const DEFAULT_TTL_SECONDS = 24 * 60 * 60
+const DEFAULT_IN_PROGRESS_TTL_SECONDS = 5 * 60
 const IDEMPOTENCY_HEADER = 'Idempotency-Key'
 const MAX_KEY_LENGTH = 255
+const MAX_TTL_SECONDS = 7 * 24 * 60 * 60
+
+const RELEASE_IF_OWNER_SCRIPT = `
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+`
+
+const COMPLETE_IF_OWNER_SCRIPT = `
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+  return 1
+end
+return 0
+`
+
+const parsePositiveInteger = (value, fallback) => {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback
+  return Math.min(Math.floor(parsed), MAX_TTL_SECONDS)
+}
 
 const hashRequest = (req) => {
   const payload = JSON.stringify({
@@ -18,10 +41,11 @@ const hashRequest = (req) => {
 
 const buildRedisKey = ({ req, key, scope = 'api' }) => {
   const userId = req.user?.id ?? 'anonymous'
+  const organizationId = req.user?.organizationId ?? req.organizationId ?? 'global'
   const route = req.route?.path || req.path
-  const encodedKey = encodeURIComponent(key)
+  const keyDigest = crypto.createHash('sha256').update(key).digest('hex')
 
-  return `idempotency:${scope}:${userId}:${req.method}:${route}:${encodedKey}`
+  return `idempotency:${scope}:${organizationId}:${userId}:${req.method}:${route}:${keyDigest}`
 }
 
 const parseEntry = (value) => {
@@ -47,9 +71,13 @@ const replayEntry = (res, entry) => {
 
 const idempotency = (options = {}) => {
   const methods = new Set(options.methods || ['POST', 'PUT', 'PATCH', 'DELETE'])
-  const ttlSeconds = Math.max(
-    1,
-    Number(options.ttlSeconds || process.env.IDEMPOTENCY_TTL_SECONDS || DEFAULT_TTL_SECONDS),
+  const ttlSeconds = parsePositiveInteger(
+    options.ttlSeconds || process.env.IDEMPOTENCY_TTL_SECONDS,
+    DEFAULT_TTL_SECONDS,
+  )
+  const inProgressTtlSeconds = parsePositiveInteger(
+    options.inProgressTtlSeconds || process.env.IDEMPOTENCY_IN_PROGRESS_TTL_SECONDS,
+    Math.max(ttlSeconds, DEFAULT_IN_PROGRESS_TTL_SECONDS),
   )
   const scope = options.scope || 'api'
   const required = options.required !== false
@@ -76,14 +104,16 @@ const idempotency = (options = {}) => {
       const redis = await connectRedis()
       const redisKey = buildRedisKey({ req, key, scope })
       const requestHash = hashRequest(req)
+      const claimToken = crypto.randomUUID()
       const inProgressEntry = JSON.stringify({
         status: 'IN_PROGRESS',
         requestHash,
+        claimToken,
       })
 
       const claimed = await redis.set(redisKey, inProgressEntry, {
         NX: true,
-        EX: ttlSeconds,
+        EX: inProgressTtlSeconds,
       })
 
       if (!claimed) {
@@ -136,7 +166,10 @@ const idempotency = (options = {}) => {
         const persist = async () => {
           try {
             if (!responseCaptured || res.statusCode >= 500) {
-              await redis.del(redisKey)
+              await redis.eval(RELEASE_IF_OWNER_SCRIPT, {
+                keys: [redisKey],
+                arguments: [claimToken],
+              })
               return
             }
 
@@ -148,7 +181,10 @@ const idempotency = (options = {}) => {
               body: responseBody,
             })
 
-            await redis.set(redisKey, completedEntry, { EX: ttlSeconds })
+            await redis.eval(COMPLETE_IF_OWNER_SCRIPT, {
+              keys: [redisKey],
+              arguments: [claimToken, completedEntry, String(ttlSeconds)],
+            })
           } catch {
             // Idempotency storage must never break the completed HTTP response.
           }
@@ -161,6 +197,7 @@ const idempotency = (options = {}) => {
         key,
         redisKey,
         requestHash,
+        claimToken,
       }
 
       return next()
@@ -175,6 +212,7 @@ idempotency.buildRedisKey = buildRedisKey
 idempotency.parseEntry = parseEntry
 idempotency.IDEMPOTENCY_HEADER = IDEMPOTENCY_HEADER
 idempotency.DEFAULT_TTL_SECONDS = DEFAULT_TTL_SECONDS
+idempotency.DEFAULT_IN_PROGRESS_TTL_SECONDS = DEFAULT_IN_PROGRESS_TTL_SECONDS
 
 export default idempotency
 export { idempotency }

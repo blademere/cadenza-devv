@@ -1,5 +1,6 @@
 import { UnauthorizedError } from '../../common/errors/appError.js'
-import { verifyAccessToken } from './auth.tokens.js'
+import { setActorContext } from '../../platform/context/index.js'
+import { verifyAccessToken, normalizeAppId } from './auth.tokens.js'
 
 const authenticate = (req, _res, next) => {
   const authorizationHeader = req.headers.authorization || ''
@@ -21,14 +22,18 @@ const authenticate = (req, _res, next) => {
     }
 
     const userId = Number(payload.sub)
-
     if (!Number.isInteger(userId) || userId <= 0) {
       return next(new UnauthorizedError('Access token is invalid.'))
     }
 
-    req.user = {
-      id: userId,
+    const appId = normalizeAppId(payload.appId)
+
+    req.user = { id: userId }
+    req.auth = {
+      appId,
+      authVersion: Number(payload.authVersion ?? 0),
     }
+    setActorContext({ actorId: userId, actorType: 'user' })
 
     return next()
   } catch (_error) {

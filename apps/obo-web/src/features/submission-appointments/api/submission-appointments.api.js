@@ -11,6 +11,8 @@ const buildQuery = (params = {}) => {
   return query ? `?${query}` : ''
 }
 
+const APPOINTMENTS_PATH = '/obo/appointments'
+
 export const submissionAppointmentsApi = {
   async getApplicationAppointment(applicationId) {
     return unwrap(await apiClient.get(`/obo/applications/${encodeURIComponent(applicationId)}/submission-appointments`))
@@ -25,10 +27,10 @@ export const submissionAppointmentsApi = {
   },
 
   async listAppointmentTypes() {
-    return unwrap(await apiClient.get('/appointments/types?active=true'))
+    return unwrap(await apiClient.get(`${APPOINTMENTS_PATH}/types?active=true`))
   },
 
   async listAvailableSlots({ appointmentTypeId, from, to } = {}) {
-    return unwrap(await apiClient.get(`/appointments/slots${buildQuery({ appointmentTypeId, from, to, status: 'OPEN' })}`))
+    return unwrap(await apiClient.get(`${APPOINTMENTS_PATH}/slots${buildQuery({ appointmentTypeId, from, to, status: 'OPEN' })}`))
   },
 }

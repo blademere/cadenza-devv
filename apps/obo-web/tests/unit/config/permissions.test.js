@@ -3,13 +3,13 @@ import { permissionList, permissions } from '../../../src/config/permissions.js'
 
 describe('OBO permission configuration', () => {
   it('exposes the expected permission vocabulary', () => {
-    expect(permissions.planPermits).toEqual({
-      read: 'obo_plan_permits:read',
-      create: 'obo_plan_permits:create',
-      update: 'obo_plan_permits:update',
-      submit: 'obo_plan_permits:submit',
-      scheduleSubmission: 'obo_plan_permits:schedule_submission',
-      receive: 'obo_plan_permits:receive',
+    expect(permissions.applications).toEqual({
+      read: 'obo_applications:read',
+      create: 'obo_applications:create',
+      update: 'obo_applications:update',
+      submit: 'obo_applications:submit',
+      scheduleSubmission: 'obo_applications:schedule_submission',
+      receive: 'obo_applications:receive',
     })
 
     expect(permissions.permitTypes).toEqual({
@@ -26,10 +26,11 @@ describe('OBO permission configuration', () => {
     })
 
     expect(permissions.appointments).toEqual({
-      read: 'appointments:read',
-      create: 'appointments:create',
-      manage: 'appointments:manage',
-      cancel: 'appointments:cancel',
+      read: 'obo_appointments:read',
+      create: 'obo_appointments:create',
+      manage: 'obo_appointments:manage',
+      cancel: 'obo_appointments:cancel',
+      checkIn: 'obo_appointments:check_in',
     })
 
     expect(permissions.professionals).toEqual({
@@ -39,13 +40,13 @@ describe('OBO permission configuration', () => {
       review: 'obo_professionals:review',
     })
 
-    expect(permissions.users.manage).toBe('users:manage')
-    expect(permissions.authorization.manage).toBe('authorization:manage')
+    expect(permissions.users.manage).toBe('obo_users:manage')
+    expect(permissions.authorization.manage).toBe('obo_authorization:manage')
   })
 
   it('contains each permission exactly once', () => {
     expect(new Set(permissionList).size).toBe(permissionList.length)
-    expect(permissionList).toContain(permissions.planPermits.receive)
+    expect(permissionList).toContain(permissions.applications.receive)
     expect(permissionList).toContain(permissions.permitTypes.create)
     expect(permissionList).toContain(permissions.forms.publish)
     expect(permissionList).toContain(permissions.professionals.update)
@@ -53,6 +54,6 @@ describe('OBO permission configuration', () => {
     expect(permissionList).toContain(permissions.users.manage)
     expect(permissionList).toContain(permissions.authorization.manage)
     expect(permissionList).toContain(permissions.appointments.manage)
-    expect(permissionList).not.toContain('obo_plan_permits:inspect')
+    expect(permissionList).not.toContain('obo_applications:inspect')
   })
 })

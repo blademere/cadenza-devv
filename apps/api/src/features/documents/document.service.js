@@ -22,6 +22,7 @@ const getStorage = () => getStorageService()
 
 const uploadDocument = async ({
   userId,
+  appId = null,
   fileName,
   mimeType,
   buffer,
@@ -52,6 +53,7 @@ const uploadDocument = async ({
   })
   try {
     return await createDocument({
+      appId,
       documentTypeId: documentTypeId || null,
       ownerId: userId,
       originalName,
@@ -66,27 +68,32 @@ const uploadDocument = async ({
     throw error
   }
 }
-const listMyDocuments = ({ userId }) => listOwnedDocuments({ userId })
-const getOwnedDocument = async ({ userId, id }) => {
-  const document = await findOwnedDocument({ userId, id })
+
+const listMyDocuments = ({ userId, appId = null }) => listOwnedDocuments({ userId, appId })
+
+const getOwnedDocument = async ({ userId, id, appId = null }) => {
+  const document = await findOwnedDocument({ userId, id, appId })
   if (!document) throw new NotFoundError('Document not found.')
   return document
 }
-const deleteDocument = async ({ userId, id }) => {
+
+const deleteDocument = async ({ userId, id, appId = null }) => {
   const storage = getStorage()
-  const document = await getOwnedDocument({ userId, id })
-  const deleted = await softDeleteDocument(id)
+  const document = await getOwnedDocument({ userId, id, appId })
+  const deleted = await softDeleteDocument({ id, userId, appId })
   if (deleted.count !== 1)
     throw new ConflictError('Document was already deleted.')
   await storage.delete({ key: document.storageKey }).catch(() => undefined)
   return { ...document, deletedAt: new Date() }
 }
-const readDocument = async ({ userId, id }) => {
+
+const readDocument = async ({ userId, id, appId = null }) => {
   const storage = getStorage()
-  const document = await getOwnedDocument({ userId, id })
+  const document = await getOwnedDocument({ userId, id, appId })
   const { body } = await storage.get({ key: document.storageKey })
   return { document, buffer: body }
 }
+
 export {
   uploadDocument,
   listMyDocuments,

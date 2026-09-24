@@ -10,9 +10,9 @@ describe('OBO navigation authorization', () => {
     expect(visibleKeys([])).toEqual(['dashboard'])
   })
 
-  it('shows applications only with plan permit read access', () => {
-    expect(visibleKeys([permissions.planPermits.read])).toContain('applications')
-    expect(visibleKeys([permissions.planPermits.read])).not.toContain('permit-types')
+  it('shows applications only with application read access', () => {
+    expect(visibleKeys([permissions.applications.read])).toContain('applications')
+    expect(visibleKeys([permissions.applications.read])).not.toContain('permit-types')
   })
 
   it('shows permit types only with permit type read access', () => {
@@ -21,8 +21,8 @@ describe('OBO navigation authorization', () => {
   })
 
   it('shows receiving only with receiving permission', () => {
-    expect(visibleKeys([permissions.planPermits.receive])).toContain('receiving')
-    expect(visibleKeys([permissions.planPermits.receive])).not.toContain('applications')
+    expect(visibleKeys([permissions.applications.receive])).toContain('receiving')
+    expect(visibleKeys([permissions.applications.receive])).not.toContain('applications')
   })
 
   it('shows appointments only with appointment management permission', () => {

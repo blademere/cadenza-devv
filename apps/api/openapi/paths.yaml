@@ -416,37 +416,6 @@
       '409':
         $ref: './components/responses.yaml#/Conflict'
 
-/users/{userId}/role:
-  patch:
-    operationId: assignUserRole
-    tags: [Users]
-    summary: Assign a role to a user
-    parameters:
-      - name: userId
-        in: path
-        required: true
-        schema: { type: integer, minimum: 1 }
-      - $ref: './components/parameters.yaml#/IdempotencyKey'
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: './components/schemas/users.yaml#/AssignUserRoleRequest'
-    responses:
-      '200':
-        description: User role updated.
-        content:
-          application/json:
-            schema:
-              $ref: './components/schemas/users.yaml#/UserResponse'
-      '401':
-        $ref: './components/responses.yaml#/Unauthorized'
-      '403':
-        $ref: './components/responses.yaml#/Forbidden'
-      '404':
-        $ref: './components/responses.yaml#/NotFound'
-
 /me/authorization:
   get:
     operationId: getAuthorizationContext

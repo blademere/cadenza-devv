@@ -1,21 +1,23 @@
 import express from 'express'
 import authRouter from '../features/auth/auth.routes.js'
-import userRouter from '../features/users/user.routes.js'
-import authorizationAdminRouter from '../features/authorization-admin/authorization-admin.routes.js'
-import createAuthorizationContextRouter from '../platform/authorization/authorization-context.routes.js'
+import profileRouter from '../features/profile/profile.routes.js'
+import createAuthorizationRouter from '../platform/authorization/authorization.routes.js'
 import auditRouter from '../platform/audit/audit.routes.js'
-import appointmentRouter from '../features/appointments/appointment.routes.js'
-import oboRouter from '../modules/obo/obo.routes.js'
+import applicationRouter from '../platform/applications/application.routes.js'
+import oboRouter from '../apps/obo/obo.routes.js'
+import cadenzaRouter from '../apps/cadenza/cadenza.routes.js'
 import authenticate from '../features/auth/authenticate.secure.js'
+import paymentWebhookRouter from '../platform/payments/payment-webhook.routes.js'
 
 const router = express.Router()
 
 router.use('/auth', authRouter)
-router.use('/users', userRouter)
-router.use('/authorization', authorizationAdminRouter)
-router.use('/appointments', appointmentRouter)
+router.use('/users', profileRouter)
 router.use('/audit', auditRouter)
-router.use('/', createAuthorizationContextRouter({ authenticate }))
+router.use('/apps', applicationRouter)
+router.use('/payments/webhooks', paymentWebhookRouter)
+router.use('/', createAuthorizationRouter({ authenticate }))
 router.use('/obo', oboRouter)
+router.use('/cadenza', cadenzaRouter)
 
 export default router

@@ -1,11 +1,11 @@
 export const permissions = Object.freeze({
-  planPermits: Object.freeze({
-    read: 'obo_plan_permits:read',
-    create: 'obo_plan_permits:create',
-    update: 'obo_plan_permits:update',
-    submit: 'obo_plan_permits:submit',
-    scheduleSubmission: 'obo_plan_permits:schedule_submission',
-    receive: 'obo_plan_permits:receive',
+  applications: Object.freeze({
+    read: 'obo_applications:read',
+    create: 'obo_applications:create',
+    update: 'obo_applications:update',
+    submit: 'obo_applications:submit',
+    scheduleSubmission: 'obo_applications:schedule_submission',
+    receive: 'obo_applications:receive',
   }),
   permitTypes: Object.freeze({
     read: 'obo_permit_types:read',
@@ -19,10 +19,11 @@ export const permissions = Object.freeze({
     publish: 'obo_forms:publish',
   }),
   appointments: Object.freeze({
-    read: 'appointments:read',
-    create: 'appointments:create',
-    manage: 'appointments:manage',
-    cancel: 'appointments:cancel',
+    read: 'obo_appointments:read',
+    create: 'obo_appointments:create',
+    manage: 'obo_appointments:manage',
+    cancel: 'obo_appointments:cancel',
+    checkIn: 'obo_appointments:check_in',
   }),
   professionals: Object.freeze({
     read: 'obo_professionals:read',
@@ -31,15 +32,15 @@ export const permissions = Object.freeze({
     review: 'obo_professionals:review',
   }),
   users: Object.freeze({
-    manage: 'users:manage',
+    manage: 'obo_users:manage',
   }),
   authorization: Object.freeze({
-    manage: 'authorization:manage',
+    manage: 'obo_authorization:manage',
   }),
 })
 
 export const permissionList = Object.freeze([
-  ...Object.values(permissions.planPermits),
+  ...Object.values(permissions.applications),
   ...Object.values(permissions.permitTypes),
   ...Object.values(permissions.forms),
   ...Object.values(permissions.professionals),

@@ -4,8 +4,8 @@ import { permissions } from '../../../src/config/permissions'
 
 describe('Phase 18 OBO permission/navigation contract', () => {
   it('does not expose an inspection permission before inspection functionality exists', () => {
-    expect(permissions.planPermits.inspect).toBeUndefined()
-    expect(Object.values(permissions.planPermits)).not.toContain('obo_plan_permits:inspect')
+    expect(permissions.applications.inspect).toBeUndefined()
+    expect(Object.values(permissions.applications)).not.toContain('obo_applications:inspect')
   })
 
   it('protects Permit Types navigation with permit type read permission', () => {

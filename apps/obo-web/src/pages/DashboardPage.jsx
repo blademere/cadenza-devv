@@ -33,12 +33,11 @@ function StatCard({ label, value, description, icon: Icon }) {
 export default function DashboardPage() {
   const { user } = useAuth()
   const can = useCan()
-  const canReceive = can(permissions.planPermits.receive)
-  const canInspect = can(permissions.planPermits.inspect)
+  const canReceive = can(permissions.applications.receive)
   const canReviewProfessionals = can(permissions.professionals.review)
   const scheduledQuery = useReceivingApplications('SUBMISSION_SCHEDULED', { enabled: canReceive })
   const receivingQuery = useReceivingApplications('RECEIVING', { enabled: canReceive })
-  const inspectionQuery = useReceivingApplications('FOR_INSPECTION', { enabled: canInspect })
+  const inspectionQuery = useReceivingApplications('FOR_INSPECTION', { enabled: canReceive })
   const professionalsQuery = usePendingProfessionals({ enabled: canReviewProfessionals })
   const scheduled = collection(scheduledQuery.data).length
   const receiving = collection(receivingQuery.data).length
@@ -57,7 +56,7 @@ export default function DashboardPage() {
       <StatCard label="For inspection" value={inspectionQuery.isLoading ? '—' : forInspection} description="Accepted from receiving" icon={FileText} />
       <StatCard label="Professional reviews" value={professionalsQuery.isLoading ? '—' : professionalReviews} description="Verification decisions pending" icon={UserCheck} />
     </SimpleGrid>
-    <Stack gap="md"><BoxTitle title="Work queues" description="Open the operational queue that matches your current responsibilities." />{loading && !queryError ? <Text size="sm" c="dimmed">Loading operational queues…</Text> : <SimpleGrid cols={{ base: 1, md: 2 }}>{canReceive && <QueueCard title="Plan Permit receiving" description="Receive scheduled hard-copy submissions and evaluate received applications." count={scheduled + receiving} loading={scheduledQuery.isLoading || receivingQuery.isLoading} route="/app/receiving" icon={ClipboardText} />}{canReviewProfessionals && <QueueCard title="Professional verification" description="Review registration details, PRC ID, and PTR submissions before verification." count={professionalReviews} loading={professionalsQuery.isLoading} route="/app/professionals/verification" icon={UserCheck} />}{canInspect && <QueueCard title="Inspection handoff" description="Applications accepted by receiving and ready for the inspection workflow." count={forInspection} loading={inspectionQuery.isLoading} route="/app/inspections" icon={FileText} actionLabel="Open inspections" />}</SimpleGrid>}</Stack>
-    {!loading && !queryError && canReceive && scheduled === 0 && receiving === 0 && canReviewProfessionals && professionalReviews === 0 && canInspect && forInspection === 0 && <Card withBorder><EmptyState title="All operational queues are clear" description="There are no pending receiving, professional verification, or inspection handoff items requiring attention." /></Card>}
+    <Stack gap="md"><BoxTitle title="Work queues" description="Open the operational queue that matches your current responsibilities." />{loading && !queryError ? <Text size="sm" c="dimmed">Loading operational queues…</Text> : <SimpleGrid cols={{ base: 1, md: 2 }}>{canReceive && <QueueCard title="Permit receiving" description="Receive scheduled hard-copy submissions and evaluate received permit applications, including those accepted for inspection." count={scheduled + receiving + forInspection} loading={scheduledQuery.isLoading || receivingQuery.isLoading || inspectionQuery.isLoading} route="/app/receiving" icon={ClipboardText} />}{canReviewProfessionals && <QueueCard title="Professional verification" description="Review registration details, PRC ID, and PTR submissions before verification." count={professionalReviews} loading={professionalsQuery.isLoading} route="/app/professionals/verification" icon={UserCheck} />}</SimpleGrid>}</Stack>
+    {!loading && !queryError && canReceive && scheduled === 0 && receiving === 0 && forInspection === 0 && canReviewProfessionals && professionalReviews === 0 && <Card withBorder><EmptyState title="All operational queues are clear" description="There are no pending receiving, professional verification, or inspection handoff items requiring attention." /></Card>}
   </Stack>
 }

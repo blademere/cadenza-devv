@@ -8,12 +8,12 @@ import UsersPage from '../features/users/pages/UsersPage'
 import ProfilePage from '../features/users/pages/ProfilePage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import OAuthCallbackPage from '../features/auth/pages/OAuthCallbackPage'
-import ApplicationsPage from '../features/plan-permits/pages/ApplicationsPage'
-import ApplicationFormPage from '../features/plan-permits/pages/ApplicationFormPage'
-import ApplicationDetailsPage from '../features/plan-permits/pages/ApplicationDetailsPage'
-import PermitTypesPage from '../features/plan-permits/pages/PermitTypesPage'
-import PermitTypeDetailsPage from '../features/plan-permits/pages/PermitTypeDetailsPage'
-import PermitTypeFormBuilderPage from '../features/plan-permits/pages/PermitTypeFormBuilderPage'
+import ApplicationsPage from '../features/applications/pages/ApplicationsPage'
+import ApplicationFormPage from '../features/applications/pages/ApplicationFormPage'
+import ApplicationDetailsPage from '../features/applications/pages/ApplicationDetailsPage'
+import PermitTypesPage from '../features/applications/pages/PermitTypesPage'
+import PermitTypeDetailsPage from '../features/applications/pages/PermitTypeDetailsPage'
+import PermitTypeFormBuilderPage from '../features/applications/pages/PermitTypeFormBuilderPage'
 import SubmissionAppointmentPage from '../features/submission-appointments/pages/SubmissionAppointmentPage'
 import AppointmentsPage from '../features/appointments/pages/AppointmentsPage'
 import ReceivingPage from '../features/receiving/pages/ReceivingPage'
@@ -38,17 +38,17 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'profile', element: <ProfilePage /> },
-      protectedPage('applications', <ApplicationsPage />, permissions.planPermits.read),
-      protectedPage('applications/new', <ApplicationFormPage />, permissions.planPermits.create),
-      protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.planPermits.read),
-      protectedPage('applications/:applicationId/edit', <ApplicationFormPage />, permissions.planPermits.update),
-      protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.planPermits.read),
+      protectedPage('applications', <ApplicationsPage />, permissions.applications.read),
+      protectedPage('applications/new', <ApplicationFormPage />, permissions.applications.create),
+      protectedPage('applications/:applicationId', <ApplicationDetailsPage />, permissions.applications.read),
+      protectedPage('applications/:applicationId/edit', <ApplicationFormPage />, permissions.applications.update),
+      protectedPage('applications/:applicationId/submission-appointment', <SubmissionAppointmentPage />, permissions.applications.read),
       protectedPage('appointments', <AppointmentsPage />, permissions.appointments.manage),
       protectedPage('permit-types', <PermitTypesPage />, permissions.permitTypes.read),
       protectedPage('permit-types/:permitTypeId', <PermitTypeDetailsPage />, permissions.permitTypes.read),
       protectedPageWithAnyPermission('permit-types/:permitTypeId/form/edit', <PermitTypeFormBuilderPage />, [permissions.forms.create, permissions.forms.update]),
-      protectedPage('receiving', <ReceivingPage />, permissions.planPermits.receive),
-      protectedPage('receiving/:applicationId', <ReceivingApplicationPage />, permissions.planPermits.receive),
+      protectedPage('receiving', <ReceivingPage />, permissions.applications.receive),
+      protectedPage('receiving/:applicationId', <ReceivingApplicationPage />, permissions.applications.receive),
       protectedPage('professionals', <ProfessionalsPage />, permissions.professionals.read),
       protectedPage('professionals/verification', <ProfessionalVerificationPage />, permissions.professionals.review),
       protectedPage('professionals/verification/apply', <ProfessionalVerificationApplyPage />, permissions.professionals.create),

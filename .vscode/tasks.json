@@ -16,25 +16,11 @@
           "endsPattern": ".*(Server started|listening|started|running).*"
         }
       },
-      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false },
-      "runOptions": { "instanceLimit": 1 }
-    },
-    {
-      "label": "dev:web",
-      "type": "shell",
-      "command": "npm --workspace @express-app/web run dev",
-      "options": { "cwd": "${workspaceFolder}" },
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "vite",
-        "pattern": { "regexp": "^(.*)$", "message": 1 },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "^\\s*VITE v\\S+\\s+ready in",
-          "endsPattern": "^\\s*.*Local:\\s+http://localhost:5173/"
-        }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
       },
-      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false },
       "runOptions": { "instanceLimit": 1 }
     },
     {
@@ -49,15 +35,41 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": "^\\s*VITE v\\S+\\s+ready in",
-          "endsPattern": "^\\s*.*Local:\\s+http://localhost:5174/"
+          "endsPattern": "^\\s*.*Local:\\s+http://localhost:5173/"
         }
       },
-      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
       "runOptions": { "instanceLimit": 1 }
     },
     {
-      "label": "dev:full-stack",
-      "dependsOn": ["dev:api", "dev:web"],
+      "label": "dev:cadenza-web",
+      "type": "shell",
+      "command": "npm --workspace @express-app/cadenza-web run dev",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^(.*)$", "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*VITE v\\S+\\s+ready in",
+          "endsPattern": "^\\s*.*Local:\\s+http://localhost:5173/"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "runOptions": { "instanceLimit": 1 }
+    },
+    {
+      "label": "dev:full-stack:cadenza",
+      "dependsOn": ["dev:api", "dev:cadenza-web"],
       "dependsOrder": "parallel",
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "shared" }

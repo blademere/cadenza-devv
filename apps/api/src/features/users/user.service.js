@@ -1,63 +1,36 @@
-import bcrypt from 'bcrypt'
+import { ConflictError } from '../../common/errors/appError.js'
 import {
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-} from '../../common/errors/appError.js'
-import {
-  normalizePagination,
   createPaginationMeta,
-  createOrderBy,
-  pickFilters,
 } from '../../common/pagination/pagination.js'
 import {
   findAllUsers,
   findUserByEmail,
-  createUser,
-  findUserWithRole,
-  findRoleForAssignment,
-  updateUserRole,
+  createUser as createUserRecord,
 } from './user.repository.js'
 import { toUserResponse } from './user.mapper.js'
-import * as peopleService from '../people/people.service.js'
-import {
-  getRoleById,
-  getAuthorizationContext,
-  clearUserPermissionCache,
-} from '../../platform/authorization/access-control.service.js'
 
-const permissionKey = (permission) => {
-  const resource = permission.resource ?? permission.module?.key
-  return `${resource}:${permission.action}`
-}
-
-const canAssignRole = (requesterPermissions, targetRole) => {
-  const requesterPermissionSet = new Set(
-    (requesterPermissions || []).map((permission) => permissionKey(permission))
-  )
-
-  return targetRole.permissions.every(({ permission }) => {
-    if (permission.module?.isActive === false) return false
-    return requesterPermissionSet.has(permissionKey(permission))
-  })
-}
-
-const listUsers = async (query = {}) => {
-  const pagination = normalizePagination(query)
-  const orderBy = createOrderBy(
-    query,
-    ['createdAt', 'updatedAt', 'email', 'isActive'],
-    'createdAt'
-  )
-  const filters = pickFilters(query, ['email', 'isActive'])
+/**
+ * List users through the reusable user capability.
+ *
+ * Contract:
+ * - appId optionally scopes the identity query to active membership in an application.
+ * - filters contains persistence-level user filters.
+ * - pagination contains normalized { page, limit, skip, take } values.
+ * - orderBy contains the validated Prisma ordering expression.
+ *
+ * Application authorization and role assignment remain outside this capability.
+ */
+const listUsers = async ({ appId, filters = {}, pagination, orderBy }) => {
   const { users, total } = await findAllUsers({
+    appId,
     skip: pagination.skip,
     take: pagination.take,
     filters,
     orderBy,
   })
+
   return {
-    data: users.map(toUserResponse),
+    data: users.map((user) => toUserResponse(user)),
     pagination: createPaginationMeta({
       page: pagination.page,
       limit: pagination.limit,
@@ -66,110 +39,19 @@ const listUsers = async (query = {}) => {
   }
 }
 
-const registerUser = async ({ requesterId, email, roleId, password }) => {
-  const requester = await getAuthorizationContext(requesterId)
-  if (!requester)
-    throw new ForbiddenError('Your account is not authorized to create users.')
+/**
+ * Create a global user identity from an already prepared password hash.
+ * Application membership, role assignment, authorization, and password hashing are
+ * intentionally outside this reusable user capability.
+ */
+const createUser = async ({ email, passwordHash }) => {
   const existingUser = await findUserByEmail(email)
-  if (existingUser)
-    throw new ConflictError('A user with this email already exists.')
-  const role = await getRoleById(roleId)
-  if (!role) throw new NotFoundError('Role not found.')
-  if (!canAssignRole(requester.permissions, role))
-    throw new ForbiddenError(
-      'You cannot assign a role containing permissions that you do not have.'
-    )
-  const passwordHash = await bcrypt.hash(password, 12)
-  return toUserResponse(await createUser({ email, roleId, passwordHash }))
-}
-
-const assignUserRole = async ({ requesterId, userId, roleId }) => {
-  const [requester, targetUser, targetRole] = await Promise.all([
-    getAuthorizationContext(requesterId),
-    findUserWithRole(userId),
-    findRoleForAssignment(roleId),
-  ])
-  if (!requester)
-    throw new ForbiddenError('Your account is not authorized to manage users.')
-  if (!targetUser) throw new NotFoundError('User not found.')
-  if (!targetRole) throw new NotFoundError('Role not found.')
-
-  const requesterPermissionSet = new Set(
-    (requester.permissions || []).map((permission) => permissionKey(permission))
-  )
-  if (!requesterPermissionSet.has('authorization:manage'))
-    throw new ForbiddenError('You do not have permission to assign user roles.')
-
-  if (
-    Number(requesterId) === Number(userId) &&
-    targetRole.id !== targetUser.roleId
-  ) {
-    const retainsAuthorization = targetRole.permissions.some(
-      ({ permission }) => {
-        const candidate = permission ?? {}
-        return (
-          candidate.module?.isActive !== false &&
-          candidate.module?.key === 'authorization' &&
-          candidate.action === 'manage'
-        )
-      }
-    )
-    if (!retainsAuthorization)
-      throw new ForbiddenError(
-        'You cannot remove your own authorization management permission.'
-      )
-  }
-
-  if (targetUser.roleId === targetRole.id) return toUserResponse(targetUser)
-  const updatedUser = await updateUserRole(userId, targetRole.id)
-  await clearUserPermissionCache(userId)
-  return toUserResponse(updatedUser)
-}
-
-const getMyProfile = async (userId) => {
-  const user = await findUserWithRole(Number(userId))
-  if (!user) throw new NotFoundError('User not found.')
-  const person = await peopleService.getByUserId(userId)
-
-  return {
-    user: toUserResponse(user),
-    person,
-  }
-}
-
-const createMyProfile = async (userId, data) => {
-  const user = await findUserWithRole(Number(userId))
-  if (!user) throw new NotFoundError('User not found.')
-  const existingPerson = await peopleService.getByUserId(userId).catch((error) => {
-    if (error instanceof NotFoundError) return null
-    throw error
-  })
-  if (existingPerson) throw new ConflictError('Profile already exists.')
-
-  const person = await peopleService.create({ ...data, userId })
-  return {
-    user: toUserResponse(user),
-    person,
-  }
-}
-
-const updateMyProfile = async (userId, data) => {
-  const user = await findUserWithRole(Number(userId))
-  if (!user) throw new NotFoundError('User not found.')
-  const person = await peopleService.getByUserId(userId)
-  const updatedPerson = await peopleService.update(person.id, data)
-
-  return {
-    user: toUserResponse(user),
-    person: updatedPerson,
-  }
+  if (existingUser) throw new ConflictError('A user with this email already exists.')
+  const user = await createUserRecord({ email, passwordHash })
+  return toUserResponse({ ...user, roles: [] })
 }
 
 export {
   listUsers,
-  registerUser,
-  assignUserRole,
-  getMyProfile,
-  createMyProfile,
-  updateMyProfile,
+  createUser,
 }

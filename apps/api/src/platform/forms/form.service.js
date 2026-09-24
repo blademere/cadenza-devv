@@ -1,177 +1,110 @@
-import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 import { BadRequestError, ConflictError, NotFoundError } from '../../common/errors/appError.js'
 import { recordAudit } from '../audit/audit.service.js'
 import { publish } from '../event-bus/event-bus.js'
 import { FORM_STATUS } from './form.constants.js'
 import { evaluateCondition, validateFieldValue, validateDefinition, isSafeRegexPattern } from './form.validation.js'
+import {
+  runTransaction, findById, findByIdWithVersions, findVersionById, findByKey, findVersion, findVersionForUpdate,
+  findLatestFormVersion, findByKeyWithDefinitions, createFormRecord, createVersionRecord, createDefinitionRecords,
+  findVersionWithDefinition, deleteFields, deleteSections, updateVersion, getUpdatedVersion, archivePublishedVersions, createSubmissionRecord, findPublishedForm,
+} from './form.repository.js'
 
-const prisma = getPrismaClient()
-
-const includeDefinition = {
-  versions: {
-    include: {
-      sections: { orderBy: { sortOrder: 'asc' } },
-      fields: {
-        include: { options: { orderBy: { sortOrder: 'asc' } } },
-        orderBy: { sortOrder: 'asc' },
-      },
-      documentRequirements: {
-        include: { documentType: true },
-        orderBy: { sortOrder: 'asc' },
-      },
-    },
-    orderBy: { version: 'desc' },
-  },
+const requireAppId = (appId) => {
+  if (!appId) throw new BadRequestError('Application context is required for forms.')
+  return appId
 }
 
-const formVersionDefinition = {
-  sections: { orderBy: { sortOrder: 'asc' } },
-  fields: {
-    include: { options: { orderBy: { sortOrder: 'asc' } } },
-    orderBy: { sortOrder: 'asc' },
-  },
-  documentRequirements: {
-    include: { documentType: true },
-    orderBy: { sortOrder: 'asc' },
-  },
-}
-
-const createDefinitionRecords = async (tx, versionId, sections, fields) => {
-  const sectionByKey = new Map()
-  for (const [index, section] of sections.entries()) {
-    const created = await tx.formSection.create({
-      data: {
-        formVersionId: versionId,
-        key: section.key,
-        title: section.title,
-        description: section.description || null,
-        sortOrder: section.sortOrder ?? index,
-        visibility: section.visibility || undefined,
-      },
-    })
-    sectionByKey.set(section.key, created)
-  }
-
-  for (const [index, field] of fields.entries()) {
-    const section = field.sectionKey ? sectionByKey.get(field.sectionKey) : null
-    if (field.sectionKey && !section) throw new BadRequestError(`Field '${field.key}' references an unknown section.`)
-
-    const created = await tx.formField.create({
-      data: {
-        formVersionId: versionId,
-        sectionId: section?.id ?? null,
-        key: field.key,
-        label: field.label,
-        description: field.description || null,
-        type: field.type,
-        sortOrder: field.sortOrder ?? index,
-        required: Boolean(field.required),
-        defaultValue: field.defaultValue ?? undefined,
-        validation: field.validation || undefined,
-        visibility: field.visibility || undefined,
-        config: field.config || undefined,
-      },
-    })
-
-    if (field.options?.length) {
-      await tx.formOption.createMany({
-        data: field.options.map((option, optionIndex) => ({
-          fieldId: created.id,
-          value: String(option.value),
-          label: option.label,
-          sortOrder: option.sortOrder ?? optionIndex,
-          metadata: option.metadata || undefined,
-        })),
-      })
-    }
-  }
-}
-
-const createForm = async ({ key, name, description = null, entityType = null, sections = [], fields, actorId = null, db = prisma }) => {
+const createForm = async ({ appId, key, name, description = null, entityType = null, sections = [], fields, actorId = null, db }) => {
+  requireAppId(appId)
   if (!key || !name) throw new BadRequestError('Form key and name are required.')
   validateDefinition({ sections, fields })
-  if (await db.form.findUnique({ where: { key } })) throw new ConflictError(`Form '${key}' already exists.`)
-
-  const create = async (tx) => {
-    const created = await tx.form.create({ data: { key, name, description, entityType } })
-    const version = await tx.formVersion.create({ data: { formId: created.id, version: 1, status: FORM_STATUS.DRAFT } })
-    await createDefinitionRecords(tx, version.id, sections, fields)
-    return tx.form.findUnique({ where: { id: created.id }, include: includeDefinition })
-  }
-
-  const form = db === prisma ? await db.$transaction(create) : await create(db)
-  if (db === prisma) await recordAudit({ actorId, action: 'FORM_CREATED', entityType: 'Form', entityId: form.id, after: form })
+  const existing = await findByKey(key, appId, db)
+  if (existing) throw new ConflictError(`Form '${key}' already exists.`)
+  const form = await runTransaction(async (tx) => {
+    const created = await createFormRecord({ appId, key, name, description, entityType }, tx)
+    const version = await createVersionRecord({ formId: created.id, version: 1, status: FORM_STATUS.DRAFT }, tx)
+    await createDefinitionRecords(version.id, sections, fields, tx)
+    return findByKeyWithDefinitions(key, appId, tx)
+  }, db)
+  if (!db) await recordAudit({ actorId, appId, action: 'FORM_CREATED', entityType: 'Form', entityId: form.id, after: form })
   return form
 }
 
-const createFormVersion = async ({ formKey, sections = [], fields, actorId = null }) => {
-  const form = await prisma.form.findUnique({ where: { key: formKey }, include: { versions: { orderBy: { version: 'desc' }, take: 1 } } })
+const createFormVersion = async ({ appId, formKey, sections = [], fields, actorId = null }) => {
+  requireAppId(appId)
+  const form = await findLatestFormVersion(formKey, appId)
   if (!form) throw new NotFoundError(`Form '${formKey}' was not found.`)
   validateDefinition({ sections, fields })
   const versionNumber = (form.versions[0]?.version || 0) + 1
-  const version = await prisma.$transaction(async (tx) => {
-    const created = await tx.formVersion.create({ data: { formId: form.id, version: versionNumber, status: FORM_STATUS.DRAFT } })
-    await createDefinitionRecords(tx, created.id, sections, fields)
-    return tx.formVersion.findUnique({ where: { id: created.id }, include: { sections: true, fields: { include: { options: true } } } })
+  const version = await runTransaction(async (tx) => {
+    const created = await createVersionRecord({ formId: form.id, version: versionNumber, status: FORM_STATUS.DRAFT }, tx)
+    await createDefinitionRecords(created.id, sections, fields, tx)
+    return findVersionWithDefinition(created.id, appId, tx)
   })
-  await recordAudit({ actorId, action: 'FORM_VERSION_CREATED', entityType: 'FormVersion', entityId: version.id, after: version })
+  await recordAudit({ actorId, appId, action: 'FORM_VERSION_CREATED', entityType: 'FormVersion', entityId: version.id, after: version })
   return version
 }
 
-const getFormById = async (id) => prisma.form.findUnique({ where: { id } })
-const getFormByIdWithVersions = async (id) => prisma.form.findUnique({ where: { id }, include: { versions: { select: { id: true, version: true, status: true }, orderBy: { version: 'desc' } } } })
-const getFormVersionById = async (id) => prisma.formVersion.findUnique({ where: { id }, include: formVersionDefinition })
+const getFormById = async (id, appId, db) => findById(id, requireAppId(appId), db)
+const getFormByIdWithVersions = async (id, appId, db) => findByIdWithVersions(id, requireAppId(appId), db)
+const getFormVersionById = async (id, appId, db) => findVersionById(id, requireAppId(appId), db)
 
-const getFormVersion = async ({ formKey, version }) => {
-  const form = await prisma.form.findUnique({ where: { key: formKey } })
+const getFormVersion = async ({ formKey, version, appId }) => {
+  requireAppId(appId)
+  const form = await findByKey(formKey, appId)
   if (!form) throw new NotFoundError(`Form '${formKey}' was not found.`)
-  const formVersion = await prisma.formVersion.findUnique({ where: { formId_version: { formId: form.id, version } }, include: formVersionDefinition })
+  const formVersion = await findVersion(form.id, version, appId)
   if (!formVersion) throw new NotFoundError(`Form version ${version} was not found.`)
   return formVersion
 }
 
-const updateFormVersion = async ({ formKey, version, sections = [], fields, actorId = null }) => {
-  const form = await prisma.form.findUnique({ where: { key: formKey } })
+const updateFormVersion = async ({ appId, formKey, version, sections = [], fields, actorId = null }) => {
+  requireAppId(appId)
+  const form = await findByKey(formKey, appId)
   if (!form) throw new NotFoundError(`Form '${formKey}' was not found.`)
   validateDefinition({ sections, fields })
-  const updated = await prisma.$transaction(async (tx) => {
-    const target = await tx.formVersion.findUnique({ where: { formId_version: { formId: form.id, version } } })
+  const updated = await runTransaction(async (tx) => {
+    const target = await findVersionForUpdate(form.id, version, appId, tx)
     if (!target) throw new NotFoundError(`Form version ${version} was not found.`)
     if (target.status !== FORM_STATUS.DRAFT) throw new ConflictError('Only draft form versions can be updated.')
-    await tx.formField.deleteMany({ where: { formVersionId: target.id } })
-    await tx.formSection.deleteMany({ where: { formVersionId: target.id } })
-    await createDefinitionRecords(tx, target.id, sections, fields)
-    return tx.formVersion.findUnique({ where: { id: target.id }, include: formVersionDefinition })
+    await deleteFields(target.id, tx)
+    await deleteSections(target.id, tx)
+    await createDefinitionRecords(target.id, sections, fields, tx)
+    return findVersionWithDefinition(target.id, appId, tx)
   })
-  await recordAudit({ actorId, action: 'FORM_VERSION_UPDATED', entityType: 'FormVersion', entityId: updated.id, after: updated })
+  await recordAudit({ actorId, appId, action: 'FORM_VERSION_UPDATED', entityType: 'FormVersion', entityId: updated.id, after: updated })
   return updated
 }
 
-const publishFormVersion = async ({ formKey, version, actorId = null }) => {
-  const form = await prisma.form.findUnique({ where: { key: formKey } })
+const publishFormVersion = async ({ appId, formKey, version, actorId = null }) => {
+  requireAppId(appId)
+  const form = await findByKey(formKey, appId)
   if (!form) throw new NotFoundError(`Form '${formKey}' was not found.`)
-  const published = await prisma.$transaction(async (tx) => {
-    const target = await tx.formVersion.findUnique({ where: { formId_version: { formId: form.id, version } } })
+  const published = await runTransaction(async (tx) => {
+    const target = await findVersionForUpdate(form.id, version, appId, tx)
     if (!target) throw new NotFoundError(`Form version ${version} was not found.`)
     if (target.status !== FORM_STATUS.DRAFT) throw new ConflictError('Only draft form versions can be published.')
-    await tx.formVersion.updateMany({ where: { formId: form.id, status: FORM_STATUS.PUBLISHED }, data: { status: FORM_STATUS.ARCHIVED } })
-    return tx.formVersion.update({ where: { id: target.id }, data: { status: FORM_STATUS.PUBLISHED }, include: { sections: true, fields: { include: { options: true } } } })
+    await archivePublishedVersions(form.id, appId, tx)
+    await updateVersion(target.id, appId, { status: FORM_STATUS.PUBLISHED }, tx)
+    return getUpdatedVersion(target.id, appId, tx)
   })
-  await recordAudit({ actorId, action: 'FORM_VERSION_PUBLISHED', entityType: 'FormVersion', entityId: published.id, after: published })
+  await recordAudit({ actorId, appId, action: 'FORM_VERSION_PUBLISHED', entityType: 'FormVersion', entityId: published.id, after: published })
   return published
 }
 
-const getPublishedForm = async (formKey) => {
-  const form = await prisma.form.findUnique({ where: { key: formKey }, include: includeDefinition })
+const getPublishedForm = async (formKey, appId) => {
+  requireAppId(appId)
+  const form = await findPublishedForm(formKey, appId)
   if (!form || !form.isActive) throw new NotFoundError(`Active form '${formKey}' was not found.`)
-  const version = form.versions.find((item) => item.status === FORM_STATUS.PUBLISHED)
+  const version = form.versions[0]
   if (!version) throw new NotFoundError(`Published form '${formKey}' was not found.`)
   return { ...form, versions: [version] }
 }
 
-const validateFormValues = async ({ formKey, version, values, requireRequired = true }) => {
+const validateFormValues = async ({ formKey, version, values, requireRequired = true, appId }) => {
+  requireAppId(appId)
   if (values === null || typeof values !== 'object' || Array.isArray(values)) throw new BadRequestError('Form values must be an object.')
-  const form = await prisma.form.findUnique({ where: { key: formKey }, include: includeDefinition })
+  const form = await findByKeyWithDefinitions(formKey, appId)
   if (!form) throw new NotFoundError(`Form '${formKey}' was not found.`)
   const formVersion = version == null ? form.versions.find((item) => item.status === FORM_STATUS.PUBLISHED) : form.versions.find((item) => item.version === version)
   if (!formVersion) throw new NotFoundError('Form version was not found.')
@@ -179,33 +112,18 @@ const validateFormValues = async ({ formKey, version, values, requireRequired = 
   return { valid: errors.length === 0, errors, formVersionId: formVersion.id }
 }
 
-const submitForm = async ({ formKey, version, values, subjectType = null, subjectId = null, submittedByUserId = null }) => {
-  const result = await validateFormValues({ formKey, version, values })
+const submitForm = async ({ appId, formKey, version, values, subjectType = null, subjectId = null, submittedByUserId = null }) => {
+  requireAppId(appId)
+  const result = await validateFormValues({ appId, formKey, version, values })
   if (!result.valid) throw new BadRequestError('Form validation failed.', result.errors)
   const normalizedSubjectId = subjectId == null ? null : String(subjectId)
-  const submission = await prisma.$transaction(async (tx) => {
-    const created = await tx.formSubmission.create({ data: { formVersionId: result.formVersionId, subjectType, subjectId: normalizedSubjectId, submittedByUserId, status: 'SUBMITTED', values, submittedAt: new Date() } })
-    await publish({ db: tx, event: 'form.submitted', entityType: subjectType || 'FormSubmission', entityId: normalizedSubjectId || created.id, actorId: submittedByUserId, context: { formSubmissionId: created.id, formVersionId: result.formVersionId, formKey }, idempotencyKey: `form-submission:${created.id}` })
+  const submission = await runTransaction(async (tx) => {
+    const created = await createSubmissionRecord({ formVersionId: result.formVersionId, subjectType, subjectId: normalizedSubjectId, submittedByUserId, status: 'SUBMITTED', values, submittedAt: new Date() }, tx)
+    await publish({ db: tx, event: 'form.submitted', entityType: subjectType || 'FormSubmission', entityId: normalizedSubjectId || created.id, actorId: submittedByUserId, context: { appId, formSubmissionId: created.id, formVersionId: result.formVersionId, formKey }, idempotencyKey: `form-submission:${created.id}` })
     return created
   })
-  await recordAudit({ actorId: submittedByUserId, action: 'FORM_SUBMITTED', entityType: 'FormSubmission', entityId: submission.id, after: submission })
+  await recordAudit({ actorId: submittedByUserId, appId, action: 'FORM_SUBMITTED', entityType: 'FormSubmission', entityId: submission.id, after: submission })
   return submission
 }
 
-export {
-  createForm,
-  createFormVersion,
-  getFormById,
-  getFormByIdWithVersions,
-  getFormVersionById,
-  getFormVersion,
-  updateFormVersion,
-  publishFormVersion,
-  getPublishedForm,
-  validateFormValues,
-  submitForm,
-  evaluateCondition,
-  validateFieldValue,
-  validateDefinition,
-  isSafeRegexPattern,
-}
+export { createForm, createFormVersion, getFormById, getFormByIdWithVersions, getFormVersionById, getFormVersion, updateFormVersion, publishFormVersion, getPublishedForm, validateFormValues, submitForm, evaluateCondition, validateFieldValue, validateDefinition, isSafeRegexPattern }

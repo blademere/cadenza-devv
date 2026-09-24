@@ -69,5 +69,3 @@ components:
       $ref: './components/schemas/users.yaml#/UserListResponse'
     CreateUserRequest:
       $ref: './components/schemas/users.yaml#/CreateUserRequest'
-    AssignUserRoleRequest:
-      $ref: './components/schemas/users.yaml#/AssignUserRoleRequest'
