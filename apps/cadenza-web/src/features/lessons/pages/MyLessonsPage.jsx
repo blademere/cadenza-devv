@@ -6,6 +6,7 @@ import { Button } from '../../../components/ui/button'
 import { Card, CardContent } from '../../../components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog'
 import { Label } from '../../../components/ui/label'
+import { Input } from '../../../components/ui/input'
 import { Textarea } from '../../../components/ui/textarea'
 import PageHeader from '../../../components/page-header'
 import LoadingState from '../../../components/loading-state'
@@ -22,6 +23,8 @@ export default function MyLessonsPage() {
   const [selectedEnrollment, setSelectedEnrollment] = useState(null)
   const [rescheduleSession, setRescheduleSession] = useState(null)
   const [reason, setReason] = useState('')
+  const [requestedStart, setRequestedStart] = useState('')
+  const [requestedEnd, setRequestedEnd] = useState('')
 
   const enrollments = useQuery({ queryKey: ['cadenza', 'enrollments'], queryFn: lessonsApi.listEnrollments })
   const sessions = useQuery({ queryKey: ['cadenza', 'customer', 'sessions'], queryFn: schedulingApi.listSessions })
@@ -31,16 +34,19 @@ export default function MyLessonsPage() {
     mutationFn: ({ id, amount }) => paymentsApi.checkout(id, { amount: String(amount), description: 'Cadenza lesson enrollment' }),
     onSuccess: (response) => { const value = unwrap(response); if (value?.checkoutUrl) window.location.assign(value.checkoutUrl) },
   })
+  const reschedules = useQuery({ queryKey: ['cadenza', 'customer', 'reschedules'], queryFn: schedulingApi.listReschedules })
   const requestReschedule = useMutation({
     mutationFn: schedulingApi.requestReschedule,
-    onSuccess: () => { setRescheduleSession(null); setReason(''); client.invalidateQueries({ queryKey: ['cadenza', 'customer', 'sessions'] }) },
+    onSuccess: () => { setRescheduleSession(null); setReason(''); setRequestedStart(''); setRequestedEnd(''); client.invalidateQueries({ queryKey: ['cadenza', 'customer', 'sessions'] }); client.invalidateQueries({ queryKey: ['cadenza', 'customer', 'reschedules'] }) },
   })
 
   if (enrollments.isLoading || sessions.isLoading) return <LoadingState label="Loading your lessons…" rows={5} />
-  const error = enrollments.error || sessions.error || checkout.error || requestReschedule.error
+  const error = enrollments.error || sessions.error || reschedules.error || checkout.error || requestReschedule.error
   if (error) return <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>
 
   const activeEnrollments = unwrap(enrollments.data).filter((item) => ['PENDING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS'].includes(item.status))
+  const allReschedules = unwrap(reschedules.data)
+  const pendingReschedules = new Set(allReschedules.filter((item) => item.status === 'PENDING').map((item) => item.sessionId))
   const upcoming = unwrap(sessions.data).filter((item) => !['COMPLETED', 'CANCELLED', 'MISSED'].includes(item.status))
 
   return (
@@ -77,7 +83,7 @@ export default function MyLessonsPage() {
       <section className="space-y-4">
         <div><h2 className="text-lg font-semibold">Upcoming sessions</h2><p className="text-sm text-muted-foreground">Your next lessons, instructor, room, and rescheduling options.</p></div>
         {upcoming.length === 0 ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No upcoming lessons scheduled.</CardContent></Card> :
-          <div className="grid gap-3">{upcoming.map((item) => <Card key={item.id} className={item.id === upcoming[0]?.id ? 'border-primary/40' : ''}><CardContent className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{item.enrollment?.lessonPackage?.name ?? 'Music lesson'}</p>{item.id === upcoming[0]?.id && <Badge variant="secondary">Next</Badge>}</div><p className="text-sm text-muted-foreground">{item.scheduledStart ? new Date(item.scheduledStart).toLocaleString() : 'Schedule pending'} · {item.room?.name ?? item.room?.resource?.name ?? 'Room pending'}</p><p className="text-sm text-muted-foreground">Instructor: {item.instructor?.person?.fullName ?? item.instructor?.person?.firstName ?? 'Assigned by Cadenza'}</p></div><div className="flex items-center gap-2"><Badge variant="secondary">{item.attendance?.status ?? item.status}</Badge>{['SCHEDULED','RESERVED'].includes(item.status) && <Button size="sm" variant="outline" onClick={() => setRescheduleSession(item)}>Reschedule</Button>}</div></CardContent></Card>)}</div>}
+          <div className="grid gap-3">{upcoming.map((item) => <Card key={item.id} className={item.id === upcoming[0]?.id ? 'border-primary/40' : ''}><CardContent className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{item.enrollment?.lessonPackage?.name ?? 'Music lesson'}</p>{item.id === upcoming[0]?.id && <Badge variant="secondary">Next</Badge>}</div><p className="text-sm text-muted-foreground">{item.scheduledStart ? new Date(item.scheduledStart).toLocaleString() : 'Schedule pending'} · {item.room?.name ?? item.room?.resource?.name ?? 'Room pending'}</p><p className="text-sm text-muted-foreground">Instructor: {item.instructor?.person?.fullName ?? item.instructor?.person?.firstName ?? 'Assigned by Cadenza'}</p></div><div className="flex items-center gap-2"><Badge variant="secondary">{item.attendance?.status ?? item.status}</Badge>{['SCHEDULED','RESERVED'].includes(item.status) && <Button size="sm" variant="outline" disabled={pendingReschedules.has(item.id)} onClick={() => { setRescheduleSession(item); setReason(''); setRequestedStart(''); setRequestedEnd('') }}>{pendingReschedules.has(item.id) ? 'Request pending' : 'Reschedule'}</Button>}</div></CardContent></Card>)}</div>}
       </section>
       <Dialog open={Boolean(payment)} onOpenChange={(open) => !open && setPayment(null)}>
         <DialogContent className="sm:max-w-xl"><DialogHeader><DialogTitle>Lesson payments</DialogTitle><DialogDescription>Review your balance and payment history for this enrollment.</DialogDescription></DialogHeader>
@@ -86,7 +92,7 @@ export default function MyLessonsPage() {
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(selectedEnrollment)} onOpenChange={(open) => !open && setSelectedEnrollment(null)}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Enrollment details</DialogTitle></DialogHeader>{selectedEnrollment && <div className="grid gap-3 text-sm"><div className="flex justify-between"><span className="text-muted-foreground">Package</span><span>{selectedEnrollment.lessonPackage?.name ?? selectedEnrollment.lessonPackageId}</span></div><div className="flex justify-between"><span className="text-muted-foreground">Status</span><Badge>{selectedEnrollment.status}</Badge></div><div className="flex justify-between"><span className="text-muted-foreground">Completed</span><span>{selectedEnrollment.progress?.completedSessions ?? 0}</span></div><div className="flex justify-between"><span className="text-muted-foreground">Remaining</span><span>{selectedEnrollment.progress?.remainingSessions ?? 0}</span></div></div>}</DialogContent></Dialog>
-      <Dialog open={Boolean(rescheduleSession)} onOpenChange={(open) => !open && setRescheduleSession(null)}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Request reschedule</DialogTitle><DialogDescription>Tell Cadenza why you cannot attend this session. The front desk can review the request.</DialogDescription></DialogHeader><div className="grid gap-2"><Label>Reason</Label><Textarea value={reason} onChange={(event) => setReason(event.currentTarget.value)} placeholder="Reason for the requested change" /></div><DialogFooter><Button variant="outline" onClick={() => setRescheduleSession(null)}>Cancel</Button><Button disabled={!reason.trim() || requestReschedule.isPending} onClick={() => requestReschedule.mutate({ sessionId: rescheduleSession.id, reason: reason.trim() })}>{requestReschedule.isPending ? 'Submitting…' : 'Submit request'}</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={Boolean(rescheduleSession)} onOpenChange={(open) => !open && setRescheduleSession(null)}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Request reschedule</DialogTitle><DialogDescription>Choose a new time for this session. Cadenza will check instructor and room availability when the request is reviewed.</DialogDescription></DialogHeader>{rescheduleSession && <div className="grid gap-4"><div className="rounded-lg border bg-muted/30 p-4 text-sm"><p className="font-medium">{rescheduleSession.enrollment?.lessonPackage?.name ?? 'Music lesson'}</p><p className="mt-1 text-muted-foreground">Current: {new Date(rescheduleSession.scheduledStart).toLocaleString()}</p></div><div className="grid gap-4 sm:grid-cols-2"><div className="grid gap-2"><Label>Requested start</Label><Input type="datetime-local" value={requestedStart} onChange={(event) => setRequestedStart(event.currentTarget.value)} /></div><div className="grid gap-2"><Label>Requested end</Label><Input type="datetime-local" value={requestedEnd} onChange={(event) => setRequestedEnd(event.currentTarget.value)} /></div></div><div className="grid gap-2"><Label>Reason <span className="text-muted-foreground">(optional)</span></Label><Textarea value={reason} onChange={(event) => setReason(event.currentTarget.value)} placeholder="Tell the front desk why you need to move this session" /></div></div>}<DialogFooter><Button variant="outline" onClick={() => setRescheduleSession(null)}>Cancel</Button><Button disabled={!requestedStart || !requestedEnd || new Date(requestedEnd) <= new Date(requestedStart) || requestReschedule.isPending} onClick={() => requestReschedule.mutate({ sessionId: rescheduleSession.id, requestedStart: new Date(requestedStart).toISOString(), requestedEnd: new Date(requestedEnd).toISOString(), reason: reason.trim() || undefined })}>{requestReschedule.isPending ? 'Submitting…' : 'Submit request'}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   )
 }
