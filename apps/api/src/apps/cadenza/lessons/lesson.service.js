@@ -14,6 +14,7 @@ import * as repository from './lesson.repository.js'
 import { assertAvailable as assertInstructorAvailable } from '../instructors/instructor-availability.service.js'
 import { enqueueEvent } from '../../../platform/event-bus/event-outbox.service.js'
 import * as lifecycle from './lesson-lifecycle.service.js'
+import * as scheduling from './scheduling.service.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import {
   ENROLLMENT_STATUS,
@@ -346,6 +347,8 @@ const listSessions = async ({ appId, actorId }) => {
   if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'manage' })) return rows
   return rows.filter((row) => Number(row.enrollment?.customer?.person?.userId) === Number(actorId) || Number(row.instructor?.person?.userId) === Number(actorId))
 }
+const generateSchedule = (params) => scheduling.generate(params)
+
 const getSession = async ({ appId, id }) => {
   const value = await repository.findSession(id, requireAppId(appId))
   if (!value) throw new NotFoundError('Lesson session not found.')
