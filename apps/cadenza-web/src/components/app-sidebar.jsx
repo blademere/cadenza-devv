@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { CaretDown, CaretRight, SignOut } from '@phosphor-icons/react'
+import { CaretDown, CaretRight, SignOut, UserCircle } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import {
   DropdownMenu,
@@ -36,16 +36,16 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
   const initial = name.slice(0, 1).toUpperCase()
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" variant="sidebar">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip={branding.workspaceName}>
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground shadow-sm">
                 {branding.shortName}
               </div>
               {state === 'expanded' && (
-                <div className="min-w-0 flex-1 text-left">
+                <div className="min-w-0 flex-1 text-left leading-tight">
                   <div className="truncate text-sm font-semibold">
                     {branding.workspaceName}
                   </div>
@@ -62,7 +62,7 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
       <SidebarContent>
         {navigation.map((section) => (
           <SidebarGroup key={section.key}>
-            <SidebarGroupLabel>{section.name}</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-2 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50">{section.name}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => {
@@ -79,6 +79,7 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
                           render={<NavLink to={item.route} onClick={onNavigate} />}
                           isActive={active}
                           tooltip={item.name}
+                          className="rounded-md font-medium data-active:shadow-sm"
                         >
                           {Icon && <Icon />}
                           <span>{item.name}</span>
@@ -101,6 +102,7 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
                             <SidebarMenuButton
                               isActive={activeChild}
                               tooltip={item.name}
+                              className="rounded-md font-medium data-active:shadow-sm"
                             />
                           }
                         >
@@ -123,7 +125,7 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
                                   <SidebarMenuButton
                                     render={<NavLink to={child.route} onClick={onNavigate} />}
                                     isActive={childActive}
-                                    className="h-7 px-2 text-xs"
+                                    className="h-8 rounded-md px-2.5 text-xs"
                                   >
                                     <span>{child.name}</span>
                                   </SidebarMenuButton>
@@ -146,20 +148,21 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
-                <Avatar className="size-8">
-                  <AvatarFallback>{initial}</AvatarFallback>
+              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="rounded-lg" />} >
+                <Avatar className="size-8 rounded-lg">
+                  <AvatarFallback className="rounded-lg bg-sidebar-accent text-sidebar-foreground font-medium">{initial}</AvatarFallback>
                 </Avatar>
-                <div className="min-w-0 flex-1 text-left">
+                <div className="min-w-0 flex-1 text-left leading-tight">
                   <div className="truncate text-xs font-medium">{name}</div>
                   <div className="truncate text-[11px] text-sidebar-foreground/60">
-                    Account
+                    {user?.email || 'Account'}
                   </div>
                 </div>
                 <CaretDown className="ml-auto" size={14} />
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-56">
                 <DropdownMenuItem onClick={onLogout}>
+                  <UserCircle size={16} />
                   <SignOut size={16} />
                   Sign out
                 </DropdownMenuItem>
