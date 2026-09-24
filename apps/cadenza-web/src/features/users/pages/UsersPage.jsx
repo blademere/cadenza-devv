@@ -96,11 +96,18 @@ export default function UsersPage() {
   if ((canCustomerManage && customers.isLoading) || (canInstructorRead && instructors.isLoading) || (canStaffRead && staff.isLoading)) return <LoadingState label="Loading people…" rows={4} />
   if ((canCustomerManage && customers.error) || (canInstructorRead && instructors.error) || (canStaffRead && staff.error)) return <Alert variant="destructive"><AlertDescription>{(customers.error || instructors.error || staff.error).message}</AlertDescription></Alert>
 
-  const entries = [
-    ...(canCustomerManage ? unwrap(customers.data).map((x) => ({ ...x, role: 'Customer' })) : []),
-    ...(canInstructorRead ? unwrap(instructors.data).map((x) => ({ ...x, role: 'Instructor' })) : []),
-    ...(canStaffRead ? unwrap(staff.data).map((x) => ({ ...x, role: 'Staff' })) : []),
-  ]
+  const entriesByPerson = new Map()
+  const addEntry = (record, role, key) => {
+    const personKey = record.person?.id ?? record.personId ?? record.id
+    const current = entriesByPerson.get(personKey) ?? { id: personKey, person: record.person, roles: [], customer: null, instructor: null, staff: null }
+    current.roles = current.roles.includes(role) ? current.roles : [...current.roles, role]
+    current[key] = record
+    entriesByPerson.set(personKey, current)
+  }
+  if (canCustomerManage) unwrap(customers.data).forEach((x) => addEntry(x, 'Customer', 'customer'))
+  if (canInstructorRead) unwrap(instructors.data).forEach((x) => addEntry(x, 'Instructor', 'instructor'))
+  if (canStaffRead) unwrap(staff.data).forEach((x) => addEntry(x, 'Staff', 'staff'))
+  const entries = Array.from(entriesByPerson.values())
   const error = updateCustomer.error || updateInstructor.error || updateStaff.error || createCustomer.error || createStaff.error || createInstructor.error || register.error || candidates.error || customerCandidates.error || staffCandidates.error || availability.error || replaceAvailability.error || addBlock.error || removeBlock.error
   const candidateOptions = unwrap(candidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
   const customerCandidateOptions = unwrap(customerCandidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
