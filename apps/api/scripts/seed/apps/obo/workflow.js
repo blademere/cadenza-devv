@@ -52,4 +52,16 @@ async function seedOboWorkflow(prisma) {
   return { workflow, version, steps: stepByKey }
 }
 
-export { OBO_WORKFLOW, seedOboWorkflow }
+async function getOboWorkflow(prisma) {
+  const workflow = await prisma.workflow.findUnique({
+    where: { key: OBO_WORKFLOW.key },
+    include: { versions: { where: { version: 1 }, take: 1, include: { steps: true } } },
+  })
+  const version = workflow?.versions?.[0]
+  if (!workflow || !version || version.status !== 'PUBLISHED') {
+    throw new Error("Published OBO workflow 'obo_application' v1 is missing. Run the OBO startup seed first.")
+  }
+  return { workflow, version, steps: new Map(version.steps.map((step) => [step.key, step])) }
+}
+
+export { OBO_WORKFLOW, seedOboWorkflow, getOboWorkflow }
