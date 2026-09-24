@@ -13,7 +13,7 @@ const authorizationCatalog = {
   obo_appointments: ['read', 'create', 'cancel', 'check_in', 'manage'],
   cadenza_authorization: ['manage'],
   cadenza_customers: ['read', 'create', 'update', 'manage'],
-  cadenza_instructors: ['read', 'create', 'update', 'manage'],
+  cadenza_instructors: ['read', 'read_own', 'create', 'update', 'manage'],
   cadenza_instruments: ['read', 'create', 'update', 'manage'],
   cadenza_rooms: ['read', 'create', 'update', 'manage'],
   cadenza_lessons: ['read', 'create', 'update', 'manage', 'schedule', 'attendance', 'request_reschedule', 'review_reschedule', 'complete', 'cancel'],
@@ -35,7 +35,7 @@ const rolePermissions = {
 const cadenzaRolePermissions = {
   cadenza_client: ['cadenza_lessons:read', 'cadenza_lessons:request_reschedule', 'cadenza_enrollments:read', 'cadenza_enrollments:create', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_payments:read', 'cadenza_payments:create', 'cadenza_dashboard:read'],
   cadenza_frontdesk: ['cadenza_customers:read', 'cadenza_customers:create', 'cadenza_customers:update', 'cadenza_customers:manage', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_rentals:manage', 'cadenza_instructors:read', 'cadenza_instructors:create', 'cadenza_instructors:update', 'cadenza_instructors:manage', 'cadenza_instruments:read', 'cadenza_instruments:update', 'cadenza_rooms:read', 'cadenza_rooms:update', 'cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:update', 'cadenza_lessons:manage', 'cadenza_lessons:schedule', 'cadenza_lessons:attendance', 'cadenza_lessons:request_reschedule', 'cadenza_lessons:review_reschedule', 'cadenza_lessons:complete', 'cadenza_lessons:cancel', 'cadenza_enrollments:read', 'cadenza_enrollments:update', 'cadenza_enrollments:manage', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_rentals:update', 'cadenza_rentals:manage', 'cadenza_payments:read', 'cadenza_payments:create', 'cadenza_payments:manage', 'cadenza_dashboard:read', 'audit_logs:read'],
-  cadenza_instructor: ['cadenza_instructors:read', 'cadenza_lessons:read', 'cadenza_lessons:update', 'cadenza_lessons:attendance', 'cadenza_lessons:request_reschedule', 'cadenza_dashboard:read'],
+  cadenza_instructor: ['cadenza_instructors:read_own', 'cadenza_lessons:read', 'cadenza_lessons:update', 'cadenza_lessons:attendance', 'cadenza_lessons:request_reschedule', 'cadenza_dashboard:read'],
 }
 const moduleName = (key) => key.split(/[_-]+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 
