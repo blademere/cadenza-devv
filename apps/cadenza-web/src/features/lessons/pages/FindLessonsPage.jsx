@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription } from '../../../components/ui/alert'
 import { Badge } from '../../../components/ui/badge'
@@ -49,12 +49,12 @@ export default function FindLessonsPage() {
   if (error) return <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>
 
   const enrolledPackageIds = new Set(unwrap(enrollments.data).map((item) => item.lessonPackageId))
-  const rows = useMemo(() => unwrap(packages.data)
+  const rows = unwrap(packages.data)
     .filter((item) => item.status === 'ACTIVE')
     .filter((item) => {
       const term = search.trim().toLowerCase()
       return !term || [item.name, item.description].filter(Boolean).some((value) => value.toLowerCase().includes(term))
-    }), [packages.data, search])
+    })
 
   return (
     <div className="space-y-6">
