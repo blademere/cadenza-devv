@@ -43,7 +43,7 @@ const findSlot = async ({ appId, instructorId, rooms, rules, day, duration, db }
   return null
 }
 
-const generate = async ({ appId, actorId, enrollmentId, instructorId, roomId = null, startAt = null, regenerate = false, anchorSessionId = null, db = null }) => {
+const generateSchedule = async ({ appId, actorId, enrollmentId, instructorId, roomId = null, startAt = null, regenerate = false, anchorSessionId = null, db = null }) => {
   const owner = requireAppId(appId)
   if (!(await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'schedule' }))) throw new ForbiddenError('Only users with lesson scheduling permission can generate lesson schedules.')
   const execute = async (tx) => {
@@ -88,4 +88,4 @@ const generate = async ({ appId, actorId, enrollmentId, instructorId, roomId = n
   }
   return db ? execute(db) : runTransaction(execute)
 }
-export { generate, getLocalParts, fromLocalParts }
+export { generateSchedule, getLocalParts, fromLocalParts }
