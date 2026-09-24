@@ -34,9 +34,23 @@ const rolePermissions = {
   admin: ['obo_authorization:manage', 'obo_users:read', 'obo_users:create', 'obo_users:manage', 'obo_permit_types:read', 'obo_permit_types:create', 'obo_permit_types:update', 'obo_forms:read', 'obo_forms:create', 'obo_forms:update', 'obo_forms:publish', 'obo_appointments:read', 'obo_appointments:create', 'obo_appointments:cancel', 'obo_appointments:check_in', 'obo_appointments:manage'],
 }
 
-
 const cadenzaRolePermissions = {
-  cadenza_client: ['cadenza_customer_portal:access', 'cadenza_lessons:read', 'cadenza_lessons:request_reschedule', 'cadenza_enrollments:cancel', 'cadenza_rentals:cancel', 'cadenza_enrollments:read', 'cadenza_enrollments:create', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_payments:read', 'cadenza_payments:create', 'cadenza_dashboard:read'],
+  cadenza_client: [
+    'cadenza_customer_portal:access',
+    'cadenza_lessons:read',
+    'cadenza_lessons:request_reschedule',
+    'cadenza_enrollments:cancel',
+    'cadenza_rentals:cancel',
+    'cadenza_enrollments:read',
+    'cadenza_enrollments:create',
+    'cadenza_rentals:read',
+    'cadenza_rentals:create',
+    'cadenza_instruments:read',
+    'cadenza_rooms:read',
+    'cadenza_payments:read',
+    'cadenza_payments:create',
+    'cadenza_dashboard:read',
+  ],
   cadenza_frontdesk: ['cadenza_customers:read', 'cadenza_customers:create', 'cadenza_customers:update', 'cadenza_customers:manage', 'cadenza_staff:read', 'cadenza_staff:create', 'cadenza_staff:update', 'cadenza_staff:manage', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_rentals:manage', 'cadenza_rentals:cancel', 'cadenza_instructors:read', 'cadenza_instructors:create', 'cadenza_instructors:update', 'cadenza_instructors:manage', 'cadenza_instruments:read', 'cadenza_instruments:update', 'cadenza_rooms:read', 'cadenza_rooms:update', 'cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:update', 'cadenza_lessons:manage', 'cadenza_lessons:schedule', 'cadenza_lessons:attendance', 'cadenza_lessons:request_reschedule', 'cadenza_lessons:review_reschedule', 'cadenza_lessons:complete', 'cadenza_lessons:cancel', 'cadenza_enrollments:read', 'cadenza_enrollments:update', 'cadenza_enrollments:manage', 'cadenza_enrollments:cancel', 'cadenza_rentals:read', 'cadenza_rentals:create', 'cadenza_rentals:update', 'cadenza_rentals:manage', 'cadenza_rentals:cancel', 'cadenza_payments:read', 'cadenza_payments:create', 'cadenza_payments:manage', 'cadenza_dashboard:read', 'audit_logs:read'],
   cadenza_instructor: ['cadenza_instructor_portal:access', 'cadenza_instructors:read_own', 'cadenza_lessons:read', 'cadenza_lessons:update', 'cadenza_lessons:attendance', 'cadenza_lessons:request_reschedule', 'cadenza_dashboard:read'],
 }
@@ -46,16 +60,12 @@ function validateCatalog() {
   const permissionKeys = new Set(Object.entries(authorizationCatalog).flatMap(([moduleKey, actions]) => actions.map((action) => `${moduleKey}:${action}`)))
   for (const [roleName, keys] of Object.entries(rolePermissions)) {
     for (const key of keys) {
-      if (!permissionKeys.has(key)) {
-        throw new Error(`OBO role '${roleName}' references permission outside the authorization catalog: ${key}`)
-      }
+      if (!permissionKeys.has(key)) throw new Error(`OBO role '${roleName}' references permission outside the authorization catalog: ${key}`)
     }
   }
   for (const [roleName, keys] of Object.entries(cadenzaRolePermissions)) {
     for (const key of keys) {
-      if (!permissionKeys.has(key)) {
-        throw new Error(`Cadenza role '${roleName}' references permission outside the authorization catalog: ${key}`)
-      }
+      if (!permissionKeys.has(key)) throw new Error(`Cadenza role '${roleName}' references permission outside the authorization catalog: ${key}`)
     }
   }
 }
@@ -70,17 +80,9 @@ async function seedAuthorization(prisma, { applications } = {}) {
   if (!cadenza) throw new Error("Application 'cadenza' must be seeded before authorization roles.")
 
   for (const [moduleKey, actions] of Object.entries(authorizationCatalog)) {
-    const module = await prisma.module.upsert({
-      where: { key: moduleKey },
-      update: { name: moduleName(moduleKey), isActive: true },
-      create: { key: moduleKey, name: moduleName(moduleKey), isActive: true },
-    })
+    const module = await prisma.module.upsert({ where: { key: moduleKey }, update: { name: moduleName(moduleKey), isActive: true }, create: { key: moduleKey, name: moduleName(moduleKey), isActive: true } })
     for (const action of actions) {
-      const permission = await prisma.permission.upsert({
-        where: { moduleId_action: { moduleId: module.id, action } },
-        update: {},
-        create: { moduleId: module.id, action },
-      })
+      const permission = await prisma.permission.upsert({ where: { moduleId_action: { moduleId: module.id, action } }, update: {}, create: { moduleId: module.id, action } })
       permissionRecords.set(`${moduleKey}:${action}`, permission)
     }
   }
@@ -91,86 +93,42 @@ async function seedAuthorization(prisma, { applications } = {}) {
     receiving_officer: 'Receiving officer who verifies professionals, receives permit applications, and manages OBO permit/form configuration.',
     admin: 'Application administrator with OBO authorization and permit/form configuration access.',
   }
-
   for (const roleName of Object.keys(rolePermissions)) {
-    roles[roleName] = await prisma.role.upsert({
-      where: { appId_name: { appId: obo.id, name: roleName } },
-      update: { description: descriptions[roleName] },
-      create: { appId: obo.id, name: roleName, description: descriptions[roleName] },
-    })
+    roles[roleName] = await prisma.role.upsert({ where: { appId_name: { appId: obo.id, name: roleName } }, update: { description: descriptions[roleName] }, create: { appId: obo.id, name: roleName, description: descriptions[roleName] } })
   }
-
   for (const [roleName, keys] of Object.entries(rolePermissions)) {
     const role = roles[roleName]
-    await prisma.rolePermission.deleteMany({
-      where: {
-        roleId: role.id,
-        permission: { module: { key: { not: { startsWith: 'obo_' } } } },
-      },
-    })
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id, permission: { module: { key: { not: { startsWith: 'obo_' } } } } } })
     for (const key of keys) {
       const permission = permissionRecords.get(key)
       if (!permission) throw new Error(`Unknown permission declared for ${roleName}: ${key}`)
-      await prisma.rolePermission.upsert({
-        where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
-        update: {},
-        create: { roleId: role.id, permissionId: permission.id },
-      })
+      await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } }, update: {}, create: { roleId: role.id, permissionId: permission.id } })
     }
   }
 
   const cadenzaDescriptions = {
-    cadenza_client: 'Cadenza customer who enrolls in lessons and creates rentals.',
+    cadenza_client: 'Cadenza customer who browses resources, enrolls in lessons, and creates rentals.',
     cadenza_frontdesk: 'Cadenza front desk staff who manages customer, lesson, rental, and payment operations.',
     cadenza_instructor: 'Cadenza instructor who can view assigned lessons and record attendance.',
   }
   for (const [roleName, keys] of Object.entries(cadenzaRolePermissions)) {
-    const role = await prisma.role.upsert({
-      where: { appId_name: { appId: cadenza.id, name: roleName } },
-      update: { description: cadenzaDescriptions[roleName] },
-      create: { appId: cadenza.id, name: roleName, description: cadenzaDescriptions[roleName] },
-    })
+    const role = await prisma.role.upsert({ where: { appId_name: { appId: cadenza.id, name: roleName } }, update: { description: cadenzaDescriptions[roleName] }, create: { appId: cadenza.id, name: roleName, description: cadenzaDescriptions[roleName] } })
     roles[roleName] = role
-    await prisma.rolePermission.deleteMany({
-      where: {
-        roleId: role.id,
-        permission: {
-          OR: [
-            { module: { key: { startsWith: 'cadenza_' } } },
-            { module: { key: 'audit_logs' } },
-          ],
-        },
-      },
-    })
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id, permission: { OR: [{ module: { key: { startsWith: 'cadenza_' } } }, { module: { key: 'audit_logs' } }] } } })
     for (const key of keys) {
       const permission = permissionRecords.get(key)
       if (!permission) throw new Error(`Unknown Cadenza permission declared for ${roleName}: ${key}`)
-      await prisma.rolePermission.upsert({
-        where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
-        update: {},
-        create: { roleId: role.id, permissionId: permission.id },
-      })
+      await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } }, update: {}, create: { roleId: role.id, permissionId: permission.id } })
     }
   }
 
   const cadenzaAdmin = await prisma.role.upsert({ where: { appId_name: { appId: cadenza.id, name: 'admin' } }, update: { description: 'Application administrator for Cadenza.' }, create: { appId: cadenza.id, name: 'admin', description: 'Application administrator for Cadenza.' } })
   roles.cadenza_admin = cadenzaAdmin
-  await prisma.rolePermission.deleteMany({
-    where: {
-      roleId: cadenzaAdmin.id,
-      permission: {
-        OR: [
-          { module: { key: { startsWith: 'cadenza_' } } },
-          { module: { key: 'audit_logs' } },
-        ],
-      },
-    },
-  })
+  await prisma.rolePermission.deleteMany({ where: { roleId: cadenzaAdmin.id, permission: { OR: [{ module: { key: { startsWith: 'cadenza_' } } }, { module: { key: 'audit_logs' } }] } } })
   for (const [key, permission] of permissionRecords) {
     if (!key.startsWith('cadenza_') && key !== 'audit_logs:read') continue
     await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: cadenzaAdmin.id, permissionId: permission.id } }, update: {}, create: { roleId: cadenzaAdmin.id, permissionId: permission.id } })
   }
-
   return { roles, permissionRecords }
 }
 
