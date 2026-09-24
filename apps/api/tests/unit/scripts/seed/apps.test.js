@@ -14,8 +14,6 @@ const mocks = vi.hoisted(() => ({
   seedOboProfessionalVerificationFixtures: vi.fn(),
   verifyOboProfessionalVerificationFixtures: vi.fn(),
   seedOboNotifications: vi.fn(),
-  ensureAppRole: vi.fn(),
-  ensurePerson: vi.fn(),
 }))
 
 vi.mock('../../../../scripts/seed/applications.js', () => ({ seedApplication: mocks.seedApplication }))
@@ -37,10 +35,6 @@ vi.mock('../../../../scripts/seed/obo-professional-verification.js', () => ({
   verifyOboProfessionalVerificationFixtures: mocks.verifyOboProfessionalVerificationFixtures,
 }))
 vi.mock('../../../../scripts/seed/notifications.js', () => ({ seedOboNotifications: mocks.seedOboNotifications }))
-vi.mock('../../../../scripts/seed/development-users.js', () => ({
-  ensureAppRole: mocks.ensureAppRole,
-  ensurePerson: mocks.ensurePerson,
-}))
 
 const { seedObo } = await import('../../../../scripts/seed/apps/obo.js')
 const { seedCadenza } = await import('../../../../scripts/seed/apps/cadenza.js')
