@@ -7,12 +7,16 @@ import { getPrismaClient, disconnectPrisma } from '../src/infrastructure/databas
 
 const prisma = getPrismaClient()
 
-async function main() {
-  const profile = process.argv[2]?.startsWith('--profile=')
-    ? process.argv[2].slice('--profile='.length)
-    : 'default'
+function readOption(name, fallback) {
+  const prefix = `--${name}=`
+  const argument = process.argv.find((value) => value.startsWith(prefix))
+  return argument ? argument.slice(prefix.length) : fallback
+}
 
-  await runSeed(prisma, profile)
+async function main() {
+  const profile = readOption('profile', 'default')
+  const app = readOption('app', 'all')
+  await runSeed(prisma, profile, app)
 }
 
 main()
