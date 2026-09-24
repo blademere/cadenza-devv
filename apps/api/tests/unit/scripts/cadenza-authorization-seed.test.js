@@ -6,7 +6,10 @@ const has = (role, permission) => cadenzaRolePermissions[role].includes(permissi
 describe('Cadenza authorization seed policy', () => {
   it('keeps customer permissions limited to customer workflows', () => {
     expect(has('cadenza_client', 'cadenza_customer_portal:access')).toBe(true)
+    expect(has('cadenza_client', 'cadenza_lessons:read')).toBe(true)
     expect(has('cadenza_client', 'cadenza_enrollments:create')).toBe(true)
+    expect(has('cadenza_client', 'cadenza_enrollments:cancel')).toBe(true)
+    expect(has('cadenza_client', 'cadenza_rentals:cancel')).toBe(true)
     expect(has('cadenza_client', 'cadenza_rentals:create')).toBe(true)
     expect(has('cadenza_client', 'cadenza_payments:create')).toBe(true)
     expect(has('cadenza_client', 'cadenza_instruments:read')).toBe(false)
