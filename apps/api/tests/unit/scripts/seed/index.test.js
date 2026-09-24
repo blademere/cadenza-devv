@@ -4,13 +4,11 @@ const mocks = vi.hoisted(() => ({
   seedPlatform: vi.fn(),
   seedObo: vi.fn(),
   seedCadenza: vi.fn(),
-  seedModelCoverage: vi.fn(),
 }))
 
 vi.mock('../../../../scripts/seed/platform.js', () => ({ seedPlatform: mocks.seedPlatform }))
 vi.mock('../../../../scripts/seed/apps/obo.js', () => ({ seedObo: mocks.seedObo }))
 vi.mock('../../../../scripts/seed/apps/cadenza.js', () => ({ seedCadenza: mocks.seedCadenza }))
-vi.mock('../../../../scripts/seed-model-coverage.js', () => ({ seedModelCoverage: mocks.seedModelCoverage }))
 
 const { APPS, PROFILES, runSeed } = await import('../../../../scripts/seed/index.js')
 
@@ -27,8 +25,8 @@ beforeEach(() => {
 
 describe('seed dispatcher', () => {
   it('defines explicit seed targets', () => {
-    expect(PROFILES).toEqual(new Set(['default', 'development', 'fixtures', 'coverage']))
-    expect(APPS).toEqual(new Set(['platform', 'obo', 'cadenza', 'all', 'coverage']))
+    expect(PROFILES).toEqual(new Set(['default', 'development', 'fixtures']))
+    expect(APPS).toEqual(new Set(['platform', 'obo', 'cadenza', 'all']))
   })
 
   it('seeds only platform data for the default seed target', async () => {
@@ -38,7 +36,6 @@ describe('seed dispatcher', () => {
     expect(mocks.seedPlatform).toHaveBeenCalledTimes(1)
     expect(mocks.seedObo).not.toHaveBeenCalled()
     expect(mocks.seedCadenza).not.toHaveBeenCalled()
-    expect(mocks.seedModelCoverage).not.toHaveBeenCalled()
   })
 
   it('seeds only OBO when the OBO target is selected', async () => {
@@ -69,19 +66,9 @@ describe('seed dispatcher', () => {
     expect(result.permissionRecords.size).toBe(3)
   })
 
-  it('keeps model coverage isolated from application seed data', async () => {
-    const result = await runSeed({}, 'coverage', 'coverage')
-
-    expect(mocks.seedModelCoverage).toHaveBeenCalledTimes(1)
-    expect(mocks.seedPlatform).not.toHaveBeenCalled()
-    expect(mocks.seedObo).not.toHaveBeenCalled()
-    expect(mocks.seedCadenza).not.toHaveBeenCalled()
-    expect(result.applications).toEqual({})
-  })
-
   it('rejects unsupported targets before seeding anything', async () => {
     await expect(runSeed({}, 'default', 'unknown')).rejects.toThrow(
-      "Unknown seed app 'unknown'. Expected one of: platform, obo, cadenza, all, coverage.",
+      "Unknown seed app 'unknown'. Expected one of: platform, obo, cadenza, all.",
     )
 
     expect(mocks.seedPlatform).not.toHaveBeenCalled()
