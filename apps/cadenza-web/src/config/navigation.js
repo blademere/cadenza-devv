@@ -17,7 +17,9 @@ export const navigation = Object.freeze([
       { key: 'find-lessons', name: 'Find Lessons', route: '/app/find-lessons', icon: icon(MagnifyingGlass), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
       { key: 'my-lessons', name: 'My Lessons', route: '/app/my-lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
       { key: 'lesson-history', name: 'Lesson History', route: '/app/lesson-history', icon: icon(ClockCounterClockwise), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
+      { key: 'find-rentals', name: 'Find Rentals', route: '/app/find-rentals', icon: icon(Guitar), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
       { key: 'my-rentals', name: 'My Rentals', route: '/app/my-rentals', icon: icon(Guitar), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
+      { key: 'rental-history', name: 'Rental History', route: '/app/rental-history', icon: icon(ClockCounterClockwise), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
     ],
   },
   {
