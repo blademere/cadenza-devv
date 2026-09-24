@@ -1,3 +1,20 @@
+model CadenzaStaff {
+  id        String   @id @default(uuid())
+  appId     String
+  personId  String
+  staffType String   @default("STAFF")
+  status    String   @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([appId, personId])
+  @@index([appId, status])
+  @@index([appId, staffType, status])
+}
+
 model CadenzaCustomer {
   id        String   @id @default(uuid())
   appId     String
