@@ -18,32 +18,32 @@ const mocks = vi.hoisted(() => ({
   ensurePerson: vi.fn(),
 }))
 
-vi.mock('../../../../../scripts/seed/applications.js', () => ({ seedApplication: mocks.seedApplication }))
-vi.mock('../../../../../scripts/seed/authorization.js', () => ({ seedAuthorization: mocks.seedAuthorization }))
-vi.mock('../../../../../scripts/seed/platform-forms.js', () => ({ seedPlatformForms: mocks.seedPlatformForms }))
-vi.mock('../../../../../scripts/seed/obo-reference.js', () => ({ seedOboReferenceData: mocks.seedOboReferenceData }))
-vi.mock('../../../../../scripts/seed/obo-development.js', () => ({
+vi.mock('../../../../scripts/seed/applications.js', () => ({ seedApplication: mocks.seedApplication }))
+vi.mock('../../../../scripts/seed/authorization.js', () => ({ seedAuthorization: mocks.seedAuthorization }))
+vi.mock('../../../../scripts/seed/platform-forms.js', () => ({ seedPlatformForms: mocks.seedPlatformForms }))
+vi.mock('../../../../scripts/seed/obo-reference.js', () => ({ seedOboReferenceData: mocks.seedOboReferenceData }))
+vi.mock('../../../../scripts/seed/obo-development.js', () => ({
   seedOboDevelopmentScenario: mocks.seedOboDevelopmentScenario,
   verifyOboDevelopmentScenario: mocks.verifyOboDevelopmentScenario,
 }))
-vi.mock('../../../../../scripts/seed/obo-platform-configuration.js', () => ({
+vi.mock('../../../../scripts/seed/obo-platform-configuration.js', () => ({
   seedOboPlatformConfiguration: mocks.seedOboPlatformConfiguration,
   verifyOboPlatformConfiguration: mocks.verifyOboPlatformConfiguration,
 }))
-vi.mock('../../../../../scripts/seed/obo-form-bindings.js', () => ({ bindOboDevelopmentForm: mocks.bindOboDevelopmentForm }))
-vi.mock('../../../../../scripts/seed/people.js', () => ({ seedRolePersons: mocks.seedRolePersons }))
-vi.mock('../../../../../scripts/seed/obo-professional-verification.js', () => ({
+vi.mock('../../../../scripts/seed/obo-form-bindings.js', () => ({ bindOboDevelopmentForm: mocks.bindOboDevelopmentForm }))
+vi.mock('../../../../scripts/seed/people.js', () => ({ seedRolePersons: mocks.seedRolePersons }))
+vi.mock('../../../../scripts/seed/obo-professional-verification.js', () => ({
   seedOboProfessionalVerificationFixtures: mocks.seedOboProfessionalVerificationFixtures,
   verifyOboProfessionalVerificationFixtures: mocks.verifyOboProfessionalVerificationFixtures,
 }))
-vi.mock('../../../../../scripts/seed/notifications.js', () => ({ seedOboNotifications: mocks.seedOboNotifications }))
-vi.mock('../../../../../scripts/seed/development-users.js', () => ({
+vi.mock('../../../../scripts/seed/notifications.js', () => ({ seedOboNotifications: mocks.seedOboNotifications }))
+vi.mock('../../../../scripts/seed/development-users.js', () => ({
   ensureAppRole: mocks.ensureAppRole,
   ensurePerson: mocks.ensurePerson,
 }))
 
-const { seedObo } = await import('../../../../../scripts/seed/apps/obo.js')
-const { seedCadenza } = await import('../../../../../scripts/seed/apps/cadenza.js')
+const { seedObo } = await import('../../../../scripts/seed/apps/obo.js')
+const { seedCadenza } = await import('../../../../scripts/seed/apps/cadenza.js')
 
 const roles = { client: { id: 'role-client' }, cadenza_admin: { id: 'role-admin' } }
 const permissions = new Map([['audit_logs:read', { id: 'permission-1' }]])
