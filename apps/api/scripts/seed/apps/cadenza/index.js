@@ -23,28 +23,38 @@ async function ensurePerson(prisma, { userId, firstName, lastName, email, phone 
   })
 }
 
-async function seedCadenzaDevelopmentUser(prisma, { roleId }) {
-  const email = process.env.SEED_CADENZA_ADMIN_EMAIL
-  const password = process.env.SEED_CADENZA_ADMIN_PASSWORD
-  if (!email || !password) return null
+const CADENZA_DEVELOPMENT_USERS = [
+  { role: 'cadenza_client', email: 'cadenza-client@example.test', firstName: 'Cadenza', lastName: 'Client', phone: '+630000000001' },
+  { role: 'cadenza_frontdesk', email: 'cadenza-frontdesk@example.test', firstName: 'Cadenza', lastName: 'Front Desk', phone: '+630000000002' },
+  { role: 'cadenza_instructor', email: 'cadenza-instructor@example.test', firstName: 'Cadenza', lastName: 'Instructor', phone: '+630000000003' },
+  { role: 'cadenza_admin', email: 'cadenza-admin@example.test', firstName: 'Cadenza', lastName: 'Administrator', phone: '+630000000004' },
+]
 
+async function seedCadenzaDevelopmentUsers(prisma, { roles }) {
   const bcrypt = await import('bcrypt')
-  const passwordHash = await bcrypt.hash(password, 12)
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { isActive: true, passwordHash },
-    create: { email, isActive: true, passwordHash },
-  })
-  await ensureAppRole(prisma, { userId: user.id, appKey: 'cadenza', roleId })
-  await ensurePerson(prisma, {
-    userId: user.id,
-    firstName: 'Cadenza',
-    lastName: 'Administrator',
-    email: user.email,
-    phone: '+630000000001',
-  })
-  console.log('Cadenza development admin ensured: ' + email)
-  return user
+  const passwordHash = await bcrypt.hash('112233445566', 12)
+
+  for (const definition of CADENZA_DEVELOPMENT_USERS) {
+    const role = roles[definition.role]
+    if (!role) throw new Error("Cadenza role '" + definition.role + "' was not seeded.")
+
+    const user = await prisma.user.upsert({
+      where: { email: definition.email },
+      update: { isActive: true, passwordHash },
+      create: { email: definition.email, isActive: true, passwordHash },
+    })
+
+    await ensureAppRole(prisma, { userId: user.id, appKey: 'cadenza', roleId: role.id })
+    await ensurePerson(prisma, {
+      userId: user.id,
+      firstName: definition.firstName,
+      lastName: definition.lastName,
+      email: definition.email,
+      phone: definition.phone,
+    })
+  }
+
+  console.log('Cadenza development users ensured for all four roles.')
 }
 
 async function seedCadenza(prisma, { profile = 'default' } = {}) {
@@ -53,10 +63,10 @@ async function seedCadenza(prisma, { profile = 'default' } = {}) {
   const { roles, permissionRecords } = await seedCadenzaAuthorization(prisma, cadenza)
 
   if (profile === 'development') {
-    await seedCadenzaDevelopmentUser(prisma, { roleId: roles.cadenza_admin.id })
+    await seedCadenzaDevelopmentUsers(prisma, { roles })
   }
 
   return { application: cadenza, roles, permissionRecords }
 }
 
-export { seedCadenza }
+export { CADENZA_DEVELOPMENT_USERS, seedCadenza, seedCadenzaDevelopmentUsers }
