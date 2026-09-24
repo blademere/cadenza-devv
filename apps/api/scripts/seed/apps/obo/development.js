@@ -1,4 +1,4 @@
-import { seedOboWorkflow } from './workflow.js'
+import { getOboWorkflow } from './workflow.js'
 
 const OBO_DEVELOPMENT_FIXTURE = {
   clientEmail: 'obo-client@example.test',
@@ -83,7 +83,7 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
   const oboApp = await prisma.app.findUnique({ where: { key: 'obo' }, select: { id: true } })
   if (!oboApp) throw new Error("OBO application 'obo' was not seeded.")
   const appId = oboApp.id
-  const { version, steps } = await seedOboWorkflow(prisma)
+  const { version, steps } = await getOboWorkflow(prisma)
   const now = new Date('2030-06-10T08:00:00.000Z')
   const appointmentStart = new Date('2030-06-14T09:00:00.000Z')
   const appointmentEnd = new Date('2030-06-14T09:30:00.000Z')
