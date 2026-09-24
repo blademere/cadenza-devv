@@ -11,9 +11,8 @@ services:
     env_file:
       - ../.env
 
-    environment:
-      DATABASE_URL: postgresql://${DEV_POSTGRES_USER:-user}:${DEV_POSTGRES_PASSWORD:-password}@db:5432/${DEV_DATABASE_NAME:-express_app}?schema=public
-
+    # DATABASE_URL is intentionally supplied by ../.env via env_file.
+    # Do not override it here: the app should use the configured Neon database.
     depends_on:
       db:
         condition: service_healthy
