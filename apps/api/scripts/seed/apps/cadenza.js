@@ -1,11 +1,6 @@
+import { seedApplication } from '../applications.js'
 import { seedAuthorization } from '../authorization.js'
 import { ensureAppRole, ensurePerson } from '../development-users.js'
-
-async function requireApplication(prisma, key) {
-  const app = await prisma.app.findUnique({ where: { key } })
-  if (!app) throw new Error(`Application '${key}' must be seeded before its application seed.`)
-  return app
-}
 
 async function seedCadenzaDevelopmentUser(prisma, { roleId }) {
   const email = process.env.SEED_CADENZA_ADMIN_EMAIL
@@ -32,8 +27,11 @@ async function seedCadenzaDevelopmentUser(prisma, { roleId }) {
 }
 
 async function seedCadenza(prisma, { profile = 'default' } = {}) {
-  const cadenza = await requireApplication(prisma, 'cadenza')
-  const { roles, permissionRecords } = await seedAuthorization(prisma, { applications: { cadenza }, applicationKeys: ['cadenza'] })
+  const cadenza = await seedApplication(prisma, 'cadenza')
+  const { roles, permissionRecords } = await seedAuthorization(prisma, {
+    applications: { cadenza },
+    applicationKeys: ['cadenza'],
+  })
 
   if (profile === 'development') {
     await seedCadenzaDevelopmentUser(prisma, { roleId: roles.cadenza_admin.id })
