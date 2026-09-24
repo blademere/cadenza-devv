@@ -157,13 +157,6 @@
         "cwd": "apps/api"
       }
     },
-    "db:seed:coverage": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node scripts/db-seed.js --app=coverage",
-        "cwd": "apps/api"
-      }
-    },
     "db:setup": {
       "executor": "nx:run-commands",
       "options": {
