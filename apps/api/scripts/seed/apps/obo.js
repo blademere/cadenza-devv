@@ -1,0 +1,43 @@
+import { seedAuthorization } from '../authorization.js'
+import { seedPlatformForms } from '../platform-forms.js'
+import { seedOboReferenceData } from '../obo-reference.js'
+import { seedOboDevelopmentScenario, verifyOboDevelopmentScenario } from '../obo-development.js'
+import { seedOboPlatformConfiguration, verifyOboPlatformConfiguration } from '../obo-platform-configuration.js'
+import { bindOboDevelopmentForm } from '../obo-form-bindings.js'
+import { seedDevelopmentUsers } from '../development-users.js'
+import { seedRolePersons } from '../people.js'
+import { seedOboProfessionalVerificationFixtures, verifyOboProfessionalVerificationFixtures } from '../obo-professional-verification.js'
+import { seedOboNotifications } from '../notifications.js'
+
+async function requireApplication(prisma, key) {
+  const app = await prisma.app.findUnique({ where: { key } })
+  if (!app) throw new Error(`Application '${key}' must be seeded before its application seed.`)
+  return app
+}
+
+async function seedObo(prisma, { profile = 'default' } = {}) {
+  const obo = await requireApplication(prisma, 'obo')
+  const { roles, permissionRecords } = await seedAuthorization(prisma, { applications: { obo }, applicationKeys: ['obo'] })
+  const { form: applicationForm } = await seedPlatformForms(prisma)
+  await seedOboReferenceData(prisma, { applicationForm })
+
+  if (profile === 'development') {
+    const { demoPasswordHash } = await seedDevelopmentUsers(prisma, { roles })
+    await seedOboDevelopmentScenario(prisma, { roles, passwordHash: demoPasswordHash })
+    await seedOboPlatformConfiguration(prisma)
+    await bindOboDevelopmentForm(prisma)
+    await seedRolePersons(prisma)
+    await verifyOboPlatformConfiguration(prisma)
+    await verifyOboDevelopmentScenario(prisma)
+  }
+
+  if (profile === 'fixtures') {
+    await seedOboProfessionalVerificationFixtures(prisma, { roles, passwordHash: null })
+    await seedOboNotifications(prisma)
+    await verifyOboProfessionalVerificationFixtures(prisma)
+  }
+
+  return { application: obo, roles, permissionRecords }
+}
+
+export { seedObo }
