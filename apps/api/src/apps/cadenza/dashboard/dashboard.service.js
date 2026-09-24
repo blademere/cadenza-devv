@@ -10,6 +10,7 @@ const getDashboard = async ({ appId, actorId }) => {
   const manager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_authorization', action: 'manage' })
   const frontdesk = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'schedule' })
   const instructor = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'attendance' })
+  const customer = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_enrollments', action: 'create' })
 
   const sessions = await lessonRepository.listSessions(owner)
   const enrollments = await lessonRepository.listEnrollments(owner)
@@ -49,17 +50,19 @@ const getDashboard = async ({ appId, actorId }) => {
     ? sessions.filter((session) => Number(session.instructor?.person?.userId) === Number(actorId))
     : []
 
-  const customerEnrollments = enrollments.filter(
-    (item) => Number(item.customer?.person?.userId) === Number(actorId),
-  )
-  const customerRentals = rentals.filter(
-    (item) => Number(item.customer?.person?.userId) === Number(actorId),
-  )
-  const customerObligations = obligations.filter(
-    (item) =>
-      customerEnrollments.some((enrollment) => enrollment.paymentObligationId === item.id) ||
-      customerRentals.some((rental) => rental.paymentObligationId === item.id),
-  )
+  const customerEnrollments = customer
+    ? enrollments.filter((item) => Number(item.customer?.person?.userId) === Number(actorId))
+    : []
+  const customerRentals = customer
+    ? rentals.filter((item) => Number(item.customer?.person?.userId) === Number(actorId))
+    : []
+  const customerObligations = customer
+    ? obligations.filter(
+        (item) =>
+          customerEnrollments.some((enrollment) => enrollment.paymentObligationId === item.id) ||
+          customerRentals.some((rental) => rental.paymentObligationId === item.id),
+      )
+    : []
 
   return {
     ...base,
@@ -73,7 +76,7 @@ const getDashboard = async ({ appId, actorId }) => {
           },
         }
       : {}),
-    ...(customerEnrollments.length || customerRentals.length || customerObligations.length
+    ...(customer
       ? {
           customer: {
             enrollments: customerEnrollments.slice(0, 10),
