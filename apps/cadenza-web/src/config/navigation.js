@@ -1,5 +1,5 @@
 import { createElement } from 'react'
-import { Archive, Calendar, ClockCounterClockwise, Guitar, House, MagnifyingGlass, MusicNotes, UsersThree } from '@phosphor-icons/react'
+import { Archive, Calendar, ClockCounterClockwise, Guitar, House, MusicNotes, UsersThree } from '@phosphor-icons/react'
 import { PERMISSIONS } from './permissions'
 
 const icon = (I) => () => createElement(I, { size: 20, weight: 'regular', 'aria-hidden': true })
@@ -39,9 +39,7 @@ export const navigation = Object.freeze([
   {
     key: 'instructor',
     name: 'Instructor',
-    items: [
-      { key: 'my-teaching', name: 'My Teaching', route: '/app/my-teaching', icon: icon(MusicNotes), permission: PERMISSIONS.lessons.attendance },
-    ],
+    items: [{ key: 'my-teaching', name: 'My Teaching', route: '/app/my-teaching', icon: icon(MusicNotes), permission: PERMISSIONS.lessons.attendance }],
   },
   {
     key: 'lessons-management',
@@ -58,7 +56,11 @@ export const navigation = Object.freeze([
     key: 'rentals-management',
     name: 'Rental Management',
     items: [
-      { key: 'rental-management', name: 'Rental Management', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
+      { key: 'rental-management', name: 'Overview', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
+      { key: 'rental-bookings', name: 'Bookings', route: '/app/rental-bookings', icon: icon(Calendar), permission: PERMISSIONS.rentals.manage },
+      { key: 'rental-checkout', name: 'Checkout', route: '/app/rental-checkout', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
+      { key: 'rental-returns', name: 'Returns', route: '/app/rental-returns', icon: icon(Archive), permission: PERMISSIONS.rentals.manage },
+      { key: 'rental-payments', name: 'Payments', route: '/app/rental-payments', icon: icon(ClockCounterClockwise), anyPermissions: [PERMISSIONS.rentals.manage, PERMISSIONS.payments.create] },
       { key: 'resources', name: 'Resources', route: '/app/resources', icon: icon(Archive), anyPermissions: [PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update] },
     ],
   },
@@ -71,28 +73,19 @@ export const navigation = Object.freeze([
 
 export function normalizeNavigation(sections = [], permissions = []) {
   if (!Array.isArray(sections)) return []
-
   return sections
     .map((section) => ({
       ...section,
       items: Array.isArray(section.items)
         ? section.items
             .filter((item) => !item.permission || permissions.includes(item.permission))
-            .filter(
-              (item) =>
-                !item.anyPermissions ||
-                item.anyPermissions.some((permission) => permissions.includes(permission)),
-            )
+            .filter((item) => !item.anyPermissions || item.anyPermissions.some((permission) => permissions.includes(permission)))
             .map((item) => ({
               ...item,
               children: Array.isArray(item.children)
                 ? item.children
                     .filter((child) => !child.permission || permissions.includes(child.permission))
-                    .filter(
-                      (child) =>
-                        !child.anyPermissions ||
-                        child.anyPermissions.some((permission) => permissions.includes(permission)),
-                    )
+                    .filter((child) => !child.anyPermissions || child.anyPermissions.some((permission) => permissions.includes(permission)))
                 : undefined,
             }))
             .filter((item) => !Array.isArray(item.children) || item.children.length > 0)
