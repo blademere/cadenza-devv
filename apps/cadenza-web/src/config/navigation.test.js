@@ -11,6 +11,7 @@ describe('Cadenza navigation authorization', () => {
   it('shows customer workflows without management sections', () => {
     const visible = sectionKeys([
       'cadenza_dashboard:read',
+      'cadenza_customer_portal:access',
       'cadenza_lessons:read',
       'cadenza_enrollments:read',
       'cadenza_enrollments:create',
@@ -27,6 +28,7 @@ describe('Cadenza navigation authorization', () => {
   it('shows instructor workspace without customer or operations sections', () => {
     const visible = sectionKeys([
       'cadenza_dashboard:read',
+      'cadenza_instructor_portal:access',
       'cadenza_instructors:read_own',
       'cadenza_lessons:read',
       'cadenza_lessons:attendance',
