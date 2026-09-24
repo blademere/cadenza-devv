@@ -14,22 +14,22 @@ export const navigation = Object.freeze([
     key: 'customer',
     name: 'Customer',
     items: [
-      { key: 'lessons', name: 'My Lessons', route: '/app/lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
-      { key: 'rentals', name: 'My Rentals', route: '/app/rentals', icon: icon(Guitar), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
+      { key: 'my-lessons', name: 'My Lessons', route: '/app/my-lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.read] },
+      { key: 'my-rentals', name: 'My Rentals', route: '/app/my-rentals', icon: icon(Guitar), anyPermissions: [PERMISSIONS.rentals.create, PERMISSIONS.rentals.read] },
     ],
   },
   {
     key: 'instructor',
     name: 'Instructor',
     items: [
-      { key: 'instructor-workspace', name: 'My Teaching', route: '/app/instructor', icon: icon(MusicNotes), permission: PERMISSIONS.lessons.attendance },
+      { key: 'my-teaching', name: 'My Teaching', route: '/app/my-teaching', icon: icon(MusicNotes), permission: PERMISSIONS.lessons.attendance },
     ],
   },
   {
     key: 'lessons-management',
     name: 'Lesson Management',
     items: [
-      { key: 'lessons', name: 'Lessons', route: '/app/lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage, PERMISSIONS.lessons.schedule] },
+      { key: 'lesson-management', name: 'Lesson Management', route: '/app/lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.read, PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage, PERMISSIONS.lessons.schedule] },
       { key: 'audit', name: 'Audit', route: '/app/audit', icon: icon(Calendar), permission: PERMISSIONS.audit.read },
     ],
   },
@@ -37,7 +37,7 @@ export const navigation = Object.freeze([
     key: 'rentals-management',
     name: 'Rental Management',
     items: [
-      { key: 'rentals', name: 'Rentals', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
+      { key: 'rental-management', name: 'Rental Management', route: '/app/rentals', icon: icon(Guitar), permission: PERMISSIONS.rentals.manage },
       { key: 'resources', name: 'Resources', route: '/app/resources', icon: icon(Archive), anyPermissions: [PERMISSIONS.instruments.create, PERMISSIONS.instruments.update, PERMISSIONS.rooms.create, PERMISSIONS.rooms.update] },
     ],
   },
