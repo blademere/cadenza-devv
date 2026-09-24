@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { CaretDown, CaretRight, SignOut, UserCircle } from '@phosphor-icons/react'
+import { CaretDown, CaretRight, SignOut } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import {
   DropdownMenu,
@@ -21,6 +21,7 @@ import {
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubItem,
+  SidebarRail,
   useSidebar,
 } from './ui/sidebar'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'
@@ -162,7 +163,6 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-56">
                 <DropdownMenuItem onClick={onLogout}>
-                  <UserCircle size={16} />
                   <SignOut size={16} />
                   Sign out
                 </DropdownMenuItem>
@@ -171,6 +171,7 @@ export default function AppSidebar({ navigation = [], user, onNavigate, onLogout
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }
