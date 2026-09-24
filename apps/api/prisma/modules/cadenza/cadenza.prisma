@@ -121,6 +121,7 @@ model CadenzaLessonPackage {
   price          Decimal  @db.Decimal(19,4)
   numberOfSessions Int
   sessionDurationMinutes Int @default(60)
+  sessionsPerWeek Int @default(1)
   status         String   @default("ACTIVE")
   metadata       Json?
   createdAt      DateTime @default(now())
