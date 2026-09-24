@@ -7,6 +7,7 @@ import createApplicationRouter from '../platform/applications/application.routes
 import oboRouter from '../apps/obo/obo.routes.js'
 import cadenzaRouter from '../apps/cadenza/cadenza.routes.js'
 import authenticate from '../features/auth/authenticate.secure.js'
+import { selectApplication } from '../features/auth/auth.service.js'
 import paymentWebhookRouter from '../platform/payments/payment-webhook.routes.js'
 
 const router = express.Router()
