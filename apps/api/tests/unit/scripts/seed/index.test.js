@@ -7,8 +7,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../../../scripts/seed/platform.js', () => ({ seedPlatform: mocks.seedPlatform }))
-vi.mock('../../../../scripts/seed/apps/obo.js', () => ({ seedObo: mocks.seedObo }))
-vi.mock('../../../../scripts/seed/apps/cadenza.js', () => ({ seedCadenza: mocks.seedCadenza }))
+vi.mock('../../../../scripts/seed/apps/obo/index.js', () => ({ seedObo: mocks.seedObo }))
+vi.mock('../../../../scripts/seed/apps/cadenza/index.js', () => ({ seedCadenza: mocks.seedCadenza }))
 
 const { APPS, PROFILES, runSeed } = await import('../../../../scripts/seed/index.js')
 
