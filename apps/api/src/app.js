@@ -28,12 +28,12 @@ import originProtection from './common/middleware/originProtection.js'
 import { contextMiddleware } from './platform/context/index.js'
 
 import { env, requestLogger } from './config/index.js'
+import { createCorsOptions } from './config/cors.js'
 import apiRoutes from './routes/index.js'
 import { registerSwagger } from './infrastructure/docs/swagger.js'
 import { withTimeout } from './common/utils/withTimeout.js'
 
 const app = express()
-const allowedCorsOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
 
 app.set('trust proxy', 1)
 app.use(requestId)
@@ -42,27 +42,7 @@ app.use(cookieParser())
 app.use(requestLogger)
 app.use(helmet())
 
-app.use(
-  cors({
-    origin: (requestOrigin, callback) => {
-      if (!requestOrigin) return callback(null, false)
-      if (allowedCorsOrigins.includes(requestOrigin)) return callback(null, requestOrigin)
-      return callback(null, false)
-    },
-    credentials: true,
-    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-CSRF-Token',
-      'Idempotency-Key',
-      'X-Request-ID',
-      'X-Correlation-ID',
-      'X-App-ID',
-    ],
-    exposedHeaders: ['X-Request-ID', 'X-Correlation-ID'],
-  })
-)
+app.use(cors(createCorsOptions(env.CORS_ORIGIN)))
 
 app.use(originProtection)
 app.use(hpp())
