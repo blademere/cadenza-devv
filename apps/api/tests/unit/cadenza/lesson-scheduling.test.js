@@ -138,7 +138,7 @@ describe('Cadenza lesson scheduling', () => {
   })
 
   it('approves a reschedule atomically through the platform transaction service', async () => {
-    const session = { id: 'session-1', status: 'SCHEDULED', instructorId: INSTRUCTOR_ID, roomId: ROOM_ID }
+    const session = { id: 'session-1', status: 'SCHEDULED', instructorId: INSTRUCTOR_ID, roomId: ROOM_ID, scheduledStart: new Date('2026-09-25T10:00:00.000Z'), scheduledEnd: new Date('2026-09-25T11:00:00.000Z'), enrollmentId: ENROLLMENT_ID, enrollment: { lessonPackage: { sessionDurationMinutes: 60 } } }
     const request = {
       id: 'request-1',
       sessionId: 'session-1',
