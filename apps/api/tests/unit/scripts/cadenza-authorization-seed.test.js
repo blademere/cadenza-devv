@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { authorizationCatalog, cadenzaRolePermissions } from '../../../scripts/seed/authorization.js'
+import { cadenzaAuthorizationCatalog, cadenzaRolePermissions } from '../../../scripts/seed/apps/cadenza/authorization.js'
 
 const has = (role, permission) => cadenzaRolePermissions[role].includes(permission)
 
@@ -27,7 +27,21 @@ describe('Cadenza authorization seed policy', () => {
   })
 
   it('includes audit permission in the catalog for staff roles', () => {
-    expect(authorizationCatalog.audit_logs).toEqual(['read'])
+    expect(cadenzaAuthorizationCatalog).not.toHaveProperty('audit_logs')
+    expect(cadenzaRolePermissions.cadenza_admin).toContain('audit_logs:read')
     expect(has('cadenza_frontdesk', 'audit_logs:read')).toBe(true)
+  })
+
+  it('grants the expected operational permissions to each seeded role', () => {
+    expect(has('cadenza_client', 'cadenza_payments:create')).toBe(true)
+    expect(has('cadenza_client', 'cadenza_lessons:schedule')).toBe(false)
+    expect(has('cadenza_frontdesk', 'cadenza_enrollments:manage')).toBe(true)
+    expect(has('cadenza_frontdesk', 'cadenza_payments:manage')).toBe(true)
+    expect(has('cadenza_frontdesk', 'cadenza_lessons:review_reschedule')).toBe(true)
+    expect(has('cadenza_instructor', 'cadenza_lessons:attendance')).toBe(true)
+    expect(has('cadenza_instructor', 'cadenza_enrollments:manage')).toBe(false)
+    expect(has('cadenza_admin', 'cadenza_authorization:manage')).toBe(true)
+    expect(has('cadenza_admin', 'cadenza_payments:manage')).toBe(true)
+    expect(has('cadenza_admin', 'cadenza_rentals:manage')).toBe(true)
   })
 })
