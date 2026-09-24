@@ -58,6 +58,9 @@ describe('Cadenza navigation authorization', () => {
       'resources',
       'administration',
     ])
+    expect(visible.find((section) => section.key === 'lessons-management')?.items).not.toContain('audit')
+    expect(visible.find((section) => section.key === 'resources')?.items).not.toContain('resource-audit')
+    expect(visible.find((section) => section.key === 'administration')?.items).toContain('audit')
   })
   it('does not expose customer or instructor portals to front desk permissions', () => {
     const visible = sectionKeys([
