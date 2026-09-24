@@ -4,7 +4,9 @@ import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import LessonManagementPage from '../features/lessons/pages/LessonManagementPage'
-import CustomerLessonsPage from '../features/lessons/pages/CustomerLessonsPage'
+import FindLessonsPage from '../features/lessons/pages/FindLessonsPage'
+import MyLessonsPage from '../features/lessons/pages/MyLessonsPage'
+import LessonHistoryPage from '../features/lessons/pages/LessonHistoryPage'
 import InstructorTeachingPage from '../features/instructors/pages/InstructorTeachingPage'
 import AuditPage from '../features/audit/pages/AuditPage'
 import RentalManagementPage from '../features/rentals/pages/RentalManagementPage'
@@ -32,7 +34,9 @@ export const router = createBrowserRouter([
             { index: true, element: <Navigate to="dashboard" replace /> },
             { path: 'dashboard', element: <DashboardPage /> },
             { path: 'payments/:obligationId', element: <PaymentPage /> },
-            { path: 'my-lessons', element: <PermissionRoute anyPermissions={['cadenza_enrollments:create', 'cadenza_enrollments:read']} />, children: [{ index: true, element: <CustomerLessonsPage /> }] },
+            { path: 'find-lessons', element: <PermissionRoute anyPermissions={['cadenza_enrollments:create', 'cadenza_enrollments:read']} />, children: [{ index: true, element: <FindLessonsPage /> }] },
+            { path: 'my-lessons', element: <PermissionRoute anyPermissions={['cadenza_enrollments:create', 'cadenza_enrollments:read']} />, children: [{ index: true, element: <MyLessonsPage /> }] },
+            { path: 'lesson-history', element: <PermissionRoute anyPermissions={['cadenza_enrollments:create', 'cadenza_enrollments:read']} />, children: [{ index: true, element: <LessonHistoryPage /> }] },
             { path: 'lessons', element: <PermissionRoute anyPermissions={['cadenza_lessons:read', 'cadenza_lessons:create', 'cadenza_lessons:manage', 'cadenza_lessons:schedule']} />, children: [{ index: true, element: <LessonManagementPage /> }] },
             { path: 'my-teaching', element: <PermissionRoute permission="cadenza_lessons:attendance" />, children: [{ index: true, element: <InstructorTeachingPage /> }] },
             { path: 'audit', element: <PermissionRoute permission="audit_logs:read" />, children: [{ index: true, element: <AuditPage /> }] },
