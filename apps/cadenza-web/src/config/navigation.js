@@ -47,8 +47,11 @@ export const navigation = Object.freeze([
     key: 'lessons-management',
     name: 'Lesson Management',
     items: [
-      { key: 'lesson-management', name: 'Lesson Management', route: '/app/lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.read, PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage, PERMISSIONS.lessons.schedule] },
-      { key: 'audit', name: 'Audit', route: '/app/audit', icon: icon(Calendar), permission: PERMISSIONS.audit.read },
+      { key: 'lesson-management', name: 'Overview', route: '/app/lessons', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.read, PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage, PERMISSIONS.lessons.schedule] },
+      { key: 'lesson-packages', name: 'Packages', route: '/app/lesson-packages', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.read, PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage] },
+      { key: 'lesson-enrollments', name: 'Enrollments', route: '/app/lesson-enrollments', icon: icon(UsersThree), anyPermissions: [PERMISSIONS.enrollments.read, PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.manage] },
+      { key: 'lesson-schedule', name: 'Schedule & Sessions', route: '/app/lesson-schedule', icon: icon(Calendar), anyPermissions: [PERMISSIONS.lessons.schedule, PERMISSIONS.lessons.attendance, PERMISSIONS.lessons.manage] },
+      { key: 'audit', name: 'Audit', route: '/app/audit', icon: icon(ClockCounterClockwise), permission: PERMISSIONS.audit.read },
     ],
   },
   {
