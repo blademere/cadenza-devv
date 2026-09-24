@@ -1,7 +1,9 @@
-import { seedApplications } from './applications.js'
+import { seedAuthorization } from './authorization.js'
 
 async function seedPlatform(prisma) {
-  return seedApplications(prisma)
+  const { permissionRecords } = await seedAuthorization(prisma, { applicationKeys: [] })
+
+  return { permissionRecords }
 }
 
 export { seedPlatform }
