@@ -15,7 +15,7 @@ function readOption(name, fallback) {
 
 async function main() {
   const profile = readOption('profile', 'default')
-  const app = readOption('app', 'all')
+  const app = readOption('app', 'platform')
   await runSeed(prisma, profile, app)
 }
 
