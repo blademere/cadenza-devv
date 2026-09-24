@@ -45,22 +45,39 @@ export default function MyLessonsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="My Lessons" description="Manage your active enrollments, upcoming sessions, payments, and rescheduling." />
+      <PageHeader title="My Lessons" description="Your lesson schedule, progress, payments, and rescheduling requests in one place." />
+      <Card className="overflow-hidden">
+        <CardContent className="p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Next up</p>
+              <p className="mt-1 text-2xl font-semibold">{upcoming[0]?.enrollment?.lessonPackage?.name ?? 'No lesson scheduled'}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{upcoming[0]?.scheduledStart ? new Date(upcoming[0].scheduledStart).toLocaleString() : 'Your upcoming sessions will appear here.'}</p>
+            </div>
+            {upcoming[0] && <Badge variant="secondary">{upcoming[0].room?.name ?? upcoming[0].room?.resource?.name ?? 'Room pending'}</Badge>}
+          </div>
+        </CardContent>
+      </Card>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <SummaryCard label="Active programs" value={activeEnrollments.length} detail="current enrollments" />
+        <SummaryCard label="Sessions remaining" value={activeEnrollments.reduce((sum, item) => sum + Number(item.progress?.remainingSessions ?? 0), 0)} detail="across active programs" />
+        <SummaryCard label="Upcoming" value={upcoming.length} detail="scheduled sessions" />
+      </div>
       <section className="space-y-4">
-        <div><h2 className="text-lg font-semibold">Active enrollments</h2><p className="text-sm text-muted-foreground">Your current lesson programs and remaining sessions.</p></div>
+        <div><h2 className="text-lg font-semibold">My programs</h2><p className="text-sm text-muted-foreground">Track your progress and manage payments for each enrollment.</p></div>
         {activeEnrollments.length === 0 ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">You do not have any active lesson enrollments.</CardContent></Card> :
           <div className="grid gap-3">{activeEnrollments.map((item) => {
             const pending = item.status === 'PENDING_PAYMENT' && item.paymentObligationId
-            return <Card key={item.id}><CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-2"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{item.lessonPackage?.name ?? item.lessonPackageId}</p><Badge variant={pending ? 'outline' : 'secondary'}>{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.progress?.completedSessions ?? 0}/{item.progress?.totalSessions ?? item.lessonPackage?.numberOfSessions ?? 0} sessions completed · {item.progress?.remainingSessions ?? 0} remaining</p></div>
+            return <Card key={item.id}><CardContent className="space-y-5 p-5">
+              <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{item.lessonPackage?.name ?? item.lessonPackageId}</p><p className="mt-1 text-sm text-muted-foreground">{item.progress?.totalSessions ?? item.lessonPackage?.numberOfSessions ?? 0} sessions</p></div><Badge variant={pending ? 'outline' : 'secondary'}>{pending ? 'Payment due' : item.status}</Badge></div><div><div className="mb-2 flex justify-between text-xs text-muted-foreground"><span>{item.progress?.completedSessions ?? 0} completed</span><span>{item.progress?.remainingSessions ?? 0} remaining</span></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: ((Number(item.progress?.completedSessions ?? 0) / Math.max(Number(item.progress?.totalSessions ?? item.lessonPackage?.numberOfSessions ?? 1), 1)) * 100) + '%' }} /></div></div>
               <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setSelectedEnrollment(item)}>Details</Button>{pending && <Button size="sm" onClick={() => setPayment(item)}>Pay now</Button>}{!pending && item.paymentObligationId && <Button size="sm" variant="outline" onClick={() => setPayment(item)}>Payments</Button>}</div>
             </CardContent></Card>
           })}</div>}
       </section>
       <section className="space-y-4">
-        <div><h2 className="text-lg font-semibold">Upcoming sessions</h2><p className="text-sm text-muted-foreground">Only future and active sessions appear here. Completed lessons belong in Lesson History.</p></div>
+        <div><h2 className="text-lg font-semibold">Upcoming sessions</h2><p className="text-sm text-muted-foreground">Your next lessons, instructor, room, and rescheduling options.</p></div>
         {upcoming.length === 0 ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No upcoming lessons scheduled.</CardContent></Card> :
-          <div className="grid gap-3">{upcoming.map((item) => <Card key={item.id}><CardContent className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between"><div><p className="font-semibold">{item.enrollment?.lessonPackage?.name ?? 'Music lesson'}</p><p className="text-sm text-muted-foreground">{item.scheduledStart ? new Date(item.scheduledStart).toLocaleString() : 'Schedule pending'} · {item.room?.name ?? item.room?.resource?.name ?? 'Room pending'}</p><p className="text-sm text-muted-foreground">Instructor: {item.instructor?.person?.fullName ?? item.instructor?.person?.firstName ?? 'Assigned by Cadenza'}</p></div><div className="flex items-center gap-2"><Badge variant="secondary">{item.attendance?.status ?? item.status}</Badge>{['SCHEDULED','RESERVED'].includes(item.status) && <Button size="sm" variant="outline" onClick={() => setRescheduleSession(item)}>Reschedule</Button>}</div></CardContent></Card>)}</div>}
+          <div className="grid gap-3">{upcoming.map((item) => <Card key={item.id} className={item.id === upcoming[0]?.id ? 'border-primary/40' : ''}><CardContent className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{item.enrollment?.lessonPackage?.name ?? 'Music lesson'}</p>{item.id === upcoming[0]?.id && <Badge variant="secondary">Next</Badge>}</div><p className="text-sm text-muted-foreground">{item.scheduledStart ? new Date(item.scheduledStart).toLocaleString() : 'Schedule pending'} · {item.room?.name ?? item.room?.resource?.name ?? 'Room pending'}</p><p className="text-sm text-muted-foreground">Instructor: {item.instructor?.person?.fullName ?? item.instructor?.person?.firstName ?? 'Assigned by Cadenza'}</p></div><div className="flex items-center gap-2"><Badge variant="secondary">{item.attendance?.status ?? item.status}</Badge>{['SCHEDULED','RESERVED'].includes(item.status) && <Button size="sm" variant="outline" onClick={() => setRescheduleSession(item)}>Reschedule</Button>}</div></CardContent></Card>)}</div>}
       </section>
       <Dialog open={Boolean(payment)} onOpenChange={(open) => !open && setPayment(null)}>
         <DialogContent className="sm:max-w-xl"><DialogHeader><DialogTitle>Lesson payments</DialogTitle><DialogDescription>Review your balance and payment history for this enrollment.</DialogDescription></DialogHeader>
