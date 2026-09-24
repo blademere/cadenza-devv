@@ -1,5 +1,5 @@
 import { seedApplication } from '../../applications.js'
-import { seedAuthorization } from '../../authorization.js'
+import { seedCadenzaAuthorization } from './authorization.js'
 
 async function ensureAppRole(prisma, { userId, appKey, roleId }) {
   const app = await prisma.app.findUnique({ where: { key: appKey } })
@@ -50,10 +50,7 @@ async function seedCadenzaDevelopmentUser(prisma, { roleId }) {
 
 async function seedCadenza(prisma, { profile = 'default' } = {}) {
   const cadenza = await seedApplication(prisma, 'cadenza')
-  const { roles, permissionRecords } = await seedAuthorization(prisma, {
-    applications: { cadenza },
-    applicationKeys: ['cadenza'],
-  })
+  const { roles, permissionRecords } = await seedCadenzaAuthorization(prisma, cadenza)
 
   if (profile === 'development') {
     await seedCadenzaDevelopmentUser(prisma, { roleId: roles.cadenza_admin.id })
