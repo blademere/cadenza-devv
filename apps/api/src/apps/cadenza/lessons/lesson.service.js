@@ -103,7 +103,7 @@ const createPackage = async ({
     throw e
   }
 }
-const updatePackage = async ({ appId, id, ...data }) => { const owner=requireAppId(appId); const current=await repository.findPackage(id,owner); if(!current) throw new NotFoundError('Lesson package not found.'); if(data.price!==undefined) data.price=decimalAmount(data.price,'price'); if(data.numberOfSessions!==undefined && (!Number.isInteger(Number(data.numberOfSessions))||Number(data.numberOfSessions)<=0)) throw new BadRequestError('numberOfSessions must be greater than zero.'); if(data.name!==undefined && !data.name?.trim()) throw new BadRequestError('name is required.'); if(data.name!==undefined) data.name=data.name.trim(); if(data.description!==undefined) data.description=data.description?.trim()||null; const result=await repository.updatePackage(id,owner,data); if(result.count!==1) throw new ConflictError('Lesson package was modified or no longer exists.'); return repository.findPackage(id,owner) }
+const updatePackage = async ({ appId, id, ...data }) => { const owner=requireAppId(appId); const current=await repository.findPackage(id,owner); if(!current) throw new NotFoundError('Lesson package not found.'); if(data.price!==undefined) data.price=decimalAmount(data.price,'price'); if(data.numberOfSessions!==undefined && (!Number.isInteger(Number(data.numberOfSessions))||Number(data.numberOfSessions)<=0)) throw new BadRequestError('numberOfSessions must be greater than zero.'); if(data.sessionDurationMinutes!==undefined && (!Number.isInteger(Number(data.sessionDurationMinutes))||Number(data.sessionDurationMinutes)<15||Number(data.sessionDurationMinutes)>480)) throw new BadRequestError('sessionDurationMinutes must be between 15 and 480 minutes.'); if(data.sessionsPerWeek!==undefined && (!Number.isInteger(Number(data.sessionsPerWeek))||Number(data.sessionsPerWeek)<1||Number(data.sessionsPerWeek)>7)) throw new BadRequestError('sessionsPerWeek must be between 1 and 7.'); if(data.name!==undefined && !data.name?.trim()) throw new BadRequestError('name is required.'); if(data.name!==undefined) data.name=data.name.trim(); if(data.description!==undefined) data.description=data.description?.trim()||null; const result=await repository.updatePackage(id,owner,data); if(result.count!==1) throw new ConflictError('Lesson package was modified or no longer exists.'); return repository.findPackage(id,owner) }
 const addAttachment = async ({
   appId,
   actorId,
@@ -347,7 +347,7 @@ const listSessions = async ({ appId, actorId }) => {
   if (await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'manage' })) return rows
   return rows.filter((row) => Number(row.enrollment?.customer?.person?.userId) === Number(actorId) || Number(row.instructor?.person?.userId) === Number(actorId))
 }
-const generateSchedule = (params) => scheduling.generate(params)
+const generateSchedule = (params) => scheduling.generateSchedule(params)
 
 const getSession = async ({ appId, id }) => {
   const value = await repository.findSession(id, requireAppId(appId))
@@ -586,6 +586,10 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
       )
     )
       throw new ConflictError('Only active lesson sessions can be rescheduled.')
+    const packageDurationMinutes = Number(session.enrollment?.lessonPackage?.sessionDurationMinutes || Math.round((session.scheduledEnd.getTime() - session.scheduledStart.getTime()) / 60000))
+    const requestedDurationMinutes = Math.round((request.requestedEnd.getTime() - request.requestedStart.getTime()) / 60000)
+    if (requestedDurationMinutes !== packageDurationMinutes) throw new ConflictError('The rescheduled lesson must keep the lesson package duration.')
+    await assertInstructorAvailable({ appId: owner, instructorId: session.instructorId, startsAt: request.requestedStart, endsAt: request.requestedEnd, db: tx })
     if (!approve) {
       await repository.updateReschedule(id, owner, { status: RESCHEDULE_STATUS.REJECTED, reviewedByPersonId: person.id, reviewedAt: new Date() }, tx)
       await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.RESCHEDULE_REJECTED, entityType: 'CadenzaRescheduleRequest', entityId: id, actorId, context: { appId: owner, sessionId: session.id, enrollmentId: session.enrollmentId }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.RESCHEDULE_REJECTED}:${id}` })
@@ -639,6 +643,15 @@ const reviewReschedule = async ({ appId, id, actorId, approve }) => {
       },
       tx
     )
+    await scheduling.generateSchedule({
+      appId: owner,
+      actorId,
+      enrollmentId: session.enrollmentId,
+      instructorId: session.instructorId,
+      regenerate: true,
+      anchorSessionId: session.id,
+      db: tx,
+    })
     await enqueueEvent({ db: tx, event: ENROLLMENT_EVENTS.RESCHEDULE_APPROVED, entityType: 'CadenzaRescheduleRequest', entityId: id, actorId, context: { appId: owner, sessionId: session.id, enrollmentId: session.enrollmentId }, idempotencyKey: `cadenza:${ENROLLMENT_EVENTS.RESCHEDULE_APPROVED}:${id}` })
     return repository.findReschedule(id, owner, tx)
   })
