@@ -3,6 +3,22 @@ import { BLOCKING_LESSON_SESSION_STATUSES, BLOCKING_RENTAL_STATUSES } from '../c
 
 const prisma = getPrismaClient()
 
+const hydrateSessionRoom = async (session, db = prisma) => {
+  if (!session) return session
+  if (!session.roomId) return { ...session, room: null, resource: null }
+  const room = await db.cadenzaRoom.findFirst({
+    where: { id: session.roomId, appId: session.appId },
+  })
+  if (!room) return { ...session, room: null, resource: null }
+  const resource = await db.resource.findFirst({
+    where: { id: room.resourceId, appId: room.appId },
+  })
+  return { ...session, room: { ...room, resource }, resource }
+}
+
+const hydrateSessions = async (sessions, db = prisma) =>
+  Promise.all((sessions || []).map((session) => hydrateSessionRoom(session, db)))
+
 const listPackages = (appId, db = prisma) => db.cadenzaLessonPackage.findMany({ where: { appId }, orderBy: { createdAt: 'desc' } })
 const createPackage = ({ appId, name, description, price, numberOfSessions, sessionDurationMinutes = 60, sessionsPerWeek = 1 }, db = prisma) => db.cadenzaLessonPackage.create({ data: { appId, name, description, price, numberOfSessions, sessionDurationMinutes, sessionsPerWeek } })
 const updatePackage = (id, appId, data, db = prisma) => db.cadenzaLessonPackage.updateMany({ where: { id, appId }, data })
