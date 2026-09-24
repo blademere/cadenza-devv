@@ -128,6 +128,17 @@ async function seedAuthorization(prisma, { applications } = {}) {
       create: { appId: cadenza.id, name: roleName, description: cadenzaDescriptions[roleName] },
     })
     roles[roleName] = role
+    await prisma.rolePermission.deleteMany({
+      where: {
+        roleId: role.id,
+        permission: {
+          OR: [
+            { module: { key: { startsWith: 'cadenza_' } } },
+            { module: { key: 'audit_logs' } },
+          ],
+        },
+      },
+    })
     for (const key of keys) {
       const permission = permissionRecords.get(key)
       if (!permission) throw new Error(`Unknown Cadenza permission declared for ${roleName}: ${key}`)
@@ -141,8 +152,19 @@ async function seedAuthorization(prisma, { applications } = {}) {
 
   const cadenzaAdmin = await prisma.role.upsert({ where: { appId_name: { appId: cadenza.id, name: 'admin' } }, update: { description: 'Application administrator for Cadenza.' }, create: { appId: cadenza.id, name: 'admin', description: 'Application administrator for Cadenza.' } })
   roles.cadenza_admin = cadenzaAdmin
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: cadenzaAdmin.id,
+      permission: {
+        OR: [
+          { module: { key: { startsWith: 'cadenza_' } } },
+          { module: { key: 'audit_logs' } },
+        ],
+      },
+    },
+  })
   for (const [key, permission] of permissionRecords) {
-    if (!key.startsWith('cadenza_')) continue
+    if (!key.startsWith('cadenza_') && key !== 'audit_logs:read') continue
     await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: cadenzaAdmin.id, permissionId: permission.id } }, update: {}, create: { roleId: cadenzaAdmin.id, permissionId: permission.id } })
   }
 
