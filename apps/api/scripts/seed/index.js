@@ -1,10 +1,9 @@
 import { seedPlatform } from './platform.js'
 import { seedObo } from './apps/obo.js'
 import { seedCadenza } from './apps/cadenza.js'
-import { seedModelCoverage } from '../seed-model-coverage.js'
 
-const PROFILES = new Set(['default', 'development', 'fixtures', 'coverage'])
-const APPS = new Set(['platform', 'obo', 'cadenza', 'all', 'coverage'])
+const PROFILES = new Set(['default', 'development', 'fixtures'])
+const APPS = new Set(['platform', 'obo', 'cadenza', 'all'])
 
 async function runSeed(prisma, profile = 'default', app = 'platform') {
   if (!PROFILES.has(profile)) {
@@ -12,12 +11,6 @@ async function runSeed(prisma, profile = 'default', app = 'platform') {
   }
   if (!APPS.has(app)) {
     throw new Error(`Unknown seed app '${app}'. Expected one of: ${[...APPS].join(', ')}.`)
-  }
-
-  if (app === 'coverage') {
-    await seedModelCoverage(prisma)
-    console.log(`Seed complete (${profile}, coverage).`)
-    return { applications: {}, roles: {}, permissionRecords: new Map() }
   }
 
   const context = { applications: {}, roles: {}, permissionRecords: new Map() }
