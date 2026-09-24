@@ -10,28 +10,79 @@ const getDashboard = async ({ appId, actorId }) => {
   const manager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_authorization', action: 'manage' })
   const frontdesk = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'schedule' })
   const instructor = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_lessons', action: 'attendance' })
+
   const sessions = await lessonRepository.listSessions(owner)
   const enrollments = await lessonRepository.listEnrollments(owner)
   const rentals = await rentalRepository.list(owner)
   const obligations = await listObligationsByApp(owner)
+
   const today = new Date()
   const endOfDay = new Date(today)
   endOfDay.setHours(23, 59, 59, 999)
-  const todaysSessions = sessions.filter((session) => new Date(session.scheduledStart) >= today && new Date(session.scheduledStart) <= endOfDay)
+  const todaysSessions = sessions.filter((session) => {
+    const start = new Date(session.scheduledStart)
+    return start >= today && start <= endOfDay
+  })
+
   const pendingEnrollments = enrollments.filter((item) => item.status === ENROLLMENT_STATUS.PENDING_PAYMENT)
   const outstandingPayments = obligations.filter((item) => ['UNPAID', 'PARTIALLY_PAID'].includes(item.status))
   const openRentals = rentals.filter((item) => [RENTAL_STATUS.RESERVED, RENTAL_STATUS.CHECKED_OUT].includes(item.status))
-  const base = { today: { sessions: todaysSessions.length }, outstandingPayments: outstandingPayments.length, openRentals: openRentals.length }
+
+  const base = {
+    today: { sessions: todaysSessions.length },
+    outstandingPayments: outstandingPayments.length,
+    openRentals: openRentals.length,
+  }
+
   if (manager || frontdesk) {
-    return { ...base, pendingEnrollments: pendingEnrollments.length, todaysSessions, pendingEnrollmentsList: pendingEnrollments.slice(0, 10), rentals: rentals.slice(0, 10) }
+    return {
+      ...base,
+      mode: 'operations',
+      pendingEnrollments: pendingEnrollments.length,
+      todaysSessions,
+      pendingEnrollmentsList: pendingEnrollments.slice(0, 10),
+      rentals: rentals.slice(0, 10),
+    }
   }
-  if (instructor) {
-    const mine = sessions.filter((session) => Number(session.instructor?.person?.userId) === Number(actorId))
-    return { ...base, assignedSessions: mine.slice(0, 20), attendancePending: mine.filter((session) => session.status === 'SCHEDULED' && !session.attendance).length }
+
+  const mine = instructor
+    ? sessions.filter((session) => Number(session.instructor?.person?.userId) === Number(actorId))
+    : []
+
+  const customerEnrollments = enrollments.filter(
+    (item) => Number(item.customer?.person?.userId) === Number(actorId),
+  )
+  const customerRentals = rentals.filter(
+    (item) => Number(item.customer?.person?.userId) === Number(actorId),
+  )
+  const customerObligations = obligations.filter(
+    (item) =>
+      customerEnrollments.some((enrollment) => enrollment.paymentObligationId === item.id) ||
+      customerRentals.some((rental) => rental.paymentObligationId === item.id),
+  )
+
+  return {
+    ...base,
+    ...(instructor
+      ? {
+          instructor: {
+            assignedSessions: mine.slice(0, 20),
+            attendancePending: mine.filter(
+              (session) => session.status === 'SCHEDULED' && !session.attendance,
+            ).length,
+          },
+        }
+      : {}),
+    ...(customerEnrollments.length || customerRentals.length || customerObligations.length
+      ? {
+          customer: {
+            enrollments: customerEnrollments.slice(0, 10),
+            rentals: customerRentals.slice(0, 10),
+            payments: customerObligations.slice(0, 10),
+          },
+        }
+      : {}),
   }
-  const customerEnrollments = enrollments.filter((item) => Number(item.customer?.person?.userId) === Number(actorId))
-  const customerRentals = rentals.filter((item) => Number(item.customer?.person?.userId) === Number(actorId))
-  const customerObligations = obligations.filter((item) => customerEnrollments.some((enrollment) => enrollment.paymentObligationId === item.id) || customerRentals.some((rental) => rental.paymentObligationId === item.id))
-  return { ...base, enrollments: customerEnrollments.slice(0, 10), rentals: customerRentals.slice(0, 10), payments: customerObligations.slice(0, 10) }
 }
+
 export { getDashboard }
