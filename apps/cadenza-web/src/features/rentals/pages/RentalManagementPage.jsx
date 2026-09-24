@@ -69,7 +69,7 @@ const resourceSubtitle = (resource, rentalType) => {
 
 const workflowSteps = ['Booking', 'Reserved / Prepare', 'Active rental', 'Returned / Settled']
 
-export default function RentalsPage() {
+export default function RentalManagementPage() {
   const { can } = useAuthorization()
   const client = useQueryClient()
   const canCreate = can('cadenza_rentals:create')
