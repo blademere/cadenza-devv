@@ -8,6 +8,7 @@ import { createValidator, updateValidator, idValidator } from './customer.valida
 const router = express.Router()
 
 router.post('/me', idempotency({ scope: 'cadenza-customer-self', required: true }), asyncHandler(controller.registerMe))
+router.get('/candidates', authorize('cadenza_customers', 'manage'), asyncHandler(controller.listCandidates))
 router.get('/', authorize('cadenza_customers', 'read'), asyncHandler(controller.list))
 router.post('/', authorize('cadenza_customers', 'manage'), idempotency({ scope: 'cadenza-customers', required: true }), validate(createValidator), asyncHandler(controller.create))
 router.get('/:id', authorizeResource({
