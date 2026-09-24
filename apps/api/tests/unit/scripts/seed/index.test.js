@@ -1,168 +1,91 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  seedApplications: vi.fn(),
-  seedAuthorization: vi.fn(),
-  seedOboDevelopmentScenario: vi.fn(),
-  verifyOboDevelopmentScenario: vi.fn(),
-  seedOboNotifications: vi.fn(),
-  seedOboReferenceData: vi.fn(),
-  seedPlatformForms: vi.fn(),
-  seedOboPlatformConfiguration: vi.fn(),
-  verifyOboPlatformConfiguration: vi.fn(),
-  bindOboDevelopmentForm: vi.fn(),
-  seedDevelopmentUsers: vi.fn(),
-  seedRolePersons: vi.fn(),
-  seedOboProfessionalVerificationFixtures: vi.fn(),
-  verifyOboProfessionalVerificationFixtures: vi.fn(),
+  seedPlatform: vi.fn(),
+  seedObo: vi.fn(),
+  seedCadenza: vi.fn(),
   seedModelCoverage: vi.fn(),
 }))
 
-vi.mock('../../../../scripts/seed/applications.js', () => ({
-  seedApplications: mocks.seedApplications,
-}))
-vi.mock('../../../../scripts/seed/authorization.js', () => ({
-  seedAuthorization: mocks.seedAuthorization,
-}))
-vi.mock('../../../../scripts/seed/obo-development.js', () => ({
-  seedOboDevelopmentScenario: mocks.seedOboDevelopmentScenario,
-  verifyOboDevelopmentScenario: mocks.verifyOboDevelopmentScenario,
-}))
-vi.mock('../../../../scripts/seed/notifications.js', () => ({
-  seedOboNotifications: mocks.seedOboNotifications,
-}))
-vi.mock('../../../../scripts/seed/obo-reference.js', () => ({
-  seedOboReferenceData: mocks.seedOboReferenceData,
-}))
-vi.mock('../../../../scripts/seed/platform-forms.js', () => ({
-  seedPlatformForms: mocks.seedPlatformForms,
-}))
-vi.mock('../../../../scripts/seed/obo-platform-configuration.js', () => ({
-  seedOboPlatformConfiguration: mocks.seedOboPlatformConfiguration,
-  verifyOboPlatformConfiguration: mocks.verifyOboPlatformConfiguration,
-}))
-vi.mock('../../../../scripts/seed/obo-form-bindings.js', () => ({
-  bindOboDevelopmentForm: mocks.bindOboDevelopmentForm,
-}))
-vi.mock('../../../../scripts/seed/development-users.js', () => ({
-  seedDevelopmentUsers: mocks.seedDevelopmentUsers,
-}))
-vi.mock('../../../../scripts/seed/people.js', () => ({
-  seedRolePersons: mocks.seedRolePersons,
-}))
-vi.mock('../../../../scripts/seed/obo-professional-verification.js', () => ({
-  seedOboProfessionalVerificationFixtures: mocks.seedOboProfessionalVerificationFixtures,
-  verifyOboProfessionalVerificationFixtures: mocks.verifyOboProfessionalVerificationFixtures,
-}))
-vi.mock('../../../../scripts/seed-model-coverage.js', () => ({
-  seedModelCoverage: mocks.seedModelCoverage,
-}))
+vi.mock('../../../../scripts/seed/platform.js', () => ({ seedPlatform: mocks.seedPlatform }))
+vi.mock('../../../../scripts/seed/apps/obo.js', () => ({ seedObo: mocks.seedObo }))
+vi.mock('../../../../scripts/seed/apps/cadenza.js', () => ({ seedCadenza: mocks.seedCadenza }))
+vi.mock('../../../../scripts/seed-model-coverage.js', () => ({ seedModelCoverage: mocks.seedModelCoverage }))
 
-const { PROFILES, runSeed } = await import('../../../../scripts/seed/index.js')
+const { APPS, PROFILES, runSeed } = await import('../../../../scripts/seed/index.js')
 
-const applications = { obo: { id: 'app-obo', key: 'obo' } }
-const roles = { admin: { id: 'role-admin', key: 'admin' } }
-const permissionRecords = new Map([['users.read', { id: 'permission-1' }]])
-const context = { applications, roles, permissionRecords }
+const obo = { application: { id: 'app-obo', key: 'obo' }, roles: { client: { id: 'role-client' } }, permissionRecords: new Map([['obo_clients:read', { id: 'permission-1' }]]) }
+const cadenza = { application: { id: 'app-cadenza', key: 'cadenza' }, roles: { cadenza_client: { id: 'role-client' } }, permissionRecords: new Map([['cadenza_lessons:read', { id: 'permission-2' }]]) }
+const platform = { permissionRecords: new Map([['audit_logs:read', { id: 'permission-audit' }]]) }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.seedApplications.mockResolvedValue(applications)
-  mocks.seedAuthorization.mockResolvedValue({ roles, permissionRecords })
-  mocks.seedPlatformForms.mockResolvedValue({ form: { id: 'form-1', key: 'obo-building-plan-permit' } })
-  mocks.seedDevelopmentUsers.mockResolvedValue({ demoPasswordHash: 'hash' })
+  mocks.seedPlatform.mockResolvedValue(platform)
+  mocks.seedObo.mockResolvedValue(obo)
+  mocks.seedCadenza.mockResolvedValue(cadenza)
 })
 
-describe('seed profiles', () => {
-  it('defines the four supported profiles', () => {
+describe('seed dispatcher', () => {
+  it('defines explicit seed targets', () => {
     expect(PROFILES).toEqual(new Set(['default', 'development', 'fixtures', 'coverage']))
+    expect(APPS).toEqual(new Set(['platform', 'obo', 'cadenza', 'all', 'coverage']))
   })
 
-  it('runs only required seeders for the default profile', async () => {
-    const result = await runSeed({}, 'default')
+  it('seeds only platform data for the default seed target', async () => {
+    const result = await runSeed({}, 'default', 'platform')
 
-    expect(result).toEqual(context)
-    expect(mocks.seedApplications).toHaveBeenCalledTimes(1)
-    expect(mocks.seedAuthorization).toHaveBeenCalledWith({}, { applications })
-    expect(mocks.seedPlatformForms).toHaveBeenCalledTimes(1)
-    expect(mocks.seedOboReferenceData).toHaveBeenCalledWith({}, {
-      applicationForm: { id: 'form-1', key: 'obo-building-plan-permit' },
-    })
-
-    expect(mocks.seedDevelopmentUsers).not.toHaveBeenCalled()
-    expect(mocks.seedOboDevelopmentScenario).not.toHaveBeenCalled()
-    expect(mocks.seedOboPlatformConfiguration).not.toHaveBeenCalled()
-    expect(mocks.bindOboDevelopmentForm).not.toHaveBeenCalled()
-    expect(mocks.seedRolePersons).not.toHaveBeenCalled()
-    expect(mocks.seedOboProfessionalVerificationFixtures).not.toHaveBeenCalled()
-    expect(mocks.seedOboNotifications).not.toHaveBeenCalled()
+    expect(result.applications).toEqual({})
+    expect(mocks.seedPlatform).toHaveBeenCalledTimes(1)
+    expect(mocks.seedObo).not.toHaveBeenCalled()
+    expect(mocks.seedCadenza).not.toHaveBeenCalled()
     expect(mocks.seedModelCoverage).not.toHaveBeenCalled()
   })
 
-  it('adds development-only data only for the development profile', async () => {
-    await runSeed({}, 'development')
+  it('seeds only OBO when the OBO target is selected', async () => {
+    const result = await runSeed({}, 'development', 'obo')
 
-    expect(mocks.seedDevelopmentUsers).toHaveBeenCalledWith({}, { roles })
-    expect(mocks.seedOboDevelopmentScenario).toHaveBeenCalledWith({}, {
-      roles,
-      passwordHash: 'hash',
-    })
-    expect(mocks.seedOboPlatformConfiguration).toHaveBeenCalledTimes(1)
-    expect(mocks.bindOboDevelopmentForm).toHaveBeenCalledTimes(1)
-    expect(mocks.seedRolePersons).toHaveBeenCalledTimes(1)
-    expect(mocks.verifyOboPlatformConfiguration).toHaveBeenCalledTimes(1)
-    expect(mocks.verifyOboDevelopmentScenario).toHaveBeenCalledTimes(1)
-
-    expect(mocks.seedOboProfessionalVerificationFixtures).not.toHaveBeenCalled()
-    expect(mocks.seedOboNotifications).not.toHaveBeenCalled()
-    expect(mocks.seedModelCoverage).not.toHaveBeenCalled()
+    expect(result.applications.obo).toEqual(obo.application)
+    expect(result.roles).toEqual(obo.roles)
+    expect(mocks.seedObo).toHaveBeenCalledWith({}, { profile: 'development' })
+    expect(mocks.seedCadenza).not.toHaveBeenCalled()
   })
 
-  it('adds specialized fixtures only for the fixtures profile', async () => {
-    await runSeed({}, 'fixtures')
+  it('seeds only Cadenza when the Cadenza target is selected', async () => {
+    const result = await runSeed({}, 'development', 'cadenza')
 
-    expect(mocks.seedOboProfessionalVerificationFixtures).toHaveBeenCalledWith({}, {
-      roles,
-      passwordHash: null,
-    })
-    expect(mocks.seedOboNotifications).toHaveBeenCalledTimes(1)
-    expect(mocks.verifyOboProfessionalVerificationFixtures).toHaveBeenCalledTimes(1)
-
-    expect(mocks.seedDevelopmentUsers).not.toHaveBeenCalled()
-    expect(mocks.seedOboDevelopmentScenario).not.toHaveBeenCalled()
-    expect(mocks.seedOboPlatformConfiguration).not.toHaveBeenCalled()
-    expect(mocks.bindOboDevelopmentForm).not.toHaveBeenCalled()
-    expect(mocks.seedRolePersons).not.toHaveBeenCalled()
-    expect(mocks.seedModelCoverage).not.toHaveBeenCalled()
+    expect(result.applications.cadenza).toEqual(cadenza.application)
+    expect(result.roles).toEqual(cadenza.roles)
+    expect(mocks.seedCadenza).toHaveBeenCalledWith({}, { profile: 'development' })
+    expect(mocks.seedObo).not.toHaveBeenCalled()
   })
 
-  it('runs model coverage only for the coverage profile', async () => {
-    await runSeed({}, 'coverage')
+  it('seeds platform plus both applications for the all target', async () => {
+    const result = await runSeed({}, 'development', 'all')
+
+    expect(mocks.seedPlatform).toHaveBeenCalledTimes(1)
+    expect(mocks.seedObo).toHaveBeenCalledWith({}, { profile: 'development' })
+    expect(mocks.seedCadenza).toHaveBeenCalledWith({}, { profile: 'development' })
+    expect(result.applications).toEqual({ obo: obo.application, cadenza: cadenza.application })
+    expect(result.permissionRecords.size).toBe(3)
+  })
+
+  it('keeps model coverage isolated from application seed data', async () => {
+    const result = await runSeed({}, 'coverage', 'coverage')
 
     expect(mocks.seedModelCoverage).toHaveBeenCalledTimes(1)
-    expect(mocks.seedDevelopmentUsers).not.toHaveBeenCalled()
-    expect(mocks.seedOboProfessionalVerificationFixtures).not.toHaveBeenCalled()
-    expect(mocks.seedOboNotifications).not.toHaveBeenCalled()
+    expect(mocks.seedPlatform).not.toHaveBeenCalled()
+    expect(mocks.seedObo).not.toHaveBeenCalled()
+    expect(mocks.seedCadenza).not.toHaveBeenCalled()
+    expect(result.applications).toEqual({})
   })
 
-  it('is safe to invoke the same profile repeatedly', async () => {
-    await runSeed({}, 'default')
-    await runSeed({}, 'default')
-
-    expect(mocks.seedApplications).toHaveBeenCalledTimes(2)
-    expect(mocks.seedAuthorization).toHaveBeenCalledTimes(2)
-    expect(mocks.seedPlatformForms).toHaveBeenCalledTimes(2)
-    expect(mocks.seedOboReferenceData).toHaveBeenCalledTimes(2)
-    expect(mocks.seedOboDevelopmentScenario).not.toHaveBeenCalled()
-    expect(mocks.seedOboProfessionalVerificationFixtures).not.toHaveBeenCalled()
-    expect(mocks.seedModelCoverage).not.toHaveBeenCalled()
-  })
-
-  it('rejects unsupported profiles before seeding anything', async () => {
-    await expect(runSeed({}, 'unknown')).rejects.toThrow(
-      "Unknown seed profile 'unknown'. Expected one of: default, development, fixtures, coverage.",
+  it('rejects unsupported targets before seeding anything', async () => {
+    await expect(runSeed({}, 'default', 'unknown')).rejects.toThrow(
+      "Unknown seed app 'unknown'. Expected one of: platform, obo, cadenza, all, coverage.",
     )
 
-    expect(mocks.seedApplications).not.toHaveBeenCalled()
+    expect(mocks.seedPlatform).not.toHaveBeenCalled()
+    expect(mocks.seedObo).not.toHaveBeenCalled()
+    expect(mocks.seedCadenza).not.toHaveBeenCalled()
   })
 })
