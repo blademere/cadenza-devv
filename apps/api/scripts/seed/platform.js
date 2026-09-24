@@ -2,9 +2,12 @@ import { seedApplication } from './applications.js'
 
 const APPLICATIONS = ['obo', 'cadenza']
 
-async function seedPlatform(prisma) {
+async function seedPlatform(prisma, { applications: requestedApplications = APPLICATIONS } = {}) {
   const applications = {}
-  for (const key of APPLICATIONS) {
+  for (const key of requestedApplications) {
+    if (!APPLICATIONS.includes(key)) {
+      throw new Error(`Unknown platform application '${key}'. Expected one of: ${APPLICATIONS.join(', ')}.`)
+    }
     applications[key] = await seedApplication(prisma, key)
   }
 

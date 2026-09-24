@@ -6,17 +6,25 @@ const PROFILES = new Set(['default', 'development', 'fixtures'])
 const APPS = new Set(['platform', 'obo', 'cadenza', 'all'])
 
 async function runSeed(prisma, profile = 'default', app = 'platform') {
-  if (!PROFILES.has(profile)) {
-    throw new Error(`Unknown seed profile '${profile}'. Expected one of: ${[...PROFILES].join(', ')}.`)
-  }
-  if (!APPS.has(app)) {
-    throw new Error(`Unknown seed app '${app}'. Expected one of: ${[...APPS].join(', ')}.`)
-  }
+  if (!PROFILES.has(profile)) throw new Error(`Unknown seed profile '${profile}'. Expected one of: ${[...PROFILES].join(', ')}.`)
+  if (!APPS.has(app)) throw new Error(`Unknown seed app '${app}'. Expected one of: ${[...APPS].join(', ')}.`)
 
   const context = { applications: {}, roles: {}, permissionRecords: new Map() }
 
   if (app === 'platform' || app === 'all') {
     const platform = await seedPlatform(prisma)
+    Object.assign(context.applications, platform.applications)
+    for (const [key, permission] of platform.permissionRecords) context.permissionRecords.set(key, permission)
+  }
+
+  if (app === 'obo') {
+    const platform = await seedPlatform(prisma, { applications: ['obo'] })
+    Object.assign(context.applications, platform.applications)
+    for (const [key, permission] of platform.permissionRecords) context.permissionRecords.set(key, permission)
+  }
+
+  if (app === 'cadenza') {
+    const platform = await seedPlatform(prisma, { applications: ['cadenza'] })
     Object.assign(context.applications, platform.applications)
     for (const [key, permission] of platform.permissionRecords) context.permissionRecords.set(key, permission)
   }
