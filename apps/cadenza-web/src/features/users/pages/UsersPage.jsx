@@ -13,6 +13,7 @@ import SelectField from '../../../components/select-field'
 import LoadingState from '../../../components/loading-state'
 import { customersApi } from '../../customers/api/customers.api'
 import { instructorsApi } from '../../instructors/api/instructors.api'
+import { staffApi } from '../api/staff.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
 
 const unwrap = (r) => r?.data ?? r ?? []
@@ -28,16 +29,26 @@ export default function UsersPage() {
   const canInstructorCreate = can('cadenza_instructors:create')
   const canInstructorManage = can('cadenza_instructors:manage')
   const canCustomerManage = can('cadenza_customers:manage')
+  const canStaffRead = can('cadenza_staff:read')
+  const canStaffCreate = can('cadenza_staff:create')
+  const canStaffManage = can('cadenza_staff:manage')
 
   const customers = useQuery({ queryKey: ['cadenza', 'customers'], queryFn: customersApi.list })
   const instructors = useQuery({ queryKey: ['cadenza', 'instructors'], queryFn: instructorsApi.list, enabled: canInstructorRead })
   const candidates = useQuery({ queryKey: ['cadenza', 'instructor-candidates'], queryFn: instructorsApi.listCandidates, enabled: canInstructorCreate })
+  const customerCandidates = useQuery({ queryKey: ['cadenza', 'customer-candidates'], queryFn: customersApi.listCandidates, enabled: canCustomerManage })
+  const staff = useQuery({ queryKey: ['cadenza', 'staff'], queryFn: staffApi.list, enabled: canStaffRead })
+  const staffCandidates = useQuery({ queryKey: ['cadenza', 'staff-candidates'], queryFn: staffApi.listCandidates, enabled: canStaffCreate })
 
   const [editing, setEditing] = useState(null)
   const [availabilityInstructor, setAvailabilityInstructor] = useState(null)
   const [availabilityRules, setAvailabilityRules] = useState(null)
   const [blockDraft, setBlockDraft] = useState({ startsAt: '', endsAt: '', reason: '' })
   const [addInstructorOpen, setAddInstructorOpen] = useState(false)
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false)
+  const [addStaffOpen, setAddStaffOpen] = useState(false)
+  const [newCustomer, setNewCustomer] = useState({ personId: '' })
+  const [newStaff, setNewStaff] = useState({ personId: '', staffType: 'STAFF' })
   const [newInstructor, setNewInstructor] = useState({ personId: '', specialty: '' })
   const availability = useQuery({
     queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id],
@@ -49,6 +60,9 @@ export default function UsersPage() {
     mutationFn: ({ id, status }) => customersApi.update(id, { status }),
     onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'customers'] }) },
   })
+  const updateStaff = useMutation({ mutationFn: ({ id, status, staffType }) => staffApi.update(id, { status, staffType }), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'staff'] }) } })
+  const createCustomer = useMutation({ mutationFn: customersApi.create, onSuccess: () => { setAddCustomerOpen(false); setNewCustomer({ personId: '' }); client.invalidateQueries({ queryKey: ['cadenza', 'customers'] }); client.invalidateQueries({ queryKey: ['cadenza', 'customer-candidates'] }) } })
+  const createStaff = useMutation({ mutationFn: staffApi.create, onSuccess: () => { setAddStaffOpen(false); setNewStaff({ personId: '', staffType: 'STAFF' }); client.invalidateQueries({ queryKey: ['cadenza', 'staff'] }); client.invalidateQueries({ queryKey: ['cadenza', 'staff-candidates'] }) } })
   const updateInstructor = useMutation({
     mutationFn: ({ id, status, specialty }) => instructorsApi.update(id, { status, specialty }),
     onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['cadenza', 'instructors'] }) },
@@ -79,15 +93,18 @@ export default function UsersPage() {
   })
   const register = useMutation({ mutationFn: customersApi.registerMe, onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'customers'] }) })
 
-  if (customers.isLoading || (canInstructorRead && instructors.isLoading)) return <LoadingState label="Loading people…" rows={4} />
-  if (customers.error || instructors.error) return <Alert variant="destructive"><AlertDescription>{(customers.error || instructors.error).message}</AlertDescription></Alert>
+  if (customers.isLoading || (canInstructorRead && instructors.isLoading) || (canStaffRead && staff.isLoading)) return <LoadingState label="Loading people…" rows={4} />
+  if (customers.error || (canInstructorRead && instructors.error) || (canStaffRead && staff.error)) return <Alert variant="destructive"><AlertDescription>{(customers.error || instructors.error || staff.error).message}</AlertDescription></Alert>
 
   const entries = [
     ...unwrap(customers.data).map((x) => ({ ...x, role: 'Customer' })),
     ...(canInstructorRead ? unwrap(instructors.data).map((x) => ({ ...x, role: 'Instructor' })) : []),
+    ...(canStaffRead ? unwrap(staff.data).map((x) => ({ ...x, role: 'Staff' })) : []),
   ]
-  const error = updateCustomer.error || updateInstructor.error || createInstructor.error || register.error || candidates.error || availability.error || replaceAvailability.error || addBlock.error || removeBlock.error
+  const error = updateCustomer.error || updateInstructor.error || updateStaff.error || createCustomer.error || createStaff.error || createInstructor.error || register.error || candidates.error || customerCandidates.error || staffCandidates.error || availability.error || replaceAvailability.error || addBlock.error || removeBlock.error
   const candidateOptions = unwrap(candidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
+  const customerCandidateOptions = unwrap(customerCandidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
+  const staffCandidateOptions = unwrap(staffCandidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
   const availabilityData = availability.data?.data ?? availability.data ?? { rules: [], blocks: [] }
   const openAvailability = (instructor) => {
     setAvailabilityInstructor(instructor)
@@ -108,13 +125,17 @@ export default function UsersPage() {
     { key: 'role', header: 'Role', render: (x) => <Badge variant="secondary">{x.role}</Badge> },
     { key: 'specialty', header: 'Specialty', value: (x) => x.specialty ?? '—' },
     { key: 'status', header: 'Status', render: (x) => <Badge variant={x.status === 'ACTIVE' ? 'default' : 'outline'}>{x.status ?? '—'}</Badge> },
-    { key: 'actions', header: 'Actions', searchable: false, render: (x) => ((x.role === 'Customer' && canCustomerManage) || (x.role === 'Instructor' && canInstructorManage)) ? <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setEditing(x)}>Edit</Button>{x.role === 'Instructor' && <Button size="sm" variant="outline" onClick={() => openAvailability(x)}>Availability</Button>}</div> : null },
+    { key: 'actions', header: 'Actions', searchable: false, render: (x) => ((x.role === 'Customer' && canCustomerManage) || (x.role === 'Instructor' && canInstructorManage) || (x.role === 'Staff' && canStaffManage)) ? <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setEditing(x)}>Edit</Button>{x.role === 'Instructor' && <Button size="sm" variant="outline" onClick={() => openAvailability(x)}>Availability</Button>}</div> : null },
   ]
 
   return <div className="space-y-6">
-    <PageHeader title="Users" description="Cadenza customers and instructors." actions={<div className="flex flex-wrap gap-2"><Button disabled={register.isPending} onClick={() => register.mutate()}>{register.isPending ? 'Registering…' : 'Register my account as customer'}</Button>{canInstructorCreate && <Button variant="outline" onClick={() => setAddInstructorOpen(true)}>Add instructor</Button>}</div>} />
+    <PageHeader title="Users" description="Manage Cadenza customers, staff, and instructors." actions={<div className="flex flex-wrap gap-2">{canCustomerManage && <Button variant="outline" onClick={() => setAddCustomerOpen(true)}>Add customer</Button>}{canStaffCreate && <Button variant="outline" onClick={() => setAddStaffOpen(true)}>Add staff</Button>}{canInstructorCreate && <Button variant="outline" onClick={() => setAddInstructorOpen(true)}>Add instructor</Button>}<Button disabled={register.isPending} onClick={() => register.mutate()}>{register.isPending ? 'Registering…' : 'Register my account as customer'}</Button></div>} />
     {error && <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>}
     <Card><CardContent className="pt-6"><DataTable columns={columns} rows={entries} searchPlaceholder="Search users…" /></CardContent></Card>
+
+    <Dialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen}><DialogContent><DialogHeader><DialogTitle>Add customer</DialogTitle></DialogHeader><div className="grid gap-4"><SelectField label="Person" options={customerCandidateOptions} value={newCustomer.personId} onChange={(value) => setNewCustomer({ personId: value })} />{customerCandidates.isLoading && <p className="text-sm text-muted-foreground">Loading eligible people…</p>}{!customerCandidates.isLoading && !customerCandidates.error && customerCandidateOptions.length === 0 && <p className="text-sm text-muted-foreground">No eligible people are available to add as a customer.</p>}</div><DialogFooter><Button variant="outline" onClick={() => setAddCustomerOpen(false)}>Cancel</Button><Button disabled={!newCustomer.personId || createCustomer.isPending} onClick={() => createCustomer.mutate(newCustomer)}>{createCustomer.isPending ? 'Adding…' : 'Add customer'}</Button></DialogFooter></DialogContent></Dialog>
+
+    <Dialog open={addStaffOpen} onOpenChange={setAddStaffOpen}><DialogContent><DialogHeader><DialogTitle>Add staff</DialogTitle></DialogHeader><div className="grid gap-4"><SelectField label="Person" options={staffCandidateOptions} value={newStaff.personId} onChange={(value) => setNewStaff({ ...newStaff, personId: value })} /><SelectField label="Staff type" options={[{ value: 'STAFF', label: 'Staff' }]} value={newStaff.staffType} onChange={(value) => setNewStaff({ ...newStaff, staffType: value })} />{staffCandidates.isLoading && <p className="text-sm text-muted-foreground">Loading eligible people…</p>}{!staffCandidates.isLoading && !staffCandidates.error && staffCandidateOptions.length === 0 && <p className="text-sm text-muted-foreground">No eligible people are available to add as staff.</p>}</div><DialogFooter><Button variant="outline" onClick={() => setAddStaffOpen(false)}>Cancel</Button><Button disabled={!newStaff.personId || createStaff.isPending} onClick={() => createStaff.mutate(newStaff)}>{createStaff.isPending ? 'Adding…' : 'Add staff'}</Button></DialogFooter></DialogContent></Dialog>
 
     <Dialog open={addInstructorOpen} onOpenChange={setAddInstructorOpen}>
       <DialogContent><DialogHeader><DialogTitle>Add instructor</DialogTitle></DialogHeader><div className="grid gap-4"><SelectField label="Person" options={candidateOptions} value={newInstructor.personId} onChange={(value) => setNewInstructor({ ...newInstructor, personId: value })} /><div className="grid gap-2"><Label htmlFor="instructor-specialty">Specialty</Label><Input id="instructor-specialty" value={newInstructor.specialty} onChange={(e) => setNewInstructor({ ...newInstructor, specialty: e.currentTarget.value })} placeholder="e.g. Piano, Guitar, Vocal" maxLength={100} /></div>{candidates.isLoading && <p className="text-sm text-muted-foreground">Loading eligible people…</p>}{!candidates.isLoading && !candidates.error && candidateOptions.length === 0 && <p className="text-sm text-muted-foreground">No eligible people are available to add as an instructor.</p>}</div><DialogFooter><Button variant="outline" onClick={() => setAddInstructorOpen(false)}>Cancel</Button><Button disabled={!newInstructor.personId || createInstructor.isPending} onClick={() => createInstructor.mutate({ personId: newInstructor.personId, specialty: newInstructor.specialty || undefined })}>{createInstructor.isPending ? 'Adding…' : 'Add instructor'}</Button></DialogFooter></DialogContent>
