@@ -12,6 +12,7 @@ const authorizationCatalog = {
   obo_professionals: ['read', 'create', 'update', 'review'],
   obo_appointments: ['read', 'create', 'cancel', 'check_in', 'manage'],
   cadenza_authorization: ['manage'],
+  cadenza_staff: ['read', 'create', 'update', 'manage'],
   cadenza_customer_portal: ['access'],
   cadenza_instructor_portal: ['access'],
   cadenza_customers: ['read', 'create', 'update', 'manage'],
