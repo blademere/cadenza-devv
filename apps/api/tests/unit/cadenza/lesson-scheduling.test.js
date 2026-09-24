@@ -21,6 +21,10 @@ vi.mock('../../../src/platform/authorization/authorization.service.js', () => ({
   can: vi.fn().mockResolvedValue(true),
 }))
 
+vi.mock('../../../src/apps/cadenza/lessons/scheduling.service.js', () => ({
+  generateSchedule: vi.fn().mockResolvedValue({ generated: [], remaining: 0 }),
+}))
+
 vi.mock('../../../src/apps/cadenza/instructors/instructor-availability.service.js', () => ({
   assertAvailable: vi.fn().mockResolvedValue(true),
 }))
