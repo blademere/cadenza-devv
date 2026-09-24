@@ -1,5 +1,5 @@
-import ResourcesPage from './ResourcesPage'
+import ResourceManagementPage from './ResourceManagementPage'
 
 export default function InstrumentResourcesPage() {
-  return <ResourcesPage kind="INSTRUMENT" />
+  return <ResourceManagementPage kind="INSTRUMENT" />
 }
