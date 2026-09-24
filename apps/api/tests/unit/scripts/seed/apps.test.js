@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  seedApplication: vi.fn(),
   seedOboAuthorization: vi.fn(),
+  seedOboWorkflow: vi.fn(),
   seedCadenzaAuthorization: vi.fn(),
   seedPlatformForms: vi.fn(),
   seedOboReferenceData: vi.fn(),
@@ -17,8 +17,8 @@ const mocks = vi.hoisted(() => ({
   seedOboNotifications: vi.fn(),
 }))
 
-vi.mock('../../../../scripts/seed/applications.js', () => ({ seedApplication: mocks.seedApplication }))
 vi.mock('../../../../scripts/seed/apps/obo/authorization.js', () => ({ seedOboAuthorization: mocks.seedOboAuthorization }))
+vi.mock('../../../../scripts/seed/apps/obo/workflow.js', () => ({ seedOboWorkflow: mocks.seedOboWorkflow }))
 vi.mock('../../../../scripts/seed/apps/cadenza/authorization.js', () => ({ seedCadenzaAuthorization: mocks.seedCadenzaAuthorization }))
 vi.mock('../../../../scripts/seed/apps/obo/forms.js', () => ({ seedPlatformForms: mocks.seedPlatformForms }))
 vi.mock('../../../../scripts/seed/apps/obo/reference.js', () => ({ seedOboReferenceData: mocks.seedOboReferenceData }))
@@ -46,44 +46,45 @@ const permissions = new Map([['audit_logs:read', { id: 'permission-1' }]])
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.seedApplication.mockImplementation(async (_prisma, key) => ({ id: `app-${key}`, key }))
+  mocks.seedOboWorkflow.mockResolvedValue({})
   mocks.seedOboAuthorization.mockResolvedValue({ roles, permissionRecords: permissions })
   mocks.seedCadenzaAuthorization.mockResolvedValue({ roles, permissionRecords: permissions })
   mocks.seedPlatformForms.mockResolvedValue({ form: { id: 'form-1' } })
 })
 
 describe('application seed modules', () => {
-  it('seeds OBO without Cadenza data', async () => {
-    const result = await seedObo({}, { profile: 'default' })
+  it('seeds OBO startup requirements without development/reference data', async () => {
+    const prisma = { app: { findUnique: vi.fn().mockResolvedValue({ id: 'app-obo', key: 'obo' }) } }
+    const result = await seedObo(prisma, { profile: 'default' })
 
-    expect(mocks.seedApplication).toHaveBeenCalledWith({}, 'obo')
-    expect(mocks.seedOboAuthorization).toHaveBeenCalledWith({}, { id: 'app-obo', key: 'obo' })
-    expect(mocks.seedPlatformForms).toHaveBeenCalledTimes(1)
-    expect(mocks.seedOboReferenceData).toHaveBeenCalledTimes(1)
+    expect(mocks.seedOboAuthorization).toHaveBeenCalledWith(prisma, { id: 'app-obo', key: 'obo' })
+    expect(mocks.seedOboWorkflow).toHaveBeenCalledWith(prisma)
+    expect(mocks.seedPlatformForms).not.toHaveBeenCalled()
+    expect(mocks.seedOboReferenceData).not.toHaveBeenCalled()
     expect(mocks.seedOboDevelopmentScenario).not.toHaveBeenCalled()
     expect(result.application.key).toBe('obo')
   })
 
   it('keeps OBO development and fixture data profile-specific', async () => {
-    await seedObo({}, { profile: 'development' })
+    const prisma = { app: { findUnique: vi.fn().mockResolvedValue({ id: 'app-obo', key: 'obo' }) } }
+    await seedObo(prisma, { profile: 'development' })
     expect(mocks.seedOboDevelopmentScenario).toHaveBeenCalledTimes(1)
     expect(mocks.seedOboProfessionalVerificationFixtures).not.toHaveBeenCalled()
 
     vi.clearAllMocks()
-    mocks.seedApplication.mockImplementation(async (_prisma, key) => ({ id: `app-${key}`, key }))
     mocks.seedOboAuthorization.mockResolvedValue({ roles, permissionRecords: permissions })
     mocks.seedPlatformForms.mockResolvedValue({ form: { id: 'form-1' } })
 
-    await seedObo({}, { profile: 'fixtures' })
+    await seedObo(prisma, { profile: 'fixtures' })
     expect(mocks.seedOboProfessionalVerificationFixtures).toHaveBeenCalledTimes(1)
     expect(mocks.seedOboDevelopmentScenario).not.toHaveBeenCalled()
   })
 
   it('seeds Cadenza authorization independently', async () => {
-    const result = await seedCadenza({}, { profile: 'default' })
+    const prisma = { app: { findUnique: vi.fn().mockResolvedValue({ id: 'app-cadenza', key: 'cadenza' }) } }
+    const result = await seedCadenza(prisma, { profile: 'default' })
 
-    expect(mocks.seedApplication).toHaveBeenCalledWith({}, 'cadenza')
-    expect(mocks.seedCadenzaAuthorization).toHaveBeenCalledWith({}, { id: 'app-cadenza', key: 'cadenza' })
+    expect(mocks.seedCadenzaAuthorization).toHaveBeenCalledWith(prisma, { id: 'app-cadenza', key: 'cadenza' })
     expect(mocks.seedPlatformForms).not.toHaveBeenCalled()
     expect(result.application.key).toBe('cadenza')
   })
