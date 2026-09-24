@@ -14,7 +14,7 @@ const { APPS, PROFILES, runSeed } = await import('../../../../scripts/seed/index
 
 const obo = { application: { id: 'app-obo', key: 'obo' }, roles: { client: { id: 'role-client' } }, permissionRecords: new Map([['obo_clients:read', { id: 'permission-1' }]]) }
 const cadenza = { application: { id: 'app-cadenza', key: 'cadenza' }, roles: { cadenza_client: { id: 'role-client' } }, permissionRecords: new Map([['cadenza_lessons:read', { id: 'permission-2' }]]) }
-const platform = { permissionRecords: new Map([['audit_logs:read', { id: 'permission-audit' }]]) }
+const platform = { applications: { obo: obo.application, cadenza: cadenza.application }, permissionRecords: new Map([['audit_logs:read', { id: 'permission-audit' }]]) }
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -32,7 +32,7 @@ describe('seed dispatcher', () => {
   it('seeds only platform data for the default seed target', async () => {
     const result = await runSeed({}, 'default', 'platform')
 
-    expect(result.applications).toEqual({})
+    expect(result.applications).toEqual(platform.applications)
     expect(mocks.seedPlatform).toHaveBeenCalledTimes(1)
     expect(mocks.seedObo).not.toHaveBeenCalled()
     expect(mocks.seedCadenza).not.toHaveBeenCalled()
