@@ -48,11 +48,15 @@ export default function InstructorTeachingPage() {
   const [attendance, setAttendance] = useState('PRESENT')
   const [notes, setNotes] = useState('')
   const [showAll, setShowAll] = useState(false)
+  const [request, setRequest] = useState(null)
+  const [requestReason, setRequestReason] = useState('')
 
   const sessions = useQuery({
     queryKey: ['cadenza', 'instructor', 'sessions'],
     queryFn: schedulingApi.listSessions,
   })
+
+  const requestReschedule = useMutation({ mutationFn: schedulingApi.requestReschedule, onSuccess: () => { setRequest(null); setRequestReason(''); client.invalidateQueries({ queryKey: ['cadenza', 'instructor', 'sessions'] }) } })
 
   const markAttendance = useMutation({
     mutationFn: ({ id, status, note }) =>
@@ -128,9 +132,7 @@ export default function InstructorTeachingPage() {
       searchable: false,
       render: (row) =>
         row.status === 'SCHEDULED' ? (
-          <Button size="sm" variant={row.attendance ? 'outline' : 'default'} onClick={() => openAttendance(row)}>
-            {row.attendance ? 'Update' : 'Attendance'}
-          </Button>
+          <div className="flex flex-wrap gap-2"><Button size="sm" variant={row.attendance ? 'outline' : 'default'} onClick={() => openAttendance(row)}>{row.attendance ? 'Update' : 'Attendance'}</Button><Button size="sm" variant="outline" onClick={() => setRequest(row)}>Reschedule</Button></div>
         ) : null,
     },
   ]
@@ -281,6 +283,28 @@ export default function InstructorTeachingPage() {
               {markAttendance.isPending ? 'Saving…' : 'Save attendance'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(request)} onOpenChange={(open) => !open && setRequest(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request reschedule</DialogTitle>
+            <DialogDescription>Ask lesson management to move this session. The requested time will be checked against availability and room conflicts.</DialogDescription>
+          </DialogHeader>
+          {request && (
+            <div className="grid gap-4">
+              <div className="rounded-lg border p-4 text-sm">
+                <p className="font-medium">{getLessonName(request)}</p>
+                <p className="text-muted-foreground">{getStudentName(request)}</p>
+                <p className="mt-1">{formatDate(request.scheduledStart)}</p>
+              </div>
+              <div className="grid gap-2"><Label>Requested start</Label><input className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm" type="datetime-local" onChange={(e) => setRequest({ ...request, requestedStart: e.currentTarget.value })} /></div>
+              <div className="grid gap-2"><Label>Requested end</Label><input className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm" type="datetime-local" onChange={(e) => setRequest({ ...request, requestedEnd: e.currentTarget.value })} /></div>
+              <div className="grid gap-2"><Label>Reason</Label><Textarea value={requestReason} onChange={(e) => setRequestReason(e.currentTarget.value)} placeholder="Reason for rescheduling" /></div>
+            </div>
+          )}
+          <DialogFooter><Button variant="outline" onClick={() => setRequest(null)}>Cancel</Button><Button disabled={!request?.requestedStart || !request?.requestedEnd || !requestReason.trim() || requestReschedule.isPending} onClick={() => requestReschedule.mutate({ sessionId: request.id, requestedStart: new Date(request.requestedStart).toISOString(), requestedEnd: new Date(request.requestedEnd).toISOString(), reason: requestReason.trim() })}>{requestReschedule.isPending ? 'Submitting…' : 'Submit request'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
