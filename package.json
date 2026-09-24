@@ -36,7 +36,7 @@
     "db:seed:obo": "nx run api:db:seed:obo",
     "db:seed:obo:development": "nx run api:db:seed:obo:development",
     "db:seed:obo:fixtures": "nx run api:db:seed:obo:fixtures",
-    "db:seed:cadenza": "nx run api:db:seed:cadenza",
+    "db:seed:cadenza": "nx run api:db:seed:cadenza:development",
     "db:seed:cadenza:development": "nx run api:db:seed:cadenza:development",
     "db:setup": "nx run api:db:setup",
     "db:backup": "nx run api:db:backup",
