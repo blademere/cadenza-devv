@@ -4,7 +4,7 @@ import { BLOCKING_LESSON_SESSION_STATUSES, BLOCKING_RENTAL_STATUSES } from '../c
 const prisma = getPrismaClient()
 
 const listPackages = (appId, db = prisma) => db.cadenzaLessonPackage.findMany({ where: { appId }, orderBy: { createdAt: 'desc' } })
-const createPackage = ({ appId, name, description, price, numberOfSessions, sessionDurationMinutes = 60 }, db = prisma) => db.cadenzaLessonPackage.create({ data: { appId, name, description, price, numberOfSessions, sessionDurationMinutes } })
+const createPackage = ({ appId, name, description, price, numberOfSessions, sessionDurationMinutes = 60, sessionsPerWeek = 1 }, db = prisma) => db.cadenzaLessonPackage.create({ data: { appId, name, description, price, numberOfSessions, sessionDurationMinutes, sessionsPerWeek } })
 const updatePackage = (id, appId, data, db = prisma) => db.cadenzaLessonPackage.updateMany({ where: { id, appId }, data })
 const createAttachment = (data, db = prisma) => db.cadenzaLessonAttachment.create({ data })
 const listAttachments = (lessonPackageId, appId, db = prisma) => db.cadenzaLessonAttachment.findMany({ where: { lessonPackageId, lessonPackage: { appId } }, orderBy: { createdAt: 'asc' } })
