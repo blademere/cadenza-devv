@@ -10,11 +10,26 @@ import PageHeader from '../../../components/page-header'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
+import { Textarea } from '../../../components/ui/textarea'
 import SelectField from '../../../components/select-field'
 import LoadingState from '../../../components/loading-state'
 import { formatCurrency } from '../../../utils/currency'
 import { resourcesApi } from '../api/resources.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
+
+const EMPTY_FORM = {
+  kind: 'INSTRUMENT',
+  key: '',
+  name: '',
+  description: '',
+  instrumentType: '',
+  brand: '',
+  model: '',
+  serialNumber: '',
+  roomType: '',
+  capacity: '1',
+  rentalRate: '',
+}
 
 const unwrap = (r) => r?.data ?? r ?? []
 
@@ -23,6 +38,9 @@ const statusVariant = (status) => {
   if (status === 'MAINTENANCE' || status === 'UNAVAILABLE') return 'destructive'
   return 'outline'
 }
+
+const isPositiveNumber = (value) => Number.isFinite(Number(value)) && Number(value) > 0
+const isPositiveInteger = (value) => Number.isInteger(Number(value)) && Number(value) > 0
 
 export default function ResourceManagementPage() {
   const { can } = useAuthorization()
@@ -38,7 +56,7 @@ export default function ResourceManagementPage() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ kind: 'INSTRUMENT', key: '', name: '', instrumentType: '', roomType: '', capacity: 1, rentalRate: '' })
+  const [form, setForm] = useState(EMPTY_FORM)
 
   const instruments = useQuery({ queryKey: ['cadenza', 'instruments'], queryFn: resourcesApi.listInstruments, enabled: canViewInstrument })
   const rooms = useQuery({ queryKey: ['cadenza', 'rooms'], queryFn: resourcesApi.listRooms, enabled: canViewRoom })
@@ -60,21 +78,55 @@ export default function ResourceManagementPage() {
 
   const availableCount = entries.filter((x) => x.status === 'AVAILABLE').length
   const attentionCount = entries.filter((x) => ['MAINTENANCE', 'UNAVAILABLE'].includes(x.status)).length
+  const isRoom = form.kind === 'ROOM'
+  const canCreateSelected = isRoom ? canCreateRoom : canCreateInstrument
+  const formComplete = Boolean(
+    form.key.trim() &&
+    form.name.trim() &&
+    form.description.trim() &&
+    form.rentalRate &&
+    isPositiveNumber(form.rentalRate) &&
+    (isRoom
+      ? form.roomType.trim() && isPositiveInteger(form.capacity)
+      : form.instrumentType.trim()),
+  )
 
   if (!canView) return <Alert variant="destructive"><AlertDescription>You are not authorized to view Cadenza resources.</AlertDescription></Alert>
   if ((canViewInstrument && instruments.isLoading) || (canViewRoom && rooms.isLoading)) return <LoadingState label="Loading resources…" rows={5} />
   if (instruments.error || rooms.error) return <Alert variant="destructive"><AlertDescription>{(instruments.error || rooms.error).message}</AlertDescription></Alert>
 
   const submit = async () => {
-    const isRoom = form.kind === 'ROOM'
-    if ((isRoom && !canCreateRoom) || (!isRoom && !canCreateInstrument)) return
-    const r = await createResource.mutateAsync({ key: form.key.trim(), name: form.name.trim(), type: isRoom ? 'CADENZA_ROOM' : 'CADENZA_INSTRUMENT' })
+    if (!formComplete || !canCreateSelected) return
+
+    const r = await createResource.mutateAsync({
+      key: form.key.trim(),
+      name: form.name.trim(),
+      type: isRoom ? 'CADENZA_ROOM' : 'CADENZA_INSTRUMENT',
+      description: form.description.trim(),
+    })
     const resourceId = r?.data?.id ?? r?.id
     if (!resourceId) throw new Error('Resource creation did not return an id.')
-    if (isRoom) await createRoom.mutateAsync({ resourceId, roomType: form.roomType.trim(), capacity: Number(form.capacity), rentalRate: String(form.rentalRate) })
-    else await createInstrument.mutateAsync({ resourceId, instrumentType: form.instrumentType.trim(), rentalRate: String(form.rentalRate) })
+
+    if (isRoom) {
+      await createRoom.mutateAsync({
+        resourceId,
+        roomType: form.roomType.trim(),
+        capacity: Number(form.capacity),
+        rentalRate: String(form.rentalRate),
+      })
+    } else {
+      await createInstrument.mutateAsync({
+        resourceId,
+        instrumentType: form.instrumentType.trim(),
+        brand: form.brand.trim() || undefined,
+        model: form.model.trim() || undefined,
+        serialNumber: form.serialNumber.trim() || undefined,
+        rentalRate: String(form.rentalRate),
+      })
+    }
+
     setOpen(false)
-    setForm({ kind: 'INSTRUMENT', key: '', name: '', instrumentType: '', roomType: '', capacity: 1, rentalRate: '' })
+    setForm(EMPTY_FORM)
     await Promise.all([
       client.invalidateQueries({ queryKey: ['cadenza', 'instruments'] }),
       client.invalidateQueries({ queryKey: ['cadenza', 'rooms'] }),
@@ -126,17 +178,72 @@ export default function ResourceManagementPage() {
 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Add resource</DialogTitle></DialogHeader>
-        <div className="grid gap-4">
+        <DialogHeader>
+          <DialogTitle>Add resource</DialogTitle>
+        </DialogHeader>
+        <div className="grid max-h-[70vh] gap-4 overflow-y-auto pr-1">
           <SelectField label="Type" options={[{ value: 'INSTRUMENT', label: 'Instrument' }, { value: 'ROOM', label: 'Band room' }]} value={form.kind} onChange={(v) => setForm({ ...form, kind: v || 'INSTRUMENT' })} />
-          <div className="grid gap-2"><Label>Resource key</Label><Input value={form.key} onChange={(e) => setForm({ ...form, key: e.currentTarget.value })} /></div>
-          <div className="grid gap-2"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} /></div>
-          {form.kind === 'ROOM'
-            ? <><div className="grid gap-2"><Label>Room type</Label><Input value={form.roomType} onChange={(e) => setForm({ ...form, roomType: e.currentTarget.value })} /></div><div className="grid gap-2"><Label>Capacity</Label><Input type="number" min="1" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.currentTarget.value })} /></div></>
-            : <div className="grid gap-2"><Label>Instrument type</Label><Input value={form.instrumentType} onChange={(e) => setForm({ ...form, instrumentType: e.currentTarget.value })} /></div>}
-          <div className="grid gap-2"><Label>Hourly rate</Label><Input type="number" min="0.01" step="0.01" value={form.rentalRate} onChange={(e) => setForm({ ...form, rentalRate: e.currentTarget.value })} /></div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="resource-key">Resource key <span aria-hidden>*</span></Label>
+            <Input id="resource-key" required maxLength={100} value={form.key} onChange={(e) => setForm({ ...form, key: e.currentTarget.value })} placeholder="e.g. guitar-001" />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="resource-name">Name <span aria-hidden>*</span></Label>
+            <Input id="resource-name" required maxLength={255} value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} placeholder="Display name" />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="resource-description">Description <span aria-hidden>*</span></Label>
+            <Textarea id="resource-description" required maxLength={2000} value={form.description} onChange={(e) => setForm({ ...form, description: e.currentTarget.value })} placeholder="Describe this resource" />
+          </div>
+
+          {isRoom ? (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="room-type">Room type <span aria-hidden>*</span></Label>
+                <Input id="room-type" required maxLength={100} value={form.roomType} onChange={(e) => setForm({ ...form, roomType: e.currentTarget.value })} placeholder="e.g. Band room" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="room-capacity">Capacity <span aria-hidden>*</span></Label>
+                <Input id="room-capacity" required type="number" min="1" step="1" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.currentTarget.value })} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="instrument-type">Instrument type <span aria-hidden>*</span></Label>
+                <Input id="instrument-type" required maxLength={100} value={form.instrumentType} onChange={(e) => setForm({ ...form, instrumentType: e.currentTarget.value })} placeholder="e.g. Acoustic guitar" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="instrument-brand">Brand</Label>
+                <Input id="instrument-brand" maxLength={100} value={form.brand} onChange={(e) => setForm({ ...form, brand: e.currentTarget.value })} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="instrument-model">Model</Label>
+                <Input id="instrument-model" maxLength={100} value={form.model} onChange={(e) => setForm({ ...form, model: e.currentTarget.value })} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="instrument-serial">Serial number</Label>
+                <Input id="instrument-serial" maxLength={100} value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.currentTarget.value })} />
+              </div>
+            </>
+          )}
+
+          <div className="grid gap-2">
+            <Label htmlFor="rental-rate">Hourly rate <span aria-hidden>*</span></Label>
+            <Input id="rental-rate" required type="number" min="0.01" step="0.01" value={form.rentalRate} onChange={(e) => setForm({ ...form, rentalRate: e.currentTarget.value })} />
+          </div>
         </div>
-        <DialogFooter><Button disabled={!form.key.trim() || !form.name.trim() || !form.rentalRate || (form.kind === 'ROOM' ? !canCreateRoom : !canCreateInstrument)} onClick={submit}>{isSaving ? 'Creating…' : 'Create resource'}</Button></DialogFooter>
+        <DialogFooter>
+          <Button
+            disabled={!formComplete || !canCreateSelected || isSaving}
+            onClick={submit}
+          >
+            {isSaving ? 'Creating…' : 'Create resource'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
 
