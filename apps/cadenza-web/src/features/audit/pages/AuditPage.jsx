@@ -13,6 +13,14 @@ import { useAuthorization } from '../../authorization/components/AuthorizationPr
 
 const unwrap = (value) => value?.data ?? value ?? []
 
+const getActorName = (row) => {
+  const person = row.actor?.person
+  if (person?.firstName || person?.lastName) {
+    return [person.firstName, person.middleName, person.lastName].filter(Boolean).join(' ') + (person.suffix ? `, ${person.suffix}` : '')
+  }
+  return row.actor?.email || row.actorId || 'System'
+}
+
 const auditApi = {
   list: (params = {}) => {
     const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== ''))
@@ -42,7 +50,7 @@ export default function AuditPage() {
         { key: 'action', header: 'Action', render: (row) => <Badge variant="secondary">{row.action ?? '—'}</Badge> },
         { key: 'entityType', header: 'Entity', value: (row) => row.entityType ?? '—' },
         { key: 'entityId', header: 'Entity ID', value: (row) => row.entityId ?? '—' },
-        { key: 'actorId', header: 'Actor', value: (row) => row.actorId ?? 'System' },
+        { key: 'actor', header: 'Actor', value: getActorName },
       ]} rows={unwrap(query.data)} searchPlaceholder="Search audit activity…" />
     </CardContent></Card>
   </div>
