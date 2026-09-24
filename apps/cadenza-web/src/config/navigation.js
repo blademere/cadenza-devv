@@ -26,7 +26,7 @@ export const navigation = Object.freeze([
   {
     key: 'lessons-management', name: 'Lesson Management', items: [
       { key: 'lesson-packages', name: 'Packages', route: '/app/lesson-packages', icon: icon(MusicNotes), anyPermissions: [PERMISSIONS.lessons.create, PERMISSIONS.lessons.manage] },
-      { key: 'lesson-enrollments', name: 'Enrollments', route: '/app/lesson-enrollments', icon: icon(UsersThree), anyPermissions: [PERMISSIONS.enrollments.read, PERMISSIONS.enrollments.create, PERMISSIONS.enrollments.manage] },
+      { key: 'lesson-enrollments', name: 'Enrollments', route: '/app/lesson-enrollments', icon: icon(UsersThree), permission: PERMISSIONS.enrollments.manage },
       { key: 'lesson-schedule', name: 'Schedule & Sessions', route: '/app/lesson-schedule', icon: icon(Calendar), anyPermissions: [PERMISSIONS.lessons.schedule, PERMISSIONS.lessons.manage] },
       { key: 'audit', name: 'Audit', route: '/app/audit', icon: icon(ClockCounterClockwise), permission: PERMISSIONS.audit.read },
     ],
