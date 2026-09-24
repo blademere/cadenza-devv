@@ -4,6 +4,7 @@ const OBO_DEVELOPMENT_FIXTURE = {
   clientEmail: 'obo-client@example.test',
   professionalEmail: 'obo-professional@example.test',
   receivingOfficerEmail: 'obo-receiving-officer@example.test',
+  adminEmail: 'obo-admin@example.test',
   registrationNumber: 'DEV-OBO-PRC-0001',
   professionalRole: 'ARCHITECT',
   referenceNumber: 'OBO-DEV-20300610-0001',
@@ -88,6 +89,7 @@ async function seedOboDevelopmentScenario(prisma, { roles, passwordHash = null }
   const appointmentStart = new Date('2030-06-14T09:00:00.000Z')
   const appointmentEnd = new Date('2030-06-14T09:30:00.000Z')
   const clientUser = await ensureUser(prisma, { appId, email: OBO_DEVELOPMENT_FIXTURE.clientEmail, roleId: roles.client.id, passwordHash })
+  await ensureUser(prisma, { appId, email: OBO_DEVELOPMENT_FIXTURE.adminEmail, roleId: roles.admin.id, passwordHash })
   const receivingOfficer = await ensureUser(prisma, { appId, email: OBO_DEVELOPMENT_FIXTURE.receivingOfficerEmail, roleId: roles.receiving_officer.id, passwordHash })
   const { professionalUser, professionalPerson, professional } = await ensureDevelopmentProfessional(prisma, { appId, roles, passwordHash, receivingOfficer, now })
 
