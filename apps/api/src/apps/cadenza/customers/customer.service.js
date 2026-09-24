@@ -3,6 +3,7 @@ import { requireAppId } from '../../../platform/applications/application-scope.j
 import { can } from '../../../platform/authorization/authorization.service.js'
 import * as peopleService from '../../../features/people/people.service.js'
 import * as repository from './customer.repository.js'
+import { ensureMembershipRole } from '../authorization/authorization-management.service.js'
 
 const create = async ({ appId, personId, actorId }) => {
   const owner = requireAppId(appId)
@@ -15,7 +16,10 @@ const create = async ({ appId, personId, actorId }) => {
   if (await repository.findByPersonId(personId, owner))
     throw new ConflictError('Person is already registered as a customer for this application.')
   try {
-    return await repository.create({ appId: owner, personId })
+    const created = await repository.create({ appId: owner, personId })
+    if (!created) throw new BadRequestError('Person must have an authenticated user identity.')
+    await ensureMembershipRole({ userId: person.userId, appId: owner, roleName: 'cadenza_client', actorId })
+    return created
   } catch (error) {
     if (error?.code === 'P2002') throw new ConflictError('Person is already registered as a customer for this application.')
     throw error
@@ -33,6 +37,7 @@ const ensureMe = async ({ appId, actorId }) => {
 }
 
 const list = async ({ appId }) => repository.list(requireAppId(appId))
+const listCandidates = async ({ appId }) => repository.listCandidates(requireAppId(appId))
 
 const get = async ({ appId, id, actorId }) => {
   const owner = requireAppId(appId)
@@ -53,4 +58,4 @@ const update = async ({ appId, id, status }) => {
   return repository.findById(id, owner)
 }
 
-export { create, ensureMe, list, get, update }
+export { create, ensureMe, list, listCandidates, get, update }
