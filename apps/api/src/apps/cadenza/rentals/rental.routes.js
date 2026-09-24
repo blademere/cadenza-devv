@@ -21,6 +21,6 @@ router.get('/:id',rentalResource('read'),asyncHandler(controller.get))
 router.post('/',authorize('cadenza_rentals','create'),idempotency({scope:'cadenza-rentals',required:true}),validate(createValidator),asyncHandler(controller.create))
 router.post('/:id/checkout',rentalResource('manage'),idempotency({scope:'cadenza-rental-checkout',required:true}),asyncHandler(controller.checkout))
 router.post('/:id/return',rentalResource('manage'),idempotency({scope:'cadenza-rental-return',required:true}),asyncHandler(controller.returnRental))
-router.post('/:id/cancel',rentalResource('read'),idempotency({scope:'cadenza-rental-cancel',required:true}),asyncHandler(controller.cancel))
+router.post('/:id/cancel',rentalResource('cancel'),idempotency({scope:'cadenza-rental-cancel',required:true}),asyncHandler(controller.cancel))
 
 export default router
