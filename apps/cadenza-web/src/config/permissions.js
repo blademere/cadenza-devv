@@ -17,6 +17,7 @@ export const PERMISSIONS = Object.freeze({
   }),
   instructors: Object.freeze({
     read: 'cadenza_instructors:read',
+    readOwn: 'cadenza_instructors:read_own',
     create: 'cadenza_instructors:create',
     update: 'cadenza_instructors:update',
     manage: 'cadenza_instructors:manage',
