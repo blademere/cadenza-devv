@@ -9,6 +9,7 @@ import LoadingState from '../../../components/loading-state'
 import PageHeader from '../../../components/page-header'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog'
 import { Label } from '../../../components/ui/label'
+import { Input } from '../../../components/ui/input'
 import { Textarea } from '../../../components/ui/textarea'
 import SelectField from '../../../components/select-field'
 import { schedulingApi } from '../../scheduling/api/scheduling.api'
@@ -50,13 +51,16 @@ export default function InstructorTeachingPage() {
   const [showAll, setShowAll] = useState(false)
   const [request, setRequest] = useState(null)
   const [requestReason, setRequestReason] = useState('')
+  const [requestedStart, setRequestedStart] = useState('')
+  const [requestedEnd, setRequestedEnd] = useState('')
 
   const sessions = useQuery({
     queryKey: ['cadenza', 'instructor', 'sessions'],
     queryFn: schedulingApi.listSessions,
   })
 
-  const requestReschedule = useMutation({ mutationFn: schedulingApi.requestReschedule, onSuccess: () => { setRequest(null); setRequestReason(''); client.invalidateQueries({ queryKey: ['cadenza', 'instructor', 'sessions'] }) } })
+  const reschedules = useQuery({ queryKey: ['cadenza', 'instructor', 'reschedules'], queryFn: schedulingApi.listReschedules })
+  const requestReschedule = useMutation({ mutationFn: schedulingApi.requestReschedule, onSuccess: () => { setRequest(null); setRequestReason(''); setRequestedStart(''); setRequestedEnd(''); client.invalidateQueries({ queryKey: ['cadenza', 'instructor', 'sessions'] }); client.invalidateQueries({ queryKey: ['cadenza', 'instructor', 'reschedules'] }) } })
 
   const markAttendance = useMutation({
     mutationFn: ({ id, status, note }) =>
@@ -72,6 +76,7 @@ export default function InstructorTeachingPage() {
   })
 
   const rows = unwrap(sessions.data)
+  const pendingReschedules = new Set(unwrap(reschedules.data).filter((item) => item.status === 'PENDING').map((item) => item.sessionId))
 
   const view = useMemo(() => {
     const now = new Date()
@@ -97,11 +102,11 @@ export default function InstructorTeachingPage() {
   }, [rows])
 
   if (sessions.isLoading) return <LoadingState label="Loading your teaching schedule…" rows={5} />
-  if (sessions.error) {
+  if (sessions.error || reschedules.error) {
     return (
       <Alert variant="destructive">
         <AlertTitle>Unable to load teaching schedule</AlertTitle>
-        <AlertDescription>{sessions.error.message}</AlertDescription>
+        <AlertDescription>{(sessions.error || reschedules.error).message}</AlertDescription>
       </Alert>
     )
   }
@@ -132,7 +137,7 @@ export default function InstructorTeachingPage() {
       searchable: false,
       render: (row) =>
         row.status === 'SCHEDULED' ? (
-          <div className="flex flex-wrap gap-2"><Button size="sm" variant={row.attendance ? 'outline' : 'default'} onClick={() => openAttendance(row)}>{row.attendance ? 'Update' : 'Attendance'}</Button><Button size="sm" variant="outline" onClick={() => setRequest(row)}>Reschedule</Button></div>
+          <div className="flex flex-wrap gap-2"><Button size="sm" variant={row.attendance ? 'outline' : 'default'} onClick={() => openAttendance(row)}>{row.attendance ? 'Update' : 'Attendance'}</Button><Button size="sm" variant="outline" disabled={pendingReschedules.has(row.id)} onClick={() => { setRequest(row); setRequestReason(''); setRequestedStart(''); setRequestedEnd('') }}>{pendingReschedules.has(row.id) ? 'Request pending' : 'Reschedule'}</Button></div>
         ) : null,
     },
   ]
@@ -304,7 +309,7 @@ export default function InstructorTeachingPage() {
               <div className="grid gap-2"><Label>Reason</Label><Textarea value={requestReason} onChange={(e) => setRequestReason(e.currentTarget.value)} placeholder="Reason for rescheduling" /></div>
             </div>
           )}
-          <DialogFooter><Button variant="outline" onClick={() => setRequest(null)}>Cancel</Button><Button disabled={!request?.requestedStart || !request?.requestedEnd || !requestReason.trim() || requestReschedule.isPending} onClick={() => requestReschedule.mutate({ sessionId: request.id, requestedStart: new Date(request.requestedStart).toISOString(), requestedEnd: new Date(request.requestedEnd).toISOString(), reason: requestReason.trim() })}>{requestReschedule.isPending ? 'Submitting…' : 'Submit request'}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setRequest(null)}>Cancel</Button><Button disabled={!requestedStart || !requestedEnd || new Date(requestedEnd) <= new Date(requestedStart) || requestReschedule.isPending} onClick={() => requestReschedule.mutate({ sessionId: request.id, requestedStart: new Date(requestedStart).toISOString(), requestedEnd: new Date(requestedEnd).toISOString(), reason: requestReason.trim() || undefined })}>{requestReschedule.isPending ? 'Submitting…' : 'Submit request'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
