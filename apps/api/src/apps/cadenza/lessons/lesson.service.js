@@ -78,6 +78,8 @@ const createPackage = async ({
   description,
   price,
   numberOfSessions,
+  sessionDurationMinutes = 60,
+  sessionsPerWeek = 1,
 }) => {
   const owner = requireAppId(appId)
   const amount = decimalAmount(price, 'price')
@@ -94,6 +96,8 @@ const createPackage = async ({
       description: description?.trim() || null,
       price: amount,
       numberOfSessions: Number(numberOfSessions),
+      sessionDurationMinutes: Number(sessionDurationMinutes),
+      sessionsPerWeek: Number(sessionsPerWeek),
     })
   } catch (e) {
     if (e?.code === 'P2002')
@@ -714,4 +718,5 @@ export {
   cancelReschedule,
   completeSession,
   cancelSession,
+  generateSchedule,
 }
