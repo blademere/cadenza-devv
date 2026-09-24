@@ -15,6 +15,8 @@ import { customersApi } from '../../customers/api/customers.api'
 import { instructorsApi } from '../../instructors/api/instructors.api'
 import { staffApi } from '../api/staff.api'
 import { useAuthorization } from '../../authorization/components/AuthorizationProvider'
+import { DotsThree, Plus } from '@phosphor-icons/react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../../../components/ui/dropdown-menu'
 
 const unwrap = (r) => r?.data ?? r ?? []
 const personName = (person) =>
@@ -91,8 +93,6 @@ export default function UsersPage() {
     mutationFn: ({ id, blockId }) => instructorsApi.removeAvailabilityBlock(id, blockId),
     onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'instructor-availability', availabilityInstructor?.id] }),
   })
-  const register = useMutation({ mutationFn: customersApi.registerMe, onSuccess: () => client.invalidateQueries({ queryKey: ['cadenza', 'customers'] }) })
-
   if ((canCustomerManage && customers.isLoading) || (canInstructorRead && instructors.isLoading) || (canStaffRead && staff.isLoading)) return <LoadingState label="Loading people…" rows={4} />
   if ((canCustomerManage && customers.error) || (canInstructorRead && instructors.error) || (canStaffRead && staff.error)) return <Alert variant="destructive"><AlertDescription>{(customers.error || instructors.error || staff.error).message}</AlertDescription></Alert>
 
@@ -108,7 +108,7 @@ export default function UsersPage() {
   if (canInstructorRead) unwrap(instructors.data).forEach((x) => addEntry(x, 'Instructor', 'instructor'))
   if (canStaffRead) unwrap(staff.data).forEach((x) => addEntry(x, 'Staff', 'staff'))
   const entries = Array.from(entriesByPerson.values())
-  const error = updateCustomer.error || updateInstructor.error || updateStaff.error || createCustomer.error || createStaff.error || createInstructor.error || register.error || candidates.error || customerCandidates.error || staffCandidates.error || availability.error || replaceAvailability.error || addBlock.error || removeBlock.error
+  const error = updateCustomer.error || updateInstructor.error || updateStaff.error || createCustomer.error || createStaff.error || createInstructor.error || candidates.error || customerCandidates.error || staffCandidates.error || availability.error || replaceAvailability.error || addBlock.error || removeBlock.error
   const candidateOptions = unwrap(candidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
   const customerCandidateOptions = unwrap(customerCandidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
   const staffCandidateOptions = unwrap(staffCandidates.data).map((person) => ({ value: person.id, label: personName(person) + (person.email ? ` — ${person.email}` : '') }))
@@ -132,15 +132,34 @@ export default function UsersPage() {
     { key: 'role', header: 'Roles', render: (x) => <div className="flex flex-wrap gap-1">{x.roles.map((role) => <Badge key={role} variant="secondary">{role}</Badge>)}</div> },
     { key: 'specialty', header: 'Specialty', value: (x) => x.instructor?.specialty ?? '—' },
     { key: 'status', header: 'Status', render: (x) => <div className="flex flex-wrap gap-1">{[['Customer', x.customer?.status], ['Staff', x.staff?.status], ['Instructor', x.instructor?.status]].filter(([, status]) => status).map(([role, status]) => <Badge key={role} variant={status === 'ACTIVE' ? 'default' : 'outline'}>{role}: {status}</Badge>)}</div> },
-    { key: 'actions', header: 'Actions', searchable: false, render: (x) => <div className="flex flex-wrap gap-2">
-      {x.customer && canCustomerManage && <Button size="sm" variant="outline" onClick={() => setEditing({ ...x.customer, role: 'Customer' })}>Customer</Button>}
-      {x.staff && canStaffManage && <Button size="sm" variant="outline" onClick={() => setEditing({ ...x.staff, role: 'Staff' })}>Staff</Button>}
-      {x.instructor && canInstructorManage && <><Button size="sm" variant="outline" onClick={() => setEditing({ ...x.instructor, role: 'Instructor' })}>Instructor</Button><Button size="sm" variant="outline" onClick={() => openAvailability(x.instructor)}>Availability</Button></>}
-    </div> },
+    { key: 'actions', header: '', searchable: false, render: (x) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${personName(x.person)}`} />}>
+          <DotsThree size={20} weight="bold" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuLabel>Manage</DropdownMenuLabel>
+          {x.customer && canCustomerManage && <DropdownMenuItem onClick={() => setEditing({ ...x.customer, role: 'Customer' })}>Customer</DropdownMenuItem>}
+          {x.staff && canStaffManage && <DropdownMenuItem onClick={() => setEditing({ ...x.staff, role: 'Staff' })}>Staff</DropdownMenuItem>}
+          {x.instructor && canInstructorManage && <DropdownMenuItem onClick={() => setEditing({ ...x.instructor, role: 'Instructor' })}>Instructor</DropdownMenuItem>}
+          {x.instructor && canInstructorManage && <><DropdownMenuSeparator /><DropdownMenuItem onClick={() => openAvailability(x.instructor)}>Availability</DropdownMenuItem></>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) },
   ]
 
   return <div className="space-y-6">
-    <PageHeader title="Users" description="Manage Cadenza customers, staff, and instructors." actions={<div className="flex flex-wrap gap-2">{canCustomerManage && <Button variant="outline" onClick={() => setAddCustomerOpen(true)}>Add customer</Button>}{canStaffCreate && <Button variant="outline" onClick={() => setAddStaffOpen(true)}>Add staff</Button>}{canInstructorCreate && <Button variant="outline" onClick={() => setAddInstructorOpen(true)}>Add instructor</Button>}<Button disabled={register.isPending} onClick={() => register.mutate()}>{register.isPending ? 'Registering…' : 'Register my account as customer'}</Button></div>} />
+    <PageHeader title="Users" description="Manage Cadenza customers, staff, and instructors." actions={
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button type="button"><Plus size={16} />Add role</Button>} />
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuLabel>Add to an existing person</DropdownMenuLabel>
+          {canCustomerManage && <DropdownMenuItem onClick={() => setAddCustomerOpen(true)}>Customer</DropdownMenuItem>}
+          {canStaffCreate && <DropdownMenuItem onClick={() => setAddStaffOpen(true)}>Staff</DropdownMenuItem>}
+          {canInstructorCreate && <DropdownMenuItem onClick={() => setAddInstructorOpen(true)}>Instructor</DropdownMenuItem>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    } />
     {error && <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>}
     <Card><CardContent className="pt-6"><DataTable columns={columns} rows={entries} searchPlaceholder="Search users…" /></CardContent></Card>
 
