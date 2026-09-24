@@ -26,12 +26,12 @@ const fromLocalParts = ({ year, month, day, minute }) => {
 const addLocalDays = (date, days) => { const p = getLocalParts(date); return fromLocalParts({ year: p.year, month: p.month, day: p.day + days, minute: p.minute }) }
 const isBeforeLeadTime = (start) => start.getTime() - Date.now() < MIN_LEAD_MINUTES * 60 * 1000
 
-const findSlot = async ({ appId, instructorId, rooms, rules, day, duration, db }) => {
+const findSlot = async ({ appId, instructorId, rooms, rules, day, duration, notBefore, db }) => {
   for (const rule of rules.filter((item) => item.dayOfWeek === day.dayOfWeek)) {
     for (let minute = rule.startMinute; minute + duration <= rule.endMinute; minute += SLOT_INCREMENT_MINUTES) {
       const start = fromLocalParts({ year: day.year, month: day.month, day: day.day, minute })
       const end = fromLocalParts({ year: day.year, month: day.month, day: day.day, minute: minute + duration })
-      if (isBeforeLeadTime(start)) continue
+      if (isBeforeLeadTime(start) || (notBefore && start < notBefore)) continue
       if (await repository.findOverlappingSession({ appId, instructorId, startsAt: start, endsAt: end }, db)) continue
       for (const room of rooms) {
         if (await repository.findOverlappingSession({ appId, roomId: room.id, startsAt: start, endsAt: end }, db)) continue
@@ -75,7 +75,7 @@ const generateSchedule = async ({ appId, actorId, enrollmentId, instructorId, ro
       let generatedThisWeek = 0
       for (let offset = 0; offset < 7 && generated.length < remaining && generatedThisWeek < sessionsPerWeek; offset += 1) {
         const day = getLocalParts(addLocalDays(cursor, offset))
-        const slot = await findSlot({ appId: owner, instructorId, rooms, rules, day, duration, db: tx })
+        const slot = await findSlot({ appId: owner, instructorId, rooms, rules, day, duration, notBefore: cursor, db: tx })
         if (!slot) continue
         const created = await repository.createSession({ appId: owner, enrollmentId, instructorId, roomId: slot.roomId, scheduledStart: slot.start, scheduledEnd: slot.end, status: SESSION_STATUS.SCHEDULED, metadata: { generated: true, generator: 'availability', sessionsPerWeek, generatedAt: new Date().toISOString() } }, tx)
         generated.push(created)
