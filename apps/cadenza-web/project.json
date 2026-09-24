@@ -3,6 +3,14 @@
   "projectType": "application",
   "sourceRoot": "apps/cadenza-web/src",
   "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/cadenza-web"],
+      "options": {
+        "command": "vite build",
+        "cwd": "apps/cadenza-web"
+      }
+    },
     "test": {
       "executor": "nx:run-commands",
       "options": {
