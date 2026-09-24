@@ -43,7 +43,8 @@
     "db:backup": "nx run api:db:backup",
     "db:restore": "nx run api:db:restore",
     "dev:cadenza-web": "nx run cadenza-web:dev",
-    "build:cadenza-web": "nx run cadenza-web:build"
+    "build:cadenza-web": "nx run cadenza-web:build",
+    "db:seed:all": "nx run api:db:seed:all"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
