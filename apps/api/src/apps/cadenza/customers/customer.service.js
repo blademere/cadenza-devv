@@ -8,7 +8,7 @@ import { ensureMembershipRole } from '../authorization/authorization-management.
 const create = async ({ appId, personId, actorId }) => {
   const owner = requireAppId(appId)
   if (!personId) throw new BadRequestError('personId is required.')
-  const manager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_rentals', action: 'manage' })
+  const manager = await can({ userId: Number(actorId), appId: owner, resource: 'cadenza_customers', action: 'manage' })
   const person = await peopleService.getById(personId)
   if (!manager && Number(person.userId) !== Number(actorId))
     throw new ConflictError('You can only register your own account as a customer.')
