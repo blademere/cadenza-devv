@@ -1,34 +1,34 @@
 model Form {
-  id             String          @id @default(uuid())
-  appId          String
-  key            String
-  name           String
-  description    String?
-  entityType     String?
-  isActive       Boolean         @default(true)
-  app            App             @relation(fields: [appId], references: [id], onDelete: Restrict)
-  versions       FormVersion[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id          String        @id @default(uuid())
+  appId       String
+  key         String
+  name        String
+  description String?
+  entityType  String?
+  isActive    Boolean       @default(true)
+  app         App           @relation(fields: [appId], references: [id], onDelete: Restrict)
+  versions    FormVersion[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  @@index([appId])
-  @@index([appId, isActive])
   @@unique([appId, key])
   @@unique([id, appId])
+  @@index([appId])
+  @@index([appId, isActive])
 }
 
 model FormVersion {
-  id                   String                 @id @default(uuid())
+  id                   String                @id @default(uuid())
   formId               String
   version              Int
-  status               String                 @default("DRAFT")
-  form                 Form                   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  status               String                @default("DRAFT")
+  form                 Form                  @relation(fields: [formId], references: [id], onDelete: Cascade)
   sections             FormSection[]
   fields               FormField[]
   submissions          FormSubmission[]
   documentRequirements DocumentRequirement[]
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   @@unique([formId, version])
   @@index([formId, status])

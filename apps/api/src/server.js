@@ -57,7 +57,16 @@ process.on('uncaughtException', (error) => {
 })
 
 process.on('unhandledRejection', (reason) => {
-  logger.fatal({ err: reason }, 'Unhandled promise rejection')
+  logger.fatal(
+    {
+      reason,
+      reasonType: typeof reason,
+      stack: reason instanceof Error ? reason.stack : undefined,
+      message: reason instanceof Error ? reason.message : String(reason),
+    },
+    'Unhandled promise rejection',
+  )
+
   void shutdown('unhandledRejection')
 })
 

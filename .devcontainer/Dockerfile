@@ -7,18 +7,20 @@ RUN apk add --no-cache \
 
 WORKDIR /workspace
 
+# Copy root package files
 COPY package.json package-lock.json ./
 
-RUN npm ci && npm cache clean --force
+# Copy workspace package manifests before installing
+COPY apps/api/package.json apps/api/package.json
+COPY apps/cadenza-client/package.json apps/cadenza-client/package.json
+COPY apps/cadenza-mobile/package.json apps/cadenza-mobile/package.json
+COPY apps/cadenza-web/package.json apps/cadenza-web/package.json
 
+RUN npm ci
+
+# Copy the rest of the project
 COPY . .
-
-# Prisma requires DATABASE_URL while loading prisma.config.ts.
-# Generate the client after the container starts, when the Compose
-# service environment (including DATABASE_URL) is available.
 
 EXPOSE 3000 5173
 
-# Do NOT start Express automatically.
-# Keep the development container running.
 CMD ["sleep", "infinity"]

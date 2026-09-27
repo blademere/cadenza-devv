@@ -9,6 +9,15 @@ const applications = {
     name: 'Cadenza Music Center',
     description: 'Music lessons, instrument rentals, and band room rentals.',
   },
+  'cadenza-web': {
+    key: 'cadenza-web',
+    name: 'Cadenza Web',
+    description: 'Cadenza Web frontend application.',
+  },
+  'cadenza-client': {
+  key: 'cadenza-client',
+  name: 'Cadenza Client',
+},
 }
 
 async function seedApplication(prisma, key) {

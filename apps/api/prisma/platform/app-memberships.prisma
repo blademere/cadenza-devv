@@ -1,13 +1,13 @@
 model AppMembership {
-  id        String               @id @default(uuid())
+  id        String              @id @default(uuid())
   appId     String
   userId    Int
-  app       App                  @relation(fields: [appId], references: [id], onDelete: Cascade)
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app       App                 @relation(fields: [appId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   roles     AppMembershipRole[]
-  isActive  Boolean              @default(true)
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
   @@unique([appId, userId])
   @@index([userId])

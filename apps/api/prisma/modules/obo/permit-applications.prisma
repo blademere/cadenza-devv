@@ -1,12 +1,12 @@
 model OboPermitApplication {
-  id                      String                    @id @default(uuid())
+  id                      String                         @id @default(uuid())
   appId                   String
   referenceNumber         String
-  caseId                  String                    @unique
+  caseId                  String                         @unique
   permitTypeId            String
   clientPersonId          String
   formVersionId           String?
-  workflowInstanceId      String?                   @unique
+  workflowInstanceId      String?                        @unique
   replacesApplicationId   String?
   formValues              Json
   professionalSnapshots   Json?
@@ -15,27 +15,27 @@ model OboPermitApplication {
   declineReason           String?
   acceptedAt              DateTime?
   acceptedByUserId        Int?
-  app                     App                       @relation(fields: [appId], references: [id], onDelete: Restrict)
-  caseRecord              CaseRecord                @relation(fields: [caseId, appId], references: [id, appId], onDelete: Restrict)
-  permitType              OboPermitType             @relation(fields: [permitTypeId, appId], references: [id, appId], onDelete: Restrict)
-  clientPerson            Person                    @relation("OboApplicationClient", fields: [clientPersonId], references: [id], onDelete: Restrict)
-  workflowInstance        WorkflowInstance?         @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
-  acceptedBy              User?                     @relation("OboApplicationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
-  replacedApplication     OboPermitApplication?     @relation("OboPermitApplicationReplacement", fields: [replacesApplicationId], references: [id], onDelete: Restrict)
-  replacementApplications OboPermitApplication[]    @relation("OboPermitApplicationReplacement")
+  app                     App                            @relation(fields: [appId], references: [id], onDelete: Restrict)
+  caseRecord              CaseRecord                     @relation(fields: [caseId, appId], references: [id, appId], onDelete: Restrict)
+  permitType              OboPermitType                  @relation(fields: [permitTypeId, appId], references: [id, appId], onDelete: Restrict)
+  clientPerson            Person                         @relation("OboApplicationClient", fields: [clientPersonId], references: [id], onDelete: Restrict)
+  workflowInstance        WorkflowInstance?              @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
+  acceptedBy              User?                          @relation("OboApplicationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+  replacedApplication     OboPermitApplication?          @relation("OboPermitApplicationReplacement", fields: [replacesApplicationId], references: [id], onDelete: Restrict)
+  replacementApplications OboPermitApplication[]         @relation("OboPermitApplicationReplacement")
   submissionAppointment   OboSubmissionAppointment?
   applicationDocuments    OboPermitApplicationDocument[]
   decisions               OboReceivingDecision[]
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
+  createdAt               DateTime                       @default(now())
+  updatedAt               DateTime                       @updatedAt
 
+  @@unique([appId, referenceNumber])
+  @@unique([id, appId])
+  @@unique([caseId, appId])
   @@index([appId])
   @@index([appId, clientPersonId, createdAt])
   @@index([appId, permitTypeId])
   @@index([appId, referenceNumber])
   @@index([replacesApplicationId])
   @@index([formVersionId])
-  @@unique([appId, referenceNumber])
-  @@unique([id, appId])
-  @@unique([caseId, appId])
 }

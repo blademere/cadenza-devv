@@ -1,27 +1,27 @@
 model Person {
-  id                    String                 @id @default(uuid())
-  userId                Int?                   @unique
-  firstName             String
-  middleName            String?
-  lastName              String
-  suffix                String?
-  email                 String?
-  phone                 String?
-  address               Json?
-  metadata              Json?
-  isActive              Boolean                @default(true)
-  user                  User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
-  caseParticipants      CaseParticipant[]
-  oboProfessionals      OboProfessional[]
-  oboClientApplications OboPermitApplication[] @relation("OboApplicationClient")
-  cadenzaStaff         CadenzaStaff[]
-  cadenzaCustomers     CadenzaCustomer[]
-  cadenzaInstructors    CadenzaInstructor[]
-  cadenzaAttendanceMarkers CadenzaAttendance[]
+  id                        String                     @id @default(uuid())
+  userId                    Int?                       @unique
+  firstName                 String
+  middleName                String?
+  lastName                  String
+  suffix                    String?
+  email                     String?
+  phone                     String?
+  address                   Json?
+  metadata                  Json?
+  isActive                  Boolean                    @default(true)
+  user                      User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  caseParticipants          CaseParticipant[]
+  oboProfessionals          OboProfessional[]
+  oboClientApplications     OboPermitApplication[]     @relation("OboApplicationClient")
+  cadenzaStaff              CadenzaStaff[]
+  cadenzaCustomers          CadenzaCustomer[]
+  cadenzaInstructors        CadenzaInstructor[]
+  cadenzaAttendanceMarkers  CadenzaAttendance[]
   cadenzaRescheduleRequests CadenzaRescheduleRequest[] @relation("CadenzaRescheduleRequestedBy")
-  cadenzaRescheduleReviews CadenzaRescheduleRequest[] @relation("CadenzaRescheduleReviewedBy")
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  cadenzaRescheduleReviews  CadenzaRescheduleRequest[] @relation("CadenzaRescheduleReviewedBy")
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
 
   @@index([lastName, firstName])
   @@index([email])

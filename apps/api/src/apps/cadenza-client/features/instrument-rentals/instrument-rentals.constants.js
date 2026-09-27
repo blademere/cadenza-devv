@@ -1,0 +1,3 @@
+export const DEFAULT_RENTAL_DURATION = 24
+
+export const MIN_RENTAL_DURATION = 1

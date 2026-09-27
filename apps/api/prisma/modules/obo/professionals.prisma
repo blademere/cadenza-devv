@@ -1,5 +1,5 @@
 model OboProfessional {
-  id                 String @id @default(uuid())
+  id                 String  @id @default(uuid())
   appId              String
   personId           String
   registrationNumber String
@@ -18,12 +18,12 @@ model OboProfessional {
   createdAt             DateTime                              @default(now())
   updatedAt             DateTime                              @updatedAt
 
-  @@index([appId])
-  @@index([appId, status])
-  @@index([appId, ptrNumber])
-  @@index([appId, professionalRole])
   @@unique([appId, personId])
   @@unique([appId, registrationNumber])
   @@unique([appId, prcId])
   @@unique([id, appId])
+  @@index([appId])
+  @@index([appId, status])
+  @@index([appId, ptrNumber])
+  @@index([appId, professionalRole])
 }

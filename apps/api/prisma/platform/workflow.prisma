@@ -70,16 +70,16 @@ model WorkflowTransition {
 }
 
 model WorkflowInstance {
-  id                  String                 @id @default(uuid())
-  workflowVersionId   String
-  currentStepId       String
-  subjectType         String
-  subjectId           String
-  startedByUserId     Int?
-  startedAt           DateTime               @default(now())
-  completedAt         DateTime?
-  workflowVersion     WorkflowVersion        @relation(fields: [workflowVersionId], references: [id])
-  currentStep         WorkflowStep           @relation(fields: [currentStepId], references: [id])
+  id                   String                @id @default(uuid())
+  workflowVersionId    String
+  currentStepId        String
+  subjectType          String
+  subjectId            String
+  startedByUserId      Int?
+  startedAt            DateTime              @default(now())
+  completedAt          DateTime?
+  workflowVersion      WorkflowVersion       @relation(fields: [workflowVersionId], references: [id])
+  currentStep          WorkflowStep          @relation(fields: [currentStepId], references: [id])
   startedBy            User?                 @relation("WorkflowInstanceStartedBy", fields: [startedByUserId], references: [id], onDelete: SetNull)
   history              WorkflowHistory[]
   oboPermitApplication OboPermitApplication?
@@ -90,20 +90,20 @@ model WorkflowInstance {
 }
 
 model WorkflowHistory {
-  id           String              @id @default(uuid())
-  instanceId   String
-  fromStepId   String?
-  toStepId     String
-  transitionId String?
-  actorId      Int?
+  id            String              @id @default(uuid())
+  instanceId    String
+  fromStepId    String?
+  toStepId      String
+  transitionId  String?
+  actorId       Int?
   correlationId String?
-  metadata     Json?
-  createdAt    DateTime            @default(now())
-  instance     WorkflowInstance    @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  fromStep     WorkflowStep?       @relation("WorkflowHistoryFrom", fields: [fromStepId], references: [id], onDelete: SetNull)
-  toStep       WorkflowStep        @relation("WorkflowHistoryTo", fields: [toStepId], references: [id], onDelete: Restrict)
-  transition   WorkflowTransition? @relation(fields: [transitionId], references: [id], onDelete: SetNull)
-  actor        User?               @relation("WorkflowHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+  metadata      Json?
+  createdAt     DateTime            @default(now())
+  instance      WorkflowInstance    @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  fromStep      WorkflowStep?       @relation("WorkflowHistoryFrom", fields: [fromStepId], references: [id], onDelete: SetNull)
+  toStep        WorkflowStep        @relation("WorkflowHistoryTo", fields: [toStepId], references: [id], onDelete: Restrict)
+  transition    WorkflowTransition? @relation(fields: [transitionId], references: [id], onDelete: SetNull)
+  actor         User?               @relation("WorkflowHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([instanceId, createdAt])
   @@index([actorId])

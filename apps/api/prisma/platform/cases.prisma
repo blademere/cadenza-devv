@@ -34,12 +34,12 @@ model CaseRecord {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
+  @@unique([appId, caseNumber])
+  @@unique([id, appId])
   @@index([appId])
   @@index([appId, caseTypeId, status])
   @@index([appId, status, createdAt])
   @@index([createdByUserId])
-  @@unique([appId, caseNumber])
-  @@unique([id, appId])
 }
 
 model CaseStatusHistory {

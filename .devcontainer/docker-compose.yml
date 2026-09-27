@@ -6,7 +6,10 @@ services:
 
     volumes:
       - ..:/workspace
-      - /workspace/node_modules
+      - node_modules:/workspace/node_modules
+      - client_node_modules:/workspace/apps/cadenza-client/node_modules
+      - mobile_node_modules:/workspace/apps/cadenza-mobile/node_modules
+      - web_node_modules:/workspace/apps/cadenza-web/node_modules
 
     env_file:
       - ../.env
@@ -20,19 +23,21 @@ services:
         condition: service_healthy
 
     ports:
-      - '${PORT:-3000}:${PORT:-3000}'
+      - '${DEV_APP_PORT:-3002}:3000'
+      - '5173:5173'
+      - '5555:5555'
 
-    command: sleep infinity
+    command: sh -lc "cd /workspace/apps/api && npm run dev"
 
-  ngrok:
-    image: ngrok/ngrok:3-alpine
-    env_file:
-      - ../.env
-    command:
-      - http
-      - app:3000
-    depends_on:
-      - app
+  # ngrok:
+  #   image: ngrok/ngrok:3-alpine
+  #   env_file:
+  #     - ../.env
+  #   command:
+  #     - http
+  #     - app:3000
+  #   depends_on:
+  #     - app
 
   db:
     image: postgres:18-alpine
@@ -98,17 +103,24 @@ services:
 
   grafana:
     image: grafana/grafana:latest
+
     ports:
       - '3001:3000'
+
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
+
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
 
 volumes:
+  node_modules:
+  client_node_modules:
+  mobile_node_modules:
+  web_node_modules:
   postgres_data:
   pgadmin_data:
   prometheus_data:

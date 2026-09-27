@@ -1,6 +1,6 @@
 import { seedApplication } from './applications.js'
 
-const APPLICATIONS = ['obo', 'cadenza']
+const APPLICATIONS = ['obo', 'cadenza', 'cadenza-web', 'cadenza-client']
 
 async function seedPlatform(prisma, { applications: requestedApplications = APPLICATIONS } = {}) {
   const applications = {}
