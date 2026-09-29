@@ -7,7 +7,7 @@ import * as service from './rooms.service.js';
 const list = async (req, res) =>
   successResponse(
     res,
-    'Cadenza web rooms retrieved successfully.',
+    'Cadenza Client rooms retrieved successfully.',
     await service.list({
       appId: getApplicationId(req),
     }),
@@ -16,7 +16,7 @@ const list = async (req, res) =>
 const get = async (req, res) =>
   successResponse(
     res,
-    'Cadenza web room retrieved successfully.',
+    'Cadenza Client room retrieved successfully.',
     await service.get({
       appId: getApplicationId(req),
       id: req.validated.params.id,
@@ -26,7 +26,7 @@ const get = async (req, res) =>
 const create = async (req, res) =>
   successResponse(
     res,
-    'Cadenza web room created successfully.',
+    'Cadenza Client room created successfully.',
     await service.create({
       appId: getApplicationId(req),
       ...req.validated.body,
@@ -37,7 +37,7 @@ const create = async (req, res) =>
 const update = async (req, res) =>
   successResponse(
     res,
-    'Cadenza web room updated successfully.',
+    'Cadenza Client room updated successfully.',
     await service.update({
       appId: getApplicationId(req),
       id: req.validated.params.id,

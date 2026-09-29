@@ -82,7 +82,6 @@ model WorkflowInstance {
   currentStep          WorkflowStep          @relation(fields: [currentStepId], references: [id])
   startedBy            User?                 @relation("WorkflowInstanceStartedBy", fields: [startedByUserId], references: [id], onDelete: SetNull)
   history              WorkflowHistory[]
-  oboPermitApplication OboPermitApplication?
 
   @@index([subjectType, subjectId])
   @@index([workflowVersionId])

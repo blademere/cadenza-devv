@@ -18,6 +18,26 @@ const roles = {
     description: 'Cadenza Client user.',
   },
 
+  cadenza_client_front_desk: {
+    permissions: [
+      'cadenza_client:read',
+      'cadenza_rooms:read',
+      'cadenza_rooms:create',
+      'cadenza_rooms:update',
+      'cadenza_staff:read',
+      'cadenza_staff:create',
+      'cadenza_staff:update',
+      'cadenza_instruments:read',
+      'cadenza_instruments:create',
+      'cadenza_instruments:update',
+      'cadenza_room_rentals:read',
+      'cadenza_room_rentals:create',
+      'cadenza_room_rentals:update',
+      'cadenza_lesson_packages:read',
+    ],
+    description: 'Cadenza Client front-desk user.',
+  },
+
   cadenza_client_admin: {
     permissions: [
       'cadenza_client:read',
@@ -52,6 +72,20 @@ const roles = {
 
 const users = [
   {
+    role: 'cadenza_client_user',
+    email: 'client@example.com',
+    firstName: 'Cadenza',
+    lastName: 'Client',
+    phone: '+630000000001',
+  },
+  {
+    role: 'cadenza_client_front_desk',
+    email: 'frontdesk@example.com',
+    firstName: 'Cadenza',
+    lastName: 'Front Desk',
+    phone: '+630000000002',
+  },
+  {
     role: 'cadenza_admin',
     email: 'admin@example.com',
     firstName: 'System',
@@ -59,6 +93,9 @@ const users = [
     phone: '+630000000004',
   },
 ];
+
+const DEVELOPMENT_PASSWORD =
+  process.env.SEED_CADENZA_PASSWORD || '112233445566';
 
 async function ensureMembership(prisma, { userId, appId, roleId }) {
   const membership = await prisma.appMembership.upsert({
@@ -97,7 +134,7 @@ async function seedCadenzaClientDevelopmentUsers(
   application,
   seededRoles,
 ) {
-  const passwordHash = await bcrypt.hash('112233445566', 12);
+  const passwordHash = await bcrypt.hash(DEVELOPMENT_PASSWORD, 12);
 
   for (const definition of users) {
     const user = await prisma.user.upsert({
@@ -115,10 +152,14 @@ async function seedCadenzaClientDevelopmentUsers(
       },
     });
 
-    const roleId =
+    const roleKey =
       definition.role === 'cadenza_admin'
-        ? seededRoles.cadenza_client_admin.id
-        : seededRoles.cadenza_client_user.id;
+        ? 'cadenza_client_admin'
+        : definition.role;
+    const roleId = seededRoles[roleKey]?.id;
+    if (!roleId) {
+      throw new Error(`Cadenza Client role '${definition.role}' was not seeded.`);
+    }
 
     await ensureMembership(prisma, {
       userId: user.id,
@@ -126,7 +167,7 @@ async function seedCadenzaClientDevelopmentUsers(
       roleId,
     });
 
-    await prisma.person.upsert({
+    const person = await prisma.person.upsert({
       where: {
         userId: user.id,
       },
@@ -144,6 +185,59 @@ async function seedCadenzaClientDevelopmentUsers(
         phone: definition.phone,
       },
     });
+
+    if (definition.role === 'cadenza_client_user') {
+      await prisma.cadenzaCustomer.upsert({
+        where: {
+          appId_personId: {
+            appId: application.id,
+            personId: person.id,
+          },
+        },
+        update: { status: 'ACTIVE' },
+        create: {
+          appId: application.id,
+          personId: person.id,
+          status: 'ACTIVE',
+        },
+      });
+    }
+
+    if (definition.role === 'cadenza_client_front_desk') {
+      await prisma.cadenzaStaff.upsert({
+        where: {
+          appId_personId: {
+            appId: application.id,
+            personId: person.id,
+          },
+        },
+        update: { staffType: 'FRONT_DESK', status: 'ACTIVE' },
+        create: {
+          appId: application.id,
+          personId: person.id,
+          staffType: 'FRONT_DESK',
+          status: 'ACTIVE',
+        },
+      });
+    }
+
+    if (roleKey === 'cadenza_client_admin') {
+      await prisma.cadenzaStaff.upsert({
+        where: {
+          appId_personId: {
+            appId: application.id,
+            personId: person.id,
+          },
+        },
+        update: { staffType: 'ADMIN', status: 'ACTIVE' },
+        create: {
+          appId: application.id,
+          personId: person.id,
+          staffType: 'ADMIN',
+          status: 'ACTIVE',
+        },
+      });
+    }
   }
 }
 

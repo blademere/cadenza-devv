@@ -27,7 +27,7 @@ router.post(
   '/',
   authorize('cadenza_rooms:create'),
   idempotency({
-    scope: 'cadenza-web-rooms',
+    scope: 'cadenza-client-rooms',
     required: true,
   }),
   validate(createValidator),
@@ -47,7 +47,7 @@ router.patch(
     getResourceId: (req) => req.params.id,
   }),
   idempotency({
-    scope: 'cadenza-web-rooms-update',
+    scope: 'cadenza-client-rooms-update',
     required: true,
   }),
   validate(updateValidator),

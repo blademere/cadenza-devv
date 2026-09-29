@@ -1,16 +1,10 @@
 import { seedPlatform } from './platform.js';
-import { seedObo } from './apps/obo/index.js';
-import { seedCadenza } from './apps/cadenza/index.js';
-import { seedCadenzaWeb } from './apps/cadenza-web/index.js';
 import { seedCadenzaClient } from './apps/cadenza-client/index.js';
 
 const PROFILES = new Set(['default', 'development', 'fixtures']);
 
 const APPS = new Set([
   'platform',
-  'obo',
-  'cadenza',
-  'cadenza-web',
   'cadenza-client',
   'all',
 ]);
@@ -44,43 +38,6 @@ async function runSeed(prisma, profile = 'default', app = 'platform') {
     }
   }
 
-  if (app === 'obo') {
-    const platform = await seedPlatform(prisma, {
-      applications: ['obo'],
-    });
-
-    Object.assign(context.applications, platform.applications);
-
-    for (const [key, permission] of platform.permissionRecords) {
-      context.permissionRecords.set(key, permission);
-    }
-  }
-
-  if (app === 'cadenza') {
-    const platform = await seedPlatform(prisma, {
-      applications: ['cadenza'],
-    });
-
-    Object.assign(context.applications, platform.applications);
-
-    for (const [key, permission] of platform.permissionRecords) {
-      context.permissionRecords.set(key, permission);
-    }
-  }
-
-  if (app === 'cadenza-web') {
-    const platform = await seedPlatform(prisma, {
-      applications: ['cadenza-web'],
-    });
-
-    Object.assign(context.applications, platform.applications);
-
-    for (const [key, permission] of platform.permissionRecords) {
-      context.permissionRecords.set(key, permission);
-    }
-  }
-
-  // Cadenza Client application
   if (app === 'cadenza-client') {
     const platform = await seedPlatform(prisma, {
       applications: ['cadenza-client'],
@@ -93,44 +50,16 @@ async function runSeed(prisma, profile = 'default', app = 'platform') {
     }
   }
 
-  if (app === 'obo' || app === 'all') {
-    const obo = await seedObo(prisma, { profile });
-
-    context.applications.obo = obo.application;
-
-    Object.assign(context.roles, obo.roles);
-
-    for (const [key, permission] of obo.permissionRecords) {
-      context.permissionRecords.set(key, permission);
+  if (app === 'cadenza-client' || app === 'all') {
+    if (!context.applications['cadenza-client']) {
+      const platform = await seedPlatform(prisma, {
+        applications: ['cadenza-client'],
+      });
+      Object.assign(context.applications, platform.applications);
+      for (const [key, permission] of platform.permissionRecords) {
+        context.permissionRecords.set(key, permission);
+      }
     }
-  }
-
-  if (app === 'cadenza' || app === 'all') {
-    const cadenza = await seedCadenza(prisma, { profile });
-
-    context.applications.cadenza = cadenza.application;
-
-    Object.assign(context.roles, cadenza.roles);
-
-    for (const [key, permission] of cadenza.permissionRecords) {
-      context.permissionRecords.set(key, permission);
-    }
-  }
-
-  if (app === 'cadenza-web') {
-    const cadenzaWeb = await seedCadenzaWeb(prisma, { profile });
-
-    context.applications['cadenza-web'] = cadenzaWeb.application;
-
-    Object.assign(context.roles, cadenzaWeb.roles);
-
-    for (const [key, permission] of cadenzaWeb.permissionRecords) {
-      context.permissionRecords.set(key, permission);
-    }
-  }
-
-  // Cadenza Client application
-  if (app === 'cadenza-client') {
     const cadenzaClient = await seedCadenzaClient(prisma, {
       profile,
     });

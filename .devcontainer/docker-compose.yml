@@ -9,7 +9,6 @@ services:
       - node_modules:/workspace/node_modules
       - client_node_modules:/workspace/apps/cadenza-client/node_modules
       - mobile_node_modules:/workspace/apps/cadenza-mobile/node_modules
-      - web_node_modules:/workspace/apps/cadenza-web/node_modules
 
     env_file:
       - ../.env
@@ -120,7 +119,6 @@ volumes:
   node_modules:
   client_node_modules:
   mobile_node_modules:
-  web_node_modules:
   postgres_data:
   pgadmin_data:
   prometheus_data:

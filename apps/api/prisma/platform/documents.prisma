@@ -52,7 +52,6 @@ model Document {
   app                     App?                           @relation(fields: [appId], references: [id], onDelete: Restrict)
   documentType            DocumentType?                  @relation(fields: [documentTypeId], references: [id], onDelete: SetNull)
   owner                   User?                          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  oboApplicationDocuments OboPermitApplicationDocument[]
   createdAt               DateTime                       @default(now())
   updatedAt               DateTime                       @updatedAt
   deletedAt               DateTime?

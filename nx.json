@@ -3,24 +3,15 @@
   "analytics": false,
   "plugins": [
     {
-      "plugin": "@nx/vite/plugin",
-      "include": ["apps/obo-web/**", "apps/cadenza-web/**"],
-      "options": {
-        "buildTargetName": "build",
-        "devTargetName": "dev",
-        "previewTargetName": "preview"
-      }
-    },
-    {
       "plugin": "@nx/eslint/plugin",
-      "include": ["apps/api/**", "apps/obo-web/**", "apps/api/cadenza-web/**"],
+      "include": ["apps/api/**"],
       "options": {
         "targetName": "lint"
       }
     },
     {
       "plugin": "@nx/vitest",
-      "include": ["apps/api/**", "apps/obo-web/**", "apps/api/cadenza-web/**"],
+      "include": ["apps/api/**"],
       "options": {
         "testTargetName": "test"
       }

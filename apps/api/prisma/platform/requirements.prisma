@@ -8,7 +8,6 @@ model RequirementDefinition {
   metadata                  Json?
   app                       App                        @relation(fields: [appId], references: [id], onDelete: Restrict)
   caseRequirements          CaseRequirement[]
-  oboPermitTypeRequirements OboPermitTypeRequirement[]
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
 
@@ -30,7 +29,6 @@ model CaseRequirement {
   metadata             Json?
   caseRecord           CaseRecord                     @relation(fields: [caseId], references: [id], onDelete: Cascade)
   requirement          RequirementDefinition          @relation(fields: [requirementId], references: [id], onDelete: Restrict)
-  applicationDocuments OboPermitApplicationDocument[]
   createdAt            DateTime                       @default(now())
   updatedAt            DateTime                       @updatedAt
 

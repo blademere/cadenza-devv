@@ -10,10 +10,8 @@
   "scripts": {
     "dev": "nx run-many -t dev --parallel=2",
     "dev:all": "nx run-many -t dev --parallel=2",
-    "dev:obo-web": "nx run obo-web:dev",
     "build": "nx run-many -t build",
     "build:workspaces": "nx run-many -t build",
-    "build:obo-web": "nx run obo-web:build",
     "lint": "nx run-many -t lint",
     "test": "nx run-many -t test",
     "format": "prettier --write .",
@@ -41,8 +39,6 @@
     "db:setup": "nx run api:db:setup",
     "db:backup": "nx run api:db:backup",
     "db:restore": "nx run api:db:restore",
-    "dev:cadenza-web": "nx run cadenza-web:dev",
-    "build:cadenza-web": "nx run cadenza-web:build",
     "db:seed:all": "nx run api:db:seed:all",
     "db:seed:all:development": "nx run api:db:seed:all:development"
   },

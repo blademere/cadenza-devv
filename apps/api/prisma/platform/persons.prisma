@@ -12,8 +12,6 @@ model Person {
   isActive                  Boolean                    @default(true)
   user                      User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
   caseParticipants          CaseParticipant[]
-  oboProfessionals          OboProfessional[]
-  oboClientApplications     OboPermitApplication[]     @relation("OboApplicationClient")
   cadenzaStaff              CadenzaStaff[]
   cadenzaCustomers          CadenzaCustomer[]
   cadenzaInstructors        CadenzaInstructor[]

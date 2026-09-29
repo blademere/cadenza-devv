@@ -1,23 +1,9 @@
 const applications = {
-  obo: {
-    key: 'obo',
-    name: 'One-Stop Business Office',
-    description: 'One-Stop Business Office application.',
-  },
-  cadenza: {
-    key: 'cadenza',
-    name: 'Cadenza Music Center',
-    description: 'Music lessons, instrument rentals, and band room rentals.',
-  },
-  'cadenza-web': {
-    key: 'cadenza-web',
-    name: 'Cadenza Web',
-    description: 'Cadenza Web frontend application.',
-  },
   'cadenza-client': {
-  key: 'cadenza-client',
-  name: 'Cadenza Client',
-},
+    key: 'cadenza-client',
+    name: 'Cadenza Client',
+    description: 'Cadenza Client application.',
+  },
 }
 
 async function seedApplication(prisma, key) {

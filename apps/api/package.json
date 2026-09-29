@@ -34,12 +34,8 @@
     "validate:authorization": "node scripts/validate-authorization.cjs",
     "validate:migrations": "node scripts/validate-migrations.cjs",
     "db:seed:platform": "node scripts/db-seed.js --app=platform",
-    "db:seed:obo": "node scripts/db-seed.js --app=obo",
-    "db:seed:cadenza": "node scripts/db-seed.js --app=cadenza --profile=development",
     "db:seed:all": "node scripts/db-seed.js --app=all",
     "db:reset": "prisma migrate reset --config ./prisma.config.ts --force && node scripts/db-seed.js --app=all --profile=development",
-    "db:seed:obo:development": "node scripts/db-seed.js --app=obo --profile=development",
-    "db:seed:cadenza:development": "node scripts/db-seed.js --app=cadenza --profile=development",
     "db:seed:all:development": "node scripts/db-seed.js --app=all --profile=development",
     "build": "npm run prisma:generate && node --check src/server.js"
   },

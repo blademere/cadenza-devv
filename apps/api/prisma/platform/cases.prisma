@@ -30,7 +30,6 @@ model CaseRecord {
   participants    CaseParticipant[]
   requirements    CaseRequirement[]
   tasks           Task[]
-  oboApplication  OboPermitApplication?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 

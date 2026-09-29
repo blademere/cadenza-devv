@@ -43,10 +43,6 @@ const APPLICATION_SCOPED_REPOSITORIES = [
   'apps/api/src/platform/forms/',
 ]
 
-const isOBOPath = (relative) =>
-  relative.startsWith('apps/api/src/apps/obo/') ||
-  relative.startsWith('apps/api/src/modules/obo/')
-
 const isApplicationScopedRepository = (relative) =>
   relative.endsWith('.repository.js') &&
   APPLICATION_SCOPED_REPOSITORIES.some((prefix) => relative.startsWith(prefix))
@@ -70,12 +66,6 @@ const getApplicationSecurityViolations = (relative, source) => {
   ) {
     failures.push(
       `${relative}: features must not access the platform authorization repository directly; use platform authorization enforcement/context APIs.`
-    )
-  }
-
-  if (isOBOPath(relative) && APPLICATION_SECURITY_IMPORT.test(source)) {
-    failures.push(
-      `${relative}: OBO must consume application security through platform context/middleware, not import application-security repositories or services directly.`
     )
   }
 
@@ -266,7 +256,6 @@ module.exports = {
   isApplicationScopedRepository,
   hasDirectPrismaAccess,
   isPlatformPrismaLegacyException,
-  isOBOPath,
   getLayerViolations,
   getApplicationSecurityViolations,
   findCallEnd,
