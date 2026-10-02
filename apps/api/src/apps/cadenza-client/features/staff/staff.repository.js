@@ -8,18 +8,28 @@ export const staffRepository = {
       appId,
     };
 
-    if (filters.status) {
-      where.status = filters.status;
-    }
-
     if (filters.staffType) {
       where.staffType = filters.staffType;
+    }
+
+    if (filters.status) {
+      where.status = filters.status;
     }
 
     return prisma.cadenzaStaff.findMany({
       where,
       include: {
-        person: true,
+        person: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -34,7 +44,17 @@ export const staffRepository = {
         appId,
       },
       include: {
-        person: true,
+        person: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
   },
@@ -46,7 +66,17 @@ export const staffRepository = {
         personId,
       },
       include: {
-        person: true,
+        person: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
   },
@@ -60,16 +90,36 @@ export const staffRepository = {
         },
       },
       include: {
-        person: true,
+        person: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
   },
 
-  async create(data, db = prisma) {
-    return db.cadenzaStaff.create({
+  async create(data, tx = prisma) {
+    return tx.cadenzaStaff.create({
       data,
       include: {
-        person: true,
+        person: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
   },
@@ -78,20 +128,20 @@ export const staffRepository = {
     return prisma.cadenzaStaff.update({
       where: {
         id: staffId,
-        appId,
       },
       data,
       include: {
-        person: true,
-      },
-    });
-  },
-
-  async delete(appId, staffId) {
-    return prisma.cadenzaStaff.delete({
-      where: {
-        id: staffId,
-        appId,
+        person: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
   },

@@ -1,46 +1,15 @@
 import { Router } from 'express';
-
 import { staffController } from './staff.controller.js';
-import authorize from '../../../../platform/authorization/authorization.middleware.js';
-
+import {
+  requireAdmin,
+  requireAdminOrFrontDesk,
+} from '../auth/authorization.js';
 const router = Router();
-
-router.get('/', authorize('cadenza_staff:read'), staffController.getStaff);
-
-router.post(
-  '/accounts',
-  authorize('cadenza_staff:create'),
-  staffController.createStaffAccount,
-);
-
-router.get(
-  '/me',
-  authorize('cadenza_staff:read'),
-  staffController.getMyStaffProfile,
-);
-
-router.get(
-  '/:id',
-  authorize('cadenza_staff:read'),
-  staffController.getStaffById,
-);
-
-router.post(
-  '/',
-  authorize('cadenza_staff:create'),
-  staffController.createStaff,
-);
-
-router.patch(
-  '/:id',
-  authorize('cadenza_staff:update'),
-  staffController.updateStaff,
-);
-
-router.patch(
-  '/:id/deactivate',
-  authorize('cadenza_staff:update'),
-  staffController.deactivateStaff,
-);
-
+router.get('/', requireAdminOrFrontDesk, staffController.getStaff);
+router.post('/accounts', requireAdmin, staffController.createStaffAccount);
+router.get('/me', requireAdminOrFrontDesk, staffController.getMyStaffProfile);
+router.get('/:id', requireAdminOrFrontDesk, staffController.getStaffById);
+router.post('/', requireAdmin, staffController.createStaff);
+router.patch('/:id', requireAdmin, staffController.updateStaff);
+router.patch('/:id/deactivate', requireAdmin, staffController.deactivateStaff);
 export default router;

@@ -20,6 +20,7 @@ model Person {
   cadenzaRescheduleReviews  CadenzaRescheduleRequest[] @relation("CadenzaRescheduleReviewedBy")
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
+  cadenzaAuditLogs          CadenzaAuditLog[]
 
   @@index([lastName, firstName])
   @@index([email])

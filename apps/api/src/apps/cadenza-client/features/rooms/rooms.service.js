@@ -3,7 +3,6 @@ import {
   ConflictError,
   NotFoundError,
 } from '../../../../common/errors/appError.js';
-import { requireAppId } from '../../../../platform/applications/application-scope.js';
 import * as repository from './rooms.repository.js';
 
 const ROOM_STATUSES = new Set([
@@ -47,8 +46,6 @@ const normalize = ({ roomType, capacity, rentalRate, status }) => {
 };
 
 const create = async ({ appId, roomType, capacity, rentalRate, status }) => {
-  const owner = requireAppId(appId);
-
   const input = normalize({
     roomType,
     capacity,
@@ -60,7 +57,7 @@ const create = async ({ appId, roomType, capacity, rentalRate, status }) => {
     return await repository.withTransaction(async (tx) => {
       const resource = await repository.createResource(
         {
-          appId: owner,
+          appId,
           key: `cadenza-room-${crypto.randomUUID()}`,
           name: input.roomType,
           type: 'CADENZA_ROOM',
@@ -71,7 +68,7 @@ const create = async ({ appId, roomType, capacity, rentalRate, status }) => {
 
       return repository.create(
         {
-          appId: owner,
+          appId,
           resourceId: resource.id,
           ...input,
         },
@@ -87,10 +84,10 @@ const create = async ({ appId, roomType, capacity, rentalRate, status }) => {
   }
 };
 
-const list = ({ appId }) => repository.list(requireAppId(appId));
+const list = ({ appId }) => repository.list(appId);
 
 const get = async ({ appId, id }) => {
-  const room = await repository.findById(id, requireAppId(appId));
+  const room = await repository.findById(id, appId);
 
   if (!room) {
     throw new NotFoundError('Room not found.');
@@ -100,9 +97,7 @@ const get = async ({ appId, id }) => {
 };
 
 const update = async ({ appId, id, ...data }) => {
-  const owner = requireAppId(appId);
-
-  const current = await repository.findById(id, owner);
+  const current = await repository.findById(id, appId);
 
   if (!current) {
     throw new NotFoundError('Room not found.');
@@ -115,13 +110,13 @@ const update = async ({ appId, id, ...data }) => {
     status: data.status ?? current.status,
   });
 
-  const result = await repository.update(id, owner, normalized);
+  const result = await repository.update(id, appId, normalized);
 
   if (result.count !== 1) {
     throw new ConflictError('Room was modified or no longer exists.');
   }
 
-  return repository.findById(id, owner);
+  return repository.findById(id, appId);
 };
 
 export { create, list, get, update };

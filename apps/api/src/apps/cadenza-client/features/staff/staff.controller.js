@@ -4,7 +4,7 @@ export const staffController = {
   async createStaffAccount(req, res, next) {
     try {
       const staff = await staffService.createStaffAccount(
-        req.appContext.id,
+        req.cadenzaApp.id,
         req.body,
       );
 
@@ -20,7 +20,7 @@ export const staffController = {
 
   async getStaff(req, res, next) {
     try {
-      const staff = await staffService.getStaff(req.appContext.id, {
+      const staff = await staffService.getStaff(req.cadenzaApp.id, {
         status: req.query.status,
         staffType: req.query.staffType,
       });
@@ -37,7 +37,7 @@ export const staffController = {
   async getStaffById(req, res, next) {
     try {
       const staff = await staffService.getStaffById(
-        req.appContext.id,
+        req.cadenzaApp.id,
         req.params.id,
       );
 
@@ -53,7 +53,7 @@ export const staffController = {
   async getMyStaffProfile(req, res, next) {
     try {
       const staff = await staffService.getMyStaffProfileByUserId(
-        req.appContext.id,
+        req.cadenzaApp.id,
         req.user.id,
       );
 
@@ -68,7 +68,10 @@ export const staffController = {
 
   async createStaff(req, res, next) {
     try {
-      const staff = await staffService.createStaff(req.appContext.id, req.body);
+      const staff = await staffService.createStaff(
+        req.cadenzaApp.id,
+        req.body,
+      );
 
       return res.status(201).json({
         success: true,
@@ -83,7 +86,7 @@ export const staffController = {
   async updateStaff(req, res, next) {
     try {
       const staff = await staffService.updateStaff(
-        req.appContext.id,
+        req.cadenzaApp.id,
         req.params.id,
         req.body,
       );
@@ -101,7 +104,7 @@ export const staffController = {
   async deactivateStaff(req, res, next) {
     try {
       const staff = await staffService.deactivateStaff(
-        req.appContext.id,
+        req.cadenzaApp.id,
         req.params.id,
       );
 

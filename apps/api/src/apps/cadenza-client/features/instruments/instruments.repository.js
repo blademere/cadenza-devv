@@ -1,6 +1,6 @@
-import { getPrismaClient } from '../../../../infrastructure/database/prisma.js'
+import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
-const prisma = getPrismaClient()
+const prisma = getPrismaClient();
 
 export const instrumentsRepository = {
   findAll(appId, filters = {}) {
@@ -8,14 +8,11 @@ export const instrumentsRepository = {
       where: {
         appId,
         ...(filters.status ? { status: filters.status } : {}),
-        ...(filters.instrumentType
-          ? { instrumentType: filters.instrumentType }
-          : {}),
       },
       orderBy: {
         createdAt: 'desc',
       },
-    })
+    });
   },
 
   findById(appId, id) {
@@ -24,13 +21,13 @@ export const instrumentsRepository = {
         id,
         appId,
       },
-    })
+    });
   },
 
   create(data, client = prisma) {
     return client.cadenzaInstrument.create({
       data,
-    })
+    });
   },
 
   async update(appId, id, data, client = prisma) {
@@ -40,10 +37,10 @@ export const instrumentsRepository = {
         appId,
       },
       data,
-    })
+    });
 
     if (!result.count) {
-      return null
+      return null;
     }
 
     return client.cadenzaInstrument.findFirst({
@@ -51,6 +48,6 @@ export const instrumentsRepository = {
         id,
         appId,
       },
-    })
+    });
   },
-}
+};

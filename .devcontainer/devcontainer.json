@@ -1,11 +1,13 @@
 {
-  "name": "Express App Development",
+  "name": "Cadenza Development",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspace",
+
   "remoteEnv": {
     "PATH": "/workspace/node_modules/.bin:${containerEnv:PATH}"
   },
+
   "customizations": {
     "vscode": {
       "extensions": [
@@ -27,16 +29,23 @@
         "rodrigovallades.es7-react-js-snippets",
         "usernamehw.errorlens"
       ],
+
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
         "prettier.tabWidth": 2,
         "prettier.semi": false,
         "prettier.singleQuote": true,
         "prettier.trailingComma": "es5",
-        "eslint.validate": ["javascript", "javascriptreact", "json"],
+        "eslint.validate": [
+          "javascript",
+          "javascriptreact",
+          "json"
+        ],
         "files.watcherExclude": {
           "**/node_modules/**": true,
           "**/.git/**": true
@@ -44,9 +53,26 @@
       }
     }
   },
-  "forwardPorts": [3000, 3001, 5173, 5432, 6379, 8080, 9090],
+
+  "forwardPorts": [
+    3000,
+    3001,
+    5173,
+    5432,
+    6379,
+    8080
+  ],
+
   "portsAttributes": {
-    "5173": { "label": "Web Vite", "onAutoForward": "notify" }
+    "3000": {
+      "label": "Cadenza API",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Cadenza Client",
+      "onAutoForward": "notify"
+    }
   },
+
   "postCreateCommand": "npm ci --include=dev && npm --workspace @express-app/api run prisma:generate"
 }

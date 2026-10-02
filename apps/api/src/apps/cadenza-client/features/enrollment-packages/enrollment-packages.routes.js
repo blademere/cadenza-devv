@@ -1,39 +1,42 @@
-import { Router } from 'express'
+import { Router } from 'express';
 
-import authorize from '../../../../platform/authorization/authorization.middleware.js'
+import {
+  requireAdmin,
+  requireAdminOrFrontDesk,
+} from '../auth/authorization.js';
 
-import { enrollmentPackagesController } from './enrollment-packages.controller.js'
+import { enrollmentPackagesController } from './enrollment-packages.controller.js';
 
-const router = Router()
+const router = Router();
 
 router.get(
   '/',
-  authorize('cadenza_lesson_packages:read'),
+  requireAdminOrFrontDesk,
   enrollmentPackagesController.getEnrollmentPackages,
-)
+);
 
 router.get(
   '/:id',
-  authorize('cadenza_lesson_packages:read'),
+  requireAdminOrFrontDesk,
   enrollmentPackagesController.getEnrollmentPackageById,
-)
+);
 
 router.post(
   '/',
-  authorize('cadenza_lesson_packages:create'),
+  requireAdmin,
   enrollmentPackagesController.createEnrollmentPackage,
-)
+);
 
 router.patch(
   '/:id',
-  authorize('cadenza_lesson_packages:update'),
+  requireAdmin,
   enrollmentPackagesController.updateEnrollmentPackage,
-)
+);
 
 router.patch(
   '/:id/deactivate',
-  authorize('cadenza_lesson_packages:update'),
+  requireAdmin,
   enrollmentPackagesController.deactivateEnrollmentPackage,
-)
+);
 
-export default router
+export default router;

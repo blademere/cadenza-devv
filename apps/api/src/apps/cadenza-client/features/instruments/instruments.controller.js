@@ -4,10 +4,9 @@ export const instrumentsController = {
   async getInstruments(req, res, next) {
     try {
       const instruments = await instrumentsService.getInstruments(
-        req.appContext.id,
+        req.cadenzaApp.id,
         {
           status: req.query.status,
-          instrumentType: req.query.instrumentType,
         },
       );
 
@@ -23,7 +22,7 @@ export const instrumentsController = {
   async getInstrumentById(req, res, next) {
     try {
       const instrument = await instrumentsService.getInstrumentById(
-        req.appContext.id,
+        req.cadenzaApp.id,
         req.params.id,
       );
 
@@ -39,7 +38,7 @@ export const instrumentsController = {
   async createInstrument(req, res, next) {
     try {
       const instrument = await instrumentsService.createInstrument(
-        req.appContext.id,
+        req.cadenzaApp.id,
         req.body,
       );
 
@@ -56,7 +55,7 @@ export const instrumentsController = {
   async updateInstrument(req, res, next) {
     try {
       const instrument = await instrumentsService.updateInstrument(
-        req.appContext.id,
+        req.cadenzaApp.id,
         req.params.id,
         req.body,
       );
@@ -74,7 +73,7 @@ export const instrumentsController = {
   async deactivateInstrument(req, res, next) {
     try {
       const instrument = await instrumentsService.deactivateInstrument(
-        req.appContext.id,
+        req.cadenzaApp.id,
         req.params.id,
       );
 

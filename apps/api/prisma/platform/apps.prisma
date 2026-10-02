@@ -21,6 +21,8 @@ model App {
   cadenzaInstructors            CadenzaInstructor[]
   cadenzaInstructorAvailability CadenzaInstructorAvailability[]
   cadenzaInstructorBlocks       CadenzaInstructorBlock[]
+  cadenzaInstructorCourses      CadenzaInstructorCourse[]
+  cadenzaAuditLogs              CadenzaAuditLog[]
   cadenzaInstruments            CadenzaInstrument[]
   cadenzaRooms                  CadenzaRoom[]
   cadenzaLessonPackages         CadenzaLessonPackage[]
@@ -31,4 +33,9 @@ model App {
   createdAt                     DateTime                        @default(now())
   updatedAt                     DateTime                        @updatedAt
   cadenzaCourses                CadenzaCourse[]
+  cadenzaCoursePackages         CadenzaCoursePackage[]
+  roomBookings                  CadenzaRoomBooking[]
+  cadenzaRentalPackages         CadenzaRentalPackage[]
+  cadenzaRentalPackageItems     CadenzaRentalPackageItem[]
+  cadenzaRentalItems            CadenzaRentalItem[]
 }

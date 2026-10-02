@@ -1,15 +1,15 @@
 model RequirementDefinition {
-  id                        String                     @id @default(uuid())
-  appId                     String
-  key                       String
-  name                      String
-  description               String?
-  isActive                  Boolean                    @default(true)
-  metadata                  Json?
-  app                       App                        @relation(fields: [appId], references: [id], onDelete: Restrict)
-  caseRequirements          CaseRequirement[]
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
+  id               String            @id @default(uuid())
+  appId            String
+  key              String
+  name             String
+  description      String?
+  isActive         Boolean           @default(true)
+  metadata         Json?
+  app              App               @relation(fields: [appId], references: [id], onDelete: Restrict)
+  caseRequirements CaseRequirement[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@unique([appId, key])
   @@unique([id, appId])
@@ -18,19 +18,19 @@ model RequirementDefinition {
 }
 
 model CaseRequirement {
-  id                   String                         @id @default(uuid())
-  caseId               String
-  requirementId        String
-  status               String                         @default("PENDING")
-  dueAt                DateTime?
-  submittedAt          DateTime?
-  verifiedAt           DateTime?
-  notes                String?
-  metadata             Json?
-  caseRecord           CaseRecord                     @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  requirement          RequirementDefinition          @relation(fields: [requirementId], references: [id], onDelete: Restrict)
-  createdAt            DateTime                       @default(now())
-  updatedAt            DateTime                       @updatedAt
+  id            String                @id @default(uuid())
+  caseId        String
+  requirementId String
+  status        String                @default("PENDING")
+  dueAt         DateTime?
+  submittedAt   DateTime?
+  verifiedAt    DateTime?
+  notes         String?
+  metadata      Json?
+  caseRecord    CaseRecord            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  requirement   RequirementDefinition @relation(fields: [requirementId], references: [id], onDelete: Restrict)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
   @@unique([caseId, requirementId])
   @@index([caseId, status])

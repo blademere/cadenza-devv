@@ -1,31 +1,31 @@
 model User {
-  id                                   Int                                   @id @default(autoincrement())
-  email                                String                                @unique
-  passwordHash                         String?
-  isActive                             Boolean                               @default(true)
-  authVersion                          Int                                   @default(0)
-  emailVerifiedAt                      DateTime?
-  oauthAccounts                        OAuthAccount[]
-  refreshTokens                        RefreshToken[]
-  passwordResetTokens                  PasswordResetToken[]
-  emailVerificationTokens              EmailVerificationToken[]
-  appMemberships                       AppMembership[]
-  workflowInstancesStarted             WorkflowInstance[]                    @relation("WorkflowInstanceStartedBy")
-  workflowHistoryActions               WorkflowHistory[]                     @relation("WorkflowHistoryActor")
-  auditLogs                            AuditLog[]                            @relation("AuditLogActor")
-  formSubmissions                      FormSubmission[]                      @relation("FormSubmissionSubmittedBy")
-  approvalRequests                     ApprovalRequest[]                     @relation("ApprovalRequestAssignee")
-  approvalActions                      ApprovalRequest[]                     @relation("ApprovalRequestActor")
-  documents                            Document[]
-  notifications                        Notification[]
-  notificationPreferences              NotificationPreference[]
-  person                               Person?
-  casesCreated                         CaseRecord[]                          @relation("CaseCreatedBy")
-  caseStatusChanges                    CaseStatusHistory[]                   @relation("CaseStatusChangedBy")
-  assignedTasks                        Task[]                                @relation("TaskAssignee")
-  tasksCreated                         Task[]                                @relation("TaskCreatedBy")
-  createdAt                            DateTime                              @default(now())
-  updatedAt                            DateTime                              @updatedAt
+  id                       Int                      @id @default(autoincrement())
+  email                    String                   @unique
+  passwordHash             String?
+  isActive                 Boolean                  @default(true)
+  authVersion              Int                      @default(0)
+  emailVerifiedAt          DateTime?
+  oauthAccounts            OAuthAccount[]
+  refreshTokens            RefreshToken[]
+  passwordResetTokens      PasswordResetToken[]
+  emailVerificationTokens  EmailVerificationToken[]
+  appMemberships           AppMembership[]
+  workflowInstancesStarted WorkflowInstance[]       @relation("WorkflowInstanceStartedBy")
+  workflowHistoryActions   WorkflowHistory[]        @relation("WorkflowHistoryActor")
+  auditLogs                AuditLog[]               @relation("AuditLogActor")
+  formSubmissions          FormSubmission[]         @relation("FormSubmissionSubmittedBy")
+  approvalRequests         ApprovalRequest[]        @relation("ApprovalRequestAssignee")
+  approvalActions          ApprovalRequest[]        @relation("ApprovalRequestActor")
+  documents                Document[]
+  notifications            Notification[]
+  notificationPreferences  NotificationPreference[]
+  person                   Person?
+  casesCreated             CaseRecord[]             @relation("CaseCreatedBy")
+  caseStatusChanges        CaseStatusHistory[]      @relation("CaseStatusChangedBy")
+  assignedTasks            Task[]                   @relation("TaskAssignee")
+  tasksCreated             Task[]                   @relation("TaskCreatedBy")
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
 }
 
 model OAuthAccount {

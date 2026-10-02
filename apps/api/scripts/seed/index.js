@@ -1,7 +1,11 @@
 import { seedPlatform } from './platform.js';
 import { seedCadenzaClient } from './apps/cadenza-client/index.js';
 
-const PROFILES = new Set(['default', 'development', 'fixtures']);
+const PROFILES = new Set([
+  'default',
+  'development',
+  'fixtures',
+]);
 
 const APPS = new Set([
   'platform',
@@ -9,16 +13,24 @@ const APPS = new Set([
   'all',
 ]);
 
-async function runSeed(prisma, profile = 'default', app = 'platform') {
+async function runSeed(
+  prisma,
+  profile = 'default',
+  app = 'platform',
+) {
   if (!PROFILES.has(profile)) {
     throw new Error(
-      `Unknown seed profile '${profile}'. Expected one of: ${[...PROFILES].join(', ')}.`,
+      `Unknown seed profile '${profile}'. Expected one of: ${[
+        ...PROFILES,
+      ].join(', ')}.`,
     );
   }
 
   if (!APPS.has(app)) {
     throw new Error(
-      `Unknown seed app '${app}'. Expected one of: ${[...APPS].join(', ')}.`,
+      `Unknown seed app '${app}'. Expected one of: ${[
+        ...APPS,
+      ].join(', ')}.`,
     );
   }
 
@@ -31,7 +43,10 @@ async function runSeed(prisma, profile = 'default', app = 'platform') {
   if (app === 'platform' || app === 'all') {
     const platform = await seedPlatform(prisma);
 
-    Object.assign(context.applications, platform.applications);
+    Object.assign(
+      context.applications,
+      platform.applications,
+    );
 
     for (const [key, permission] of platform.permissionRecords) {
       context.permissionRecords.set(key, permission);
@@ -43,34 +58,42 @@ async function runSeed(prisma, profile = 'default', app = 'platform') {
       applications: ['cadenza-client'],
     });
 
-    Object.assign(context.applications, platform.applications);
+    Object.assign(
+      context.applications,
+      platform.applications,
+    );
 
     for (const [key, permission] of platform.permissionRecords) {
       context.permissionRecords.set(key, permission);
     }
   }
 
-  if (app === 'cadenza-client' || app === 'all') {
+  if (
+    app === 'cadenza-client' ||
+    app === 'all'
+  ) {
     if (!context.applications['cadenza-client']) {
       const platform = await seedPlatform(prisma, {
         applications: ['cadenza-client'],
       });
-      Object.assign(context.applications, platform.applications);
+
+      Object.assign(
+        context.applications,
+        platform.applications,
+      );
+
       for (const [key, permission] of platform.permissionRecords) {
         context.permissionRecords.set(key, permission);
       }
     }
-    const cadenzaClient = await seedCadenzaClient(prisma, {
-      profile,
-    });
 
-    context.applications['cadenza-client'] = cadenzaClient.application;
+    const cadenzaClient =
+      await seedCadenzaClient(prisma, {
+        profile,
+      });
 
-    Object.assign(context.roles, cadenzaClient.roles);
-
-    for (const [key, permission] of cadenzaClient.permissionRecords) {
-      context.permissionRecords.set(key, permission);
-    }
+    context.applications['cadenza-client'] =
+      cadenzaClient.application;
   }
 
   console.log(
@@ -80,4 +103,8 @@ async function runSeed(prisma, profile = 'default', app = 'platform') {
   return context;
 }
 
-export { PROFILES, APPS, runSeed };
+export {
+  PROFILES,
+  APPS,
+  runSeed,
+};

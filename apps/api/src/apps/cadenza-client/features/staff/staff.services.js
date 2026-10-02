@@ -39,33 +39,13 @@ export const staffService = {
     }
 
     if (await prisma.user.findUnique({ where: { email } })) {
-      throw new ConflictError(
-        'An account with this email already exists.',
-      );
+      throw new ConflictError('An account with this email already exists.');
     }
-
-    const roleName =
-      staffType === 'ADMIN'
-        ? 'cadenza_client_admin'
-        : 'cadenza_client_user';
 
     const passwordHash = await bcrypt.hash(password, 12);
 
     try {
       return await prisma.$transaction(async (tx) => {
-        const role = await tx.role.findFirst({
-          where: {
-            appId,
-            name: roleName,
-          },
-        });
-
-        if (!role) {
-          throw new NotFoundError(
-            `Cadenza role '${roleName}' not found.`,
-          );
-        }
-
         const user = await tx.user.create({
           data: {
             email,
@@ -84,20 +64,6 @@ export const staffService = {
           },
         });
 
-        const membership = await tx.appMembership.create({
-          data: {
-            appId,
-            userId: user.id,
-          },
-        });
-
-        await tx.appMembershipRole.create({
-          data: {
-            membershipId: membership.id,
-            roleId: role.id,
-          },
-        });
-
         return staffRepository.create(
           {
             appId,
@@ -111,9 +77,7 @@ export const staffService = {
       });
     } catch (error) {
       if (error?.code === 'P2002') {
-        throw new ConflictError(
-          'An account or staff record already exists.',
-        );
+        throw new ConflictError('An account or staff record already exists.');
       }
 
       throw error;
@@ -135,10 +99,7 @@ export const staffService = {
   },
 
   async getMyStaffProfile(appId, personId) {
-    const staff = await staffRepository.findByPersonId(
-      appId,
-      personId,
-    );
+    const staff = await staffRepository.findByPersonId(appId, personId);
 
     if (!staff) {
       throw new NotFoundError('Staff member not found.');
@@ -148,10 +109,7 @@ export const staffService = {
   },
 
   async getMyStaffProfileByUserId(appId, userId) {
-    const staff = await staffRepository.findByUserId(
-      appId,
-      userId,
-    );
+    const staff = await staffRepository.findByUserId(appId, userId);
 
     if (!staff) {
       throw new NotFoundError('Staff member not found.');
@@ -175,10 +133,7 @@ export const staffService = {
       );
     }
 
-    if (
-      data.status &&
-      !STAFF_STATUS.includes(data.status)
-    ) {
+    if (data.status && !STAFF_STATUS.includes(data.status)) {
       throw new BadRequestError('Invalid staff status.');
     }
 
@@ -188,9 +143,7 @@ export const staffService = {
     );
 
     if (existingStaff) {
-      throw new ConflictError(
-        'This person is already registered as staff.',
-      );
+      throw new ConflictError('This person is already registered as staff.');
     }
 
     return staffRepository.create({
@@ -209,19 +162,13 @@ export const staffService = {
       throw new NotFoundError('Staff member not found.');
     }
 
-    if (
-      data.staffType &&
-      !STAFF_TYPES.includes(data.staffType)
-    ) {
+    if (data.staffType && !STAFF_TYPES.includes(data.staffType)) {
       throw new BadRequestError(
         'Invalid staff type. Allowed values are ADMIN or FRONT_DESK.',
       );
     }
 
-    if (
-      data.status &&
-      !STAFF_STATUS.includes(data.status)
-    ) {
+    if (data.status && !STAFF_STATUS.includes(data.status)) {
       throw new BadRequestError('Invalid staff status.');
     }
 
@@ -239,11 +186,7 @@ export const staffService = {
       updateData.metadata = data.metadata;
     }
 
-    return staffRepository.update(
-      appId,
-      staffId,
-      updateData,
-    );
+    return staffRepository.update(appId, staffId, updateData);
   },
 
   async deactivateStaff(appId, staffId) {
