@@ -246,7 +246,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
-          tags: express-app:ci
+          tags: cadenza-app:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -328,10 +328,10 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v7
-      - run: docker build -t express-app:staging .
+      - run: docker build -t cadenza-app:staging .
       - name: Start staging container
         run: |
-          docker run -d --name express-app-staging --network host \
+          docker run -d --name cadenza-app-staging --network host \
             -e NODE_ENV=production -e PORT=3000 \
             -e DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/express_app_staging \
             -e REDIS_URL=redis://127.0.0.1:6379 \
@@ -340,18 +340,18 @@ jobs:
             -e JWT_REFRESH_SECRET=staging-refresh-secret-012345678901234567890123 \
             -e METRICS_TOKEN=staging-metrics-token-012345678901234567890123 \
             -e COOKIE_SECURE=true -e COOKIE_SAME_SITE=lax \
-            -e COOKIE_REFRESH_MAX_AGE_MS=604800000 express-app:staging
+            -e COOKIE_REFRESH_MAX_AGE_MS=604800000 cadenza-app:staging
       - name: Wait for liveness
         run: |
           for attempt in {1..30}; do
             curl --fail --silent http://127.0.0.1:3000/health/live && exit 0 || sleep 2
           done
-          docker logs express-app-staging
+          docker logs cadenza-app-staging
           exit 1
       - name: Verify metrics authentication
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/metrics)" = "401"
       - name: Cleanup staging container
         if: '${{ always() }}'
         run: |
-          docker logs express-app-staging || true
-          docker rm -f express-app-staging || true
+          docker logs cadenza-app-staging || true
+          docker rm -f cadenza-app-staging || true

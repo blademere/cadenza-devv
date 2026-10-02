@@ -30,7 +30,7 @@ const registerSwagger = (app) => {
     '/docs',
     swaggerUi.serve,
     swaggerUi.setup(null, {
-      customSiteTitle: 'Express App API Documentation',
+      customSiteTitle: 'Cadenza App API Documentation',
       swaggerOptions: {
         url: '/docs/openapi.yaml',
         persistAuthorization: true,

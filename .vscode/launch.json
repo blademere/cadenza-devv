@@ -21,7 +21,7 @@
       "name": "OBO Web: React",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm --workspace @express-app/obo-web run dev",
+      "command": "npm --workspace @cadenza-app/obo-web run dev",
       "cwd": "${workspaceFolder}",
       "env": { "BROWSER": "none" }
     },
@@ -29,7 +29,7 @@
       "name": "Cadenza Web: React",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm --workspace @express-app/cadenza-web run dev",
+      "command": "npm --workspace @cadenza-app/cadenza-web run dev",
       "cwd": "${workspaceFolder}",
       "env": { "BROWSER": "none" }
     }

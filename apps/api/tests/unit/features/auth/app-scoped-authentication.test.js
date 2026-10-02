@@ -90,7 +90,7 @@ describe('app-scoped authentication', () => {
     const token = jwt.default.sign(
       { type: 'access', authVersion: 7, appId: 'app-obo', exp: Math.floor(Date.now() / 1000) - 60 },
       env.JWT_ACCESS_SECRET,
-      { subject: '42', issuer: 'express-app', audience: 'api' },
+      { subject: '42', issuer: 'cadenza-app', audience: 'api' },
     )
     const req = { headers: { authorization: `Bearer ${token}` } }
     const next = vi.fn()

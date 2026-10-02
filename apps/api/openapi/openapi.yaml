@@ -1,12 +1,12 @@
 openapi: 3.0.3
 
 info:
-  title: Express App API
+  title: Cadenza App API
   version: 1.0.0
-  description: Backend API documentation for the Express application.
+  description: Backend API documentation for the Cadenza application.
   license:
     name: Proprietary
-    url: https://github.com/corndoggg/Express-App/blob/development/LICENSE
+    url: https://github.com/blademere/cadenza-music-center/blob/development/LICENSE
 
 servers:
   - url: /api/v1

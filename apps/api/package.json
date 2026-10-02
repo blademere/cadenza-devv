@@ -1,5 +1,5 @@
 {
-  "name": "@express-app/api",
+  "name": "@cadenza-app/api",
   "version": "1.0.0",
   "private": true,
   "description": "Express API application",

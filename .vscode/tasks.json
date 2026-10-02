@@ -4,7 +4,7 @@
     {
       "label": "dev:api",
       "type": "shell",
-      "command": "npm --workspace @express-app/api run dev",
+      "command": "npm --workspace @cadenza-app/api run dev",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": {
@@ -26,7 +26,7 @@
     {
       "label": "dev:obo-web",
       "type": "shell",
-      "command": "npm --workspace @express-app/obo-web run dev",
+      "command": "npm --workspace @cadenza-app/obo-web run dev",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": {
@@ -48,7 +48,7 @@
     {
       "label": "dev:cadenza-web",
       "type": "shell",
-      "command": "npm --workspace @express-app/cadenza-web run dev",
+      "command": "npm --workspace @cadenza-app/cadenza-web run dev",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": {

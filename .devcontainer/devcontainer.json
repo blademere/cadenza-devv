@@ -74,5 +74,5 @@
     }
   },
 
-  "postCreateCommand": "npm ci --include=dev && npm --workspace @express-app/api run prisma:generate"
+  "postCreateCommand": "npm ci --include=dev && npm --workspace @cadenza-app/api run prisma:generate"
 }

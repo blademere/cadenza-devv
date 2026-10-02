@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/index.js';
 
-const JWT_ISSUER = 'express-app';
+const JWT_ISSUER = 'cadenza-app';
 const JWT_AUDIENCE = 'api';
 const MAX_APP_ID_LENGTH = 128;
 

@@ -48,7 +48,7 @@ describe('JWT application scope', () => {
     const payload = jwt.decode(token)
 
     expect(payload).toMatchObject({
-      iss: 'express-app',
+      iss: 'cadenza-app',
       aud: 'api',
     })
     expect(env.JWT_ACCESS_SECRET).toBeTruthy()

@@ -1,4 +1,4 @@
-# Express App
+# Cadenza App
 
 A CommonJS Express 5 API foundation using PostgreSQL/Prisma, Redis, authentication, authorization, shared business capabilities, and reusable platform services.
 
@@ -99,7 +99,7 @@ apps/
 │  │  └─ routes/               # API composition
 │  ├─ tests/                   # Unit and integration tests
 │  ├─ openapi/                 # API-owned public contract
-│  └─ package.json             # @express-app/api workspace
+│  └─ package.json             # @cadenza-app/api workspace
 ├─ web/                        # React/Vite frontend application
 └─ obo-web/                    # React/Vite/Mantine OBO application
 
@@ -142,7 +142,7 @@ npm run db:setup
 npm run dev
 ```
 
-`npm run dev` starts the API and Vite web application. To start an individual workspace, use the workspace-owned command, for example `npm --workspace @express-app/api run dev` or `npm --workspace @express-app/obo-web run dev`. If you start the web application separately, the API must already be running on port `3000` (or the URL configured by `VITE_API_PROXY_TARGET`).
+`npm run dev` starts the API and Vite web application. To start an individual workspace, use the workspace-owned command, for example `npm --workspace @cadenza-app/api run dev` or `npm --workspace @cadenza-app/obo-web run dev`. If you start the web application separately, the API must already be running on port `3000` (or the URL configured by `VITE_API_PROXY_TARGET`).
 
 The browser-facing API base remains `/api/v1` for same-origin development so authentication cookies remain associated with the browser's web origin while Vite proxies API requests to Express.
 
@@ -158,8 +158,8 @@ npm run validate:migrations
 Tests:
 
 ```bash
-npm --workspace @express-app/api run test
-npm --workspace @express-app/obo-web run test
+npm --workspace @cadenza-app/api run test
+npm --workspace @cadenza-app/obo-web run test
 ```
 
 Never commit production secrets. Keep `.env.example` as the configuration template.

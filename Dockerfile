@@ -21,7 +21,7 @@ ENV DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
 COPY apps/api ./apps/api
 COPY eslint.config.mjs ./
 
-RUN npm --workspace @express-app/api run prisma:generate
+RUN npm --workspace @cadenza-app/api run prisma:generate
 RUN npm prune --omit=dev
 
 FROM node:22-bookworm-slim AS runtime
