@@ -9,15 +9,15 @@ import { AppSidebar } from '@/pages/admin/components/app-sidebar'
 import { SiteHeader } from '@/pages/admin/components/site-header'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+} from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
 import {
   Table,
   TableBody,
@@ -25,7 +25,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from '@/components/ui/Table'
 
 import {
   getInstruments,

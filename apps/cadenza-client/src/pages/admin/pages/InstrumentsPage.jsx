@@ -12,7 +12,7 @@ import { AppSidebar } from '../components/app-sidebar'
 import { SiteHeader } from '../components/site-header'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 import {
   Table,
   TableBody,
@@ -20,7 +20,7 @@ import {
   TableHead,
   TableCell,
   TableRow,
-} from '@/components/ui/table'
+} from '@/components/ui/Table'
 
 import {
   Card,
@@ -28,9 +28,9 @@ import {
   CardTitle,
   CardHeader,
   CardDescription,
-} from '@/components/ui/card'
+} from '@/components/ui/Card'
 
-import { Input } from '@/components/ui/input'
+import { Input } from '@/components/ui/Input'
 
 import {
   Select,
@@ -40,7 +40,7 @@ import {
   SelectItem,
 } from '@/components/ui/select'
 
-import { Label } from '@/components/ui/label'
+import { Label } from '@/components/ui/Label'
 
 import {
   Dialog,
@@ -49,7 +49,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/components/ui/Dialog'
 
 import {
   createInstrument,

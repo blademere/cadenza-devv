@@ -6,15 +6,15 @@ import { MoreHorizontalIcon, PlusIcon, RefreshCwIcon } from 'lucide-react';
 import { AppSidebar } from '../components/app-sidebar';
 import { SiteHeader } from '../components/site-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import {
