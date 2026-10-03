@@ -37,6 +37,12 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/apps/api ./apps/api
 COPY --from=build --chown=node:node /app/package.json ./package.json
 
+# Course materials are written below process.cwd()/storage at runtime. The
+# container runs as the unprivileged node user, so create the directory and
+# grant that user ownership before dropping privileges.
+RUN mkdir -p /app/storage \
+  && chown node:node /app/storage
+
 USER node
 EXPOSE 3000
 
