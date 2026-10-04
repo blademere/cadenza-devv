@@ -1,0 +1,67 @@
+User:
+  type: object
+  properties:
+    id:
+      type: integer
+    email:
+      type: string
+      format: email
+    isActive:
+      type: boolean
+    roles:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+          description:
+            type: string
+            nullable: true
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+UserResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+    message:
+      type: string
+    data:
+      $ref: '#/User'
+
+UserListResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        $ref: '#/User'
+    pagination:
+      type: object
+      additionalProperties: true
+
+CreateUserRequest:
+  type: object
+  required: [email, password]
+  additionalProperties: false
+  properties:
+    email:
+      type: string
+      format: email
+    password:
+      type: string
+      format: password
+      minLength: 8
+      maxLength: 72

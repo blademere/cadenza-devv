@@ -1,0 +1,49 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API: Express",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/api/src/server.js",
+      "cwd": "${workspaceFolder}/apps/api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--inspect=0.0.0.0:9229"],
+      "console": "integratedTerminal",
+      "restart": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
+      "sourceMaps": true
+    },
+    {
+      "name": "OBO Web: React",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm --workspace @cadenza-app/obo-web run dev",
+      "cwd": "${workspaceFolder}",
+      "env": { "BROWSER": "none" }
+    },
+    {
+      "name": "Cadenza Web: React",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm --workspace @cadenza-app/cadenza-web run dev",
+      "cwd": "${workspaceFolder}",
+      "env": { "BROWSER": "none" }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack: API + OBO Web",
+      "configurations": ["API: Express", "OBO Web: React"],
+      "stopAll": true
+    },
+    {
+      "name": "Full Stack: API + Cadenza Web",
+      "configurations": ["API: Express", "Cadenza Web: React"],
+      "stopAll": true
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main, development]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: dependency-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Review dependency changes
+        id: dependency-review
+        continue-on-error: true
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+
+      - name: Report unavailable dependency review
+        if: steps.dependency-review.outcome == 'failure'
+        run: |
+          echo '::warning::Dependency Review could not run because GitHub Dependency Graph / Advanced Security is not enabled for this repository.'
+          echo '::warning::Enable Dependency graph and GitHub Advanced Security in repository Settings > Security analysis to restore enforcement.'

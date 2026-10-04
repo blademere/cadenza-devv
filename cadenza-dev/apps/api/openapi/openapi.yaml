@@ -1,0 +1,71 @@
+openapi: 3.0.3
+
+info:
+  title: Cadenza App API
+  version: 1.0.0
+  description: Backend API documentation for the Cadenza application.
+  license:
+    name: Proprietary
+    url: https://github.com/blademere/cadenza-music-center/blob/development/LICENSE
+
+servers:
+  - url: /api/v1
+    description: API server
+
+security:
+  - bearerAuth: []
+
+paths:
+  $ref: './paths.yaml'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './components/security.yaml'
+  parameters:
+    IdempotencyKey:
+      $ref: './components/parameters.yaml#/IdempotencyKey'
+    OAuthCode:
+      $ref: './components/parameters.yaml#/OAuthCode'
+    OAuthState:
+      $ref: './components/parameters.yaml#/OAuthState'
+    OAuthError:
+      $ref: './components/parameters.yaml#/OAuthError'
+  responses:
+    BadRequest:
+      $ref: './components/responses.yaml#/BadRequest'
+    Unauthorized:
+      $ref: './components/responses.yaml#/Unauthorized'
+    Forbidden:
+      $ref: './components/responses.yaml#/Forbidden'
+    NotFound:
+      $ref: './components/responses.yaml#/NotFound'
+    Conflict:
+      $ref: './components/responses.yaml#/Conflict'
+    ValidationError:
+      $ref: './components/responses.yaml#/ValidationError'
+    RateLimited:
+      $ref: './components/responses.yaml#/RateLimited'
+  schemas:
+    ApiResponse:
+      $ref: './components/schemas/common.yaml#/ApiResponse'
+    MessageResponse:
+      $ref: './components/schemas/common.yaml#/MessageResponse'
+    RegisterRequest:
+      $ref: './components/schemas/auth.yaml#/RegisterRequest'
+    LoginRequest:
+      $ref: './components/schemas/auth.yaml#/LoginRequest'
+    LoginResponse:
+      $ref: './components/schemas/auth.yaml#/LoginResponse'
+    AccessTokenResponse:
+      $ref: './components/schemas/auth.yaml#/AccessTokenResponse'
+    OAuthAccountsResponse:
+      $ref: './components/schemas/auth.yaml#/OAuthAccountsResponse'
+    User:
+      $ref: './components/schemas/users.yaml#/User'
+    UserResponse:
+      $ref: './components/schemas/users.yaml#/UserResponse'
+    UserListResponse:
+      $ref: './components/schemas/users.yaml#/UserListResponse'
+    CreateUserRequest:
+      $ref: './components/schemas/users.yaml#/CreateUserRequest'

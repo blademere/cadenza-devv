@@ -1,0 +1,70 @@
+model ApprovalPolicy {
+  id          String             @id @default(uuid())
+  key         String             @unique
+  name        String
+  description String?
+  entityType  String
+  priority    Int                @default(100)
+  active      Boolean            @default(true)
+  conditions  Json
+  steps       ApprovalStep[]
+  instances   ApprovalInstance[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([entityType, active, priority])
+}
+
+model ApprovalStep {
+  id            String            @id @default(uuid())
+  policyId      String
+  stepOrder     Int
+  name          String
+  approverType  String
+  approverValue String?
+  requiredCount Int               @default(1)
+  policy        ApprovalPolicy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  requests      ApprovalRequest[]
+
+  @@unique([policyId, stepOrder])
+}
+
+model ApprovalInstance {
+  id               String            @id @default(uuid())
+  policyId         String
+  appId            String?
+  subjectType      String
+  subjectId        String
+  status           String            @default("PENDING")
+  currentStepOrder Int               @default(1)
+  completedAt      DateTime?
+  policy           ApprovalPolicy    @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  app              App?              @relation(fields: [appId], references: [id], onDelete: SetNull)
+  requests         ApprovalRequest[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([subjectType, subjectId, status])
+  @@index([policyId, status])
+  @@index([appId, status])
+}
+
+model ApprovalRequest {
+  id             String           @id @default(uuid())
+  instanceId     String
+  stepId         String
+  assigneeUserId Int?
+  status         String           @default("PENDING")
+  comment        String?
+  actedByUserId  Int?
+  actedAt        DateTime?
+  instance       ApprovalInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  step           ApprovalStep     @relation(fields: [stepId], references: [id], onDelete: Restrict)
+  assignee       User?            @relation("ApprovalRequestAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  actedBy        User?            @relation("ApprovalRequestActor", fields: [actedByUserId], references: [id], onDelete: SetNull)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([instanceId, status])
+  @@index([assigneeUserId, status])
+}

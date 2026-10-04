@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build --workspace @cadenza-app/cadenza-client",
+  "outputDirectory": "dist/apps/cadenza-client",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+  

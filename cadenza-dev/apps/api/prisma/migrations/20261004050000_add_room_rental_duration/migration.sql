@@ -1,0 +1,2 @@
+ALTER TABLE "CadenzaRoom"
+ADD COLUMN "rentalDurationHours" INTEGER NOT NULL DEFAULT 2;

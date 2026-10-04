@@ -1,0 +1,5 @@
+{
+  "prisma.pinToPrisma6": false,
+  "postman.settings.dotenv-detection-notification-visibility": false,
+  "js/ts.autoClosingTags.enabled": true
+}

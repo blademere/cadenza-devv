@@ -1,0 +1,44 @@
+model App {
+  id                            String                          @id @default(uuid())
+  key                           String                          @unique
+  name                          String
+  description                   String?
+  isActive                      Boolean                         @default(true)
+  memberships                   AppMembership[]
+  roles                         Role[]
+  approvalInstances             ApprovalInstance[]
+  auditLogs                     AuditLog[]
+  cases                         CaseRecord[]
+  tasks                         Task[]
+  appointments                  Appointment[]
+  appointmentTypes              AppointmentType[]
+  requirementDefinitions        RequirementDefinition[]
+  forms                         Form[]
+  documents                     Document[]
+  resources                     Resource[]
+  cadenzaCustomers              CadenzaCustomer[]
+  cadenzaStaff                  CadenzaStaff[]
+  cadenzaInstructors            CadenzaInstructor[]
+  cadenzaInstructorAvailability CadenzaInstructorAvailability[]
+  cadenzaInstructorBlocks       CadenzaInstructorBlock[]
+  cadenzaInstructorCourses      CadenzaInstructorCourse[]
+  cadenzaInstrumentTypes        CadenzaInstrumentType[]
+  cadenzaItemCategories         CadenzaItemCategory[]
+  cadenzaAuditLogs              CadenzaAuditLog[]
+  cadenzaInstruments            CadenzaInstrument[]
+  cadenzaRooms                  CadenzaRoom[]
+  cadenzaRoomCourses            CadenzaRoomCourse[]
+  cadenzaLessonPackages         CadenzaLessonPackage[]
+  cadenzaEnrollments            CadenzaEnrollment[]
+  cadenzaLessonSessions         CadenzaLessonSession[]
+  cadenzaRescheduleRequests     CadenzaRescheduleRequest[]
+  cadenzaRentals                CadenzaRental[]
+  createdAt                     DateTime                        @default(now())
+  updatedAt                     DateTime                        @updatedAt
+  cadenzaCourses                CadenzaCourse[]
+  cadenzaCoursePackages         CadenzaCoursePackage[]
+  roomBookings                  CadenzaRoomBooking[]
+  cadenzaRentalPackages         CadenzaRentalPackage[]
+  cadenzaRentalPackageItems     CadenzaRentalPackageItem[]
+  cadenzaRentalItems            CadenzaRentalItem[]
+}

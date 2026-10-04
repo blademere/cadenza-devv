@@ -1,0 +1,11 @@
+model AppMembershipRole {
+  id           String        @id @default(uuid())
+  membershipId String
+  roleId       Int
+  membership   AppMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  role         Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, roleId])
+  @@index([membershipId])
+  @@index([roleId])
+}

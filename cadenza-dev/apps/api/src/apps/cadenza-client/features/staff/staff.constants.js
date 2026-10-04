@@ -1,0 +1,17 @@
+const STAFF_TYPES = {
+  STAFF: 'STAFF',
+  ADMIN: 'ADMIN',
+  FRONT_DESK: 'FRONT_DESK',
+  MANAGER: 'MANAGER',
+};
+
+const STAFF_STATUS = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  SUSPENDED: 'SUSPENDED',
+};
+
+module.exports = {
+  STAFF_TYPES,
+  STAFF_STATUS,
+};

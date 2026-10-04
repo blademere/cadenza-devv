@@ -1,0 +1,78 @@
+{
+  "name": "Cadenza Development",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+
+  "remoteEnv": {
+    "PATH": "/workspace/node_modules/.bin:${containerEnv:PATH}"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "prisma.prisma",
+        "ms-vscode.vscode-typescript-next",
+        "ms-azuretools.vscode-docker",
+        "eamodio.gitlens",
+        "humao.rest-client",
+        "hbenl.vscode-test-explorer",
+        "zhucy.project-tree",
+        "SyedAbdullah.context-merger",
+        "postman.postman-for-vscode",
+        "vitest.explorer",
+        "github.vscode-github-actions",
+        "shd101wyy.markdown-preview-enhanced",
+        "nrwl.angular-console",
+        "rodrigovallades.es7-react-js-snippets",
+        "usernamehw.errorlens"
+      ],
+
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "prettier.tabWidth": 2,
+        "prettier.semi": false,
+        "prettier.singleQuote": true,
+        "prettier.trailingComma": "es5",
+        "eslint.validate": [
+          "javascript",
+          "javascriptreact",
+          "json"
+        ],
+        "files.watcherExclude": {
+          "**/node_modules/**": true,
+          "**/.git/**": true
+        }
+      }
+    }
+  },
+
+  "forwardPorts": [
+    3000,
+    3001,
+    5173,
+    5432,
+    6379,
+    8080
+  ],
+
+  "portsAttributes": {
+    "3000": {
+      "label": "Cadenza API",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Cadenza Client",
+      "onAutoForward": "notify"
+    }
+  },
+
+  "postCreateCommand": "npm ci --include=dev && npm --workspace @cadenza-app/api run prisma:generate"
+}

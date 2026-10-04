@@ -1,0 +1,15 @@
+extends:
+  - recommended
+
+rules:
+  # OAuth browser endpoints intentionally return redirects rather than 2xx responses.
+  operation-2xx-response: warn
+
+  # The existing contract is being migrated to explicit operationIds as part of the
+  # multi-file OpenAPI refactor. Keep these visible as warnings without blocking the
+  # contract while preserving the API definition.
+  operation-operationId: warn
+
+  # Some reusable schemas are retained for upcoming endpoint documentation and may
+  # not yet be referenced by the current contract.
+  no-unused-components: warn

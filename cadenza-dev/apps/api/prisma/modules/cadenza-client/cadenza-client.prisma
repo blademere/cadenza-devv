@@ -1,0 +1,495 @@
+model CadenzaStaff {
+  id        String   @id @default(uuid())
+  appId     String
+  personId  String
+  staffType String   @default("STAFF")
+  status    String   @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  app    App    @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([appId, personId])
+  @@index([appId, status])
+  @@index([appId, staffType, status])
+}
+
+model CadenzaCustomer {
+  id        String   @id @default(uuid())
+  appId     String
+  personId  String
+  status    String   @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  app          App                  @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person       Person               @relation(fields: [personId], references: [id], onDelete: Restrict)
+  rentals      CadenzaRental[]
+  enrollments  CadenzaEnrollment[]
+  roomBookings CadenzaRoomBooking[]
+
+  @@unique([appId, personId])
+  @@index([appId, status])
+}
+
+model CadenzaInstructor {
+  id        String   @id @default(uuid())
+  appId     String
+  personId  String
+  specialty String?
+  status    String   @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  app               App                             @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person            Person                          @relation(fields: [personId], references: [id], onDelete: Restrict)
+    courseMappings    CadenzaInstructorCourse[]
+  availabilityRules CadenzaInstructorAvailability[]
+  blocks            CadenzaInstructorBlock[]
+  sessions          CadenzaLessonSession[]
+
+  @@unique([appId, personId])
+  @@index([appId, status])
+}
+
+model CadenzaInstructorAvailability {
+  id           String   @id @default(uuid())
+  appId        String
+  instructorId String
+  dayOfWeek    Int
+  startMinute  Int
+  endMinute    Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  app        App               @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instructor CadenzaInstructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, instructorId, dayOfWeek, startMinute, endMinute])
+  @@index([appId, instructorId, dayOfWeek])
+}
+
+model CadenzaInstructorBlock {
+  id           String   @id @default(uuid())
+  appId        String
+  instructorId String
+  startsAt     DateTime
+  endsAt       DateTime
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  app        App               @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instructor CadenzaInstructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@index([appId, instructorId, startsAt, endsAt])
+}
+
+model CadenzaRoom {
+  id         String   @id @default(uuid())
+  appId      String
+  resourceId String
+  roomType   String
+  capacity   Int
+  rentalRate Decimal? @db.Decimal(19, 4)
+  rentalDurationHours Int @default(2)
+  status     String   @default("AVAILABLE")
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  app          App                    @relation(fields: [appId], references: [id], onDelete: Cascade)
+  sessions     CadenzaLessonSession[]
+  roomBookings CadenzaRoomBooking[]
+  courseMappings CadenzaRoomCourse[]
+
+  @@unique([appId, resourceId])
+  @@index([appId, roomType, status])
+}
+
+model CadenzaRoomCourse {
+  id        String   @id @default(uuid())
+  appId     String
+  roomId    String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  app    App           @relation(fields: [appId], references: [id], onDelete: Cascade)
+  room   CadenzaRoom   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  course CadenzaCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, courseId])
+  @@index([appId, courseId])
+}
+
+model CadenzaRoomBooking {
+  id                 String    @id @default(uuid())
+  appId              String
+  customerId         String
+  roomId             String
+  scheduledStart     DateTime
+  scheduledEnd       DateTime
+  totalAmount        Decimal   @db.Decimal(19, 4)
+  status             String    @default("PENDING")
+  cancelledAt        DateTime?
+  cancellationReason String?
+  metadata           Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  app      App             @relation(fields: [appId], references: [id], onDelete: Cascade)
+  customer CadenzaCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  room     CadenzaRoom     @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  @@index([appId, roomId, scheduledStart, scheduledEnd])
+  @@index([appId, customerId, status])
+  @@index([appId, status, scheduledStart])
+}
+
+model CadenzaLessonPackage {
+  id                     String   @id @default(uuid())
+  appId                  String
+  name                   String
+  price                  Decimal  @db.Decimal(19, 4)
+  numberOfSessions       Int
+  sessionDurationMinutes Int      @default(60)
+  sessionsPerWeek        Int      @default(1)
+  status                 String   @default("ACTIVE")
+  metadata               Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  app         App                 @relation(fields: [appId], references: [id], onDelete: Cascade)
+  lessons     CadenzaCourse[]
+  courseMappings CadenzaCoursePackage[]
+  enrollments CadenzaEnrollment[]
+
+  @@unique([appId, name])
+  @@index([appId, status])
+}
+
+model CadenzaEnrollment {
+  id                  String    @id @default(uuid())
+  appId               String
+  customerId          String
+  lessonPackageId     String
+  paymentObligationId String?
+  status              String    @default("PENDING_PAYMENT")
+  paymentExpiresAt    DateTime?
+  enrolledAt          DateTime?
+  metadata            Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  app           App                    @relation(fields: [appId], references: [id], onDelete: Cascade)
+  lessonPackage CadenzaLessonPackage   @relation(fields: [lessonPackageId], references: [id], onDelete: Restrict)
+  customer      CadenzaCustomer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  sessions      CadenzaLessonSession[]
+
+  @@unique([appId, customerId, lessonPackageId])
+  @@index([appId, customerId, status])
+  @@index([appId, lessonPackageId])
+  @@index([appId, status, paymentExpiresAt])
+}
+
+model CadenzaLessonSession {
+  id             String   @id @default(uuid())
+  appId          String
+  enrollmentId   String
+  instructorId   String?
+  roomId         String?
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  status         String   @default("SCHEDULED")
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  app                App                        @relation(fields: [appId], references: [id], onDelete: Cascade)
+  enrollment         CadenzaEnrollment          @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  instructor         CadenzaInstructor?         @relation(fields: [instructorId], references: [id], onDelete: SetNull)
+  room               CadenzaRoom?               @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  attendance         CadenzaAttendance?
+  rescheduleRequests CadenzaRescheduleRequest[]
+
+  @@index([appId, scheduledStart, scheduledEnd])
+  @@index([appId, instructorId, scheduledStart])
+  @@index([appId, roomId, scheduledStart])
+}
+
+model CadenzaAttendance {
+  id               String   @id @default(uuid())
+  sessionId        String   @unique
+  status           String
+  markedByPersonId String?
+  markedAt         DateTime @default(now())
+  notes            String?
+
+  session        CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  markedByPerson Person?              @relation(fields: [markedByPersonId], references: [id], onDelete: SetNull)
+
+  @@index([markedByPersonId])
+}
+
+model CadenzaRescheduleRequest {
+  id                  String    @id @default(uuid())
+  appId               String
+  sessionId           String
+  requestedByPersonId String
+  requestedStart      DateTime
+  requestedEnd        DateTime
+  status              String    @default("PENDING")
+  reviewedByPersonId  String?
+  reviewedAt          DateTime?
+  reason              String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  app               App                  @relation(fields: [appId], references: [id], onDelete: Cascade)
+  session           CadenzaLessonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  requestedByPerson Person               @relation("CadenzaRescheduleRequestedBy", fields: [requestedByPersonId], references: [id], onDelete: Restrict)
+  reviewedByPerson  Person?              @relation("CadenzaRescheduleReviewedBy", fields: [reviewedByPersonId], references: [id], onDelete: SetNull)
+
+  @@index([appId, status, createdAt])
+  @@index([sessionId])
+  @@index([requestedByPersonId])
+  @@index([reviewedByPersonId])
+}
+
+model CadenzaCourse {
+  id          String   @id @default(uuid())
+  appId       String
+  packageId   String?
+  name        String
+  description String?
+  level       String?
+  status      String   @default("ACTIVE")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  app       App                     @relation(fields: [appId], references: [id], onDelete: Cascade)
+  package   CadenzaLessonPackage?   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+    packageMappings CadenzaCoursePackage[]
+    instructorMappings CadenzaInstructorCourse[]
+    roomMappings CadenzaRoomCourse[]
+  materials CadenzaCourseMaterial[]
+
+  @@unique([packageId, name])
+  @@index([appId, status])
+  @@index([packageId])
+}
+
+model CadenzaInstrumentType {
+  id        String   @id @default(uuid())
+  appId     String
+  name      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instruments CadenzaInstrument[]
+
+  @@unique([appId, name])
+  @@index([appId, status])
+}
+
+model CadenzaItemCategory {
+  id        String   @id @default(uuid())
+  appId     String
+  name      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instruments CadenzaInstrument[]
+
+  @@unique([appId, name])
+  @@index([appId, status])
+}
+
+model CadenzaCoursePackage {
+  id        String   @id @default(uuid())
+  appId     String
+  courseId  String
+  packageId String
+  createdAt DateTime @default(now())
+
+  app     App                  @relation(fields: [appId], references: [id], onDelete: Cascade)
+  course  CadenzaCourse        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  package CadenzaLessonPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, packageId])
+  @@index([appId, packageId])
+  @@index([appId, courseId])
+}
+
+model CadenzaCourseMaterial {
+  id               String   @id @default(uuid())
+  courseId         String
+  storageReference String
+  name             String
+  type             String
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  course CadenzaCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, name])
+  @@index([courseId])
+}
+
+model CadenzaInstructorCourse {
+  id           String   @id @default(uuid())
+  appId        String
+  instructorId String
+  courseId     String
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  app        App               @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instructor CadenzaInstructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  course     CadenzaCourse     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, instructorId, courseId])
+  @@index([appId, courseId, status])
+  @@index([appId, instructorId, status])
+}
+
+model CadenzaAuditLog {
+  id          String   @id @default(uuid())
+  appId       String
+  personId    String?
+  action      String
+  entityType  String
+  entityId    String?
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  app    App     @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([appId, createdAt])
+  @@index([appId, entityType, entityId])
+  @@index([appId, personId])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | MODIFIED RENTAL MODELS
+ * |--------------------------------------------------------------------------
+ */
+
+model CadenzaInstrument {
+  id             String   @id @default(uuid())
+  appId          String
+  itemCategoryId String?
+  resourceId     String
+  instrumentTypeId String?
+  brand          String?
+  model          String?
+  serialNumber   String?
+  rentalRate     Decimal? @db.Decimal(19, 4)
+  status         String   @default("AVAILABLE")
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  app         App                 @relation(fields: [appId], references: [id], onDelete: Cascade)
+  itemCategory CadenzaItemCategory? @relation(fields: [itemCategoryId], references: [id], onDelete: SetNull)
+  instrumentType CadenzaInstrumentType? @relation(fields: [instrumentTypeId], references: [id], onDelete: SetNull)
+  rentalItems CadenzaRentalItem[]
+
+  @@unique([appId, resourceId])
+  @@unique([appId, serialNumber])
+  @@index([appId, status])
+}
+
+model CadenzaRentalPackage {
+  id            String   @id @default(uuid())
+  appId         String
+  name          String
+  rentalRate    Decimal  @db.Decimal(19, 4)
+  rentalHours   Int      @default(8)
+  depositAmount Decimal  @db.Decimal(19, 4)
+  status        String   @default("ACTIVE")
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  app     App                        @relation(fields: [appId], references: [id], onDelete: Cascade)
+  items   CadenzaRentalPackageItem[]
+  rentals CadenzaRental[]
+
+  @@unique([appId, name])
+  @@index([appId, status])
+}
+
+model CadenzaRentalPackageItem {
+  id              String   @id @default(uuid())
+  appId           String
+  rentalPackageId String
+  quantity        Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  app           App                  @relation(fields: [appId], references: [id], onDelete: Cascade)
+  rentalPackage CadenzaRentalPackage @relation(fields: [rentalPackageId], references: [id], onDelete: Cascade)
+
+  @@index([appId, rentalPackageId])
+}
+
+model CadenzaRental {
+  id                  String    @id @default(uuid())
+  appId               String
+  customerId          String
+  rentalPackageId     String?
+  rentalType          String
+  scheduledStart      DateTime
+  scheduledEnd        DateTime
+  totalAmount         Decimal   @db.Decimal(19, 4)
+  refundableDeposit   Decimal   @db.Decimal(19, 4)
+  paymentObligationId String?
+  status              String    @default("PENDING")
+  checkedOutAt        DateTime?
+  returnedAt          DateTime?
+  metadata            Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  app           App                   @relation(fields: [appId], references: [id], onDelete: Cascade)
+  customer      CadenzaCustomer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  rentalPackage CadenzaRentalPackage? @relation(fields: [rentalPackageId], references: [id], onDelete: Restrict)
+  items         CadenzaRentalItem[]
+
+  @@index([appId, scheduledStart, scheduledEnd])
+  @@index([appId, customerId, status])
+  @@index([appId, rentalPackageId])
+}
+
+model CadenzaRentalItem {
+  id           String   @id @default(uuid())
+  appId        String
+  rentalId     String
+  instrumentId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  app        App               @relation(fields: [appId], references: [id], onDelete: Cascade)
+  rental     CadenzaRental     @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  instrument CadenzaInstrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+
+  @@unique([rentalId, instrumentId])
+  @@index([appId, rentalId])
+  @@index([appId, instrumentId])
+}

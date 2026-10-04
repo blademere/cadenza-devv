@@ -1,0 +1,19 @@
+model Resource {
+  id          String   @id @default(uuid())
+  appId       String
+  key         String
+  name        String
+  type        String
+  status      String   @default("ACTIVE")
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, key])
+  @@index([appId, status])
+  @@index([appId, type])
+  @@index([appId, name])
+}

@@ -1,0 +1,8 @@
+
+cadenza-dev/apps/api/storage/
+
+.env
+.env.*
+!.env.example
+
+cadenza-dev/.git-backup/

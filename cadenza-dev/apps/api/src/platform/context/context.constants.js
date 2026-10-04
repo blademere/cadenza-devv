@@ -1,0 +1,11 @@
+const REQUEST_ID_HEADER = 'x-request-id'
+const CORRELATION_ID_HEADER = 'x-correlation-id'
+const APPLICATION_ID_HEADER = 'x-app-id'
+const MAX_CONTEXT_ID_LENGTH = 128
+
+export {
+  REQUEST_ID_HEADER,
+  CORRELATION_ID_HEADER,
+  APPLICATION_ID_HEADER,
+  MAX_CONTEXT_ID_LENGTH,
+}

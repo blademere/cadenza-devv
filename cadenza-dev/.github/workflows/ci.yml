@@ -1,0 +1,357 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, development]
+  push:
+    branches: [main, development]
+  workflow_dispatch:
+    inputs:
+      staging:
+        description: Run the ephemeral staging smoke environment
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect affected areas
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      database: ${{ steps.filter.outputs.database }}
+      docker: ${{ steps.filter.outputs.docker }}
+      workflow: ${{ steps.filter.outputs.workflow }}
+      security: ${{ steps.filter.outputs.security }}
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+      base_sha: ${{ steps.filter.outputs.base_sha }}
+      head_sha: ${{ steps.filter.outputs.head_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Classify changes
+        id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            app=true; database=true; docker=true; workflow=true; security=true; docs_only=false
+            base="$(git rev-parse "${{ github.sha }}^")"
+            head="${{ github.sha }}"
+          else
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              base="${{ github.event.pull_request.base.sha }}"
+              head="${{ github.event.pull_request.head.sha }}"
+            else
+              base="${{ github.event.before }}"
+              head="${{ github.sha }}"
+              if [[ "$base" == "0000000000000000000000000000000000000000" ]]; then
+                base="$(git rev-list --max-parents=1 "$head" | tail -n 1)"
+              fi
+            fi
+            mapfile -t files < <(git diff --name-only "$base" "$head")
+            app=false; database=false; docker=false; workflow=false; security=false
+            for file in "${files[@]}"; do
+              case "$file" in
+                apps/**|packages/**|tests/**|scripts/**|package.json|package-lock.json|eslint.config.mjs|.env.example) app=true ;;
+              esac
+              case "$file" in
+                apps/api/prisma/**|apps/api/prisma.config.ts|apps/api/scripts/validate-migrations.cjs) database=true ;;
+              esac
+              case "$file" in
+                apps/**|packages/**|apps/api/prisma/**|Dockerfile|.dockerignore|package.json|package-lock.json) docker=true ;;
+              esac
+              case "$file" in
+                apps/**|packages/**) security=true ;;
+              esac
+              case "$file" in
+                .github/workflows/**|.github/dependabot.yml) workflow=true ;;
+              esac
+            done
+            docs_only=true
+            for file in "${files[@]}"; do
+              case "$file" in
+                docs/**|README.md|*.md) ;;
+                *) docs_only=false; break ;;
+              esac
+            done
+          fi
+          printf 'app=%s\ndatabase=%s\ndocker=%s\nworkflow=%s\nsecurity=%s\ndocs_only=%s\nbase_sha=%s\nhead_sha=%s\n' \
+            "$app" "$database" "$docker" "$workflow" "$security" "$docs_only" "$base" "$head" >> "$GITHUB_OUTPUT"
+
+      - name: Write CI classification summary
+        if: always()
+        env:
+          APP: ${{ steps.filter.outputs.app }}
+          DATABASE: ${{ steps.filter.outputs.database }}
+          DOCKER: ${{ steps.filter.outputs.docker }}
+          WORKFLOW: ${{ steps.filter.outputs.workflow }}
+          SECURITY: ${{ steps.filter.outputs.security }}
+          DOCS_ONLY: ${{ steps.filter.outputs.docs_only }}
+        run: |
+          {
+            echo '## CI classification'
+            echo
+            echo '| Area | Required |'
+            echo '|---|---|'
+            echo "| Application | ${APP:-false} |"
+            echo "| Database | ${DATABASE:-false} |"
+            echo "| Docker | ${DOCKER:-false} |"
+            echo "| Workflow | ${WORKFLOW:-false} |"
+            echo "| Security analysis | ${SECURITY:-false} |"
+            echo "| Documentation only | ${DOCS_ONLY:-false} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  quality:
+    name: Quality
+    needs: changes
+    if: "${{ needs.changes.outputs.app == 'true' }}"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: express_app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d express_app_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app_test
+      REDIS_URL: redis://localhost:6379
+      PRISMA_GENERATE_SKIP_AUTOINSTALL: 'true'
+      NX_BASE: ${{ needs.changes.outputs.base_sha }}
+      NX_HEAD: ${{ needs.changes.outputs.head_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate workspace boundaries and lockfile
+        run: npm run validate:workspaces && npm run validate:dependencies && npm run validate:lockfile
+      - name: Validate and bundle OpenAPI
+        run: npm run openapi:build
+      - name: Dependency vulnerability audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Lint affected projects
+        run: npm exec -- nx affected -t lint --base="$NX_BASE" --head="$NX_HEAD"
+      - run: npm run format:check
+      - run: npm run validate:architecture
+      - name: Validate authorization rules
+        run: npm run validate:authorization
+      - run: npm run validate:migrations
+      - run: npm exec -- nx run api:prisma:validate
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
+      - name: Test affected projects
+        run: npm exec -- nx affected -t test --base="$NX_BASE" --head="$NX_HEAD"
+      - name: Run API integration tests
+        run: npm exec -- nx run api:test:integration
+      - name: Build affected projects
+        run: npm exec -- nx affected -t build --base="$NX_BASE" --head="$NX_HEAD"
+      - name: Generate API coverage
+        run: npm exec -- nx run api:test:coverage
+      - name: Publish coverage summary
+        if: '${{ always() }}'
+        run: |
+          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require('fs');
+          const file = 'apps/api/coverage/coverage-summary.json';
+          console.log('## Test coverage\n');
+          if (!fs.existsSync(file)) {
+            console.log('Coverage summary was not generated.');
+            process.exit(0);
+          }
+          const total = JSON.parse(fs.readFileSync(file, 'utf8')).total;
+          console.log('| Metric | Covered | Total | Percentage |');
+          console.log('|---|---:|---:|---:|');
+          for (const [name, value] of Object.entries(total)) {
+            console.log(`| ${name} | ${value.covered ?? '-'} | ${value.total ?? '-'} | ${value.pct ?? '-'}% |`);
+          }
+          NODE
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vitest-coverage
+          path: apps/api/coverage/
+          if-no-files-found: error
+          retention-days: 14
+
+  database:
+    name: Database
+    needs: changes
+    if: "${{ needs.changes.outputs.database == 'true' }}"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: express_app_migrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d express_app_migrations"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_app_migrations
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run validate:migrations
+      - run: npm exec -- nx run api:prisma:validate
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
+
+  docker:
+    name: Docker
+    needs: [changes, quality]
+    if: "${{ always() && needs.changes.outputs.docker == 'true' && (needs.quality.result == 'success' || needs.quality.result == 'skipped') }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: cadenza-app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  workflow-validation:
+    name: Workflow validation
+    needs: changes
+    if: "${{ needs.changes.outputs.workflow == 'true' }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate workflow YAML
+        shell: ruby {0}
+        run: |
+          require 'yaml'
+          Dir['.github/workflows/*.{yml,yaml}'].each do |file|
+            YAML.load_file(file)
+            puts "valid: #{file}"
+          end
+
+  required:
+    name: Required
+    needs: [changes, quality, database, docker, workflow-validation]
+    if: '${{ always() }}'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate applicable checks
+        env:
+          APP: ${{ needs.changes.outputs.app }}
+          DATABASE_NEEDED: ${{ needs.changes.outputs.database }}
+          DOCKER_NEEDED: ${{ needs.changes.outputs.docker }}
+          WORKFLOW_NEEDED: ${{ needs.changes.outputs.workflow }}
+          QUALITY: ${{ needs.quality.result }}
+          DATABASE: ${{ needs.database.result }}
+          DOCKER: ${{ needs.docker.result }}
+          WORKFLOW: ${{ needs.workflow-validation.result }}
+        run: |
+          set -euo pipefail
+          check() {
+            local name="$1" needed="$2" result="$3"
+            if [[ "$needed" == true && "$result" != success ]]; then
+              echo "$name was required but finished with: $result"
+              exit 1
+            fi
+            if [[ "$needed" == false && "$result" != skipped ]]; then
+              echo "$name was not required but finished with: $result"
+              exit 1
+            fi
+            echo "$name: $result (needed=$needed)"
+          }
+          check Quality "$APP" "$QUALITY"
+          check Database "$DATABASE_NEEDED" "$DATABASE"
+          check Docker "$DOCKER_NEEDED" "$DOCKER"
+          check Workflow "$WORKFLOW_NEEDED" "$WORKFLOW"
+          echo 'All applicable CI checks passed.'
+
+  staging:
+    name: Staging
+    needs: docker
+    if: "${{ github.event_name == 'workflow_dispatch' && inputs.staging && needs.docker.result == 'success' }}"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: express_app_staging
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d express_app_staging"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t cadenza-app:staging .
+      - name: Start staging container
+        run: |
+          docker run -d --name cadenza-app-staging --network host \
+            -e NODE_ENV=production -e PORT=3000 \
+            -e DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/express_app_staging \
+            -e REDIS_URL=redis://127.0.0.1:6379 \
+            -e CORS_ORIGIN=https://staging.example.invalid \
+            -e JWT_ACCESS_SECRET=staging-access-secret-012345678901234567890123 \
+            -e JWT_REFRESH_SECRET=staging-refresh-secret-012345678901234567890123 \
+            -e METRICS_TOKEN=staging-metrics-token-012345678901234567890123 \
+            -e COOKIE_SECURE=true -e COOKIE_SAME_SITE=lax \
+            -e COOKIE_REFRESH_MAX_AGE_MS=604800000 cadenza-app:staging
+      - name: Wait for liveness
+        run: |
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:3000/health/live && exit 0 || sleep 2
+          done
+          docker logs cadenza-app-staging
+          exit 1
+      - name: Verify metrics authentication
+        run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/metrics)" = "401"
+      - name: Cleanup staging container
+        if: '${{ always() }}'
+        run: |
+          docker logs cadenza-app-staging || true
+          docker rm -f cadenza-app-staging || true

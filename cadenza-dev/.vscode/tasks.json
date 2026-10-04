@@ -1,0 +1,85 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev:api",
+      "type": "shell",
+      "command": "npm --workspace @cadenza-app/api run dev",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "node",
+        "pattern": { "regexp": "^(.*)$", "file": 1, "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^",
+          "endsPattern": ".*(Server started|listening|started|running).*"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "runOptions": { "instanceLimit": 1 }
+    },
+    {
+      "label": "dev:obo-web",
+      "type": "shell",
+      "command": "npm --workspace @cadenza-app/obo-web run dev",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^(.*)$", "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*VITE v\\S+\\s+ready in",
+          "endsPattern": "^\\s*.*Local:\\s+http://localhost:5173/"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "runOptions": { "instanceLimit": 1 }
+    },
+    {
+      "label": "dev:cadenza-web",
+      "type": "shell",
+      "command": "npm --workspace @cadenza-app/cadenza-web run dev",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^(.*)$", "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*VITE v\\S+\\s+ready in",
+          "endsPattern": "^\\s*.*Local:\\s+http://localhost:5173/"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "runOptions": { "instanceLimit": 1 }
+    },
+    {
+      "label": "dev:full-stack:cadenza",
+      "dependsOn": ["dev:api", "dev:cadenza-web"],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "dev:full-stack:obo",
+      "dependsOn": ["dev:api", "dev:obo-web"],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    }
+  ]
+}

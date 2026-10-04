@@ -1,0 +1,29 @@
+model EventOutbox {
+  id             String    @id
+  event          String
+  entityType     String?
+  entityId       String?
+  actorId        Int?
+  payload        Json
+  correlationId  String
+  causationId    String?
+  depth          Int       @default(0)
+  status         String    @default("PENDING")
+  attempts       Int       @default(0)
+  availableAt    DateTime  @default(now())
+  idempotencyKey String?   @unique
+  processedAt    DateTime?
+  deadAt         DateTime?
+  lockedAt       DateTime?
+  leaseUntil     DateTime?
+  lockToken      String?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, availableAt, createdAt])
+  @@index([status, leaseUntil])
+  @@index([status, deadAt])
+  @@index([entityType, entityId])
+  @@index([correlationId])
+}
