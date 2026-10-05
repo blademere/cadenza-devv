@@ -80,6 +80,20 @@ const createResource = (data, db = prisma) =>
     data,
   })
 
+const findRoomResourceByName = (appId, name, excludeId, db = prisma) =>
+  db.resource.findFirst({
+    where: {
+      appId,
+      type: 'CADENZA_ROOM',
+      name: {
+        equals: name,
+        mode: 'insensitive',
+      },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { id: true },
+  })
+
 const update = (id, appId, data, db = prisma) =>
   db.cadenzaRoom.updateMany({
     where: {
@@ -98,6 +112,7 @@ const updateResource = (id, appId, data, db = prisma) =>
 export {
   withTransaction,
   createResource,
+  findRoomResourceByName,
   create,
   list,
   findById,

@@ -83,6 +83,7 @@ export default function RoomsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [roomNameError, setRoomNameError] = useState('');
 
   const fetchRooms = useCallback(async () => {
     try {
@@ -102,37 +103,35 @@ export default function RoomsPage() {
     }
   }, []);
 
+  const fetchCourses = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/courses');
+      const data = response?.data ?? response;
+      const courseList = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+
+      setCourses(courseList);
+    } catch (requestError) {
+      setError(
+        requestError.message || 'Failed to load courses.',
+      );
+      setCourses([]);
+      throw requestError;
+    }
+  }, []);
+
   useEffect(() => {
     fetchRooms();
-  }, [fetchRooms]);
-
-  useEffect(() => {
-    const loadCourses = async () => {
-      try {
-        const response = await apiClient.get('/courses');
-        const data = response?.data ?? response;
-
-        setCourses(
-          Array.isArray(data)
-            ? data
-            : Array.isArray(data?.data)
-              ? data.data
-              : [],
-        );
-      } catch (requestError) {
-        setError(
-          requestError.message || 'Failed to load courses.',
-        );
-        setCourses([]);
-      }
-    };
-
-    loadCourses();
-  }, []);
+    fetchCourses();
+  }, [fetchRooms, fetchCourses]);
 
   const resetForm = () => {
     setForm({ ...emptyForm });
     setEditingRoom(null);
+    setRoomNameError('');
   };
 
   const closeDialogs = () => {
@@ -165,8 +164,15 @@ export default function RoomsPage() {
     setLessonRoomDialogOpen(true);
   };
 
-  const openEdit = (room) => {
+  const openEdit = async (room) => {
     setError('');
+    setRoomNameError('');
+
+    try {
+      await fetchCourses();
+    } catch {
+      return;
+    }
 
     setEditingRoom(room);
 
@@ -188,6 +194,10 @@ export default function RoomsPage() {
   };
 
   const updateForm = (field, value) => {
+    if (field === 'roomName') {
+      setRoomNameError('');
+    }
+
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -200,6 +210,7 @@ export default function RoomsPage() {
     try {
       setIsSaving(true);
       setError('');
+      setRoomNameError('');
 
       const capacity = Number(form.capacity);
 
@@ -217,7 +228,19 @@ export default function RoomsPage() {
       }
 
       if (!form.roomName.trim()) {
-        setError('Please enter a room name.');
+        setRoomNameError('Please enter a room name.');
+        return;
+      }
+
+      const roomName = form.roomName.trim().toLowerCase();
+      const duplicateRoom = rooms.find(
+        (room) =>
+          room.id !== editingRoom?.id &&
+          room.roomName?.trim().toLowerCase() === roomName,
+      );
+
+      if (duplicateRoom) {
+        setRoomNameError('Room name already exists.');
         return;
       }
 
@@ -255,6 +278,12 @@ export default function RoomsPage() {
           requestError.message ||
           'Failed to save room.',
       );
+      if (
+        (requestError.response?.data?.message ||
+          requestError.message) === 'Room name already exists.'
+      ) {
+        setRoomNameError('Room name already exists.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -321,6 +350,15 @@ export default function RoomsPage() {
                     className="rounded-md bg-muted px-2 py-1 text-xs"
                   >
                     {course.name || course.lessonName || 'Unnamed course'}
+                    {course.status !== 'ACTIVE' && (
+                      <span
+                        className="ml-1 text-destructive"
+                        title="This course is inactive"
+                        aria-label="Inactive course"
+                      >
+                        *
+                      </span>
+                    )}
                   </span>
                 ))}
               </div>
@@ -374,16 +412,32 @@ export default function RoomsPage() {
                   updateForm('roomName', event.target.value)
                 }
                 required
+                className={roomNameError ? 'border-destructive' : ''}
+                aria-invalid={Boolean(roomNameError)}
+                aria-describedby={
+                  roomNameError ? `${roomType}-name-error` : undefined
+                }
               />
+              {roomNameError && (
+                <p
+                  id={`${roomType}-name-error`}
+                  role="alert"
+                  className="text-sm text-destructive"
+                >
+                  {roomNameError}
+                </p>
+              )}
             </div>
 
             {roomType === ROOM_TYPES.LESSON && (
               <div className="grid gap-2">
                 <Label>Courses</Label>
 
-                {courses.length > 0 ? (
+                {courses.some((course) => course.status === 'ACTIVE') ? (
                   <div className="grid max-h-40 gap-2 overflow-y-auto rounded-md border p-3">
-                    {courses.map((course) => {
+                    {courses
+                      .filter((course) => course.status === 'ACTIVE')
+                      .map((course) => {
                       const courseId = String(course.id);
                       const isSelected = form.courseIds.includes(courseId);
 
@@ -408,7 +462,7 @@ export default function RoomsPage() {
                           {course.name || course.courseName || course.title}
                         </label>
                       );
-                    })}
+                      })}
                   </div>
                 ) : (
                   <p className="rounded-md border p-3 text-sm text-muted-foreground">

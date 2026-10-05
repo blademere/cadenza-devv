@@ -32,6 +32,18 @@ export const staffService = {
       );
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestError('A valid email address is required.');
+    }
+
+    const phone = data.phone?.trim();
+
+    if (!phone || !/^09\d{9}$/.test(phone)) {
+      throw new BadRequestError(
+        'Phone number must contain 11 digits and start with 09.',
+      );
+    }
+
     if (password.length < 8 || password.length > 72) {
       throw new BadRequestError(
         'Password must be between 8 and 72 characters.',
@@ -60,7 +72,7 @@ export const staffService = {
             firstName,
             lastName,
             email,
-            phone: data.phone?.trim() || null,
+            phone,
           },
         });
 
@@ -162,21 +174,59 @@ export const staffService = {
       throw new NotFoundError('Staff member not found.');
     }
 
-    if (data.staffType && !STAFF_TYPES.includes(data.staffType)) {
-      throw new BadRequestError(
-        'Invalid staff type. Allowed values are ADMIN or FRONT_DESK.',
-      );
+    if (data.staffType !== undefined) {
+      throw new BadRequestError('Account type cannot be updated.');
     }
 
     if (data.status && !STAFF_STATUS.includes(data.status)) {
       throw new BadRequestError('Invalid staff status.');
     }
 
-    const updateData = {};
+    const email = data.email?.trim().toLowerCase();
+    const firstName = data.firstName?.trim();
+    const lastName = data.lastName?.trim();
+    const phone = data.phone?.trim();
 
-    if (data.staffType !== undefined) {
-      updateData.staffType = data.staffType;
+    if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestError('A valid email address is required.');
     }
+
+    if (phone !== undefined && !/^09\d{9}$/.test(phone)) {
+      throw new BadRequestError(
+        'Phone number must contain 11 digits and start with 09.',
+      );
+    }
+
+    if (email && email !== staff.person.email) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email,
+          NOT: { id: staff.person.userId },
+        },
+      });
+
+      if (existingUser) {
+        throw new ConflictError('An account with this email already exists.');
+      }
+    }
+
+    if (
+      email !== undefined ||
+      firstName !== undefined ||
+      lastName !== undefined ||
+      phone !== undefined
+    ) {
+      return staffRepository.updateProfile(appId, staffId, {
+        personId: staff.personId,
+        firstName: firstName ?? staff.person.firstName,
+        lastName: lastName ?? staff.person.lastName,
+        email: email ?? staff.person.email,
+        phone: phone ?? staff.person.phone,
+        status: data.status ?? staff.status,
+      });
+    }
+
+    const updateData = {};
 
     if (data.status !== undefined) {
       updateData.status = data.status;

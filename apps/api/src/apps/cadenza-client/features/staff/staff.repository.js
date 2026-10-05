@@ -145,4 +145,43 @@ export const staffRepository = {
       },
     });
   },
+
+  async updateProfile(appId, staffId, data) {
+    return prisma.$transaction(async (tx) => {
+      await tx.person.update({
+        where: { id: data.personId },
+        data: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          user: {
+            update: {
+              email: data.email,
+            },
+          },
+        },
+      });
+
+      return tx.cadenzaStaff.update({
+        where: { id: staffId },
+        data: {
+          status: data.status,
+        },
+        include: {
+          person: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  isActive: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+  },
 };

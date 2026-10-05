@@ -91,6 +91,8 @@ export default function InstrumentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [modelError, setModelError] = useState('');
+  const [serialNumberError, setSerialNumberError] = useState('');
 
   const fetchInstruments = useCallback(async () => {
     try {
@@ -144,6 +146,14 @@ export default function InstrumentsPage() {
   }, [instruments, search]);
 
   const updateForm = (field, value) => {
+    if (field === 'model') {
+      setModelError('');
+    }
+
+    if (field === 'serialNumber') {
+      setSerialNumberError('');
+    }
+
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -154,6 +164,8 @@ export default function InstrumentsPage() {
     setEditingInstrument(null);
     setForm({ ...emptyForm });
     setError('');
+    setModelError('');
+    setSerialNumberError('');
     setShowDialog(true);
   };
 
@@ -174,6 +186,8 @@ export default function InstrumentsPage() {
     });
 
     setError('');
+    setModelError('');
+    setSerialNumberError('');
     setShowDialog(true);
   };
 
@@ -181,20 +195,58 @@ export default function InstrumentsPage() {
     try {
       setIsSaving(true);
       setError('');
+      setModelError('');
+      setSerialNumberError('');
+
+      const model = form.model.trim();
+      const serialNumber = form.serialNumber.trim();
+      const normalizedModel = model.toLowerCase();
+      const normalizedSerialNumber = serialNumber.toLowerCase();
+      const duplicateModel = model
+        ? instruments.find(
+            (instrument) =>
+              instrument.id !== editingInstrument?.id &&
+              instrument.model?.trim().toLowerCase() === normalizedModel,
+          )
+        : null;
+      const duplicateSerialNumber = serialNumber
+        ? instruments.find(
+            (instrument) =>
+              instrument.id !== editingInstrument?.id &&
+              instrument.serialNumber?.trim().toLowerCase() ===
+                normalizedSerialNumber,
+          )
+        : null;
+
+      if (duplicateModel || duplicateSerialNumber) {
+        if (duplicateModel) {
+          setModelError('An instrument with this model already exists.');
+        }
+
+        if (duplicateSerialNumber) {
+          setSerialNumberError(
+            'An instrument with this serial number already exists.',
+          );
+        }
+
+        return;
+      }
 
       const data = {
-        instrumentTypeId: form.instrumentTypeId || null,
-        itemCategoryId: form.itemCategoryId || null,
-        brand: form.brand.trim() || null,
-        model: form.model.trim() || null,
-        serialNumber: form.serialNumber.trim() || null,
         status: form.status,
       };
 
       if (editingInstrument) {
         await updateInstrument(editingInstrument.id, data);
       } else {
-        await createInstrument(data);
+        await createInstrument({
+          instrumentTypeId: form.instrumentTypeId || null,
+          itemCategoryId: form.itemCategoryId || null,
+          brand: form.brand.trim() || null,
+          model: form.model.trim() || null,
+          serialNumber: form.serialNumber.trim() || null,
+          status: form.status,
+        });
       }
 
       setShowDialog(false);
@@ -208,6 +260,19 @@ export default function InstrumentsPage() {
           requestError?.message ||
           'Failed to save instrument.',
       );
+
+      const message =
+        requestError?.response?.data?.message ||
+        requestError?.message ||
+        '';
+
+      if (message.includes('model already exists')) {
+        setModelError(message);
+      }
+
+      if (message.includes('serial number already exists')) {
+        setSerialNumberError(message);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -356,17 +421,19 @@ export default function InstrumentsPage() {
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>
-                  {editingInstrument ? 'Edit Instrument' : 'Add Item'}
+                  {editingInstrument ? 'Update Instrument Status' : 'Add Item'}
                 </DialogTitle>
 
                 <DialogDescription>
                   {editingInstrument
-                    ? 'Update the instrument information.'
+                    ? 'Update the status for this instrument.'
                     : 'Add a new instrument and set its details.'}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="grid gap-5 py-4">
+                {!editingInstrument && (
+                  <>
                 <div className="grid gap-2">
                   <Label htmlFor="instrument-category">Category</Label>
                   <Select
@@ -375,7 +442,7 @@ export default function InstrumentsPage() {
                       updateForm('itemCategoryId', value)
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger disabled={Boolean(editingInstrument)}>
                       <SelectValue placeholder="Select a category">
                         {itemCategories.find(
                           (category) => category.id === form.itemCategoryId,
@@ -398,7 +465,7 @@ export default function InstrumentsPage() {
                       updateForm('instrumentTypeId', value)
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger disabled={Boolean(editingInstrument)}>
                       <SelectValue placeholder="Select an instrument type">
                         {instrumentTypes.find(
                           (type) => type.id === form.instrumentTypeId,
@@ -423,6 +490,7 @@ export default function InstrumentsPage() {
                     onChange={(event) =>
                       updateForm('brand', event.target.value)
                     }
+                    disabled={Boolean(editingInstrument)}
                   />
                 </div>
 
@@ -436,7 +504,20 @@ export default function InstrumentsPage() {
                     onChange={(event) =>
                       updateForm('model', event.target.value)
                     }
+                    disabled={Boolean(editingInstrument)}
+                    className={modelError ? 'border-destructive' : ''}
+                    aria-invalid={Boolean(modelError)}
+                    aria-describedby={modelError ? 'instrument-model-error' : undefined}
                   />
+                  {modelError && (
+                    <p
+                      id="instrument-model-error"
+                      role="alert"
+                      className="text-sm text-destructive"
+                    >
+                      {modelError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-2">
@@ -449,8 +530,29 @@ export default function InstrumentsPage() {
                     onChange={(event) =>
                       updateForm('serialNumber', event.target.value)
                     }
+                    disabled={Boolean(editingInstrument)}
+                    className={
+                      serialNumberError ? 'border-destructive' : ''
+                    }
+                    aria-invalid={Boolean(serialNumberError)}
+                    aria-describedby={
+                      serialNumberError
+                        ? 'instrument-serial-error'
+                        : undefined
+                    }
                   />
+                  {serialNumberError && (
+                    <p
+                      id="instrument-serial-error"
+                      role="alert"
+                      className="text-sm text-destructive"
+                    >
+                      {serialNumberError}
+                    </p>
+                  )}
                 </div>
+                  </>
+                )}
 
                 <div className="grid gap-2">
                   <Label>Status</Label>
@@ -489,7 +591,7 @@ export default function InstrumentsPage() {
                   {isSaving
                     ? 'Saving...'
                     : editingInstrument
-                      ? 'Save Changes'
+                    ? 'Update Status'
                       : 'Add Instrument'}
                 </Button>
               </DialogFooter>

@@ -6,7 +6,6 @@ import {
   Loader2Icon,
   PencilIcon,
   PlusIcon,
-  Trash2Icon,
 } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
@@ -51,7 +50,6 @@ import { toast } from 'sonner';
 
 import {
   createEnrollmentPackage,
-  deactivateEnrollmentPackage,
   getEnrollmentPackages,
   updateEnrollmentPackage,
 } from '@/services/admin/enrollment-packageService';
@@ -70,16 +68,18 @@ const mapPackage = (item) => ({
   sessions: Number(item.numberOfSessions),
   duration: Number(item.sessionDurationMinutes) / 60,
   frequency: Number(item.sessionsPerWeek),
+  activeEnrollmentCount: item._count?.enrollments || 0,
 });
 
 export default function EnrollmentRatesPage() {
   const [packages, setPackages] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const [deactivating, setDeactivating] = React.useState(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingPackage, setEditingPackage] = React.useState(null);
   const [form, setForm] = React.useState(emptyForm);
+  const [packageNameError, setPackageNameError] = React.useState('');
+  const [statusError, setStatusError] = React.useState('');
 
   const loadPackages = React.useCallback(async () => {
     try {
@@ -111,6 +111,8 @@ export default function EnrollmentRatesPage() {
   const openAdd = () => {
     setEditingPackage(null);
     setForm({ ...emptyForm });
+    setPackageNameError('');
+    setStatusError('');
     setDialogOpen(true);
   };
 
@@ -121,16 +123,41 @@ export default function EnrollmentRatesPage() {
       name: item.name || '',
       price: item.price ?? '',
       sessions: item.sessions ?? '',
-      duration: item.duration ?? 1,
+      duration: 1,
       frequency: item.frequency ?? 1,
+      status: item.status || 'ACTIVE',
     });
 
+    setPackageNameError('');
+    setStatusError('');
     setDialogOpen(true);
   };
 
   const savePackage = async () => {
+    if (
+      editingPackage?.activeEnrollmentCount > 0 &&
+      form.status === 'INACTIVE'
+    ) {
+      setStatusError(
+        'This package cannot be deactivated while it has active enrollments.',
+      );
+      return;
+    }
+
     if (!form.name.trim()) {
-      toast.error('Package name is required.');
+      setPackageNameError('Package name is required.');
+      return;
+    }
+
+    const normalizedName = form.name.trim().toLowerCase();
+    const duplicatePackage = packages.find(
+      (item) =>
+        item.id !== editingPackage?.id &&
+        item.name?.trim().toLowerCase() === normalizedName,
+    );
+
+    if (duplicatePackage) {
+      setPackageNameError('Package name already exists.');
       return;
     }
 
@@ -166,12 +193,15 @@ export default function EnrollmentRatesPage() {
       name: form.name.trim(),
       price: Number(form.price),
       numberOfSessions: Number(form.sessions),
-      sessionDurationMinutes: Number(form.duration) * 60,
+      sessionDurationMinutes: 60,
       sessionsPerWeek: Number(form.frequency),
+      status: form.status || 'ACTIVE',
     };
 
     try {
       setSaving(true);
+      setPackageNameError('');
+      setStatusError('');
 
       if (editingPackage) {
         await updateEnrollmentPackage(
@@ -202,31 +232,17 @@ export default function EnrollmentRatesPage() {
         error?.response?.data?.message ||
           'Failed to save enrollment package.',
       );
+
+      const message = error?.response?.data?.message || '';
+      if (
+        message.toLowerCase().includes('active enrollments')
+      ) {
+        setStatusError(message);
+      } else if (message.toLowerCase().includes('package')) {
+        setPackageNameError(message);
+      }
     } finally {
       setSaving(false);
-    }
-  };
-
-  const deletePackage = async (id) => {
-    try {
-      setDeactivating(id);
-
-      await deactivateEnrollmentPackage(id);
-
-      toast.success(
-        'Enrollment package deactivated successfully.',
-      );
-
-      await loadPackages();
-    } catch (error) {
-      console.error(error);
-
-      toast.error(
-        error?.response?.data?.message ||
-          'Failed to deactivate enrollment package.',
-      );
-    } finally {
-      setDeactivating(null);
     }
   };
 
@@ -389,30 +405,10 @@ export default function EnrollmentRatesPage() {
                                 size="icon"
                                 onClick={() => openEdit(item)}
                                 disabled={
-                                  saving ||
-                                  deactivating === item.id
+                                  saving
                                 }
                               >
                                 <PencilIcon className="h-4 w-4" />
-                              </Button>
-
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive"
-                                onClick={() =>
-                                  deletePackage(item.id)
-                                }
-                                disabled={
-                                  saving ||
-                                  deactivating === item.id
-                                }
-                              >
-                                {deactivating === item.id ? (
-                                  <Loader2Icon className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2Icon className="h-4 w-4" />
-                                )}
                               </Button>
                             </div>
                           </TableCell>
@@ -433,64 +429,83 @@ export default function EnrollmentRatesPage() {
               }
             }}
           >
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
+            <DialogContent className="gap-5 sm:max-w-[500px]">
+              <DialogHeader className="text-left">
                 <DialogTitle>
                   {editingPackage
-                    ? 'Edit Enrollment Package'
+                    ? 'Update Enrollment Package Status'
                     : 'Add Enrollment Package'}
                 </DialogTitle>
 
                 <DialogDescription>
-                  Set the package price, sessions, duration, and frequency.
+                  {editingPackage
+                    ? 'Update the status for this enrollment package.'
+                    : 'Set the package price, sessions, duration, and frequency.'}
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="package-name">
-                    Package Name
-                  </Label>
+              <div className="grid gap-5">
+                {!editingPackage && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="package-name">
+                        Package Name
+                      </Label>
 
-                  <Input
-                    id="package-name"
-                    placeholder="e.g. Package 1"
-                    value={form.name}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
+                      <Input
+                        id="package-name"
+                        placeholder="e.g. Package 1"
+                        value={form.name}
+                        onChange={(event) => {
+                          setForm((current) => ({
+                            ...current,
+                            name: event.target.value,
+                          }));
+                          setPackageNameError('');
+                        }}
+                        className={packageNameError ? 'border-destructive' : ''}
+                        aria-invalid={Boolean(packageNameError)}
+                        aria-describedby={
+                          packageNameError ? 'package-name-error' : undefined
+                        }
+                      />
+                      {packageNameError && (
+                        <p
+                          id="package-name-error"
+                          role="alert"
+                          className="text-sm text-destructive"
+                        >
+                          {packageNameError}
+                        </p>
+                      )}
+                    </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="package-price">
-                    Monthly Price
-                  </Label>
+                    <div className="grid gap-2">
+                      <Label htmlFor="package-price">
+                        Monthly Price
+                      </Label>
 
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      ₱
-                    </span>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          ₱
+                        </span>
 
-                    <Input
-                      id="package-price"
-                      type="number"
-                      min="1"
-                      placeholder="1550"
-                      className="pl-8"
-                      value={form.price}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          price: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
+                        <Input
+                          id="package-price"
+                          type="number"
+                          min="1"
+                          placeholder="1550"
+                          className="pl-8"
+                          value={form.price}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              price: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
 
                 <div className="grid grid-cols-3 gap-4">
                   <div className="grid gap-2">
@@ -522,14 +537,9 @@ export default function EnrollmentRatesPage() {
                       id="duration"
                       type="number"
                       min="1"
-                      placeholder="1"
-                      value={form.duration}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          duration: event.target.value,
-                        }))
-                      }
+                      value="1"
+                      readOnly
+                      aria-readonly="true"
                     />
                   </div>
 
@@ -552,9 +562,57 @@ export default function EnrollmentRatesPage() {
                       }
                     />
                   </div>
-                </div>
+                    </div>
+                  </>
+                )}
 
-                {form.price &&
+                {editingPackage && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="package-status">Status</Label>
+                    <select
+                      id="package-status"
+                      value={form.status || 'ACTIVE'}
+                      onChange={(event) => {
+                        setForm((current) => ({
+                          ...current,
+                          status: event.target.value,
+                        }));
+                        setStatusError('');
+                      }}
+                      className={`h-10 w-full rounded-md border bg-background px-3 text-sm ${
+                        statusError ? 'border-destructive' : ''
+                      }`}
+                      disabled={saving}
+                    >
+                      <option value="ACTIVE">Active</option>
+                      <option
+                        value="INACTIVE"
+                        disabled={
+                          editingPackage.activeEnrollmentCount > 0
+                        }
+                      >
+                        Inactive
+                      </option>
+                    </select>
+                    {statusError && (
+                      <p
+                        role="alert"
+                        className="text-sm text-destructive"
+                      >
+                        {statusError}
+                      </p>
+                    )}
+                    {!statusError &&
+                      editingPackage.activeEnrollmentCount > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          This package has active enrollments and cannot be
+                          deactivated.
+                        </p>
+                      )}
+                  </div>
+                )}
+
+                {!editingPackage && form.price &&
                   form.sessions &&
                   form.duration &&
                   form.frequency && (
