@@ -1,6 +1,22 @@
 import { enrollmentService } from './enrollment.service.js';
 
 export const enrollmentController = {
+  async getEnrollments(req, res, next) {
+    try {
+      const enrollments = await enrollmentService.getEnrollments(
+        req.cadenzaApp.id,
+        { status: req.query.status },
+      );
+
+      return res.json({
+        success: true,
+        data: enrollments,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getAvailablePackages(req, res, next) {
     try {
       const packages = await enrollmentService.getAvailablePackages(

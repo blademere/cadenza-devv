@@ -81,12 +81,7 @@ export default function StudentsPage() {
   );
 
   return (
-    <SidebarProvider
-      style={{
-        "--sidebar-width": "calc(var(--spacing) * 72)",
-        "--header-height": "calc(var(--spacing) * 12)",
-      }}
-    >
+    <SidebarProvider>
       <AppSidebar variant="inset" />
 
       <SidebarInset>

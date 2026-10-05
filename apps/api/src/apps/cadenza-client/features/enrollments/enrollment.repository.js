@@ -90,6 +90,45 @@ const instructorSelect = {
 };
 
 export const enrollmentRepository = {
+  async findAll(appId, filters = {}) {
+    return prisma.cadenzaEnrollment.findMany({
+      where: {
+        appId,
+        ...(filters.status ? { status: filters.status } : {}),
+      },
+      include: {
+        lessonPackage: {
+          include: packageInclude,
+        },
+        customer: {
+          include: {
+            person: {
+              select: {
+                firstName: true,
+                middleName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        sessions: {
+          include: {
+            instructor: {
+              select: instructorSelect,
+            },
+          },
+          orderBy: {
+            scheduledStart: 'asc',
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  },
+
   async findAvailablePackages(appId) {
     return prisma.cadenzaLessonPackage.findMany({
       where: {
