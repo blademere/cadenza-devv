@@ -64,6 +64,15 @@ export const instructorRepository = {
       where.status = filters.status;
     }
 
+    if (filters.courseId) {
+      where.courseMappings = {
+        some: {
+          courseId: filters.courseId,
+          status: 'ACTIVE',
+        },
+      };
+    }
+
     return prisma.cadenzaInstructor.findMany({
       where,
       include: instructorInclude,

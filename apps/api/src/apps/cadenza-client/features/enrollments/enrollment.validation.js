@@ -12,6 +12,7 @@ const packageInstructorSchema = z.object({
   }),
   query: z.object({
     courseId: z.uuid().optional(),
+    startDate: z.coerce.date().optional(),
   }).default({}),
 });
 
@@ -23,6 +24,7 @@ const packageInstructorAvailabilitySchema =
     }),
     query: z.object({
       courseId: z.uuid().optional(),
+      startDate: z.coerce.date().optional(),
     }).default({}),
   });
 
@@ -76,9 +78,12 @@ const createValidator = async (req) =>
     body: req.body || {},
   });
 
+const validateScheduleValidator = createValidator;
+
 export {
   idValidator,
   packageInstructorValidator,
   packageInstructorAvailabilityValidator,
   createValidator,
+  validateScheduleValidator,
 };

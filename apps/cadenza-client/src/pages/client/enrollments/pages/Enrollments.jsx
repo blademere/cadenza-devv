@@ -29,7 +29,7 @@ export default function Enrollments() {
           getMyEnrollment(),
         ]);
 
-        setPackages(availablePackages || []);
+        setPackages(Array.isArray(availablePackages) ? availablePackages : []);
         setMyEnrollment(enrollment || null);
       } catch (error) {
         console.error(error);
@@ -62,23 +62,66 @@ export default function Enrollments() {
     );
   };
 
-  const packageGroups = packages
-    .map((packageData) => ({
-      ...packageData,
-      courses: (packageData.lessons || []).map((course) => ({
+  const enrolledPackageId = myEnrollment?.packageId
+    ? String(myEnrollment.packageId)
+    : null;
+  const enrolledCourseId = myEnrollment?.courseId
+    ? String(myEnrollment.courseId)
+    : null;
+
+  const packageGroups = packages.map((packageData) => ({
+    ...packageData,
+    courses: (packageData.lessons || [])
+      .filter((course) => {
+        const isCurrentlyEnrolled =
+          enrolledPackageId &&
+          enrolledCourseId &&
+          String(packageData.id) === enrolledPackageId &&
+          String(course.id) === enrolledCourseId;
+
+        return !isCurrentlyEnrolled;
+      })
+      .map((course) => ({
         ...packageData,
         courseId: course.id,
         courseName: course.name,
         courseDescription: course.description,
         lessons: [course],
       })),
-    }))
-    .filter((packageData) => packageData.courses.length > 0);
+  }));
 
-  const courseCount = packageGroups.reduce(
-    (total, packageData) => total + packageData.courses.length,
-    0,
-  );
+  const enrolledPackage = myEnrollment?.packageId
+    ? packages.find(
+        (packageData) =>
+          String(packageData.id) === String(myEnrollment.packageId),
+      )
+    : null;
+
+  const enrolledCourses =
+    enrolledPackage && myEnrollment?.courseId
+      ? (enrolledPackage.allLessons || enrolledPackage.lessons || [])
+          .filter(
+            (course) => String(course.id) === String(myEnrollment.courseId),
+          )
+          .map((course) => ({
+            ...enrolledPackage,
+            courseId: course.id,
+            courseName: course.name,
+            courseDescription: course.description,
+            lessons: [course],
+          }))
+      : myEnrollment?.courseId
+        ? []
+        : (myEnrollment?.lessons || []).map((course) => ({
+            courseId: course.id || course.courseId,
+            courseName: course.name,
+            courseDescription: course.description,
+            lessons: [course],
+            numberOfSessions: myEnrollment?.numberOfSessions,
+            sessionDurationMinutes: myEnrollment?.sessionDurationMinutes,
+            sessionsPerWeek: myEnrollment?.sessionsPerWeek,
+            price: myEnrollment?.price || 0,
+          }));
 
   return (
     <div className="space-y-8 px-4 py-6 lg:px-6">
@@ -113,14 +156,10 @@ export default function Enrollments() {
                   </p>
 
                   <h2 className="mt-1 text-lg font-semibold">
-                    {myEnrollment.packageName || 'Enrollment'}
+                    {enrolledPackage?.name ||
+                      myEnrollment.packageName ||
+                      'Enrollment'}
                   </h2>
-
-                  {myEnrollment.lessons?.length > 0 && (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Courses: {myEnrollment.lessons.map((lesson) => lesson.name).join(', ')}
-                    </p>
-                  )}
 
                   {myEnrollment.sessions?.length > 0 && (
                     <>
@@ -142,6 +181,19 @@ export default function Enrollments() {
 
                 <EnrollmentStatus status={myEnrollment.status} />
               </div>
+
+              {enrolledCourses.length > 0 && (
+                <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {enrolledCourses.map((courseData) => (
+                    <PackageCard
+                      key={`${courseData.id || 'enrollment'}-${courseData.courseId}`}
+                      packageData={courseData}
+                      enrolled
+                      onEnroll={handleEnroll}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
@@ -154,7 +206,7 @@ export default function Enrollments() {
               </p>
             </div>
 
-            {courseCount === 0 ? (
+            {packageGroups.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border p-10 text-center">
                 <p className="text-sm text-muted-foreground">
                   No courses are currently available for enrollment.
@@ -174,16 +226,24 @@ export default function Enrollments() {
                       </p>
                     </div>
 
-                    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                      {packageData.courses.map((courseData) => (
-                        <PackageCard
-                          key={`${courseData.id}-${courseData.courseId}`}
-                          packageData={courseData}
-                          enrolled={myEnrollment?.packageId === courseData.id}
-                          onEnroll={handleEnroll}
-                        />
-                      ))}
-                    </div>
+                    {packageData.courses.length > 0 ? (
+                      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                        {packageData.courses.map((courseData) => (
+                          <PackageCard
+                            key={`${courseData.id}-${courseData.courseId}`}
+                            packageData={courseData}
+                            enrolled={false}
+                            onEnroll={handleEnroll}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-border p-6">
+                        <p className="text-sm text-muted-foreground">
+                          No courses are currently configured for this package.
+                        </p>
+                      </div>
+                    )}
                   </section>
                 ))}
               </div>

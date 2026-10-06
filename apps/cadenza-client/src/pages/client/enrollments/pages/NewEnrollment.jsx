@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   getAvailablePackages,
-  getCompatibleInstructors,
+  getEnrollmentOptions,
   getInstructorAvailability,
+  validateEnrollmentSchedule,
 } from '../services/enrollmentServices';
 
 export default function NewEnrollment() {
@@ -22,7 +23,8 @@ export default function NewEnrollment() {
   const [paymentPlan, setPaymentPlan] = useState('');
 
   const [startDate, setStartDate] = useState('');
-  const [startTime, setStartTime] = useState('');
+  const [, setStartTime] = useState('');
+  const [selectedAvailabilityIds, setSelectedAvailabilityIds] = useState([]);
 
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [loadingInstructors, setLoadingInstructors] = useState(false);
@@ -114,9 +116,10 @@ export default function NewEnrollment() {
         setSelectedInstructor('');
         setAvailability([]);
         setStartTime('');
+        setSelectedAvailabilityIds([]);
         setPaymentPlan('');
 
-        const data = await getCompatibleInstructors(
+        const data = await getEnrollmentOptions(
           selectedPackage.id,
           selectedCourseId,
         );
@@ -124,7 +127,9 @@ export default function NewEnrollment() {
         setInstructors(data);
       } catch (error) {
         console.error(error);
-        setError('Unable to load compatible instructors.');
+        setError(
+          error?.message || 'Unable to load compatible instructors.',
+        );
       } finally {
         setLoadingInstructors(false);
       }
@@ -132,36 +137,6 @@ export default function NewEnrollment() {
 
     loadInstructors();
   }, [selectedPackage, selectedCourseId]);
-
-  useEffect(() => {
-    async function loadAvailability() {
-      if (!selectedPackage?.id || !selectedInstructor) {
-        setAvailability([]);
-        return;
-      }
-
-      try {
-        setLoadingAvailability(true);
-        setError('');
-
-        const data = await getInstructorAvailability(
-          selectedPackage.id,
-          selectedInstructor,
-          selectedCourseId,
-        );
-
-        setAvailability(data?.availability || []);
-      } catch (error) {
-        console.error(error);
-        setAvailability([]);
-        setError('Unable to load instructor availability.');
-      } finally {
-        setLoadingAvailability(false);
-      }
-    }
-
-    loadAvailability();
-  }, [selectedPackage, selectedInstructor, selectedCourseId]);
 
   const selectedInstructorData = useMemo(
     () =>
@@ -171,41 +146,174 @@ export default function NewEnrollment() {
     [instructors, selectedInstructor],
   );
 
-  const selectedDayAvailability = useMemo(() => {
-    if (!startDate) {
-      return [];
-    }
-
-    const date = new Date(`${startDate}T00:00:00`);
-    const javascriptDay = date.getDay();
-    const dayOfWeek = javascriptDay === 0 ? 7 : javascriptDay;
-
-    return availability.filter((item) => item.dayOfWeek === dayOfWeek);
-  }, [startDate, availability]);
-
   useEffect(() => {
-    if (!startDate || !availability.length || !selectedPackage) {
+    setAvailability(selectedInstructorData?.availability || []);
+    setSelectedAvailabilityIds([]);
+    setStartDate('');
+    setStartTime('');
+  }, [selectedInstructorData]);
+
+  // Once the student chooses a start date, refresh the selected instructor's
+  // slots for that exact date. The API removes slots occupied by an active
+  // enrollment or instructor block, so booked times cannot be selected again.
+  useEffect(() => {
+    if (
+      !startDate ||
+      !selectedPackage?.id ||
+      !selectedInstructor ||
+      !selectedCourseId
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function refreshAvailabilityForDate() {
+      try {
+        setLoadingAvailability(true);
+        const result = await getInstructorAvailability(
+          selectedPackage.id,
+          selectedInstructor,
+          selectedCourseId,
+          startDate,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        const availableRules = Array.isArray(result?.availability)
+          ? result.availability
+          : [];
+
+        setAvailability(availableRules);
+        setSelectedAvailabilityIds((current) =>
+          current.filter((id) => availableRules.some((rule) => rule.id === id)),
+        );
+      } catch (error) {
+        if (!cancelled) {
+          setError(error?.message || 'Unable to refresh instructor availability.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingAvailability(false);
+        }
+      }
+    }
+
+    refreshAvailabilityForDate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    startDate,
+    selectedPackage?.id,
+    selectedInstructor,
+    selectedCourseId,
+  ]);
+
+  // Keep the order in which the student selected the weekly schedule.
+  // The first selected rule is the first day of the enrollment cycle.
+  const selectedAvailability = selectedAvailabilityIds
+    .map((id) => availability.find((rule) => rule.id === id))
+    .filter(Boolean);
+
+  const getDayOfWeekFromDate = (value) => {
+    const date = new Date(`${value}T00:00:00`);
+    const javascriptDay = date.getDay();
+    return javascriptDay === 0 ? 7 : javascriptDay;
+  };
+
+  const startDayOfWeek = startDate
+    ? getDayOfWeekFromDate(startDate)
+    : null;
+  const firstSelectedRule = selectedAvailability[0];
+  const selectedStartRule =
+    firstSelectedRule?.dayOfWeek === startDayOfWeek
+      ? firstSelectedRule
+      : null;
+  const resolvedStartTime = selectedStartRule
+    ? `${String(Math.floor(selectedStartRule.startMinute / 60)).padStart(
+        2,
+        '0',
+      )}:${String(selectedStartRule.startMinute % 60).padStart(2, '0')}`
+    : '';
+
+  const handleInstructorSelect = (instructor) => {
+    setSelectedInstructor(instructor.id);
+    setAvailability(instructor.availability || []);
+    setSelectedAvailabilityIds([]);
+    setStartDate('');
+    setStartTime('');
+    setError('');
+  };
+
+  const toggleAvailability = (rule) => {
+    const isSelected = selectedAvailabilityIds.includes(rule.id);
+
+    setSelectedAvailabilityIds((current) => {
+      if (isSelected) {
+        return current.filter((id) => id !== rule.id);
+      }
+
+      const requiredCount = Number(selectedPackage?.sessionsPerWeek);
+      const selectedDays = availability
+        .filter((item) => current.includes(item.id))
+        .map((item) => item.dayOfWeek);
+
+      if (
+        current.length >= requiredCount ||
+        selectedDays.includes(rule.dayOfWeek)
+      ) {
+        return current;
+      }
+
+      return [...current, rule.id];
+    });
+
+    if (isSelected && rule.dayOfWeek === startDayOfWeek) {
       setStartTime('');
+    } else if (!isSelected && rule.dayOfWeek === startDayOfWeek) {
+      const hours = Math.floor(rule.startMinute / 60);
+      const minutes = rule.startMinute % 60;
+      setStartTime(
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
+      );
+    }
+  };
+
+  const handleStartDateChange = (value) => {
+    if (!value) {
+      setStartDate('');
+      setStartTime('');
+      setError('');
       return;
     }
 
-    const sessionDuration = Number(selectedPackage.sessionDurationMinutes);
-    const availableRule = selectedDayAvailability.find(
-      (rule) => rule.endMinute - rule.startMinute >= sessionDuration,
-    );
+    const dayOfWeek = getDayOfWeekFromDate(value);
+    const firstRule = firstSelectedRule;
 
-    if (!availableRule) {
+    if (!firstRule || firstRule.dayOfWeek !== dayOfWeek) {
+      setStartDate(value);
       setStartTime('');
+      setError(
+        firstRule
+          ? `The start date must be a ${formatDay(firstRule.dayOfWeek)} because that is the first day in your selected weekly schedule.`
+          : 'Select your weekly schedule before choosing a start date.',
+      );
       return;
     }
 
-    const hours = Math.floor(availableRule.startMinute / 60);
-    const minutes = availableRule.startMinute % 60;
+    setStartDate(value);
+    setError('');
 
+    const hours = Math.floor(firstRule.startMinute / 60);
+    const minutes = firstRule.startMinute % 60;
     setStartTime(
       `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
     );
-  }, [startDate, availability, selectedDayAvailability, selectedPackage]);
+  };
 
   const formatTime = (minutes) => {
     const hours = Math.floor(minutes / 60);
@@ -219,15 +327,16 @@ export default function NewEnrollment() {
 
   const formatDay = (dayOfWeek) =>
     new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(
+      // Availability uses ISO-style weekdays: Monday = 1, Sunday = 7.
       new Date(2024, 0, dayOfWeek),
     );
 
   const getDateTime = () => {
-    if (!startDate || !startTime) {
+    if (!startDate || !resolvedStartTime) {
       return null;
     }
 
-    return new Date(`${startDate}T${startTime}:00`);
+    return new Date(`${startDate}T${resolvedStartTime}:00`);
   };
 
   const formatLocalDateTime = (date) => {
@@ -262,8 +371,20 @@ export default function NewEnrollment() {
       return;
     }
 
-    if (!startDate || !startTime) {
-      setError('Please select your preferred start date and time.');
+    if (!startDate) {
+      setError('Please select a start date.');
+      return;
+    }
+
+    if (selectedAvailability.length === 0) {
+      setError('Please choose your weekly schedule.');
+      return;
+    }
+
+    if (!resolvedStartTime) {
+      setError(
+        `The start date must be a ${formatDay(firstSelectedRule.dayOfWeek)} because it must match the first schedule you selected.`,
+      );
       return;
     }
 
@@ -275,56 +396,140 @@ export default function NewEnrollment() {
     }
 
     const sessionDuration = selectedPackage.sessionDurationMinutes;
+    const sessionsPerWeek = Number(selectedPackage.sessionsPerWeek);
 
-    const dayOfWeek =
-      scheduledStart.getDay() === 0 ? 7 : scheduledStart.getDay();
-
-    const startMinute =
-      scheduledStart.getHours() * 60 + scheduledStart.getMinutes();
-
-    const endMinute = startMinute + sessionDuration;
-
-    const withinAvailability = availability.some(
-      (rule) =>
-        rule.dayOfWeek === dayOfWeek &&
-        rule.startMinute <= startMinute &&
-        rule.endMinute >= endMinute,
-    );
-
-    if (!withinAvailability) {
-      setError("The selected time is outside the instructor's availability.");
+    if (!Number.isInteger(sessionsPerWeek) || sessionsPerWeek < 1) {
+      setError(
+        'This package does not have a valid Times per Week configuration.',
+      );
       return;
     }
 
-    const sessions = Array.from(
-      {
-        length: selectedPackage.numberOfSessions,
-      },
-      (_, index) => {
+    const totalSessions = Number(selectedPackage.numberOfSessions);
+
+    if (!Number.isInteger(totalSessions) || totalSessions < sessionsPerWeek) {
+      setError(
+        'This package must have at least enough sessions for one complete week.',
+      );
+      return;
+    }
+
+    if (selectedAvailability.length !== sessionsPerWeek) {
+      setError(
+        `Please choose exactly ${sessionsPerWeek} available time(s) per week for this package.`,
+      );
+      return;
+    }
+
+    if (!selectedStartRule) {
+      setError(
+        `The start date must be ${firstSelectedRule ? formatDay(firstSelectedRule.dayOfWeek) : 'the first selected schedule day'} because it starts the weekly schedule.`,
+      );
+      return;
+    }
+
+    const dayOfWeek = firstSelectedRule.dayOfWeek;
+    const weeklyRules = [...selectedAvailability]
+      .sort((first, second) => first.dayOfWeek - second.dayOfWeek)
+      .filter((rule, index, rules) =>
+        rules.findIndex((item) => item.dayOfWeek === rule.dayOfWeek) === index,
+      );
+
+    const selectedRuleIndex = weeklyRules.findIndex(
+      (rule) => rule.dayOfWeek === dayOfWeek,
+    );
+    const orderedWeeklyRules = [
+      ...weeklyRules.slice(selectedRuleIndex),
+      ...weeklyRules.slice(0, selectedRuleIndex),
+    ];
+    const selectedWeeklyRules = orderedWeeklyRules.slice(0, sessionsPerWeek);
+
+    let sessions;
+
+    try {
+      sessions = Array.from(
+        { length: totalSessions },
+        (_, index) => {
+        const week = Math.floor(index / sessionsPerWeek);
+        const rule = selectedWeeklyRules[index % sessionsPerWeek];
+        const dayOffset =
+          (rule.dayOfWeek - dayOfWeek + 7) % 7;
         const sessionStart = new Date(scheduledStart);
 
-        const weeks = Math.floor(index / selectedPackage.sessionsPerWeek);
-
-        const sessionInWeek = index % selectedPackage.sessionsPerWeek;
-
         sessionStart.setDate(
-          sessionStart.getDate() + weeks * 7 + sessionInWeek,
+          sessionStart.getDate() + week * 7 + dayOffset,
         );
+        if (index > 0) {
+          sessionStart.setHours(
+            Math.floor(rule.startMinute / 60),
+            rule.startMinute % 60,
+            0,
+            0,
+          );
+        }
 
         const sessionEnd = new Date(
           sessionStart.getTime() + sessionDuration * 60 * 1000,
         );
 
+        if (
+          sessionStart.getHours() * 60 + sessionStart.getMinutes() <
+            rule.startMinute ||
+          sessionEnd.getHours() * 60 + sessionEnd.getMinutes() >
+            rule.endMinute
+        ) {
+          throw new Error(
+            `The generated ${formatDay(rule.dayOfWeek)} session is outside the instructor's availability.`,
+          );
+        }
+
         return {
           instructorId: selectedInstructor,
-          scheduledStart: formatLocalDateTime(sessionStart),
-          scheduledEnd: formatLocalDateTime(sessionEnd),
+          scheduledStart: sessionStart,
+          scheduledEnd: sessionEnd,
         };
-      },
-    );
+        },
+      );
+    } catch (error) {
+      setError(error.message || 'Unable to create the requested schedule.');
+      return;
+    }
+
+    const sessionsByWeek = sessions.reduce((counts, session) => {
+      const week = Math.floor(
+        (session.scheduledStart.getTime() - scheduledStart.getTime()) /
+          (7 * 24 * 60 * 60 * 1000),
+      );
+      counts[week] = (counts[week] || 0) + 1;
+      return counts;
+    }, {});
+
+    if (Object.values(sessionsByWeek).some((count, index, counts) => {
+      const isFinalWeek = index === counts.length - 1;
+      return count > sessionsPerWeek || (!isFinalWeek && count !== sessionsPerWeek);
+    })) {
+      setError(
+        `This schedule must contain exactly ${sessionsPerWeek} session(s) per complete week.`,
+      );
+      return;
+    }
+
+    const formattedSessions = sessions.map((session) => ({
+      ...session,
+      scheduledStart: formatLocalDateTime(session.scheduledStart),
+      scheduledEnd: formatLocalDateTime(session.scheduledEnd),
+    }));
 
     try {
       setSubmitting(true);
+
+      await validateEnrollmentSchedule({
+        lessonPackageId: selectedPackage.id,
+        sessions: formattedSessions,
+        metadata: {
+          courseId: selectedCourseId || null,
+        },
+      });
 
       localStorage.setItem(
         'cadenza-pending-enrollment-checkout',
@@ -332,7 +537,7 @@ export default function NewEnrollment() {
           package: selectedPackage,
           paymentPlan,
           lessonPackageId: selectedPackage.id,
-          sessions,
+          sessions: formattedSessions,
           metadata: {
             courseId: selectedCourseId || null,
             paymentPlan,
@@ -442,6 +647,10 @@ export default function NewEnrollment() {
               <p className="text-sm text-muted-foreground">
                 {selectedPackage.sessionDurationMinutes} minutes per session
               </p>
+
+              <p className="text-sm font-medium text-foreground">
+                {selectedPackage.sessionsPerWeek} session(s) per week required
+              </p>
             </div>
           </div>
         </section>
@@ -457,7 +666,8 @@ export default function NewEnrollment() {
               <span className="font-medium text-foreground">
                 {selectedCourse?.name || 'this course'}
               </span>{' '}
-              are shown.
+              with enough available days for {selectedPackage?.sessionsPerWeek}{' '}
+              session(s) per week are shown.
             </p>
           </div>
 
@@ -470,8 +680,10 @@ export default function NewEnrollment() {
           ) : instructors.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-6 text-center">
               <p className="text-sm text-muted-foreground">
-                No compatible instructors are currently available for this
-                package.
+                No instructors match this course and package schedule. An
+                instructor must be active, mapped to this course, and have at
+                least {selectedPackage?.sessionsPerWeek || 1} active schedule
+                day(s) long enough for each lesson.
               </p>
             </div>
           ) : (
@@ -483,7 +695,7 @@ export default function NewEnrollment() {
                   <button
                     key={instructor.id}
                     type="button"
-                    onClick={() => setSelectedInstructor(instructor.id)}
+                    onClick={() => handleInstructorSelect(instructor)}
                     className={`rounded-lg border p-4 text-left transition ${
                       selected
                         ? 'border-primary bg-primary/5'
@@ -535,14 +747,7 @@ export default function NewEnrollment() {
               </p>
             </div>
 
-            {loadingAvailability ? (
-              <div className="rounded-lg border border-dashed border-border p-6 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Loading instructor availability...
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-5">
+            <div className="space-y-5">
                 {availability.length === 0 && (
                   <div className="rounded-lg border border-dashed border-border p-6 text-center">
                     <p className="text-sm text-muted-foreground">
@@ -555,14 +760,42 @@ export default function NewEnrollment() {
                 {availability.length > 0 && (
                   <div className="rounded-lg border border-border bg-muted/20 p-4">
                     <p className="text-sm font-medium">
-                      Instructor&apos;s Registered Availability
+                      Choose {selectedPackage.sessionsPerWeek} time(s) per week
+                    </p>
+
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Select the days and times you want to attend. You have
+                      selected {selectedAvailability.length} of{' '}
+                      {selectedPackage.sessionsPerWeek}.
                     </p>
 
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {availability.map((rule) => (
-                        <div
+                        (() => {
+                          const isSelected =
+                            selectedAvailabilityIds.includes(rule.id);
+                          const hasAnotherTimeOnDay = selectedAvailability.some(
+                            (selectedRule) =>
+                              selectedRule.dayOfWeek === rule.dayOfWeek &&
+                              selectedRule.id !== rule.id,
+                          );
+
+                          return (
+                        <button
+                          type="button"
                           key={rule.id}
-                          className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm"
+                          onClick={() => toggleAvailability(rule)}
+                          disabled={
+                            !isSelected &&
+                            (selectedAvailability.length >=
+                              Number(selectedPackage.sessionsPerWeek) ||
+                              hasAnotherTimeOnDay)
+                          }
+                          className={`flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border bg-background hover:bg-accent'
+                          } disabled:cursor-not-allowed disabled:opacity-50`}
                         >
                           <span className="font-medium">
                             {formatDay(rule.dayOfWeek)}
@@ -571,7 +804,9 @@ export default function NewEnrollment() {
                             {formatTime(rule.startMinute)} -{' '}
                             {formatTime(rule.endMinute)}
                           </span>
-                        </div>
+                        </button>
+                          );
+                        })()
                       ))}
                     </div>
                   </div>
@@ -584,18 +819,25 @@ export default function NewEnrollment() {
                     type="date"
                     value={startDate}
                     min={new Date().toISOString().split('T')[0]}
-                    onChange={(event) => setStartDate(event.target.value)}
+                    onChange={(event) =>
+                      handleStartDateChange(event.target.value)
+                    }
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   />
                 </div>
 
                 {startDate && (
                   <div className="rounded-lg border border-border bg-muted/20 p-4">
-                    {selectedDayAvailability.length === 0 ? (
+                    {!selectedStartRule ? (
                       <p className="mt-2 text-sm text-muted-foreground">
-                        The instructor is not available on this day.
+                        Select a start date on{' '}
+                        {firstSelectedRule
+                          ? formatDay(firstSelectedRule.dayOfWeek)
+                          : 'the first selected schedule day'}{' '}
+                        so the first class starts at that day&apos;s available
+                        time.
                       </p>
-                    ) : !startTime ? (
+                    ) : !resolvedStartTime ? (
                       <p className="mt-2 text-sm text-muted-foreground">
                         The instructor&apos;s availability is shorter than the
                         selected session duration.
@@ -604,13 +846,13 @@ export default function NewEnrollment() {
                   </div>
                 )}
 
-                {startDate && startTime && (
+                {startDate && resolvedStartTime && (
                   <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
                     <p className="text-sm font-medium">Selected Schedule</p>
 
                     <p className="mt-1 text-sm text-muted-foreground">
                       {new Date(
-                        `${startDate}T${startTime}:00`,
+                        `${startDate}T${resolvedStartTime}:00`,
                       ).toLocaleDateString(undefined, {
                         weekday: 'long',
                         year: 'numeric',
@@ -619,7 +861,7 @@ export default function NewEnrollment() {
                       })}{' '}
                       at{' '}
                       {new Date(
-                        `${startDate}T${startTime}:00`,
+                        `${startDate}T${resolvedStartTime}:00`,
                       ).toLocaleTimeString(undefined, {
                         hour: 'numeric',
                         minute: '2-digit',
@@ -630,10 +872,14 @@ export default function NewEnrollment() {
                       Each session lasts{' '}
                       {selectedPackage.sessionDurationMinutes} minutes.
                     </p>
+
+                    <p className="mt-1 text-xs font-medium text-primary">
+                      The schedule will include exactly{' '}
+                      {selectedPackage.sessionsPerWeek} session(s) per week.
+                    </p>
                   </div>
                 )}
-              </div>
-            )}
+            </div>
           </section>
         )}
 
@@ -690,7 +936,6 @@ export default function NewEnrollment() {
               !selectedPackage ||
               !selectedInstructor ||
               !startDate ||
-              !startTime ||
               !paymentPlan
             }
             className="h-10 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground disabled:pointer-events-none disabled:opacity-50"

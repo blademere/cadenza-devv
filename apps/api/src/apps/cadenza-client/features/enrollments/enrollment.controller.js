@@ -5,6 +5,7 @@ export const enrollmentController = {
     try {
       const packages = await enrollmentService.getAvailablePackages(
         req.cadenzaApp.id,
+        req.cadenzaCustomer.id,
       );
 
       return res.json({
@@ -22,6 +23,7 @@ export const enrollmentController = {
         req.cadenzaApp.id,
         req.params.packageId,
         req.query.courseId,
+        req.cadenzaCustomer.id,
       );
 
       return res.json({
@@ -40,6 +42,7 @@ export const enrollmentController = {
         req.params.packageId,
         req.params.instructorId,
         req.query.courseId,
+        req.query.startDate,
       );
 
       return res.json({
@@ -64,6 +67,19 @@ export const enrollmentController = {
         message: 'Enrollment created successfully.',
         data: enrollment,
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async validateSchedule(req, res, next) {
+    try {
+      const result = await enrollmentService.validateSchedule(
+        req.cadenzaApp.id,
+        req.body,
+      );
+
+      return res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

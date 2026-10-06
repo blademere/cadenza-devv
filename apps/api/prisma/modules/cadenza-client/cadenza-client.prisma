@@ -36,18 +36,17 @@ model CadenzaCustomer {
 }
 
 model CadenzaInstructor {
-  id        String   @id @default(uuid())
-  appId     String
-  personId  String
-  specialty String?
-  status    String   @default("ACTIVE")
-  metadata  Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(uuid())
+  appId             String
+  personId          String
+  status            String   @default("ACTIVE")
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  app               App                             @relation(fields: [appId], references: [id], onDelete: Cascade)
-  person            Person                          @relation(fields: [personId], references: [id], onDelete: Restrict)
-    courseMappings    CadenzaInstructorCourse[]
+  app               App                       @relation(fields: [appId], references: [id], onDelete: Cascade)
+  person            Person                    @relation(fields: [personId], references: [id], onDelete: Restrict)
+  courseMappings    CadenzaInstructorCourse[]
   availabilityRules CadenzaInstructorAvailability[]
   blocks            CadenzaInstructorBlock[]
   sessions          CadenzaLessonSession[]
@@ -191,7 +190,6 @@ model CadenzaEnrollment {
   customer      CadenzaCustomer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
   sessions      CadenzaLessonSession[]
 
-  @@unique([appId, customerId, lessonPackageId])
   @@index([appId, customerId, status])
   @@index([appId, lessonPackageId])
   @@index([appId, status, paymentExpiresAt])

@@ -12,6 +12,10 @@ export function validateCreateInstructor(data) {
     errors.status = 'Invalid instructor status';
   }
 
+  if (!Array.isArray(data.courseIds) || data.courseIds.length === 0) {
+    errors.courseIds = 'At least one course specialization is required';
+  }
+
   return errors;
 }
 

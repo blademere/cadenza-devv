@@ -45,6 +45,14 @@ export default function PackageCard({ packageData, enrolled, onEnroll }) {
               {packageData.sessionDurationMinutes} minutes
             </span>
           </p>
+
+          <p>
+            Times per week:{' '}
+            <span className="font-medium text-foreground">
+              {packageData.sessionsPerWeek ?? 'Not set'}
+              {packageData.sessionsPerWeek != null ? 'x' : ''}
+            </span>
+          </p>
         </div>
       </div>
 

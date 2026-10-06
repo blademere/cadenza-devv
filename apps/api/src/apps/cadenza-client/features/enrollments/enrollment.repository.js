@@ -63,8 +63,8 @@ const packageInclude = {
 
 const instructorSelect = {
   id: true,
-  specialty: true,
   status: true,
+  metadata: true,
   person: {
     select: {
       id: true,
@@ -105,6 +105,22 @@ export const enrollmentRepository = {
           createdAt: 'desc',
         },
       ],
+    });
+  },
+
+  async findActiveEnrollmentsByCustomer(appId, customerId) {
+    return prisma.cadenzaEnrollment.findMany({
+      where: {
+        appId,
+        customerId,
+        status: {
+          notIn: ['CANCELLED', 'COMPLETED'],
+        },
+      },
+      select: {
+        lessonPackageId: true,
+        metadata: true,
+      },
     });
   },
 
@@ -179,6 +195,7 @@ export const enrollmentRepository = {
       where: {
         appId,
         instructorId,
+        isActive: true,
       },
       orderBy: [
         {
@@ -188,6 +205,57 @@ export const enrollmentRepository = {
           startMinute: 'asc',
         },
       ],
+    });
+  },
+
+  async findInstructorSessionsForDate(
+    appId,
+    instructorId,
+    startsAt,
+    endsAt,
+  ) {
+    return prisma.cadenzaLessonSession.findMany({
+      where: {
+        appId,
+        instructorId,
+        scheduledStart: {
+          lt: endsAt,
+        },
+        scheduledEnd: {
+          gt: startsAt,
+        },
+        status: {
+          notIn: ['CANCELLED'],
+        },
+      },
+      select: {
+        scheduledStart: true,
+        scheduledEnd: true,
+      },
+    });
+  },
+
+  async findInstructorBlocksForDate(
+    appId,
+    instructorId,
+    startsAt,
+    endsAt,
+  ) {
+    return prisma.cadenzaInstructorBlock.findMany({
+      where: {
+        appId,
+        instructorId,
+        startsAt: {
+          lt: endsAt,
+        },
+        endsAt: {
+          gt: startsAt,
+        },
+      },
+      select: {
+        startsAt: true,
+        endsAt: true,
+      },
     });
   },
 
@@ -225,7 +293,7 @@ export const enrollmentRepository = {
   },
 
   async findEnrollmentByCustomerAndPackage(appId, customerId, lessonPackageId) {
-    return prisma.cadenzaEnrollment.findFirst({
+    return prisma.cadenzaEnrollment.findMany({
       where: {
         appId,
         customerId,
@@ -246,6 +314,9 @@ export const enrollmentRepository = {
             scheduledStart: 'asc',
           },
         },
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
   },

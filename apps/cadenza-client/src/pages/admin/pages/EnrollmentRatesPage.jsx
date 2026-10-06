@@ -58,7 +58,7 @@ const emptyForm = {
   name: '',
   price: '',
   sessions: '',
-  duration: '',
+  duration: 1,
   frequency: '',
 };
 
