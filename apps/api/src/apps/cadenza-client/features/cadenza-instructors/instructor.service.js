@@ -752,21 +752,26 @@ export const instructorService = {
     const startMinute = getMinuteOfDay(startsAt);
     const endMinute = getMinuteOfDay(endsAt);
 
-    const availability =
-      await instructorRepository.findAvailabilityRule(
-        appId,
-        instructorId,
-        dayOfWeek,
-        startMinute,
-        endMinute,
-      );
+    const isFullTime =
+      instructor.metadata?.employmentType === 'FULL_TIME';
 
-    if (!availability) {
-      return {
-        available: false,
-        reason:
-          'Instructor is not available during this time.',
-      };
+    if (!isFullTime) {
+      const availability =
+        await instructorRepository.findAvailabilityRule(
+          appId,
+          instructorId,
+          dayOfWeek,
+          startMinute,
+          endMinute,
+        );
+
+      if (!availability) {
+        return {
+          available: false,
+          reason:
+            'Instructor is not available during this time.',
+        };
+      }
     }
 
     const block =

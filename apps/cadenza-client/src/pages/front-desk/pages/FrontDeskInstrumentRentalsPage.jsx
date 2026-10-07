@@ -42,7 +42,30 @@ import {
   TableRow,
 } from "@/components/ui/Table";
 
-import { getInstrumentRentals } from "@/services/admin/instrument-rentalsService";
+import { getInstrumentRentals } from "@/services/front-desk/instrument-rentalsService";
+
+const formatRentalReference = (id) =>
+  id ? `RNT-${id.slice(0, 8).toUpperCase()}` : "—";
+
+const formatRentalDate = (value) => {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
 
 /* --------------------------------------------------
    Mock Data
@@ -319,12 +342,7 @@ export default function RentalsPage() {
   };
 
   return (
-    <SidebarProvider
-      style={{
-        "--sidebar-width": "calc(var(--spacing) * 72)",
-        "--header-height": "calc(var(--spacing) * 12)",
-      }}
-    >
+    <SidebarProvider>
       <AppSidebar variant="inset" />
 
       <SidebarInset>
@@ -430,7 +448,7 @@ export default function RentalsPage() {
                           {/* Rental ID */}
 
                           <TableCell className="font-medium">
-                            {rental.id}
+                            {formatRentalReference(rental.id)}
                           </TableCell>
 
                           {/* Student */}
@@ -465,10 +483,12 @@ export default function RentalsPage() {
 
                           <TableCell>
                             <div>
-                              <div>{rental.rentalDate}</div>
+                              <div className="font-medium">
+                                {formatRentalDate(rental.rentalDate)}
+                              </div>
 
                               <div className="text-sm text-muted-foreground">
-                                to {rental.returnDate}
+                                to {formatRentalDate(rental.returnDate)}
                               </div>
                             </div>
                           </TableCell>
@@ -581,7 +601,7 @@ export default function RentalsPage() {
                             Rental Date
                           </p>
                           <p className="font-medium">
-                            {selectedRental.rentalDate}
+                            {formatRentalDate(selectedRental.rentalDate)}
                           </p>
                         </div>
 
@@ -590,7 +610,7 @@ export default function RentalsPage() {
                             Return Date
                           </p>
                           <p className="font-medium">
-                            {selectedRental.returnDate}
+                            {formatRentalDate(selectedRental.returnDate)}
                           </p>
                         </div>
                       </div>

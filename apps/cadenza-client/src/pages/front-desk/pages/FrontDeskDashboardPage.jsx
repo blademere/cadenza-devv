@@ -49,22 +49,17 @@ const recentPayments = [
 export default function DashboardPage() {
 
   return (
-    <SidebarProvider
-      style={{
-        "--sidebar-width": "calc(var(--spacing) * 72)",
-        "--header-height": "calc(var(--spacing) * 12)",
-      }}
-    >
+    <SidebarProvider>
       <AppSidebar variant="inset" />
 
       <SidebarInset>
         <SiteHeader />
 
-        <div className="flex flex-1 flex-col">
+        <main className="flex flex-1 flex-col gap-6 p-6">
           <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-6 py-6">
+            <div className="flex flex-col gap-6">
               {/* Dashboard Header */}
-              <div className="px-4 lg:px-6">
+              <div>
                 <h2 className="text-2xl font-semibold tracking-tight">
                   Hello, Front Desk! 
                 </h2>
@@ -78,7 +73,7 @@ export default function DashboardPage() {
               <SectionCards />
 
               {/* Dashboard Content */}
-              <div className="grid grid-cols-1 gap-4 px-4 lg:grid-cols-2 lg:px-6">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {/* Today's Schedule */}
                 <div className="rounded-xl border bg-card p-6">
                   <div className="mb-4">
@@ -145,7 +140,7 @@ export default function DashboardPage() {
              
             </div>
           </div>
-        </div>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

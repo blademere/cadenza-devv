@@ -8,13 +8,22 @@ import {
   createValidator,
 } from './enrollment.validation.js';
 
-import { requireClient } from '../auth/authorization.js';
+import {
+  requireAdminOrFrontDesk,
+  requireClient,
+} from '../auth/authorization.js';
 import {
   asyncHandler,
   validate,
 } from '../../../../common/middleware/index.js';
 
 const router = Router();
+
+router.get(
+  '/',
+  requireAdminOrFrontDesk,
+  asyncHandler(enrollmentController.getEnrollments),
+);
 
 router.get(
   '/available-packages',

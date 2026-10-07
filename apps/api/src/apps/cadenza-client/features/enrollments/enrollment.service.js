@@ -119,6 +119,16 @@ function mapEnrollment(enrollment) {
   return {
     id: enrollment.id,
     customerId: enrollment.customerId,
+    student: enrollment.customer?.person
+      ? [
+          enrollment.customer.person.firstName,
+          enrollment.customer.person.middleName,
+          enrollment.customer.person.lastName,
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : null,
+    studentEmail: enrollment.customer?.person?.email || null,
     packageId: enrollment.lessonPackageId,
     packageName: enrollment.lessonPackage?.name,
     price: enrollment.lessonPackage
@@ -162,6 +172,15 @@ function mapEnrollment(enrollment) {
 }
 
 export const enrollmentService = {
+  async getEnrollments(appId, filters = {}) {
+    const enrollments = await enrollmentRepository.findAll(
+      appId,
+      filters,
+    );
+
+    return enrollments.map(mapEnrollment);
+  },
+
   async getAvailablePackages(appId) {
     const packages =
       await enrollmentRepository.findAvailablePackages(
