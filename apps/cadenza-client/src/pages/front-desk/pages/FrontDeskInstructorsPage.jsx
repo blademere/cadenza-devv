@@ -200,11 +200,15 @@ export default function InstructorsPage() {
 
   const [selectedSpecialtyId, setSelectedSpecialtyId] = useState('');
 
-  const [instructorName, setInstructorName] = useState('');
-  const [employmentType, setEmploymentType] = useState('PART_TIME');
+  const [instructorName, setInstructorName] =
+    useState('');
+  const [employmentType, setEmploymentType] =
+    useState('PART_TIME');
 
-  const [instructorEmail, setInstructorEmail] = useState('');
-  const [instructorEmailError, setInstructorEmailError] = useState('');
+  const [instructorEmail, setInstructorEmail] =
+    useState('');
+  const [instructorEmailError, setInstructorEmailError] =
+    useState('');
 
   const [instructorPassword, setInstructorPassword] = useState('');
 
@@ -300,10 +304,19 @@ export default function InstructorsPage() {
       ? 'FULL_TIME'
       : 'PART_TIME';
 
-  const refreshSelectedInstructor = async (instructorId) => {
-    const [instructorResponse, availabilityResponse] = await Promise.all([
-      instructorService.getInstructor(instructorId),
-      instructorService.getAvailability(instructorId),
+  const refreshSelectedInstructor = async (
+    instructorId,
+  ) => {
+    const [
+      instructorResponse,
+      availabilityResponse,
+    ] = await Promise.all([
+      instructorService.getInstructor(
+        instructorId,
+      ),
+      instructorService.getAvailability(
+        instructorId,
+      ),
     ]);
 
     const instructorData = instructorResponse.data;
@@ -536,8 +549,14 @@ export default function InstructorsPage() {
     }
 
     if (!trimmedEmail) {
-      setInstructorEmailError('Instructor email is required.');
-      setError('Instructor email is required.');
+      setInstructorEmailError(
+        'Instructor email is required.',
+      );
+      setError(
+        trimmedEmail.includes('@')
+          ? 'Enter a valid email address.'
+          : 'Email must include the @ character.',
+      );
       return;
     }
 
@@ -570,8 +589,13 @@ export default function InstructorsPage() {
       return;
     }
 
-    if (employmentType === 'PART_TIME' && schedules.length === 0) {
-      setError('Add at least one schedule.');
+    if (
+      employmentType === 'PART_TIME' &&
+      schedules.length === 0
+    ) {
+      setError(
+        'Add at least one schedule.',
+      );
       return;
     }
 
@@ -587,24 +611,23 @@ export default function InstructorsPage() {
       setError('');
       setSuccess('');
 
-      const response = await instructorService.createInstructorAccount({
-        firstName,
-        lastName,
-        email: trimmedEmail,
-        password: instructorPassword,
-        courseIds: selectedSpecializations,
-        availability:
-          employmentType === 'PART_TIME'
-            ? schedules.map(({ dayOfWeek, startMinute, endMinute }) => ({
-                dayOfWeek,
-                startMinute,
-                endMinute,
-              }))
-            : [],
-        metadata: {
-          employmentType,
-        },
-      });
+      const response =
+        await instructorService.createInstructorAccount(
+          {
+            firstName,
+            lastName,
+            email: trimmedEmail,
+            password: instructorPassword,
+            courseIds:
+              selectedSpecializations,
+            metadata: {
+              employmentType,
+            },
+          },
+        );
+
+      const instructorId =
+        response.data?.id;
 
       if (!response.data?.id) {
         throw new Error(
@@ -612,7 +635,25 @@ export default function InstructorsPage() {
         );
       }
 
-      setSuccess('Instructor created successfully.');
+      if (employmentType === 'PART_TIME') {
+        for (const schedule of schedules) {
+          await instructorService.addAvailability(
+            instructorId,
+            {
+              dayOfWeek:
+                schedule.dayOfWeek,
+              startMinute:
+                schedule.startMinute,
+              endMinute:
+                schedule.endMinute,
+            },
+          );
+        }
+      }
+
+      setSuccess(
+        'Instructor created successfully.',
+      );
 
       resetForm();
       setShowAddInstructorDialog(false);
@@ -713,7 +754,13 @@ export default function InstructorsPage() {
 
                       <TableHead>Work Type</TableHead>
 
-                      <TableHead>Specialization</TableHead>
+                      <TableHead>
+                        Work Type
+                      </TableHead>
+
+                      <TableHead>
+                        Specialization
+                      </TableHead>
 
                       <TableHead>Status</TableHead>
 
@@ -724,69 +771,103 @@ export default function InstructorsPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell
+                          colSpan={5}
+                          className="h-24 text-center"
+                        >
                           <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                         </TableCell>
                       </TableRow>
                     ) : filtered.length > 0 ? (
-                      filtered.map((instructor) => (
-                        <TableRow key={instructor.id}>
-                          <TableCell className="py-4">
-                            <div>
-                              <p className="font-medium">
-                                {getInstructorName(instructor)}
-                              </p>
+                      filtered.map(
+                        (instructor) => (
+                          <TableRow
+                            key={instructor.id}
+                          >
+                            <TableCell className="py-4">
+                              <div>
+                                <p className="font-medium">
+                                  {getInstructorName(
+                                    instructor,
+                                  )}
+                                </p>
 
-                              <p className="text-xs text-muted-foreground">
-                                {getInstructorEmail(instructor)}
-                              </p>
-                            </div>
-                          </TableCell>
+                                <p className="text-xs text-muted-foreground">
+                                  {getInstructorEmail(
+                                    instructor,
+                                  )}
+                                </p>
+                              </div>
+                            </TableCell>
 
-                          <TableCell className="py-4">
-                            <Badge variant="outline">
-                              {getEmploymentType(instructor) === 'FULL_TIME'
-                                ? 'Full Time'
-                                : 'Part Time'}
-                            </Badge>
-                          </TableCell>
+                            <TableCell className="py-4">
+                              <Badge variant="outline">
+                                {getEmploymentType(instructor) ===
+                                'FULL_TIME'
+                                  ? 'Full Time'
+                                  : 'Part Time'}
+                              </Badge>
+                            </TableCell>
 
-                          <TableCell className="py-4">
-                            {(instructor.courseMappings || [])
-                              .map((mapping) => mapping.course?.name)
-                              .filter(Boolean)
-                              .join(', ') || '—'}
-                          </TableCell>
+                            <TableCell className="py-4">
+                              {(instructor.courseMappings ||
+                                [])
+                                .map(
+                                  (
+                                    mapping,
+                                  ) =>
+                                    mapping
+                                      .course
+                                      ?.name,
+                                )
+                                .filter(
+                                  Boolean,
+                                )
+                                .join(
+                                  ', ',
+                                ) || '—'}
+                            </TableCell>
 
-                          <TableCell className="py-4">
-                            <Badge
-                              variant={
-                                instructor.status === 'ACTIVE'
-                                  ? 'default'
-                                  : 'secondary'
-                              }
-                            >
-                              {instructor.status}
-                            </Badge>
-                          </TableCell>
+                            <TableCell className="py-4">
+                              <Badge
+                                variant={
+                                  instructor.status ===
+                                  'ACTIVE'
+                                    ? 'default'
+                                    : 'secondary'
+                                }
+                              >
+                                {
+                                  instructor.status
+                                }
+                              </Badge>
+                            </TableCell>
 
-                          <TableCell className="py-4 text-right">
-                            <Button
-                              variant="outline"
-                              className="p-2"
-                              onClick={() => handleViewSchedule(instructor)}
-                              disabled={scheduleLoading}
-                            >
-                              {scheduleLoading &&
-                              selectedInstructor?.id === instructor.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                'View'
-                              )}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            <TableCell className="py-4 text-right">
+                              <Button
+                                variant="outline"
+                                className="p-2"
+                                onClick={() =>
+                                  handleViewSchedule(
+                                    instructor,
+                                  )
+                                }
+                                disabled={
+                                  scheduleLoading
+                                }
+                              >
+                                {scheduleLoading &&
+                                selectedInstructor?.id ===
+                                  instructor.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  'View'
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ),
+                      )
                     ) : (
                       <TableRow>
                         <TableCell
@@ -819,8 +900,9 @@ export default function InstructorsPage() {
               <DialogTitle>Add Instructor</DialogTitle>
 
               <DialogDescription>
-                Create an instructor account, choose their work type, and set
-                their specialties.
+                Create an instructor account, choose
+                their work type, and set their
+                specialties.
               </DialogDescription>
             </DialogHeader>
 
@@ -850,7 +932,7 @@ export default function InstructorsPage() {
                       setInstructorEmail(value);
                       setInstructorEmailError(
                         value.trim() &&
-                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
                           ? value.trim().includes('@')
                             ? 'Enter a valid email address.'
                             : 'Email must include the @ character.'
@@ -858,7 +940,11 @@ export default function InstructorsPage() {
                       );
                     }}
                     disabled={submitting}
-                    className={instructorEmailError ? 'border-destructive' : ''}
+                    className={
+                      instructorEmailError
+                        ? 'border-destructive'
+                        : ''
+                    }
                     aria-invalid={Boolean(instructorEmailError)}
                     aria-describedby={
                       instructorEmailError
@@ -875,6 +961,46 @@ export default function InstructorsPage() {
                       {instructorEmailError}
                     </p>
                   )}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  Work Type
+                </label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      value: 'FULL_TIME',
+                      label: 'Full Time',
+                      description: 'Automatically available',
+                    },
+                    {
+                      value: 'PART_TIME',
+                      label: 'Part Time',
+                      description: 'Uses schedule availability',
+                    },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setEmploymentType(option.value)}
+                      disabled={submitting}
+                      className={`rounded-md border p-3 text-left transition-colors ${
+                        employmentType === option.value
+                          ? 'border-primary bg-primary/5'
+                          : 'hover:bg-muted'
+                      }`}
+                    >
+                      <span className="block text-sm font-medium">
+                        {option.label}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {option.description}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -971,10 +1097,22 @@ export default function InstructorsPage() {
               </div>
 
               {employmentType === 'PART_TIME' ? (
-                <div className="grid gap-2">
-                  <div>
-                    <label className="text-sm font-medium">
-                      Schedule Availability
+              <div className="grid gap-2">
+                <div>
+                  <label className="text-sm font-medium">
+                    Schedule Availability
+                  </label>
+
+                  <p className="text-xs text-muted-foreground">
+                    Add available days and
+                    one-hour time ranges.
+                  </p>
+                </div>
+
+                <div className="flex items-end gap-2">
+                  <div className="grid min-w-0 flex-1 gap-1">
+                    <label className="text-xs text-muted-foreground">
+                      Day
                     </label>
 
                     <p className="text-xs text-muted-foreground">
@@ -1134,16 +1272,16 @@ export default function InstructorsPage() {
                     </div>
                   )}
 
-                  {schedules.length === 0 && (
-                    <p className="text-xs text-destructive">
-                      Add at least one schedule.
-                    </p>
-                  )}
-                </div>
+                {schedules.length === 0 && (
+                  <p className="text-xs text-destructive">
+                    Add at least one schedule.
+                  </p>
+                )}
+              </div>
               ) : (
                 <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
-                  Full-time instructors are automatically available. No schedule
-                  availability setup is required.
+                  Full-time instructors are automatically available. No
+                  schedule availability setup is required.
                 </div>
               )}
             </div>
@@ -1164,8 +1302,10 @@ export default function InstructorsPage() {
                   !instructorName.trim() ||
                   !instructorEmail.trim() ||
                   !instructorPassword ||
-                  selectedSpecializations.length === 0 ||
-                  (employmentType === 'PART_TIME' && schedules.length === 0)
+                  selectedSpecializations.length ===
+                    0 ||
+                  (employmentType === 'PART_TIME' &&
+                    schedules.length === 0)
                 }
               >
                 {submitting && (
@@ -1184,7 +1324,8 @@ export default function InstructorsPage() {
               <DialogTitle>Instructor Schedule</DialogTitle>
 
               <DialogDescription>
-                Manage the instructor's specialties and work schedule.
+                Manage the instructor's specialties and
+                work schedule.
               </DialogDescription>
             </DialogHeader>
 
@@ -1256,45 +1397,70 @@ export default function InstructorsPage() {
                   <div className="flex flex-col space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium">
-                        {getEmploymentType(selectedInstructor) === 'FULL_TIME'
+                        {getEmploymentType(selectedInstructor) ===
+                        'FULL_TIME'
                           ? 'Work Schedule'
                           : 'Weekly Availability'}
                       </p>
 
                       {getEmploymentType(selectedInstructor) ===
                         'PART_TIME' && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setError('');
-                            setScheduleDay('');
-                            setScheduleStartTime('');
-                            setShowAvailabilityDialog(true);
-                          }}
-                        >
-                          <PlusIcon className="mr-2 h-4 w-4" />
-                          Add Schedule
-                        </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setError('');
+                          setScheduleDay('');
+                          setScheduleStartTime(
+                            '',
+                          );
+                          setShowAvailabilityDialog(
+                            true,
+                          );
+                        }}
+                      >
+                        <PlusIcon className="mr-2 h-4 w-4" />
+                        Add Schedule
+                      </Button>
                       )}
                     </div>
 
-                    {getEmploymentType(selectedInstructor) === 'FULL_TIME' ? (
+                    {getEmploymentType(selectedInstructor) ===
+                    'FULL_TIME' ? (
                       <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
-                        Full-time instructors are automatically available. Their
-                        schedule does not require manual availability entries.
+                        Full-time instructors are automatically available.
+                        Their schedule does not require manual availability
+                        entries.
                       </div>
-                    ) : selectedInstructor.availabilityRules?.length > 0 ? (
-                      selectedInstructor.availabilityRules.map((schedule) => (
-                        <div
-                          key={schedule.id}
-                          className="flex items-center justify-between rounded-md border px-3 py-2"
-                        >
-                          <div className="flex items-center gap-4">
-                            <p className="text-sm font-medium">
-                              {getDayName(schedule.dayOfWeek)}
-                            </p>
+                    ) : selectedInstructor
+                      .availabilityRules
+                      ?.length > 0 ? (
+                      selectedInstructor.availabilityRules.map(
+                        (schedule) => (
+                          <div
+                            key={
+                              schedule.id
+                            }
+                            className="flex items-center justify-between rounded-md border px-3 py-2"
+                          >
+                            <div className="flex items-center gap-4">
+                              <p className="text-sm font-medium">
+                                {getDayName(
+                                  schedule.dayOfWeek,
+                                )}
+                              </p>
+
+                              <p className="text-sm text-muted-foreground">
+                                {formatTime(
+                                  schedule.startMinute,
+                                )}{' '}
+                                -{' '}
+                                {formatTime(
+                                  schedule.endMinute,
+                                )}
+                              </p>
+                            </div>
 
                             <p className="text-sm text-muted-foreground">
                               {formatTime(schedule.startMinute)} -{' '}

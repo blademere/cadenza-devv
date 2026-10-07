@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   SearchIcon,
-  CheckCircle2Icon,
-  XCircleIcon,
+  Loader2Icon,
 } from "lucide-react";
 
 import { AppSidebar } from "../components/app-sidebar";
@@ -41,67 +40,54 @@ import {
 } from "@/components/ui/Dialog";
 
 import { Badge } from "@/components/ui/Badge";
+import { enrollmentService } from "@/services/front-desk/enrollmentService";
 
-/* ----------------------------------------
-   Mock Data
----------------------------------------- */
-
-const enrollments = [
-  {
-    id: "ENR-001",
-    student: "Maria Santos",
-    course: "Piano Beginner",
-    instructor: "John Cruz",
-    rate: "₱4,000",
-    startDate: "Aug 01, 2026",
-    status: "Pending Approval",
-
-    package: "2",
-    instrument: "Piano",
-
-    payment: {
-      status: "Paid",
-      amount: "₱4,000",
-      method: "GCash",
-      date: "Jul 30, 2026",
-      reference: "GC-20260730-001",
-    },
-  },
-  {
-    id: "ENR-002",
-    student: "Juan Dela Cruz",
-    course: "Guitar Intermediate",
-    instructor: "Mark Reyes",
-    rate: "₱4,500",
-    startDate: "Aug 05, 2026",
-    status: "Pending Approval",
-
-    package: "3",
-    instrument: "Guitar",
-
-    payment: {
-      status: "Partial",
-      amount: "₱2,000",
-      method: "Cash",
-      date: "Aug 01, 2026",
-      reference: "CASH-20260801-002",
-    },
-  },
-];
+const formatEnrollmentReference = (id) =>
+  id ? `ENR-${id.slice(0, 8).toUpperCase()}` : "—";
 
 export default function EnrollmentsPage() {
+  const [enrollments, setEnrollments] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [selectedEnrollment, setSelectedEnrollment] = useState(null);
 
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+
+  useEffect(() => {
+    const loadEnrollments = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const data = await enrollmentService.getEnrollments();
+        setEnrollments(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error(err);
+        setError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Failed to load enrollments.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEnrollments();
+  }, []);
 
   /* ----------------------------------------
      Search
   ---------------------------------------- */
 
   const filteredEnrollments = enrollments.filter((enrollment) =>
-    `${enrollment.id} ${enrollment.student} ${enrollment.course} ${enrollment.instructor}`
+    `${enrollment.id} ${enrollment.student || ""} ${
+      enrollment.packageName || ""
+    } ${enrollment.lessons?.map((lesson) => lesson.name).join(" ") || ""} ${
+      enrollment.sessions?.map((session) => session.instructorName).join(" ") ||
+      ""
+    }`
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -115,26 +101,6 @@ export default function EnrollmentsPage() {
     setShowDetailsDialog(true);
   };
 
-  /* ----------------------------------------
-     Approve Enrollment
-  ---------------------------------------- */
-
-  const handleApprove = () => {
-    console.log("Approved enrollment:", selectedEnrollment);
-
-    setShowDetailsDialog(false);
-  };
-
-  /* ----------------------------------------
-     Reject Enrollment
-  ---------------------------------------- */
-
-  const handleReject = () => {
-    console.log("Rejected enrollment:", selectedEnrollment);
-
-    setShowDetailsDialog(false);
-  };
-
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
@@ -143,10 +109,6 @@ export default function EnrollmentsPage() {
         <SiteHeader />
 
         <main className="flex flex-1 flex-col gap-6 p-6">
-          {/* ----------------------------------------
-              Page Header
-          ---------------------------------------- */}
-
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold">Enrollments</h1>
@@ -157,10 +119,6 @@ export default function EnrollmentsPage() {
             </div>
           </div>
 
-          {/* ----------------------------------------
-              Enrollment Card
-          ---------------------------------------- */}
-
           <Card>
             <CardHeader>
               <CardTitle>Enrollment Records</CardTitle>
@@ -168,8 +126,6 @@ export default function EnrollmentsPage() {
               <CardDescription>
                 Students currently enrolled in music programs.
               </CardDescription>
-
-              {/* Search */}
 
               <div className="relative max-w-sm">
                 <SearchIcon className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
@@ -184,6 +140,12 @@ export default function EnrollmentsPage() {
             </CardHeader>
 
             <CardContent>
+              {error && (
+                <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -196,35 +158,55 @@ export default function EnrollmentsPage() {
 
                       <TableHead>Instructor</TableHead>
 
-                      <TableHead className="w-[80px] text-right">
-                        Actions
-                      </TableHead>
+                      <TableHead>Status</TableHead>
+
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
 
                   <TableBody>
-                    {filteredEnrollments.length > 0 ? (
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          <Loader2Icon className="mx-auto h-5 w-5 animate-spin" />
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredEnrollments.length > 0 ? (
                       filteredEnrollments.map((enrollment) => (
                         <TableRow key={enrollment.id}>
                           <TableCell className="font-medium">
-                            {enrollment.id}
+                            {formatEnrollmentReference(enrollment.id)}
                           </TableCell>
 
                           <TableCell>{enrollment.student}</TableCell>
 
                           <TableCell>
-                            {enrollment.package} {enrollment.instrument}
+                            {enrollment.packageName || "—"}
                           </TableCell>
 
-                          <TableCell>{enrollment.instructor}</TableCell>
+                          <TableCell>
+                            {enrollment.sessions?.[0]?.instructorName || "—"}
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge
+                              variant={
+                                enrollment.status === "ACTIVE"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
+                              {enrollment.status || "—"}
+                            </Badge>
+                          </TableCell>
 
                           <TableCell className="text-right">
                             <Button
                               variant="link"
                               onClick={() => handleViewDetails(enrollment)}
-
+                              className="h-auto p-0"
                             >
-                              See Details
+                              View Details
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -232,7 +214,7 @@ export default function EnrollmentsPage() {
                     ) : (
                       <TableRow>
                         <TableCell
-                          colSpan={5}
+                          colSpan={6}
                           className="h-24 text-center text-muted-foreground"
                         >
                           No enrollments found.
@@ -247,19 +229,21 @@ export default function EnrollmentsPage() {
         </main>
 
 
-        <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <Dialog
+          open={showDetailsDialog}
+          onOpenChange={setShowDetailsDialog}
+        >
           <DialogContent className="sm:max-w-[650px]">
             <DialogHeader>
               <DialogTitle>Enrollment Details</DialogTitle>
 
               <DialogDescription>
-                Review the enrollment and payment information before approving.
+                Review the student, package, schedule, and payment information.
               </DialogDescription>
             </DialogHeader>
 
             {selectedEnrollment && (
               <div className="space-y-6">
-
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold">
@@ -291,7 +275,8 @@ export default function EnrollmentsPage() {
                     <div>
                       <p className="text-xs text-muted-foreground">Course</p>
 
-                      <p className="font-medium">{selectedEnrollment.course}</p>
+                      <p className="font-medium">                      {selectedEnrollment.lessons?.map((lesson) => lesson.name).join(", ") ||
+                        "—"}</p>
                     </div>
 
                     <div>
@@ -300,7 +285,7 @@ export default function EnrollmentsPage() {
                       </p>
 
                       <p className="font-medium">
-                        {selectedEnrollment.instructor}
+                        {selectedEnrollment.sessions?.[0]?.instructorName || "—"}
                       </p>
                     </div>
 
@@ -310,7 +295,7 @@ export default function EnrollmentsPage() {
                       </p>
 
                       <p className="font-medium">
-                        {selectedEnrollment.instrument}
+                        {selectedEnrollment.packageName || "—"}
                       </p>
                     </div>
 
@@ -318,7 +303,7 @@ export default function EnrollmentsPage() {
                       <p className="text-xs text-muted-foreground">Package</p>
 
                       <p className="font-medium">
-                        {selectedEnrollment.package} sessions
+                        {selectedEnrollment.numberOfSessions} sessions
                       </p>
                     </div>
 
@@ -328,7 +313,11 @@ export default function EnrollmentsPage() {
                       </p>
 
                       <p className="font-medium">
-                        {selectedEnrollment.startDate}
+                        {selectedEnrollment.sessions?.[0]?.scheduledStart
+                          ? new Date(
+                              selectedEnrollment.sessions[0].scheduledStart,
+                            ).toLocaleDateString()
+                          : "—"}
                       </p>
                     </div>
 
@@ -337,7 +326,11 @@ export default function EnrollmentsPage() {
                         Enrollment Rate
                       </p>
 
-                      <p className="font-medium">{selectedEnrollment.rate}</p>
+                      <p className="font-medium">
+                        {selectedEnrollment.price != null
+                          ? `₱${Number(selectedEnrollment.price).toLocaleString()}`
+                          : "—"}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -347,15 +340,7 @@ export default function EnrollmentsPage() {
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold">Payment Details</h3>
 
-                    <Badge
-                      variant={
-                        selectedEnrollment.payment.status === "Paid"
-                          ? "default"
-                          : "secondary"
-                      }
-                    >
-                      {selectedEnrollment.payment.status}
-                    </Badge>
+                    <Badge variant="secondary">Backend record</Badge>
                   </div>
 
                   <div className="rounded-lg border p-4">
@@ -368,7 +353,8 @@ export default function EnrollmentsPage() {
                         </p>
 
                         <p className="text-lg font-semibold">
-                          {selectedEnrollment.payment.amount}
+                          Payment details are managed through the payment
+                          obligation record.
                         </p>
                       </div>
 
@@ -380,7 +366,7 @@ export default function EnrollmentsPage() {
                         </p>
 
                         <p className="font-medium">
-                          {selectedEnrollment.payment.method}
+                          {selectedEnrollment.paymentObligationId || "—"}
                         </p>
                       </div>
 
@@ -392,7 +378,11 @@ export default function EnrollmentsPage() {
                         </p>
 
                         <p className="font-medium">
-                          {selectedEnrollment.payment.date}
+                          {selectedEnrollment.paymentExpiresAt
+                            ? new Date(
+                                selectedEnrollment.paymentExpiresAt,
+                              ).toLocaleDateString()
+                            : "—"}
                         </p>
                       </div>
 
@@ -404,13 +394,13 @@ export default function EnrollmentsPage() {
                         </p>
 
                         <p className="font-medium">
-                          {selectedEnrollment.payment.reference}
+                          {selectedEnrollment.id}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {selectedEnrollment.payment.status !== "Paid" && (
+                  {selectedEnrollment.status !== "COMPLETED" && (
                     <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3">
                       <p className="text-sm font-medium">
                         Payment verification required
@@ -427,17 +417,11 @@ export default function EnrollmentsPage() {
             )}
 
             <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={handleReject}>
-                <XCircleIcon className="mr-2 h-4 w-4" />
-                Reject
-              </Button>
-
               <Button
-                onClick={handleApprove}
-                disabled={selectedEnrollment?.payment.status !== "Paid"}
+                variant="outline"
+                onClick={() => setShowDetailsDialog(false)}
               >
-                <CheckCircle2Icon className="mr-2 h-4 w-4" />
-                Approve Enrollment
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

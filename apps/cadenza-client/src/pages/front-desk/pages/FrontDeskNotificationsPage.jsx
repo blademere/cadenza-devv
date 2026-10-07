@@ -120,7 +120,7 @@ export default function NotificationsPage() {
       <SidebarInset>
         <SiteHeader />
 
-        <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+        <main className="flex flex-1 flex-col gap-6 p-6">
           {/* Header */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>

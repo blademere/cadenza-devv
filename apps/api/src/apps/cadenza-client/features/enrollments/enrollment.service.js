@@ -226,7 +226,7 @@ export const enrollmentService = {
     return enrollments.map(mapEnrollment);
   },
 
-  async getAvailablePackages(appId, customerId) {
+  async getAvailablePackages(appId) {
     const packages =
       await enrollmentRepository.findAvailablePackages(
         appId,
