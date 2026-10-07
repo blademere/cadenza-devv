@@ -104,11 +104,13 @@ export default function RoomBookings() {
   const getStatusClass = (status) => {
     switch (status) {
       case "CONFIRMED":
-      case "PAID":
         return "bg-green-500/10 text-green-600";
 
+      case "PAID":
       case "PARTIALLY_PAID":
-        return "bg-blue-500/10 text-blue-600";
+      case "FOR_APPROVAL":
+      case "PENDING":
+        return "bg-yellow-500/10 text-yellow-600";
 
       case "COMPLETED":
         return "bg-blue-500/10 text-blue-600";
@@ -116,10 +118,17 @@ export default function RoomBookings() {
       case "CANCELLED":
         return "bg-red-500/10 text-red-600";
 
-      case "PENDING":
       default:
         return "bg-yellow-500/10 text-yellow-600";
     }
+  };
+
+  const getStatusLabel = (status) => {
+    if (["PENDING", "FOR_APPROVAL", "PAID", "PARTIALLY_PAID"].includes(status)) {
+      return "For Approval";
+    }
+
+    return status || "For Approval";
   };
 
   return (
@@ -214,7 +223,7 @@ export default function RoomBookings() {
                     booking.status,
                   )}`}
                 >
-                  {booking.status || "PENDING"}
+                  {getStatusLabel(booking.status)}
                 </span>
               </div>
 

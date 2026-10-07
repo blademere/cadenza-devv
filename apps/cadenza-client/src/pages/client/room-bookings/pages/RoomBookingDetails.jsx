@@ -252,30 +252,20 @@ export default function RoomBookingDetails() {
         </h2>
 
         <div className="mt-5 rounded-lg bg-muted/50 p-5">
-          {booking.status === "PENDING" && (
+          {[
+            "PENDING",
+            "FOR_APPROVAL",
+            "PAID",
+            "PARTIALLY_PAID",
+          ].includes(booking.status) && (
             <>
               <h3 className="font-medium">
-                Booking Under Review
+                Booking For Approval
               </h3>
 
               <p className="mt-1 text-sm text-muted-foreground">
                 Your room booking request has been
                 submitted and is waiting for approval.
-              </p>
-            </>
-          )}
-
-          {(booking.status === "PAID" ||
-            booking.status === "PARTIALLY_PAID") && (
-            <>
-              <h3 className="font-medium">
-                {booking.status === "PAID"
-                  ? "Payment Received"
-                  : "Down Payment Received"}
-              </h3>
-
-              <p className="mt-1 text-sm text-muted-foreground">
-                Your band room booking has been paid and is ready for front desk processing.
               </p>
             </>
           )}

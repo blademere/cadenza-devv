@@ -155,10 +155,7 @@ const create = async ({
     scheduledStart: schedule.scheduledStart,
     scheduledEnd: schedule.scheduledEnd,
     totalAmount,
-    status:
-      selectedPaymentPlan === 'DOWN_PAYMENT'
-        ? 'PARTIALLY_PAID'
-        : 'PAID',
+    status: 'FOR_APPROVAL',
     metadata: {
       paymentPlan: selectedPaymentPlan,
       paymentMethod: 'QR_PLACEHOLDER',

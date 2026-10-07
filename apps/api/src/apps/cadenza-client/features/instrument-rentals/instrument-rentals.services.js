@@ -291,10 +291,7 @@ export const instrumentRentalsService = {
       scheduledEnd: schedule.scheduledEnd,
       totalAmount,
       refundableDeposit: 0,
-      status:
-        selectedPaymentPlan === 'DOWN_PAYMENT'
-          ? 'PARTIALLY_PAID'
-          : 'PAID',
+      status: 'FOR_APPROVAL',
       metadata: {
         paymentPlan: selectedPaymentPlan,
         paymentMethod: 'QR_PLACEHOLDER',
@@ -395,7 +392,7 @@ export const instrumentRentalsService = {
       scheduledEnd: schedule.scheduledEnd,
       totalAmount: rentalPackage.rentalRate,
       refundableDeposit: rentalPackage.depositAmount,
-      status: 'PENDING',
+      status: 'FOR_APPROVAL',
     });
 
     await instrumentRentalsRepository.createRentalItems(
