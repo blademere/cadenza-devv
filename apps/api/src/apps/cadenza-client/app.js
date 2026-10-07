@@ -14,7 +14,7 @@ import settingsRoutes from './features/settings/settings.routes.js';
 import { coursesController } from './features/courses/courses.controller.js';
 
 // Front Desk routes
-import frontDeskInstructorRoutes from './features/cadenza-instructors/instructor.routes.js';
+import frontDeskInstructorRoutes from './features/instructors/instructor.routes.js';
 
 //Client routes
 import roomBookingsRoutes from './features/room-bookings/room-booking.routes.js';

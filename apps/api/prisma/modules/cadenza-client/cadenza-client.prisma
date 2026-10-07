@@ -134,7 +134,7 @@ model CadenzaRoomBooking {
   scheduledStart     DateTime
   scheduledEnd       DateTime
   totalAmount        Decimal   @db.Decimal(19, 4)
-  status             String    @default("PENDING")
+  status             String    @default("FOR_APPROVAL")
   cancelledAt        DateTime?
   cancellationReason String?
   metadata           Json?
@@ -178,7 +178,7 @@ model CadenzaEnrollment {
   customerId          String
   lessonPackageId     String
   paymentObligationId String?
-  status              String    @default("PENDING_PAYMENT")
+  status              String    @default("FOR_APPROVAL")
   paymentExpiresAt    DateTime?
   enrolledAt          DateTime?
   metadata            Json?
@@ -458,7 +458,7 @@ model CadenzaRental {
   totalAmount         Decimal   @db.Decimal(19, 4)
   refundableDeposit   Decimal   @db.Decimal(19, 4)
   paymentObligationId String?
-  status              String    @default("PENDING")
+  status              String    @default("FOR_APPROVAL")
   checkedOutAt        DateTime?
   returnedAt          DateTime?
   metadata            Json?

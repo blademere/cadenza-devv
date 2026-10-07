@@ -1,5 +1,6 @@
 const statusStyles = {
   PENDING: "bg-yellow-100 text-yellow-700",
+  FOR_APPROVAL: "bg-yellow-100 text-yellow-700",
   PAID: "bg-green-100 text-green-700",
   PARTIALLY_PAID: "bg-blue-100 text-blue-700",
   APPROVED: "bg-green-100 text-green-700",
@@ -8,9 +9,10 @@ const statusStyles = {
 };
 
 const statusLabels = {
-  PENDING: "Pending",
-  PAID: "Paid",
-  PARTIALLY_PAID: "Partially Paid",
+  PENDING: "For Approval",
+  FOR_APPROVAL: "For Approval",
+  PAID: "For Approval",
+  PARTIALLY_PAID: "For Approval",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   CANCELLED: "Cancelled",

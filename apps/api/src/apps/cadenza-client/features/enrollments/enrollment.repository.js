@@ -425,7 +425,7 @@ export const enrollmentRepository = {
           customerId: data.customerId,
           lessonPackageId: data.lessonPackageId,
           paymentObligationId: data.paymentObligationId || null,
-          status: data.status || 'PENDING_PAYMENT',
+          status: data.status || 'FOR_APPROVAL',
           paymentExpiresAt: data.paymentExpiresAt || null,
           enrolledAt: data.enrolledAt || null,
           metadata: data.metadata || null,

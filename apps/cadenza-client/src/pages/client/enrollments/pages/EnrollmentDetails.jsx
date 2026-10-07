@@ -196,7 +196,9 @@ export default function EnrollmentDetails() {
         <h2 className="font-semibold">Application Status</h2>
 
         <div className="mt-5 rounded-lg bg-muted/50 p-5">
-          {["PENDING", "PENDING_PAYMENT"].includes(enrollment.status) && (
+          {["PENDING", "PENDING_PAYMENT", "FOR_APPROVAL"].includes(
+            enrollment.status,
+          ) && (
             <>
               <h3 className="font-medium">Application Under Review</h3>
 

@@ -824,7 +824,7 @@ export const enrollmentService = {
       appId,
       customerId,
       lessonPackageId: packageItem.id,
-      status: 'PENDING_PAYMENT',
+      status: 'FOR_APPROVAL',
       paymentObligationId:
         data.paymentObligationId || null,
       paymentExpiresAt:

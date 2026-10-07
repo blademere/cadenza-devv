@@ -51,7 +51,7 @@ const findOverlappingSessions = (
       appId,
       roomId,
       status: {
-        not: 'CANCELLED',
+        notIn: ['CANCELLED', 'COMPLETED'],
       },
       scheduledStart: {
         lt: scheduledEnd,
@@ -125,6 +125,9 @@ const listAvailableRooms = async (
     where: {
       appId,
       status: 'AVAILABLE',
+      roomType: {
+        notIn: ['LESSON_ROOM', 'LESSON'],
+      },
     },
     orderBy: {
       createdAt: 'asc',
@@ -156,7 +159,7 @@ const listAvailableRooms = async (
         not: null,
       },
       status: {
-        not: 'CANCELLED',
+        notIn: ['CANCELLED', 'COMPLETED'],
       },
       scheduledStart: {
         lt: scheduledEnd,
