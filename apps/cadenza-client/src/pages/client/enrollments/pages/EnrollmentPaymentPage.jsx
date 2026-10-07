@@ -14,6 +14,7 @@ export default function EnrollmentPaymentPage() {
   const navigate = useNavigate();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState('');
+  const [completedEnrollment, setCompletedEnrollment] = useState(null);
 
   const checkout = useMemo(() => {
     try {
@@ -40,13 +41,26 @@ export default function EnrollmentPaymentPage() {
       setPaying(true);
       setError('');
 
+      const paymentMetadata = {
+        ...(checkout.metadata || {}),
+        paymentMethod: 'QR',
+        paymentStatus: 'PENDING_CONFIRMATION',
+        paymentAmount: amountDue,
+        paymentReference:
+          checkout.metadata?.paymentReference || `QR-${Date.now()}`,
+      };
+
       const enrollment = await createEnrollment({
         lessonPackageId: checkout.lessonPackageId,
         sessions: checkout.sessions,
-        metadata: checkout.metadata,
+        metadata: paymentMetadata,
       });
 
       localStorage.removeItem('cadenza-pending-enrollment-checkout');
+      setCompletedEnrollment({
+        ...enrollment,
+        metadata: enrollment.metadata || paymentMetadata,
+      });
 
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage(
@@ -56,9 +70,6 @@ export default function EnrollmentPaymentPage() {
           },
           window.location.origin,
         );
-        window.close();
-      } else {
-        navigate(`/client/enrollments/${enrollment.id}`, { replace: true });
       }
     } catch (requestError) {
       setError(requestError?.message || 'Unable to process payment.');
@@ -79,6 +90,49 @@ export default function EnrollmentPaymentPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
       <section className="w-full max-w-sm rounded-2xl border bg-card p-8 text-center shadow-lg">
+        {completedEnrollment ? (
+          <>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <CheckCircle2 className="h-7 w-7" />
+            </div>
+            <h1 className="mt-5 text-2xl font-semibold">Payment Submitted</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your enrollment transaction was recorded for front desk confirmation.
+            </p>
+            <div className="mt-6 rounded-xl bg-muted/50 p-4 text-left text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Transaction</span>
+                <span className="font-medium">
+                  {completedEnrollment.metadata?.paymentReference}
+                </span>
+              </div>
+              <div className="mt-3 flex justify-between gap-4">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="font-semibold">
+                  {formatCurrency(completedEnrollment.metadata?.paymentAmount)}
+                </span>
+              </div>
+              <div className="mt-3 flex justify-between gap-4">
+                <span className="text-muted-foreground">Payment method</span>
+                <span className="font-medium">QR</span>
+              </div>
+              <div className="mt-3 flex justify-between gap-4">
+                <span className="text-muted-foreground">Status</span>
+                <span className="font-medium text-amber-600">
+                  Pending confirmation
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/client/enrollments/${completedEnrollment.id}`)}
+              className="mt-6 w-full rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground hover:opacity-90"
+            >
+              View Enrollment Details
+            </button>
+          </>
+        ) : (
+          <>
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <QrCode className="h-7 w-7" />
         </div>
@@ -113,6 +167,8 @@ export default function EnrollmentPaymentPage() {
           )}
           {paying ? 'Paying...' : 'Pay'}
         </button>
+          </>
+        )}
       </section>
     </main>
   );

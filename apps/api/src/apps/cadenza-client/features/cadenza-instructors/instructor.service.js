@@ -27,6 +27,56 @@ function getMinuteOfDay(date) {
   return date.getHours() * 60 + date.getMinutes();
 }
 
+function normalizeAvailabilityRules(availability) {
+  if (!Array.isArray(availability)) {
+    return [];
+  }
+
+  const rules = availability.map((rule) => ({
+    dayOfWeek: Number(rule.dayOfWeek),
+    startMinute: Number(rule.startMinute),
+    endMinute: Number(rule.endMinute),
+  }));
+
+  for (const rule of rules) {
+    if (
+      !Number.isInteger(rule.dayOfWeek) ||
+      rule.dayOfWeek < 1 ||
+      rule.dayOfWeek > 7 ||
+      !Number.isInteger(rule.startMinute) ||
+      !Number.isInteger(rule.endMinute) ||
+      rule.startMinute < 0 ||
+      rule.endMinute > 1440 ||
+      rule.startMinute >= rule.endMinute
+    ) {
+      throw new BadRequestError('Invalid instructor availability schedule.');
+    }
+  }
+
+  const seenDays = new Map();
+
+  for (const rule of rules) {
+    const dayRules = seenDays.get(rule.dayOfWeek) || [];
+
+    if (
+      dayRules.some(
+        (existing) =>
+          rule.startMinute < existing.endMinute &&
+          rule.endMinute > existing.startMinute,
+      )
+    ) {
+      throw new BadRequestError(
+        'Instructor availability schedules cannot overlap.',
+      );
+    }
+
+    dayRules.push(rule);
+    seenDays.set(rule.dayOfWeek, dayRules);
+  }
+
+  return rules;
+}
+
 export const instructorService = {
   async getInstructors(appId, filters = {}) {
     return instructorRepository.findAll(appId, filters);
@@ -100,6 +150,17 @@ export const instructorService = {
       );
     }
 
+    const availability = normalizeAvailabilityRules(data.availability);
+
+    if (
+      data.metadata?.employmentType === 'PART_TIME' &&
+      availability.length === 0
+    ) {
+      throw new BadRequestError(
+        'At least one availability schedule is required for a part-time instructor.',
+      );
+    }
+
     try {
       return await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -124,7 +185,6 @@ export const instructorService = {
           {
             appId,
             personId: person.id,
-            specialty: data.specialty?.trim() || null,
             status: data.status || 'ACTIVE',
             metadata: data.metadata || null,
           },
@@ -138,6 +198,17 @@ export const instructorService = {
               instructorId: instructor.id,
               courseId: course.id,
             },
+          });
+        }
+
+        if (availability.length > 0) {
+          await tx.cadenzaInstructorAvailability.createMany({
+            data: availability.map((rule) => ({
+              appId,
+              instructorId: instructor.id,
+              ...rule,
+              isActive: true,
+            })),
           });
         }
 
@@ -159,6 +230,16 @@ export const instructorService = {
       throw new BadRequestError('Person ID is required.');
     }
 
+    const courseIds = Array.isArray(data.courseIds)
+      ? [...new Set(data.courseIds.filter(Boolean))]
+      : [];
+
+    if (courseIds.length === 0) {
+      throw new BadRequestError(
+        'At least one course specialization is required.',
+      );
+    }
+
     if (
       data.status &&
       !INSTRUCTOR_STATUS.includes(data.status)
@@ -178,12 +259,42 @@ export const instructorService = {
       );
     }
 
-    return instructorRepository.create({
-      appId,
-      personId: data.personId,
-      specialty: data.specialty?.trim() || null,
-      status: data.status || 'ACTIVE',
-      metadata: data.metadata || null,
+    const courses = await prisma.cadenzaCourse.findMany({
+      where: {
+        appId,
+        id: { in: courseIds },
+        status: 'ACTIVE',
+      },
+      select: { id: true },
+    });
+
+    if (courses.length !== courseIds.length) {
+      throw new BadRequestError(
+        'One or more selected courses are invalid or inactive.',
+      );
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const instructor = await instructorRepository.create(
+        {
+          appId,
+          personId: data.personId,
+          status: data.status || 'ACTIVE',
+          metadata: data.metadata || null,
+        },
+        tx,
+      );
+
+      await tx.cadenzaInstructorCourse.createMany({
+        data: courseIds.map((courseId) => ({
+          appId,
+          instructorId: instructor.id,
+          courseId,
+          status: 'ACTIVE',
+        })),
+      });
+
+      return instructor;
     });
   },
 
@@ -205,11 +316,6 @@ export const instructorService = {
     }
 
     const updateData = {};
-
-    if (data.specialty !== undefined) {
-      updateData.specialty =
-        data.specialty?.trim() || null;
-    }
 
     if (data.status !== undefined) {
       updateData.status = data.status;

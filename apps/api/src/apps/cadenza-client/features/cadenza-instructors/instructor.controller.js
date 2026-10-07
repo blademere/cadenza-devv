@@ -4,7 +4,10 @@ export const instructorController = {
     try {
       const instructors = await instructorService.getInstructors(
         req.cadenzaApp.id,
-        { status: req.query.status },
+        {
+          status: req.query.status,
+          courseId: req.query.courseId,
+        },
       );
       return res.json({ success: true, data: instructors });
     } catch (error) {

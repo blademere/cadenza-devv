@@ -6,6 +6,7 @@ import {
   packageInstructorValidator,
   packageInstructorAvailabilityValidator,
   createValidator,
+  validateScheduleValidator,
 } from './enrollment.validation.js';
 
 import {
@@ -52,6 +53,13 @@ router.post(
   requireClient,
   validate(createValidator),
   asyncHandler(enrollmentController.createEnrollment),
+);
+
+router.post(
+  '/validate-schedule',
+  requireClient,
+  validate(validateScheduleValidator),
+  asyncHandler(enrollmentController.validateSchedule),
 );
 
 router.get(
