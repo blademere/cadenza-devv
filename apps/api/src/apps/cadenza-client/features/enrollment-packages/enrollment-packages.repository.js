@@ -3,6 +3,17 @@ import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 const prisma = getPrismaClient();
 
 const packageInclude = {
+  _count: {
+    select: {
+      enrollments: {
+        where: {
+          status: {
+            notIn: ['CANCELLED', 'COMPLETED'],
+          },
+        },
+      },
+    },
+  },
   lessons: {
     select: {
       id: true,

@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Check, ChevronDown, FileIcon, Printer } from "lucide-react";
+import { useState } from 'react';
+import { Check, ChevronDown, FileIcon, Printer } from 'lucide-react';
 
-import { AppSidebar } from "../components/app-sidebar";
-import { SiteHeader } from "../components/site-header";
+import { AppSidebar } from '../components/app-sidebar';
+import { SiteHeader } from '../components/site-header';
 
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 
 import {
   Card,
@@ -17,7 +17,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/Card";
+} from '@/components/ui/Card';
 
 import {
   Dialog,
@@ -26,16 +26,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/Dialog";
+} from '@/components/ui/Dialog';
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 
-import { Input } from "@/components/ui/Input";
+import { Input } from '@/components/ui/Input';
 
 import {
   Table,
@@ -44,7 +44,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/Table";
+} from '@/components/ui/Table';
 
 /* =========================================================
    MOCK DATA
@@ -52,113 +52,113 @@ import {
 
 const initialTransactions = [
   {
-    id: "TXN-001",
-    person: "Juan Dela Cruz",
-    email: "juan@example.com",
-    type: "Room Booking",
-    details: "Practice Room 1",
-    date: "Sep 10, 2026",
+    id: 'TXN-001',
+    person: 'Juan Dela Cruz',
+    email: 'juan@example.com',
+    type: 'Room Booking',
+    details: 'Practice Room 1',
+    date: 'Sep 10, 2026',
     totalAmount: 300,
-    status: "Paid",
+    status: 'Paid',
     payments: [
       {
-        id: "PAY-001",
+        id: 'PAY-001',
         amount: 300,
-        method: "Cash",
-        reference: "CASH-001",
-        processedAt: "Sep 10, 2026 · 9:05 AM",
+        method: 'Cash',
+        reference: 'CASH-001',
+        processedAt: 'Sep 10, 2026 · 9:05 AM',
       },
     ],
   },
 
   {
-    id: "TXN-002",
-    person: "Maria Santos",
-    email: "maria@example.com",
-    type: "Instrument Rental",
-    details: "Fender Acoustic Guitar",
-    date: "Sep 11, 2026",
+    id: 'TXN-002',
+    person: 'Maria Santos',
+    email: 'maria@example.com',
+    type: 'Instrument Rental',
+    details: 'Fender Acoustic Guitar',
+    date: 'Sep 11, 2026',
     totalAmount: 500,
-    status: "Paid",
+    status: 'Paid',
     payments: [
       {
-        id: "PAY-002",
+        id: 'PAY-002',
         amount: 500,
-        method: "GCash",
-        reference: "GC-20260911-002",
-        processedAt: "Sep 11, 2026 · 10:15 AM",
+        method: 'GCash',
+        reference: 'GC-20260911-002',
+        processedAt: 'Sep 11, 2026 · 10:15 AM',
       },
     ],
   },
 
   {
-    id: "TXN-003",
-    person: "Pedro Reyes",
-    email: "pedro@example.com",
-    type: "Room Booking",
-    details: "Music Room",
-    date: "Sep 12, 2026",
+    id: 'TXN-003',
+    person: 'Pedro Reyes',
+    email: 'pedro@example.com',
+    type: 'Room Booking',
+    details: 'Music Room',
+    date: 'Sep 12, 2026',
     totalAmount: 600,
-    status: "Partially Paid",
+    status: 'Partially Paid',
     payments: [
       {
-        id: "PAY-003",
+        id: 'PAY-003',
         amount: 200,
-        method: "Cash",
-        reference: "CASH-003",
-        processedAt: "Sep 12, 2026 · 8:15 AM",
+        method: 'Cash',
+        reference: 'CASH-003',
+        processedAt: 'Sep 12, 2026 · 8:15 AM',
       },
     ],
   },
 
   {
-    id: "TXN-004",
-    person: "Ana Garcia",
-    email: "ana@example.com",
-    type: "Enrollment",
-    details: "Beginner Guitar Program",
-    date: "Sep 13, 2026",
+    id: 'TXN-004',
+    person: 'Ana Garcia',
+    email: 'ana@example.com',
+    type: 'Enrollment',
+    details: 'Beginner Guitar Program',
+    date: 'Sep 13, 2026',
     totalAmount: 1000,
-    status: "Paid",
+    status: 'Paid',
     payments: [
       {
-        id: "PAY-004",
+        id: 'PAY-004',
         amount: 1000,
-        method: "GCash",
-        reference: "GC-20260913-004",
-        processedAt: "Sep 13, 2026 · 2:20 PM",
+        method: 'GCash',
+        reference: 'GC-20260913-004',
+        processedAt: 'Sep 13, 2026 · 2:20 PM',
       },
     ],
   },
 
   {
-    id: "TXN-005",
-    person: "Carlos Mendoza",
-    email: "carlos@example.com",
-    type: "Instrument Rental",
-    details: "Yamaha Violin",
-    date: "Sep 14, 2026",
+    id: 'TXN-005',
+    person: 'Carlos Mendoza',
+    email: 'carlos@example.com',
+    type: 'Instrument Rental',
+    details: 'Yamaha Violin',
+    date: 'Sep 14, 2026',
     totalAmount: 1200,
-    status: "Unpaid",
+    status: 'Unpaid',
     payments: [],
   },
 
   {
-    id: "TXN-006",
-    person: "Sofia Martinez",
-    email: "sofia@example.com",
-    type: "Enrollment",
-    details: "Intermediate Piano Program",
-    date: "Sep 15, 2026",
+    id: 'TXN-006',
+    person: 'Sofia Martinez',
+    email: 'sofia@example.com',
+    type: 'Enrollment',
+    details: 'Intermediate Piano Program',
+    date: 'Sep 15, 2026',
     totalAmount: 3000,
-    status: "Partially Paid",
+    status: 'Partially Paid',
     payments: [
       {
-        id: "PAY-006",
+        id: 'PAY-006',
         amount: 1000,
-        method: "GCash",
-        reference: "GC-20260915-006",
-        processedAt: "Sep 15, 2026 · 9:30 AM",
+        method: 'GCash',
+        reference: 'GC-20260915-006',
+        processedAt: 'Sep 15, 2026 · 9:30 AM',
       },
     ],
   },
@@ -169,7 +169,7 @@ const initialTransactions = [
 ========================================================= */
 
 const formatCurrency = (amount) => {
-  return `₱${Number(amount).toLocaleString("en-PH", {
+  return `₱${Number(amount).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -187,11 +187,11 @@ const getRemainingAmount = (transaction) => {
 };
 
 const getStatusVariant = (status) => {
-  if (status === "Paid") {
-    return "default";
+  if (status === 'Paid') {
+    return 'default';
   }
 
-  return "secondary";
+  return 'secondary';
 };
 
 /* =========================================================
@@ -201,7 +201,7 @@ const getStatusVariant = (status) => {
 export default function BillingPayments() {
   const [transactions, setTransactions] = useState(initialTransactions);
 
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState('All');
 
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
@@ -209,28 +209,28 @@ export default function BillingPayments() {
 
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
 
-  const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
 
-  const [amountToPay, setAmountToPay] = useState("");
+  const [amountToPay, setAmountToPay] = useState('');
 
   /* =========================================================
      COUNTS
   ========================================================= */
 
   const paidCount = transactions.filter(
-    (transaction) => transaction.status === "Paid",
+    (transaction) => transaction.status === 'Paid',
   ).length;
 
   const partiallyPaidCount = transactions.filter(
-    (transaction) => transaction.status === "Partially Paid",
+    (transaction) => transaction.status === 'Partially Paid',
   ).length;
 
   const unpaidCount = transactions.filter(
-    (transaction) => transaction.status === "Unpaid",
+    (transaction) => transaction.status === 'Unpaid',
   ).length;
 
   const roomBookingCount = transactions.filter(
-    (transaction) => transaction.type === "Room Booking",
+    (transaction) => transaction.type === 'Room Booking',
   ).length;
 
   /* =========================================================
@@ -238,7 +238,7 @@ export default function BillingPayments() {
   ========================================================= */
 
   const filteredTransactions =
-    statusFilter === "All"
+    statusFilter === 'All'
       ? transactions
       : transactions.filter(
           (transaction) => transaction.status === statusFilter,
@@ -252,7 +252,7 @@ export default function BillingPayments() {
     const remainingAmount = getRemainingAmount(transaction);
 
     setSelectedTransaction(transaction);
-    setPaymentMethod("Cash");
+    setPaymentMethod('Cash');
     setAmountToPay(String(remainingAmount));
     setShowPaymentDialog(true);
   };
@@ -276,18 +276,18 @@ export default function BillingPayments() {
     const paymentNumber = selectedTransaction.payments.length + 1;
 
     const paymentId = `PAY-${selectedTransaction.id.replace(
-      "TXN-",
-      "",
+      'TXN-',
+      '',
     )}-${paymentNumber}`;
 
     const reference =
-      paymentMethod === "Cash"
-        ? `CASH-${selectedTransaction.id.replace("TXN-", "")}-${paymentNumber}`
+      paymentMethod === 'Cash'
+        ? `CASH-${selectedTransaction.id.replace('TXN-', '')}-${paymentNumber}`
         : `GC-${Date.now()}`;
 
-    const processedAt = new Date().toLocaleString("en-PH", {
-      dateStyle: "medium",
-      timeStyle: "short",
+    const processedAt = new Date().toLocaleString('en-PH', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
     });
 
     const newPayment = {
@@ -310,12 +310,12 @@ export default function BillingPayments() {
       0,
     );
 
-    let updatedStatus = "Partially Paid";
+    let updatedStatus = 'Partially Paid';
 
     if (updatedRemainingAmount === 0) {
-      updatedStatus = "Paid";
+      updatedStatus = 'Paid';
     } else if (updatedPaidAmount === 0) {
-      updatedStatus = "Unpaid";
+      updatedStatus = 'Unpaid';
     }
 
     const updatedTransaction = {
@@ -333,7 +333,7 @@ export default function BillingPayments() {
     );
 
     setSelectedTransaction(updatedTransaction);
-    setAmountToPay("");
+    setAmountToPay('');
 
     setShowPaymentDialog(false);
 
@@ -456,27 +456,27 @@ export default function BillingPayments() {
 
                 <DropdownMenu>
                   <DropdownMenuTrigger className="inline-flex h-9 min-w-[160px] items-center justify-between rounded-md border bg-background px-3 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground">
-                    {statusFilter === "All" ? "All Transactions" : statusFilter}
+                    {statusFilter === 'All' ? 'All Transactions' : statusFilter}
 
                     <ChevronDown className="ml-2 size-4" />
                   </DropdownMenuTrigger>
 
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setStatusFilter("All")}>
+                    <DropdownMenuItem onClick={() => setStatusFilter('All')}>
                       All Transactions
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={() => setStatusFilter("Unpaid")}>
+                    <DropdownMenuItem onClick={() => setStatusFilter('Unpaid')}>
                       Unpaid
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
-                      onClick={() => setStatusFilter("Partially Paid")}
+                      onClick={() => setStatusFilter('Partially Paid')}
                     >
                       Partially Paid
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={() => setStatusFilter("Paid")}>
+                    <DropdownMenuItem onClick={() => setStatusFilter('Paid')}>
                       Paid
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -563,7 +563,7 @@ export default function BillingPayments() {
                             </TableCell>
 
                             <TableCell className="text-right">
-                              {transaction.status === "Paid" ? (
+                              {transaction.status === 'Paid' ? (
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -682,8 +682,8 @@ export default function BillingPayments() {
                     <Button
                       type="button"
                       size="sm"
-                      variant={paymentMethod === "Cash" ? "default" : "outline"}
-                      onClick={() => setPaymentMethod("Cash")}
+                      variant={paymentMethod === 'Cash' ? 'default' : 'outline'}
+                      onClick={() => setPaymentMethod('Cash')}
                     >
                       Cash
                     </Button>
@@ -692,9 +692,9 @@ export default function BillingPayments() {
                       type="button"
                       size="sm"
                       variant={
-                        paymentMethod === "GCash" ? "default" : "outline"
+                        paymentMethod === 'GCash' ? 'default' : 'outline'
                       }
-                      onClick={() => setPaymentMethod("GCash")}
+                      onClick={() => setPaymentMethod('GCash')}
                     >
                       GCash
                     </Button>
@@ -743,7 +743,7 @@ export default function BillingPayments() {
                     </div>
                   )}
 
-                {paymentMethod === "GCash" && (
+                {paymentMethod === 'GCash' && (
                   <p className="text-xs text-muted-foreground">
                     Confirm that the GCash payment has been received before
                     processing.
@@ -801,9 +801,9 @@ export default function BillingPayments() {
                   </div>
 
                   <p className="text-sm font-semibold">
-                    {selectedTransaction.status === "Paid"
-                      ? "Payment Completed"
-                      : "Payment Recorded"}
+                    {selectedTransaction.status === 'Paid'
+                      ? 'Payment Completed'
+                      : 'Payment Recorded'}
                   </p>
 
                   <p className="text-xs text-muted-foreground">

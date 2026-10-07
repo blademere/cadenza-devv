@@ -207,6 +207,16 @@ export const enrollmentPackagesService = {
           current.status,
       });
 
+    if (
+      current.status === 'ACTIVE' &&
+      normalized.status === 'INACTIVE' &&
+      current._count?.enrollments > 0
+    ) {
+      throw new ConflictError(
+        'This enrollment package cannot be deactivated while it has active enrollments.',
+      );
+    }
+
     const nameChanged =
       normalized.name !== current.name;
 

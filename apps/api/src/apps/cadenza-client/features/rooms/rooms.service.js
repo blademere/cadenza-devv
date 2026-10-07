@@ -85,6 +85,18 @@ const create = async ({
   });
 
   try {
+    const normalizedRoomName = roomName?.trim();
+    const existingResource = normalizedRoomName
+      ? await repository.findRoomResourceByName(
+          appId,
+          normalizedRoomName,
+        )
+      : null;
+
+    if (existingResource) {
+      throw new ConflictError('Room name already exists.');
+    }
+
     return await repository.withTransaction(async (tx) => {
       const resource = await repository.createResource(
         {
@@ -147,6 +159,19 @@ const update = async ({ appId, id, ...data }) => {
       current.rentalDurationHours,
     status: data.status ?? current.status,
   });
+
+  if (data.roomName !== undefined) {
+    const roomName = data.roomName.trim();
+    const existingResource = await repository.findRoomResourceByName(
+      appId,
+      roomName,
+      current.resourceId,
+    );
+
+    if (existingResource) {
+      throw new ConflictError('Room name already exists.');
+    }
+  }
 
   const result = await repository.withTransaction(async (tx) => {
     const updateResult = await repository.update(id, appId, normalized, tx);

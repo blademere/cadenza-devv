@@ -139,13 +139,35 @@ export const instrumentsService = {
         await prisma.cadenzaInstrument.findFirst({
           where: {
             appId,
-            serialNumber,
+            serialNumber: {
+              equals: serialNumber,
+              mode: 'insensitive',
+            },
           },
         });
 
       if (existing) {
         throw new ConflictError(
           'An instrument with this serial number already exists.',
+        );
+      }
+    }
+
+    if (model) {
+      const existing =
+        await prisma.cadenzaInstrument.findFirst({
+          where: {
+            appId,
+            model: {
+              equals: model,
+              mode: 'insensitive',
+            },
+          },
+        });
+
+      if (existing) {
+        throw new ConflictError(
+          'An instrument with this model already exists.',
         );
       }
     }
@@ -260,10 +282,35 @@ export const instrumentsService = {
     }
 
     if (data.model !== undefined) {
-      updateData.model =
-        normalizeNullableString(
-          data.model,
-        );
+      const model = normalizeNullableString(data.model);
+
+      if (
+        model &&
+        model.toLowerCase() !==
+          (instrument.model || '').toLowerCase()
+      ) {
+        const existing =
+          await prisma.cadenzaInstrument.findFirst({
+            where: {
+              appId,
+              model: {
+                equals: model,
+                mode: 'insensitive',
+              },
+              NOT: {
+                id,
+              },
+            },
+          });
+
+        if (existing) {
+          throw new ConflictError(
+            'An instrument with this model already exists.',
+          );
+        }
+      }
+
+      updateData.model = model;
     }
 
     if (data.serialNumber !== undefined) {
@@ -282,7 +329,10 @@ export const instrumentsService = {
             {
               where: {
                 appId,
-                serialNumber,
+                serialNumber: {
+                  equals: serialNumber,
+                  mode: 'insensitive',
+                },
                 NOT: {
                   id,
                 },

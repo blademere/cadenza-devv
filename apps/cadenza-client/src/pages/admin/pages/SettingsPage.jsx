@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useState } from 'react';
 import {
   BookOpenIcon,
   Loader2Icon,
@@ -11,10 +12,7 @@ import {
 
 import { AppSidebar } from '../components/app-sidebar';
 import { SiteHeader } from '../components/site-header';
-import {
-  SidebarInset,
-  SidebarProvider,
-} from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 import { Button } from '@/components/ui/Button';
 import {
@@ -83,25 +81,19 @@ const mapCourse = (item) => ({
 
 export default function SettingsPage() {
   const [courses, setCourses] = React.useState(INITIAL_COURSES);
-  const [instruments, setInstruments] =
-    React.useState(INITIAL_INSTRUMENTS);
+  const [instruments, setInstruments] = React.useState(INITIAL_INSTRUMENTS);
   const [categories, setCategories] = React.useState([]);
 
-  const [courseForm, setCourseForm] = React.useState(
-    EMPTY_COURSE_FORM,
-  );
+  const [courseForm, setCourseForm] = React.useState(EMPTY_COURSE_FORM);
 
   const [instrumentForm, setInstrumentForm] = React.useState(
     EMPTY_INSTRUMENT_FORM,
   );
 
-  const [courseDialogOpen, setCourseDialogOpen] =
-    React.useState(false);
+  const [courseDialogOpen, setCourseDialogOpen] = React.useState(false);
 
-  const [instrumentDialogOpen, setInstrumentDialogOpen] =
-    React.useState(false);
-  const [categoryDialogOpen, setCategoryDialogOpen] =
-    React.useState(false);
+  const [instrumentDialogOpen, setInstrumentDialogOpen] = React.useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = React.useState(false);
 
   const [courseDeactivateDialogOpen, setCourseDeactivateDialogOpen] =
     React.useState(false);
@@ -115,69 +107,47 @@ export default function SettingsPage() {
   const [instrumentReactivateDialogOpen, setInstrumentReactivateDialogOpen] =
     React.useState(false);
 
-  const [courseToDeactivate, setCourseToDeactivate] =
-    React.useState(null);
+  const [courseToDeactivate, setCourseToDeactivate] = React.useState(null);
 
-  const [courseToReactivate, setCourseToReactivate] =
-    React.useState(null);
+  const [courseToReactivate, setCourseToReactivate] = React.useState(null);
 
   const [instrumentToDeactivate, setInstrumentToDeactivate] =
     React.useState(null);
 
   const [instrumentToReactivate, setInstrumentToReactivate] =
     React.useState(null);
-  const [categoryToDeactivate, setCategoryToDeactivate] =
-    React.useState(null);
-  const [categoryToReactivate, setCategoryToReactivate] =
-    React.useState(null);
+  const [categoryToDeactivate, setCategoryToDeactivate] = React.useState(null);
+  const [categoryToReactivate, setCategoryToReactivate] = React.useState(null);
 
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const [deactivatingCourse, setDeactivatingCourse] =
-    React.useState(false);
-  const [reactivatingCourse, setReactivatingCourse] =
-    React.useState(false);
+  const [deactivatingCourse, setDeactivatingCourse] = React.useState(false);
+  const [reactivatingCourse, setReactivatingCourse] = React.useState(false);
   const [deactivatingInstrument, setDeactivatingInstrument] =
     React.useState(false);
   const [reactivatingInstrument, setReactivatingInstrument] =
     React.useState(false);
-  const [categoryForm, setCategoryForm] =
-    React.useState(EMPTY_CATEGORY_FORM);
-  const [deactivatingCategory, setDeactivatingCategory] =
-    React.useState(false);
-  const [reactivatingCategory, setReactivatingCategory] =
-    React.useState(false);
+  const [categoryForm, setCategoryForm] = React.useState(EMPTY_CATEGORY_FORM);
+  const [deactivatingCategory, setDeactivatingCategory] = React.useState(false);
+  const [reactivatingCategory, setReactivatingCategory] = React.useState(false);
 
   const loadData = React.useCallback(async () => {
     try {
       setLoading(true);
 
-      const [courseData, instrumentTypeData, categoryData] =
-        await Promise.all([
-          getCourses(),
-          getInstrumentTypes(),
-          getItemCategories(),
-        ]);
+      const [courseData, instrumentTypeData, categoryData] = await Promise.all([
+        getCourses(),
+        getInstrumentTypes(),
+        getItemCategories(),
+      ]);
 
-      setCourses(
-        Array.isArray(courseData)
-          ? courseData.map(mapCourse)
-          : [],
-      );
+      setCourses(Array.isArray(courseData) ? courseData.map(mapCourse) : []);
       setInstruments(
-        Array.isArray(instrumentTypeData)
-          ? instrumentTypeData
-          : [],
+        Array.isArray(instrumentTypeData) ? instrumentTypeData : [],
       );
-      setCategories(
-        Array.isArray(categoryData)
-          ? categoryData
-          : [],
-      );
+      setCategories(Array.isArray(categoryData) ? categoryData : []);
     } catch (error) {
-      toast.error(
-        error?.message || 'Failed to load course setup.',
-      );
+      toast.error(error?.message || 'Failed to load course setup.');
     } finally {
       setLoading(false);
     }
@@ -192,6 +162,7 @@ export default function SettingsPage() {
       ...EMPTY_COURSE_FORM,
     });
 
+    setCourseError('');
     setCourseDialogOpen(true);
   };
 
@@ -205,18 +176,31 @@ export default function SettingsPage() {
     setCourseForm({
       ...EMPTY_COURSE_FORM,
     });
+
+    setCourseError('');
   };
 
   const saveCourse = async () => {
     const courseName = courseForm.courseName.trim();
 
     if (!courseName) {
-      toast.error('Course name is required.');
+      setCourseError('Course name is required.');
+      return;
+    }
+
+    const duplicateCourse = courses.find(
+      (course) =>
+        course.name.trim().toLowerCase() === courseName.toLowerCase(),
+    );
+
+    if (duplicateCourse) {
+      setCourseError('Course name already exists.');
       return;
     }
 
     try {
       setSaving(true);
+      setCourseError('');
 
       const formData = new FormData();
 
@@ -234,9 +218,7 @@ export default function SettingsPage() {
 
       await loadData();
     } catch (error) {
-      toast.error(
-        error?.message || 'Failed to create course.',
-      );
+      setCourseError(error?.message || 'Failed to create course.');
     } finally {
       setSaving(false);
     }
@@ -267,16 +249,12 @@ export default function SettingsPage() {
       await deactivateCourse(courseToDeactivate.id);
       await loadData();
 
-      toast.success(
-        `${courseToDeactivate.name} has been deactivated.`,
-      );
+      toast.success(`${courseToDeactivate.name} has been deactivated.`);
 
       setCourseDeactivateDialogOpen(false);
       setCourseToDeactivate(null);
     } catch (error) {
-      toast.error(
-        error?.message || 'Failed to deactivate course.',
-      );
+      toast.error(error?.message || 'Failed to deactivate course.');
     } finally {
       setDeactivatingCourse(false);
     }
@@ -307,16 +285,12 @@ export default function SettingsPage() {
       await reactivateCourse(courseToReactivate.id);
       await loadData();
 
-      toast.success(
-        `${courseToReactivate.name} has been reactivated.`,
-      );
+      toast.success(`${courseToReactivate.name} has been reactivated.`);
 
       setCourseReactivateDialogOpen(false);
       setCourseToReactivate(null);
     } catch (error) {
-      toast.error(
-        error?.message || 'Failed to reactivate course.',
-      );
+      toast.error(error?.message || 'Failed to reactivate course.');
     } finally {
       setReactivatingCourse(false);
     }
@@ -327,6 +301,7 @@ export default function SettingsPage() {
       ...EMPTY_INSTRUMENT_FORM,
     });
 
+    setInstrumentError('');
     setInstrumentDialogOpen(true);
   };
 
@@ -340,32 +315,31 @@ export default function SettingsPage() {
     setInstrumentForm({
       ...EMPTY_INSTRUMENT_FORM,
     });
+
+    setInstrumentError('');
   };
 
   const saveInstrumentType = async () => {
-    const instrumentName =
-      instrumentForm.instrumentType.trim();
+    const instrumentName = instrumentForm.instrumentType.trim();
 
     if (!instrumentName) {
-      toast.error('Instrument type is required.');
+      setInstrumentError('Instrument type or equipment name is required.');
       return;
     }
 
     const existingInstrument = instruments.find(
       (instrument) =>
-        instrument.name.toLowerCase() ===
-        instrumentName.toLowerCase(),
+        instrument.name.trim().toLowerCase() === instrumentName.toLowerCase(),
     );
 
     if (existingInstrument) {
-      toast.error(
-        'This instrument type already exists.',
-      );
+      setInstrumentError('Instrument type or equipment name already exists.');
       return;
     }
 
     try {
       setSaving(true);
+      setInstrumentError('');
       const created = await createInstrumentType(instrumentName);
 
       setInstruments((current) => [...current, created]);
@@ -373,7 +347,7 @@ export default function SettingsPage() {
       setInstrumentDialogOpen(false);
       setInstrumentForm({ ...EMPTY_INSTRUMENT_FORM });
     } catch (error) {
-      toast.error(
+      setInstrumentError(
         error?.message || 'Failed to create instrument type.',
       );
     } finally {
@@ -403,23 +377,15 @@ export default function SettingsPage() {
     try {
       setDeactivatingInstrument(true);
 
-      await updateInstrumentTypeStatus(
-        instrumentToDeactivate.id,
-        'INACTIVE',
-      );
+      await updateInstrumentTypeStatus(instrumentToDeactivate.id, 'INACTIVE');
       await loadData();
 
-      toast.success(
-        `${instrumentToDeactivate.name} has been deactivated.`,
-      );
+      toast.success(`${instrumentToDeactivate.name} has been deactivated.`);
 
       setInstrumentDeactivateDialogOpen(false);
       setInstrumentToDeactivate(null);
     } catch (error) {
-      toast.error(
-        error?.message ||
-          'Failed to deactivate instrument type.',
-      );
+      toast.error(error?.message || 'Failed to deactivate instrument type.');
     } finally {
       setDeactivatingInstrument(false);
     }
@@ -447,23 +413,15 @@ export default function SettingsPage() {
     try {
       setReactivatingInstrument(true);
 
-      await updateInstrumentTypeStatus(
-        instrumentToReactivate.id,
-        'ACTIVE',
-      );
+      await updateInstrumentTypeStatus(instrumentToReactivate.id, 'ACTIVE');
       await loadData();
 
-      toast.success(
-        `${instrumentToReactivate.name} has been reactivated.`,
-      );
+      toast.success(`${instrumentToReactivate.name} has been reactivated.`);
 
       setInstrumentReactivateDialogOpen(false);
       setInstrumentToReactivate(null);
     } catch (error) {
-      toast.error(
-        error?.message ||
-          'Failed to reactivate instrument type.',
-      );
+      toast.error(error?.message || 'Failed to reactivate instrument type.');
     } finally {
       setReactivatingInstrument(false);
     }
@@ -473,19 +431,32 @@ export default function SettingsPage() {
     const name = categoryForm.categoryName.trim();
 
     if (!name) {
-      toast.error('Category name is required.');
+      setCategoryError('Category name is required.');
+      return;
+    }
+
+    const existingCategory = categories.find(
+      (category) =>
+        category.name.trim().toLowerCase() === name.toLowerCase(),
+    );
+
+    if (existingCategory) {
+      setCategoryError('Category name already exists.');
       return;
     }
 
     try {
       setSaving(true);
+      setCategoryError('');
       await createItemCategory(name);
       await loadData();
       setCategoryDialogOpen(false);
       setCategoryForm({ ...EMPTY_CATEGORY_FORM });
       toast.success('Item category added successfully.');
     } catch (error) {
-      toast.error(error?.message || 'Failed to create item category.');
+      setCategoryError(
+        error?.message || 'Failed to create item category.',
+      );
     } finally {
       setSaving(false);
     }
@@ -516,6 +487,10 @@ export default function SettingsPage() {
     }
   };
 
+  const [courseError, setCourseError] = useState('');
+  const [instrumentError, setInstrumentError] = useState('');
+  const [categoryError, setCategoryError] = useState('');
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -525,9 +500,7 @@ export default function SettingsPage() {
 
         <main className="flex flex-1 flex-col gap-6 p-6">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Settings
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
 
             <p className="text-sm text-muted-foreground">
               Manage system setup and configuration.
@@ -559,13 +532,9 @@ export default function SettingsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>
-                          Course Name
-                        </TableHead>
+                        <TableHead>Course Name</TableHead>
 
-                        <TableHead>
-                          Status
-                        </TableHead>
+                        <TableHead>Status</TableHead>
 
                         <TableHead className="w-[100px] text-right">
                           Actions
@@ -576,10 +545,7 @@ export default function SettingsPage() {
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell
-                            colSpan={3}
-                            className="h-24 text-center"
-                          >
+                          <TableCell colSpan={3} className="h-24 text-center">
                             <div className="flex items-center justify-center gap-2 text-muted-foreground">
                               <Loader2Icon className="h-4 w-4 animate-spin" />
                               Loading courses...
@@ -659,6 +625,7 @@ export default function SettingsPage() {
                 <Button
                   onClick={() => {
                     setCategoryForm({ ...EMPTY_CATEGORY_FORM });
+                    setCategoryError('');
                     setCategoryDialogOpen(true);
                   }}
                 >
@@ -672,13 +639,9 @@ export default function SettingsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>
-                          Category Name
-                        </TableHead>
+                        <TableHead>Category Name</TableHead>
 
-                        <TableHead>
-                          Status
-                        </TableHead>
+                        <TableHead>Status</TableHead>
 
                         <TableHead className="w-[100px] text-right">
                           Actions
@@ -689,10 +652,7 @@ export default function SettingsPage() {
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell
-                            colSpan={3}
-                            className="h-24 text-center"
-                          >
+                          <TableCell colSpan={3} className="h-24 text-center">
                             <div className="flex items-center justify-center gap-2 text-muted-foreground">
                               <Loader2Icon className="h-4 w-4 animate-spin" />
                               Loading categories...
@@ -765,7 +725,8 @@ export default function SettingsPage() {
                   </CardTitle>
 
                   <CardDescription>
-                    Manage the available instrument types and equipment in Cadenza.
+                    Manage the available instrument types and equipment in
+                    Cadenza.
                   </CardDescription>
                 </div>
 
@@ -780,13 +741,9 @@ export default function SettingsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>
-                          Instrument Type or Equipment Name
-                        </TableHead>
+                        <TableHead>Instrument Type or Equipment Name</TableHead>
 
-                        <TableHead>
-                          Status
-                        </TableHead>
+                        <TableHead>Status</TableHead>
 
                         <TableHead className="w-[100px] text-right">
                           Actions
@@ -835,8 +792,12 @@ export default function SettingsPage() {
                                   }
                                   onClick={() =>
                                     instrument.status === 'INACTIVE'
-                                      ? openInstrumentReactivateDialog(instrument)
-                                      : openInstrumentDeactivateDialog(instrument)
+                                      ? openInstrumentReactivateDialog(
+                                          instrument,
+                                        )
+                                      : openInstrumentDeactivateDialog(
+                                          instrument,
+                                        )
                                   }
                                 >
                                   <PowerIcon className="h-4 w-4" />
@@ -865,9 +826,7 @@ export default function SettingsPage() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              Add Course
-            </DialogTitle>
+            <DialogTitle>Add Course</DialogTitle>
 
             <DialogDescription>
               Add a new course to the system.
@@ -875,22 +834,35 @@ export default function SettingsPage() {
           </DialogHeader>
 
           <div className="grid gap-2">
-            <Label htmlFor="course-name">
-              Course Name
-            </Label>
+            <Label htmlFor="course-name">Course Name</Label>
 
             <Input
               id="course-name"
               value={courseForm.courseName}
-              onChange={(event) =>
+              onChange={(event) => {
                 setCourseForm({
                   ...courseForm,
                   courseName: event.target.value,
-                })
-              }
+                });
+
+                setCourseError('');
+              }}
               placeholder="Enter course name"
               disabled={saving}
+              className={courseError ? 'border-destructive' : ''}
+              aria-invalid={Boolean(courseError)}
+              aria-describedby={courseError ? 'course-name-error' : undefined}
             />
+
+            {courseError && (
+              <p
+                id="course-name-error"
+                role="alert"
+                className="text-sm text-destructive"
+              >
+                {courseError}
+              </p>
+            )}
           </div>
 
           <DialogFooter>
@@ -903,11 +875,7 @@ export default function SettingsPage() {
               Cancel
             </Button>
 
-            <Button
-              type="button"
-              onClick={saveCourse}
-              disabled={saving}
-            >
+            <Button type="button" onClick={saveCourse} disabled={saving}>
               {saving ? (
                 <>
                   <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
@@ -923,7 +891,12 @@ export default function SettingsPage() {
 
       <Dialog
         open={categoryDialogOpen}
-        onOpenChange={setCategoryDialogOpen}
+        onOpenChange={(open) => {
+          setCategoryDialogOpen(open);
+          if (!open) {
+            setCategoryError('');
+          }
+        }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -938,12 +911,27 @@ export default function SettingsPage() {
               id="item-category"
               value={categoryForm.categoryName}
               onChange={(event) =>
-                setCategoryForm({
-                  categoryName: event.target.value,
-                })
+                {
+                  setCategoryForm({
+                    categoryName: event.target.value,
+                  });
+                  setCategoryError('');
+                }
               }
               placeholder="Enter category name"
+              className={categoryError ? 'border-destructive' : ''}
+              aria-invalid={Boolean(categoryError)}
+              aria-describedby={categoryError ? 'item-category-error' : undefined}
             />
+            {categoryError && (
+              <p
+                id="item-category-error"
+                role="alert"
+                className="text-sm text-destructive"
+              >
+                {categoryError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button
@@ -954,11 +942,7 @@ export default function SettingsPage() {
             >
               Cancel
             </Button>
-            <Button
-              type="button"
-              onClick={saveCategory}
-              disabled={saving}
-            >
+            <Button type="button" onClick={saveCategory} disabled={saving}>
               {saving ? 'Saving...' : 'Add Category'}
             </Button>
           </DialogFooter>
@@ -1046,9 +1030,7 @@ export default function SettingsPage() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              Add Instrument Type or Equipment
-            </DialogTitle>
+            <DialogTitle>Add Instrument Type or Equipment</DialogTitle>
 
             <DialogDescription>
               Add a new instrument type or equipment to the system.
@@ -1064,13 +1046,30 @@ export default function SettingsPage() {
               id="instrument-type"
               value={instrumentForm.instrumentType}
               onChange={(event) =>
-                setInstrumentForm({
-                  ...instrumentForm,
-                  instrumentType: event.target.value,
-                })
+                {
+                  setInstrumentForm({
+                    ...instrumentForm,
+                    instrumentType: event.target.value,
+                  });
+                  setInstrumentError('');
+                }
               }
               placeholder="Enter instrument type"
+              className={instrumentError ? 'border-destructive' : ''}
+              aria-invalid={Boolean(instrumentError)}
+              aria-describedby={
+                instrumentError ? 'instrument-type-error' : undefined
+              }
             />
+            {instrumentError && (
+              <p
+                id="instrument-type-error"
+                role="alert"
+                className="text-sm text-destructive"
+              >
+                {instrumentError}
+              </p>
+            )}
           </div>
 
           <DialogFooter>
@@ -1082,10 +1081,7 @@ export default function SettingsPage() {
               Cancel
             </Button>
 
-            <Button
-              type="button"
-              onClick={saveInstrumentType}
-            >
+            <Button type="button" onClick={saveInstrumentType}>
               Add
             </Button>
           </DialogFooter>
@@ -1102,9 +1098,7 @@ export default function SettingsPage() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              Deactivate Course
-            </DialogTitle>
+            <DialogTitle>Deactivate Course</DialogTitle>
 
             <DialogDescription>
               Are you sure you want to deactivate{' '}
@@ -1154,9 +1148,7 @@ export default function SettingsPage() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              Reactivate Course
-            </DialogTitle>
+            <DialogTitle>Reactivate Course</DialogTitle>
 
             <DialogDescription>
               Are you sure you want to reactivate{' '}
@@ -1205,9 +1197,7 @@ export default function SettingsPage() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              Deactivate Instrument Type
-            </DialogTitle>
+            <DialogTitle>Deactivate Instrument Type</DialogTitle>
 
             <DialogDescription>
               Are you sure you want to deactivate{' '}
@@ -1257,9 +1247,7 @@ export default function SettingsPage() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              Reactivate Instrument Type
-            </DialogTitle>
+            <DialogTitle>Reactivate Instrument Type</DialogTitle>
 
             <DialogDescription>
               Are you sure you want to reactivate{' '}

@@ -27,7 +27,6 @@ export default function InstructorCard({ instructor, selected, onSelect }) {
 
               <p className="text-sm text-muted-foreground">
                 {instructor.courses?.map((course) => course.name).join(', ') ||
-                  instructor.specialty ||
                   'Qualified Instructor'}
               </p>
             </div>

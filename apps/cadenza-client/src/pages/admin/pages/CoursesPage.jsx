@@ -73,6 +73,8 @@ deactivateCourse,
 
 import { getEnrollmentPackages } from '@/services/admin/enrollment-packageService';
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
 const EMPTY_FORM = {
 packageId: '',
 courseId: '',
@@ -124,6 +126,79 @@ return file.storageReference.split('/').pop();
 }
 
 return 'Course material';
+};
+
+const validateCourseForm = (form, courses, packages) => {
+  if (
+    typeof form?.packageId !== 'string' ||
+    !form.packageId.trim()
+  ) {
+    return 'Please select a package.';
+  }
+
+  const selectedPackage = packages.find(
+    (item) => item.id === form.packageId && item.status === 'ACTIVE',
+  );
+
+  if (!selectedPackage) {
+    return 'Selected package is not available.';
+  }
+
+  if (
+    typeof form?.courseId !== 'string' ||
+    !form.courseId.trim()
+  ) {
+    return 'Please select a course.';
+  }
+
+  const selectedCourse = courses.find(
+    (course) =>
+      course.id === form.courseId &&
+      course.status === 'ACTIVE',
+  );
+
+  if (!selectedCourse) {
+    return 'Selected course is not available.';
+  }
+
+  if (
+    !Array.isArray(form.files) ||
+    form.files.some(
+      (file) =>
+        !file ||
+        (file.localFile && !(file.localFile instanceof File)),
+    )
+  ) {
+    return 'Invalid course files.';
+  }
+
+  const newFiles = form.files.filter(
+    (file) => file?.localFile instanceof File,
+  );
+
+  if (newFiles.length === 0) {
+    return 'Select at least one new course material.';
+  }
+
+  const oversizedFile = newFiles.find(
+    (file) => file.localFile.size > MAX_FILE_SIZE,
+  );
+
+  if (oversizedFile) {
+    return `${oversizedFile.localFile.name || 'File'} is larger than 10 MB.`;
+  }
+
+  const invalidFile = newFiles.find(
+    (file) =>
+      !file.localFile.name ||
+      !file.localFile.name.trim(),
+  );
+
+  if (invalidFile) {
+    return 'Uploaded file must have a valid name.';
+  }
+
+  return null;
 };
 
 export default function CoursesPage() {
@@ -259,11 +334,14 @@ if (!selectedFiles.length) {
   return;
 }
 
-const maxSize = 10 * 1024 * 1024;
-
 const validFiles = selectedFiles.filter((file) => {
-  if (file.size > maxSize) {
+  if (file.size > MAX_FILE_SIZE) {
     toast.error(`${file.name} is larger than 10 MB.`);
+    return false;
+  }
+
+  if (!file.name || !file.name.trim()) {
+    toast.error('Uploaded file must have a valid name.');
     return false;
   }
 
@@ -343,24 +421,20 @@ try {
 };
 
 const saveCourse = async () => {
-if (!form.packageId) {
-toast.error('Please select a package.');
-return;
-}
+const validationError = validateCourseForm(
+  form,
+  courses,
+  packages,
+);
 
-if (!form.courseId) {
-  toast.error('Please select a course.');
+if (validationError) {
+  toast.error(validationError);
   return;
 }
 
 const newFiles = form.files.filter(
   (file) => file?.localFile instanceof File,
 );
-
-if (newFiles.length === 0) {
-  toast.error('Select at least one new course material.');
-  return;
-}
 
 try {
   setSaving(true);

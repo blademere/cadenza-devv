@@ -11,7 +11,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import EnrollmentStatus from "../components/EnrollmentStatus";
 
-import { getEnrollmentById } from "../services/enrollment.service";
+import { getEnrollmentById } from "../services/enrollmentServices";
 
 export default function EnrollmentDetails() {
   const navigate = useNavigate();
@@ -70,6 +70,16 @@ export default function EnrollmentDetails() {
     );
   }
 
+  const firstSession = enrollment.sessions?.[0];
+  const paymentMetadata = enrollment.metadata || {};
+  const startDate = firstSession?.scheduledStart
+    ? new Date(firstSession.scheduledStart).toLocaleDateString()
+    : "Not scheduled";
+  const submittedAt = enrollment.createdAt
+    ? new Date(enrollment.createdAt).toLocaleString()
+    : "Not available";
+  const paymentAmount = paymentMetadata.paymentAmount ?? enrollment.price ?? 0;
+
   return (
     <div className="space-y-8 px-4 py-6 lg:px-6">
       <button
@@ -117,7 +127,9 @@ export default function EnrollmentDetails() {
             <div>
               <p className="text-xs text-muted-foreground">Instructor</p>
 
-              <p className="font-medium">{enrollment.instructorName}</p>
+              <p className="font-medium">
+                {firstSession?.instructorName || "Assigned instructor"}
+              </p>
             </div>
           </div>
         </div>
@@ -131,7 +143,7 @@ export default function EnrollmentDetails() {
                 Preferred Start Date
               </p>
 
-              <p className="font-medium">{enrollment.startDate}</p>
+              <p className="font-medium">{startDate}</p>
             </div>
           </div>
         </div>
@@ -140,7 +152,42 @@ export default function EnrollmentDetails() {
           <div>
             <p className="text-xs text-muted-foreground">Submitted</p>
 
-            <p className="font-medium">{enrollment.enrolledAt}</p>
+            <p className="font-medium">{submittedAt}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-6">
+        <h2 className="font-semibold">Payment Transaction</h2>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-xs text-muted-foreground">Transaction reference</p>
+            <p className="mt-1 font-medium">
+              {paymentMetadata.paymentReference || "Not available"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Amount</p>
+            <p className="mt-1 font-medium">
+              ₱{Number(paymentAmount).toLocaleString("en-PH", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Payment method</p>
+            <p className="mt-1 font-medium">
+              {paymentMetadata.paymentMethod || "QR"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Payment status</p>
+            <p className="mt-1 font-medium text-amber-600">
+              {paymentMetadata.paymentStatus === "PENDING_CONFIRMATION"
+                ? "Pending confirmation"
+                : paymentMetadata.paymentStatus || "Pending payment"}
+            </p>
           </div>
         </div>
       </div>
@@ -149,7 +196,9 @@ export default function EnrollmentDetails() {
         <h2 className="font-semibold">Application Status</h2>
 
         <div className="mt-5 rounded-lg bg-muted/50 p-5">
-          {enrollment.status === "PENDING" && (
+          {["PENDING", "PENDING_PAYMENT", "FOR_APPROVAL"].includes(
+            enrollment.status,
+          ) && (
             <>
               <h3 className="font-medium">Application Under Review</h3>
 

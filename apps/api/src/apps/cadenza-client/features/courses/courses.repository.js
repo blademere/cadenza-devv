@@ -42,6 +42,18 @@ export const coursesRepository = {
     });
   },
 
+  findCourseByName(appId, name) {
+    return prisma.cadenzaCourse.findFirst({
+      where: {
+        appId,
+        name: {
+          equals: name,
+          mode: 'insensitive',
+        },
+      },
+    });
+  },
+
   findPackage(appId, packageId) {
     return prisma.cadenzaLessonPackage.findFirst({
       where: {
@@ -100,11 +112,7 @@ export const coursesRepository = {
     });
   },
 
-  deleteMaterial(
-    appId,
-    courseId,
-    materialId,
-  ) {
+  deleteMaterial(appId, courseId, materialId) {
     return prisma.cadenzaCourseMaterial.deleteMany({
       where: {
         id: materialId,

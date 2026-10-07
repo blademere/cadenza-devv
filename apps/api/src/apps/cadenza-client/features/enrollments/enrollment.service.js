@@ -16,6 +16,43 @@ function getMinuteOfDay(date) {
   return date.getHours() * 60 + date.getMinutes();
 }
 
+const FULL_TIME_START_MINUTE = 8 * 60;
+const FULL_TIME_END_MINUTE = 18 * 60;
+const FULL_TIME_DAYS = [1, 2, 3, 4, 5];
+
+function isFullTimeInstructor(instructor) {
+  return instructor?.metadata?.employmentType === 'FULL_TIME';
+}
+
+function getFullTimeAvailability(requiredDuration) {
+  if (
+    FULL_TIME_END_MINUTE - FULL_TIME_START_MINUTE <
+    requiredDuration
+  ) {
+    return [];
+  }
+
+  return FULL_TIME_DAYS.flatMap((dayOfWeek) =>
+    Array.from(
+      {
+        length: (FULL_TIME_END_MINUTE - FULL_TIME_START_MINUTE) / 60,
+      },
+      (_, index) => {
+        const startMinute = FULL_TIME_START_MINUTE + index * 60;
+
+        return {
+          id: `full-time-${dayOfWeek}-${startMinute}`,
+          dayOfWeek,
+          startMinute,
+          endMinute: startMinute + 60,
+          isActive: true,
+          isAutomatic: true,
+        };
+      },
+    ),
+  );
+}
+
 function getInstructorName(instructor) {
   if (!instructor?.person) {
     return 'Instructor';
@@ -34,8 +71,14 @@ function mapInstructor(instructor) {
     id: instructor.id,
     name: getInstructorName(instructor),
     email: instructor.person?.email || null,
-    specialty: instructor.specialty || null,
     status: instructor.status,
+    employmentType:
+      instructor.metadata?.employmentType === 'FULL_TIME'
+        ? 'FULL_TIME'
+        : 'PART_TIME',
+    automaticScheduleWindow: isFullTimeInstructor(instructor)
+      ? { start: '08:00', end: '18:00' }
+      : null,
     courses:
       instructor.courseMappings?.map((mapping) => ({
         id: mapping.courseId,
@@ -119,8 +162,20 @@ function mapEnrollment(enrollment) {
   return {
     id: enrollment.id,
     customerId: enrollment.customerId,
+    student: enrollment.customer?.person
+      ? [
+          enrollment.customer.person.firstName,
+          enrollment.customer.person.middleName,
+          enrollment.customer.person.lastName,
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : null,
+    studentEmail: enrollment.customer?.person?.email || null,
     packageId: enrollment.lessonPackageId,
     packageName: enrollment.lessonPackage?.name,
+    courseId: enrollment.metadata?.courseId || null,
+    metadata: enrollment.metadata,
     price: enrollment.lessonPackage
       ? Number(enrollment.lessonPackage.price)
       : null,
@@ -162,21 +217,66 @@ function mapEnrollment(enrollment) {
 }
 
 export const enrollmentService = {
+  async getEnrollments(appId, filters = {}) {
+    const enrollments = await enrollmentRepository.findAll(
+      appId,
+      filters,
+    );
+
+    return enrollments.map(mapEnrollment);
+  },
+
   async getAvailablePackages(appId) {
     const packages =
       await enrollmentRepository.findAvailablePackages(
         appId,
       );
 
-    return packages
-      .map(mapPackage)
-      .filter((packageItem) => packageItem.lessons.length > 0);
+    const activeEnrollments = customerId
+      ? await enrollmentRepository.findActiveEnrollmentsByCustomer(
+          appId,
+          customerId,
+        )
+      : [];
+    const activeCoursesByPackage = new Map();
+
+    for (const enrollment of activeEnrollments) {
+      const courseId = enrollment.metadata?.courseId;
+
+      if (!courseId) {
+        continue;
+      }
+
+      const courseIds =
+        activeCoursesByPackage.get(enrollment.lessonPackageId) ||
+        new Set();
+      courseIds.add(courseId);
+      activeCoursesByPackage.set(enrollment.lessonPackageId, courseIds);
+    }
+
+    return packages.map(mapPackage).map((packageItem) => {
+      const activeCourseIds = activeCoursesByPackage.get(packageItem.id);
+      const availableLessons = activeCourseIds
+        ? packageItem.lessons.filter(
+            (lesson) => !activeCourseIds.has(lesson.id),
+          )
+        : packageItem.lessons;
+
+      return {
+        ...packageItem,
+        // Keep all lessons so the current enrollment can still be displayed;
+        // `lessons` is the client-selectable set for new enrollments.
+        allLessons: packageItem.lessons,
+        lessons: availableLessons,
+      };
+    });
   },
 
   async getCompatibleInstructors(
     appId,
     packageId,
     courseId,
+    customerId,
   ) {
     const packageItem =
       await enrollmentRepository.findPackageById(
@@ -208,13 +308,76 @@ export const enrollmentService = {
       );
     }
 
+    if (customerId) {
+      const activeEnrollments =
+        await enrollmentRepository.findActiveEnrollmentsByCustomer(
+          appId,
+          customerId,
+        );
+      const alreadyEnrolled = activeEnrollments.some(
+        (enrollment) =>
+          enrollment.lessonPackageId === packageId &&
+          enrollment.metadata?.courseId === course.id,
+      );
+
+      if (alreadyEnrolled) {
+        return [];
+      }
+    }
+
     const instructors =
       await enrollmentRepository.findCompatibleInstructors(
         appId,
         course.id,
       );
 
-    return instructors.map(mapInstructor);
+    const requiredSessionsPerWeek = Number(
+      packageItem.sessionsPerWeek,
+    );
+    const requiredDuration = Number(
+      packageItem.sessionDurationMinutes,
+    );
+
+    if (
+      !Number.isInteger(requiredSessionsPerWeek) ||
+      requiredSessionsPerWeek < 1 ||
+      !Number.isInteger(requiredDuration) ||
+      requiredDuration < 1
+    ) {
+      return [];
+    }
+
+    const eligibleInstructors = [];
+
+    for (const instructor of instructors) {
+      if (isFullTimeInstructor(instructor)) {
+        if (getFullTimeAvailability(requiredDuration).length >= requiredSessionsPerWeek) {
+          eligibleInstructors.push(instructor);
+        }
+        continue;
+      }
+
+      const availability =
+        await enrollmentRepository.findInstructorAvailability(
+          appId,
+          instructor.id,
+        );
+
+      const availableDays = new Set(
+        availability
+          .filter(
+            (rule) =>
+              rule.endMinute - rule.startMinute >= requiredDuration,
+          )
+          .map((rule) => rule.dayOfWeek),
+      );
+
+      if (availableDays.size >= requiredSessionsPerWeek) {
+        eligibleInstructors.push(instructor);
+      }
+    }
+
+    return eligibleInstructors.map(mapInstructor);
   },
 
   async getInstructorAvailability(
@@ -222,6 +385,7 @@ export const enrollmentService = {
     packageId,
     instructorId,
     courseId,
+    startDate,
   ) {
     const packageItem =
       await enrollmentRepository.findPackageById(
@@ -286,11 +450,94 @@ export const enrollmentService = {
       );
     }
 
-    const availability =
-      await enrollmentRepository.findInstructorAvailability(
-        appId,
-        instructorId,
-      );
+    const requiredDuration = Number(
+      packageItem.sessionDurationMinutes,
+    );
+
+    let availability = isFullTimeInstructor(instructor)
+      ? getFullTimeAvailability(requiredDuration)
+      : await enrollmentRepository.findInstructorAvailability(
+          appId,
+          instructorId,
+        );
+
+    availability = availability.filter(
+      (rule) => rule.endMinute - rule.startMinute >= requiredDuration,
+    );
+
+    if (startDate) {
+      const dateStart = new Date(startDate);
+      if (Number.isNaN(dateStart.getTime())) {
+        throw new BadRequestError('Invalid start date.');
+      }
+      dateStart.setHours(0, 0, 0, 0);
+      const dateDayOfWeek = getDayOfWeek(dateStart);
+
+      // Check every occurrence in the enrollment cycle. This prevents a slot
+      // from being offered when an existing active enrollment already uses
+      // that weekday/time in any of the upcoming weeks.
+      const requiredSessionsPerWeek = Number(packageItem.sessionsPerWeek);
+      const enrollmentWeeks =
+        Number.isInteger(requiredSessionsPerWeek) &&
+        requiredSessionsPerWeek > 0
+          ? Math.max(
+              1,
+              Math.ceil(
+                Number(packageItem.numberOfSessions) /
+                  requiredSessionsPerWeek,
+              ),
+            )
+          : 1;
+      const availableRules = [];
+
+      for (const rule of availability) {
+        const dayOffset = (rule.dayOfWeek - dateDayOfWeek + 7) % 7;
+        let isAvailable = true;
+
+        for (let week = 0; week < enrollmentWeeks; week += 1) {
+          const sessionStart = new Date(dateStart);
+          sessionStart.setDate(
+            sessionStart.getDate() + dayOffset + week * 7,
+          );
+          sessionStart.setHours(
+            Math.floor(rule.startMinute / 60),
+            rule.startMinute % 60,
+            0,
+            0,
+          );
+          const sessionEnd = new Date(
+            sessionStart.getTime() +
+              packageItem.sessionDurationMinutes * 60 * 1000,
+          );
+
+          const [conflictingSession, conflictingBlock] = await Promise.all([
+            enrollmentRepository.findConflictingSession(
+              appId,
+              instructorId,
+              sessionStart,
+              sessionEnd,
+            ),
+            enrollmentRepository.findInstructorBlock(
+              appId,
+              instructorId,
+              sessionStart,
+              sessionEnd,
+            ),
+          ]);
+
+          if (conflictingSession || conflictingBlock) {
+            isAvailable = false;
+            break;
+          }
+        }
+
+        if (isAvailable) {
+          availableRules.push(rule);
+        }
+      }
+
+      availability = availableRules;
+    }
 
     return {
       instructor: mapInstructor(instructor),
@@ -382,21 +629,21 @@ export const enrollmentService = {
     const endMinute =
       getMinuteOfDay(endsAt);
 
-    const availability =
-      await enrollmentRepository.findInstructorAvailability(
-        appId,
-        instructor.id,
-      );
+    const availability = isFullTimeInstructor(instructor)
+      ? getFullTimeAvailability(expectedDuration)
+      : await enrollmentRepository.findInstructorAvailability(
+          appId,
+          instructor.id,
+        );
 
-    const matchingAvailability =
-      availability.find(
-        (rule) =>
-          rule.dayOfWeek === dayOfWeek &&
-          rule.startMinute <= startMinute &&
-          rule.endMinute >= endMinute,
-      );
+    const matchingAvailability = availability.find(
+      (rule) =>
+        rule.dayOfWeek === dayOfWeek &&
+        rule.startMinute <= startMinute &&
+        rule.endMinute >= endMinute,
+    );
 
-    if (!matchingAvailability) {
+    if (!isFullTimeInstructor(instructor) && !matchingAvailability) {
       throw new BadRequestError(
         `Instructor is not available on ${startsAt.toLocaleDateString()} at the selected time.`,
       );
@@ -499,21 +746,22 @@ export const enrollmentService = {
       );
     }
 
-    const existing =
+    const existingEnrollments =
       await enrollmentRepository.findEnrollmentByCustomerAndPackage(
         appId,
         customerId,
         packageItem.id,
       );
 
-    if (
-      existing &&
-      !['CANCELLED', 'COMPLETED'].includes(
-        existing.status,
-      )
-    ) {
+    const existing = existingEnrollments.find(
+      (enrollment) =>
+        enrollment.metadata?.courseId === courseId &&
+        !['CANCELLED', 'COMPLETED'].includes(enrollment.status),
+    );
+
+    if (existing) {
       throw new ConflictError(
-        'You already have an enrollment for this package.',
+        'You already have an enrollment for this course in this package.',
       );
     }
 
@@ -576,7 +824,7 @@ export const enrollmentService = {
       appId,
       customerId,
       lessonPackageId: packageItem.id,
-      status: 'PENDING_PAYMENT',
+      status: 'FOR_APPROVAL',
       paymentObligationId:
         data.paymentObligationId || null,
       paymentExpiresAt:
@@ -587,6 +835,48 @@ export const enrollmentService = {
       metadata: data.metadata || null,
       sessions: validatedSessions,
     });
+  },
+
+  async validateSchedule(appId, data) {
+    const packageItem = await enrollmentRepository.findPackageById(
+      appId,
+      data.lessonPackageId,
+    );
+
+    if (!packageItem || packageItem.status !== 'ACTIVE') {
+      throw new BadRequestError('This enrollment package is not available.');
+    }
+
+    const courseId = data.metadata?.courseId || null;
+    const configuredLessons = getConfiguredLessons(
+      getPackageLessons(packageItem),
+    );
+
+    if (!getCourseForPackage(packageItem, courseId)) {
+      throw new BadRequestError(
+        'A configured course is required for this enrollment.',
+      );
+    }
+
+    if (
+      !Array.isArray(data.sessions) ||
+      data.sessions.length !== packageItem.numberOfSessions
+    ) {
+      throw new BadRequestError(
+        `This package requires exactly ${packageItem.numberOfSessions} sessions.`,
+      );
+    }
+
+    for (const session of data.sessions) {
+      await this.validateSession(
+        appId,
+        packageItem,
+        session,
+        courseId,
+      );
+    }
+
+    return { valid: true, courseId, configuredCourseCount: configuredLessons.length };
   },
 
   async getMyEnrollment(

@@ -1,10 +1,5 @@
 import path from 'node:path';
-import {
-  access,
-  mkdir,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
+import { access, mkdir, unlink, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 
 import {
@@ -17,19 +12,15 @@ import { coursesRepository } from './courses.repository.js';
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const STORAGE_ROOT = path.resolve(
-  process.env.CADENZA_STORAGE_PATH ||
-    path.join(process.cwd(), 'storage'),
+  process.env.CADENZA_STORAGE_PATH || path.join(process.cwd(), 'storage'),
 );
 
-const normalizeText = (value) =>
-  String(value || '').trim();
+const normalizeText = (value) => String(value || '').trim();
 
 const sanitizeFileName = (fileName) => {
   const name = path.basename(normalizeText(fileName));
 
-  return name
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/_+/g, '_');
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_');
 };
 
 const mapMaterial = (material) => ({
@@ -49,12 +40,13 @@ const mapCourse = (course) => {
 
   const packageData = course.package || null;
   const packageMappings = Array.isArray(course.packageMappings)
-    ? course.packageMappings
-        .map((mapping) => mapping.package)
-        .filter(Boolean)
+    ? course.packageMappings.map((mapping) => mapping.package).filter(Boolean)
     : [];
 
-  if (packageData && !packageMappings.some((item) => item.id === packageData.id)) {
+  if (
+    packageData &&
+    !packageMappings.some((item) => item.id === packageData.id)
+  ) {
     packageMappings.unshift(packageData);
   }
 
@@ -79,24 +71,15 @@ const mapCourse = (course) => {
   };
 };
 
-const validateCourseData = ({
-  packageId,
-  courseId,
-  courseName,
-}) => {
-  const normalizedPackageId =
-    normalizeText(packageId);
+const validateCourseData = ({ packageId, courseId, courseName }) => {
+  const normalizedPackageId = normalizeText(packageId);
 
-  const normalizedCourseId =
-    normalizeText(courseId);
+  const normalizedCourseId = normalizeText(courseId);
 
-  const normalizedCourseName =
-    normalizeText(courseName);
+  const normalizedCourseName = normalizeText(courseName);
 
   if (!normalizedCourseId && !normalizedCourseName) {
-    throw new BadRequestError(
-      'Course or course name is required.',
-    );
+    throw new BadRequestError('Course or course name is required.');
   }
 
   return {
@@ -108,16 +91,12 @@ const validateCourseData = ({
 
 const validateFiles = (files = []) => {
   if (!Array.isArray(files)) {
-    throw new BadRequestError(
-      'Course files must be an array.',
-    );
+    throw new BadRequestError('Course files must be an array.');
   }
 
   return files.map((file) => {
     if (!file?.buffer) {
-      throw new BadRequestError(
-        'Invalid uploaded file.',
-      );
+      throw new BadRequestError('Invalid uploaded file.');
     }
 
     if (file.size > MAX_FILE_SIZE) {
@@ -126,14 +105,10 @@ const validateFiles = (files = []) => {
       );
     }
 
-    const fileName = sanitizeFileName(
-      file.originalname,
-    );
+    const fileName = sanitizeFileName(file.originalname);
 
     if (!fileName) {
-      throw new BadRequestError(
-        'Uploaded file must have a valid name.',
-      );
+      throw new BadRequestError('Uploaded file must have a valid name.');
     }
 
     return {
@@ -143,26 +118,14 @@ const validateFiles = (files = []) => {
   });
 };
 
-const saveUploadedFile = async (
-  courseId,
-  uploadedFile,
-) => {
-  const safeFileName =
-    sanitizeFileName(
-      uploadedFile.originalname,
-    );
+const saveUploadedFile = async (courseId, uploadedFile) => {
+  const safeFileName = sanitizeFileName(uploadedFile.originalname);
 
-  const extension =
-    path.extname(safeFileName);
+  const extension = path.extname(safeFileName);
 
-  const baseName =
-    path.basename(
-      safeFileName,
-      extension,
-    );
+  const baseName = path.basename(safeFileName, extension);
 
-  const uniqueName =
-    `${baseName}-${randomUUID()}${extension}`;
+  const uniqueName = `${baseName}-${randomUUID()}${extension}`;
 
   const relativePath = path.join(
     'cadenza-client',
@@ -171,36 +134,21 @@ const saveUploadedFile = async (
     uniqueName,
   );
 
-  const absolutePath = path.join(
-    STORAGE_ROOT,
-    relativePath,
-  );
+  const absolutePath = path.join(STORAGE_ROOT, relativePath);
 
-  await mkdir(
-    path.dirname(absolutePath),
-    {
-      recursive: true,
-    },
-  );
+  await mkdir(path.dirname(absolutePath), {
+    recursive: true,
+  });
 
-  await writeFile(
-    absolutePath,
-    uploadedFile.buffer,
-  );
+  await writeFile(absolutePath, uploadedFile.buffer);
 
   return {
-    relativePath:
-      relativePath.replaceAll(
-        path.sep,
-        '/',
-      ),
+    relativePath: relativePath.replaceAll(path.sep, '/'),
     absolutePath,
   };
 };
 
-const removeStoredFile = async (
-  absolutePath,
-) => {
+const removeStoredFile = async (absolutePath) => {
   if (!absolutePath) {
     return;
   }
@@ -214,35 +162,24 @@ const removeStoredFile = async (
   }
 };
 
-const resolveStoragePath = (
-  storageReference,
-) => {
+const resolveStoragePath = (storageReference) => {
   if (!storageReference) {
     return null;
   }
 
-  const normalizedReference =
-    String(storageReference)
-      .replaceAll('\\', '/')
-      .replace(/^\/+/, '');
+  const normalizedReference = String(storageReference)
+    .replaceAll('\\', '/')
+    .replace(/^\/+/, '');
 
-  const absolutePath = path.resolve(
-    STORAGE_ROOT,
-    normalizedReference,
-  );
+  const absolutePath = path.resolve(STORAGE_ROOT, normalizedReference);
 
-  const rootWithSeparator =
-    `${STORAGE_ROOT}${path.sep}`;
+  const rootWithSeparator = `${STORAGE_ROOT}${path.sep}`;
 
   if (
     absolutePath !== STORAGE_ROOT &&
-    !absolutePath.startsWith(
-      rootWithSeparator,
-    )
+    !absolutePath.startsWith(rootWithSeparator)
   ) {
-    throw new BadRequestError(
-      'Invalid file path.',
-    );
+    throw new BadRequestError('Invalid file path.');
   }
 
   return absolutePath;
@@ -250,110 +187,66 @@ const resolveStoragePath = (
 
 export const coursesService = {
   async getCourses(appId) {
-    const courses =
-      await coursesRepository.findAllCourses(
-        appId,
-      );
+    const courses = await coursesRepository.findAllCourses(appId);
 
     return courses.map(mapCourse);
   },
 
   async getCourseById(appId, id) {
-    const course =
-      await coursesRepository.findCourseById(
-        appId,
-        id,
-      );
+    const course = await coursesRepository.findCourseById(appId, id);
 
     if (!course) {
-      throw new NotFoundError(
-        'Course not found.',
-      );
+      throw new NotFoundError('Course not found.');
     }
 
     return mapCourse(course);
   },
 
-  async getCourseFile(
-    appId,
-    courseId,
-    filename,
-  ) {
-    const course =
-      await coursesRepository.findCourseById(
-        appId,
-        courseId,
-      );
+  async getCourseFile(appId, courseId, filename) {
+    const course = await coursesRepository.findCourseById(appId, courseId);
 
     if (!course) {
-      throw new NotFoundError(
-        'Course not found.',
-      );
+      throw new NotFoundError('Course not found.');
     }
 
-    const requestedFileName =
-      path.basename(
-        normalizeText(filename),
-      );
+    const requestedFileName = path.basename(normalizeText(filename));
 
     if (!requestedFileName) {
-      throw new BadRequestError(
-        'File name is required.',
-      );
+      throw new BadRequestError('File name is required.');
     }
 
-    const material =
-      Array.isArray(course.materials)
-        ? course.materials.find(
-            (item) => {
-              const storedFileName =
-                item.metadata?.storedFileName;
+    const material = Array.isArray(course.materials)
+      ? course.materials.find((item) => {
+          const storedFileName = item.metadata?.storedFileName;
 
-              const referenceFileName =
-                item.storageReference
-                  ? path.basename(
-                      item.storageReference,
-                    )
-                  : null;
+          const referenceFileName = item.storageReference
+            ? path.basename(item.storageReference)
+            : null;
 
-              const originalFileName =
-                item.metadata?.fileName;
+          const originalFileName = item.metadata?.fileName;
 
-              return (
-                storedFileName ===
-                  requestedFileName ||
-                referenceFileName ===
-                  requestedFileName ||
-                originalFileName ===
-                  requestedFileName
-              );
-            },
-          )
-        : null;
+          return (
+            storedFileName === requestedFileName ||
+            referenceFileName === requestedFileName ||
+            originalFileName === requestedFileName
+          );
+        })
+      : null;
 
     if (!material) {
-      throw new NotFoundError(
-        'Course material not found.',
-      );
+      throw new NotFoundError('Course material not found.');
     }
 
     if (!material.storageReference) {
-      throw new NotFoundError(
-        'Course material file not found.',
-      );
+      throw new NotFoundError('Course material file not found.');
     }
 
-    const absolutePath =
-      resolveStoragePath(
-        material.storageReference,
-      );
+    const absolutePath = resolveStoragePath(material.storageReference);
 
     try {
       await access(absolutePath);
     } catch {
-      throw new NotFoundError(
-        'Course material file not found.',
-      );
+      throw new NotFoundError('Course material file not found.');
     }
 
     return {
@@ -362,63 +255,48 @@ export const coursesService = {
         material.metadata?.mimeType ||
         material.type ||
         'application/octet-stream',
-      fileName:
-        material.metadata?.fileName ||
-        requestedFileName,
+      fileName: material.metadata?.fileName || requestedFileName,
     };
   },
 
   async createCourse(appId, data) {
-    const {
-      packageId,
-      courseId,
-      courseName,
-    } = validateCourseData({
+    const inputCourseName =
+      data.courseName &&
+      typeof data.courseName === 'object'
+        ? data.courseName.uniqueName
+        : data.courseName;
+
+    const { packageId, courseId, courseName } = validateCourseData({
       packageId: data.packageId,
       courseId: data.courseId,
-      courseName: data.courseName,
+      courseName: inputCourseName,
     });
 
     if (packageId) {
-      const packageData =
-        await coursesRepository.findPackage(
-          appId,
-          packageId,
-        );
+      const packageData = await coursesRepository.findPackage(appId, packageId);
 
       if (!packageData) {
-        throw new NotFoundError(
-          'Enrollment package not found or inactive.',
-        );
+        throw new NotFoundError('Enrollment package not found or inactive.');
       }
     }
 
-    const files =
-      validateFiles(
-        data.files || [],
-      );
+    const files = validateFiles(data.files || []);
 
     let course;
 
     try {
       if (courseId) {
-        course = await coursesRepository.findCourseById(
-          appId,
-          courseId,
-        );
+        course = await coursesRepository.findCourseById(appId, courseId);
 
         if (!course) {
-          throw new NotFoundError(
-            'Course not found.',
-          );
+          throw new NotFoundError('Course not found.');
         }
 
-        const existingMapping =
-          await coursesRepository.findCoursePackage(
-            appId,
-            course.id,
-            packageId,
-          );
+        const existingMapping = await coursesRepository.findCoursePackage(
+          appId,
+          course.id,
+          packageId,
+        );
 
         if (!existingMapping) {
           await coursesRepository.createCoursePackage({
@@ -428,6 +306,15 @@ export const coursesService = {
           });
         }
       } else {
+        const existingCourse = await coursesRepository.findCourseByName(
+          appId,
+          courseName,
+        );
+
+        if (existingCourse) {
+          throw new BadRequestError('Course name already exists.');
+        }
+
         course = await coursesRepository.createCourse({
           appId,
           ...(packageId ? { packageId } : {}),
@@ -440,12 +327,11 @@ export const coursesService = {
       }
 
       if (packageId) {
-        const existingMapping =
-          await coursesRepository.findCoursePackage(
-            appId,
-            course.id,
-            packageId,
-          );
+        const existingMapping = await coursesRepository.findCoursePackage(
+          appId,
+          course.id,
+          packageId,
+        );
 
         if (!existingMapping) {
           await coursesRepository.createCoursePackage({
@@ -470,43 +356,26 @@ export const coursesService = {
             continue;
           }
 
-          const stored =
-            await saveUploadedFile(
-              course.id,
-              uploaded.file,
-            );
+          const stored = await saveUploadedFile(course.id, uploaded.file);
 
           storedFiles.push(stored);
 
           await coursesRepository.createMaterial({
             courseId: course.id,
-            storageReference:
-              stored.relativePath,
-            name:
-              uploaded.file.originalname,
-            type:
-              uploaded.file.mimetype ||
-              'application/octet-stream',
+            storageReference: stored.relativePath,
+            name: uploaded.file.originalname,
+            type: uploaded.file.mimetype || 'application/octet-stream',
             metadata: {
-              fileName:
-                uploaded.file.originalname,
-              storedFileName:
-                path.basename(
-                  stored.relativePath,
-                ),
-              mimeType:
-                uploaded.file.mimetype ||
-                'application/octet-stream',
-              size:
-                uploaded.file.size,
+              fileName: uploaded.file.originalname,
+              storedFileName: path.basename(stored.relativePath),
+              mimeType: uploaded.file.mimetype || 'application/octet-stream',
+              size: uploaded.file.size,
             },
           });
         }
       } catch (error) {
         for (const stored of storedFiles) {
-          await removeStoredFile(
-            stored.absolutePath,
-          );
+          await removeStoredFile(stored.absolutePath);
         }
 
         throw error;
@@ -515,30 +384,16 @@ export const coursesService = {
       throw error;
     }
 
-    const result =
-      await coursesRepository.findCourseById(
-        appId,
-        course.id,
-      );
+    const result = await coursesRepository.findCourseById(appId, course.id);
 
     return mapCourse(result);
   },
 
-  async updateCourse(
-    appId,
-    id,
-    data,
-  ) {
-    const course =
-      await coursesRepository.findCourseById(
-        appId,
-        id,
-      );
+  async updateCourse(appId, id, data) {
+    const course = await coursesRepository.findCourseById(appId, id);
 
     if (!course) {
-      throw new NotFoundError(
-        'Course not found.',
-      );
+      throw new NotFoundError('Course not found.');
     }
 
     const packageId =
@@ -554,50 +409,32 @@ export const coursesService = {
           : course.name;
 
     if (!packageId) {
-      throw new BadRequestError(
-        'Package is required.',
-      );
+      throw new BadRequestError('Package is required.');
     }
 
     if (!lessonName) {
       throw new BadRequestError('Course name is required.');
     }
 
-    if (
-      packageId !== course.packageId
-    ) {
-      const packageData =
-        await coursesRepository.findPackage(
-          appId,
-          packageId,
-        );
+    if (packageId !== course.packageId) {
+      const packageData = await coursesRepository.findPackage(appId, packageId);
 
       if (!packageData) {
-        throw new NotFoundError(
-          'Enrollment package not found or inactive.',
-        );
+        throw new NotFoundError('Enrollment package not found or inactive.');
       }
     }
 
-    const files =
-      validateFiles(
-        data.files || [],
-      );
+    const files = validateFiles(data.files || []);
 
-    await coursesRepository.updateCourse(
+    await coursesRepository.updateCourse(appId, id, {
+      name: lessonName,
+    });
+
+    const existingMapping = await coursesRepository.findCoursePackage(
       appId,
       id,
-      {
-        name: lessonName,
-      },
+      packageId,
     );
-
-    const existingMapping =
-      await coursesRepository.findCoursePackage(
-        appId,
-        id,
-        packageId,
-      );
 
     if (!existingMapping) {
       await coursesRepository.createCoursePackage({
@@ -610,102 +447,66 @@ export const coursesService = {
     const storedFiles = [];
 
     try {
-        for (const uploaded of files) {
-          const existingMaterial =
-            await coursesRepository.findMaterialByCourseAndName(
-              id,
-              uploaded.file.originalname,
-            );
-
-          if (existingMaterial) {
-            continue;
-          }
-
-          const stored =
-            await saveUploadedFile(
+      for (const uploaded of files) {
+        const existingMaterial =
+          await coursesRepository.findMaterialByCourseAndName(
             id,
-            uploaded.file,
+            uploaded.file.originalname,
           );
+
+        if (existingMaterial) {
+          continue;
+        }
+
+        const stored = await saveUploadedFile(id, uploaded.file);
 
         storedFiles.push(stored);
 
         await coursesRepository.createMaterial({
           courseId: id,
-          storageReference:
-            stored.relativePath,
-          name:
-            uploaded.file.originalname,
-          type:
-            uploaded.file.mimetype ||
-            'application/octet-stream',
+          storageReference: stored.relativePath,
+          name: uploaded.file.originalname,
+          type: uploaded.file.mimetype || 'application/octet-stream',
           metadata: {
-            fileName:
-              uploaded.file.originalname,
-            storedFileName:
-              path.basename(
-                stored.relativePath,
-              ),
-            mimeType:
-              uploaded.file.mimetype ||
-              'application/octet-stream',
-            size:
-              uploaded.file.size,
+            fileName: uploaded.file.originalname,
+            storedFileName: path.basename(stored.relativePath),
+            mimeType: uploaded.file.mimetype || 'application/octet-stream',
+            size: uploaded.file.size,
           },
         });
       }
     } catch (error) {
       for (const stored of storedFiles) {
-        await removeStoredFile(
-          stored.absolutePath,
-        );
+        await removeStoredFile(stored.absolutePath);
       }
 
       throw error;
     }
 
-    const result =
-      await coursesRepository.findCourseById(
-        appId,
-        id,
-      );
+    const result = await coursesRepository.findCourseById(appId, id);
 
     return mapCourse(result);
   },
 
   async deactivateCourse(appId, id) {
-    const course =
-      await coursesRepository.findCourseById(
-        appId,
-        id,
-      );
+    const course = await coursesRepository.findCourseById(appId, id);
 
     if (!course) {
       throw new NotFoundError('Course not found.');
     }
 
-    await coursesRepository.updateCourse(
-      appId,
-      id,
-      {
-        status: 'INACTIVE',
-        packageId: null,
-      },
-    );
+    await coursesRepository.updateCourse(appId, id, {
+      status: 'INACTIVE',
+      packageId: null,
+    });
 
-    const result =
-      await coursesRepository.findCourseById(
-        appId,
-        id,
-      );
+    const result = await coursesRepository.findCourseById(appId, id);
 
     return mapCourse(result);
   },
 
   async reactivateCourse(appId, id) {
-    const course = await coursesRepository.findCourseById(
-      appId,
-      id,
-    );
+    const course = await coursesRepository.findCourseById(appId, id);
 
     if (!course) {
       throw new NotFoundError('Course not found.');
@@ -715,54 +516,31 @@ export const coursesService = {
       status: 'ACTIVE',
     });
 
-    const result = await coursesRepository.findCourseById(
-      appId,
-      id,
-    );
+    const result = await coursesRepository.findCourseById(appId, id);
 
     return mapCourse(result);
   },
 
-  async deleteCourse(
-    appId,
-    id,
-  ) {
-    const current =
-      await coursesRepository.findCourseById(
-        appId,
-        id,
-      );
+  async deleteCourse(appId, id) {
+    const current = await coursesRepository.findCourseById(appId, id);
 
     if (!current) {
-      throw new NotFoundError(
-        'Course not found.',
-      );
+      throw new NotFoundError('Course not found.');
     }
 
-    const materials =
-      Array.isArray(current.materials)
-        ? current.materials
-        : [];
+    const materials = Array.isArray(current.materials) ? current.materials : [];
 
     for (const material of materials) {
       if (!material.storageReference) {
         continue;
       }
 
-      const absolutePath =
-        resolveStoragePath(
-          material.storageReference,
-        );
+      const absolutePath = resolveStoragePath(material.storageReference);
 
-      await removeStoredFile(
-        absolutePath,
-      );
+      await removeStoredFile(absolutePath);
     }
 
-    await coursesRepository.deleteCourse(
-      appId,
-      id,
-    );
+    await coursesRepository.deleteCourse(appId, id);
 
     return {
       id,
@@ -770,56 +548,33 @@ export const coursesService = {
     };
   },
 
-  async deleteAttachment(
-    appId,
-    courseId,
-    materialId,
-  ) {
-    const course =
-      await coursesRepository.findCourseById(
-        appId,
-        courseId,
-      );
+  async deleteAttachment(appId, courseId, materialId) {
+    const course = await coursesRepository.findCourseById(appId, courseId);
 
     if (!course) {
-      throw new NotFoundError(
-        'Course not found.',
-      );
+      throw new NotFoundError('Course not found.');
     }
 
-    const material =
-      Array.isArray(course.materials)
-        ? course.materials.find(
-            (item) =>
-              item.id === materialId,
-          )
-        : null;
+    const material = Array.isArray(course.materials)
+      ? course.materials.find((item) => item.id === materialId)
+      : null;
 
     if (!material) {
-      throw new NotFoundError(
-        'Course material not found.',
-      );
+      throw new NotFoundError('Course material not found.');
     }
 
-    const result =
-      await coursesRepository.deleteMaterial(
-        appId,
-        courseId,
-        materialId,
-      );
+    const result = await coursesRepository.deleteMaterial(
+      appId,
+      courseId,
+      materialId,
+    );
 
     if (!result.count) {
-      throw new NotFoundError(
-        'Course material not found.',
-      );
+      throw new NotFoundError('Course material not found.');
     }
 
     if (material.storageReference) {
-      await removeStoredFile(
-        resolveStoragePath(
-          material.storageReference,
-        ),
-      );
+      await removeStoredFile(resolveStoragePath(material.storageReference));
     }
 
     return {

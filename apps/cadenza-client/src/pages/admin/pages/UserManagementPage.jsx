@@ -94,6 +94,8 @@ export default function UserManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -129,25 +131,37 @@ export default function UserManagementPage() {
     setSelectedStaff(null);
     setForm({ ...emptyForm });
     setError('');
+    setEmailError('');
+    setPhoneError('');
     setDialogOpen(true);
   };
 
   const openEditDialog = (user) => {
     setSelectedStaff(user);
     setForm({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
+      firstName: user.person?.firstName || '',
+      lastName: user.person?.lastName || '',
+      email: user.person?.email || '',
+      phone: user.person?.phone || '',
       password: '',
       staffType: user.staffType || 'FRONT_DESK',
       status: user.status || 'ACTIVE',
     });
     setError('');
+    setEmailError('');
+    setPhoneError('');
     setDialogOpen(true);
   };
 
   const updateForm = (field, value) => {
+    if (field === 'email') {
+      setEmailError('');
+    }
+
+    if (field === 'phone') {
+      setPhoneError('');
+    }
+
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -160,10 +174,30 @@ export default function UserManagementPage() {
     try {
       setIsSaving(true);
       setError('');
+      setEmailError('');
+      setPhoneError('');
+
+      const email = form.email.trim();
+      const phone = form.phone.trim();
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setEmailError('Enter a valid email address.');
+        return;
+      }
+
+      if (!/^09\d{9}$/.test(phone)) {
+        setPhoneError(
+          'Phone number must contain 11 digits and start with 09.',
+        );
+        return;
+      }
 
       if (selectedStaff) {
         await staffService.updateStaff(selectedStaff.id, {
-          staffType: form.staffType,
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          email,
+          phone,
           status: form.status,
         });
       } else {
@@ -181,11 +215,22 @@ export default function UserManagementPage() {
       setDialogOpen(false);
       await fetchStaff();
     } catch (error) {
-      setError(
+      const message =
         error.response?.data?.message ||
-          error.message ||
-          'Failed to save staff member.',
+        error.message ||
+        'Failed to save staff member.';
+
+      setError(
+        message,
       );
+
+      if (message.toLowerCase().includes('email')) {
+        setEmailError(message);
+      }
+
+      if (message.toLowerCase().includes('phone')) {
+        setPhoneError(message);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -309,6 +354,7 @@ export default function UserManagementPage() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead>Account Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date Added</TableHead>
@@ -319,14 +365,14 @@ export default function UserManagementPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={7} className="h-24 text-center">
                           Loading staff...
                         </TableCell>
                       </TableRow>
                     ) : staff.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={7}
                           className="h-24 text-center text-muted-foreground"
                         >
                           No staff accounts found.
@@ -340,6 +386,8 @@ export default function UserManagementPage() {
                           </TableCell>
 
                           <TableCell>{user.person?.email || '—'}</TableCell>
+
+                          <TableCell>{user.person?.phone || '—'}</TableCell>
 
                           <TableCell>
                             <Badge variant="outline">
@@ -390,8 +438,7 @@ export default function UserManagementPage() {
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
-                  {!selectedStaff && (
-                    <>
+                  <>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <div className="grid gap-2">
                           <Label htmlFor="firstName">First name</Label>
@@ -424,26 +471,85 @@ export default function UserManagementPage() {
                           id="email"
                           type="email"
                           value={form.email}
-                          onChange={(event) =>
-                            updateForm('email', event.target.value)
+                          onChange={(event) => {
+                            const email = event.target.value;
+
+                            updateForm('email', email);
+
+                            if (email && !email.includes('@')) {
+                              setEmailError(
+                                'Email must include the @ character.',
+                              );
+                            }
+                          }}
+                          className={emailError ? 'border-destructive' : ''}
+                          aria-invalid={Boolean(emailError)}
+                          aria-describedby={
+                            emailError ? 'staff-email-error' : undefined
                           }
                           required
                         />
+                        {emailError && (
+                          <p
+                            id="staff-email-error"
+                            role="alert"
+                            className="text-sm text-destructive"
+                          >
+                            {emailError}
+                          </p>
+                        )}
                       </div>
 
                       <div className="grid gap-2 sm:grid-cols-2">
                         <div className="grid gap-2">
                           <Label htmlFor="phone">Phone</Label>
-                          <Input
-                            id="phone"
-                            value={form.phone}
-                            onChange={(event) =>
-                              updateForm('phone', event.target.value)
-                            }
-                          />
+                            <div
+                              className={`flex h-10 items-center rounded-md border bg-background ${
+                                phoneError ? 'border-destructive' : ''
+                              }`}
+                            >
+                              <span className="border-r px-3 text-sm text-muted-foreground">
+                                09
+                              </span>
+                              <Input
+                                id="phone"
+                                value={
+                                  form.phone.startsWith('09')
+                                    ? form.phone.slice(2)
+                                    : ''
+                                }
+                                onChange={(event) =>
+                                  updateForm(
+                                    'phone',
+                                    `09${event.target.value
+                                      .replace(/\D/g, '')
+                                      .slice(0, 9)}`,
+                                  )
+                                }
+                                inputMode="numeric"
+                                maxLength={9}
+                                pattern="[0-9]{9}"
+                                title="Enter the remaining 9 digits."
+                                className="h-full border-0 shadow-none focus-visible:ring-0"
+                                aria-invalid={Boolean(phoneError)}
+                                aria-describedby={
+                                  phoneError ? 'staff-phone-error' : undefined
+                                }
+                              />
+                            </div>
+                          {phoneError && (
+                            <p
+                              id="staff-phone-error"
+                              role="alert"
+                              className="text-sm text-destructive"
+                            >
+                              {phoneError}
+                            </p>
+                          )}
                         </div>
 
-                        <div className="grid gap-2">
+                        {!selectedStaff && (
+                          <div className="grid gap-2">
                           <Label htmlFor="password">Temporary password</Label>
                           <Input
                             id="password"
@@ -455,16 +561,17 @@ export default function UserManagementPage() {
                             }
                             required
                           />
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </>
-                  )}
 
                   <div className="grid gap-2">
                     <Label>Account type</Label>
 
                     <Select
                       value={form.staffType}
+                      disabled={Boolean(selectedStaff)}
                       onValueChange={(value) => updateForm('staffType', value)}
                     >
                       <SelectTrigger className="w-full">
