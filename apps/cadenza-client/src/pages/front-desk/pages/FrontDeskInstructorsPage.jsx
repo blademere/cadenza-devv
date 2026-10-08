@@ -1025,6 +1025,44 @@ export default function InstructorsPage() {
               </div>
 
               <div className="grid gap-2">
+                <label className="text-sm font-medium">Employment Type</label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      value: 'FULL_TIME',
+                      label: 'Full Time',
+                      description: 'Automatically available',
+                    },
+                    {
+                      value: 'PART_TIME',
+                      label: 'Part Time',
+                      description: 'Uses schedule availability',
+                    },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setEmploymentType(option.value)}
+                      disabled={submitting}
+                      className={`rounded-md border p-3 text-left transition-colors ${
+                        employmentType === option.value
+                          ? 'border-primary bg-primary/5'
+                          : 'hover:bg-muted'
+                      }`}
+                    >
+                      <span className="block text-sm font-medium">
+                        {option.label}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {option.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
                 <label className="text-sm font-medium">
                   Password
                 </label>
