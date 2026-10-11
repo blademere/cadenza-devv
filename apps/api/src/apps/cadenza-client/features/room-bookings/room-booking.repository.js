@@ -92,6 +92,47 @@ const listByCustomer = (customerId, appId, db = prisma) =>
     },
   });
 
+const listAll = (appId, db = prisma) =>
+  db.cadenzaRoomBooking.findMany({
+    where: { appId },
+    include: {
+      room: true,
+      customer: {
+        include: { person: true },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+const updateStaffDecision = async (id, appId, data, db = prisma) => {
+  const result = await db.cadenzaRoomBooking.updateMany({
+    where: {
+      id,
+      appId,
+      status: {
+        in: [
+          'FOR_APPROVAL',
+          'PENDING',
+          'PENDING_PAYMENT',
+          'PENDING_CONFIRMATION',
+          'PARTIALLY_PAID',
+        ],
+      },
+    },
+    data,
+  });
+
+  if (!result.count) return null;
+
+  return db.cadenzaRoomBooking.findFirst({
+    where: { id, appId },
+    include: {
+      room: true,
+      customer: { include: { person: true } },
+    },
+  });
+};
+
 const findById = (id, customerId, appId, db = prisma) =>
   db.cadenzaRoomBooking.findFirst({
     where: {
@@ -190,6 +231,8 @@ export {
   findOverlappingSessions,
   create,
   listByCustomer,
+  listAll,
+  updateStaffDecision,
   findById,
   cancel,
   listAvailableRooms,

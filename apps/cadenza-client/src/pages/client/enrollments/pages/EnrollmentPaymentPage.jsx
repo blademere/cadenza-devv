@@ -14,6 +14,7 @@ export default function EnrollmentPaymentPage() {
   const navigate = useNavigate();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
   const [completedEnrollment, setCompletedEnrollment] = useState(null);
 
   const checkout = useMemo(() => {
@@ -37,6 +38,18 @@ export default function EnrollmentPaymentPage() {
       return;
     }
 
+    const normalizedPaymentReference = paymentReference.trim();
+
+    if (!normalizedPaymentReference) {
+      setError('Please enter the payment reference number.');
+      return;
+    }
+
+    if (normalizedPaymentReference.length < 3) {
+      setError('The payment reference must be at least 3 characters.');
+      return;
+    }
+
     try {
       setPaying(true);
       setError('');
@@ -46,8 +59,7 @@ export default function EnrollmentPaymentPage() {
         paymentMethod: 'QR',
         paymentStatus: 'PENDING_CONFIRMATION',
         paymentAmount: amountDue,
-        paymentReference:
-          checkout.metadata?.paymentReference || `QR-${Date.now()}`,
+        paymentReference: normalizedPaymentReference,
       };
 
       const enrollment = await createEnrollment({
@@ -153,11 +165,33 @@ export default function EnrollmentPaymentPage() {
           Online payment is not connected yet. Click Pay to submit this
           enrollment for front desk confirmation.
         </p>
+        <div className="mt-5 text-left">
+          <label
+            htmlFor="enrollment-payment-reference"
+            className="text-sm font-medium"
+          >
+            Payment reference number
+          </label>
+          <input
+            id="enrollment-payment-reference"
+            type="text"
+            value={paymentReference}
+            onChange={(event) => setPaymentReference(event.target.value)}
+            placeholder="Enter the reference from your payment receipt"
+            maxLength={100}
+            required
+            autoComplete="off"
+            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            This reference will be checked by the front desk.
+          </p>
+        </div>
         {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
         <button
           type="button"
           onClick={handlePay}
-          disabled={paying}
+          disabled={paying || !paymentReference.trim()}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
         >
           {paying ? (

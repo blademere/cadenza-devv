@@ -231,6 +231,9 @@ export default function InstructorsPage() {
   const [instructorName, setInstructorName] =
     useState('');
 
+  const [employmentType, setEmploymentType] =
+    useState('PART_TIME');
+
   const [instructorEmail, setInstructorEmail] =
     useState('');
 
@@ -610,6 +613,7 @@ export default function InstructorsPage() {
 
   const resetForm = () => {
     setInstructorName('');
+    setEmploymentType('PART_TIME');
     setInstructorEmail('');
     setInstructorPassword('');
     setSelectedSpecializations([]);
@@ -664,7 +668,41 @@ export default function InstructorsPage() {
       return;
     }
 
-    if (schedules.length === 0) {
+    const schedulesToSubmit = [...schedules];
+
+    if (
+      employmentType === 'PART_TIME' &&
+      scheduleDay &&
+      scheduleStartTime
+    ) {
+      const startMinute = timeToMinutes(scheduleStartTime);
+      const endMinute = startMinute + 60;
+
+      if (endMinute > 24 * 60) {
+        setError('The schedule cannot extend past midnight.');
+        return;
+      }
+
+      const pendingScheduleExists = schedulesToSubmit.some(
+        (schedule) =>
+          schedule.dayOfWeek === Number(scheduleDay) &&
+          startMinute < schedule.endMinute &&
+          endMinute > schedule.startMinute,
+      );
+
+      if (!pendingScheduleExists) {
+        schedulesToSubmit.push({
+          dayOfWeek: Number(scheduleDay),
+          startMinute,
+          endMinute,
+        });
+      }
+    }
+
+    if (
+      employmentType === 'PART_TIME' &&
+      schedulesToSubmit.length === 0
+    ) {
       setError(
         'Add at least one schedule.',
       );
@@ -697,6 +735,19 @@ export default function InstructorsPage() {
             password: instructorPassword,
             courseIds:
               selectedSpecializations,
+            metadata: {
+              employmentType,
+            },
+            availability:
+              employmentType === 'PART_TIME'
+                ? schedulesToSubmit.map(
+                    ({ dayOfWeek, startMinute, endMinute }) => ({
+                      dayOfWeek,
+                      startMinute,
+                      endMinute,
+                    }),
+                  )
+                : [],
           },
         );
 
@@ -706,20 +757,6 @@ export default function InstructorsPage() {
       if (!instructorId) {
         throw new Error(
           'Instructor was created but no instructor ID was returned.',
-        );
-      }
-
-      for (const schedule of schedules) {
-        await instructorService.addAvailability(
-          instructorId,
-          {
-            dayOfWeek:
-              schedule.dayOfWeek,
-            startMinute:
-              schedule.startMinute,
-            endMinute:
-              schedule.endMinute,
-          },
         );
       }
 
@@ -1059,7 +1096,7 @@ export default function InstructorsPage() {
                       </span>
                     </button>
                   ))}
-                </div>
+              </div>
               </div>
 
               <div className="grid gap-2">
@@ -1141,7 +1178,8 @@ export default function InstructorsPage() {
                 </div>
               </div>
 
-              <div className="grid gap-2">
+              {employmentType === 'PART_TIME' && (
+                <div className="grid gap-2">
                 <div>
                   <label className="text-sm font-medium">
                     Schedule Availability
@@ -1383,15 +1421,16 @@ export default function InstructorsPage() {
                         </div>
                       ),
                     )}
-                  </div>
-                )}
+                </div>
+              )}
 
                 {schedules.length === 0 && (
                   <p className="text-xs text-destructive">
                     Add at least one schedule.
                   </p>
                 )}
-              </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="pt-2">
@@ -1416,7 +1455,8 @@ export default function InstructorsPage() {
                   !instructorPassword ||
                   selectedSpecializations.length ===
                     0 ||
-                  schedules.length === 0
+                  (employmentType === 'PART_TIME' &&
+                    schedules.length === 0)
                 }
               >
                 {submitting && (

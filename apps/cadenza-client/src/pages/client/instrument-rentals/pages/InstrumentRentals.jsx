@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertCircleIcon,
   CalendarDaysIcon,
@@ -38,6 +38,14 @@ const CART_STORAGE_KEY = 'cadenza-instrument-rental-cart'
 const instrumentLabel = (instrument) =>
   instrument?.name ||
   [instrument?.brand, instrument?.model].filter(Boolean).join(' ') || 'Instrument'
+
+const instrumentCategory = (instrument) =>
+  instrument?.instrumentType?.name ||
+  instrument?.equipmentName ||
+  instrument?.itemCategory?.name ||
+  instrument?.name ||
+  [instrument?.brand, instrument?.model].filter(Boolean).join(' ') ||
+  'Other equipment'
 
 const hasRentalRate = (instrument) => {
   const rate = Number(instrument?.rentalRate)
@@ -94,6 +102,19 @@ export default function InstrumentRentalsPage() {
   const [rentals, setRentals] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const groupedInstruments = useMemo(() => {
+    const groups = new Map()
+
+    instruments.forEach((instrument) => {
+      const category = instrumentCategory(instrument)
+      const group = groups.get(category) || []
+      group.push(instrument)
+      groups.set(category, group)
+    })
+
+    return [...groups.entries()]
+  }, [instruments])
 
   const loadData = useCallback(async () => {
     try {
@@ -217,19 +238,28 @@ export default function InstrumentRentalsPage() {
                   No instruments are currently available for rental.
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {instruments.map((instrument) => (
-                    <InstrumentCard
-                      key={instrument.id}
-                      instrument={{
-                        ...instrument,
-                        name: instrumentLabel(instrument),
-                      }}
-                      selected={selectedInstruments.some(
-                        (item) => item.id === instrument.id,
-                      )}
-                      onRent={toggleInstrument}
-                    />
+                <div className="space-y-8">
+                  {groupedInstruments.map(([category, categoryInstruments]) => (
+                    <section key={category} aria-labelledby={`instrument-category-${category}`}>
+                      <h3 id={`instrument-category-${category}`} className="mb-3 text-lg font-semibold">
+                        {category}
+                      </h3>
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {categoryInstruments.map((instrument) => (
+                          <InstrumentCard
+                            key={instrument.id}
+                            instrument={{
+                              ...instrument,
+                              name: instrumentLabel(instrument),
+                            }}
+                            selected={selectedInstruments.some(
+                              (item) => item.id === instrument.id,
+                            )}
+                            onRent={toggleInstrument}
+                          />
+                        ))}
+                      </div>
+                    </section>
                   ))}
                 </div>
               )}

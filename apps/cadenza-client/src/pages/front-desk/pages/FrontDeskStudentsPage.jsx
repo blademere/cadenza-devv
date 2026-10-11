@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, FileIcon } from "lucide-react";
 
 import { AppSidebar } from "../components/app-sidebar";
 import { SiteHeader } from "../components/site-header";
@@ -167,9 +167,15 @@ export default function StudentsPage() {
                         </TableCell>
 
                         {/* View Details */}
-                        <TableCell className="text-right" onClick={() => handleViewDetails(student)}>
-                          <Button variant="link" className="h-auto p-0">
-                            View Details
+                        <TableCell className="text-right" >
+                          <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="View student details"
+                              onClick={() => handleViewDetails(student)}
+                              >
+                            <FileIcon className="size-4" />
                           </Button>
                         </TableCell>
                       </TableRow>

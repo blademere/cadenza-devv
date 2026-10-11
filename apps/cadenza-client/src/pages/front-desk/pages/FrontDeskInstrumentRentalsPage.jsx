@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileIcon, ChevronDown, Check, X } from "lucide-react";
+import { FileIcon, ChevronDown, Check, X, Loader2 } from "lucide-react";
 
 import { AppSidebar } from "../components/app-sidebar";
 import { SiteHeader } from "../components/site-header";
@@ -42,7 +42,11 @@ import {
   TableRow,
 } from "@/components/ui/Table";
 
-import { getInstrumentRentals } from "@/services/front-desk/instrument-rentalsService";
+import {
+  approveInstrumentRental,
+  cancelInstrumentRental,
+  getInstrumentRentals,
+} from "@/services/front-desk/instrument-rentalsService";
 
 const formatRentalReference = (id) =>
   id ? `RNT-${id.slice(0, 8).toUpperCase()}` : "—";
@@ -66,6 +70,25 @@ const formatRentalDate = (value) => {
     minute: "2-digit",
   });
 };
+
+const isPendingRental = (status) =>
+  [
+    'PENDING',
+    'PENDING_PAYMENT',
+    'PENDING_CONFIRMATION',
+    'PARTIALLY_PAID',
+    'FOR_APPROVAL',
+  ].includes(
+    String(status || '')
+      .toUpperCase()
+      .replace(/[ -]/g, '_'),
+  );
+
+const canReviewRental = (rental) =>
+  rental &&
+  !['Approved', 'Rejected', 'CANCELLED', 'COMPLETED'].includes(
+    rental.status,
+  );
 
 /* --------------------------------------------------
    Mock Data
@@ -181,6 +204,10 @@ export default function RentalsPage() {
   const [selectedRental, setSelectedRental] = useState(null);
 
   const [showDetails, setShowDetails] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancellationMode, setCancellationMode] = useState(false);
 
   useEffect(() => {
     const loadRentals = async () => {
@@ -236,15 +263,27 @@ export default function RentalsPage() {
                 : payment.paymentPlan === "FULL_PAYMENT"
                   ? "Full payment selected"
                   : "—",
+            paymentReference: payment.paymentReference || "—",
             paymentDate: "—",
             status:
-              rental.status === "PENDING" ? "Pending" : rental.status,
+              isPendingRental(rental.status)
+                ? "Pending"
+                : rental.status === "APPROVED"
+                  ? "Approved"
+                  : rental.status === "CANCELLED" || rental.status === "REJECTED"
+                    ? "Rejected"
+                    : rental.status,
           };
         });
 
         setRentals(mapped);
       } catch (error) {
         console.error("Failed to load rental requests:", error);
+        setActionError(
+          error?.response?.data?.message ||
+            error?.message ||
+            "Unable to load rental requests.",
+        );
       }
     };
 
@@ -266,6 +305,9 @@ export default function RentalsPage() {
 
   const handleViewDetails = (rental) => {
     setSelectedRental(rental);
+    setActionError("");
+    setCancellationReason("");
+    setCancellationMode(false);
     setShowDetails(true);
   };
 
@@ -273,56 +315,49 @@ export default function RentalsPage() {
      Approve
   -------------------------------------------------- */
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!selectedRental) return;
 
-    setRentals((currentRentals) =>
-      currentRentals.map((rental) =>
-        rental.id === selectedRental.id
-          ? {
-              ...rental,
-              status: "Approved",
-            }
-          : rental,
-      ),
-    );
-
-    setSelectedRental((current) =>
-      current
-        ? {
-            ...current,
-            status: "Approved",
-          }
-        : null,
-    );
+    try {
+      setActionLoading(true);
+      setActionError("");
+      const updated = await approveInstrumentRental(selectedRental.id);
+      const next = { ...selectedRental, ...updated, status: "Approved" };
+      setRentals((current) =>
+        current.map((rental) => (rental.id === next.id ? next : rental)),
+      );
+      setSelectedRental(next);
+    } catch (error) {
+      setActionError(error?.response?.data?.message || error?.message || "Unable to approve this rental.");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   /* --------------------------------------------------
      Reject
   -------------------------------------------------- */
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!selectedRental) return;
 
-    setRentals((currentRentals) =>
-      currentRentals.map((rental) =>
-        rental.id === selectedRental.id
-          ? {
-              ...rental,
-              status: "Rejected",
-            }
-          : rental,
-      ),
-    );
-
-    setSelectedRental((current) =>
-      current
-        ? {
-            ...current,
-            status: "Rejected",
-          }
-        : null,
-    );
+    try {
+      setActionLoading(true);
+      setActionError("");
+      const updated = await cancelInstrumentRental(
+        selectedRental.id,
+        cancellationReason,
+      );
+      const next = { ...selectedRental, ...updated, status: "Rejected" };
+      setRentals((current) =>
+        current.map((rental) => (rental.id === next.id ? next : rental)),
+      );
+      setSelectedRental(next);
+    } catch (error) {
+      setActionError(error?.response?.data?.message || error?.message || "Unable to cancel this rental.");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   /* --------------------------------------------------
@@ -378,15 +413,19 @@ export default function RentalsPage() {
                 ----------------------------------------- */}
 
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="min-w-[140px] justify-between"
-                    >
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        className="min-w-[140px] justify-between"
+                      />
+                    }
+                  >
+                    <span>
                       {statusFilter === "All" ? "All Rentals" : statusFilter}
 
                       <ChevronDown className="ml-2 size-4" />
-                    </Button>
+                    </span>
                   </DropdownMenuTrigger>
 
                   <DropdownMenuContent align="end">
@@ -421,6 +460,11 @@ export default function RentalsPage() {
             --------------------------------------------- */}
 
             <CardContent>
+              {actionError && (
+                <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {actionError}
+                </div>
+              )}
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -508,10 +552,18 @@ export default function RentalsPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              title="View rental details"
+                              title={
+                                isPendingRental(rental.status)
+                                  ? "Review rental"
+                                  : "View rental details"
+                              }
                               onClick={() => handleViewDetails(rental)}
                             >
-                              <FileIcon className="size-4" />
+                              {isPendingRental(rental.status) ? (
+                                <span className="text-xs font-medium">Review</span>
+                              ) : (
+                                <FileIcon className="size-4" />
+                              )}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -535,7 +587,7 @@ export default function RentalsPage() {
               Rental Details Dialog
           --------------------------------------------- */}
           <Dialog open={showDetails} onOpenChange={setShowDetails}>
-            <DialogContent className="sm:max-w-[520px]">
+            <DialogContent className="sm:max-w-[520px] sm:max-h-[90vh] overflow-y-auto">
               {selectedRental && (
                 <>
                   <DialogHeader>
@@ -543,7 +595,8 @@ export default function RentalsPage() {
                       <div>
                         <DialogTitle>Rental Request</DialogTitle>
                         <DialogDescription>
-                          {selectedRental.id} · Review rental information
+                          {formatRentalReference(selectedRental.id)} · Review
+                          rental information
                         </DialogDescription>
                       </div>
 
@@ -690,22 +743,99 @@ export default function RentalsPage() {
                         </div>
                       </div>
                     </div>
+
+                    {selectedRental.metadata?.paymentContinuationRequired && (
+                      <div className="mt-3 rounded-md border border-blue-500/30 bg-blue-500/10 p-3">
+                        <p className="text-sm font-medium">
+                          Payment continuation required
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Remaining balance: ₱
+                          {Number(
+                            selectedRental.metadata.remainingAmount || 0,
+                          ).toLocaleString()}. Billing continuation will be
+                          handled later.
+                        </p>
+                      </div>
+                    )}
+                    {cancellationMode && (
+                      <div>
+                        <label
+                          htmlFor="rental-cancellation-reason"
+                          className="text-sm font-medium"
+                        >
+                          Cancellation reason
+                        </label>
+                        <textarea
+                          id="rental-cancellation-reason"
+                          value={cancellationReason}
+                          onChange={(event) =>
+                            setCancellationReason(event.target.value)
+                          }
+                          placeholder="Explain why this rental is being cancelled"
+                          maxLength={500}
+                          rows={3}
+                          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
                   <DialogFooter className="border-t pt-4">
-                    {selectedRental.status === "Pending" ? (
+                    {actionError && (
+                      <p className="mr-auto text-sm text-destructive">
+                        {actionError}
+                      </p>
+                    )}
+                    {canReviewRental(selectedRental) ? (
                       <>
-                        <Button variant="outline" onClick={handleReject}>
-                          <X className="mr-2 size-4" />
-                          Reject
-                        </Button>
+                        {cancellationMode ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setCancellationMode(false);
+                                setCancellationReason("");
+                              }}
+                              disabled={actionLoading}
+                            >
+                              Keep rental
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={handleReject}
+                              disabled={
+                                actionLoading ||
+                                cancellationReason.trim().length < 3
+                              }
+                            >
+                              {actionLoading && (
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                              )}
+                              Confirm cancellation
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            onClick={() => setCancellationMode(true)}
+                            disabled={actionLoading}
+                          >
+                            <X className="mr-2 size-4" />
+                            Cancel rental
+                          </Button>
+                        )}
 
                         <Button
                           onClick={handleApprove}
-                          disabled={selectedRental.paymentStatus !== "Paid"}
+                          disabled={actionLoading || cancellationMode}
                         >
-                          <Check className="mr-2 size-4" />
+                          {actionLoading ? (
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                          ) : (
+                            <Check className="mr-2 size-4" />
+                          )}
                           Approve Rental
                         </Button>
                       </>

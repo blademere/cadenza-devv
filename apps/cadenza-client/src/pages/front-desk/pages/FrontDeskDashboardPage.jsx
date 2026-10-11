@@ -1,143 +1,105 @@
-import { AppSidebar } from "../components/app-sidebar";
-import { SectionCards } from "../components/section-cards";
-import { SiteHeader } from "../components/site-header";
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, CalendarDays, ClipboardList, DoorOpen, Guitar, Loader2 } from 'lucide-react';
 
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { apiClient } from '@/core/api/apiClient';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { AppSidebar } from '../components/app-sidebar';
+import { SectionCards } from '../components/section-cards';
+import { SiteHeader } from '../components/site-header';
 
+const unwrapList = (response) => {
+  const data = response?.data?.data ?? response?.data ?? response;
+  return Array.isArray(data) ? data : [];
+};
 
+const pending = (status) => ['FOR_APPROVAL', 'PENDING', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'PARTIALLY_PAID'].includes(String(status || '').toUpperCase().replace(/[ -]/g, '_'));
+const personName = (record) => {
+  const person = record.customer?.person;
+  return [person?.firstName, person?.lastName].filter(Boolean).join(' ') || record.student || 'Client';
+};
+const dateTime = (value) => value ? new Date(value).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'Recently';
 
-
-const todaySchedule = [
-  {
-    time: "9:00 AM - 10:00 AM",
-    course: "Piano",
-    student: "Maria Santos",
-    room: "Room 101",
-  },
-  {
-    time: "10:00 AM - 11:00 AM",
-    course: "Guitar",
-    student: "Juan Dela Cruz",
-    room: "Room 102",
-  },
-  {
-    time: "11:00 AM - 12:00 PM",
-    course: "Violin",
-    student: "Sofia Garcia",
-    room: "Room 103",
-  },
+const requestGroups = [
+  { key: 'enrollments', label: 'Enrollment', path: '/front-desk/enrollments', icon: ClipboardList },
+  { key: 'roomBookings', label: 'Room booking', path: '/front-desk/room-bookings', icon: DoorOpen },
+  { key: 'rentals', label: 'Instrument rental', path: '/front-desk/rentals', icon: Guitar },
 ];
 
-const recentPayments = [
-  {
-    student: "Maria Santos",
-    amount: 1550,
-    type: "Enrollment",
-  },
-  {
-    student: "Juan Dela Cruz",
-    amount: 3000,
-    type: "Enrollment",
-  },
-  {
-    student: "Sofia Garcia",
-    amount: 1550,
-    type: "Enrollment",
-  },
-];
+export default function FrontDeskDashboardPage() {
+  const [records, setRecords] = useState({ enrollments: [], roomBookings: [], rentals: [] });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-export default function DashboardPage() {
+  useEffect(() => {
+    Promise.allSettled([
+      apiClient.get('/enrollments'),
+      apiClient.get('/room-bookings'),
+      apiClient.get('/instrument-rentals'),
+    ])
+      .then(([enrollments, roomBookings, rentals]) => {
+        const next = {
+          enrollments: enrollments.status === 'fulfilled' ? unwrapList(enrollments.value) : [],
+          roomBookings: roomBookings.status === 'fulfilled' ? unwrapList(roomBookings.value) : [],
+          rentals: rentals.status === 'fulfilled' ? unwrapList(rentals.value) : [],
+        };
+        setRecords(next);
+        if (!Object.values(next).some((items) => items.length) && [enrollments, roomBookings, rentals].every((result) => result.status === 'rejected')) {
+          setLoadError('Unable to load the Front Desk work queue.');
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const stats = useMemo(() => ({
+    enrollments: records.enrollments.filter((item) => pending(item.status)).length,
+    roomBookings: records.roomBookings.filter((item) => pending(item.status)).length,
+    rentals: records.rentals.filter((item) => pending(item.status)).length,
+    billing: [...records.enrollments, ...records.roomBookings, ...records.rentals].filter((item) => item.metadata?.paymentContinuationRequired || item.metadata?.paymentStatus === 'PARTIALLY_PAID').length,
+  }), [records]);
+
+  const queue = useMemo(() => requestGroups.flatMap((group) => records[group.key].filter((item) => pending(item.status)).map((item) => ({
+    ...item,
+    group,
+    name: personName(item),
+    createdAt: item.createdAt || item.scheduledStart,
+  }))).sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0)).slice(0, 6), [records]);
 
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
-
       <SidebarInset>
         <SiteHeader />
-
         <main className="flex flex-1 flex-col gap-6 p-6">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-6">
-              {/* Dashboard Header */}
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  Hello, Front Desk! 
-                </h2>
+          <div className="@container/main flex flex-1 flex-col gap-6">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Front Desk Dashboard</h1>
+              <p className="text-muted-foreground">Review client requests, manage today’s operations, and follow up on payments.</p>
+            </div>
 
-                <p className="text-muted-foreground">
-                  Here's what's happening at Cadenza Music Center today.
-                </p>
-              </div>
+            <SectionCards stats={stats} loading={loading} />
+            {loadError && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{loadError}</p>}
 
-              {/* Overview Cards */}
-              <SectionCards />
+            <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
+              <Card>
+                <CardHeader><CardTitle>Requests to review</CardTitle><CardDescription>Pending work from client enrollments, room bookings, and rentals.</CardDescription></CardHeader>
+                <CardContent>
+                  {loading ? <div className="flex min-h-40 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : queue.length === 0 ? <div className="flex min-h-40 flex-col items-center justify-center text-center"><ClipboardList className="size-8 text-muted-foreground" /><p className="mt-3 font-medium">No requests need review.</p><p className="text-sm text-muted-foreground">The Front Desk queue is clear.</p></div> : <div className="space-y-3">{queue.map((item) => { const Icon = item.group.icon; return <a key={`${item.group.key}-${item.id}`} href={item.group.path} className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"><div className="rounded-full bg-muted p-2"><Icon className="size-4" /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">{item.name}</p><Badge variant="outline">{item.group.label}</Badge></div><p className="text-sm text-muted-foreground">{dateTime(item.createdAt)}</p></div><ArrowRight className="size-4 text-muted-foreground" /></a>; })}</div>}
+                </CardContent>
+              </Card>
 
-              {/* Dashboard Content */}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {/* Today's Schedule */}
-                <div className="rounded-xl border bg-card p-6">
-                  <div className="mb-4">
-                    <h3 className="font-semibold">Today's Schedule</h3>
-
-                    <p className="text-sm text-muted-foreground">
-                      Upcoming classes for today
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    {todaySchedule.map((item, index) => (
-                      <div key={index} className="rounded-lg border p-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">{item.time}</p>
-
-                          <span className="text-xs text-muted-foreground">
-                            {item.room}
-                          </span>
-                        </div>
-
-                        <p className="mt-1 font-medium">{item.course}</p>
-
-                        <p className="text-sm text-muted-foreground">
-                          {item.student}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recent Payments */}
-                <div className="rounded-xl border bg-card p-6">
-                  <div className="mb-4">
-                    <h3 className="font-semibold">Recent Payments</h3>
-
-                    <p className="text-sm text-muted-foreground">
-                      Latest transactions
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    {recentPayments.map((payment, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between rounded-lg border p-3"
-                      >
-                        <div>
-                          <p className="font-medium">{payment.student}</p>
-
-                          <p className="text-sm text-muted-foreground">
-                            {payment.type}
-                          </p>
-                        </div>
-
-                        <p className="font-semibold">
-                          ₱{payment.amount.toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-             
+              <Card>
+                <CardHeader><CardTitle>Front Desk flow</CardTitle><CardDescription>Common actions for today.</CardDescription></CardHeader>
+                <CardContent className="grid gap-2">
+                  <Button variant="outline" className="justify-between" render={<a href="/front-desk/enrollments" />}>Review enrollments <ArrowRight /></Button>
+                  <Button variant="outline" className="justify-between" render={<a href="/front-desk/room-bookings" />}>Manage room bookings <ArrowRight /></Button>
+                  <Button variant="outline" className="justify-between" render={<a href="/front-desk/rentals" />}>Manage instrument rentals <ArrowRight /></Button>
+                  <Button variant="outline" className="justify-between" render={<a href="/front-desk/billing" />}>Open billing and receipts <ArrowRight /></Button>
+                  <Button variant="outline" className="justify-between" render={<a href="/front-desk/schedule" />}>View class schedule <CalendarDays /></Button>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </main>
