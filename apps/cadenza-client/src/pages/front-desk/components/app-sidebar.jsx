@@ -1,5 +1,5 @@
 import { NavMain } from "@/pages/admin/components/nav-main";
-import { NavUser } from "@/pages/admin/components/nav-user";
+import { NavUser } from "@/pages/front-desk/components/nav-user";
 
 import {
   Sidebar,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangleIcon,
   MoreHorizontalIcon,
@@ -18,6 +18,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
+import { apiClient } from "@/core/api/apiClient";
 
 import {
   Card,
@@ -53,51 +54,46 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const students = [
-  {
-    id: 1,
-    name: "Maria Santos",
-    email: "[maria@example.com](mailto:maria@example.com)",
-    phone: "09171234567",
-    instrument: "Piano",
-    instructor: "John Cruz",
-    status: "Active",
-    guardian: "Luis Santos",
-  },
-  {
-    id: 2,
-    name: "Juan Dela Cruz",
-    email: "[juan@example.com](mailto:juan@example.com)",
-    phone: "09181234567",
-    instrument: "Guitar",
-    instructor: "Mark Reyes",
-    status: "Active",
-    guardian: "Ana Dela Cruz",
-  },
-  {
-    id: 3,
-    name: "Sofia Garcia",
-    email: "[sofia@example.com](mailto:sofia@example.com)",
-    phone: "09191234567",
-    instrument: "Violin",
-    instructor: "Anna Lee",
-    status: "Inactive",
-    guardian: "Carlos Garcia",
-  },
-];
-
 export default function StudentsPage() {
+  const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [showStudentDetailsDialog, setShowStudentDetails] = useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
 
-  const filteredStudents = students.filter((student) =>
-    `${student.name} ${student.email} ${student.instrument}`
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .get("/students")
+      .then((response) => {
+        const data = response?.data ?? response;
+        if (isMounted) setStudents(Array.isArray(data) ? data : []);
+      })
+      .catch((requestError) => {
+        if (isMounted) setError(requestError.message || "Failed to load students.");
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const filteredStudents = useMemo(() => students.filter((student) =>
+    `${student.name} ${student.email ?? ""} ${(student.courses ?? [])
+      .map((course) => course.name)
+      .join(" ")}`
       .toLowerCase()
       .includes(search.toLowerCase()),
-  );
+  ), [search, students]);
+
+  const formatStatus = (status) =>
+    status?.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) || "Unknown";
 
   const handleStudentDetails = (student) => {
     setSelectedStudent(student);
@@ -114,15 +110,8 @@ export default function StudentsPage() {
   };
 
   return (
-    <SidebarProvider
-      style={{
-        "--sidebar-width": "calc(var(--spacing) * 72)",
-        "--header-height": "calc(var(--spacing) * 12)",
-      }}
-    >
-      {" "}
+    <SidebarProvider>
       <AppSidebar variant="inset" />
-      ```
       <SidebarInset>
         <SiteHeader />
 
@@ -176,7 +165,19 @@ export default function StudentsPage() {
                   </TableHeader>
 
                   <TableBody>
-                    {filteredStudents.length === 0 ? (
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                          Loading students...
+                        </TableCell>
+                      </TableRow>
+                    ) : error ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center text-destructive">
+                          {error}
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredStudents.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="h-24 text-center">
                           <p className="text-sm text-muted-foreground">
@@ -199,21 +200,23 @@ export default function StudentsPage() {
                           </TableCell>
 
                           {/* Instrument */}
-                          <TableCell>{student.instrument}</TableCell>
+                          <TableCell>
+                            {(student.courses ?? []).map((course) => course.name).join(", ") || "-"}
+                          </TableCell>
 
                           {/* Instructor */}
-                          <TableCell>{student.instructor}</TableCell>
+                          <TableCell>{(student.instructors ?? []).join(", ") || "-"}</TableCell>
 
                           {/* Status */}
                           <TableCell>
                             <Badge
                               variant={
-                                student.status === "Active"
+                                student.status === "ACTIVE"
                                   ? "default"
                                   : "secondary"
                               }
                             >
-                              {student.status}
+                              {formatStatus(student.status)}
                             </Badge>
                           </TableCell>
 
@@ -246,7 +249,7 @@ export default function StudentsPage() {
                                 </DropdownMenuItem>
 
                                 {/* Deactivate */}
-                                {student.status === "Active" && (
+                                {student.status === "ACTIVE" && (
                                   <>
                                     <DropdownMenuSeparator />
 
@@ -321,7 +324,7 @@ export default function StudentsPage() {
                     <p className="text-sm text-muted-foreground">Instrument</p>
 
                     <p className="mt-1 font-medium">
-                      {selectedStudent.instrument}
+                      {(selectedStudent.courses ?? []).map((course) => course.name).join(", ") || "-"}
                     </p>
                   </div>
 
@@ -329,7 +332,7 @@ export default function StudentsPage() {
                     <p className="text-sm text-muted-foreground">Instructor</p>
 
                     <p className="mt-1 font-medium">
-                      {selectedStudent.instructor}
+                      {(selectedStudent.instructors ?? []).join(", ") || "-"}
                     </p>
                   </div>
                 </div>
@@ -362,12 +365,12 @@ export default function StudentsPage() {
 
                     <Badge
                       variant={
-                        selectedStudent.status === "Active"
+                        selectedStudent.status === "ACTIVE"
                           ? "default"
                           : "secondary"
                       }
                     >
-                      {selectedStudent.status}
+                      {formatStatus(selectedStudent.status)}
                     </Badge>
                   </div>
                 </div>

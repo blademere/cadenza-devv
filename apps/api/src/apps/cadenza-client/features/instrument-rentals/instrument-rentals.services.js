@@ -71,6 +71,110 @@ export const instrumentRentalsService = {
     return rental;
   },
 
+  async approveInstrumentRental(appId, id) {
+    const rentals = await instrumentRentalsRepository.findAll(appId);
+    const rental = rentals.find(
+      (item) =>
+        item.id === id &&
+        [
+          'FOR_APPROVAL',
+          'PENDING',
+          'PENDING_PAYMENT',
+          'PENDING_CONFIRMATION',
+          'PARTIALLY_PAID',
+        ].includes(item.status),
+    );
+
+    if (!rental) {
+      throw new NotFoundError('Instrument rental waiting for approval was not found.');
+    }
+
+    const metadata = rental.metadata || {};
+    const paymentPlan = metadata.paymentPlan === 'DOWN_PAYMENT'
+      ? 'DOWN_PAYMENT'
+      : 'FULL_PAYMENT';
+    const totalAmount = Number(rental.totalAmount || 0);
+    const initialPaymentAmount = Number(
+      metadata.initialPaymentAmount ||
+        (paymentPlan === 'DOWN_PAYMENT' ? totalAmount * 0.5 : totalAmount),
+    );
+    const paymentContinuationRequired = paymentPlan === 'DOWN_PAYMENT';
+
+    const approved = await instrumentRentalsRepository.updateStaffDecision(
+      appId,
+      id,
+      {
+        status: 'APPROVED',
+        metadata: {
+          ...metadata,
+          approvalStatus: 'APPROVED',
+          approvedAt: new Date().toISOString(),
+          paymentContinuationRequired,
+          paymentContinuationStatus: paymentContinuationRequired
+            ? 'PENDING'
+            : 'NOT_REQUIRED',
+          remainingAmount: paymentContinuationRequired
+            ? Math.max(totalAmount - initialPaymentAmount, 0)
+            : 0,
+        },
+      },
+    );
+
+    if (!approved) {
+      throw new ConflictError('This instrument rental has already been processed.');
+    }
+
+    return approved;
+  },
+
+  async cancelStaffInstrumentRental(appId, id, cancellationReason) {
+    if (
+      typeof cancellationReason !== 'string' ||
+      cancellationReason.trim().length < 3
+    ) {
+      throw new BadRequestError(
+        'A cancellation reason of at least 3 characters is required.',
+      );
+    }
+
+    const rentals = await instrumentRentalsRepository.findAll(appId);
+    const rental = rentals.find(
+      (item) =>
+        item.id === id &&
+        [
+          'FOR_APPROVAL',
+          'PENDING',
+          'PENDING_PAYMENT',
+          'PENDING_CONFIRMATION',
+          'PARTIALLY_PAID',
+        ].includes(item.status),
+    );
+
+    if (!rental) {
+      throw new NotFoundError('Instrument rental waiting for approval was not found.');
+    }
+
+    const cancelled = await instrumentRentalsRepository.updateStaffDecision(
+      appId,
+      id,
+      {
+        status: 'CANCELLED',
+        metadata: {
+          ...(rental.metadata || {}),
+          approvalStatus: 'CANCELLED',
+          cancelledAt: new Date().toISOString(),
+          cancellationReason: cancellationReason?.trim() || null,
+        },
+      },
+    );
+
+    if (!cancelled) {
+      throw new ConflictError('This instrument rental has already been processed.');
+    }
+
+    return cancelled;
+  },
+
   async getAvailableInstruments(
     appId,
     scheduledStart = null,

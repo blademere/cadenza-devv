@@ -1,17 +1,20 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import {
   SearchIcon,
   Loader2Icon,
-} from "lucide-react";
+  FileIcon,
+  CheckCircle2Icon,
+  XCircleIcon,
+} from 'lucide-react';
 
-import { AppSidebar } from "../components/app-sidebar";
-import { SiteHeader } from "../components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from '../components/app-sidebar';
+import { SiteHeader } from '../components/site-header';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 import {
   Card,
@@ -19,7 +22,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/Card";
+} from '@/components/ui/Card';
 
 import {
   Table,
@@ -28,7 +31,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/Table";
+} from '@/components/ui/Table';
 
 import {
   Dialog,
@@ -37,29 +40,33 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/Dialog";
+} from '@/components/ui/Dialog';
 
-import { Badge } from "@/components/ui/Badge";
-import { enrollmentService } from "@/services/front-desk/enrollmentService";
+import { Badge } from '@/components/ui/Badge';
+import { enrollmentService } from '@/services/front-desk/enrollmentService';
 
 const formatEnrollmentReference = (id) =>
-  id ? `ENR-${id.slice(0, 8).toUpperCase()}` : "—";
+  id ? `ENR-${id.slice(0, 8).toUpperCase()}` : '—';
 
 export default function EnrollmentsPage() {
   const [enrollments, setEnrollments] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   const [selectedEnrollment, setSelectedEnrollment] = useState(null);
 
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
 
   useEffect(() => {
     const loadEnrollments = async () => {
       try {
         setLoading(true);
-        setError("");
+        setError('');
         const data = await enrollmentService.getEnrollments();
         setEnrollments(Array.isArray(data) ? data : []);
       } catch (err) {
@@ -67,7 +74,7 @@ export default function EnrollmentsPage() {
         setError(
           err?.response?.data?.message ||
             err?.message ||
-            "Failed to load enrollments.",
+            'Failed to load enrollments.',
         );
       } finally {
         setLoading(false);
@@ -82,11 +89,11 @@ export default function EnrollmentsPage() {
   ---------------------------------------- */
 
   const filteredEnrollments = enrollments.filter((enrollment) =>
-    `${enrollment.id} ${enrollment.student || ""} ${
-      enrollment.packageName || ""
-    } ${enrollment.lessons?.map((lesson) => lesson.name).join(" ") || ""} ${
-      enrollment.sessions?.map((session) => session.instructorName).join(" ") ||
-      ""
+    `${enrollment.id} ${enrollment.student || ''} ${
+      enrollment.packageName || ''
+    } ${enrollment.lessons?.map((lesson) => lesson.name).join(' ') || ''} ${
+      enrollment.sessions?.map((session) => session.instructorName).join(' ') ||
+      ''
     }`
       .toLowerCase()
       .includes(search.toLowerCase()),
@@ -98,7 +105,67 @@ export default function EnrollmentsPage() {
 
   const handleViewDetails = (enrollment) => {
     setSelectedEnrollment(enrollment);
+    setActionError('');
+    setActionMessage('');
     setShowDetailsDialog(true);
+  };
+
+  const updateEnrollmentInList = (updatedEnrollment) => {
+    setEnrollments((current) =>
+      current.map((item) =>
+        item.id === updatedEnrollment.id ? updatedEnrollment : item,
+      ),
+    );
+    setSelectedEnrollment(updatedEnrollment);
+  };
+
+  const handleApprove = async () => {
+    if (!selectedEnrollment || actionLoading) return;
+
+    try {
+      setActionLoading(true);
+      setActionError('');
+      const updatedEnrollment = await enrollmentService.approveEnrollment(
+        selectedEnrollment.id,
+      );
+      updateEnrollmentInList(updatedEnrollment);
+      setActionMessage(
+        updatedEnrollment.metadata?.paymentContinuationRequired
+          ? 'Enrollment approved. Payment continuation is still required for the remaining balance.'
+          : 'Enrollment approved. Full payment has been recorded for this enrollment.',
+      );
+    } catch (err) {
+      setActionError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Unable to approve this enrollment.',
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!selectedEnrollment || actionLoading) return;
+
+    try {
+      setActionLoading(true);
+      setActionError('');
+      const updatedEnrollment = await enrollmentService.cancelEnrollment(
+        selectedEnrollment.id,
+      );
+      updateEnrollmentInList(updatedEnrollment);
+      setShowCancelDialog(false);
+      setActionMessage('Enrollment cancelled.');
+    } catch (err) {
+      setActionError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Unable to cancel this enrollment.',
+      );
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   return (
@@ -180,33 +247,33 @@ export default function EnrollmentsPage() {
 
                           <TableCell>{enrollment.student}</TableCell>
 
-                          <TableCell>
-                            {enrollment.packageName || "—"}
-                          </TableCell>
+                          <TableCell>{enrollment.packageName || '—'}</TableCell>
 
                           <TableCell>
-                            {enrollment.sessions?.[0]?.instructorName || "—"}
+                            {enrollment.sessions?.[0]?.instructorName || '—'}
                           </TableCell>
 
                           <TableCell>
                             <Badge
                               variant={
-                                enrollment.status === "ACTIVE"
-                                  ? "default"
-                                  : "secondary"
+                                enrollment.status === 'ACTIVE'
+                                  ? 'default'
+                                  : 'secondary'
                               }
                             >
-                              {enrollment.status || "—"}
+                              {enrollment.status || '—'}
                             </Badge>
                           </TableCell>
 
                           <TableCell className="text-right">
                             <Button
-                              variant="link"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="View student details"
                               onClick={() => handleViewDetails(enrollment)}
-                              className="h-auto p-0"
                             >
-                              View Details
+                              <FileIcon className="size-4" />
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -228,12 +295,8 @@ export default function EnrollmentsPage() {
           </Card>
         </main>
 
-
-        <Dialog
-          open={showDetailsDialog}
-          onOpenChange={setShowDetailsDialog}
-        >
-          <DialogContent className="sm:max-w-[650px]">
+        <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+          <DialogContent className="sm:max-w-[650px] sm:max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Enrollment Details</DialogTitle>
 
@@ -275,8 +338,12 @@ export default function EnrollmentsPage() {
                     <div>
                       <p className="text-xs text-muted-foreground">Course</p>
 
-                      <p className="font-medium">                      {selectedEnrollment.lessons?.map((lesson) => lesson.name).join(", ") ||
-                        "—"}</p>
+                      <p className="font-medium">
+                        {' '}
+                        {selectedEnrollment.lessons
+                          ?.map((lesson) => lesson.name)
+                          .join(', ') || '—'}
+                      </p>
                     </div>
 
                     <div>
@@ -285,7 +352,8 @@ export default function EnrollmentsPage() {
                       </p>
 
                       <p className="font-medium">
-                        {selectedEnrollment.sessions?.[0]?.instructorName || "—"}
+                        {selectedEnrollment.sessions?.[0]?.instructorName ||
+                          '—'}
                       </p>
                     </div>
 
@@ -295,7 +363,7 @@ export default function EnrollmentsPage() {
                       </p>
 
                       <p className="font-medium">
-                        {selectedEnrollment.packageName || "—"}
+                        {selectedEnrollment.packageName || '—'}
                       </p>
                     </div>
 
@@ -317,7 +385,7 @@ export default function EnrollmentsPage() {
                           ? new Date(
                               selectedEnrollment.sessions[0].scheduledStart,
                             ).toLocaleDateString()
-                          : "—"}
+                          : '—'}
                       </p>
                     </div>
 
@@ -329,12 +397,11 @@ export default function EnrollmentsPage() {
                       <p className="font-medium">
                         {selectedEnrollment.price != null
                           ? `₱${Number(selectedEnrollment.price).toLocaleString()}`
-                          : "—"}
+                          : '—'}
                       </p>
                     </div>
                   </div>
                 </div>
-
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -349,12 +416,15 @@ export default function EnrollmentsPage() {
 
                       <div>
                         <p className="text-xs text-muted-foreground">
-                          Amount Paid
+                          Amount submitted
                         </p>
 
                         <p className="text-lg font-semibold">
-                          Payment details are managed through the payment
-                          obligation record.
+                          {selectedEnrollment.metadata?.paymentAmount != null
+                            ? `₱${Number(
+                                selectedEnrollment.metadata.paymentAmount,
+                              ).toLocaleString()}`
+                            : '—'}
                         </p>
                       </div>
 
@@ -362,11 +432,14 @@ export default function EnrollmentsPage() {
 
                       <div>
                         <p className="text-xs text-muted-foreground">
-                          Payment Method
+                          Payment plan
                         </p>
 
                         <p className="font-medium">
-                          {selectedEnrollment.paymentObligationId || "—"}
+                          {selectedEnrollment.metadata?.paymentPlan ===
+                          'DOWN_PAYMENT'
+                            ? 'Partial downpayment'
+                            : 'Full payment'}
                         </p>
                       </div>
 
@@ -374,15 +447,12 @@ export default function EnrollmentsPage() {
 
                       <div>
                         <p className="text-xs text-muted-foreground">
-                          Payment Date
+                          Payment status
                         </p>
 
                         <p className="font-medium">
-                          {selectedEnrollment.paymentExpiresAt
-                            ? new Date(
-                                selectedEnrollment.paymentExpiresAt,
-                              ).toLocaleDateString()
-                            : "—"}
+                          {selectedEnrollment.metadata?.paymentStatus ||
+                            'Pending confirmation'}
                         </p>
                       </div>
 
@@ -390,30 +460,56 @@ export default function EnrollmentsPage() {
 
                       <div>
                         <p className="text-xs text-muted-foreground">
-                          Reference Number
+                          Payment reference
                         </p>
 
                         <p className="font-medium">
-                          {selectedEnrollment.id}
+                          {selectedEnrollment.metadata?.paymentReference ||
+                            '—'}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {selectedEnrollment.status !== "COMPLETED" && (
+                  {selectedEnrollment.status === 'FOR_APPROVAL' && (
                     <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3">
                       <p className="text-sm font-medium">
                         Payment verification required
                       </p>
 
                       <p className="text-xs text-muted-foreground">
-                        This enrollment has not been fully paid. Verify the
-                        payment before approving the enrollment.
+                        Review the submitted reference and payment plan before
+                        approving this enrollment.
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedEnrollment.metadata?.paymentContinuationRequired && (
+                    <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-3">
+                      <p className="text-sm font-medium">
+                        Payment continuation required
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Remaining balance:{' '}
+                        {selectedEnrollment.metadata.paymentBalanceDue != null
+                          ? `₱${Number(
+                              selectedEnrollment.metadata.paymentBalanceDue,
+                            ).toLocaleString()}`
+                          : 'To be calculated'}
+                        . Billing continuation will be handled in a later
+                        update.
                       </p>
                     </div>
                   )}
                 </div>
               </div>
+            )}
+
+            {actionError && (
+              <p className="text-sm text-destructive">{actionError}</p>
+            )}
+            {actionMessage && (
+              <p className="text-sm text-emerald-600">{actionMessage}</p>
             )}
 
             <DialogFooter className="gap-2">
@@ -422,6 +518,55 @@ export default function EnrollmentsPage() {
                 onClick={() => setShowDetailsDialog(false)}
               >
                 Close
+              </Button>
+              {selectedEnrollment?.status === 'FOR_APPROVAL' && (
+                <>
+                  <Button
+                    variant="destructive"
+                    disabled={actionLoading}
+                    onClick={() => setShowCancelDialog(true)}
+                  >
+                    <XCircleIcon />
+                    Cancel enrollment
+                  </Button>
+                  <Button disabled={actionLoading} onClick={handleApprove}>
+                    {actionLoading ? (
+                      <Loader2Icon className="animate-spin" />
+                    ) : (
+                      <CheckCircle2Icon />
+                    )}
+                    Approve enrollment
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cancel this enrollment?</DialogTitle>
+              <DialogDescription>
+                This will mark the enrollment as cancelled and remove it from
+                the approval queue.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                disabled={actionLoading}
+                onClick={() => setShowCancelDialog(false)}
+              >
+                Keep enrollment
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={actionLoading}
+                onClick={handleCancel}
+              >
+                {actionLoading && <Loader2Icon className="animate-spin" />}
+                {actionLoading ? 'Cancelling...' : 'Confirm cancellation'}
               </Button>
             </DialogFooter>
           </DialogContent>

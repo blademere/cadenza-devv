@@ -129,6 +129,24 @@ export const enrollmentRepository = {
     });
   },
 
+  async updateStaffDecision(appId, enrollmentId, data) {
+    const result = await prisma.cadenzaEnrollment.updateMany({
+      where: {
+        id: enrollmentId,
+        appId,
+        status: 'FOR_APPROVAL',
+      },
+      data,
+    });
+
+    if (!result.count) {
+      return null;
+    }
+
+    const enrollments = await this.findAll(appId);
+    return enrollments.find((enrollment) => enrollment.id === enrollmentId) || null;
+  },
+
   async findAvailablePackages(appId) {
     return prisma.cadenzaLessonPackage.findMany({
       where: {

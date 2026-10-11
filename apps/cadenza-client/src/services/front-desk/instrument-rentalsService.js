@@ -11,6 +11,17 @@ export const getInstrumentRentals = async () => {
   return unwrap(response);
 };
 
+export const approveInstrumentRental = async (id) =>
+  unwrap(await apiClient.patch(`${INSTRUMENT_RENTALS_URL}/${id}/approve`));
+
+export const cancelInstrumentRental = async (id, cancellationReason) =>
+  unwrap(
+    await apiClient.patch(
+      `${INSTRUMENT_RENTALS_URL}/${id}/cancel-by-staff`,
+      { cancellationReason },
+    ),
+  );
+
 export const getRentalPackages = async () => {
   const response = await apiClient.get(
     `${INSTRUMENT_RENTALS_URL}/packages`,

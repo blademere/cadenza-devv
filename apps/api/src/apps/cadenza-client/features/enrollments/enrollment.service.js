@@ -928,6 +928,83 @@ export const enrollmentService = {
     return mapEnrollment(enrollment);
   },
 
+  async approveEnrollment(appId, enrollmentId) {
+    const enrollments = await enrollmentRepository.findAll(appId, {
+      status: 'FOR_APPROVAL',
+    });
+    const enrollment = enrollments.find((item) => item.id === enrollmentId);
+
+    if (!enrollment) {
+      throw new NotFoundError('Enrollment waiting for approval was not found.');
+    }
+
+    const metadata = enrollment.metadata || {};
+    const paymentPlan = metadata.paymentPlan === 'DOWN_PAYMENT'
+      ? 'DOWN_PAYMENT'
+      : 'FULL_PAYMENT';
+    const paymentAmount = Number(metadata.paymentAmount || 0);
+    const totalAmount = Number(enrollment.lessonPackage?.price || 0);
+    const paymentContinuationRequired = paymentPlan === 'DOWN_PAYMENT';
+
+    const approved = await enrollmentRepository.updateStaffDecision(
+      appId,
+      enrollmentId,
+      {
+        status: 'APPROVED',
+        enrolledAt: new Date(),
+        metadata: {
+          ...metadata,
+          approvalStatus: 'APPROVED',
+          approvedAt: new Date().toISOString(),
+          paymentPlan,
+          paymentContinuationRequired,
+          paymentContinuationStatus: paymentContinuationRequired
+            ? 'PENDING'
+            : 'NOT_REQUIRED',
+          paymentBalanceDue: paymentContinuationRequired
+            ? Math.max(totalAmount - paymentAmount, 0)
+            : 0,
+        },
+      },
+    );
+
+    if (!approved) {
+      throw new ConflictError('This enrollment has already been processed.');
+    }
+
+    return mapEnrollment(approved);
+  },
+
+  async cancelStaffEnrollment(appId, enrollmentId) {
+    const enrollments = await enrollmentRepository.findAll(appId, {
+      status: 'FOR_APPROVAL',
+    });
+    const enrollment = enrollments.find((item) => item.id === enrollmentId);
+
+    if (!enrollment) {
+      throw new NotFoundError('Enrollment waiting for approval was not found.');
+    }
+
+    const cancelled = await enrollmentRepository.updateStaffDecision(
+      appId,
+      enrollmentId,
+      {
+        status: 'CANCELLED',
+        metadata: {
+          ...(enrollment.metadata || {}),
+          approvalStatus: 'CANCELLED',
+          cancelledAt: new Date().toISOString(),
+        },
+      },
+    );
+
+    if (!cancelled) {
+      throw new ConflictError('This enrollment has already been processed.');
+    }
+
+    return mapEnrollment(cancelled);
+  },
+
   async cancelEnrollment(
     appId,
     customerId,

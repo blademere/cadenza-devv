@@ -267,7 +267,7 @@ export default function UserManagementPage() {
       <SidebarInset>
         <SiteHeader />
 
-        <main className="flex flex-1 flex-col gap-6 p-6">
+        <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-semibold">User Management</h1>

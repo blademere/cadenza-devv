@@ -70,6 +70,20 @@ router.get(
 );
 
 router.patch(
+  '/:id/approve',
+  requireAdminOrFrontDesk,
+  validate(idValidator),
+  asyncHandler(enrollmentController.approveEnrollment),
+);
+
+router.patch(
+  '/:id/cancel-by-staff',
+  requireAdminOrFrontDesk,
+  validate(idValidator),
+  asyncHandler(enrollmentController.cancelStaffEnrollment),
+);
+
+router.patch(
   '/:id/cancel',
   requireClient,
   validate(idValidator),
