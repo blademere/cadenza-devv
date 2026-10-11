@@ -40,6 +40,9 @@ import FrontDeskRoomBookings from '@/pages/front-desk/pages/FrontDeskRoomBooking
 import BillingPayments from '@/pages/front-desk/pages/FrontDeskBillingPayments';
 
 import ClientPageLayout from '@/pages/client/layouts/ClientPageLayout';
+import ClientDashboard from '@/pages/client/dashboard/pages/Dashboard';
+import { ClientProfile } from '@/pages/client/profile';
+import { ClientNotifications } from '@/pages/client/notifications';
 import {
   Enrollments,
   CreateEnrollment,
@@ -150,9 +153,10 @@ export default function AppRoutes() {
         />
 
         <Route path="client" element={<ClientPageLayout />}>
-          <Route index element={<CreateEnrollment />} />
+          <Route index element={<ClientDashboard />} />
 
-          <Route path="profile" element={<CreateEnrollment />} />
+          <Route path="profile" element={<ClientProfile />} />
+          <Route path="notifications" element={<ClientNotifications />} />
 
           <Route path="enrollments" element={<Enrollments />} />
           <Route path="enrollments/new" element={<NewEnrollment />} />

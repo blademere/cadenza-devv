@@ -226,7 +226,7 @@ export const enrollmentService = {
     return enrollments.map(mapEnrollment);
   },
 
-  async getAvailablePackages(appId) {
+  async getAvailablePackages(appId, customerId) {
     const packages =
       await enrollmentRepository.findAvailablePackages(
         appId,
@@ -689,6 +689,18 @@ export const enrollmentService = {
     customerId,
     data,
   ) {
+    const paymentReference = data.metadata?.paymentReference;
+
+    if (
+      typeof paymentReference !== 'string' ||
+      paymentReference.trim().length < 3 ||
+      paymentReference.trim().length > 100
+    ) {
+      throw new BadRequestError(
+        'A valid payment reference is required before submitting an enrollment.',
+      );
+    }
+
     const packageItem =
       await enrollmentRepository.findPackageById(
         appId,
@@ -832,7 +844,10 @@ export const enrollmentService = {
           ? new Date(data.paymentExpiresAt)
           : null,
       enrolledAt: null,
-      metadata: data.metadata || null,
+      metadata: {
+        ...(data.metadata || {}),
+        paymentReference: paymentReference.trim(),
+      },
       sessions: validatedSessions,
     });
   },
@@ -883,17 +898,13 @@ export const enrollmentService = {
     appId,
     customerId,
   ) {
-    const enrollment =
+    const enrollments =
       await enrollmentRepository.findMyEnrollment(
         appId,
         customerId,
       );
 
-    if (!enrollment) {
-      return null;
-    }
-
-    return mapEnrollment(enrollment);
+    return enrollments.map(mapEnrollment);
   },
 
   async getEnrollmentById(

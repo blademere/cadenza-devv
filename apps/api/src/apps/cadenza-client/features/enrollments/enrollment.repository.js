@@ -387,12 +387,12 @@ export const enrollmentRepository = {
   },
 
   async findMyEnrollment(appId, customerId) {
-    return prisma.cadenzaEnrollment.findFirst({
+    return prisma.cadenzaEnrollment.findMany({
       where: {
         appId,
         customerId,
         status: {
-          notIn: ['CANCELLED'],
+          notIn: ['CANCELLED', 'COMPLETED', 'REJECTED'],
         },
       },
       include: {
@@ -425,7 +425,7 @@ export const enrollmentRepository = {
           customerId: data.customerId,
           lessonPackageId: data.lessonPackageId,
           paymentObligationId: data.paymentObligationId || null,
-          status: data.status || 'FOR_APPROVAL',
+          status: 'FOR_APPROVAL',
           paymentExpiresAt: data.paymentExpiresAt || null,
           enrolledAt: data.enrolledAt || null,
           metadata: data.metadata || null,
