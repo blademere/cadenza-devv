@@ -129,27 +129,6 @@
         "cwd": "apps/api"
       }
     },
-    "db:seed:obo": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node scripts/db-seed.js --app=obo",
-        "cwd": "apps/api"
-      }
-    },
-    "db:seed:obo:development": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node scripts/db-seed.js --app=obo --profile=development",
-        "cwd": "apps/api"
-      }
-    },
-    "db:seed:obo:fixtures": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node scripts/db-seed.js --app=obo --profile=fixtures",
-        "cwd": "apps/api"
-      }
-    },
     "db:seed:cadenza": {
       "executor": "nx:run-commands",
       "options": {
