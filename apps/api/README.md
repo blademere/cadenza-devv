@@ -21,8 +21,10 @@ apps/api/
 └─ tests/                  # API tests
 ```
 
-The current application boundaries under `src/apps/` include `cadenza` and `obo`.
+The active application boundary under `src/apps/` is `cadenza-client`.
 
 The API is mounted under `/api/v1`. The composition root is `src/routes/index.js`, while the Express application and operational endpoints are defined in `src/app.js`.
 
 Prisma is owned by this API workspace and is accessed through repository boundaries from application, feature, and platform business code.
+
+Historical OBO-named Prisma migrations are retained to preserve migration history for existing databases. Do not delete or rewrite migrations that may already have been applied.

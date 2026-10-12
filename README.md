@@ -14,8 +14,7 @@ This README is the formal entry point for the repository. It describes the curre
 - Shared people, cases, participants, requirements, and tasks capabilities.
 - Dynamic forms and configurable custom fields for genuinely variable data.
 - Reusable document, notification, audit, workflow, event, storage, queue, and related platform capabilities.
-- OBO plan-permit application workflows under `apps/api/src/apps/obo/`.
-- Cadenza application code under `apps/api/src/apps/cadenza/`.
+- Cadenza Client application code under `apps/api/src/apps/cadenza-client/`.
 - PostgreSQL persistence through Prisma and Redis-backed infrastructure.
 - OpenAPI/Swagger documentation outside production.
 - Health, readiness, liveness, metrics, logging, and monitoring support.
@@ -100,8 +99,8 @@ apps/
 │  ├─ tests/                   # Unit and integration tests
 │  ├─ openapi/                 # API-owned public contract
 │  └─ package.json             # @cadenza-app/api workspace
-├─ web/                        # React/Vite frontend application
-└─ obo-web/                    # React/Vite/Mantine OBO application
+├─ cadenza-client/             # React/Vite web application
+└─ cadenza-mobile/              # Expo/React Native mobile application
 
 docs/api/                     # API architecture and engineering documentation
 scripts/                       # Monorepo/project utilities
@@ -112,13 +111,13 @@ package-lock.json              # Single repository lockfile
 
 Prisma schema, database migrations, database scripts, and OpenAPI tooling are API-workspace concerns owned by `apps/api`. The other applications do not own the API database schema.
 
-The OBO frontend is the OBO application. Authorization administration is one permission-controlled capability within OBO Web, not the application's identity.
+Cadenza's web and mobile clients use this API workspace. Application selection and authorization remain shared platform capabilities.
 
 ## Dynamic forms
 
 Forms and custom fields are part of the reusable form capability. Use relational models for stable concepts such as identity, relationships, lifecycle state, and other core entities. Use forms/custom fields for genuinely configurable attributes.
 
-OBO permit types associate with the generic Forms platform through `formId`; permit-specific configurable fields belong to those forms rather than to a separate custom-field subsystem.
+Application-specific configurable fields can use the reusable Forms platform where needed; stable domain relationships remain in relational models.
 
 ## Development
 
@@ -142,7 +141,7 @@ npm run db:setup
 npm run dev
 ```
 
-`npm run dev` starts the API and Vite web application. To start an individual workspace, use the workspace-owned command, for example `npm --workspace @cadenza-app/api run dev` or `npm --workspace @cadenza-app/obo-web run dev`. If you start the web application separately, the API must already be running on port `3000` (or the URL configured by `VITE_API_PROXY_TARGET`).
+`npm run dev` starts the API and Vite web application. To start an individual workspace, use the workspace-owned command, for example `npm --workspace @cadenza-app/api run dev` or `npm --workspace @cadenza-app/cadenza-client run dev`. If you start the web application separately, the API must already be running on port `3000` (or the URL configured by `VITE_API_PROXY_TARGET`).
 
 The browser-facing API base remains `/api/v1` for same-origin development so authentication cookies remain associated with the browser's web origin while Vite proxies API requests to Express.
 
@@ -159,7 +158,7 @@ Tests:
 
 ```bash
 npm --workspace @cadenza-app/api run test
-npm --workspace @cadenza-app/obo-web run test
+npm --workspace @cadenza-app/cadenza-client run build
 ```
 
 Never commit production secrets. Keep `.env.example` as the configuration template.
