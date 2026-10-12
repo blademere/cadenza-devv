@@ -128,6 +128,12 @@ const create = async ({
     );
   }
 
+  if (room.rentalRate === null || Number(room.rentalRate) <= 0) {
+    throw new BadRequestError(
+      'The selected room does not have a valid rental price configured.',
+    );
+  }
+
   await ensureAvailable({
     appId,
     roomId,
@@ -178,6 +184,104 @@ const listMyBookings = async ({
     customerId,
     appId,
   );
+
+const listAllBookings = async ({ appId }) => repository.listAll(appId);
+
+const approveBooking = async ({ appId, id }) => {
+  const bookings = await repository.listAll(appId);
+  const booking = bookings.find(
+    (item) =>
+      item.id === id &&
+      [
+        'FOR_APPROVAL',
+        'PENDING',
+        'PENDING_PAYMENT',
+        'PENDING_CONFIRMATION',
+        'PARTIALLY_PAID',
+      ].includes(item.status),
+  );
+
+  if (!booking) {
+    throw new NotFoundError('Room booking waiting for approval was not found.');
+  }
+
+  const metadata = booking.metadata || {};
+  const paymentPlan = metadata.paymentPlan === 'DOWN_PAYMENT'
+    ? 'DOWN_PAYMENT'
+    : 'FULL_PAYMENT';
+  const totalAmount = Number(booking.totalAmount || 0);
+  const initialPaymentAmount = Number(
+    metadata.initialPaymentAmount ||
+      (paymentPlan === 'DOWN_PAYMENT' ? totalAmount * 0.5 : totalAmount),
+  );
+  const paymentContinuationRequired = paymentPlan === 'DOWN_PAYMENT';
+
+  const approved = await repository.updateStaffDecision(id, appId, {
+    status: 'APPROVED',
+    metadata: {
+      ...metadata,
+      approvalStatus: 'APPROVED',
+      approvedAt: new Date().toISOString(),
+      paymentContinuationRequired,
+      paymentContinuationStatus: paymentContinuationRequired
+        ? 'PENDING'
+        : 'NOT_REQUIRED',
+      remainingAmount: paymentContinuationRequired
+        ? Math.max(totalAmount - initialPaymentAmount, 0)
+        : 0,
+    },
+  });
+
+  if (!approved) {
+    throw new ConflictError('This room booking has already been processed.');
+  }
+
+  return approved;
+};
+
+const cancelStaffBooking = async ({ appId, id, cancellationReason }) => {
+  if (
+    typeof cancellationReason !== 'string' ||
+    cancellationReason.trim().length < 3
+  ) {
+    throw new BadRequestError(
+      'A cancellation reason of at least 3 characters is required.',
+    );
+  }
+
+  const bookings = await repository.listAll(appId);
+  const booking = bookings.find(
+    (item) =>
+      item.id === id &&
+      [
+        'FOR_APPROVAL',
+        'PENDING',
+        'PENDING_PAYMENT',
+        'PENDING_CONFIRMATION',
+        'PARTIALLY_PAID',
+      ].includes(item.status),
+  );
+
+  if (!booking) {
+    throw new NotFoundError('Room booking waiting for approval was not found.');
+  }
+
+  const cancelled = await repository.updateStaffDecision(id, appId, {
+    status: 'CANCELLED',
+    metadata: {
+      ...(booking.metadata || {}),
+      approvalStatus: 'CANCELLED',
+      cancelledAt: new Date().toISOString(),
+      cancellationReason: cancellationReason.trim(),
+    },
+  });
+
+  if (!cancelled) {
+    throw new ConflictError('This room booking has already been processed.');
+  }
+
+  return cancelled;
+};
 
 const getMyBooking = async ({
   appId,
@@ -270,6 +374,9 @@ const cancel = async ({
 export {
   create,
   listMyBookings,
+  listAllBookings,
+  approveBooking,
+  cancelStaffBooking,
   getMyBooking,
   listAvailableRooms,
   cancel,

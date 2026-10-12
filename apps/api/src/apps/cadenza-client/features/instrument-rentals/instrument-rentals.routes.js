@@ -84,6 +84,20 @@ router.get(
   instrumentRentalsController.getInstrumentRentals,
 );
 
+router.patch(
+  '/:id/approve',
+  requireAdminOrFrontDesk,
+  idValidator,
+  instrumentRentalsController.approveInstrumentRental,
+);
+
+router.patch(
+  '/:id/cancel-by-staff',
+  requireAdminOrFrontDesk,
+  idValidator,
+  instrumentRentalsController.cancelStaffInstrumentRental,
+);
+
 router.get(
   '/:id',
   requireAdminOrFrontDesk,

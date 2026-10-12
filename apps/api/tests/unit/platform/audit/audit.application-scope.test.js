@@ -24,61 +24,61 @@ describe('application-scoped audit', () => {
   it('persists the explicit appId supplied by the caller', async () => {
     await recordAudit({
       actorId: 7,
-      appId: 'app-obo',
-      action: 'OBO_PERMIT_APPLICATION_SUBMITTED',
-      entityType: 'OboPermitApplication',
+      appId: 'app-cadenza-client',
+      action: 'CADENZA_CLIENT_PERMIT_APPLICATION_SUBMITTED',
+      entityType: 'CadenzaClientPermitApplication',
       entityId: 'permit-1',
     })
 
     expect(createAuditLog).toHaveBeenCalledWith(expect.objectContaining({
       actorId: 7,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
       entityId: 'permit-1',
     }), undefined)
   })
 
   it('inherits appId and actorId from the platform context when omitted', async () => {
-    getContext.mockReturnValue({ appId: 'app-obo', actorId: 9 })
+    getContext.mockReturnValue({ appId: 'app-cadenza-client', actorId: 9 })
 
     await recordAudit({
-      action: 'OBO_PERMIT_APPLICATION_FORM_VERSION_CHANGED',
-      entityType: 'OboPermitApplication',
+      action: 'CADENZA_CLIENT_PERMIT_APPLICATION_FORM_VERSION_CHANGED',
+      entityType: 'CadenzaClientPermitApplication',
       entityId: 'permit-1',
     })
 
     expect(createAuditLog).toHaveBeenCalledWith(expect.objectContaining({
       actorId: 9,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     }), undefined)
   })
 
   it('does not allow an explicit null appId to discard an active application context', async () => {
-    getContext.mockReturnValue({ appId: 'app-obo', actorId: 9 })
+    getContext.mockReturnValue({ appId: 'app-cadenza-client', actorId: 9 })
 
     await recordAudit({
       actorId: 9,
       appId: null,
-      action: 'OBO_PERMIT_APPLICATION_SUBMITTED',
-      entityType: 'OboPermitApplication',
+      action: 'CADENZA_CLIENT_PERMIT_APPLICATION_SUBMITTED',
+      entityType: 'CadenzaClientPermitApplication',
       entityId: 'permit-1',
     })
 
     expect(createAuditLog).toHaveBeenCalledWith(expect.objectContaining({
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     }), undefined)
   })
 
   it('scopes audit queries to the current application context', () => {
-    getContext.mockReturnValue({ appId: 'app-obo' })
+    getContext.mockReturnValue({ appId: 'app-cadenza-client' })
 
-    expect(buildAuditWhere({ entityType: 'OboPermitApplication' })).toEqual({
-      entityType: 'OboPermitApplication',
-      appId: 'app-obo',
+    expect(buildAuditWhere({ entityType: 'CadenzaClientPermitApplication' })).toEqual({
+      entityType: 'CadenzaClientPermitApplication',
+      appId: 'app-cadenza-client',
     })
   })
 
   it('allows an explicit application scope to override context for trusted internal queries', () => {
-    getContext.mockReturnValue({ appId: 'app-obo' })
+    getContext.mockReturnValue({ appId: 'app-cadenza-client' })
 
     expect(buildAuditWhere({ appId: 'app-admin', entityType: 'CaseRecord' })).toEqual({
       entityType: 'CaseRecord',
@@ -87,7 +87,7 @@ describe('application-scoped audit', () => {
   })
 
   it('passes the scoped where clause to both page queries', async () => {
-    getContext.mockReturnValue({ appId: 'app-obo' })
+    getContext.mockReturnValue({ appId: 'app-cadenza-client' })
     const findMany = vi.fn().mockResolvedValue([])
     const count = vi.fn().mockResolvedValue(0)
     const db = { auditLog: { findMany, count } }
@@ -95,8 +95,8 @@ describe('application-scoped audit', () => {
     await listAuditLogs({ page: 1, limit: 20 }, db)
 
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { appId: 'app-obo' },
+      where: { appId: 'app-cadenza-client' },
     }))
-    expect(count).toHaveBeenCalledWith({ where: { appId: 'app-obo' } })
+    expect(count).toHaveBeenCalledWith({ where: { appId: 'app-cadenza-client' } })
   })
 })

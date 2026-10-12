@@ -134,6 +134,40 @@ export const enrollmentController = {
     }
   },
 
+  async approveEnrollment(req, res, next) {
+    try {
+      const enrollment = await enrollmentService.approveEnrollment(
+        req.cadenzaApp.id,
+        req.params.id,
+      );
+
+      return res.json({
+        success: true,
+        message: 'Enrollment approved successfully.',
+        data: enrollment,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async cancelStaffEnrollment(req, res, next) {
+    try {
+      const enrollment = await enrollmentService.cancelStaffEnrollment(
+        req.cadenzaApp.id,
+        req.params.id,
+      );
+
+      return res.json({
+        success: true,
+        message: 'Enrollment cancelled successfully.',
+        data: enrollment,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async cancelEnrollment(req, res, next) {
     try {
       const enrollment = await enrollmentService.cancelEnrollment(

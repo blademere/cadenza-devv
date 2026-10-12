@@ -35,6 +35,34 @@ const listMyBookings = async (req, res) =>
     }),
   );
 
+const listAllBookings = async (req, res) =>
+  successResponse(
+    res,
+    'All Cadenza Client room bookings retrieved successfully.',
+    await service.listAllBookings({ appId: req.cadenzaApp.id }),
+  );
+
+const approveBooking = async (req, res) =>
+  successResponse(
+    res,
+    'Cadenza Client room booking approved successfully.',
+    await service.approveBooking({
+      appId: req.cadenzaApp.id,
+      id: req.validated.params.id,
+    }),
+  );
+
+const cancelStaffBooking = async (req, res) =>
+  successResponse(
+    res,
+    'Cadenza Client room booking cancelled successfully.',
+    await service.cancelStaffBooking({
+      appId: req.cadenzaApp.id,
+      id: req.validated.params.id,
+      cancellationReason: req.body?.cancellationReason,
+    }),
+  );
+
 const getMyBooking = async (req, res) =>
   successResponse(
     res,
@@ -74,6 +102,9 @@ const cancel = async (req, res) =>
 export {
   listAvailableRooms,
   listMyBookings,
+  listAllBookings,
+  approveBooking,
+  cancelStaffBooking,
   getMyBooking,
   create,
   cancel,

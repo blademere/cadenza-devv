@@ -6,7 +6,7 @@ useMemo,
 useState,
 } from "react";
 
-import { authService } from "@/services/admin/authService";
+import { authService } from "@/services/auth/authService";
 import { apiClient } from "@/core/api/apiClient";
 
 export const AuthContext = createContext(undefined);

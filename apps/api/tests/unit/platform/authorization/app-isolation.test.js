@@ -23,32 +23,32 @@ const requestFor = (appId) => ({
 describe('application authorization isolation', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('allows a user only through an active membership for the requested OBO application', async () => {
+  it('allows a user only through an active membership for the requested CADENZA_CLIENT application', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue({
       userId: 42,
-      app: { id: 'app-obo', key: 'obo', name: 'One-Stop Business Office', isActive: true },
-      membership: { id: 'membership-obo' },
+      app: { id: 'app-cadenza-client', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
+      membership: { id: 'membership-cadenza' },
       roles: [{ id: 3, name: 'receiving_officer' }],
       permissions: [{ resource: 'permits', action: 'read' }],
     })
 
-    const req = requestFor('app-obo')
+    const req = requestFor('app-cadenza-client')
     const next = vi.fn()
 
-    await requireApplicationContext({ appKey: 'obo' })(req, {}, next)
+    await requireApplicationContext({ appKey: 'cadenza-client' })(req, {}, next)
 
     expect(next).toHaveBeenCalledWith()
     expect(req.security.roles).toEqual([{ id: 3, name: 'receiving_officer' }])
     expect(req.security.permissions).toEqual([{ resource: 'permits', action: 'read' }])
   })
 
-  it('denies OBO access when the same user is not an active member of OBO', async () => {
+  it('denies CADENZA_CLIENT access when the same user is not an active member of CADENZA_CLIENT', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue(null)
 
     const req = requestFor('app-other')
     const next = vi.fn()
 
-    await requireApplicationContext({ appKey: 'obo' })(req, {}, next)
+    await requireApplicationContext({ appKey: 'cadenza-client' })(req, {}, next)
 
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
       statusCode: 403,
@@ -57,13 +57,13 @@ describe('application authorization isolation', () => {
     expect(context.setApplicationContext).not.toHaveBeenCalled()
   })
 
-  it('does not leak an OBO role into another application', async () => {
+  it('does not leak an CADENZA_CLIENT role into another application', async () => {
     repository.getUserAuthorizationContext.mockImplementation(async ({ appId }) => {
-      if (appId === 'app-obo') {
+      if (appId === 'app-cadenza-client') {
         return {
           userId: 42,
-          app: { id: 'app-obo', key: 'obo', name: 'One-Stop Business Office', isActive: true },
-          membership: { id: 'membership-obo' },
+          app: { id: 'app-cadenza-client', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
+          membership: { id: 'membership-cadenza' },
           roles: [{ id: 3, name: 'receiving_officer' }],
           permissions: [{ resource: 'permits', action: 'receive' }],
         }
@@ -78,15 +78,15 @@ describe('application authorization isolation', () => {
       }
     })
 
-    const oboRequest = requestFor('app-obo')
-    const oboNext = vi.fn()
-    await requireApplicationContext()(oboRequest, {}, oboNext)
+    const cadenzaRequest = requestFor('app-cadenza-client')
+    const cadenzaNext = vi.fn()
+    await requireApplicationContext()(cadenzaRequest, {}, cadenzaNext)
 
     const otherRequest = requestFor('app-other')
     const otherNext = vi.fn()
     await requireApplicationContext()(otherRequest, {}, otherNext)
 
-    expect(oboRequest.security.roles).toEqual([{ id: 3, name: 'receiving_officer' }])
+    expect(cadenzaRequest.security.roles).toEqual([{ id: 3, name: 'receiving_officer' }])
     expect(otherRequest.security.roles).toEqual([{ id: 9, name: 'administrator' }])
     expect(otherRequest.security.roles).not.toContainEqual({ id: 3, name: 'receiving_officer' })
     expect(otherRequest.security.permissions).not.toContainEqual({ resource: 'permits', action: 'receive' })
@@ -95,8 +95,8 @@ describe('application authorization isolation', () => {
   it('preserves multiple roles within one application without granting roles from another application', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue({
       userId: 42,
-      app: { id: 'app-obo', key: 'obo', name: 'One-Stop Business Office', isActive: true },
-      membership: { id: 'membership-obo' },
+      app: { id: 'app-cadenza-client', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
+      membership: { id: 'membership-cadenza' },
       roles: [
         { id: 3, name: 'receiving_officer' },
         { id: 4, name: 'reviewer' },
@@ -107,7 +107,7 @@ describe('application authorization isolation', () => {
       ],
     })
 
-    const req = requestFor('app-obo')
+    const req = requestFor('app-cadenza-client')
     const next = vi.fn()
 
     await requireApplicationContext()(req, {}, next)

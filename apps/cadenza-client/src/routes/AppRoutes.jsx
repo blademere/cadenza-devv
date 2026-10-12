@@ -7,6 +7,7 @@ import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import LandingPage from '@/pages/landing/pages/LandingPage';
 import LoginPage from '@/pages/auth/pages/LoginPage';
 import SignupPage from '@/pages/auth/pages/SignupPage';
+import OAuthCallbackPage from '@/pages/auth/pages/OAuthCallbackPage';
 
 import DashboardPage from '@/pages/admin/pages/DashboardPage';
 import StudentsPage from '@/pages/admin/pages/StudentsPage';
@@ -40,6 +41,9 @@ import FrontDeskRoomBookings from '@/pages/front-desk/pages/FrontDeskRoomBooking
 import BillingPayments from '@/pages/front-desk/pages/FrontDeskBillingPayments';
 
 import ClientPageLayout from '@/pages/client/layouts/ClientPageLayout';
+import ClientDashboard from '@/pages/client/dashboard/pages/Dashboard';
+import { ClientProfile } from '@/pages/client/profile';
+import { ClientNotifications } from '@/pages/client/notifications';
 import {
   Enrollments,
   CreateEnrollment,
@@ -76,6 +80,8 @@ export default function AppRoutes() {
       <Route element={<AuthLayout />}>
         <Route path="login" element={<LoginPage />} />
         <Route path="signup" element={<SignupPage />} />
+        <Route path="auth/callback/success" element={<OAuthCallbackPage />} />
+        <Route path="auth/callback/failure" element={<OAuthCallbackPage />} />
       </Route>
 
       <Route element={<AuthenticatedLayout allowedStaffType="ADMIN" />}>
@@ -150,9 +156,10 @@ export default function AppRoutes() {
         />
 
         <Route path="client" element={<ClientPageLayout />}>
-          <Route index element={<CreateEnrollment />} />
+          <Route index element={<ClientDashboard />} />
 
-          <Route path="profile" element={<CreateEnrollment />} />
+          <Route path="profile" element={<ClientProfile />} />
+          <Route path="notifications" element={<ClientNotifications />} />
 
           <Route path="enrollments" element={<Enrollments />} />
           <Route path="enrollments/new" element={<NewEnrollment />} />

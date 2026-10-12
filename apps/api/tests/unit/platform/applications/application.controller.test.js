@@ -27,7 +27,7 @@ describe('application controllers', () => {
   })
 
   it('lists only applications available to the authenticated user', async () => {
-    const apps = [{ id: 'obo-id', key: 'obo', name: 'One-Stop Business Office' }]
+    const apps = [{ id: 'cadenza-id', key: 'cadenza-client', name: 'Cadenza Client' }]
     mocks.getUserApplications.mockResolvedValue(apps)
     const res = response()
 
@@ -50,15 +50,15 @@ describe('application controllers', () => {
     const result = {
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
-      application: { id: 'obo-id', key: 'obo', name: 'One-Stop Business Office' },
-      membership: { id: 'membership-id', app: { id: 'obo-id', key: 'obo' }, roles: [] },
+      application: { id: 'cadenza-id', key: 'cadenza-client', name: 'Cadenza Client' },
+      membership: { id: 'membership-id', app: { id: 'cadenza-id', key: 'cadenza-client' }, roles: [] },
     }
     mocks.issueApplicationSession.mockResolvedValue(result)
     const res = response()
 
-    await selectApplicationController(mocks.issueApplicationSession)({ user: { id: 42 }, params: { appKey: 'obo' } }, res)
+    await selectApplicationController(mocks.issueApplicationSession)({ user: { id: 42 }, params: { appKey: 'cadenza-client' } }, res)
 
-    expect(mocks.issueApplicationSession).toHaveBeenCalledWith({ userId: 42, appKey: 'obo' })
+    expect(mocks.issueApplicationSession).toHaveBeenCalledWith({ userId: 42, appKey: 'cadenza-client' })
     expect(res.cookie).toHaveBeenCalledWith('refreshToken', 'refresh-token', expect.objectContaining({ httpOnly: true }))
     expect(res.json).toHaveBeenCalled()
   })

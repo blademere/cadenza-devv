@@ -5,12 +5,19 @@ import {
   MoreHorizontalIcon,
   Trash2Icon,
   UserIcon,
+  Loader2Icon,
+  RefreshCwIcon,
+  AlertCircleIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { AppSidebar } from "../components/app-sidebar";
 import { SiteHeader } from "../components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -50,42 +57,168 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 
-const instructors = [
-  {
-    id: 1,
-    name: "John Cruz",
-    email: "john@cadenzamusic.com",
-    specialization: "Piano",
-    students: 18,
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Anna Lee",
-    email: "anna@cadenzamusic.com",
-    specialization: "Violin",
-    students: 12,
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "Mark Reyes",
-    email: "mark@cadenzamusic.com",
-    specialization: "Guitar",
-    students: 15,
-    status: "Active",
-  },
-];
+import {
+  getInstructors,
+  deactivateInstructor,
+} from "@/services/admin/instructorService";
+
+function normalizeInstructor(instructor) {
+  const person = instructor?.person ?? {};
+  const user = person?.user ?? {};
+
+  const firstName = person.firstName ?? "";
+  const lastName = person.lastName ?? "";
+
+  const name =
+    [firstName, lastName].filter(Boolean).join(" ") ||
+    instructor?.name ||
+    "Unnamed Instructor";
+
+  const courseMappings = Array.isArray(instructor?.courseMappings)
+    ? instructor.courseMappings
+    : [];
+
+  const courses = courseMappings
+    .filter((mapping) => {
+      if (mapping?.isActive === false) return false;
+      if (mapping?.status && mapping.status !== "ACTIVE") return false;
+
+      return Boolean(mapping?.course?.name);
+    })
+    .map((mapping) => ({
+      id: mapping.course.id,
+      name: mapping.course.name,
+    }))
+    .filter(
+      (course, index, list) =>
+        list.findIndex((item) => item.id === course.id) === index,
+    );
+
+  const status = String(instructor?.status ?? "INACTIVE").toUpperCase();
+
+  return {
+    id: instructor?.id,
+    name,
+    email: user.email ?? person.email ?? instructor?.email ?? "—",
+    courses,
+    students:
+      typeof instructor?.students === "number"
+        ? instructor.students
+        : typeof instructor?.studentCount === "number"
+          ? instructor.studentCount
+          : null,
+    status,
+  };
+}
+
+function formatStatus(status) {
+  switch (String(status ?? "").toUpperCase()) {
+    case "ACTIVE":
+      return "Active";
+    case "INACTIVE":
+      return "Inactive";
+    case "SUSPENDED":
+      return "Suspended";
+    default:
+      return status || "Unknown";
+  }
+}
+
+function getStatusBadgeVariant(status) {
+  switch (String(status ?? "").toUpperCase()) {
+    case "ACTIVE":
+      return "default";
+    case "INACTIVE":
+    case "SUSPENDED":
+      return "destructive";
+    default:
+      return "secondary";
+  }
+}
+
+function formatInstructorId(id) {
+  const value = String(id ?? "");
+
+  if (!value) return "—";
+
+  if (/^\d+$/.test(value)) {
+    return `INS-${value.padStart(4, "0")}`;
+  }
+
+  return `INS-${value}`;
+}
+
+function getErrorMessage(error, fallback) {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    fallback
+  );
+}
 
 export default function InstructorsPage() {
   const [search, setSearch] = useState("");
+  const [instructors, setInstructors] = useState([]);
+  const [selectedInstructor, setSelectedInstructor] = useState(null);
 
   const [showInstructorDetailsDialog, setShowInstructorDetailsDialog] =
     useState(false);
-
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
 
-  const [selectedInstructor, setSelectedInstructor] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [deactivating, setDeactivating] = useState(false);
+  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+
+  const loadInstructors = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await getInstructors();
+
+      if (!Array.isArray(data)) {
+        throw new Error("The server returned an invalid instructor list.");
+      }
+
+      setInstructors(data.map(normalizeInstructor));
+    } catch (requestError) {
+      const message = getErrorMessage(
+        requestError,
+        "Failed to load instructors. Please try again.",
+      );
+
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInstructors();
+  }, [loadInstructors]);
+
+  const filteredInstructors = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return instructors;
+
+    return instructors.filter((instructor) => {
+      const searchableText = [
+        instructor.name,
+        instructor.email,
+        ...instructor.courses.map((course) => course.name),
+        formatStatus(instructor.status),
+        instructor.id,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(query);
+    });
+  }, [instructors, search]);
 
   const handleInstructorDetails = (instructor) => {
     setSelectedInstructor(instructor);
@@ -94,23 +227,57 @@ export default function InstructorsPage() {
 
   const handleDeactivate = (instructor) => {
     setSelectedInstructor(instructor);
+    setActionError("");
     setShowDeactivateDialog(true);
   };
 
-  const handleConfirmDeactivate = () => {
-    if (!selectedInstructor) return;
-
-    console.log("Deactivate Instructor:", selectedInstructor.id);
+  const closeDeactivateDialog = () => {
+    if (deactivating) return;
 
     setShowDeactivateDialog(false);
     setSelectedInstructor(null);
+    setActionError("");
   };
 
-  const filtered = instructors.filter((instructor) =>
-    `${instructor.name} ${instructor.specialization}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
+  const handleConfirmDeactivate = async () => {
+    if (!selectedInstructor?.id || deactivating) return;
+
+    setDeactivating(true);
+    setActionError("");
+
+    try {
+      await deactivateInstructor(selectedInstructor.id);
+
+      setInstructors((currentInstructors) =>
+        currentInstructors.map((instructor) =>
+          instructor.id === selectedInstructor.id
+            ? { ...instructor, status: "INACTIVE" }
+            : instructor,
+        ),
+      );
+
+      setSelectedInstructor((current) =>
+        current?.id === selectedInstructor.id
+          ? { ...current, status: "INACTIVE" }
+          : current,
+      );
+
+      toast.success("Instructor deactivated successfully.");
+
+      setShowDeactivateDialog(false);
+      setSelectedInstructor(null);
+    } catch (requestError) {
+      const message = getErrorMessage(
+        requestError,
+        "Failed to deactivate the instructor. Please try again.",
+      );
+
+      setActionError(message);
+      toast.error(message);
+    } finally {
+      setDeactivating(false);
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -119,15 +286,28 @@ export default function InstructorsPage() {
       <SidebarInset>
         <SiteHeader />
 
-        <main className="flex flex-1 flex-col gap-6 p-6">
-          <div className="flex items-center justify-between">
+        <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-semibold">Instructors</h1>
 
               <p className="text-muted-foreground">
-                Manage music instructors and their assigned students.
+                Manage music instructors and their assigned courses.
               </p>
             </div>
+
+            <Button
+              variant="outline"
+              onClick={loadInstructors}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2Icon className="mr-2 size-4 animate-spin" />
+              ) : (
+                <RefreshCwIcon className="mr-2 size-4" />
+              )}
+              Refresh
+            </Button>
           </div>
 
           <Card>
@@ -143,104 +323,176 @@ export default function InstructorsPage() {
 
                 <Input
                   className="pl-9"
-                  placeholder="Search instructors..."
+                  placeholder="Search by name, email, or course..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(event) => setSearch(event.target.value)}
                 />
               </div>
             </CardHeader>
 
             <CardContent>
+              {error && (
+                <div
+                  role="alert"
+                  className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 p-3 text-sm text-destructive"
+                >
+                  <AlertCircleIcon className="mt-0.5 size-4 shrink-0" />
+
+                  <div className="flex-1">{error}</div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadInstructors}
+                    disabled={loading}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
+
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
-                      <TableHead>Specialization</TableHead>
+                      <TableHead>Courses</TableHead>
                       <TableHead>Students</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead />
+                      <TableHead className="w-[60px]" />
                     </TableRow>
                   </TableHeader>
 
                   <TableBody>
-                    {filtered.map((instructor) => (
-                      <TableRow key={instructor.id}>
-                        <TableCell className="font-medium">
-                          {instructor.name}
-                        </TableCell>
-
-                        <TableCell>{instructor.email}</TableCell>
-
-                        <TableCell>{instructor.specialization}</TableCell>
-
-                        <TableCell>{instructor.students}</TableCell>
-
-                        <TableCell>
-                          <Badge>{instructor.status}</Badge>
-                        </TableCell>
-
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontalIcon className="size-4" />
-
-                                <span className="sr-only">
-                                  Instructor options
-                                </span>
-                              </Button>
-                            </DropdownMenuTrigger>
-
-                            <DropdownMenuContent
-                              align="end"
-                              sideOffset={4}
-                              className="w-[160px] p-1"
-                            >
-                              <DropdownMenuItem
-                                className="h-10 cursor-pointer gap-3 px-3"
-                                onClick={() =>
-                                  handleInstructorDetails(instructor)
-                                }
-                              >
-                                <UserIcon className="size-4" />
-
-                                <span>Instructor Details</span>
-                              </DropdownMenuItem>
-
-                              {instructor.status === "Active" && (
-                                <>
-                                  <DropdownMenuSeparator />
-
-                                  <DropdownMenuItem
-                                    className="h-10 cursor-pointer gap-3 px-3 text-destructive focus:text-destructive"
-                                    onClick={() =>
-                                      handleDeactivate(instructor)
-                                    }
-                                  >
-                                    <Trash2Icon className="size-4" />
-
-                                    <span>Deactivate</span>
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-32 text-center">
+                          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                            <Loader2Icon className="size-4 animate-spin" />
+                            Loading instructors...
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : filteredInstructors.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="h-32 text-center text-muted-foreground"
+                        >
+                          {error
+                            ? "Unable to display instructors."
+                            : search.trim()
+                              ? "No instructors match your search."
+                              : "No instructors found."}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredInstructors.map((instructor) => (
+                        <TableRow key={instructor.id}>
+                          <TableCell className="font-medium">
+                            {instructor.name}
+                          </TableCell>
+
+                          <TableCell>{instructor.email}</TableCell>
+
+                          <TableCell>
+                            {instructor.courses.length > 0
+                              ? instructor.courses
+                                  .map((course) => course.name)
+                                  .join(", ")
+                              : "No courses assigned"}
+                          </TableCell>
+
+                          <TableCell>
+                            {instructor.students ?? "—"}
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge
+                              variant={getStatusBadgeVariant(
+                                instructor.status,
+                              )}
+                            >
+                              {formatStatus(instructor.status)}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Options for ${instructor.name}`}
+                                >
+                                  <MoreHorizontalIcon className="size-4" />
+                                  <span className="sr-only">
+                                    Instructor options
+                                  </span>
+                                </Button>
+                              </DropdownMenuTrigger>
+
+                              <DropdownMenuContent
+                                align="end"
+                                sideOffset={4}
+                                className="w-[180px] p-1"
+                              >
+                                <DropdownMenuItem
+                                  className="h-10 cursor-pointer gap-3 px-3"
+                                  onClick={() =>
+                                    handleInstructorDetails(instructor)
+                                  }
+                                >
+                                  <UserIcon className="size-4" />
+                                  <span>Instructor Details</span>
+                                </DropdownMenuItem>
+
+                                {instructor.status === "ACTIVE" && (
+                                  <>
+                                    <DropdownMenuSeparator />
+
+                                    <DropdownMenuItem
+                                      className="h-10 cursor-pointer gap-3 px-3 text-destructive focus:text-destructive"
+                                      onClick={() =>
+                                        handleDeactivate(instructor)
+                                      }
+                                    >
+                                      <Trash2Icon className="size-4" />
+                                      <span>Deactivate</span>
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
+
+              <p className="mt-3 text-sm text-muted-foreground">
+                {loading
+                  ? "Loading records..."
+                  : `${filteredInstructors.length} instructor${
+                      filteredInstructors.length === 1 ? "" : "s"
+                    } found`}
+              </p>
             </CardContent>
           </Card>
         </main>
 
-        {/* Instructor Details Dialog */}
         <Dialog
           open={showInstructorDetailsDialog}
-          onOpenChange={setShowInstructorDetailsDialog}
+          onOpenChange={(open) => {
+            setShowInstructorDetailsDialog(open);
+
+            if (!open) {
+              setSelectedInstructor(null);
+            }
+          }}
         >
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
@@ -253,43 +505,47 @@ export default function InstructorsPage() {
 
             {selectedInstructor && (
               <div className="grid gap-5 py-4">
-                {/* Instructor Header */}
                 <div className="flex items-center gap-4">
                   <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted">
                     <UserIcon className="size-6 text-muted-foreground" />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-semibold">
                       {selectedInstructor.name}
                     </h3>
 
-                    <p className="text-sm text-muted-foreground">
+                    <p className="break-all text-sm text-muted-foreground">
                       {selectedInstructor.email}
                     </p>
                   </div>
                 </div>
 
-                {/* Instructor Information */}
                 <div className="rounded-lg border">
                   <div className="grid grid-cols-2 divide-x">
                     <div className="p-4">
-                      <p className="text-sm text-muted-foreground">
-                        Specialization
-                      </p>
+                      <p className="text-sm text-muted-foreground">Courses</p>
 
-                      <p className="mt-1 font-medium">
-                        {selectedInstructor.specialization}
+                      <p className="mt-1 break-words font-medium">
+                        {selectedInstructor.courses.length > 0
+                          ? selectedInstructor.courses
+                              .map((course) => course.name)
+                              .join(", ")
+                          : "No courses assigned"}
                       </p>
                     </div>
 
                     <div className="p-4">
-                      <p className="text-sm text-muted-foreground">
-                        Status
-                      </p>
+                      <p className="text-sm text-muted-foreground">Status</p>
 
                       <div className="mt-1">
-                        <Badge>{selectedInstructor.status}</Badge>
+                        <Badge
+                          variant={getStatusBadgeVariant(
+                            selectedInstructor.status,
+                          )}
+                        >
+                          {formatStatus(selectedInstructor.status)}
+                        </Badge>
                       </div>
                     </div>
                   </div>
@@ -301,7 +557,7 @@ export default function InstructorsPage() {
                       </p>
 
                       <p className="mt-1 font-medium">
-                        {selectedInstructor.students}
+                        {selectedInstructor.students ?? "Not available"}
                       </p>
                     </div>
 
@@ -310,37 +566,41 @@ export default function InstructorsPage() {
                         Instructor ID
                       </p>
 
-                      <p className="mt-1 font-medium">
-                        INS-
-                        {String(selectedInstructor.id).padStart(4, "0")}
+                      <p className="mt-1 break-all font-medium">
+                        {formatInstructorId(selectedInstructor.id)}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Account Information */}
                 <div>
                   <h4 className="mb-3 text-sm font-medium">
                     Account Information
                   </h4>
 
                   <div className="rounded-lg border">
-                    <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-start justify-between gap-4 px-4 py-3">
                       <span className="text-sm text-muted-foreground">
                         Email
                       </span>
 
-                      <span className="text-sm font-medium">
+                      <span className="break-all text-right text-sm font-medium">
                         {selectedInstructor.email}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between border-t px-4 py-3">
+                    <div className="flex items-center justify-between gap-4 border-t px-4 py-3">
                       <span className="text-sm text-muted-foreground">
                         Account Status
                       </span>
 
-                      <Badge>{selectedInstructor.status}</Badge>
+                      <Badge
+                        variant={getStatusBadgeVariant(
+                          selectedInstructor.status,
+                        )}
+                      >
+                        {formatStatus(selectedInstructor.status)}
+                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -361,39 +621,49 @@ export default function InstructorsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Deactivate Dialog */}
         <Dialog
           open={showDeactivateDialog}
-          onOpenChange={setShowDeactivateDialog}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeDeactivateDialog();
+            }
+          }}
         >
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Deactivate Instructor</DialogTitle>
 
               <DialogDescription>
-                Are you sure you want to deactivate this instructor?
+                This will change the instructor's status to inactive. Are you
+                sure you want to continue?
               </DialogDescription>
             </DialogHeader>
 
             {selectedInstructor && (
               <div className="rounded-lg border p-4">
-                <p className="font-medium">
-                  {selectedInstructor.name}
-                </p>
+                <p className="font-medium">{selectedInstructor.name}</p>
 
-                <p className="text-sm text-muted-foreground">
+                <p className="break-all text-sm text-muted-foreground">
                   {selectedInstructor.email}
                 </p>
+              </div>
+            )}
+
+            {actionError && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-md border border-destructive/30 p-3 text-sm text-destructive"
+              >
+                <AlertCircleIcon className="mt-0.5 size-4 shrink-0" />
+                {actionError}
               </div>
             )}
 
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => {
-                  setShowDeactivateDialog(false);
-                  setSelectedInstructor(null);
-                }}
+                onClick={closeDeactivateDialog}
+                disabled={deactivating}
               >
                 Cancel
               </Button>
@@ -401,8 +671,12 @@ export default function InstructorsPage() {
               <Button
                 variant="destructive"
                 onClick={handleConfirmDeactivate}
+                disabled={deactivating || !selectedInstructor}
               >
-                Deactivate
+                {deactivating && (
+                  <Loader2Icon className="mr-2 size-4 animate-spin" />
+                )}
+                {deactivating ? "Deactivating..." : "Deactivate"}
               </Button>
             </DialogFooter>
           </DialogContent>

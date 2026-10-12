@@ -129,6 +129,24 @@ export const enrollmentRepository = {
     });
   },
 
+  async updateStaffDecision(appId, enrollmentId, data) {
+    const result = await prisma.cadenzaEnrollment.updateMany({
+      where: {
+        id: enrollmentId,
+        appId,
+        status: 'FOR_APPROVAL',
+      },
+      data,
+    });
+
+    if (!result.count) {
+      return null;
+    }
+
+    const enrollments = await this.findAll(appId);
+    return enrollments.find((enrollment) => enrollment.id === enrollmentId) || null;
+  },
+
   async findAvailablePackages(appId) {
     return prisma.cadenzaLessonPackage.findMany({
       where: {
@@ -387,12 +405,12 @@ export const enrollmentRepository = {
   },
 
   async findMyEnrollment(appId, customerId) {
-    return prisma.cadenzaEnrollment.findFirst({
+    return prisma.cadenzaEnrollment.findMany({
       where: {
         appId,
         customerId,
         status: {
-          notIn: ['CANCELLED'],
+          notIn: ['CANCELLED', 'COMPLETED', 'REJECTED'],
         },
       },
       include: {
@@ -425,7 +443,7 @@ export const enrollmentRepository = {
           customerId: data.customerId,
           lessonPackageId: data.lessonPackageId,
           paymentObligationId: data.paymentObligationId || null,
-          status: data.status || 'FOR_APPROVAL',
+          status: 'FOR_APPROVAL',
           paymentExpiresAt: data.paymentExpiresAt || null,
           enrolledAt: data.enrolledAt || null,
           metadata: data.metadata || null,

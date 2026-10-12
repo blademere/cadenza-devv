@@ -6,7 +6,7 @@ const read = (path) => fs.readFile(new URL(`../../../../${path}`, import.meta.ur
 
 describe('app-aware audit boundary', () => {
   it('filters audit queries by the active application when appId is supplied', () => {
-    expect(buildAuditWhere({ appId: 'obo-app-id', entityType: 'OboPermitApplication', entityId: '100' })).toEqual({ appId: 'obo-app-id', entityType: 'OboPermitApplication', entityId: '100' })
+    expect(buildAuditWhere({ appId: 'cadenza-client-app-id', entityType: 'CadenzaClientPermitApplication', entityId: '100' })).toEqual({ appId: 'cadenza-client-app-id', entityType: 'CadenzaClientPermitApplication', entityId: '100' })
   })
   it('does not expose a cross-application audit query parameter', async () => {
     const validation = await read('src/platform/audit/audit.validation.js')

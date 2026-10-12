@@ -498,7 +498,7 @@ export default function SettingsPage() {
       <SidebarInset>
         <SiteHeader />
 
-        <main className="flex flex-1 flex-col gap-6 p-6">
+        <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
 

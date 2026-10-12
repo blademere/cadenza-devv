@@ -19,18 +19,18 @@ describe('document application scope', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('passes the application scope to owned-document lookups', async () => {
-    const document = { id: 'doc-1', appId: 'obo-app', ownerId: 10 }
+    const document = { id: 'doc-1', appId: 'cadenza-client-app', ownerId: 10 }
     mocks.findOwnedDocument.mockResolvedValue(document)
 
-    await expect(service.getOwnedDocument({ userId: 10, id: 'doc-1', appId: 'obo-app' })).resolves.toEqual(document)
-    expect(mocks.findOwnedDocument).toHaveBeenCalledWith({ userId: 10, id: 'doc-1', appId: 'obo-app' })
+    await expect(service.getOwnedDocument({ userId: 10, id: 'doc-1', appId: 'cadenza-client-app' })).resolves.toEqual(document)
+    expect(mocks.findOwnedDocument).toHaveBeenCalledWith({ userId: 10, id: 'doc-1', appId: 'cadenza-client-app' })
   })
 
   it('passes the application scope to document lists', async () => {
     mocks.listOwnedDocuments.mockResolvedValue([])
 
-    await expect(service.listMyDocuments({ userId: 10, appId: 'obo-app' })).resolves.toEqual([])
-    expect(mocks.listOwnedDocuments).toHaveBeenCalledWith({ userId: 10, appId: 'obo-app' })
+    await expect(service.listMyDocuments({ userId: 10, appId: 'cadenza-client-app' })).resolves.toEqual([])
+    expect(mocks.listOwnedDocuments).toHaveBeenCalledWith({ userId: 10, appId: 'cadenza-client-app' })
   })
 
   it('preserves global/shared document access when no application scope is supplied', async () => {

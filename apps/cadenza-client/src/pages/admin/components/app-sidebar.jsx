@@ -59,11 +59,6 @@ const data = {
       icon: <MusicIcon />,
     },
     {
-      title: "Enrollments",
-      url: "/admin/enrollments",
-      icon: <ClipboardListIcon />,
-    },
-    {
       title: "Class Schedule",
       url: "/admin/schedule",
       icon: <CalendarDaysIcon />,

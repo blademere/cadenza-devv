@@ -25,12 +25,12 @@ describe('case numbering', () => {
     spies.findCaseTypeById.mockResolvedValue({ id: 'type-1', isActive: true })
     spies.createCase.mockImplementation(async (data) => ({ id: 'case-1', ...data }))
 
-    await expect(createRecord({ caseTypeId: 'type-1', title: 'Permit' }, { appId: 'app-obo' })).resolves.toMatchObject({
-      appId: 'app-obo',
+    await expect(createRecord({ caseTypeId: 'type-1', title: 'Permit' }, { appId: 'app-cadenza-client' })).resolves.toMatchObject({
+      appId: 'app-cadenza-client',
       caseNumber: expect.stringMatching(/^CASE-\d{8}-[0-9A-F]{8}$/),
       status: 'DRAFT',
     })
-    expect(spies.createCase).toHaveBeenCalledWith(expect.objectContaining({ appId: 'app-obo' }), undefined)
+    expect(spies.createCase).toHaveBeenCalledWith(expect.objectContaining({ appId: 'app-cadenza-client' }), undefined)
   })
 
   it('rejects creation without an application context', async () => {
@@ -49,8 +49,8 @@ describe('case types and records', () => {
       key: 'BUILDING',
       name: 'Building',
     })
-    await expect(createRecord({ caseNumber: ' CASE-1 ', caseTypeId: 'type-1', title: ' Permit ' }, { appId: 'app-obo' })).resolves.toMatchObject({
-      appId: 'app-obo',
+    await expect(createRecord({ caseNumber: ' CASE-1 ', caseTypeId: 'type-1', title: ' Permit ' }, { appId: 'app-cadenza-client' })).resolves.toMatchObject({
+      appId: 'app-cadenza-client',
       caseNumber: 'CASE-1',
       title: 'Permit',
       status: 'DRAFT',
@@ -60,7 +60,7 @@ describe('case types and records', () => {
   it('rejects inactive case types', async () => {
     spies.findCaseTypeById.mockResolvedValue({ id: 'type-1', isActive: false })
 
-    await expect(createRecord({ caseNumber: 'CASE-1', caseTypeId: 'type-1', title: 'Permit' }, { appId: 'app-obo' })).rejects.toThrow('Active case type not found.')
+    await expect(createRecord({ caseNumber: 'CASE-1', caseTypeId: 'type-1', title: 'Permit' }, { appId: 'app-cadenza-client' })).rejects.toThrow('Active case type not found.')
   })
 })
 
@@ -71,29 +71,29 @@ describe('case application isolation', () => {
   })
 
   it('returns only a case owned by the requested application', async () => {
-    spies.findCaseById.mockResolvedValue({ id: 'case-1', appId: 'app-obo', status: 'OPEN' })
+    spies.findCaseById.mockResolvedValue({ id: 'case-1', appId: 'app-cadenza-client', status: 'OPEN' })
 
-    await expect(getById('case-1', { appId: 'app-obo' })).resolves.toMatchObject({
+    await expect(getById('case-1', { appId: 'app-cadenza-client' })).resolves.toMatchObject({
       id: 'case-1',
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     })
-    expect(spies.findCaseById).toHaveBeenCalledWith('case-1', expect.objectContaining({ appId: 'app-obo' }))
+    expect(spies.findCaseById).toHaveBeenCalledWith('case-1', expect.objectContaining({ appId: 'app-cadenza-client' }))
   })
 
   it('does not expose a case from another application', async () => {
     spies.findCaseById.mockResolvedValue(null)
 
-    await expect(getById('case-admin', { appId: 'app-obo' })).rejects.toThrow('Case not found.')
-    expect(spies.findCaseById).toHaveBeenCalledWith('case-admin', expect.objectContaining({ appId: 'app-obo' }))
+    await expect(getById('case-admin', { appId: 'app-cadenza-client' })).rejects.toThrow('Case not found.')
+    expect(spies.findCaseById).toHaveBeenCalledWith('case-admin', expect.objectContaining({ appId: 'app-cadenza-client' }))
   })
 })
 
 describe('case transitions', () => {
   it('rejects a transition when the expected current status changed concurrently', async () => {
-    spies.findCaseById.mockResolvedValue({ id: 'case-1', status: 'OPEN', appId: 'app-obo' })
+    spies.findCaseById.mockResolvedValue({ id: 'case-1', status: 'OPEN', appId: 'app-cadenza-client' })
     spies.transitionCase.mockResolvedValue(null)
 
-    await expect(transition({ id: 'case-1', appId: 'app-obo', toStatus: 'CLOSED' })).rejects.toThrow('Case status changed before this transition could be completed.')
-    expect(spies.transitionCase).toHaveBeenCalledWith('case-1', 'app-obo', 'OPEN', 'CLOSED', undefined, undefined, undefined, undefined)
+    await expect(transition({ id: 'case-1', appId: 'app-cadenza-client', toStatus: 'CLOSED' })).rejects.toThrow('Case status changed before this transition could be completed.')
+    expect(spies.transitionCase).toHaveBeenCalledWith('case-1', 'app-cadenza-client', 'OPEN', 'CLOSED', undefined, undefined, undefined, undefined)
   })
 })

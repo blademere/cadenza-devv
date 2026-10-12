@@ -1,212 +1,150 @@
-"use client";
-
-import * as React from "react";
+import { useEffect, useState } from 'react';
 import {
-  BellIcon,
-  CalendarDaysIcon,
-  CreditCardIcon,
-  GuitarIcon,
-  UserPlusIcon,
-  DoorOpenIcon,
-  CheckIcon,
-} from "lucide-react";
+  Bell,
+  CalendarDays,
+  Check,
+  ClipboardList,
+  DoorOpen,
+  Guitar,
+  Loader2,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-import { AppSidebar } from "../components/app-sidebar";
-import { SiteHeader } from "../components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { apiClient } from '@/core/api/apiClient';
+import { AppSidebar } from '../components/app-sidebar';
+import { SiteHeader } from '../components/site-header';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 
-import { Button } from "@/components/ui/Button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+const unwrapList = (response) => {
+  const data = response?.data?.data ?? response?.data ?? response;
+  return Array.isArray(data) ? data : [];
+};
 
-const initialNotifications = [
-  {
-    id: 1,
-    title: "Upcoming Class",
-    message: "Piano Beginner is scheduled at 9:00 AM in Room 101.",
-    time: "10 minutes ago",
-    type: "schedule",
+const personName = (record) => {
+  const person = record.customer?.person;
+  return [person?.firstName, person?.lastName].filter(Boolean).join(' ') || 'A client';
+};
+
+const buildNotifications = (enrollments, bookings, rentals) => [
+  ...enrollments.map((item) => ({
+    id: `enrollment-${item.id}`,
+    type: 'enrollment',
+    title: 'New enrollment request',
+    message: `${item.student || 'A client'} submitted ${item.packageName || 'an enrollment'} for review.`,
+    createdAt: item.createdAt,
     read: false,
-  },
-  {
-    id: 2,
-    title: "Instrument Rental Overdue",
-    message: "Suzuki Violin 220 rental is overdue.",
-    time: "1 hour ago",
-    type: "rental",
+  })),
+  ...bookings.map((item) => ({
+    id: `booking-${item.id}`,
+    type: 'booking',
+    title: 'Room booking request',
+    message: `${personName(item)} requested ${item.room?.name || 'a room booking'}.`,
+    createdAt: item.createdAt || item.scheduledStart,
     read: false,
-  },
-  {
-    id: 3,
-    title: "New Enrollment",
-    message: "A student has enrolled in a new course package.",
-    time: "2 hours ago",
-    type: "student",
+  })),
+  ...rentals.map((item) => ({
+    id: `rental-${item.id}`,
+    type: 'rental',
+    title: 'Instrument rental request',
+    message: `${personName(item)} submitted an instrument rental request.`,
+    createdAt: item.createdAt || item.scheduledStart,
     read: false,
-  },
-  {
-    id: 4,
-    title: "Payment Received",
-    message: "A payment of ₱1,550 has been recorded.",
-    time: "3 hours ago",
-    type: "payment",
-    read: true,
-  },
-  {
-    id: 5,
-    title: "Room Scheduled",
-    message: "Room 102 has been scheduled for a guitar class.",
-    time: "Yesterday",
-    type: "room",
-    read: true,
-  },
-];
+  })),
+].sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0));
 
-function NotificationIcon({ type }) {
-  if (type === "schedule") {
-    return <CalendarDaysIcon className="size-5" />;
-  }
+const icons = {
+  enrollment: ClipboardList,
+  booking: DoorOpen,
+  rental: Guitar,
+};
 
-  if (type === "rental") {
-    return <GuitarIcon className="size-5" />;
-  }
+export default function FrontDeskNotificationsPage() {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  if (type === "student") {
-    return <UserPlusIcon className="size-5" />;
-  }
+  useEffect(() => {
+    Promise.allSettled([
+      apiClient.get('/enrollments'),
+      apiClient.get('/room-bookings'),
+      apiClient.get('/instrument-rentals'),
+    ])
+      .then((results) => {
+        const [enrollments, bookings, rentals] = results.map((result) =>
+          result.status === 'fulfilled' ? unwrapList(result.value) : [],
+        );
+        setNotifications(buildNotifications(enrollments, bookings, rentals));
+      })
+      .catch(() => toast.error('Unable to load front-desk notifications.'))
+      .finally(() => setLoading(false));
+  }, []);
 
-  if (type === "payment") {
-    return <CreditCardIcon className="size-5" />;
-  }
-
-  return <DoorOpenIcon className="size-5" />;
-}
-
-export default function NotificationsPage() {
-  const [notifications, setNotifications] =
-    React.useState(initialNotifications);
-
-  const unreadCount = notifications.filter(
-    (notification) => !notification.read,
-  ).length;
-
-  const markAsRead = (id) => {
+  const unreadCount = notifications.filter((item) => !item.read).length;
+  const markAsRead = (id) =>
     setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === id ? { ...notification, read: true } : notification,
-      ),
+      current.map((item) => (item.id === id ? { ...item, read: true } : item)),
     );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications((current) =>
-      current.map((notification) => ({
-        ...notification,
-        read: true,
-      })),
-    );
-  };
 
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
-
       <SidebarInset>
         <SiteHeader />
-
         <main className="flex flex-1 flex-col gap-6 p-6">
-          {/* Header */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-semibold tracking-tight">
-                  Notifications
-                </h1>
-
+                <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
                 {unreadCount > 0 && <Badge>{unreadCount} new</Badge>}
               </div>
-
-              <p className="text-muted-foreground">
-                Important updates from Cadenza Music Center.
-              </p>
+              <p className="text-muted-foreground">Live activity from client enrollments, room bookings, and rentals.</p>
             </div>
-
             {unreadCount > 0 && (
-              <Button variant="outline" onClick={markAllAsRead}>
-                <CheckIcon />
-                Mark all as read
+              <Button variant="outline" onClick={() => setNotifications((current) => current.map((item) => ({ ...item, read: true })))}>
+                <Check /> Mark all as read
               </Button>
             )}
           </div>
 
-          {/* Notifications */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Notifications</CardTitle>
-
-              <CardDescription>
-                Updates about classes, students, payments, rooms, and instrument
-                rentals.
-              </CardDescription>
+              <CardTitle>Recent client activity</CardTitle>
+              <CardDescription>Requests fetched from the client records.</CardDescription>
             </CardHeader>
-
             <CardContent>
-              <div className="space-y-3">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`flex items-start gap-4 rounded-lg border p-4 ${
-                      !notification.read ? "bg-muted/50" : ""
-                    }`}
-                  >
-                    <div className="rounded-full bg-muted p-2">
-                      <NotificationIcon type={notification.type} />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="font-medium">{notification.title}</p>
-
-                        <span className="text-xs text-muted-foreground">
-                          {notification.time}
-                        </span>
+              {loading ? (
+                <div className="flex min-h-48 items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Bell className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="mt-3 font-medium">No client activity yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notifications.map((notification) => {
+                    const Icon = icons[notification.type] || CalendarDays;
+                    return (
+                      <div key={notification.id} className={`flex items-start gap-4 rounded-lg border p-4 ${!notification.read ? 'bg-muted/50' : ''}`}>
+                        <div className="rounded-full bg-muted p-2"><Icon className="size-5" /></div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="font-medium">{notification.title}</p>
+                            <span className="text-xs text-muted-foreground">
+                              {notification.createdAt ? new Date(notification.createdAt).toLocaleString() : 'Recently'}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-muted-foreground">{notification.message}</p>
+                        </div>
+                        {!notification.read && <Button variant="ghost" size="sm" onClick={() => markAsRead(notification.id)}>Mark as read</Button>}
                       </div>
-
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {notification.message}
-                      </p>
-                    </div>
-
-                    {!notification.read && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => markAsRead(notification.id)}
-                      >
-                        Mark as read
-                      </Button>
-                    )}
-                  </div>
-                ))}
-
-                {notifications.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <BellIcon className="mb-3 size-8 text-muted-foreground" />
-
-                    <p className="font-medium">No notifications</p>
-
-                    <p className="text-sm text-muted-foreground">
-                      You're all caught up.
-                    </p>
-                  </div>
-                )}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </main>

@@ -19,7 +19,7 @@ describe('user listing capability', () => {
   it('accepts an explicit application-scoped service contract', async () => {
     const pagination = { page: 2, limit: 20, skip: 20, take: 20 }
     const orderBy = { createdAt: 'desc' }
-    const filters = { email: 'obo@example.com' }
+    const filters = { email: 'cadenza@example.com' }
 
     await expect(listUsers({
       appId: 7,
@@ -50,7 +50,7 @@ describe('user listing capability', () => {
   it('passes application-scoped roles through the shared mapper', async () => {
     const user = {
       id: 100,
-      email: 'obo@example.com',
+      email: 'cadenza@example.com',
       roles: [{ id: 11, name: 'receiving_officer', description: 'Receives applications' }],
     }
     users.findAllUsers.mockResolvedValue({ users: [user], total: 1 })

@@ -31,14 +31,14 @@ describe('application security boundary', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('looks up applications by their unique key', async () => {
-    prisma.app.findUnique.mockResolvedValue({ id: 'app-obo', key: 'obo', isActive: true })
+    prisma.app.findUnique.mockResolvedValue({ id: 'app-cadenza-client', key: 'cadenza-client', isActive: true })
 
-    await expect(repository.getAppByKey('obo')).resolves.toEqual({
-      id: 'app-obo',
-      key: 'obo',
+    await expect(repository.getAppByKey('cadenza-client')).resolves.toEqual({
+      id: 'app-cadenza-client',
+      key: 'cadenza-client',
       isActive: true,
     })
-    expect(prisma.app.findUnique).toHaveBeenCalledWith({ where: { key: 'obo' } })
+    expect(prisma.app.findUnique).toHaveBeenCalledWith({ where: { key: 'cadenza-client' } })
   })
 
   it('lists only active applications for application selection', async () => {
@@ -55,10 +55,10 @@ describe('application security boundary', () => {
   it('loads membership by the user and application compound key', async () => {
     prisma.appMembership.findUnique.mockResolvedValue(null)
 
-    await repository.getMembership({ userId: '42', appId: 'app-obo' })
+    await repository.getMembership({ userId: '42', appId: 'app-cadenza-client' })
 
     expect(prisma.appMembership.findUnique).toHaveBeenCalledWith(expect.objectContaining({
-      where: { appId_userId: { appId: 'app-obo', userId: 42 } },
+      where: { appId_userId: { appId: 'app-cadenza-client', userId: 42 } },
       include: expect.objectContaining({ app: true, roles: expect.any(Object) }),
     }))
   })
@@ -80,10 +80,10 @@ describe('application security boundary', () => {
   it('uses the membership compound key when disabling access', async () => {
     prisma.appMembership.update.mockResolvedValue({ id: 'membership-1', isActive: false })
 
-    await repository.disableMembership({ userId: 42, appId: 'app-obo' })
+    await repository.disableMembership({ userId: 42, appId: 'app-cadenza-client' })
 
     expect(prisma.appMembership.update).toHaveBeenCalledWith({
-      where: { appId_userId: { appId: 'app-obo', userId: 42 } },
+      where: { appId_userId: { appId: 'app-cadenza-client', userId: 42 } },
       data: { isActive: false },
     })
   })
@@ -91,14 +91,14 @@ describe('application security boundary', () => {
   it('assigns a membership role idempotently through the unique membership-role key', async () => {
     prisma.appMembership.findUnique.mockResolvedValue({
       id: 'membership-1',
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
       isActive: true,
       app: { isActive: true },
     })
     prisma.role.findFirst.mockResolvedValue({ id: 7 })
     prisma.appMembershipRole.upsert.mockResolvedValue({ id: 'assignment-1' })
 
-    await repository.assignMembershipRole({ membershipId: 'membership-1', roleId: '7', appId: 'app-obo' })
+    await repository.assignMembershipRole({ membershipId: 'membership-1', roleId: '7', appId: 'app-cadenza-client' })
 
     expect(prisma.appMembershipRole.upsert).toHaveBeenCalledWith(expect.objectContaining({
       where: { membershipId_roleId: { membershipId: 'membership-1', roleId: 7 } },
@@ -118,7 +118,7 @@ describe('application security boundary', () => {
     await expect(repository.assignMembershipRole({
       membershipId: 'membership-1',
       roleId: 7,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     })).resolves.toBeNull()
     expect(prisma.role.findFirst).not.toHaveBeenCalled()
     expect(prisma.appMembershipRole.upsert).not.toHaveBeenCalled()
@@ -127,7 +127,7 @@ describe('application security boundary', () => {
   it('rejects membership role assignment when the role is not owned by the membership application', async () => {
     prisma.appMembership.findUnique.mockResolvedValue({
       id: 'membership-1',
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
       isActive: true,
       app: { isActive: true },
     })
@@ -136,7 +136,7 @@ describe('application security boundary', () => {
     await expect(repository.assignMembershipRole({
       membershipId: 'membership-1',
       roleId: 7,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     })).resolves.toBeNull()
     expect(prisma.appMembershipRole.upsert).not.toHaveBeenCalled()
   })

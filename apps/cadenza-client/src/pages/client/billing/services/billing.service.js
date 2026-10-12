@@ -1,95 +1,155 @@
-const mockTransactions = [
-  {
-    id: "TXN-0001",
-    referenceNumber: "CDZ-2026-0001",
+import { getMyEnrollment } from '../../enrollments/services/enrollmentServices';
+import roomBookingService from '../../room-bookings/services/roomBookingsService';
+import { getMyInstrumentRentals } from '../../instrument-rentals/services/instrument-rental.service';
 
-    type: "ENROLLMENT",
-    description: "Piano Program Enrollment",
+let transactionCache = [];
 
-    serviceId: "ENR-0001",
-    serviceName: "Piano",
-    serviceDescription: "Beginner to advanced piano lessons.",
+const unwrapList = (value) => {
+  const data = value?.data?.data ?? value?.data ?? value;
+  return Array.isArray(data) ? data : data ? [data] : [];
+};
 
-    amount: 2500,
-    currency: "PHP",
+const formatDate = (value) => {
+  if (!value) {
+    return 'Not available';
+  }
 
-    paymentMethod: "GCash",
-    paymentStatus: "PAID",
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleDateString('en-PH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+};
 
-    transactionDate: "September 5, 2026",
-    paidAt: "September 5, 2026, 10:32 AM",
+const normalizePaymentStatus = (record) => {
+  const metadataStatus = record.metadata?.paymentStatus;
 
-    notes: "Monthly enrollment fee.",
-  },
+  if (['PAID', 'SUCCEEDED', 'COMPLETED'].includes(metadataStatus)) {
+    return 'PAID';
+  }
 
-  {
-    id: "TXN-0002",
-    referenceNumber: "CDZ-2026-0002",
+  if (record.status === 'CANCELLED') {
+    return 'CANCELLED';
+  }
 
-    type: "ROOM_BOOKING",
-    description: "Band Room Booking",
+  if (['FAILED', 'REFUNDED'].includes(metadataStatus)) {
+    return metadataStatus;
+  }
 
-    serviceId: "BOOK-0001",
-    serviceName: "Band Room A",
-    serviceDescription: "Band rehearsal room.",
+  return 'PENDING';
+};
 
-    amount: 1200,
-    currency: "PHP",
+const mapEnrollment = (enrollment) => {
+  const metadata = enrollment.metadata || {};
+  const serviceName =
+    enrollment.packageName ||
+    enrollment.lessons?.map((lesson) => lesson.name).join(', ') ||
+    'Lesson enrollment';
 
-    paymentMethod: "Cash",
-    paymentStatus: "PAID",
+  return {
+    id: `ENROLLMENT-${enrollment.id}`,
+    referenceNumber: metadata.paymentReference || enrollment.id,
+    type: 'ENROLLMENT',
+    description: `${serviceName} Enrollment`,
+    serviceId: enrollment.id,
+    serviceName,
+    serviceDescription: 'Music lesson enrollment.',
+    amount: Number(metadata.paymentAmount ?? enrollment.price ?? 0),
+    currency: 'PHP',
+    paymentMethod: metadata.paymentMethod || 'QR',
+    paymentStatus: normalizePaymentStatus(enrollment),
+    transactionDate: formatDate(enrollment.createdAt),
+    paidAt: formatDate(metadata.paymentCompletedAt),
+    notes:
+      metadata.paymentStatus === 'PENDING_CONFIRMATION'
+        ? 'Payment reference submitted for front desk confirmation.'
+        : 'Enrollment payment.',
+  };
+};
 
-    transactionDate: "September 7, 2026",
-    paidAt: "September 7, 2026, 2:15 PM",
+const mapRoomBooking = (booking) => {
+  const metadata = booking.metadata || {};
+  const serviceName =
+    booking.room?.name || booking.room?.roomType || 'Room booking';
 
-    notes: "Room booking payment.",
-  },
+  return {
+    id: `ROOM_BOOKING-${booking.id}`,
+    referenceNumber: metadata.paymentReference || booking.id,
+    type: 'ROOM_BOOKING',
+    description: `${serviceName} Booking`,
+    serviceId: booking.id,
+    serviceName,
+    serviceDescription: 'Music room booking.',
+    amount: Number(booking.totalAmount || 0),
+    currency: 'PHP',
+    paymentMethod: metadata.paymentMethod || 'QR',
+    paymentStatus: normalizePaymentStatus(booking),
+    transactionDate: formatDate(booking.createdAt || booking.scheduledStart),
+    paidAt: formatDate(metadata.paymentCompletedAt),
+    notes: 'Room booking payment.',
+  };
+};
 
-  {
-    id: "TXN-0003",
-    referenceNumber: "CDZ-2026-0003",
+const mapRental = (rental) => {
+  const metadata = rental.metadata || {};
+  const serviceName = rental.instrumentName || 'Instrument rental';
 
-    type: "INSTRUMENT_RENTAL",
-    description: "Acoustic Guitar Rental",
-
-    serviceId: "RENT-0001",
-    serviceName: "Acoustic Guitar",
-    serviceDescription: "Yamaha F310",
-
-    amount: 1050,
-    currency: "PHP",
-
-    paymentMethod: "GCash",
-    paymentStatus: "PAID",
-
-    transactionDate: "September 9, 2026",
-    paidAt: "September 9, 2026, 9:20 AM",
-
-    notes: "3-day instrument rental.",
-  },
-];
+  return {
+    id: `INSTRUMENT_RENTAL-${rental.id}`,
+    referenceNumber: metadata.paymentReference || rental.id,
+    type: 'INSTRUMENT_RENTAL',
+    description: `${serviceName} Rental`,
+    serviceId: rental.id,
+    serviceName,
+    serviceDescription: 'Instrument rental.',
+    amount: Number(rental.totalAmount || 0),
+    currency: 'PHP',
+    paymentMethod: metadata.paymentMethod || 'QR',
+    paymentStatus: normalizePaymentStatus(rental),
+    transactionDate: formatDate(rental.createdAt || rental.scheduledStart),
+    paidAt: formatDate(metadata.paymentCompletedAt),
+    notes: 'Instrument rental payment.',
+  };
+};
 
 export async function getMyTransactions() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(mockTransactions);
-    }, 500);
-  });
+  const results = await Promise.allSettled([
+    getMyEnrollment(),
+    roomBookingService.getMyRoomBookings(),
+    getMyInstrumentRentals(),
+  ]);
+
+  const [enrollments, roomBookings, rentals] = results.map((result) =>
+    result.status === 'fulfilled' ? unwrapList(result.value) : [],
+  );
+
+  transactionCache = [
+    ...enrollments.map(mapEnrollment),
+    ...roomBookings.map(mapRoomBooking),
+    ...rentals.map(mapRental),
+  ].sort((first, second) =>
+    second.transactionDate.localeCompare(first.transactionDate),
+  );
+
+  return transactionCache;
 }
 
 export async function getTransactionById(transactionId) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const transaction = mockTransactions.find(
-        (item) => item.id === transactionId,
-      );
+  const cached = transactionCache.find((item) => item.id === transactionId);
 
-      if (!transaction) {
-        reject(new Error("Transaction not found."));
-        return;
-      }
+  if (cached) {
+    return cached;
+  }
 
-      resolve(transaction);
-    }, 300);
-  });
+  const transactions = await getMyTransactions();
+  const transaction = transactions.find((item) => item.id === transactionId);
+
+  if (!transaction) {
+    throw new Error('Transaction not found.');
+  }
+
+  return transaction;
 }

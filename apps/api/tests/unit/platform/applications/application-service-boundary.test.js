@@ -39,10 +39,10 @@ describe('application service security boundary', () => {
     repository.getMembership.mockResolvedValue({
       id: 'membership-1',
       isActive: true,
-      app: { id: 'app-obo', key: 'obo', isActive: false },
+      app: { id: 'app-cadenza-client', key: 'cadenza-client', isActive: false },
     })
 
-    await expect(service.requireActiveMembership({ userId: 42, appId: 'app-obo' }))
+    await expect(service.requireActiveMembership({ userId: 42, appId: 'app-cadenza-client' }))
       .rejects.toThrow('User does not have an active membership for this application.')
   })
 
@@ -50,10 +50,10 @@ describe('application service security boundary', () => {
     repository.getMembership.mockResolvedValue({
       id: 'membership-1',
       isActive: false,
-      app: { id: 'app-obo', key: 'obo', isActive: true },
+      app: { id: 'app-cadenza-client', key: 'cadenza-client', isActive: true },
     })
 
-    await expect(service.requireActiveMembership({ userId: 42, appId: 'app-obo' }))
+    await expect(service.requireActiveMembership({ userId: 42, appId: 'app-cadenza-client' }))
       .rejects.toThrow('User does not have an active membership for this application.')
   })
 
@@ -61,23 +61,23 @@ describe('application service security boundary', () => {
     repository.getMembership.mockResolvedValue({
       id: 'membership-1',
       isActive: true,
-      app: { id: 'app-obo', key: 'obo', isActive: false },
+      app: { id: 'app-cadenza-client', key: 'cadenza-client', isActive: false },
     })
 
-    await expect(service.getUserMembership({ userId: 42, appId: 'app-obo' })).resolves.toBeNull()
+    await expect(service.getUserMembership({ userId: 42, appId: 'app-cadenza-client' })).resolves.toBeNull()
   })
 
   it('delegates membership creation only after application existence is verified', async () => {
-    repository.getAppById.mockResolvedValue({ id: 'app-obo', key: 'obo', isActive: true })
+    repository.getAppById.mockResolvedValue({ id: 'app-cadenza-client', key: 'cadenza-client', isActive: true })
     repository.createMembership.mockResolvedValue({
       id: 'membership-1',
-      app: { id: 'app-obo', key: 'obo', name: 'One-Stop Business Office' },
+      app: { id: 'app-cadenza-client', key: 'cadenza-client', name: 'Cadenza Client' },
       roles: [],
     })
 
-    const result = await service.addMembership({ userId: 42, appId: 'app-obo' })
+    const result = await service.addMembership({ userId: 42, appId: 'app-cadenza-client' })
 
-    expect(repository.createMembership).toHaveBeenCalledWith({ userId: 42, appId: 'app-obo' })
+    expect(repository.createMembership).toHaveBeenCalledWith({ userId: 42, appId: 'app-cadenza-client' })
     expect(result).toMatchObject({ id: 'membership-1' })
   })
 
@@ -91,7 +91,7 @@ describe('application service security boundary', () => {
     await expect(service.addMembershipRole({
       membershipId: 'membership-admin',
       roleId: 11,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     })).rejects.toThrow('Membership does not belong to the current application.')
 
     expect(repository.assignMembershipRole).not.toHaveBeenCalled()
@@ -107,7 +107,7 @@ describe('application service security boundary', () => {
     await expect(service.removeMembershipRoleAssignment({
       membershipId: 'membership-admin',
       roleId: 11,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     })).rejects.toThrow('Membership does not belong to the current application.')
 
     expect(repository.removeMembershipRole).not.toHaveBeenCalled()

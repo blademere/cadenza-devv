@@ -31,6 +31,30 @@ export const instrumentRentalsRepository = {
     });
   },
 
+  async updateStaffDecision(appId, id, data) {
+    const result = await prisma.cadenzaRental.updateMany({
+      where: {
+        id,
+        appId,
+        status: {
+          in: [
+            'FOR_APPROVAL',
+            'PENDING',
+            'PENDING_PAYMENT',
+            'PENDING_CONFIRMATION',
+            'PARTIALLY_PAID',
+          ],
+        },
+      },
+      data,
+    });
+
+    if (!result.count) return null;
+
+    const rentals = await this.findAll(appId);
+    return rentals.find((rental) => rental.id === id) || null;
+  },
+
   findInstrumentById(appId, id) {
     return prisma.cadenzaInstrument.findFirst({
       where: {
@@ -45,6 +69,10 @@ export const instrumentRentalsRepository = {
       where: {
         appId,
         status: 'AVAILABLE',
+      },
+      include: {
+        instrumentType: true,
+        itemCategory: true,
       },
       orderBy: {
         createdAt: 'asc',

@@ -19,19 +19,43 @@ import {
   CircleUserRoundIcon,
   BellIcon,
   LogOutIcon,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import useAuth from "@/core/auth/useAuth";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/Dialog";
+import { Button } from "@/components/ui/Button";
 
 export function NavUser({ user }) {
   const { isMobile } = useSidebar();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user: authUser } = useAuth();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+
+  const displayUser = {
+    ...user,
+    name: authUser?.name || user?.name,
+    email: authUser?.email || user?.email,
+  };
 
   const handleLogout = async () => {
+    if (isSigningOut) {
+      return;
+    }
+
     try {
+      setIsSigningOut(true);
       await logout();
 
       navigate("/login", {
@@ -40,6 +64,8 @@ export function NavUser({ user }) {
     } catch (error) {
       console.error("Logout failed:", error);
       toast.error(error?.message || "Failed to log out.");
+      setIsSigningOut(false);
+      setLogoutDialogOpen(false);
     }
   };
 
@@ -57,22 +83,22 @@ export function NavUser({ user }) {
           >
             <Avatar className="size-8 rounded-lg grayscale">
               <AvatarImage
-                src={user?.avatar}
-                alt={user?.name || "User"}
+                src={displayUser?.avatar}
+                alt={displayUser?.name || "User"}
               />
 
               <AvatarFallback className="rounded-lg">
-                {user?.name?.charAt(0)?.toUpperCase() || "AD"}
+                {displayUser?.name?.charAt(0)?.toUpperCase() || "CL"}
               </AvatarFallback>
             </Avatar>
 
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">
-                {user?.name || "Admin"}
+                {displayUser?.name || "Client"}
               </span>
 
               <span className="truncate text-xs text-foreground/70">
-                {user?.email || ""}
+                {displayUser?.email || ""}
               </span>
             </div>
 
@@ -90,22 +116,22 @@ export function NavUser({ user }) {
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="size-8">
                     <AvatarImage
-                      src={user?.avatar}
-                      alt={user?.name || "User"}
+                      src={displayUser?.avatar}
+                      alt={displayUser?.name || "User"}
                     />
 
                     <AvatarFallback className="rounded-lg">
-                      {user?.name?.charAt(0)?.toUpperCase() || "AD"}
+                        {displayUser?.name?.charAt(0)?.toUpperCase() || "CL"}
                     </AvatarFallback>
                   </Avatar>
 
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">
-                      {user?.name || "Admin"}
+                      {displayUser?.name || "Client"}
                     </span>
 
                     <span className="truncate text-xs text-muted-foreground">
-                      {user?.email || ""}
+                      {displayUser?.email || ""}
                     </span>
                   </div>
                 </div>
@@ -116,14 +142,14 @@ export function NavUser({ user }) {
 
             <DropdownMenuGroup>
               <DropdownMenuItem
-                onClick={() => navigate("/admin/profile")}
+                onClick={() => navigate("/client/profile")}
               >
                 <CircleUserRoundIcon />
                 Account
               </DropdownMenuItem>
 
               <DropdownMenuItem
-                onClick={() => navigate("/admin/notifications")}
+                onClick={() => navigate("/client/notifications")}
               >
                 <BellIcon />
                 Notifications
@@ -132,13 +158,54 @@ export function NavUser({ user }) {
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={handleLogout}>
+            <DropdownMenuItem
+              onClick={() => setLogoutDialogOpen(true)}
+              disabled={isSigningOut}
+            >
               <LogOutIcon />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
+
+      <Dialog
+        open={logoutDialogOpen}
+        onOpenChange={(open) => {
+          if (!isSigningOut) {
+            setLogoutDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log out of your account?</DialogTitle>
+            <DialogDescription>
+              You will need to sign in again to access your Cadenza account.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSigningOut}
+              onClick={() => setLogoutDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isSigningOut}
+              onClick={handleLogout}
+            >
+              {isSigningOut && <Loader2 className="animate-spin" />}
+              {isSigningOut ? "Signing out..." : "Log out"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarMenu>
   );
 }

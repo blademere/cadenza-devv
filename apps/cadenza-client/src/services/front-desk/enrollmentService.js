@@ -6,4 +6,20 @@ export const enrollmentService = {
 
     return response.data?.data ?? response.data ?? [];
   },
+
+  async approveEnrollment(enrollmentId) {
+    const response = await apiClient.patch(
+      `/enrollments/${enrollmentId}/approve`,
+    );
+
+    return response.data?.data ?? response.data;
+  },
+
+  async cancelEnrollment(enrollmentId) {
+    const response = await apiClient.patch(
+      `/enrollments/${enrollmentId}/cancel-by-staff`,
+    );
+
+    return response.data?.data ?? response.data;
+  },
 };

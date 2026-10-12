@@ -1,11 +1,8 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import env from '../../config/env.js'
 
-const connectionString = process.env.DATABASE_URL
-
-if (!connectionString) {
-  throw new Error('DATABASE_URL is required to initialize Prisma')
-}
+const connectionString = env.DATABASE_URL
 
 const adapter = new PrismaPg({
   connectionString,
@@ -17,7 +14,7 @@ const adapter = new PrismaPg({
 const prismaClient = new PrismaClient({
   adapter,
   log:
-    process.env.NODE_ENV === 'development'
+    env.NODE_ENV === 'development'
       ? ['query', 'warn', 'error']
       : ['warn', 'error'],
 })

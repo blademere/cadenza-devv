@@ -6,7 +6,10 @@ import {
   validate,
 } from '../../../../common/middleware/index.js';
 
-import { requireClient } from '../auth/authorization.js';
+import {
+  requireAdminOrFrontDesk,
+  requireClient,
+} from '../auth/authorization.js';
 
 import * as controller from './room-booking.controller.js';
 
@@ -18,6 +21,26 @@ import {
 } from './room-bookings.validation.js';
 
 const router = express.Router();
+
+router.get(
+  '/',
+  requireAdminOrFrontDesk,
+  asyncHandler(controller.listAllBookings),
+);
+
+router.patch(
+  '/:id/approve',
+  requireAdminOrFrontDesk,
+  validate(idValidator),
+  asyncHandler(controller.approveBooking),
+);
+
+router.patch(
+  '/:id/cancel-by-staff',
+  requireAdminOrFrontDesk,
+  validate(idValidator),
+  asyncHandler(controller.cancelStaffBooking),
+);
 
 router.get(
   '/available',

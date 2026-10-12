@@ -23,7 +23,7 @@ describe('authorization repository', () => {
     prisma.appMembership.findUnique.mockResolvedValue({
       id: 'membership-1',
       isActive: true,
-      app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
+      app: { id: 'app-1', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
       roles: [{
         role: {
           id: 3,
@@ -31,7 +31,7 @@ describe('authorization repository', () => {
           permissions: [{
             permission: {
               action: 'read',
-              module: { key: 'obo_applications', isActive: true },
+              module: { key: 'cadenza_applications', isActive: true },
             },
           }],
         },
@@ -40,10 +40,10 @@ describe('authorization repository', () => {
 
     await expect(getUserAuthorizationContext({ userId: 42, appId: 'app-1' })).resolves.toEqual({
       userId: 42,
-      app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
+      app: { id: 'app-1', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
       membership: { id: 'membership-1' },
       roles: [{ id: 3, name: 'receiving_officer' }],
-      permissions: [{ resource: 'obo_applications', action: 'read' }],
+      permissions: [{ resource: 'cadenza_applications', action: 'read' }],
     })
   })
 

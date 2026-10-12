@@ -42,6 +42,41 @@ export const instrumentRentalsController = {
     }
   },
 
+  async approveInstrumentRental(req, res, next) {
+    try {
+      const rental = await instrumentRentalsService.approveInstrumentRental(
+        req.cadenzaApp.id,
+        req.params.id,
+      );
+
+      return res.json({
+        success: true,
+        message: 'Instrument rental approved successfully.',
+        data: rental,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async cancelStaffInstrumentRental(req, res, next) {
+    try {
+      const rental = await instrumentRentalsService.cancelStaffInstrumentRental(
+        req.cadenzaApp.id,
+        req.params.id,
+        req.body?.cancellationReason,
+      );
+
+      return res.json({
+        success: true,
+        message: 'Instrument rental cancelled successfully.',
+        data: rental,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getAvailableInstruments(req, res, next) {
     try {
       const instruments =
