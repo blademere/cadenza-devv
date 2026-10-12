@@ -1,24 +1,22 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangleIcon,
   MoreHorizontalIcon,
   SearchIcon,
-  Trash2Icon,
   UserIcon,
   UserRoundIcon,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { AppSidebar } from "../components/app-sidebar";
-import { SiteHeader } from "../components/site-header";
+import { AppSidebar } from '../components/app-sidebar';
+import { SiteHeader } from '../components/site-header';
 
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
-import { apiClient } from "@/core/api/apiClient";
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { getStudents } from '@/services/admin/studentService';
 
 import {
   Card,
@@ -26,7 +24,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/Card";
+} from '@/components/ui/Card';
 
 import {
   Table,
@@ -35,7 +33,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/Table";
+} from '@/components/ui/Table';
 
 import {
   Dialog,
@@ -44,101 +42,153 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/Dialog";
+} from '@/components/ui/Dialog';
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
+
+const getErrorMessage = (error) =>
+  error?.response?.data?.message ||
+  error?.message ||
+  'Failed to load students. Please try again.';
+
+const formatStatus = (status) =>
+  status
+    ?.toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase()) || 'Unknown';
+
+const formatStudentId = (id) =>
+  id == null ? '-' : `STU-${String(id).padStart(4, '0')}`;
+
+const getStudentCourses = (student) =>
+  Array.isArray(student?.courses)
+    ? student.courses.map((course) => course?.name).filter(Boolean)
+    : [];
+
+const getStudentInstructors = (student) =>
+  Array.isArray(student?.instructors)
+    ? student.instructors.filter(Boolean)
+    : [];
+
+const getStudentDisplayName = (student) =>
+  student?.name?.trim() || 'Unnamed Student';
 
 export default function StudentsPage() {
   const [students, setStudents] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-
+  const [error, setError] = useState('');
   const [showStudentDetailsDialog, setShowStudentDetails] = useState(false);
-  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-    apiClient
-      .get("/students")
-      .then((response) => {
-        const data = response?.data ?? response;
-        if (isMounted) setStudents(Array.isArray(data) ? data : []);
-      })
-      .catch((requestError) => {
-        if (isMounted) setError(requestError.message || "Failed to load students.");
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
+
+    const fetchStudents = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const data = await getStudents();
+
+        if (isMounted) {
+          setStudents(data);
+        }
+      } catch (requestError) {
+        if (isMounted) {
+          setError(
+            requestError?.response?.data?.message ||
+              requestError?.message ||
+              'Failed to load students. Please try again.',
+          );
+          setStudents([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchStudents();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const filteredStudents = useMemo(() => students.filter((student) =>
-    `${student.name} ${student.email ?? ""} ${(student.courses ?? [])
-      .map((course) => course.name)
-      .join(" ")}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  ), [search, students]);
+  const filteredStudents = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
 
-  const formatStatus = (status) =>
-    status?.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) || "Unknown";
+    if (!normalizedSearch) {
+      return students;
+    }
+
+    return students.filter((student) => {
+      const searchableText = [
+        getStudentDisplayName(student),
+        student?.email,
+        student?.phone,
+        student?.status,
+        ...getStudentCourses(student),
+        ...getStudentInstructors(student),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(normalizedSearch);
+    });
+  }, [search, students]);
 
   const handleStudentDetails = (student) => {
     setSelectedStudent(student);
     setShowStudentDetails(true);
   };
 
-  const handleDeactivate = (student) => {
-    setSelectedStudent(student);
-    setShowDeactivateDialog(true);
+  const handleCloseStudentDetails = (open) => {
+    setShowStudentDetails(open);
+
+    if (!open) {
+      setSelectedStudent(null);
+    }
   };
 
-  const handleConfirmDeactivate = () => {
-    if (!selectedStudent) return;
-  };
+  const renderStatusBadge = (status) => (
+    <Badge variant={status === 'ACTIVE' ? 'default' : 'secondary'}>
+      {formatStatus(status)}
+    </Badge>
+  );
 
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
+
       <SidebarInset>
         <SiteHeader />
 
         <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-          {/* Page Header */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">
-                Students
-              </h1>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Students</h1>
 
-              <p className="text-muted-foreground">
-                Manage students registered at Cadenza Music Center.
-              </p>
-            </div>
+            <p className="text-muted-foreground">
+              Manage students registered at Cadenza Music Center.
+            </p>
           </div>
 
-          {/* Student List */}
           <Card>
             <CardHeader>
               <CardTitle>Student List</CardTitle>
 
               <CardDescription>
-                View and manage all registered students.
+                View student accounts, enrolled courses, and instructors.
               </CardDescription>
 
-              {/* Search */}
               <div className="relative max-w-sm">
                 <SearchIcon className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
 
@@ -147,17 +197,40 @@ export default function StudentsPage() {
                   className="pl-9"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
+                  aria-label="Search students"
                 />
               </div>
             </CardHeader>
 
             <CardContent>
+              {error && (
+                <div
+                  role="alert"
+                  className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 p-3 text-sm text-destructive"
+                >
+                  <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
+
+                  <div>
+                    <p>{error}</p>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => window.location.reload()}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Student</TableHead>
-                      <TableHead>Instrument</TableHead>
+                      <TableHead>Courses</TableHead>
                       <TableHead>Instructor</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-10" />
@@ -167,121 +240,110 @@ export default function StudentsPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell
+                          colSpan={5}
+                          className="h-24 text-center text-muted-foreground"
+                        >
                           Loading students...
                         </TableCell>
                       </TableRow>
                     ) : error ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center text-destructive">
-                          {error}
+                        <TableCell colSpan={5} className="h-16 text-center">
+                          Unable to display students.
                         </TableCell>
                       </TableRow>
                     ) : filteredStudents.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
-                          <p className="text-sm text-muted-foreground">
-                            No students found.
-                          </p>
+                        <TableCell
+                          colSpan={5}
+                          className="h-24 text-center text-muted-foreground"
+                        >
+                          {search.trim()
+                            ? 'No students match your search.'
+                            : 'No students found.'}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredStudents.map((student) => (
-                        <TableRow key={student.id}>
-                          {/* Student */}
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{student.name}</div>
+                      filteredStudents.map((student) => {
+                        const courses = getStudentCourses(student);
+                        const instructors = getStudentInstructors(student);
+
+                        return (
+                          <TableRow key={student.id}>
+                            <TableCell>
+                              <div className="font-medium">
+                                {getStudentDisplayName(student)}
+                              </div>
 
                               <div className="text-sm text-muted-foreground">
-                                {student.email}
+                                {student.email || '-'}
                               </div>
-                            </div>
-                          </TableCell>
+                            </TableCell>
 
-                          {/* Instrument */}
-                          <TableCell>
-                            {(student.courses ?? []).map((course) => course.name).join(", ") || "-"}
-                          </TableCell>
+                            <TableCell>{courses.join(', ') || '-'}</TableCell>
 
-                          {/* Instructor */}
-                          <TableCell>{(student.instructors ?? []).join(", ") || "-"}</TableCell>
+                            <TableCell>
+                              {instructors.join(', ') || '-'}
+                            </TableCell>
 
-                          {/* Status */}
-                          <TableCell>
-                            <Badge
-                              variant={
-                                student.status === "ACTIVE"
-                                  ? "default"
-                                  : "secondary"
-                              }
-                            >
-                              {formatStatus(student.status)}
-                            </Badge>
-                          </TableCell>
+                            <TableCell>
+                              {renderStatusBadge(student.status)}
+                            </TableCell>
 
-                          {/* Actions */}
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontalIcon className="size-4" />
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Options for ${getStudentDisplayName(student)}`}
+                                  >
+                                    <MoreHorizontalIcon className="size-4" />
+                                    <span className="sr-only">
+                                      Student options
+                                    </span>
+                                  </Button>
+                                </DropdownMenuTrigger>
 
-                                  <span className="sr-only">
-                                    Student options
-                                  </span>
-                                </Button>
-                              </DropdownMenuTrigger>
-
-                              <DropdownMenuContent
-                                align="end"
-                                sideOffset={4}
-                                className="w-[160px] p-1"
-                              >
-                                {/* Student Details */}
-                                <DropdownMenuItem
-                                  className="h-10 cursor-pointer gap-3 px-3"
-                                  onClick={() => handleStudentDetails(student)}
-                                >
-                                  <UserIcon className="size-4" />
-
-                                  <span>Student Details</span>
-                                </DropdownMenuItem>
-
-                                {/* Deactivate */}
-                                {student.status === "ACTIVE" && (
-                                  <>
-                                    <DropdownMenuSeparator />
-
-                                    <DropdownMenuItem
-                                      className="h-10 cursor-pointer gap-3 px-3 text-destructive focus:text-destructive"
-                                      onClick={() => handleDeactivate(student)}
-                                    >
-                                      <Trash2Icon className="size-4" />
-
-                                      <span>Deactivate</span>
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    className="cursor-pointer gap-2"
+                                    onClick={() =>
+                                      handleStudentDetails(student)
+                                    }
+                                  >
+                                    <UserIcon className="size-4" />
+                                    Student Details
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
               </div>
+
+              {!isLoading && !error && (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Showing {filteredStudents.length} of {students.length}{' '}
+                  students
+                </p>
+              )}
             </CardContent>
           </Card>
         </main>
       </SidebarInset>
+
       <Dialog
         open={showStudentDetailsDialog}
-        onOpenChange={setShowStudentDetails}
+        onOpenChange={handleCloseStudentDetails}
       >
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="shrink-0 border-b px-6 py-4">
             <DialogTitle>Student Details</DialogTitle>
 
             <DialogDescription>
@@ -289,168 +351,173 @@ export default function StudentsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {selectedStudent && (
-            <div className="grid gap-5 py-4">
-              {/* Student Profile */}
-              <div className="flex items-center gap-4">
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted">
-                  <UserRoundIcon className="size-6 text-muted-foreground" />
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+            {selectedStudent && (
+              <div className="grid gap-5">
+                {/* Student Profile */}
+                <div className="flex items-center gap-4">
+                  <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted">
+                    <UserRoundIcon className="size-7 text-muted-foreground" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <h3 className="break-words text-lg font-semibold">
+                      {getStudentDisplayName(selectedStudent)}
+                    </h3>
+
+                    <p className="break-all text-sm text-muted-foreground">
+                      {selectedStudent.email || '-'}
+                    </p>
+                  </div>
                 </div>
 
+                {/* Contact and Enrollment Details */}
+                <div className="overflow-hidden rounded-lg border">
+                  <div className="grid grid-cols-1 divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                    <div className="min-w-0 p-4">
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="mt-1 break-words font-medium">
+                        {selectedStudent.phone || '-'}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0 p-4">
+                      <p className="text-sm text-muted-foreground">Guardian</p>
+                      <p className="mt-1 font-medium">Not available</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 divide-y border-t sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                    <div className="min-w-0 p-4">
+                      <p className="text-sm text-muted-foreground">Courses</p>
+                      <p className="mt-1 break-words font-medium">
+                        {getStudentCourses(selectedStudent).join(', ') || '-'}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        Instructors
+                      </p>
+                      <p className="mt-1 break-words font-medium">
+                        {getStudentInstructors(selectedStudent).join(', ') ||
+                          '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account Information */}
                 <div>
-                  <h3 className="font-semibold">{selectedStudent.name}</h3>
+                  <h4 className="mb-3 text-sm font-semibold">
+                    Account Information
+                  </h4>
+
+                  <div className="overflow-hidden rounded-lg border">
+                    <div className="flex items-center justify-between gap-4 px-4 py-3">
+                      <span className="shrink-0 text-sm text-muted-foreground">
+                        Student ID
+                      </span>
+
+                      <span className="break-all text-right text-sm font-medium">
+                        {formatStudentId(selectedStudent.id)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 border-t px-4 py-3">
+                      <span className="text-sm text-muted-foreground">
+                        Account Status
+                      </span>
+
+                      {renderStatusBadge(selectedStudent.status)}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 border-t px-4 py-3">
+                      <span className="text-sm text-muted-foreground">
+                        Account Active
+                      </span>
+
+                      <Badge
+                        variant={
+                          selectedStudent.isActive ? 'default' : 'secondary'
+                        }
+                      >
+                        {selectedStudent.isActive ? 'Yes' : 'No'}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 border-t px-4 py-3">
+                      <span className="text-sm text-muted-foreground">
+                        Enrollments
+                      </span>
+
+                      <span className="text-sm font-medium">
+                        {Array.isArray(selectedStudent.enrollments)
+                          ? selectedStudent.enrollments.length
+                          : 0}
+                      </span>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Enrollment History */}
+                {Array.isArray(selectedStudent.enrollments) &&
+                  selectedStudent.enrollments.length > 0 && (
+                    <div>
+                      <h4 className="mb-3 text-sm font-semibold">
+                        Enrollment History
+                      </h4>
+
+                      <div className="grid gap-3">
+                        {selectedStudent.enrollments.map((enrollment) => (
+                          <div
+                            key={enrollment.id}
+                            className="min-w-0 rounded-lg border p-4"
+                          >
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <p className="break-words font-medium">
+                                {enrollment.packageName || 'Lesson package'}
+                              </p>
+
+                              <div className="shrink-0">
+                                <Badge variant="secondary">
+                                  {formatStatus(enrollment.status)}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {Array.isArray(enrollment.courses)
+                                ? enrollment.courses
+                                    .map((course) => course.name)
+                                    .filter(Boolean)
+                                    .join(', ') || 'No courses listed'
+                                : 'No courses listed'}
+                            </p>
+
+                            {enrollment.enrolledAt && (
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                Enrolled:{' '}
+                                {new Date(
+                                  enrollment.enrolledAt,
+                                ).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
               </div>
+            )}
+          </div>
 
-              {/* Student Information */}
-              <div className="rounded-lg border">
-                <div className="grid grid-cols-2 divide-x">
-                  <div className="p-4">
-                    <p className="text-sm text-muted-foreground">Phone</p>
-
-                    <p className="mt-1 font-medium">{selectedStudent.phone}</p>
-                  </div>
-
-                  <div className="p-4">
-                    <p className="text-sm text-muted-foreground">Guardian</p>
-
-                    <div className="mt-1">{selectedStudent.guardian}</div>
-                  </div>
-                </div>
-
-                {/* Instrument / Instructor */}
-                <div className="grid grid-cols-2 divide-x border-t">
-                  <div className="p-4">
-                    <p className="text-sm text-muted-foreground">Instrument</p>
-
-                    <p className="mt-1 font-medium">
-                      {(selectedStudent.courses ?? []).map((course) => course.name).join(", ") || "-"}
-                    </p>
-                  </div>
-
-                  <div className="p-4">
-                    <p className="text-sm text-muted-foreground">Instructor</p>
-
-                    <p className="mt-1 font-medium">
-                      {(selectedStudent.instructors ?? []).join(", ") || "-"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Account Information */}
-              <div>
-                <h4 className="mb-3 text-sm font-medium">
-                  Account Information
-                </h4>
-
-                <div className="rounded-lg border">
-                  {/* Student ID */}
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <span className="text-sm text-muted-foreground">
-                      Student ID
-                    </span>
-
-                    <span className="text-sm font-medium">
-                      STU-
-                      {String(selectedStudent.id).padStart(4, "0")}
-                    </span>
-                  </div>
-
-                  {/* Account Status */}
-                  <div className="flex items-center justify-between border-t px-4 py-3">
-                    <span className="text-sm text-muted-foreground">
-                      Account Status
-                    </span>
-
-                    <Badge
-                      variant={
-                        selectedStudent.status === "ACTIVE"
-                          ? "default"
-                          : "secondary"
-                      }
-                    >
-                      {formatStatus(selectedStudent.status)}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t px-6 py-4">
             <Button
               variant="outline"
-              onClick={() => {
-                setShowStudentDetails(false);
-                setSelectedStudent(null);
-              }}
+              onClick={() => handleCloseStudentDetails(false)}
             >
               Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* =========================================================
-      DEACTIVATE CONFIRMATION DIALOG
-      ========================================================= */}
-      <Dialog
-        open={showDeactivateDialog}
-        onOpenChange={setShowDeactivateDialog}
-      >
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
-                <AlertTriangleIcon className="size-5 text-destructive" />
-              </div>
-
-              <div>
-                <DialogTitle>Deactivate Student</DialogTitle>
-
-                <DialogDescription className="mt-1">
-                  This will deactivate the student's account.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {selectedStudent && (
-            <div className="rounded-md border bg-muted/30 p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-full bg-muted">
-                  <UserRoundIcon className="size-4 text-muted-foreground" />
-                </div>
-
-                <div>
-                  <p className="font-medium">{selectedStudent.name}</p>
-
-                  <p className="text-sm text-muted-foreground">
-                    {selectedStudent.email}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <p className="text-sm leading-6 text-muted-foreground">
-            Are you sure you want to deactivate this student? The student will
-            no longer be considered active.
-          </p>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeactivateDialog(false);
-                setSelectedStudent(null);
-              }}
-            >
-              Cancel
-            </Button>
-
-            <Button variant="destructive" onClick={handleConfirmDeactivate}>
-              Deactivate
             </Button>
           </DialogFooter>
         </DialogContent>

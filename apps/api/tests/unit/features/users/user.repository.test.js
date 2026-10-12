@@ -49,7 +49,7 @@ describe('user repository application isolation', () => {
       skip: 20,
       take: 20,
       appId: 7,
-      filters: { email: 'obo@example.com', isActive: 'true' },
+      filters: { email: 'cadenza@example.com', isActive: 'true' },
       orderBy: { email: 'asc' },
     })
 
@@ -57,7 +57,7 @@ describe('user repository application isolation', () => {
     const countArgs = prisma.user.count.mock.calls[0][0]
 
     expect(findManyArgs.where).toEqual({
-      email: { contains: 'obo@example.com', mode: 'insensitive' },
+      email: { contains: 'cadenza@example.com', mode: 'insensitive' },
       isActive: true,
       appMemberships: {
         some: {

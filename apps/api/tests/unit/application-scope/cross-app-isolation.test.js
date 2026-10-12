@@ -14,44 +14,44 @@ const nestedAppScopedMatch = (where, appId, relation) => where?.[relation]?.appI
 const adminRecord = (appId = 'admin-app') => ({ id: 'shared-id', appId })
 
 describe('cross-application isolation contracts', () => {
-  it('cases: an OBO lookup cannot resolve an Admin case', async () => {
-    const db = makeScopedDb({ model: 'caseRecord', record: adminRecord(), matches: (where) => appScopedMatch(where, 'obo-app') })
+  it('cases: an CADENZA_CLIENT lookup cannot resolve an Admin case', async () => {
+    const db = makeScopedDb({ model: 'caseRecord', record: adminRecord(), matches: (where) => appScopedMatch(where, 'cadenza-client-app') })
     const { findCaseById } = await import('../../../src/features/cases/cases.repository.js')
 
-    await expect(findCaseById('shared-id', { appId: 'obo-app', db })).resolves.toBeNull()
-    expect(db.caseRecord.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'shared-id', appId: 'obo-app' } }))
+    await expect(findCaseById('shared-id', { appId: 'cadenza-client-app', db })).resolves.toBeNull()
+    expect(db.caseRecord.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'shared-id', appId: 'cadenza-client-app' } }))
   })
 
-  it('tasks: an OBO lookup cannot resolve an Admin task', async () => {
-    const db = makeScopedDb({ model: 'task', record: adminRecord(), matches: (where) => appScopedMatch(where, 'obo-app') })
+  it('tasks: an CADENZA_CLIENT lookup cannot resolve an Admin task', async () => {
+    const db = makeScopedDb({ model: 'task', record: adminRecord(), matches: (where) => appScopedMatch(where, 'cadenza-client-app') })
     const { findTaskById } = await import('../../../src/features/tasks/tasks.repository.js')
 
-    await expect(findTaskById('shared-id', 'obo-app', db)).resolves.toBeNull()
-    expect(db.task.findFirst).toHaveBeenCalledWith({ where: { id: 'shared-id', appId: 'obo-app' } })
+    await expect(findTaskById('shared-id', 'cadenza-client-app', db)).resolves.toBeNull()
+    expect(db.task.findFirst).toHaveBeenCalledWith({ where: { id: 'shared-id', appId: 'cadenza-client-app' } })
   })
 
   it('requirements: case requirements are scoped through the owning case', async () => {
-    const db = makeScopedDb({ model: 'caseRequirement', record: { id: 'cr-1', caseId: 'case-1' }, matches: (where) => nestedAppScopedMatch(where, 'obo-app', 'caseRecord') })
+    const db = makeScopedDb({ model: 'caseRequirement', record: { id: 'cr-1', caseId: 'case-1' }, matches: (where) => nestedAppScopedMatch(where, 'cadenza-client-app', 'caseRecord') })
     const { findCaseRequirement } = await import('../../../src/features/requirements/requirements.repository.js')
 
-    await expect(findCaseRequirement('case-1', 'req-1', 'obo-app', db)).resolves.toEqual({ id: 'cr-1', caseId: 'case-1' })
+    await expect(findCaseRequirement('case-1', 'req-1', 'cadenza-client-app', db)).resolves.toEqual({ id: 'cr-1', caseId: 'case-1' })
     expect(db.caseRequirement.findFirst).toHaveBeenCalledWith({
-      where: { caseId: 'case-1', requirementId: 'req-1', caseRecord: { appId: 'obo-app' } },
+      where: { caseId: 'case-1', requirementId: 'req-1', caseRecord: { appId: 'cadenza-client-app' } },
     })
 
     db.caseRequirement.findFirst.mockImplementationOnce(async ({ where }) =>
       nestedAppScopedMatch(where, 'admin-app', 'caseRecord') ? { id: 'cr-admin' } : null,
     )
-    await expect(findCaseRequirement('case-1', 'req-1', 'obo-app', db)).resolves.toBeNull()
+    await expect(findCaseRequirement('case-1', 'req-1', 'cadenza-client-app', db)).resolves.toBeNull()
   })
 
   it('participants: case participants inherit application ownership from the case', async () => {
-    const db = makeScopedDb({ model: 'caseParticipant', record: { id: 'participant-1' }, matches: (where) => nestedAppScopedMatch(where, 'obo-app', 'caseRecord') })
+    const db = makeScopedDb({ model: 'caseParticipant', record: { id: 'participant-1' }, matches: (where) => nestedAppScopedMatch(where, 'cadenza-client-app', 'caseRecord') })
     const { findParticipant, removeParticipant } = await import('../../../src/features/participants/participants.repository.js')
 
-    await expect(findParticipant('case-1', 'person-1', 'APPLICANT', 'obo-app', db)).resolves.toEqual({ id: 'participant-1' })
+    await expect(findParticipant('case-1', 'person-1', 'APPLICANT', 'cadenza-client-app', db)).resolves.toEqual({ id: 'participant-1' })
     expect(db.caseParticipant.findFirst).toHaveBeenCalledWith({
-      where: { caseId: 'case-1', personId: 'person-1', roleKey: 'APPLICANT', caseRecord: { appId: 'obo-app' } },
+      where: { caseId: 'case-1', personId: 'person-1', roleKey: 'APPLICANT', caseRecord: { appId: 'cadenza-client-app' } },
     })
 
     await expect(removeParticipant('participant-1', 'admin-app', db)).resolves.toBeNull()
@@ -62,23 +62,23 @@ describe('cross-application isolation contracts', () => {
   })
 
   it('appointments: appointment types and appointments are application-scoped', async () => {
-    const typeDb = makeScopedDb({ model: 'appointmentType', record: adminRecord(), matches: (where) => appScopedMatch(where, 'obo-app') })
-    const appointmentDb = makeScopedDb({ model: 'appointment', record: adminRecord(), matches: (where) => appScopedMatch(where, 'obo-app') })
+    const typeDb = makeScopedDb({ model: 'appointmentType', record: adminRecord(), matches: (where) => appScopedMatch(where, 'cadenza-client-app') })
+    const appointmentDb = makeScopedDb({ model: 'appointment', record: adminRecord(), matches: (where) => appScopedMatch(where, 'cadenza-client-app') })
     const { findAppointmentType, findAppointment } = await import('../../../src/features/appointments/appointment.repository.js')
 
-    await expect(findAppointmentType('shared-id', 'obo-app', typeDb)).resolves.toBeNull()
-    await expect(findAppointment('shared-id', 'obo-app', appointmentDb)).resolves.toBeNull()
-    expect(typeDb.appointmentType.findFirst).toHaveBeenCalledWith({ where: { id: 'shared-id', appId: 'obo-app' } })
-    expect(appointmentDb.appointment.findFirst).toHaveBeenCalledWith({ where: { id: 'shared-id', appId: 'obo-app' } })
+    await expect(findAppointmentType('shared-id', 'cadenza-client-app', typeDb)).resolves.toBeNull()
+    await expect(findAppointment('shared-id', 'cadenza-client-app', appointmentDb)).resolves.toBeNull()
+    expect(typeDb.appointmentType.findFirst).toHaveBeenCalledWith({ where: { id: 'shared-id', appId: 'cadenza-client-app' } })
+    expect(appointmentDb.appointment.findFirst).toHaveBeenCalledWith({ where: { id: 'shared-id', appId: 'cadenza-client-app' } })
   })
 
   it('forms: versions are scoped through the owning form', async () => {
-    const db = makeScopedDb({ model: 'formVersion', record: { id: 'version-1', formId: 'form-1' }, matches: (where) => nestedAppScopedMatch(where, 'obo-app', 'form') })
+    const db = makeScopedDb({ model: 'formVersion', record: { id: 'version-1', formId: 'form-1' }, matches: (where) => nestedAppScopedMatch(where, 'cadenza-client-app', 'form') })
     const { findVersionById } = await import('../../../src/platform/forms/form.repository.js')
 
-    await expect(findVersionById('version-1', 'obo-app', db)).resolves.toEqual({ id: 'version-1', formId: 'form-1' })
+    await expect(findVersionById('version-1', 'cadenza-client-app', db)).resolves.toEqual({ id: 'version-1', formId: 'form-1' })
     expect(db.formVersion.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'version-1', form: { appId: 'obo-app' } },
+      where: { id: 'version-1', form: { appId: 'cadenza-client-app' } },
     }))
   })
 
@@ -90,13 +90,13 @@ describe('cross-application isolation contracts', () => {
     }
     const { findOwnedDocument } = await import('../../../src/features/documents/document.repository.js')
 
-    await expect(findOwnedDocument({ userId: 'user-1', id: 'doc-1', appId: 'obo-app' }, db)).resolves.toBeNull()
+    await expect(findOwnedDocument({ userId: 'user-1', id: 'doc-1', appId: 'cadenza-client-app' }, db)).resolves.toBeNull()
     expect(db.document.findFirst).toHaveBeenCalledWith({
       where: {
         id: 'doc-1',
         ownerId: 'user-1',
         deletedAt: null,
-        OR: [{ appId: 'obo-app' }, { appId: null }],
+        OR: [{ appId: 'cadenza-client-app' }, { appId: null }],
       },
     })
   })
@@ -109,13 +109,13 @@ describe('cross-application isolation contracts', () => {
     }
     const { findOwnedDocument } = await import('../../../src/features/documents/document.repository.js')
 
-    await expect(findOwnedDocument({ userId: 'user-1', id: 'doc-shared', appId: 'obo-app' }, db)).resolves.toEqual({ id: 'doc-shared', appId: null })
+    await expect(findOwnedDocument({ userId: 'user-1', id: 'doc-shared', appId: 'cadenza-client-app' }, db)).resolves.toEqual({ id: 'doc-shared', appId: null })
   })
 
   it('audit: application context is persisted with audit records', async () => {
     vi.resetModules()
     vi.doMock('../../../src/platform/context/context.service.js', () => ({
-      getContext: () => ({ appId: 'obo-app', actorId: 'user-1' }),
+      getContext: () => ({ appId: 'cadenza-client-app', actorId: 'user-1' }),
     }))
     vi.doMock('../../../src/platform/audit/audit.repository.js', () => ({
       createAuditLog: vi.fn(async (data) => data),
@@ -124,6 +124,6 @@ describe('cross-application isolation contracts', () => {
     const { recordAudit } = await import('../../../src/platform/audit/audit.service.js')
     const result = await recordAudit({ action: 'CASE_READ', entityType: 'Case', entityId: 'case-1' })
 
-    expect(result).toEqual(expect.objectContaining({ appId: 'obo-app', actorId: 'user-1', entityId: 'case-1' }))
+    expect(result).toEqual(expect.objectContaining({ appId: 'cadenza-client-app', actorId: 'user-1', entityId: 'case-1' }))
   })
 })

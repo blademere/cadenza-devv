@@ -8,7 +8,21 @@ import { OAUTH_STATE_COOKIE, createState, createPkceVerifier, createPkceChalleng
 const setAuthCookies = (res, refreshToken) => res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: env.COOKIE_SECURE, sameSite: env.COOKIE_SAME_SITE, domain: env.COOKIE_DOMAIN || undefined, path: '/api/v1/auth', maxAge: env.COOKIE_REFRESH_MAX_AGE_MS })
 const redirectFailure = (res, code) => { const url = new URL(env.OAUTH_FRONTEND_FAILURE_URL); url.searchParams.set('error', code); return res.redirect(303, url.toString()) }
 const redirectSuccess = (res, params = {}) => { const url = new URL(env.OAUTH_FRONTEND_SUCCESS_URL); Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, String(value))); return res.redirect(303, url.toString()) }
-const startOAuth = (provider) => asyncHandler(async (_req, res) => { clearOAuthLinkStateCookie(res); const state = createState(); const codeVerifier = createPkceVerifier(); const codeChallenge = createPkceChallenge(codeVerifier); const authorizationUrl = createAuthorizationUrl(provider, state, codeChallenge); await storeOAuthState(state, { flow: 'login', provider, codeVerifier }, OAUTH_STATE_MAX_AGE_MS); setOAuthStateCookie(res, state); return res.redirect(302, authorizationUrl) })
+const startOAuth = (provider) => asyncHandler(async (_req, res) => {
+  try {
+    clearOAuthLinkStateCookie(res)
+    const state = createState()
+    const codeVerifier = createPkceVerifier()
+    const codeChallenge = createPkceChallenge(codeVerifier)
+    const authorizationUrl = createAuthorizationUrl(provider, state, codeChallenge)
+    await storeOAuthState(state, { flow: 'login', provider, codeVerifier }, OAUTH_STATE_MAX_AGE_MS)
+    setOAuthStateCookie(res, state)
+    return res.redirect(302, authorizationUrl)
+  } catch (error) {
+    logger.error({ err: error, provider, flow: 'login' }, 'OAuth provider is unavailable')
+    return redirectFailure(res, error?.message === `${provider} OAuth is not configured.` ? 'oauth_not_configured' : 'oauth_unavailable')
+  }
+})
 const handleOAuthCallback = (provider) => asyncHandler(async (req, res) => {
   const { code, state, error } = req.query
   if (error) { clearOAuthStateCookie(res); clearOAuthLinkStateCookie(res); return redirectFailure(res, 'oauth_denied') }

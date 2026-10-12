@@ -19,20 +19,20 @@ afterEach(() => vi.clearAllMocks())
 describe('application-scoped authorization', () => {
   it('passes the request application to the permission check and resource loader', async () => {
     authorizationService.can.mockResolvedValue(true)
-    const loadResource = vi.fn().mockResolvedValue({ id: 'case-1', appId: 'obo-app' })
+    const loadResource = vi.fn().mockResolvedValue({ id: 'case-1', appId: 'cadenza-client-app' })
     const next = vi.fn()
     const req = {
       user: { id: 7 },
-      auth: { appId: 'obo-app' },
-      appContext: { id: 'obo-app' },
+      auth: { appId: 'cadenza-client-app' },
+      appContext: { id: 'cadenza-client-app' },
       params: { id: 'case-1' },
     }
 
     await authorizeResource({ resource: 'cases', action: 'read', loadResource })(req, {}, next)
 
-    expect(authorizationService.can).toHaveBeenCalledWith({ userId: 7, appId: 'obo-app', resource: 'cases', action: 'read' })
+    expect(authorizationService.can).toHaveBeenCalledWith({ userId: 7, appId: 'cadenza-client-app', resource: 'cases', action: 'read' })
     expect(loadResource).toHaveBeenCalledWith('case-1', req)
-    expect(req.authorizedResource).toEqual({ id: 'case-1', appId: 'obo-app' })
+    expect(req.authorizedResource).toEqual({ id: 'case-1', appId: 'cadenza-client-app' })
     expect(next).toHaveBeenCalledWith()
   })
 
@@ -42,8 +42,8 @@ describe('application-scoped authorization', () => {
     const next = vi.fn()
     const req = {
       user: { id: 7 },
-      auth: { appId: 'obo-app' },
-      appContext: { id: 'obo-app' },
+      auth: { appId: 'cadenza-client-app' },
+      appContext: { id: 'cadenza-client-app' },
       params: { id: 'case-2' },
     }
 

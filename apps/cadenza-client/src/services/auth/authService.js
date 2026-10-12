@@ -1,5 +1,10 @@
 import { apiClient } from '@/core/api/apiClient';
 
+export const getGoogleOAuthUrl = () => {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+  return `${apiBaseUrl}/auth/oauth/google`;
+};
+
 export const authService = {
   async login({ email, password }) {
     const response = await apiClient.post('/auth/login', {

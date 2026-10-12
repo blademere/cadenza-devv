@@ -14,30 +14,30 @@ describe('authorization service', () => {
   it('returns app, membership, roles and permissions for the selected app', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue({
       userId: 42,
-      app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
+      app: { id: 'app-1', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
       membership: { id: 'membership-1' },
       roles: [{ id: 3, name: 'receiving_officer' }],
       permissions: [
-        { resource: 'obo_applications', action: 'read' },
-        { resource: 'obo_professionals', action: 'review' },
+        { resource: 'cadenza_applications', action: 'read' },
+        { resource: 'cadenza_professionals', action: 'review' },
       ],
     })
     repository.listActiveModules.mockResolvedValue([
-      { key: 'obo_applications', name: 'Applications', description: null, isActive: true },
-      { key: 'obo_professionals', name: 'Professionals', description: null, isActive: true },
+      { key: 'cadenza_applications', name: 'Applications', description: null, isActive: true },
+      { key: 'cadenza_professionals', name: 'Professionals', description: null, isActive: true },
     ])
 
     const result = await getAuthorizationContextResponse({ userId: 42, appId: 'app-1' })
 
     expect(result).toEqual({
       userId: 42,
-      app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
+      app: { id: 'app-1', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
       membership: { id: 'membership-1' },
       roles: [{ id: 3, name: 'receiving_officer' }],
-      permissions: ['obo_applications:read', 'obo_professionals:review'],
+      permissions: ['cadenza_applications:read', 'cadenza_professionals:review'],
       modules: [
-        { key: 'obo_applications', name: 'Applications', description: null, isActive: true },
-        { key: 'obo_professionals', name: 'Professionals', description: null, isActive: true },
+        { key: 'cadenza_applications', name: 'Applications', description: null, isActive: true },
+        { key: 'cadenza_professionals', name: 'Professionals', description: null, isActive: true },
       ],
     })
   })

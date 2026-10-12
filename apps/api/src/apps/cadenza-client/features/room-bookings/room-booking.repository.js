@@ -169,6 +169,9 @@ const listAvailableRooms = async (
       roomType: {
         notIn: ['LESSON_ROOM', 'LESSON'],
       },
+      rentalRate: {
+        gt: 0,
+      },
     },
     orderBy: {
       createdAt: 'asc',

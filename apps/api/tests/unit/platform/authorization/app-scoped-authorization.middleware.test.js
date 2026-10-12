@@ -33,11 +33,11 @@ describe('app-scoped authorization middleware', () => {
     const next = vi.fn()
     const middleware = authorize('permits', 'read')
 
-    await middleware({ user: { id: 42 }, auth: { appId: 'app-obo' } }, {}, next)
+    await middleware({ user: { id: 42 }, auth: { appId: 'app-cadenza-client' } }, {}, next)
 
     expect(authorizationService.can).toHaveBeenCalledWith({
       userId: 42,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
       resource: 'permits',
       action: 'read',
     })
@@ -63,21 +63,21 @@ describe('app-scoped authorization middleware', () => {
 
     await middleware({
       user: { id: 42 },
-      auth: { appId: 'app-obo' },
+      auth: { appId: 'app-cadenza-client' },
       params: { id: '100' },
     }, {}, next)
 
     expect(authorizationService.can).toHaveBeenCalledWith({
       userId: 42,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
       resource: 'permits',
       action: 'read',
     })
-    expect(authorizationService.getAuthorizationContext).toHaveBeenCalledWith(42, 'app-obo')
+    expect(authorizationService.getAuthorizationContext).toHaveBeenCalledWith(42, 'app-cadenza-client')
     expect(policy).toHaveBeenCalledWith({
       user: expect.objectContaining({
         id: 42,
-        appId: 'app-obo',
+        appId: 'app-cadenza-client',
         roles: [{ id: 3, name: 'receiving_officer' }],
       }),
       resource: { id: 100 },
@@ -92,13 +92,13 @@ describe('app-scoped authorization middleware', () => {
 
     await middleware({
       user: { id: 42 },
-      auth: { appId: 'app-obo' },
+      auth: { appId: 'app-cadenza-client' },
       params: { id: '100' },
     }, {}, next)
 
     expect(auditService.recordAuthorizationDenied).toHaveBeenCalledWith(expect.objectContaining({
       actorId: 42,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
       resource: 'permits',
       action: 'read',
       resourceId: '100',

@@ -7,14 +7,14 @@ describe('JWT application scope', () => {
   const user = { id: 42, authVersion: 7 }
 
   it('includes appId in an app-scoped access token', () => {
-    const token = createAccessToken(user, 'app-obo')
+    const token = createAccessToken(user, 'app-cadenza-client')
     const payload = verifyAccessToken(token)
 
     expect(payload).toMatchObject({
       sub: '42',
       type: 'access',
       authVersion: 7,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     })
   })
 
@@ -26,7 +26,7 @@ describe('JWT application scope', () => {
   })
 
   it('includes appId in refresh tokens so rotation can preserve application context', () => {
-    const token = createRefreshToken(user, 'refresh-1', 'app-obo')
+    const token = createRefreshToken(user, 'refresh-1', 'app-cadenza-client')
     const payload = verifyRefreshToken(token)
 
     expect(payload).toMatchObject({
@@ -34,7 +34,7 @@ describe('JWT application scope', () => {
       type: 'refresh',
       tokenId: 'refresh-1',
       authVersion: 7,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     })
   })
 
@@ -44,7 +44,7 @@ describe('JWT application scope', () => {
   })
 
   it('uses the configured JWT issuer and audience', () => {
-    const token = createAccessToken(user, 'app-obo')
+    const token = createAccessToken(user, 'app-cadenza-client')
     const payload = jwt.decode(token)
 
     expect(payload).toMatchObject({

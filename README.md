@@ -29,7 +29,6 @@ The API composition root is `apps/api/src/routes/index.js`. The current API moun
 /api/v1/admin/authorization
 /api/v1/appointments
 /api/v1/audit
-/api/v1/obo
 ```
 
 The authorization administration API is an administrative capability under the `admin` feature boundary. The authorization capability itself remains a platform concern. The management permission remains `authorization:manage`.
@@ -92,7 +91,7 @@ apps/
 │  │  │  └─ admin/             # Administrative feature boundary
 │  │  ├─ apps/                # Application/domain boundaries
 │  │  │  ├─ cadenza/
-│  │  │  └─ obo/
+│  │  │  └─ cadenza-client/
 │  │  ├─ platform/            # Reusable engines and mechanisms
 │  │  ├─ infrastructure/      # Technical adapters/providers
 │  │  └─ routes/               # API composition

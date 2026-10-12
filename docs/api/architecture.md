@@ -15,7 +15,7 @@ apps → features → platform → infrastructure
 
 `common/`, `config/`, and `routes/` support the API application boundary. They are supporting API infrastructure rather than additional business-architecture layers.
 
-The API application directory is `apps/api/src/apps/`. Current applications include `cadenza` and `obo`.
+The API application directory is `apps/api/src/apps/`. The active application is `cadenza-client`.
 
 ## Layer responsibilities
 
@@ -167,7 +167,7 @@ For domain-specific forms, the app associates its business entity with a platfor
 
 ## Public API boundaries
 
-`apps/api/src/routes/index.js` is the API composition root. It currently mounts authentication, users, administrative authorization, appointments, audit, authorization-context handling, and OBO application routes.
+`apps/api/src/routes/index.js` is the API composition root. It currently mounts authentication, users, administrative authorization, appointments, audit, and authorization-context handling for Cadenza Client.
 
 The public API is mounted under `/api/v1` by `apps/api/src/app.js`.
 

@@ -39,7 +39,7 @@ describe('application context middleware', () => {
   it('uses the signed token app id and validates membership without requiring a header', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue({
       userId: 42,
-      app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
+      app: { id: 'app-1', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
       membership: { id: 'membership-1' },
       roles: [{ id: 3, name: 'receiving_officer' }],
       permissions: [{ resource: 'permits', action: 'read' }],
@@ -52,7 +52,7 @@ describe('application context middleware', () => {
 
     expect(repository.getUserAuthorizationContext).toHaveBeenCalledWith({ userId: 42, appId: 'app-1' })
     expect(req.security.app.id).toBe('app-1')
-    expect(context.setApplicationContext).toHaveBeenCalledWith({ appId: 'app-1', appKey: 'obo' })
+    expect(context.setApplicationContext).toHaveBeenCalledWith({ appId: 'app-1', appKey: 'cadenza-client' })
     expect(next).toHaveBeenCalledWith()
   })
 
@@ -64,7 +64,7 @@ describe('application context middleware', () => {
   it('requires the requested application key when configured', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue({
       userId: 42,
-      app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
+      app: { id: 'app-1', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
       membership: { id: 'membership-1' },
       roles: [{ id: 3, name: 'receiving_officer' }],
       permissions: [{ resource: 'permits', action: 'read' }],
@@ -73,9 +73,9 @@ describe('application context middleware', () => {
     const req = createRequest({ tokenAppId: 'app-1' })
     const next = vi.fn()
 
-    await requireApplicationContext({ appKey: 'obo' })(req, {}, next)
+    await requireApplicationContext({ appKey: 'cadenza-client' })(req, {}, next)
 
-    expect(req.security.app.key).toBe('obo')
+    expect(req.security.app.key).toBe('cadenza-client')
     expect(next).toHaveBeenCalledWith()
   })
 
@@ -91,11 +91,11 @@ describe('application context middleware', () => {
     const req = createRequest({ tokenAppId: 'app-2' })
     const next = vi.fn()
 
-    await requireApplicationContext({ appKey: 'obo' })(req, {}, next)
+    await requireApplicationContext({ appKey: 'cadenza-client' })(req, {}, next)
 
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
       statusCode: 403,
-      message: "Application context 'obo' is required.",
+      message: "Application context 'cadenza-client' is required.",
     }))
     expect(context.setApplicationContext).not.toHaveBeenCalled()
   })
@@ -116,7 +116,7 @@ describe('application context middleware', () => {
   it('validates membership before establishing application security context', async () => {
     repository.getUserAuthorizationContext.mockResolvedValue({
       userId: 42,
-      app: { id: 'app-1', key: 'obo', name: 'One-Stop Business Office', isActive: true },
+      app: { id: 'app-1', key: 'cadenza-client', name: 'Cadenza Client', isActive: true },
       membership: { id: 'membership-1' },
       roles: [{ id: 3, name: 'receiving_officer' }],
       permissions: [{ resource: 'permits', action: 'read' }],
@@ -130,8 +130,8 @@ describe('application context middleware', () => {
     expect(repository.getUserAuthorizationContext).toHaveBeenCalledWith({ userId: 42, appId: 'app-1' })
     expect(req.appContext).toEqual({
       id: 'app-1',
-      key: 'obo',
-      name: 'One-Stop Business Office',
+      key: 'cadenza-client',
+      name: 'Cadenza Client',
       isActive: true,
     })
     expect(req.appMembership).toEqual({ id: 'membership-1' })
@@ -142,7 +142,7 @@ describe('application context middleware', () => {
       roles: [{ id: 3, name: 'receiving_officer' }],
       permissions: [{ resource: 'permits', action: 'read' }],
     })
-    expect(context.setApplicationContext).toHaveBeenCalledWith({ appId: 'app-1', appKey: 'obo' })
+    expect(context.setApplicationContext).toHaveBeenCalledWith({ appId: 'app-1', appKey: 'cadenza-client' })
     expect(next).toHaveBeenCalledWith()
   })
 

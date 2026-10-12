@@ -27,4 +27,4 @@ The API is mounted under `/api/v1`. The composition root is `src/routes/index.js
 
 Prisma is owned by this API workspace and is accessed through repository boundaries from application, feature, and platform business code.
 
-Historical OBO-named Prisma migrations are retained to preserve migration history for existing databases. Do not delete or rewrite migrations that may already have been applied.
+The active application boundary is Cadenza Client. Prisma migration history is preserved for databases that have already been deployed; new schema changes must be added as forward-only migrations.
