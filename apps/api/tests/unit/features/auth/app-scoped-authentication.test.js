@@ -20,14 +20,14 @@ describe('app-scoped authentication', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('embeds the selected application in the signed access token', () => {
-    const token = createAccessToken(user, 'app-obo')
+    const token = createAccessToken(user, 'app-cadenza-client')
     const payload = verifyAccessToken(token)
 
     expect(payload).toMatchObject({
       sub: '42',
       type: 'access',
       authVersion: 7,
-      appId: 'app-obo',
+      appId: 'app-cadenza-client',
     })
   })
 
@@ -41,14 +41,14 @@ describe('app-scoped authentication', () => {
   it('accepts a valid user and app-scoped token when authVersion matches', async () => {
     authRepository.findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 7 })
 
-    const token = createAccessToken(user, 'app-obo')
+    const token = createAccessToken(user, 'app-cadenza-client')
     const req = { headers: { authorization: `Bearer ${token}` } }
     const next = vi.fn()
 
     await authenticate(req, {}, next)
 
     expect(req.user).toEqual({ id: 42 })
-    expect(req.auth).toMatchObject({ appId: 'app-obo', authVersion: 7 })
+    expect(req.auth).toMatchObject({ appId: 'app-cadenza-client', authVersion: 7 })
     expect(actorContext.setActorContext).toHaveBeenCalledWith({ actorId: 42, actorType: 'user' })
     expect(next).toHaveBeenCalledWith()
   })
@@ -56,7 +56,7 @@ describe('app-scoped authentication', () => {
   it('revokes an otherwise valid token after authVersion changes', async () => {
     authRepository.findUserAuthState.mockResolvedValue({ id: 42, isActive: true, authVersion: 8 })
 
-    const token = createAccessToken(user, 'app-obo')
+    const token = createAccessToken(user, 'app-cadenza-client')
     const req = { headers: { authorization: `Bearer ${token}` } }
     const next = vi.fn()
 
@@ -72,7 +72,7 @@ describe('app-scoped authentication', () => {
   it('revokes an otherwise valid token when the user is inactive', async () => {
     authRepository.findUserAuthState.mockResolvedValue({ id: 42, isActive: false, authVersion: 7 })
 
-    const token = createAccessToken(user, 'app-obo')
+    const token = createAccessToken(user, 'app-cadenza-client')
     const req = { headers: { authorization: `Bearer ${token}` } }
     const next = vi.fn()
 
@@ -88,7 +88,7 @@ describe('app-scoped authentication', () => {
     const jwt = await import('jsonwebtoken')
     const { env } = await import('../../../../src/config/index.js')
     const token = jwt.default.sign(
-      { type: 'access', authVersion: 7, appId: 'app-obo', exp: Math.floor(Date.now() / 1000) - 60 },
+      { type: 'access', authVersion: 7, appId: 'app-cadenza-client', exp: Math.floor(Date.now() / 1000) - 60 },
       env.JWT_ACCESS_SECRET,
       { subject: '42', issuer: 'cadenza-app', audience: 'api' },
     )

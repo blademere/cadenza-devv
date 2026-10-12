@@ -8,6 +8,7 @@ const REPORT_TYPES = new Set([
   'studio-bookings',
   'instrument-usage',
   'lesson-progress',
+  'dashboard-activity',
 ]);
 
 const money = (amount) => `₱${Number(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
@@ -97,6 +98,73 @@ const buildReport = async (appId, type, from, to) => {
         ['Returned instruments', rentals.filter((item) => item.returnedAt || item.status === 'RETURNED').length],
         ['Most used instrument', topInstrument ? `${topInstrument[0]} (${topInstrument[1]})` : '—'],
       ],
+    };
+  }
+
+  if (type === 'dashboard-activity') {
+    const [enrollments, bookings, rentals, obligations] = await Promise.all([
+      reportsRepository.findEnrollments(appId, from, to),
+      reportsRepository.findRoomBookings(appId, from, to),
+      reportsRepository.findRentals(appId, from, to),
+      reportsRepository.findPayments(appId, from, to),
+    ]);
+    const payments = obligations.flatMap((obligation) =>
+      obligation.payments.map((payment) => ({
+        ...payment,
+        referenceType: obligation.referenceType,
+        referenceId: obligation.referenceId,
+      })),
+    );
+    const successfulPayments = payments.filter((payment) =>
+      ['PAID', 'COMPLETED', 'SUCCESSFUL'].includes(payment.status),
+    );
+    const days = new Map();
+    const addDay = (value) => {
+      const date = new Date(value).toISOString().slice(0, 10);
+      if (!days.has(date)) {
+        days.set(date, {
+          date,
+          bookings: 0,
+          rentals: 0,
+          enrollments: 0,
+          successfulPayments: 0,
+          transactions: 0,
+        });
+      }
+      return days.get(date);
+    };
+
+    enrollments.forEach((item) => { addDay(item.createdAt).enrollments += 1; });
+    bookings.forEach((item) => { addDay(item.createdAt).bookings += 1; });
+    rentals.forEach((item) => { addDay(item.createdAt).rentals += 1; });
+    successfulPayments.forEach((payment) => {
+      const day = addDay(payment.paidAt || payment.createdAt);
+      day.successfulPayments += Number(payment.amount || 0);
+      day.transactions += 1;
+    });
+
+    return {
+      series: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),
+      summary: {
+        bookings: bookings.length,
+        rentals: rentals.length,
+        enrollments: enrollments.length,
+        successfulPaymentAmount: successfulPayments.reduce(
+          (sum, payment) => sum + Number(payment.amount || 0),
+          0,
+        ),
+        successfulTransactionCount: successfulPayments.length,
+      },
+      recentPayments: [...successfulPayments]
+        .sort((a, b) => new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt))
+        .slice(0, 5)
+        .map((payment) => ({
+          id: payment.id,
+          amount: Number(payment.amount || 0),
+          type: payment.referenceType || 'Payment',
+          referenceId: payment.referenceId,
+          paidAt: payment.paidAt || payment.createdAt,
+        })),
     };
   }
 

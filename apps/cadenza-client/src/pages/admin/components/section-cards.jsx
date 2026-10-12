@@ -17,42 +17,42 @@ import {
   TrendingUpIcon,
 } from "lucide-react"
 
-const cards = [
+const defaultCards = [
   {
     title: "Active Students",
-    value: "248",
-    change: "+8.2%",
-    description: "Compared to last month",
-    footer: "Student enrollment is growing",
+    value: "—",
+    change: "Live",
+    description: "From current records",
+    footer: "Student enrollment",
     icon: GraduationCapIcon,
   },
   {
     title: "Instructors",
-    value: "18",
-    change: "+2",
-    description: "New instructors this month",
-    footer: "Teaching team is growing",
+    value: "—",
+    change: "Live",
+    description: "From current records",
+    footer: "Teaching team",
     icon: UsersIcon,
   },
   {
     title: "Front Desk Staff",
-    value: "7",
+    value: "—",
     change: "Active",
     description: "Currently active staff",
-    footer: "All staff accounts are operational",
+    footer: "Staff accounts",
     icon: UserRoundIcon,
   },
   {
     title: "Monthly Revenue",
-    value: "₱185,400",
-    change: "+12.5%",
-    description: "Compared to last month",
-    footer: "Revenue is trending upward",
+    value: "—",
+    change: "Live",
+    description: "Successful payments",
+    footer: "Payment activity",
     icon: PhilippinePesoIcon,
   },
 ]
 
-export function SectionCards() {
+export function SectionCards({ cards = defaultCards, loading = false }) {
   return (
     <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       {cards.map((card) => {
@@ -67,7 +67,7 @@ export function SectionCards() {
               </CardDescription>
 
               <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                {card.value}
+                {loading ? "—" : card.value}
               </CardTitle>
 
               <CardAction>

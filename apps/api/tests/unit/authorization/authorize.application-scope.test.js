@@ -10,7 +10,7 @@ vi.mock('../../../src/platform/context/context.service.js', () => context)
 
 const { authorize } = await import('../../../src/platform/authorization/authorization.middleware.js')
 
-const createRequest = ({ appId = 'obo-app', userId = 42 } = {}) => ({
+const createRequest = ({ appId = 'cadenza-client-app', userId = 42 } = {}) => ({
   user: { id: userId },
   auth: { appId },
   params: { id: '123' },
@@ -23,15 +23,15 @@ describe('application-scoped authorization middleware', () => {
 
   it('passes the resolved application id to the authorization service', async () => {
     authorization.can.mockResolvedValue(true)
-    const req = createRequest({ appId: 'obo-app' })
+    const req = createRequest({ appId: 'cadenza-client-app' })
     const next = vi.fn()
 
-    await authorize('obo_applications', 'read')(req, {}, next)
+    await authorize('cadenza_applications', 'read')(req, {}, next)
 
     expect(authorization.can).toHaveBeenCalledWith({
       userId: 42,
-      appId: 'obo-app',
-      resource: 'obo_applications',
+      appId: 'cadenza-client-app',
+      resource: 'cadenza_applications',
       action: 'read',
     })
     expect(next).toHaveBeenCalledWith()
@@ -43,7 +43,7 @@ describe('application-scoped authorization middleware', () => {
     req.appContext = null
     const next = vi.fn()
 
-    await authorize('obo_applications', 'read')(req, {}, next)
+    await authorize('cadenza_applications', 'read')(req, {}, next)
 
     expect(authorization.can).not.toHaveBeenCalled()
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
@@ -57,12 +57,12 @@ describe('application-scoped authorization middleware', () => {
     const req = createRequest({ appId: 'admin-app' })
     const next = vi.fn()
 
-    await authorize('obo_applications', 'read')(req, {}, next)
+    await authorize('cadenza_applications', 'read')(req, {}, next)
 
     expect(authorization.can).toHaveBeenCalledWith({
       userId: 42,
       appId: 'admin-app',
-      resource: 'obo_applications',
+      resource: 'cadenza_applications',
       action: 'read',
     })
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
@@ -72,7 +72,7 @@ describe('application-scoped authorization middleware', () => {
     expect(audit.recordAuthorizationDenied).toHaveBeenCalledWith(expect.objectContaining({
       actorId: 42,
       appId: 'admin-app',
-      resource: 'obo_applications',
+      resource: 'cadenza_applications',
       action: 'read',
       resourceId: '123',
     }))
@@ -81,27 +81,27 @@ describe('application-scoped authorization middleware', () => {
   it('allows the same user to be evaluated independently for another application', async () => {
     authorization.can.mockResolvedValueOnce(true).mockResolvedValueOnce(false)
 
-    const oboRequest = createRequest({ appId: 'obo-app' })
+    const cadenzaRequest = createRequest({ appId: 'cadenza-client-app' })
     const adminRequest = createRequest({ appId: 'admin-app' })
-    const oboNext = vi.fn()
+    const cadenzaNext = vi.fn()
     const adminNext = vi.fn()
 
-    await authorize('obo_applications', 'read')(oboRequest, {}, oboNext)
-    await authorize('obo_applications', 'read')(adminRequest, {}, adminNext)
+    await authorize('cadenza_applications', 'read')(cadenzaRequest, {}, cadenzaNext)
+    await authorize('cadenza_applications', 'read')(adminRequest, {}, adminNext)
 
     expect(authorization.can).toHaveBeenNthCalledWith(1, {
       userId: 42,
-      appId: 'obo-app',
-      resource: 'obo_applications',
+      appId: 'cadenza-client-app',
+      resource: 'cadenza_applications',
       action: 'read',
     })
     expect(authorization.can).toHaveBeenNthCalledWith(2, {
       userId: 42,
       appId: 'admin-app',
-      resource: 'obo_applications',
+      resource: 'cadenza_applications',
       action: 'read',
     })
-    expect(oboNext).toHaveBeenCalledWith()
+    expect(cadenzaNext).toHaveBeenCalledWith()
     expect(adminNext).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }))
   })
 })

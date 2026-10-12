@@ -72,10 +72,11 @@ export default function CreateRoomBooking() {
         );
 
         const data = Array.isArray(rooms)
-          ? rooms.filter(
+              ? rooms.filter(
               (room) =>
                 room.roomType !== 'LESSON_ROOM' &&
-                room.roomType !== 'LESSON',
+                room.roomType !== 'LESSON' &&
+                Number(room.rentalRate) > 0,
             )
           : [];
 

@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
     },
 
     server: {
-      port: 5173,
+      port: 5174,
       open: false,
       // Docker Desktop bind mounts on Windows can emit EIO with native file watching.
       // Polling is slower but reliable for development in the container.

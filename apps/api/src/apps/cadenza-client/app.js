@@ -12,6 +12,7 @@ import courses from './features/courses/courses.routes.js';
 import settingsRoutes from './features/settings/settings.routes.js';
 import studentsRoutes from './features/students/students.routes.js';
 import reportsRoutes from './features/reports/reports.routes.js';
+import billingPaymentsRoutes from './features/billing-payments/billing-payments.routes.js';
 
 import { coursesController } from './features/courses/courses.controller.js';
 
@@ -37,6 +38,7 @@ router.use('/courses', courses);
 router.use('/settings', settingsRoutes);
 router.use('/students', studentsRoutes);
 router.use('/reports', reportsRoutes);
+router.use('/billing/payments', billingPaymentsRoutes);
 
 router.get('/courses/:courseId/:filename', coursesController.getCourseFile);
 

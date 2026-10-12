@@ -51,7 +51,7 @@ describe('findAllUsers', () => {
       skip: 10,
       take: 10,
       filters: {
-        email: 'obo@example.com',
+        email: 'cadenza@example.com',
         isActive: 'true',
       },
       orderBy: { email: 'asc' },
@@ -59,7 +59,7 @@ describe('findAllUsers', () => {
     })
 
     const expectedWhere = {
-      email: { contains: 'obo@example.com', mode: 'insensitive' },
+      email: { contains: 'cadenza@example.com', mode: 'insensitive' },
       isActive: true,
       appMemberships: {
         some: {

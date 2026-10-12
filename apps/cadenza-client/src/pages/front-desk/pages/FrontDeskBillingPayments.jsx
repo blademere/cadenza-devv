@@ -113,6 +113,49 @@ export default function BillingPayments() {
     setProcessing(false);
   };
 
+  const markAsPaid = async () => {
+    if (!selectedTransaction || processing) return;
+
+    const balance = remainingAmount(selectedTransaction);
+
+    if (balance <= 0) return;
+
+    setProcessing(true);
+
+    try {
+      await apiClient.patch('/billing/payments/mark-paid', {
+        type: selectedTransaction.type,
+        id: selectedTransaction.sourceId,
+      });
+
+      const payment = {
+        id: `PAY-${Date.now()}`,
+        amount: balance,
+        method: 'Cashier marked paid',
+        reference: `FD-PAID-${Date.now()}`,
+        processedAt: new Date().toISOString(),
+      };
+      const updated = {
+        ...selectedTransaction,
+        payments: [...selectedTransaction.payments, payment],
+        status: 'Paid',
+      };
+
+      setTransactions((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      setSelectedTransaction(updated);
+      setShowPaymentDialog(false);
+    } catch (requestError) {
+      setError(
+        requestError?.message ||
+          'Failed to mark this transaction as paid. Please try again.',
+      );
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
@@ -130,7 +173,7 @@ export default function BillingPayments() {
             <CardContent>{error && <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}<div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Transaction</TableHead><TableHead>Client</TableHead><TableHead>Service</TableHead><TableHead>Total</TableHead><TableHead>Paid</TableHead><TableHead>Balance</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={8} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow> : filteredTransactions.length ? filteredTransactions.map((transaction) => <TableRow key={transaction.id}><TableCell className="font-medium">{transaction.id.split('-').slice(-1)[0].slice(0, 8).toUpperCase()}</TableCell><TableCell><div className="font-medium">{transaction.person}</div><div className="text-sm text-muted-foreground">{transaction.email}</div></TableCell><TableCell><Badge variant="outline">{transaction.type}</Badge><div className="mt-1 text-sm text-muted-foreground">{transaction.details}</div></TableCell><TableCell>{formatCurrency(transaction.totalAmount)}</TableCell><TableCell>{formatCurrency(paidAmount(transaction))}</TableCell><TableCell className="font-medium">{formatCurrency(remainingAmount(transaction))}</TableCell><TableCell><Badge variant={statusVariant(transaction.status)}>{transaction.status}</Badge></TableCell><TableCell className="text-right">{transaction.status === 'Paid' ? <Button variant="ghost" size="sm" onClick={() => { setSelectedTransaction(transaction); setShowReceiptDialog(true); }}><FileText className="mr-2 size-4" />Receipt</Button> : <Button size="sm" onClick={() => openPayment(transaction)}>Continue payment</Button>}</TableCell></TableRow>) : <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">No transactions found.</TableCell></TableRow>}</TableBody></Table></div></CardContent>
           </Card>
         </main>
-        <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}><DialogContent><DialogHeader><DialogTitle>Continue payment</DialogTitle><DialogDescription>{selectedTransaction?.person} · {selectedTransaction?.type}</DialogDescription></DialogHeader>{selectedTransaction && <div className="space-y-4"><div className="grid grid-cols-2 gap-3 rounded-lg border p-4"><div><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{formatCurrency(selectedTransaction.totalAmount)}</p></div><div><p className="text-xs text-muted-foreground">Remaining</p><p className="font-semibold">{formatCurrency(remainingAmount(selectedTransaction))}</p></div></div><div><label className="text-sm font-medium">Amount received</label><Input type="number" min="0.01" max={remainingAmount(selectedTransaction)} value={amountToPay} onChange={(event) => setAmountToPay(event.target.value)} className="mt-2" /></div><div><label className="text-sm font-medium">Payment method</label><select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); setPaymentReference(''); }} className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"><option>Cash</option><option>GCash</option><option>Bank transfer</option></select></div>{paymentMethod !== 'Cash' ? <div><label className="text-sm font-medium">External payment reference</label><Input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Enter GCash or bank reference" maxLength={100} className="mt-2" /><p className="mt-1 text-xs text-muted-foreground">Required for non-cash payments.</p></div> : <p className="text-xs text-muted-foreground">A receipt reference will be generated automatically for cash payments.</p>}</div>}<DialogFooter><Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button><Button disabled={processing || (paymentMethod !== 'Cash' && paymentReference.trim().length < 3)} onClick={processPayment}>{processing ? <Loader2 className="animate-spin" /> : <Check />} Issue receipt</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}><DialogContent><DialogHeader><DialogTitle>Continue payment</DialogTitle><DialogDescription>{selectedTransaction?.person} · {selectedTransaction?.type}</DialogDescription></DialogHeader>{selectedTransaction && <div className="space-y-4"><div className="grid grid-cols-2 gap-3 rounded-lg border p-4"><div><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{formatCurrency(selectedTransaction.totalAmount)}</p></div><div><p className="text-xs text-muted-foreground">Remaining</p><p className="font-semibold">{formatCurrency(remainingAmount(selectedTransaction))}</p></div></div><div><label className="text-sm font-medium">Amount received</label><Input type="number" min="0.01" max={remainingAmount(selectedTransaction)} value={amountToPay} onChange={(event) => setAmountToPay(event.target.value)} className="mt-2" /></div><div><label className="text-sm font-medium">Payment method</label><select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); setPaymentReference(''); }} className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"><option>Cash</option><option>GCash</option><option>Bank transfer</option></select></div>{paymentMethod !== 'Cash' ? <div><label className="text-sm font-medium">External payment reference</label><Input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Enter GCash or bank reference" maxLength={100} className="mt-2" /><p className="mt-1 text-xs text-muted-foreground">Required for non-cash payments.</p></div> : <p className="text-xs text-muted-foreground">A receipt reference will be generated automatically for cash payments.</p>}</div>}<DialogFooter><Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button><Button className="border border-green-300 bg-green-100 text-green-800 hover:bg-green-200 hover:text-green-900" disabled={processing || !selectedTransaction || Number(amountToPay) !== remainingAmount(selectedTransaction)} onClick={markAsPaid}><Check className="mr-2 size-4" />Paid</Button><Button disabled={processing || (paymentMethod !== 'Cash' && paymentReference.trim().length < 3)} onClick={processPayment}>{processing ? <Loader2 className="animate-spin" /> : <Check />} Issue receipt</Button></DialogFooter></DialogContent></Dialog>
         <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
           <DialogContent className="sm:max-w-[520px]">
             {/* Legacy dialog markup replaced by the thermal receipt template. */}

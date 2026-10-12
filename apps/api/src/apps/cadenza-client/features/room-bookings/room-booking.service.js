@@ -128,6 +128,12 @@ const create = async ({
     );
   }
 
+  if (room.rentalRate === null || Number(room.rentalRate) <= 0) {
+    throw new BadRequestError(
+      'The selected room does not have a valid rental price configured.',
+    );
+  }
+
   await ensureAvailable({
     appId,
     roomId,

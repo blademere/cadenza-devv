@@ -12,7 +12,7 @@ const spies = {
   updateTask: repository.updateTask,
 }
 
-const appId = 'app-obo'
+const appId = 'app-cadenza-client'
 
 afterEach(() => vi.clearAllMocks())
 

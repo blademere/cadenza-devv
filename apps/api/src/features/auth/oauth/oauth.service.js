@@ -17,13 +17,29 @@ import { env } from '../../../config/index.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import { getProviderConfig } from './oauth.providers.js'
-
 const OAUTH_REQUEST_TIMEOUT_MS = 5000
 const fetchJson = async (url, options = {}) => { const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), OAUTH_REQUEST_TIMEOUT_MS); try { const response = await fetch(url, { ...options, signal: options.signal || controller.signal }); const text = await response.text(); let data; try { data = text ? JSON.parse(text) : null } catch { throw new Error('OAuth provider returned an invalid response.') }; if (!response.ok) { const providerError = data?.error; const providerDescription = data?.error_description; const detail = [providerError, providerDescription].filter(Boolean).join(': '); const error = new Error(`OAuth provider request failed with status ${response.status}${detail ? ` (${detail})` : '.'}`); error.providerStatus = response.status; error.providerError = typeof providerError === 'string' ? providerError : undefined; error.providerErrorDescription = typeof providerDescription === 'string' ? providerDescription : undefined; throw error }; return { data, response } } finally { clearTimeout(timeout) } }
 const exchangeCode = async (provider, code, codeVerifier) => { const config = getProviderConfig(provider); if (typeof codeVerifier !== 'string' || codeVerifier.length < 43) throw new UnauthorizedError('OAuth authorization could not be completed.'); const body = new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, code, grant_type: 'authorization_code', redirect_uri: config.callbackUrl, code_verifier: codeVerifier }); const { data } = await fetchJson(config.tokenUrl, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body }); if (!data?.access_token) throw new UnauthorizedError('OAuth authorization could not be completed.'); return data.access_token }
-const getGoogleIdentity = async (accessToken) => { const { data } = await fetchJson('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${accessToken}` } }); if (!data?.sub || !data.email || data.email_verified !== true) throw new UnauthorizedError('Google account does not provide a verified email address.'); return { provider: 'google', providerAccountId: String(data.sub), email: data.email.toLowerCase() } }
+const getGoogleIdentity = async (accessToken) => { const { data } = await fetchJson('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${accessToken}` } }); if (!data?.sub || !data.email || data.email_verified !== true) throw new UnauthorizedError('Google account does not provide a verified email address.'); return { provider: 'google', providerAccountId: String(data.sub), email: data.email.toLowerCase(), firstName: data.given_name || data.name?.split(' ')[0] || 'Google', lastName: data.family_name || data.name?.split(' ').slice(1).join(' ') || 'User' } }
 const getFacebookIdentity = async (accessToken) => { const config = getProviderConfig('facebook'); const url = new URL(config.userInfoUrl); url.searchParams.set('fields', 'id,email'); url.searchParams.set('access_token', accessToken); const { data } = await fetchJson(url.toString(), { headers: { Accept: 'application/json' } }); if (!data?.id || !data.email) throw new UnauthorizedError('Facebook account does not provide an email address.'); return { provider: 'facebook', providerAccountId: String(data.id), email: data.email.toLowerCase() } }
 const getProviderIdentity = async (provider, accessToken) => { if (provider === 'google') return getGoogleIdentity(accessToken); if (provider === 'facebook') return getFacebookIdentity(accessToken); throw new UnauthorizedError('Unsupported OAuth provider.') }
+const ensureCadenzaClientAccount = async (user, identity, tx) => {
+  const application = await tx.app.findUnique({ where: { key: 'cadenza-client' }, select: { id: true } })
+  if (!application) return
+
+  let person = await tx.person.findUnique({
+    where: { userId: user.id },
+    include: { cadenzaCustomers: { where: { appId: application.id } }, cadenzaStaff: { where: { appId: application.id } } },
+  })
+
+  if (!person) {
+    person = await tx.person.create({ data: { userId: user.id, firstName: identity.firstName || 'Google', lastName: identity.lastName || 'User', email: identity.email } })
+  }
+
+  if (!person.cadenzaCustomers.length && !person.cadenzaStaff.length) {
+    await tx.cadenzaCustomer.create({ data: { appId: application.id, personId: person.id, status: 'ACTIVE' } })
+  }
+}
 const authenticateWithOAuth = async ({ provider, code, codeVerifier }) => {
   const accessToken = await exchangeCode(provider, code, codeVerifier)
   const identity = await getProviderIdentity(provider, accessToken)
@@ -32,14 +48,27 @@ const authenticateWithOAuth = async ({ provider, code, codeVerifier }) => {
   if (linkedAccount) user = linkedAccount.user
   else {
     const existingUser = await findUserByEmail(identity.email)
-    if (existingUser) throw new ConflictError('An account already exists for this email. Sign in with your password first, then link the OAuth provider.')
-    user = await runTransaction(async (tx) => {
-      const currentUser = await findUserByEmail(identity.email, tx)
-      if (currentUser) throw new ConflictError('An account already exists for this email address.')
-      const createdUser = await createUser({ email: identity.email, passwordHash: null, emailVerifiedAt: new Date() }, tx)
-      await createOAuthAccount({ userId: createdUser.id, provider: identity.provider, providerAccountId: identity.providerAccountId }, tx)
-      return createdUser
-    })
+    if (existingUser) {
+      user = await runTransaction(async (tx) => {
+        const currentUser = await findUserByEmail(identity.email, tx)
+        if (!currentUser) throw new ConflictError('An account already exists for this email address.')
+        await createOAuthAccount({ userId: currentUser.id, provider: identity.provider, providerAccountId: identity.providerAccountId }, tx)
+        await ensureCadenzaClientAccount(currentUser, identity, tx)
+        return currentUser
+      })
+    } else {
+      user = await runTransaction(async (tx) => {
+        const currentUser = await findUserByEmail(identity.email, tx)
+        if (currentUser) throw new ConflictError('An account already exists for this email address.')
+        const createdUser = await createUser({ email: identity.email, passwordHash: null, emailVerifiedAt: new Date() }, tx)
+        await createOAuthAccount({ userId: createdUser.id, provider: identity.provider, providerAccountId: identity.providerAccountId }, tx)
+        await ensureCadenzaClientAccount(createdUser, identity, tx)
+        return createdUser
+      })
+    }
+  }
+  if (linkedAccount) {
+    await runTransaction((tx) => ensureCadenzaClientAccount(user, identity, tx))
   }
   if (!user.isActive) throw new UnauthorizedError('User account is inactive.')
   const tokenId = crypto.randomUUID()

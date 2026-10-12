@@ -1,7 +1,9 @@
 import dotenv from 'dotenv'
 import { z } from 'zod'
 
-dotenv.config()
+// The API workspace is launched with apps/api as its working directory, while
+// the development environment file is owned by the monorepo root.
+dotenv.config({ path: '../../.env' })
 const emptyToUndefined = (value) => (value === '' ? undefined : value)
 const optionalEnvString = z.preprocess(emptyToUndefined, z.string().optional())
 const optionalEnvUrl = z.preprocess(emptyToUndefined, z.url().optional())
@@ -35,8 +37,8 @@ const envSchema = z.object({
   OAUTH_FACEBOOK_CALLBACK_URL: optionalEnvUrl,
   OAUTH_FACEBOOK_API_VERSION: z.string().regex(/^v\d+\.\d+$/, 'OAUTH_FACEBOOK_API_VERSION must use the vMAJOR.MINOR format.').default('v24.0'),
   OAUTH_DEFAULT_ROLE_NAME: z.string().min(1).default('client'),
-  OAUTH_FRONTEND_SUCCESS_URL: z.url().default('http://localhost:5173/auth/callback/success'),
-  OAUTH_FRONTEND_FAILURE_URL: z.url().default('http://localhost:5173/auth/callback/failure'),
+  OAUTH_FRONTEND_SUCCESS_URL: z.url().default('http://localhost:5174/auth/callback/success'),
+  OAUTH_FRONTEND_FAILURE_URL: z.url().default('http://localhost:5174/auth/callback/failure'),
   RESEND_API_KEY: optionalEnvString,
   EMAIL_FROM: optionalEnvString,
   STORAGE_PROVIDER: z.enum(['local']).default('local'),

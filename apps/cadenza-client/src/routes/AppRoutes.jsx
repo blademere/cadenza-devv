@@ -7,6 +7,7 @@ import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import LandingPage from '@/pages/landing/pages/LandingPage';
 import LoginPage from '@/pages/auth/pages/LoginPage';
 import SignupPage from '@/pages/auth/pages/SignupPage';
+import OAuthCallbackPage from '@/pages/auth/pages/OAuthCallbackPage';
 
 import DashboardPage from '@/pages/admin/pages/DashboardPage';
 import StudentsPage from '@/pages/admin/pages/StudentsPage';
@@ -79,6 +80,8 @@ export default function AppRoutes() {
       <Route element={<AuthLayout />}>
         <Route path="login" element={<LoginPage />} />
         <Route path="signup" element={<SignupPage />} />
+        <Route path="auth/callback/success" element={<OAuthCallbackPage />} />
+        <Route path="auth/callback/failure" element={<OAuthCallbackPage />} />
       </Route>
 
       <Route element={<AuthenticatedLayout allowedStaffType="ADMIN" />}>
