@@ -1,7 +1,10 @@
-import api from "./api";
+import { mockInstructorData } from './mockData';
 
 export async function getTimeSlots() {
-  const response = await api.get("/timeSlots");
-
-  return response;
+  return {
+    data: {
+      success: true,
+      data: mockInstructorData.timeSlots,
+    },
+  };
 }
