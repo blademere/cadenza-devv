@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Tabs } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { fonts } from '../../themes/fonts';
 import { logout } from '../../services/authService';
 import { getInstructorNotifications } from '../../services/instructor.service';
@@ -77,10 +77,56 @@ function NotificationsModal({ visible, onClose, notifications, error }) {
     </Modal>
   );
 }
+
+function ProfileMenu({ visible, onClose, onProfile, onLogout }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable className="flex-1 bg-black/15" onPress={onClose}>
+        <View
+          onStartShouldSetResponder={() => true}
+          className="absolute right-[15px] top-[60px] w-[190px] rounded-xl bg-white p-2"
+          style={{ elevation: 6, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8 }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="My Profile"
+            onPress={() => {
+              onClose();
+              onProfile();
+            }}
+            className="flex-row items-center rounded-lg px-3 py-3"
+          >
+            <Ionicons name="person-outline" size={20} color={ACCENT} />
+            <Text className="ml-3 text-base" style={{ fontFamily: fonts.regular }}>
+              My Profile
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+            onPress={() => {
+              onClose();
+              onLogout();
+            }}
+            className="flex-row items-center rounded-lg px-3 py-3"
+          >
+            <Ionicons name="log-out-outline" size={20} color="#e24b4a" />
+            <Text className="ml-3 text-base text-[#e24b4a]" style={{ fontFamily: fonts.regular }}>
+              Logout
+            </Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export default function InstructorLayout() {
   const [visible, setVisible] = useState(false);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationError, setNotificationError] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
 
   async function openNotifications() {
     setNotificationError('');
@@ -93,13 +139,42 @@ export default function InstructorLayout() {
     }
     setVisible(true);
   }
-  async function handleLogout() {
+  async function completeLogout() {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
     try {
       await logout();
     } catch (error) {
       console.warn('Unable to clear the saved session.', error);
+    } finally {
+      setLoggingOut(false);
+      router.replace('/login');
     }
-    router.replace('/login');
+  }
+
+  function handleLogout() {
+    if (loggingOut) return;
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (window.confirm('Are you sure you want to log out of the mobile application?')) {
+        void completeLogout();
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Log out',
+      'Are you sure you want to log out of the mobile application?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log out',
+          style: 'destructive',
+          onPress: () => void completeLogout(),
+        },
+      ],
+    );
   }
   return (
     <>
@@ -107,21 +182,15 @@ export default function InstructorLayout() {
         screenOptions={{
           headerShown: true,
           headerTitleStyle: { fontFamily: fonts.bold, fontSize: 16 },
-          headerLeft: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Log out"
-              onPress={handleLogout}
-              className="ml-[15px]"
-              hitSlop={10}
-            >
-              <Ionicons name="log-out-outline" size={23} color="#e24b4a" />
-            </Pressable>
-          ),
           headerRight: () => (
-            <Pressable onPress={openNotifications} className="mr-[15px]">
-              <Ionicons name="notifications-outline" size={24} color="#000" />
-            </Pressable>
+            <View className="mr-[15px] flex-row items-center gap-4">
+              <Pressable accessibilityRole="button" accessibilityLabel="Notifications" onPress={openNotifications} hitSlop={8}>
+                <Ionicons name="notifications-outline" size={23} color="#000" />
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Profile menu" onPress={() => setProfileMenuVisible(true)} hitSlop={8}>
+                {loggingOut ? <ActivityIndicator size="small" color="#e24b4a" /> : <Ionicons name="person-circle-outline" size={25} color={ACCENT} />}
+              </Pressable>
+            </View>
           ),
           tabBarActiveTintColor: ACCENT,
           tabBarInactiveTintColor: MUTED,
@@ -217,6 +286,12 @@ export default function InstructorLayout() {
       </Tabs>
 
       <NotificationsModal visible={visible} onClose={() => setVisible(false)} notifications={notifications} error={notificationError} />
+      <ProfileMenu
+        visible={profileMenuVisible}
+        onClose={() => setProfileMenuVisible(false)}
+        onProfile={() => router.push('/instructor/profile')}
+        onLogout={handleLogout}
+      />
     </>
   );
 }

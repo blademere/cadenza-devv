@@ -46,6 +46,9 @@ export const instructorService = {
   async getAvailability(id) {
     return apiClient.get(`${BASE_URL}/${id}/availability`);
   },
+  async getAssignments(id) {
+    return apiClient.get(`${BASE_URL}/${id}/assignments`);
+  },
   async addAvailability(id, data) {
     return apiClient.post(`${BASE_URL}/${id}/availability`, data);
   },

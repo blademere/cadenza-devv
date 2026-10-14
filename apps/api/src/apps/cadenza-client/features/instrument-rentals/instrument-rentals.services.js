@@ -8,6 +8,34 @@ import { instrumentRentalsRepository } from './instrument-rentals.repository.js'
 
 // Individual instrument rates represent the minimum charge for this period.
 const MINIMUM_RENTAL_HOURS = 8;
+const RETURN_CONDITIONS = [
+  { value: 'GOOD', label: 'Good condition', damageFee: 0 },
+  { value: 'MINOR_DAMAGE', label: 'Minor damage', damageFee: 500 },
+  { value: 'MAJOR_DAMAGE', label: 'Major damage', damageFee: 1500 },
+  { value: 'LOST', label: 'Lost / not returned', damageFee: 5000 },
+];
+
+const calculateExcessCharge = (rental, returnedAt) => {
+  const expectedReturnAt = new Date(rental.scheduledEnd);
+  const lateMinutes = Math.max(
+    0,
+    Math.ceil((returnedAt.getTime() - expectedReturnAt.getTime()) / (1000 * 60)),
+  );
+  const excessHours = lateMinutes > 0 ? Math.ceil(lateMinutes / 60) : 0;
+  const instrumentRate = (rental.items || []).reduce(
+    (total, item) => total + Number(item.instrument?.rentalRate || 0),
+    0,
+  );
+  const hourlyRate = instrumentRate / MINIMUM_RENTAL_HOURS;
+
+  return {
+    expectedReturnAt,
+    lateMinutes,
+    excessHours,
+    hourlyRate,
+    excessCharge: excessHours * hourlyRate,
+  };
+};
 
 const validateSchedule = (scheduledStart, scheduledEnd) => {
   const start = new Date(scheduledStart);
@@ -57,6 +85,10 @@ const normalizeRentalType = (rentalType) => {
 };
 
 export const instrumentRentalsService = {
+  getReturnConditions() {
+    return RETURN_CONDITIONS;
+  },
+
   async getInstrumentRentals(appId) {
     return instrumentRentalsRepository.findAll(appId);
   },
@@ -125,6 +157,117 @@ export const instrumentRentalsService = {
     }
 
     return approved;
+  },
+
+  async returnInstrumentRental(appId, id, {
+    returnedAt: requestedReturnedAt,
+    condition,
+    damageFee: requestedDamageFee,
+  }) {
+    const returnedAt = new Date(requestedReturnedAt || new Date());
+    if (Number.isNaN(returnedAt.getTime())) {
+      throw new BadRequestError('A valid return time is required.');
+    }
+
+    const selectedCondition = RETURN_CONDITIONS.find(
+      (item) => item.value === condition,
+    );
+    if (!selectedCondition) {
+      throw new BadRequestError('A valid instrument condition is required.');
+    }
+
+    const rentals = await instrumentRentalsRepository.findAll(appId);
+    const rental = rentals.find((item) => item.id === id);
+
+    if (!rental) {
+      throw new NotFoundError('Instrument rental not found.');
+    }
+
+    if (rental.status === 'COMPLETED') {
+      throw new BadRequestError('This instrument rental has already been returned.');
+    }
+
+    if (rental.status !== 'APPROVED') {
+      throw new BadRequestError(
+        'Only approved instrument rentals can be marked as returned.',
+      );
+    }
+
+    if (!rental.metadata?.receivedAt) {
+      throw new BadRequestError(
+        'The instrument must be received before it can be returned.',
+      );
+    }
+
+    if (returnedAt < new Date(rental.scheduledStart)) {
+      throw new BadRequestError('Return time cannot be earlier than the rental start time.');
+    }
+
+    const excess = calculateExcessCharge(rental, returnedAt);
+    const baseRentalAmount = Number(
+      rental.metadata?.baseRentalAmount ?? rental.totalAmount ?? 0,
+    );
+    const totalAmount = baseRentalAmount + excess.excessCharge;
+    const damageCharge = Number(requestedDamageFee);
+
+    const returned = await instrumentRentalsRepository.returnRental(
+      appId,
+      id,
+      {
+        status: 'COMPLETED',
+        returnedAt,
+        totalAmount: totalAmount + damageCharge,
+        metadata: {
+          ...(rental.metadata || {}),
+          returnStatus: 'RETURNED',
+          returnedAt: returnedAt.toISOString(),
+          expectedReturnAt: excess.expectedReturnAt.toISOString(),
+          baseRentalAmount,
+          excessHours: excess.excessHours,
+          excessCharge: excess.excessCharge,
+          excessHourlyRate: excess.hourlyRate,
+          lateMinutes: excess.lateMinutes,
+          returnCondition: selectedCondition.value,
+          returnConditionLabel: selectedCondition.label,
+          damageCharge,
+        },
+      },
+    );
+
+    if (!returned) {
+      throw new ConflictError('This instrument rental was already updated.');
+    }
+
+    return returned;
+  },
+
+  async receiveInstrumentRental(appId, id, {
+    receivedAt: requestedReceivedAt,
+    depositAmount,
+  }) {
+    const receivedAt = new Date(requestedReceivedAt || new Date());
+    if (Number.isNaN(receivedAt.getTime())) {
+      throw new BadRequestError('A valid receive time is required.');
+    }
+    const rentals = await instrumentRentalsRepository.findAll(appId);
+    const rental = rentals.find((item) => item.id === id);
+    if (!rental) throw new NotFoundError('Instrument rental not found.');
+    if (rental.status !== 'APPROVED') {
+      throw new BadRequestError('Only approved rentals can be received.');
+    }
+    if (rental.metadata?.receivedAt) {
+      throw new BadRequestError('This instrument rental has already been received.');
+    }
+    const received = await instrumentRentalsRepository.receiveRental(appId, id, {
+      metadata: {
+        ...(rental.metadata || {}),
+        receivedAt: receivedAt.toISOString(),
+        depositAmount: Number(depositAmount),
+        depositStatus: 'RECEIVED',
+      },
+    });
+    if (!received) throw new ConflictError('This instrument rental was already updated.');
+    return received;
   },
 
   async cancelStaffInstrumentRental(appId, id, cancellationReason) {

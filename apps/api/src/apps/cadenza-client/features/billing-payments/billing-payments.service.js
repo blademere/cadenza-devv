@@ -44,6 +44,11 @@ export const billingPaymentsService = {
     if (transactionType === 'ROOM_BOOKING') {
       const record = await prisma.cadenzaRoomBooking.findFirst({ where: { id, appId } });
       if (!record) throw new NotFoundError('Room booking billing transaction not found.');
+      if (record.status !== 'COMPLETED') {
+        throw new BadRequestError(
+          'The room booking must be checked out before payment can be completed.',
+        );
+      }
       const totalAmount = Number(record.totalAmount || 0);
       return prisma.cadenzaRoomBooking.update({
         where: { id: record.id },
@@ -53,6 +58,11 @@ export const billingPaymentsService = {
 
     const record = await prisma.cadenzaRental.findFirst({ where: { id, appId } });
     if (!record) throw new NotFoundError('Instrument rental billing transaction not found.');
+    if (record.status !== 'COMPLETED') {
+      throw new BadRequestError(
+        'The instrument must be marked as returned before payment can be completed.',
+      );
+    }
     const totalAmount = Number(record.totalAmount || 0);
     return prisma.cadenzaRental.update({
       where: { id: record.id },

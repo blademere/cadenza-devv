@@ -26,6 +26,14 @@ const users = [
     lastName: 'Administrator',
     phone: '+630000000004',
   },
+  {
+    type: 'STAFF',
+    staffType: 'Instructor',
+    email: 'instructor@example.com',
+    firstName: 'Cadenza',
+    lastName: 'Instructor',
+    phone: '+630000000003',
+  },
 ];
 
 const DEVELOPMENT_PASSWORD =

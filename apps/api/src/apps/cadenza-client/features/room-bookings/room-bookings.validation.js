@@ -35,6 +35,16 @@ const cancelSchema = z.object({
   }),
 });
 
+const checkInSchema = z.object({
+  params: z.object({ id: z.uuid() }),
+  body: z.object({ checkedInAt: z.coerce.date() }),
+});
+
+const checkOutSchema = z.object({
+  params: z.object({ id: z.uuid() }),
+  body: z.object({ checkedOutAt: z.coerce.date() }),
+});
+
 const idValidator = async (req) =>
   idSchema.parse({
     params: req.params || {},
@@ -56,9 +66,17 @@ const cancelValidator = async (req) =>
     body: req.body || {},
   });
 
+const checkInValidator = async (req) =>
+  checkInSchema.parse({ params: req.params || {}, body: req.body || {} });
+
+const checkOutValidator = async (req) =>
+  checkOutSchema.parse({ params: req.params || {}, body: req.body || {} });
+
 export {
   idValidator,
   scheduleValidator,
   createValidator,
   cancelValidator,
+  checkInValidator,
+  checkOutValidator,
 };

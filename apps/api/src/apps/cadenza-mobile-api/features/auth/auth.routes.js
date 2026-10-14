@@ -9,6 +9,7 @@ import {
 } from '../../../../common/middleware/index.js';
 import { csrfProtection } from '../../../../common/middleware/csrf.js';
 import cadenzaAuthenticate from '../../../cadenza-client/features/auth/authenticate.js';
+import requireActiveEnrollment from '../../middleware/require-active-enrollment.js';
 
 import {
   csrfController,
@@ -30,6 +31,7 @@ authRouter.post('/login', loginRateLimiter, asyncHandler(loginController));
 authRouter.get(
   '/me',
   cadenzaAuthenticate,
+  requireActiveEnrollment,
   asyncHandler(currentUserController),
 );
 authRouter.post(

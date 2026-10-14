@@ -15,3 +15,9 @@ export const cancelRoomBooking = async (id, cancellationReason) =>
       cancellationReason,
     }),
   );
+
+export const checkInRoomBooking = async (id, checkedInAt) =>
+  unwrap(await apiClient.patch(`/room-bookings/${id}/check-in`, { checkedInAt }));
+
+export const checkOutRoomBooking = async (id, checkedOutAt) =>
+  unwrap(await apiClient.patch(`/room-bookings/${id}/check-out`, { checkedOutAt }));

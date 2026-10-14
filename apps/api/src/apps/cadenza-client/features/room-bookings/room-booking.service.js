@@ -283,6 +283,82 @@ const cancelStaffBooking = async ({ appId, id, cancellationReason }) => {
   return cancelled;
 };
 
+const checkIn = async ({ appId, id, checkedInAt }) => {
+  const bookings = await repository.listAll(appId);
+  const booking = bookings.find((item) => item.id === id);
+  if (!booking) throw new NotFoundError('Room booking not found.');
+  if (booking.status !== 'APPROVED') {
+    throw new BadRequestError('Only approved room bookings can be checked in.');
+  }
+
+  const actualStart = new Date(checkedInAt);
+  const originalStart = new Date(booking.scheduledStart);
+  const originalEnd = new Date(booking.scheduledEnd);
+  if (Number.isNaN(actualStart.getTime()) || actualStart >= originalEnd) {
+    throw new BadRequestError('Check-in time must be before the booked end time.');
+  }
+
+  const bookedDuration = originalEnd.getTime() - originalStart.getTime();
+  const adjustedEnd = new Date(actualStart.getTime() + bookedDuration);
+  const [overlappingBookings, overlappingSessions] = await Promise.all([
+    repository.findOverlappingBookings({
+      appId,
+      roomId: booking.roomId,
+      scheduledStart: actualStart,
+      scheduledEnd: adjustedEnd,
+      excludeId: id,
+    }),
+    repository.findOverlappingSessions({
+      appId,
+      roomId: booking.roomId,
+      scheduledStart: actualStart,
+      scheduledEnd: adjustedEnd,
+    }),
+  ]);
+  if (overlappingBookings.length || overlappingSessions.length) {
+    throw new ConflictError('The adjusted check-in time conflicts with another room booking or lesson.');
+  }
+
+  const result = await repository.updateCheckIn(id, appId, {
+    status: 'CHECKED_IN',
+    scheduledStart: actualStart,
+    scheduledEnd: adjustedEnd,
+    metadata: {
+      ...(booking.metadata || {}),
+      checkedInAt: actualStart.toISOString(),
+      originalScheduledStart: originalStart.toISOString(),
+      originalScheduledEnd: originalEnd.toISOString(),
+      bookedDurationMinutes: Math.round(bookedDuration / 60000),
+    },
+  });
+  if (!result.count) throw new ConflictError('This room booking was already updated.');
+  return repository.listAll(appId).then((items) => items.find((item) => item.id === id));
+};
+
+const checkOut = async ({ appId, id, checkedOutAt }) => {
+  const bookings = await repository.listAll(appId);
+  const booking = bookings.find((item) => item.id === id);
+  if (!booking) throw new NotFoundError('Room booking not found.');
+  if (booking.status !== 'CHECKED_IN') {
+    throw new BadRequestError('Only checked-in room bookings can be checked out.');
+  }
+
+  const actualEnd = new Date(checkedOutAt);
+  if (Number.isNaN(actualEnd.getTime()) || actualEnd < new Date(booking.scheduledStart)) {
+    throw new BadRequestError('Check-out time must be on or after check-in time.');
+  }
+
+  const result = await repository.updateCheckOut(id, appId, {
+    status: 'COMPLETED',
+    metadata: {
+      ...(booking.metadata || {}),
+      checkedOutAt: actualEnd.toISOString(),
+    },
+  });
+  if (!result.count) throw new ConflictError('This room booking was already updated.');
+  return repository.listAll(appId).then((items) => items.find((item) => item.id === id));
+};
+
 const getMyBooking = async ({
   appId,
   customerId,
@@ -377,6 +453,8 @@ export {
   listAllBookings,
   approveBooking,
   cancelStaffBooking,
+  checkIn,
+  checkOut,
   getMyBooking,
   listAvailableRooms,
   cancel,

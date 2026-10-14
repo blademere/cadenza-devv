@@ -9,6 +9,17 @@ const getClientId = (req) => {
 };
 
 export const instrumentRentalsController = {
+  async getReturnConditions(req, res, next) {
+    try {
+      return res.json({
+        success: true,
+        data: instrumentRentalsService.getReturnConditions(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getInstrumentRentals(req, res, next) {
     try {
       const rentals =
@@ -54,6 +65,37 @@ export const instrumentRentalsController = {
         message: 'Instrument rental approved successfully.',
         data: rental,
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async returnInstrumentRental(req, res, next) {
+    try {
+      const rental = await instrumentRentalsService.returnInstrumentRental(
+        req.cadenzaApp.id,
+        req.params.id,
+        req.validated.body,
+      );
+
+      return res.json({
+        success: true,
+        message: 'Instrument rental marked as returned.',
+        data: rental,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async receiveInstrumentRental(req, res, next) {
+    try {
+      const rental = await instrumentRentalsService.receiveInstrumentRental(
+        req.cadenzaApp.id,
+        req.params.id,
+        req.validated.body,
+      );
+      return res.json({ success: true, message: 'Instrument handover recorded.', data: rental });
     } catch (error) {
       next(error);
     }

@@ -3,7 +3,7 @@ import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router';
 import useMobileResource from '../../hooks/useMobileResource';
 import { getStudentMaterial } from '../../services/studentService';
-import { MockDataNotice, ResourceFeedback } from '../../components/common/ResourceFeedback';
+import { ResourceFeedback } from '../../components/common/ResourceFeedback';
 
 const ACCENT = '#0C447C';
 
@@ -11,7 +11,7 @@ export default function StudentMaterialDetails() {
   const params = useLocalSearchParams();
   const materialId = Array.isArray(params.materialId) ? params.materialId[0] : params.materialId;
   const loadMaterial = useCallback(() => getStudentMaterial(materialId), [materialId]);
-  const { data, loading, error, isMock, refresh } = useMobileResource(loadMaterial);
+  const { data, loading, error, refresh } = useMobileResource(loadMaterial);
 
   async function openMaterial() {
     if (!data?.fileUrl) {
@@ -27,7 +27,6 @@ export default function StudentMaterialDetails() {
 
   return (
     <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
-      {isMock && <MockDataNotice />}
       <Text className="text-2xl font-bold" style={{ color: ACCENT }}>Material Details</Text>
       <ResourceFeedback loading={loading} error={error} onRetry={refresh} />
       {data && <View className="mt-6 rounded-3xl border border-gray-200 p-5">

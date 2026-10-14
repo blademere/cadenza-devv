@@ -215,6 +215,67 @@ export const instructorRepository = {
     });
   },
 
+  async getAssignments(appId, instructorId) {
+    const sessions = await prisma.cadenzaLessonSession.findMany({
+      where: {
+        appId,
+        instructorId,
+        status: {
+          notIn: ['COMPLETED', 'CANCELLED'],
+        },
+      },
+      include: {
+        enrollment: {
+          include: {
+            customer: {
+              include: {
+                person: true,
+              },
+            },
+            lessonPackage: {
+              include: {
+                lessons: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        room: {
+          select: {
+            id: true,
+            resourceId: true,
+            roomType: true,
+          },
+        },
+      },
+      orderBy: {
+        scheduledStart: 'asc',
+      },
+    });
+
+    const students = Array.from(
+      new Map(
+        sessions.map((session) => {
+          const customer = session.enrollment.customer;
+          return [customer.id, {
+            id: customer.id,
+            person: customer.person,
+            enrollmentId: session.enrollmentId,
+          }];
+        }),
+      ).values(),
+    );
+
+    return {
+      students,
+      schedules: sessions,
+    };
+  },
+
   async findAvailabilityById(
     appId,
     instructorId,

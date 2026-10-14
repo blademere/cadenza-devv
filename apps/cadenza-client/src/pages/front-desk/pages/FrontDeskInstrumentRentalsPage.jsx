@@ -46,6 +46,9 @@ import {
   approveInstrumentRental,
   cancelInstrumentRental,
   getInstrumentRentals,
+  getReturnConditions,
+  receiveInstrumentRental,
+  returnInstrumentRental,
 } from "@/services/front-desk/instrument-rentalsService";
 
 const formatRentalReference = (id) =>
@@ -71,6 +74,14 @@ const formatRentalDate = (value) => {
   });
 };
 
+const toDateTimeLocalValue = (value = new Date()) => {
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60 * 1000)
+    .toISOString()
+    .slice(0, 16);
+};
+
 const isPendingRental = (status) =>
   [
     'PENDING',
@@ -86,9 +97,12 @@ const isPendingRental = (status) =>
 
 const canReviewRental = (rental) =>
   rental &&
-  !['Approved', 'Rejected', 'CANCELLED', 'COMPLETED'].includes(
+  !['Approved', 'Returned', 'Rejected', 'CANCELLED', 'COMPLETED'].includes(
     rental.status,
   );
+
+const canReturnRental = (rental) =>
+  rental?.status === 'Approved' && Boolean(rental?.metadata?.receivedAt);
 
 /* --------------------------------------------------
    Mock Data
@@ -208,6 +222,14 @@ export default function RentalsPage() {
   const [actionError, setActionError] = useState("");
   const [cancellationReason, setCancellationReason] = useState("");
   const [cancellationMode, setCancellationMode] = useState(false);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [showReceiveDialog, setShowReceiveDialog] = useState(false);
+  const [receiveAt, setReceiveAt] = useState(toDateTimeLocalValue());
+  const [depositAmount, setDepositAmount] = useState('0');
+  const [returnAt, setReturnAt] = useState(toDateTimeLocalValue());
+  const [returnCondition, setReturnCondition] = useState("GOOD");
+  const [damageFee, setDamageFee] = useState("0");
+  const [returnConditions, setReturnConditions] = useState([]);
 
   useEffect(() => {
     const loadRentals = async () => {
@@ -270,9 +292,11 @@ export default function RentalsPage() {
                 ? "Pending"
                 : rental.status === "APPROVED"
                   ? "Approved"
-                  : rental.status === "CANCELLED" || rental.status === "REJECTED"
-                    ? "Rejected"
-                    : rental.status,
+                  : rental.status === "COMPLETED"
+                    ? "Returned"
+                    : rental.status === "CANCELLED" || rental.status === "REJECTED"
+                      ? "Rejected"
+                      : rental.status,
           };
         });
 
@@ -288,6 +312,12 @@ export default function RentalsPage() {
     };
 
     loadRentals();
+  }, []);
+
+  useEffect(() => {
+    getReturnConditions()
+      .then((conditions) => setReturnConditions(Array.isArray(conditions) ? conditions : []))
+      .catch((error) => setActionError(error?.message || "Unable to load return conditions."));
   }, []);
 
   /* --------------------------------------------------
@@ -308,6 +338,11 @@ export default function RentalsPage() {
     setActionError("");
     setCancellationReason("");
     setCancellationMode(false);
+    setReturnAt(toDateTimeLocalValue());
+    setReceiveAt(toDateTimeLocalValue());
+    setDepositAmount('0');
+    setReturnCondition("GOOD");
+    setDamageFee("0");
     setShowDetails(true);
   };
 
@@ -359,6 +394,82 @@ export default function RentalsPage() {
       setActionLoading(false);
     }
   };
+
+  const handleReturn = () => {
+    setReturnAt(toDateTimeLocalValue());
+    setReturnCondition("GOOD");
+    setDamageFee("0");
+    setShowReturnDialog(true);
+  };
+
+  const handleReceive = () => {
+    setReceiveAt(toDateTimeLocalValue());
+    setDepositAmount('0');
+    setShowReceiveDialog(true);
+  };
+
+  const handleConfirmReceive = async () => {
+    if (!selectedRental) return;
+    try {
+      setActionLoading(true);
+      setActionError('');
+      const updated = await receiveInstrumentRental(selectedRental.id, {
+        receivedAt: new Date(receiveAt).toISOString(),
+        depositAmount: Number(depositAmount || 0),
+      });
+      const next = { ...selectedRental, ...updated, status: 'Approved' };
+      setRentals((current) => current.map((rental) => rental.id === next.id ? next : rental));
+      setSelectedRental(next);
+      setShowReceiveDialog(false);
+    } catch (error) {
+      setActionError(error?.response?.data?.message || error?.message || 'Unable to record the instrument handover.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleConfirmReturn = async () => {
+    if (!selectedRental) return;
+
+    try {
+      setActionLoading(true);
+      setActionError("");
+      const updated = await returnInstrumentRental(selectedRental.id, {
+        returnedAt: new Date(returnAt).toISOString(),
+        condition: returnCondition,
+        damageFee: Number(damageFee || 0),
+      });
+      const next = { ...selectedRental, ...updated, status: "Returned" };
+      setRentals((current) =>
+        current.map((rental) => (rental.id === next.id ? next : rental)),
+      );
+      setSelectedRental(next);
+      setShowReturnDialog(false);
+    } catch (error) {
+      setActionError(error?.response?.data?.message || error?.message || "Unable to mark this rental as returned.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const selectedCondition = returnConditions.find(
+    (condition) => condition.value === returnCondition,
+  );
+  const expectedReturnAt = selectedRental?.scheduledEnd
+    ? new Date(selectedRental.scheduledEnd)
+    : null;
+  const actualReturnAt = returnAt ? new Date(returnAt) : null;
+  const lateMinutes = expectedReturnAt && actualReturnAt
+    ? Math.max(0, Math.ceil((actualReturnAt - expectedReturnAt) / (1000 * 60)))
+    : 0;
+  const excessHours = lateMinutes > 0 ? Math.ceil(lateMinutes / 60) : 0;
+  const instrumentRate = (selectedRental?.items || []).reduce(
+    (total, item) => total + Number(item.instrument?.rentalRate || 0),
+    0,
+  );
+  const excessHourlyRate = instrumentRate / 8;
+  const excessCharge = excessHours * excessHourlyRate;
+  const damageCharge = Number(damageFee || 0);
 
   /* --------------------------------------------------
      Status Badge
@@ -449,6 +560,12 @@ export default function RentalsPage() {
                       onClick={() => setStatusFilter("Rejected")}
                     >
                       Rejected
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => setStatusFilter("Returned")}
+                    >
+                      Returned
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -698,10 +815,24 @@ export default function RentalsPage() {
 
                           <div>
                             <p className="text-xs text-muted-foreground">
-                              Deposit
+                              Deposit Collected
                             </p>
                             <p className="font-medium">
-                              {selectedRental.deposit}
+                              {selectedRental.metadata?.depositAmount ??
+                                selectedRental.deposit ??
+                                selectedRental.refundableDeposit ??
+                                '—'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Instrument Handover
+                            </p>
+                            <p className="font-medium">
+                              {selectedRental.metadata?.receivedAt
+                                ? `Received ${formatRentalDate(selectedRental.metadata.receivedAt)}`
+                                : 'Not received'}
                             </p>
                           </div>
 
@@ -758,6 +889,27 @@ export default function RentalsPage() {
                         </p>
                       </div>
                     )}
+                    {selectedRental.metadata?.excessHours > 0 && (
+                      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+                        <div className="flex items-center justify-between text-sm font-medium">
+                          <span>Late return charge</span>
+                          <span>
+                            ₱{Number(selectedRental.metadata.excessCharge || 0).toLocaleString('en-PH', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {selectedRental.metadata.excessHours} excess hour(s) at ₱
+                          {Number(selectedRental.metadata.excessHourlyRate || 0).toLocaleString('en-PH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{' '}
+                          per hour.
+                        </p>
+                      </div>
+                    )}
                     {cancellationMode && (
                       <div>
                         <label
@@ -788,7 +940,34 @@ export default function RentalsPage() {
                         {actionError}
                       </p>
                     )}
-                    {canReviewRental(selectedRental) ? (
+                    {selectedRental?.status === "Approved" ? (
+                      <>
+                        {!selectedRental.metadata?.receivedAt && (
+                          <Button variant="secondary" onClick={handleReceive} disabled={actionLoading}>
+                            Receive Instrument
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowDetails(false)}
+                          disabled={actionLoading || !canReturnRental(selectedRental)}
+                          title={!canReturnRental(selectedRental) ? "Receive the instrument first" : "Mark the instrument as returned"}
+                        >
+                          Close
+                        </Button>
+                        <Button
+                          onClick={handleReturn}
+                          disabled={actionLoading}
+                        >
+                          {actionLoading ? (
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                          ) : (
+                            <Check className="mr-2 size-4" />
+                          )}
+                          {canReturnRental(selectedRental) ? "Mark as Returned" : "Receive instrument first"}
+                        </Button>
+                      </>
+                    ) : canReviewRental(selectedRental) ? (
                       <>
                         {cancellationMode ? (
                           <>
@@ -850,6 +1029,149 @@ export default function RentalsPage() {
                   </DialogFooter>
                 </>
               )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showReceiveDialog} onOpenChange={setShowReceiveDialog}>
+            <DialogContent className="sm:max-w-[420px]">
+              <DialogHeader>
+                <DialogTitle>Receive Instrument</DialogTitle>
+                <DialogDescription>
+                  Record the time the client receives the instrument and the deposit collected.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid gap-2">
+                  <label htmlFor="receive-at" className="text-sm font-medium">Received at</label>
+                  <div className="flex gap-2">
+                    <input id="receive-at" type="datetime-local" value={receiveAt} onChange={(event) => setReceiveAt(event.target.value)} className="h-9 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm" />
+                    <Button type="button" variant="outline" onClick={() => setReceiveAt(toDateTimeLocalValue())}>Now</Button>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="deposit-amount" className="text-sm font-medium">Deposit collected</label>
+                  <input id="deposit-amount" type="number" min="0" step="0.01" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} className="h-9 rounded-md border bg-background px-3 text-sm" />
+                  <p className="text-xs text-muted-foreground">Enter the deposit amount actually collected. Any non-negative amount is accepted.</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowReceiveDialog(false)} disabled={actionLoading}>Cancel</Button>
+                <Button onClick={handleConfirmReceive} disabled={actionLoading || !receiveAt || !Number.isFinite(Number(depositAmount)) || Number(depositAmount) < 0}>
+                  {actionLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  Confirm receive
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+            <DialogContent className="sm:max-w-[520px]">
+              <DialogHeader>
+                <DialogTitle>Process instrument return</DialogTitle>
+                <DialogDescription>
+                  Confirm the actual return time and instrument condition before billing.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Rental started</p>
+                    <p className="font-medium">{formatRentalDate(selectedRental?.scheduledStart)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Expected return</p>
+                    <p className="font-medium">{formatRentalDate(selectedRental?.scheduledEnd)}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="actual-return-time" className="text-sm font-medium">
+                    Actual return time
+                  </label>
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      id="actual-return-time"
+                      type="datetime-local"
+                      value={returnAt}
+                      onChange={(event) => setReturnAt(event.target.value)}
+                      className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                    />
+                    <Button type="button" variant="outline" onClick={() => setReturnAt(toDateTimeLocalValue())}>
+                      Use current time
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="return-condition" className="text-sm font-medium">
+                    Instrument condition
+                  </label>
+                  <select
+                    id="return-condition"
+                    value={returnCondition}
+                    onChange={(event) => setReturnCondition(event.target.value)}
+                    className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    {returnConditions.map((condition) => (
+                      <option key={condition.value} value={condition.value}>
+                        {condition.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="return-damage-fee" className="text-sm font-medium">
+                    Damage fee
+                  </label>
+                  <div className="mt-2 flex items-center rounded-md border border-input bg-background">
+                    <span className="px-3 text-sm text-muted-foreground">₱</span>
+                    <input
+                      id="return-damage-fee"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={damageFee}
+                      onChange={(event) => setDamageFee(event.target.value)}
+                      className="h-10 w-full bg-transparent pr-3 text-sm outline-none"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Enter the assessed damage amount manually.
+                  </p>
+                </div>
+
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Return charge summary</CardTitle>
+                    <CardDescription>These charges will be added to Billing & Payments.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Excess time ({excessHours} hour{excessHours === 1 ? '' : 's'})</span>
+                      <span>₱{excessCharge.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Damage charge</span>
+                      <span>₱{damageCharge.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2 font-semibold">
+                      <span>Additional amount</span>
+                      <span>₱{(excessCharge + damageCharge).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowReturnDialog(false)} disabled={actionLoading}>
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmReturn} disabled={actionLoading || !returnAt || !selectedCondition || !Number.isFinite(Number(damageFee)) || Number(damageFee) < 0}>
+                  {actionLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  Confirm return
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </main>

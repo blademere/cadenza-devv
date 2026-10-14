@@ -10,7 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
-import { approveRoomBooking, cancelRoomBooking, getRoomBookings } from '@/services/front-desk/room-bookingsService';
+import { approveRoomBooking, cancelRoomBooking, checkInRoomBooking, checkOutRoomBooking, getRoomBookings } from '@/services/front-desk/room-bookingsService';
+
+const toDateTimeLocalValue = (value = new Date()) => {
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+};
 
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : '—');
 const formatTime = (value) => value ? new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
@@ -19,6 +25,8 @@ const isPendingBooking = (status) => ['FOR_APPROVAL', 'PENDING', 'PENDING_PAYMEN
 const formatStatus = (status) => {
   if (status === 'FOR_APPROVAL' || status === 'PENDING') return 'Pending';
   if (status === 'APPROVED') return 'Approved';
+  if (status === 'CHECKED_IN') return 'Checked In';
+  if (status === 'COMPLETED') return 'Checked Out';
   if (status === 'CANCELLED' || status === 'REJECTED') return 'Rejected';
   return status || '—';
 };
@@ -50,6 +58,8 @@ export default function FrontDeskRoomBookings() {
   const [error, setError] = useState('');
   const [cancellationReason, setCancellationReason] = useState('');
   const [cancellationMode, setCancellationMode] = useState(false);
+  const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+  const [checkInAt, setCheckInAt] = useState(toDateTimeLocalValue());
 
   useEffect(() => {
     getRoomBookings()
@@ -64,6 +74,7 @@ export default function FrontDeskRoomBookings() {
     setError('');
     setCancellationReason('');
     setCancellationMode(false);
+    setCheckInAt(toDateTimeLocalValue());
     setShowDetails(true);
   };
 
@@ -80,6 +91,39 @@ export default function FrontDeskRoomBookings() {
       setSelectedBooking(next);
     } catch (requestError) {
       setError(requestError?.response?.data?.message || requestError?.message || `Unable to ${decision} this room booking.`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const applyCheckIn = async () => {
+    if (!selectedBooking || actionLoading) return;
+    try {
+      setActionLoading(true);
+      setError('');
+      const updated = await checkInRoomBooking(selectedBooking.id, new Date(checkInAt).toISOString());
+      const next = mapBooking({ ...selectedBooking, ...updated });
+      setBookings((current) => current.map((booking) => booking.id === next.id ? next : booking));
+      setSelectedBooking(next);
+      setShowCheckInDialog(false);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || requestError?.message || 'Unable to check in this room booking.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const applyCheckOut = async () => {
+    if (!selectedBooking || actionLoading) return;
+    try {
+      setActionLoading(true);
+      setError('');
+      const updated = await checkOutRoomBooking(selectedBooking.id, new Date().toISOString());
+      const next = mapBooking({ ...selectedBooking, ...updated });
+      setBookings((current) => current.map((booking) => booking.id === next.id ? next : booking));
+      setSelectedBooking(next);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || requestError?.message || 'Unable to check out this room booking.');
     } finally {
       setActionLoading(false);
     }
@@ -104,7 +148,7 @@ export default function FrontDeskRoomBookings() {
                     {statusFilter === 'All' ? 'All Bookings' : statusFilter}<ChevronDown className="ml-2 size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {['All', 'Pending', 'Approved', 'Rejected'].map((status) => <DropdownMenuItem key={status} onClick={() => setStatusFilter(status)}>{status === 'All' ? 'All Bookings' : status}</DropdownMenuItem>)}
+                    {['All', 'Pending', 'Approved', 'Checked In', 'Checked Out', 'Rejected'].map((status) => <DropdownMenuItem key={status} onClick={() => setStatusFilter(status)}>{status === 'All' ? 'All Bookings' : status}</DropdownMenuItem>)}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -153,9 +197,31 @@ export default function FrontDeskRoomBookings() {
                   {error && <p className="text-sm text-destructive">{error}</p>}
                 </div>
                 <DialogFooter>
-                  {isPendingBooking(selectedBooking.status) ? <>{cancellationMode ? <><Button variant="outline" disabled={actionLoading} onClick={() => { setCancellationMode(false); setCancellationReason(''); }}>Keep booking</Button><Button variant="destructive" disabled={actionLoading || cancellationReason.trim().length < 3} onClick={() => applyDecision('cancel')}>{actionLoading && <Loader2 className="animate-spin" />} Confirm cancellation</Button></> : <Button variant="outline" disabled={actionLoading} onClick={() => setCancellationMode(true)}><X /> Cancel booking</Button>}<Button disabled={actionLoading || cancellationMode} onClick={() => applyDecision('approve')}>{actionLoading ? <Loader2 className="animate-spin" /> : <Check />} Approve booking</Button></> : <Button variant="outline" onClick={() => setShowDetails(false)}>Close</Button>}
+                  {isPendingBooking(selectedBooking.status) ? <>{cancellationMode ? <><Button variant="outline" disabled={actionLoading} onClick={() => { setCancellationMode(false); setCancellationReason(''); }}>Keep booking</Button><Button variant="destructive" disabled={actionLoading || cancellationReason.trim().length < 3} onClick={() => applyDecision('cancel')}>{actionLoading && <Loader2 className="animate-spin" />} Confirm cancellation</Button></> : <Button variant="outline" disabled={actionLoading} onClick={() => setCancellationMode(true)}><X /> Cancel booking</Button>}<Button disabled={actionLoading || cancellationMode} onClick={() => applyDecision('approve')}>{actionLoading ? <Loader2 className="animate-spin" /> : <Check />} Approve booking</Button></> : selectedBooking.status === 'Approved' ? <><Button variant="outline" onClick={() => setShowDetails(false)}>Close</Button><Button disabled={actionLoading} onClick={() => { setCheckInAt(toDateTimeLocalValue()); setShowCheckInDialog(true); }}><Check /> Check in</Button></> : selectedBooking.status === 'Checked In' ? <><Button variant="outline" onClick={() => setShowDetails(false)}>Close</Button><Button disabled={actionLoading} onClick={applyCheckOut}><Check /> Check out</Button></> : <Button variant="outline" onClick={() => setShowDetails(false)}>Close</Button>}
                 </DialogFooter>
               </>}
+            </DialogContent>
+          </Dialog>
+          <Dialog open={showCheckInDialog} onOpenChange={setShowCheckInDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Check in client</DialogTitle>
+                <DialogDescription>Adjust the start time while preserving the original booked duration. No extra room charge is added.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4">
+                  <div><p className="text-xs text-muted-foreground">Booked start</p><p className="font-medium">{formatTime(selectedBooking?.metadata?.originalScheduledStart || selectedBooking?.scheduledStart)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Booked end</p><p className="font-medium">{formatTime(selectedBooking?.metadata?.originalScheduledEnd || selectedBooking?.scheduledEnd)}</p></div>
+                </div>
+                <div>
+                  <label htmlFor="room-check-in-time" className="text-sm font-medium">Actual check-in time</label>
+                  <div className="mt-2 flex gap-2">
+                    <input id="room-check-in-time" type="datetime-local" value={checkInAt} onChange={(event) => setCheckInAt(event.target.value)} className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm" />
+                    <Button type="button" variant="outline" onClick={() => setCheckInAt(toDateTimeLocalValue())}>Use current time</Button>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter><Button variant="outline" onClick={() => setShowCheckInDialog(false)}>Cancel</Button><Button disabled={actionLoading || !checkInAt} onClick={applyCheckIn}>{actionLoading && <Loader2 className="animate-spin" />} Confirm check-in</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </main>

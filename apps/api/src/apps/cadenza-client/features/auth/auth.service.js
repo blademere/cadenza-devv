@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 
 import {
+  ConflictError,
   BadRequestError,
   UnauthorizedError,
 } from '../../../../common/errors/appError.js';
@@ -22,8 +23,11 @@ import {
 } from '../../../../features/auth/auth.repository.js';
 
 import { env } from '../../../../config/index.js';
+import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
 import { cadenzaAuthRepository } from './auth.repository.js';
+
+const prisma = getPrismaClient();
 
 const createTokenId = () => crypto.randomUUID();
 
@@ -44,7 +48,11 @@ const getRefreshTokenExpiration = () => {
   return new Date(Date.now() + Number(match[1]) * milliseconds[match[2]]);
 };
 
-const getAccount = async (userId, appId) => {
+const getAccount = async (
+  userId,
+  appId,
+  { requireActiveEnrollment = false } = {},
+) => {
   const staff = await cadenzaAuthRepository.findStaffByUserIdAndAppId(
     userId,
     appId,
@@ -64,6 +72,26 @@ const getAccount = async (userId, appId) => {
     };
   }
 
+  const instructor =
+    await cadenzaAuthRepository.findInstructorByUserIdAndAppId(
+      userId,
+      appId,
+    );
+
+  if (instructor) {
+    if (instructor.status !== 'ACTIVE') {
+      throw new UnauthorizedError('Cadenza instructor account is inactive.');
+    }
+
+    return {
+      type: 'INSTRUCTOR',
+      id: instructor.id,
+      status: instructor.status,
+      instructorId: instructor.id,
+      person: instructor.person,
+    };
+  }
+
   const customer = await cadenzaAuthRepository.findCustomerByUserIdAndAppId(
     userId,
     appId,
@@ -74,11 +102,22 @@ const getAccount = async (userId, appId) => {
       throw new UnauthorizedError('Cadenza client account is inactive.');
     }
 
+    const activeEnrollment = await cadenzaAuthRepository.findActiveEnrollmentByCustomerId(
+      customer.id,
+    );
+
+    if (requireActiveEnrollment && !activeEnrollment) {
+      throw new UnauthorizedError(
+        'An approved enrollment is required for mobile access.',
+      );
+    }
+
     return {
       type: 'CLIENT',
       id: customer.id,
       status: customer.status,
       person: customer.person,
+      activeEnrollment,
     };
   }
 
@@ -94,6 +133,24 @@ const formatAccount = (account) => ({
         staffType: account.staffType,
       }
     : {}),
+  ...(account.type === 'INSTRUCTOR'
+    ? {
+        instructorId: account.instructorId,
+      }
+    : {}),
+  ...(account.type === 'CLIENT'
+    ? {
+        hasActiveEnrollment: Boolean(account.activeEnrollment),
+        activeEnrollment: account.activeEnrollment
+          ? {
+              id: account.activeEnrollment.id,
+              lessonPackageId: account.activeEnrollment.lessonPackageId,
+              status: account.activeEnrollment.status,
+              enrolledAt: account.activeEnrollment.enrolledAt,
+            }
+          : null,
+      }
+    : {}),
   person: {
     id: account.person.id,
     firstName: account.person.firstName,
@@ -103,7 +160,10 @@ const formatAccount = (account) => ({
   },
 });
 
-const login = async ({ email, password }) => {
+const login = async (
+  { email, password },
+  { requireActiveEnrollment = false } = {},
+) => {
   const normalizedEmail = email?.trim().toLowerCase();
 
   if (!normalizedEmail || !password) {
@@ -128,7 +188,9 @@ const login = async ({ email, password }) => {
     throw new UnauthorizedError('Cadenza application is unavailable.');
   }
 
-  const account = await getAccount(user.id, application.id);
+  const account = await getAccount(user.id, application.id, {
+    requireActiveEnrollment,
+  });
 
   const tokenId = createTokenId();
 
@@ -155,7 +217,54 @@ const login = async ({ email, password }) => {
   };
 };
 
-const refreshAccessToken = async ({ refreshToken }) => {
+const registerClient = async ({ email, password }) => {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail || !password) {
+    throw new BadRequestError('Email and password are required.');
+  }
+
+  if (await cadenzaAuthRepository.findUserByEmail(normalizedEmail)) {
+    throw new ConflictError('An account with this email already exists.');
+  }
+
+  const application = await cadenzaAuthRepository.findApplication();
+  if (!application || !application.isActive) {
+    throw new BadRequestError('Cadenza application is unavailable.');
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const firstName = normalizedEmail.split('@')[0].replace(/[._-]+/g, ' ').trim() || 'Cadenza';
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: { email: normalizedEmail, passwordHash },
+        select: { id: true, email: true, emailVerifiedAt: true },
+      });
+      const person = await tx.person.create({
+        data: { userId: user.id, firstName, lastName: 'Client', email: normalizedEmail },
+      });
+      const customer = await tx.cadenzaCustomer.create({
+        data: { appId: application.id, personId: person.id, status: 'ACTIVE' },
+      });
+      return { user, customer };
+    });
+
+    return {
+      user: { id: result.user.id, email: result.user.email, emailVerified: Boolean(result.user.emailVerifiedAt) },
+      account: { type: 'CLIENT', id: result.customer.id, status: result.customer.status },
+    };
+  } catch (error) {
+    if (error?.code === 'P2002') throw new ConflictError('An account with this email already exists.');
+    throw error;
+  }
+};
+
+const refreshAccessToken = async ({
+  refreshToken,
+  requireActiveEnrollment = false,
+}) => {
   let payload;
 
   try {
@@ -216,7 +325,9 @@ const refreshAccessToken = async ({ refreshToken }) => {
     throw new UnauthorizedError('Cadenza application is unavailable.');
   }
 
-  const account = await getAccount(userId, application.id);
+  const account = await getAccount(userId, application.id, {
+    requireActiveEnrollment,
+  });
 
   const newTokenId = createTokenId();
 
@@ -273,14 +384,19 @@ const logout = async ({ refreshToken }) => {
   await revokeRefreshToken(storedToken.id);
 };
 
-const getCurrentUser = async (userId) => {
+const getCurrentUser = async (
+  userId,
+  { requireActiveEnrollment = false } = {},
+) => {
   const application = await cadenzaAuthRepository.findApplication();
 
   if (!application || !application.isActive) {
     throw new UnauthorizedError('Cadenza application is unavailable.');
   }
 
-  const account = await getAccount(userId, application.id);
+  const account = await getAccount(userId, application.id, {
+    requireActiveEnrollment,
+  });
 
   return {
     user: {
@@ -292,4 +408,4 @@ const getCurrentUser = async (userId) => {
   };
 };
 
-export { login, refreshAccessToken, logout, getCurrentUser };
+export { login, registerClient, refreshAccessToken, logout, getCurrentUser };

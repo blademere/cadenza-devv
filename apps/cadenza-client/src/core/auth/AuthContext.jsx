@@ -52,12 +52,7 @@ export function AuthProvider({ children }) {
   const register = useCallback(async (details) => {
     setIsLoading(true);
     try {
-      const registeredUser = {
-        name: `${details.firstName} ${details.lastName}`,
-        email: details.email,
-      };
-      setUser(registeredUser);
-      return registeredUser;
+      return await authService.register(details);
     } finally {
       setIsLoading(false);
     }

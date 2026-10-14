@@ -49,6 +49,31 @@ const cadenzaAuthenticate = async (req, res, next) => {
       return next();
     }
 
+    const instructor =
+      await cadenzaAuthRepository.findInstructorByUserIdAndAppId(
+        req.user.id,
+        application.id,
+      );
+
+    if (instructor) {
+      if (instructor.status !== 'ACTIVE') {
+        return next(
+          new UnauthorizedError('Cadenza instructor account is inactive.'),
+        );
+      }
+
+      req.cadenzaApp = application;
+      req.cadenzaInstructor = instructor;
+      req.cadenzaAccount = {
+        type: 'INSTRUCTOR',
+        id: instructor.id,
+        instructorId: instructor.id,
+        status: instructor.status,
+      };
+
+      return next();
+    }
+
     const customer = await cadenzaAuthRepository.findCustomerByUserIdAndAppId(
       req.user.id,
       application.id,

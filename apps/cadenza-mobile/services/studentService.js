@@ -9,11 +9,25 @@ async function getResource(path, fixture) {
   return response.data?.data ?? response.data;
 }
 
-export const getStudentDashboard = () =>
-  getResource("/student/dashboard", mockStudentData.dashboard);
+export async function getStudentDashboard() {
+  const response = await api.get('/student/dashboard');
+  return response.data?.data ?? response.data;
+}
 
-export const getStudentSchedule = () =>
-  getResource("/student/schedule", mockStudentData.schedule);
+export async function getStudentSchedule() {
+  const response = await api.get('/student/schedule');
+  return response.data?.data ?? response.data;
+}
+
+export async function requestStudentSchedule(sessionId) {
+  const response = await api.post(
+    `/student/schedule/${sessionId}/request`,
+    {},
+    { headers: { 'Idempotency-Key': `mobile-schedule-${Date.now()}` } },
+  );
+
+  return response.data?.data ?? response.data;
+}
 
 export const getStudentAttendance = () =>
   getResource("/student/attendance", mockStudentData.attendance);
@@ -21,14 +35,12 @@ export const getStudentAttendance = () =>
 export const getStudentProgress = () =>
   getResource("/student/progress", mockStudentData.progress);
 
-export const getStudentMaterials = () =>
-  getResource("/student/materials", mockStudentData.materials);
+export async function getStudentMaterials() {
+  const response = await api.get('/student/materials');
+  return response.data?.data ?? response.data;
+}
 
 export async function getStudentMaterial(id) {
-  if (await isMockDataEnabled()) {
-    return mockStudentData.materials.find((item) => item.id === id) ?? null;
-  }
-
   const response = await api.get(`/student/materials/${id}`);
   return response.data?.data ?? response.data;
 }

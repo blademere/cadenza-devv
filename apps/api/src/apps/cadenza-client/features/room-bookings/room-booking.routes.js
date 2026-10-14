@@ -18,6 +18,8 @@ import {
   scheduleValidator,
   createValidator,
   cancelValidator,
+  checkInValidator,
+  checkOutValidator,
 } from './room-bookings.validation.js';
 
 const router = express.Router();
@@ -40,6 +42,20 @@ router.patch(
   requireAdminOrFrontDesk,
   validate(idValidator),
   asyncHandler(controller.cancelStaffBooking),
+);
+
+router.patch(
+  '/:id/check-in',
+  requireAdminOrFrontDesk,
+  validate(checkInValidator),
+  asyncHandler(controller.checkIn),
+);
+
+router.patch(
+  '/:id/check-out',
+  requireAdminOrFrontDesk,
+  validate(checkOutValidator),
+  asyncHandler(controller.checkOut),
 );
 
 router.get(

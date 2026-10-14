@@ -15,5 +15,9 @@ export async function getInitialRoute() {
     return '/instructor/dashboard';
   }
 
+  if (account.type === 'INSTRUCTOR') {
+    return '/instructor/dashboard';
+  }
+
   return '/login';
 }

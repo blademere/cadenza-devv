@@ -30,6 +30,12 @@ router.get(
   instructorController.getAvailability,
 );
 
+router.get(
+  '/:id/assignments',
+  requireAdminOrFrontDesk,
+  instructorController.getAssignments,
+);
+
 router.post(
   '/:id/availability',
   requireAdminOrFrontDesk,

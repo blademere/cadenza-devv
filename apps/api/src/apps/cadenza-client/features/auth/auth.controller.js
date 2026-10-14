@@ -1,6 +1,7 @@
 import { successResponse } from '../../../../common/responses/apiResponse.js';
 import {
   login,
+  registerClient,
   refreshAccessToken,
   logout,
   getCurrentUser,
@@ -48,6 +49,11 @@ const loginController = async (req, res) => {
   });
 };
 
+const registerController = async (req, res) => {
+  const result = await registerClient(req.validated?.body ?? req.body);
+  return successResponse(res, 'Client account created successfully.', result, 201);
+};
+
 const currentUserController = async (req, res) => {
   const result = await getCurrentUser(req.user.id);
 
@@ -92,6 +98,7 @@ const logoutController = async (req, res) => {
 
 export {
   csrfController,
+  registerController,
   loginController,
   currentUserController,
   refreshController,

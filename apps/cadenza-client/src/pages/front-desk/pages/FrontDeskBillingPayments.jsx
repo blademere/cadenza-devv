@@ -37,6 +37,8 @@ const mapTransaction = (record, type, details, totalAmount, paidAmount, referenc
   totalAmount: Number(totalAmount || 0),
   payments: paidAmount > 0 ? [{ id: `INITIAL-${record.id}`, amount: Number(paidAmount), method: record.metadata?.paymentMethod || 'Online', reference: reference || '—', processedAt: record.metadata?.paymentCompletedAt || record.createdAt }] : [],
   metadata: record.metadata || {},
+  rentalStatus: ['Instrument Rental', 'Room Booking'].includes(type) ? record.status : null,
+  returnedAt: ['Instrument Rental', 'Room Booking'].includes(type) ? record.returnedAt : null,
 });
 
 const mapRecords = (enrollments, bookings, rentals) => [
@@ -47,6 +49,8 @@ const mapRecords = (enrollments, bookings, rentals) => [
 
 const paidAmount = (transaction) => transaction.payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
 const remainingAmount = (transaction) => Math.max(transaction.totalAmount - paidAmount(transaction), 0);
+const canProcessTransaction = (transaction) =>
+  !['Instrument Rental', 'Room Booking'].includes(transaction.type) || transaction.rentalStatus === 'COMPLETED';
 
 export default function BillingPayments() {
   const [transactions, setTransactions] = useState([]);
@@ -81,6 +85,10 @@ export default function BillingPayments() {
   const outstanding = transactions.reduce((sum, transaction) => sum + remainingAmount(transaction), 0);
 
   const openPayment = (transaction) => {
+    if (!canProcessTransaction(transaction)) {
+      setError(transaction.type === 'Room Booking' ? 'Check out the room booking before issuing a receipt.' : 'Mark the instrument rental as returned before issuing a receipt.');
+      return;
+    }
     setSelectedTransaction(transaction);
     setPaymentMethod('Cash');
     setPaymentReference('');
@@ -90,6 +98,10 @@ export default function BillingPayments() {
 
   const processPayment = async () => {
     if (!selectedTransaction || processing) return;
+    if (!canProcessTransaction(selectedTransaction)) {
+      setError(selectedTransaction.type === 'Room Booking' ? 'Check out the room booking before issuing a receipt.' : 'Mark the instrument rental as returned before issuing a receipt.');
+      return;
+    }
     const amount = Number(amountToPay);
     if (!amount || amount <= 0 || amount > remainingAmount(selectedTransaction)) {
       setError('Enter a valid payment amount before issuing the receipt.');
@@ -115,6 +127,11 @@ export default function BillingPayments() {
 
   const markAsPaid = async () => {
     if (!selectedTransaction || processing) return;
+
+    if (!canProcessTransaction(selectedTransaction)) {
+      setError(selectedTransaction.type === 'Room Booking' ? 'Check out the room booking before issuing a receipt.' : 'Mark the instrument rental as returned before issuing a receipt.');
+      return;
+    }
 
     const balance = remainingAmount(selectedTransaction);
 

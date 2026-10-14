@@ -77,4 +77,49 @@ export const cadenzaAuthRepository = {
       },
     });
   },
+
+  async findInstructorByUserIdAndAppId(userId, appId) {
+    return prisma.cadenzaInstructor.findFirst({
+      where: {
+        appId,
+        person: {
+          userId: Number(userId),
+        },
+      },
+      include: {
+        person: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                isActive: true,
+                authVersion: true,
+                emailVerifiedAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  },
+
+  async findActiveEnrollmentByCustomerId(customerId) {
+    return prisma.cadenzaEnrollment.findFirst({
+      where: {
+        customerId,
+        status: 'APPROVED',
+      },
+      orderBy: [
+        { enrolledAt: 'desc' },
+        { updatedAt: 'desc' },
+      ],
+      select: {
+        id: true,
+        lessonPackageId: true,
+        status: true,
+        enrolledAt: true,
+      },
+    });
+  },
 };

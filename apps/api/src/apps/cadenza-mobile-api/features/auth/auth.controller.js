@@ -37,7 +37,7 @@ const csrfController = async (_req, res) => {
 };
 
 const loginController = async (req, res) => {
-  const result = await login(req.body);
+  const result = await login(req.body, { requireActiveEnrollment: true });
 
   res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
@@ -50,7 +50,9 @@ const loginController = async (req, res) => {
 };
 
 const currentUserController = async (req, res) => {
-  const result = await getCurrentUser(req.user.id);
+  const result = await getCurrentUser(req.user.id, {
+    requireActiveEnrollment: true,
+  });
 
   return successResponse(res, 'Current user retrieved.', result);
 };
@@ -62,7 +64,10 @@ const refreshController = async (req, res) => {
     throw new UnauthorizedError('Refresh token is missing.');
   }
 
-  const result = await refreshAccessToken({ refreshToken });
+  const result = await refreshAccessToken({
+    refreshToken,
+    requireActiveEnrollment: true,
+  });
 
   res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 

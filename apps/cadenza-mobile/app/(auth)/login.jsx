@@ -56,6 +56,11 @@ export default function Login() {
         return;
       }
 
+      if (authData.account?.type === 'INSTRUCTOR') {
+        router.replace('/instructor/dashboard');
+        return;
+      }
+
       setErrorMessage('This account cannot access the mobile application.');
     } catch (error) {
       console.error('Login error:', error);
@@ -72,21 +77,7 @@ export default function Login() {
         <Text className="mt-2 text-base text-[#64748B]">
           Welcome back! Login to continue.
         </Text>
-        {__DEV__ && <View className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
-          <Text className="font-semibold text-blue-900">
-            Local instructor demo account
-          </Text>
-          <Text className="mt-1 text-sm text-blue-800">
-            Email: {MOCK_INSTRUCTOR_CREDENTIALS.email}
-          </Text>
-          <Text className="text-sm text-blue-800">
-            Password: {MOCK_INSTRUCTOR_CREDENTIALS.password}
-          </Text>
-          <Text className="mt-1 text-xs text-blue-700">
-            This account is for mobile UI testing only. It is not a backend
-            account.
-          </Text>
-        </View>}
+
       </View>
 
       {errorMessage ? (

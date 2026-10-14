@@ -2,6 +2,7 @@ import api from './api';
 import {
   getAccount,
   getCsrfToken,
+  getToken,
   logout as clearLocalAuth,
 } from './authStorage';
 
@@ -9,6 +10,9 @@ export const MOCK_INSTRUCTOR_CREDENTIALS = {
   email: 'instructor@example.com',
   password: '112233445566',
 };
+
+const USE_MOCK_INSTRUCTOR =
+  process.env.EXPO_PUBLIC_MOBILE_USE_MOCK_INSTRUCTOR === 'true';
 
 function createMockInstructorSession() {
   return {
@@ -44,6 +48,7 @@ function createIdempotencyKey() {
 
 export async function login(email, password) {
   if (
+    USE_MOCK_INSTRUCTOR &&
     email.trim().toLowerCase() === MOCK_INSTRUCTOR_CREDENTIALS.email &&
     password === MOCK_INSTRUCTOR_CREDENTIALS.password
   ) {
@@ -67,8 +72,9 @@ export async function getMe() {
 export async function logout() {
   try {
     const account = await getAccount();
+    const token = await getToken();
 
-    if (!account?.isMock) {
+    if (token && !account?.isMock) {
       const csrfToken = await getCsrfToken();
       const response = await api.post(
         '/auth/logout',

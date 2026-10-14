@@ -12,7 +12,7 @@ export const authService = {
       password,
     });
 
-    const authData = response?.data;
+    const authData = response?.data ?? response;
 
     if (!authData?.accessToken) {
       throw new Error('Login response did not contain an access token.');
@@ -27,6 +27,11 @@ export const authService = {
     }
 
     return authData;
+  },
+
+  async register(details) {
+    const response = await apiClient.post('/auth/register', details);
+    return response?.data ?? response;
   },
 
   async me() {

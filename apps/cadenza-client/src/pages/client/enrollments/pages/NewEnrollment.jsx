@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import useAuth from '@/core/auth/useAuth';
 
 import {
   getAvailablePackages,
@@ -11,6 +12,7 @@ import {
 export default function NewEnrollment() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
 
   const packageId = searchParams.get('package');
   const courseId = searchParams.get('course');
@@ -21,10 +23,20 @@ export default function NewEnrollment() {
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [selectedInstructor, setSelectedInstructor] = useState('');
   const [paymentPlan, setPaymentPlan] = useState('');
+  const [studentDetails, setStudentDetails] = useState({
+    firstName: '',
+    lastName: '',
+    address: '',
+    age: '',
+    gender: '',
+    guardianName: '',
+    contactNo: '',
+  });
 
   const [startDate, setStartDate] = useState('');
   const [, setStartTime] = useState('');
   const [selectedAvailabilityIds, setSelectedAvailabilityIds] = useState([]);
+  const [expandedAvailabilityDays, setExpandedAvailabilityDays] = useState({});
 
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [loadingInstructors, setLoadingInstructors] = useState(false);
@@ -213,6 +225,17 @@ export default function NewEnrollment() {
     .map((id) => availability.find((rule) => rule.id === id))
     .filter(Boolean);
 
+  const availabilityByDay = useMemo(() => {
+    return availability.reduce((groups, rule) => {
+      const day = Number(rule.dayOfWeek);
+      if (!groups[day]) {
+        groups[day] = [];
+      }
+      groups[day].push(rule);
+      return groups;
+    }, {});
+  }, [availability]);
+
   const getDayOfWeekFromDate = (value) => {
     const date = new Date(`${value}T00:00:00`);
     const javascriptDay = date.getDay();
@@ -342,6 +365,18 @@ export default function NewEnrollment() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (
+      !studentDetails.firstName.trim() ||
+      !studentDetails.lastName.trim() ||
+      !studentDetails.address.trim() ||
+      !studentDetails.age ||
+      !studentDetails.gender ||
+      !studentDetails.contactNo.trim()
+    ) {
+      setError('Complete the required student details before continuing.');
+      return;
+    }
 
     setError('');
     setSuccess('');
@@ -528,6 +563,11 @@ export default function NewEnrollment() {
         sessions: formattedSessions,
         metadata: {
           courseId: selectedCourseId || null,
+          studentDetails: {
+            ...studentDetails,
+            age: Number(studentDetails.age),
+            email: user?.email || '',
+          },
         },
       });
 
@@ -541,6 +581,11 @@ export default function NewEnrollment() {
           metadata: {
             courseId: selectedCourseId || null,
             paymentPlan,
+            studentDetails: {
+              ...studentDetails,
+              age: Number(studentDetails.age),
+              email: user?.email || '',
+            },
           },
         }),
       );
@@ -650,6 +695,83 @@ export default function NewEnrollment() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <section className="rounded-xl border border-border bg-card p-5">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold">Student Details</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Enter the student information for this enrollment. The email is taken from the signed-in client account.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              ['firstName', 'First name', 'text'],
+              ['lastName', 'Last name', 'text'],
+              ['address', 'Address', 'text'],
+              ['age', 'Age', 'number'],
+              ['guardianName', 'Guardian name', 'text'],
+              ['contactNo', 'Contact number', 'tel'],
+            ].map(([field, label, type]) => (
+              <div key={field} className={field === 'address' ? 'sm:col-span-2' : ''}>
+                <label htmlFor={`student-${field}`} className="mb-1.5 block text-sm font-medium">
+                  {label}{field !== 'guardianName' && <span className="text-destructive"> *</span>}
+                </label>
+                <input
+                  id={`student-${field}`}
+                  type={type}
+                  min={field === 'age' ? 1 : undefined}
+                  max={field === 'age' ? 120 : undefined}
+                  value={studentDetails[field]}
+                  onChange={(event) =>
+                    setStudentDetails((current) => ({
+                      ...current,
+                      [field]: event.target.value,
+                    }))
+                  }
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+              </div>
+            ))}
+
+            <div>
+              <label htmlFor="student-gender" className="mb-1.5 block text-sm font-medium">
+                Gender <span className="text-destructive">*</span>
+              </label>
+              <select
+                id="student-gender"
+                value={studentDetails.gender}
+                onChange={(event) =>
+                  setStudentDetails((current) => ({
+                    ...current,
+                    gender: event.target.value,
+                  }))
+                }
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Select gender</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="student-email" className="mb-1.5 block text-sm font-medium">
+                Email
+              </label>
+              <input
+                id="student-email"
+                type="email"
+                value={user?.email || ''}
+                readOnly
+                disabled
+                className="h-10 w-full rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">Fetched from your client account.</p>
+            </div>
+          </div>
+        </section>
+
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5">
             <h2 className="text-lg font-semibold">Choose Instructor</h2>
@@ -765,9 +887,34 @@ export default function NewEnrollment() {
                     {selectedPackage.sessionsPerWeek}.
                   </p>
 
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {availability.map((rule) =>
-                      (() => {
+                  <div className="mt-3 space-y-4">
+                    {Object.entries(availabilityByDay).map(([day, rules]) => (
+                      <div key={day} className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedAvailabilityDays((current) => ({
+                              ...current,
+                              [day]: !current[day],
+                            }))
+                          }
+                          className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-left text-sm font-semibold hover:bg-accent"
+                        >
+                          <span>{formatDay(Number(day))}</span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {expandedAvailabilityDays[day]
+                              ? 'Hide times'
+                              : `${rules.length} registered time${rules.length === 1 ? '' : 's'}`}
+                          </span>
+                        </button>
+                        {expandedAvailabilityDays[day] && (
+                          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+                            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              Registered times for {formatDay(Number(day))}
+                            </p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                          {rules.map((rule) =>
+                            (() => {
                         const isSelected = selectedAvailabilityIds.includes(
                           rule.id,
                         );
@@ -777,7 +924,7 @@ export default function NewEnrollment() {
                             selectedRule.id !== rule.id,
                         );
 
-                        return (
+                              return (
                           <button
                             type="button"
                             key={rule.id}
@@ -802,9 +949,14 @@ export default function NewEnrollment() {
                               {formatTime(rule.endMinute)}
                             </span>
                           </button>
-                        );
-                      })(),
-                    )}
+                              );
+                            })(),
+                          )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

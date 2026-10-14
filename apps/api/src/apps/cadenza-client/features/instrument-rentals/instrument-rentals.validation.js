@@ -34,6 +34,25 @@ const cancelRentalSchema = z.object({
   }),
 });
 
+const returnRentalSchema = z.object({
+  params: z.object({
+    id: z.uuid(),
+  }),
+  body: z.object({
+    returnedAt: z.coerce.date(),
+    condition: z.enum(['GOOD', 'MINOR_DAMAGE', 'MAJOR_DAMAGE', 'LOST']),
+    damageFee: z.coerce.number().finite().min(0).max(100000000),
+  }),
+});
+
+const receiveRentalSchema = z.object({
+  params: z.object({ id: z.uuid() }),
+  body: z.object({
+    receivedAt: z.coerce.date(),
+    depositAmount: z.coerce.number().finite().min(0).max(100000000),
+  }),
+});
+
 const idValidator = (req, res, next) => {
   try {
     const validated = idSchema.parse({
@@ -115,9 +134,42 @@ const cancelRentalValidator = (req, res, next) => {
   }
 };
 
+const returnRentalValidator = (req, res, next) => {
+  try {
+    const validated = returnRentalSchema.parse({
+      params: req.params || {},
+      body: req.body || {},
+    });
+
+    req.validated = req.validated || {};
+    req.validated.params = validated.params;
+    req.validated.body = validated.body;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+const receiveRentalValidator = (req, res, next) => {
+  try {
+    const validated = receiveRentalSchema.parse({
+      params: req.params || {},
+      body: req.body || {},
+    });
+    req.validated = req.validated || {};
+    req.validated.params = validated.params;
+    req.validated.body = validated.body;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export {
   idValidator,
   availabilityValidator,
   createRentalValidator,
   cancelRentalValidator,
+  returnRentalValidator,
+  receiveRentalValidator,
 };

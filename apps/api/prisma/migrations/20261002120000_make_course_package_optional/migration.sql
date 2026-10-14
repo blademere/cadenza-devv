@@ -1,2 +1,0 @@
-ALTER TABLE "CadenzaCourse"
-ALTER COLUMN "packageId" DROP NOT NULL;

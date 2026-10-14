@@ -13,9 +13,17 @@ import {
   availabilityValidator,
   createRentalValidator,
   cancelRentalValidator,
+  returnRentalValidator,
+  receiveRentalValidator,
 } from './instrument-rentals.validation.js';
 
 const router = Router();
+
+router.get(
+  '/return-conditions',
+  requireAdminOrFrontDesk,
+  instrumentRentalsController.getReturnConditions,
+);
 
 router.get(
   '/available',
@@ -89,6 +97,20 @@ router.patch(
   requireAdminOrFrontDesk,
   idValidator,
   instrumentRentalsController.approveInstrumentRental,
+);
+
+router.patch(
+  '/:id/return',
+  requireAdminOrFrontDesk,
+  returnRentalValidator,
+  instrumentRentalsController.returnInstrumentRental,
+);
+
+router.patch(
+  '/:id/receive',
+  requireAdminOrFrontDesk,
+  receiveRentalValidator,
+  instrumentRentalsController.receiveInstrumentRental,
 );
 
 router.patch(

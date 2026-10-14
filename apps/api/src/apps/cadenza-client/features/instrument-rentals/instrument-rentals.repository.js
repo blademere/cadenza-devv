@@ -55,6 +55,32 @@ export const instrumentRentalsRepository = {
     return rentals.find((rental) => rental.id === id) || null;
   },
 
+  async returnRental(appId, id, data) {
+    const result = await prisma.cadenzaRental.updateMany({
+      where: {
+        id,
+        appId,
+        status: 'APPROVED',
+      },
+      data,
+    });
+
+    if (!result.count) return null;
+
+    const rentals = await this.findAll(appId);
+    return rentals.find((rental) => rental.id === id) || null;
+  },
+
+  async receiveRental(appId, id, data) {
+    const result = await prisma.cadenzaRental.updateMany({
+      where: { id, appId, status: 'APPROVED' },
+      data,
+    });
+    if (!result.count) return null;
+    const rentals = await this.findAll(appId);
+    return rentals.find((rental) => rental.id === id) || null;
+  },
+
   findInstrumentById(appId, id) {
     return prisma.cadenzaInstrument.findFirst({
       where: {
@@ -99,7 +125,14 @@ export const instrumentRentalsRepository = {
           },
           rental: {
             status: {
-              notIn: ['CANCELLED', 'REJECTED'],
+              in: [
+                'FOR_APPROVAL',
+                'PENDING',
+                'PENDING_PAYMENT',
+                'PENDING_CONFIRMATION',
+                'PARTIALLY_PAID',
+                'APPROVED',
+              ],
             },
             scheduledStart: {
               lt: scheduledEnd,

@@ -133,6 +133,17 @@ export const instructorController = {
       next(error);
     }
   },
+  async getAssignments(req, res, next) {
+    try {
+      const assignments = await instructorService.getAssignments(
+        req.cadenzaApp.id,
+        req.params.id,
+      );
+      return res.json({ success: true, data: assignments });
+    } catch (error) {
+      next(error);
+    }
+  },
   async addAvailability(req, res, next) {
     try {
       const availability = await instructorService.addAvailability(

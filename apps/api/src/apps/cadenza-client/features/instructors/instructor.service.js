@@ -476,6 +476,19 @@ export const instructorService = {
     );
   },
 
+  async getAssignments(appId, instructorId) {
+    const instructor = await instructorRepository.findById(
+      appId,
+      instructorId,
+    );
+
+    if (!instructor) {
+      throw new NotFoundError('Instructor not found.');
+    }
+
+    return instructorRepository.getAssignments(appId, instructorId);
+  },
+
   async addAvailability(appId, instructorId, data) {
     const instructor = await instructorRepository.findById(
       appId,

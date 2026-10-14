@@ -133,6 +133,18 @@ const updateStaffDecision = async (id, appId, data, db = prisma) => {
   });
 };
 
+const updateCheckIn = (id, appId, data, db = prisma) =>
+  db.cadenzaRoomBooking.updateMany({
+    where: { id, appId, status: 'APPROVED' },
+    data,
+  });
+
+const updateCheckOut = (id, appId, data, db = prisma) =>
+  db.cadenzaRoomBooking.updateMany({
+    where: { id, appId, status: 'CHECKED_IN' },
+    data,
+  });
+
 const findById = (id, customerId, appId, db = prisma) =>
   db.cadenzaRoomBooking.findFirst({
     where: {
@@ -236,6 +248,8 @@ export {
   listByCustomer,
   listAll,
   updateStaffDecision,
+  updateCheckIn,
+  updateCheckOut,
   findById,
   cancel,
   listAvailableRooms,

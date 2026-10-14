@@ -63,6 +63,28 @@ const cancelStaffBooking = async (req, res) =>
     }),
   );
 
+const checkIn = async (req, res) =>
+  successResponse(
+    res,
+    'Room booking checked in successfully.',
+    await service.checkIn({
+      appId: req.cadenzaApp.id,
+      id: req.validated.params.id,
+      checkedInAt: req.validated.body.checkedInAt,
+    }),
+  );
+
+const checkOut = async (req, res) =>
+  successResponse(
+    res,
+    'Room booking checked out successfully.',
+    await service.checkOut({
+      appId: req.cadenzaApp.id,
+      id: req.validated.params.id,
+      checkedOutAt: req.validated.body.checkedOutAt,
+    }),
+  );
+
 const getMyBooking = async (req, res) =>
   successResponse(
     res,
@@ -105,6 +127,8 @@ export {
   listAllBookings,
   approveBooking,
   cancelStaffBooking,
+  checkIn,
+  checkOut,
   getMyBooking,
   create,
   cancel,

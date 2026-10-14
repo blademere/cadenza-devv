@@ -1,1 +1,0 @@
-DROP INDEX IF EXISTS "CadenzaEnrollment_appId_customerId_lessonPackageId_key";
