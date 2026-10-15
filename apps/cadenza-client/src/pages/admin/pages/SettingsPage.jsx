@@ -58,6 +58,8 @@ import {
   getInstrumentTypes,
   updateItemCategoryStatus,
   updateInstrumentTypeStatus,
+  getOperatingHours,
+  updateOperatingHours,
 } from '@/services/admin/settingsService';
 
 const EMPTY_COURSE_FORM = {
@@ -73,6 +75,24 @@ const INITIAL_COURSES = [];
 
 const INITIAL_INSTRUMENTS = [];
 
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const hour = Math.floor(index / 2);
+  const minute = index % 2 === 0 ? '00' : '30';
+  return `${String(hour).padStart(2, '0')}:${minute}`;
+});
+const formatTimeOption = (value) => {
+  const [hour, minute] = value.split(':').map(Number);
+  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
+};
+const DEFAULT_OPERATING_HOURS = {
+  weeklyHours: Object.fromEntries(WEEKDAYS.map((_, index) => [String(index), {
+    isClosed: false, startTime: '08:00', endTime: '17:00',
+  }])),
+  dateOverrides: {},
+  timezone: 'Asia/Manila',
+};
+
 const mapCourse = (item) => ({
   id: item?.id,
   name: item?.name || item?.lessonName || 'Unnamed course',
@@ -83,6 +103,14 @@ export default function SettingsPage() {
   const [courses, setCourses] = React.useState(INITIAL_COURSES);
   const [instruments, setInstruments] = React.useState(INITIAL_INSTRUMENTS);
   const [categories, setCategories] = React.useState([]);
+  const [operatingHours, setOperatingHours] = React.useState(DEFAULT_OPERATING_HOURS);
+  const [hoursSaving, setHoursSaving] = React.useState(false);
+  const today = new Date();
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  const tomorrowKey = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+  const [selectedMonth, setSelectedMonth] = React.useState(`${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}`);
+  const [selectedDate, setSelectedDate] = React.useState(tomorrowKey);
+  const [overrideForm, setOverrideForm] = React.useState({ isClosed: false, startTime: '08:00', endTime: '17:00' });
 
   const [courseForm, setCourseForm] = React.useState(EMPTY_COURSE_FORM);
 
@@ -131,14 +159,24 @@ export default function SettingsPage() {
   const [deactivatingCategory, setDeactivatingCategory] = React.useState(false);
   const [reactivatingCategory, setReactivatingCategory] = React.useState(false);
 
+  const selectableDates = React.useMemo(() => {
+    const dates = [];
+    for (let index = 1; index <= 365; index += 1) {
+      const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + index);
+      dates.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`);
+    }
+    return [...new Set([...dates, ...Object.keys(operatingHours.dateOverrides || {})].filter((date) => date >= tomorrowKey))].sort();
+  }, [operatingHours.dateOverrides, tomorrowKey]);
+
   const loadData = React.useCallback(async () => {
     try {
       setLoading(true);
 
-      const [courseData, instrumentTypeData, categoryData] = await Promise.all([
+      const [courseData, instrumentTypeData, categoryData, hoursData] = await Promise.all([
         getCourses(),
         getInstrumentTypes(),
         getItemCategories(),
+        getOperatingHours(),
       ]);
 
       setCourses(Array.isArray(courseData) ? courseData.map(mapCourse) : []);
@@ -146,12 +184,60 @@ export default function SettingsPage() {
         Array.isArray(instrumentTypeData) ? instrumentTypeData : [],
       );
       setCategories(Array.isArray(categoryData) ? categoryData : []);
+      setOperatingHours({ ...DEFAULT_OPERATING_HOURS, ...(hoursData || {}), weeklyHours: { ...DEFAULT_OPERATING_HOURS.weeklyHours, ...(hoursData?.weeklyHours || {}) } });
     } catch (error) {
       toast.error(error?.message || 'Failed to load course setup.');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const updateWeeklyHour = (day, changes) => setOperatingHours((current) => ({
+    ...current,
+    weeklyHours: { ...current.weeklyHours, [day]: { ...current.weeklyHours[day], ...changes } },
+  }));
+
+  const saveOperatingHours = async () => {
+    try {
+      setHoursSaving(true);
+      const saved = await updateOperatingHours(operatingHours);
+      setOperatingHours(saved);
+      toast.success('Operating hours saved.');
+    } catch (error) { toast.error(error?.message || 'Failed to save operating hours.'); }
+    finally { setHoursSaving(false); }
+  };
+
+  const selectOperatingDate = (date) => {
+    if (date < tomorrowKey) return;
+    setSelectedDate(date);
+    setOverrideForm(operatingHours.dateOverrides?.[date] || { ...DEFAULT_OPERATING_HOURS.weeklyHours['1'] });
+  };
+
+  const saveDateOverride = () => {
+    if (selectedDate < tomorrowKey) return toast.error('Custom operating hours can only be set from tomorrow onward.');
+    setOperatingHours((current) => ({ ...current, dateOverrides: { ...current.dateOverrides, [selectedDate]: { ...overrideForm } } }));
+    toast.success(`${selectedDate} customization added.`);
+  };
+
+  const removeOverride = (date) => setOperatingHours((current) => {
+    const next = { ...current.dateOverrides };
+    delete next[date];
+    return { ...current, dateOverrides: next };
+  });
+
+  const monthDays = React.useMemo(() => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const first = new Date(year, month - 1, 1);
+    const days = Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) => index + 1);
+    return { offset: first.getDay(), days, year, month };
+  }, [selectedMonth]);
+
+  const formatDate = (day) => `${monthDays.year}-${String(monthDays.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  const updateDefaultHours = (changes) => setOperatingHours((current) => ({
+    ...current,
+    weeklyHours: Object.fromEntries(WEEKDAYS.map((_, index) => [String(index), { ...current.weeklyHours[String(index)], ...changes, isClosed: false }])),
+  }));
 
   React.useEffect(() => {
     loadData();
@@ -508,6 +594,45 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <CardTitle>Operating Hours</CardTitle>
+                    <CardDescription>
+                      The system baseline for rentals, bookings, schedules, and excess-time calculations. Times use Asia/Manila.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Card>
+                  <CardHeader><CardTitle>Default operating hours</CardTitle><CardDescription>Applied to dates without a customization. The default is 8:00 AM–5:00 PM.</CardDescription></CardHeader>
+                  <CardContent><div className="grid max-w-xl grid-cols-2 gap-3"><div><Label htmlFor="default-start">Starting time</Label><select id="default-start" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={operatingHours.weeklyHours['1']?.startTime || '08:00'} onChange={(event) => updateDefaultHours({ startTime: event.target.value })}>{TIME_OPTIONS.map((time) => <option key={time} value={time}>{formatTimeOption(time)}</option>)}</select></div><div><Label htmlFor="default-end">Ending time</Label><select id="default-end" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={operatingHours.weeklyHours['1']?.endTime || '17:00'} onChange={(event) => updateDefaultHours({ endTime: event.target.value })}>{TIME_OPTIONS.map((time) => <option key={time} value={time}>{formatTimeOption(time)}</option>)}</select></div></div><p className="mt-3 text-xs text-muted-foreground">Changes become active tomorrow. Today keeps its current operating hours.</p><Button className="mt-4" onClick={saveOperatingHours} disabled={hoursSaving}>{hoursSaving && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}Save default hours</Button></CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader><CardTitle>Customize a date</CardTitle><CardDescription>Choose tomorrow or a future date, then set its special hours or mark it closed.</CardDescription></CardHeader>
+                  <CardContent><div className="space-y-4"><div className="flex items-center justify-between gap-3"><div><Label htmlFor="custom-month">Calendar month</Label><p className="text-sm text-muted-foreground">Select tomorrow or a future date.</p></div><Input id="custom-month" className="w-auto" type="month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} /></div><div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">{WEEKDAYS.map((day) => <div key={day} className="py-2">{day.slice(0, 3)}</div>)}{Array.from({ length: monthDays.offset }).map((_, index) => <div key={`empty-${index}`} />)}{monthDays.days.map((day) => { const date = formatDate(day); const unavailable = date < tomorrowKey; const customized = Boolean(operatingHours.dateOverrides?.[date]); return <button key={date} type="button" disabled={unavailable} onClick={() => selectOperatingDate(date)} className={`min-h-10 rounded-md border p-2 text-sm transition ${unavailable ? 'cursor-not-allowed bg-muted text-muted-foreground/50' : selectedDate === date ? 'border-primary bg-primary text-primary-foreground' : customized ? 'border-amber-400 bg-amber-50 text-amber-900' : 'hover:bg-muted'}`}>{day}</button>; })}</div><p className="text-sm font-medium">Selected date: {selectedDate}</p><div className="grid max-w-2xl gap-4 md:grid-cols-3 md:items-end"><div><Label htmlFor="selected-start">Starting time</Label><select id="selected-start" disabled={overrideForm.isClosed} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" value={overrideForm.startTime} onChange={(event) => setOverrideForm({ ...overrideForm, startTime: event.target.value })}>{TIME_OPTIONS.map((time) => <option key={time} value={time}>{formatTimeOption(time)}</option>)}</select></div><div><Label htmlFor="selected-end">Ending time</Label><select id="selected-end" disabled={overrideForm.isClosed} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" value={overrideForm.endTime} onChange={(event) => setOverrideForm({ ...overrideForm, endTime: event.target.value })}>{TIME_OPTIONS.map((time) => <option key={time} value={time}>{formatTimeOption(time)}</option>)}</select></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={overrideForm.isClosed} onChange={(event) => setOverrideForm({ ...overrideForm, isClosed: event.target.checked })} /> Closed</label></div><Button className="mt-4" type="button" onClick={saveDateOverride}>Save date customization</Button></div></CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader><CardTitle className="text-base">Customized dates only</CardTitle><CardDescription>These dates override the default 8:00 AM–5:00 PM schedule.</CardDescription></CardHeader>
+                  <CardContent>{Object.keys(operatingHours.dateOverrides || {}).length === 0 ? <p className="text-sm text-muted-foreground">No customized dates yet.</p> : <div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Operating hours</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{Object.entries(operatingHours.dateOverrides).sort(([a], [b]) => a.localeCompare(b)).map(([date, entry]) => <TableRow key={date}><TableCell className="font-medium">{date}</TableCell><TableCell>{entry.isClosed ? 'Closed' : `${entry.startTime} – ${entry.endTime}`}</TableCell><TableCell className="text-right"><Button type="button" variant="ghost" size="sm" onClick={() => removeOverride(date)}>Remove</Button></TableCell></TableRow>)}</TableBody></Table></div>}</CardContent>
+                </Card>
+                <div className="hidden">
+                  <div><h3 className="font-medium">Date-specific overrides and closures</h3><p className="text-sm text-muted-foreground">Use these for holidays, special events, or extended hours. An override replaces that day’s weekly hours.</p></div>
+                  <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+                    <div><Label htmlFor="override-date">Date</Label><Input id="override-date" type="date" value={selectedDate} onChange={(event) => selectOperatingDate(event.target.value)} /></div>
+                    <div><Label htmlFor="override-start">Open</Label><Input id="override-start" type="time" disabled={overrideForm.isClosed} value={overrideForm.startTime} onChange={(event) => setOverrideForm({ ...overrideForm, startTime: event.target.value })} /></div>
+                    <div><Label htmlFor="override-end">Close</Label><Input id="override-end" type="time" disabled={overrideForm.isClosed} value={overrideForm.endTime} onChange={(event) => setOverrideForm({ ...overrideForm, endTime: event.target.value })} /></div>
+                    <div className="flex items-center gap-3"><label className="flex items-center gap-2 text-sm whitespace-nowrap"><input type="checkbox" checked={overrideForm.isClosed} onChange={(event) => setOverrideForm({ ...overrideForm, isClosed: event.target.checked })} /> Closed</label><Button type="button" variant="outline" onClick={saveDateOverride}>Add</Button></div>
+                  </div>
+                  {Object.keys(operatingHours.dateOverrides || {}).length > 0 && <div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Hours</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{Object.entries(operatingHours.dateOverrides).sort(([a], [b]) => a.localeCompare(b)).map(([date, entry]) => <TableRow key={date}><TableCell className="font-medium">{date}</TableCell><TableCell>{entry.isClosed ? 'Closed' : `${entry.startTime} – ${entry.endTime}`}</TableCell><TableCell className="text-right"><Button type="button" variant="ghost" size="sm" onClick={() => removeOverride(date)}>Remove</Button></TableCell></TableRow>)}</TableBody></Table></div>}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <div className="space-y-1">

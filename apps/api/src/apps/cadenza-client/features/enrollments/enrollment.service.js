@@ -5,6 +5,8 @@ import {
 } from '../../../../common/errors/appError.js';
 
 import { enrollmentRepository } from './enrollment.repository.js';
+import { settingsRepository } from '../settings/settings.repository.js';
+import { assertWithinOperatingHours } from '../settings/operating-hours.js';
 
 function getDayOfWeek(date) {
   const day = date.getDay();
@@ -778,6 +780,7 @@ export const enrollmentService = {
     }
 
     const validatedSessions = [];
+    const operatingHours = await settingsRepository.findOperatingHours(appId);
 
     for (const session of data.sessions) {
       const validated =
@@ -787,6 +790,12 @@ export const enrollmentService = {
           session,
           courseId,
         );
+
+      try {
+        assertWithinOperatingHours(operatingHours, validated.startsAt, validated.endsAt);
+      } catch (error) {
+        throw new BadRequestError(error.message);
+      }
 
       validatedSessions.push({
         instructorId:
@@ -882,13 +891,20 @@ export const enrollmentService = {
       );
     }
 
+    const operatingHours = await settingsRepository.findOperatingHours(appId);
+
     for (const session of data.sessions) {
-      await this.validateSession(
+      const validated = await this.validateSession(
         appId,
         packageItem,
         session,
         courseId,
       );
+      try {
+        assertWithinOperatingHours(operatingHours, validated.startsAt, validated.endsAt);
+      } catch (error) {
+        throw new BadRequestError(error.message);
+      }
     }
 
     return { valid: true, courseId, configuredCourseCount: configuredLessons.length };

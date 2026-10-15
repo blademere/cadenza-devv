@@ -1,6 +1,14 @@
 import { settingsService } from './settings.service.js';
 
 export const settingsController = {
+  async getOperatingHours(req, res, next) {
+    try { return res.json({ success: true, data: await settingsService.getOperatingHours(req.cadenzaApp.id) }); } catch (error) { next(error); }
+  },
+
+  async updateOperatingHours(req, res, next) {
+    try { return res.json({ success: true, message: 'Operating hours saved successfully.', data: await settingsService.updateOperatingHours(req.cadenzaApp.id, req.body) }); } catch (error) { next(error); }
+  },
+
   async getItemCategories(req, res, next) {
     try {
       const data = await settingsService.getItemCategories(req.cadenzaApp.id);

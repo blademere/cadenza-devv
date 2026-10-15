@@ -5,6 +5,8 @@ import {
 } from '../../../../common/errors/appError.js';
 
 import * as repository from './room-booking.repository.js';
+import { assertWithinOperatingHours } from '../settings/operating-hours.js';
+import { settingsRepository } from '../settings/settings.repository.js';
 
 const validateSchedule = (scheduledStart, scheduledEnd) => {
   const start = new Date(scheduledStart);
@@ -20,6 +22,10 @@ const validateSchedule = (scheduledStart, scheduledEnd) => {
     throw new BadRequestError(
       'scheduledEnd must be later than scheduledStart.',
     );
+  }
+
+  if (end.getTime() - start.getTime() < 60 * 60 * 1000) {
+    throw new BadRequestError('Room bookings must be at least 1 hour.');
   }
 
   return {
@@ -104,6 +110,7 @@ const create = async ({
     scheduledStart,
     scheduledEnd,
   );
+  try { assertWithinOperatingHours(await settingsRepository.findOperatingHours(appId), schedule.scheduledStart, schedule.scheduledEnd); } catch (error) { throw new BadRequestError(error.message); }
 
   const [customer, room] = await Promise.all([
     repository.findCustomerById(customerId, appId),

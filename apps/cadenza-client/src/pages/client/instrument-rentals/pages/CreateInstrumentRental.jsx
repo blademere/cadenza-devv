@@ -8,6 +8,7 @@ import {
   ShoppingCartIcon,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getHoursForDate, getOperatingHours } from '@/services/operatingHoursService';
 
 import {
   checkInstrumentAvailability,
@@ -44,8 +45,8 @@ const getDurationHours = (schedule) => {
   return (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 };
 
-const getEstimate = (instrument, schedule) => {
-  const durationHours = getDurationHours(schedule);
+const getEstimate = (instrument, schedule, operationalDurationHours = null) => {
+  const durationHours = operationalDurationHours ?? getDurationHours(schedule);
 
   const billableHours = durationHours
     ? Math.max(MINIMUM_RENTAL_HOURS, Math.ceil(durationHours))
@@ -103,6 +104,116 @@ export default function CreateInstrumentRental() {
 
   const timeOptions = useMemo(() => getTimeOptions(), []);
 
+  const getDateKey = (value = new Date()) => {
+    const date = value instanceof Date ? value : new Date(`${value}T00:00:00`);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const getOperationalDurationHours = (schedule) => {
+    if (!schedule?.start || !schedule?.end) return 0;
+    const start = new Date(schedule.start);
+    const end = new Date(schedule.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
+
+    let totalMinutes = 0;
+    const day = new Date(start);
+    day.setHours(0, 0, 0, 0);
+    const lastDay = new Date(end);
+    lastDay.setHours(0, 0, 0, 0);
+    for (let index = 0; index < 370 && day <= lastDay; index += 1) {
+      const hours = getHoursForDate(operatingHours, day);
+      if (hours && !hours.isClosed) {
+        const opening = new Date(day);
+        const closing = new Date(day);
+        const [openHour, openMinute] = hours.startTime.split(':').map(Number);
+        const [closeHour, closeMinute] = hours.endTime.split(':').map(Number);
+        opening.setHours(openHour, openMinute, 0, 0);
+        closing.setHours(closeHour, closeMinute, 0, 0);
+        const overlapStart = Math.max(start.getTime(), opening.getTime());
+        const overlapEnd = Math.min(end.getTime(), closing.getTime());
+        if (overlapEnd > overlapStart) totalMinutes += (overlapEnd - overlapStart) / (1000 * 60);
+      }
+      day.setDate(day.getDate() + 1);
+    }
+    return totalMinutes / 60;
+  };
+
+  const getDateTimeOptions = (date, isStart, minimumTime = null) => {
+    const hours = getHoursForDate(operatingHours, date || new Date());
+    if (hours?.isClosed) return [];
+    const open = hours?.startTime || '08:00';
+    const close = hours?.endTime || '17:00';
+    const toMinutes = (value) => value.split(':').map(Number).reduce((total, part, index) => total + part * (index ? 1 : 60), 0);
+    let minimum = Math.max(toMinutes(open), minimumTime ? toMinutes(minimumTime) : 0);
+    if (isStart && date === getDateKey()) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      // Always block the current half-hour slot. At 9:00 or 9:29, the first
+      // available start is 9:30; at 9:30, it is 10:00.
+      minimum = Math.max(minimum, (Math.floor(currentMinutes / 30) + 1) * 30);
+    }
+    const latestStart = toMinutes(close) - 30;
+    return timeOptions.filter((option) => toMinutes(option.value) >= minimum && toMinutes(option.value) <= (isStart ? latestStart : toMinutes(close)));
+  };
+
+  const getEightHourReturn = (date, time) => {
+    let cursor = new Date(`${date}T${time}:00`);
+    let remainingMinutes = MINIMUM_RENTAL_HOURS * 60;
+
+    for (let index = 0; index < 370 && remainingMinutes > 0; index += 1) {
+      const hours = getHoursForDate(operatingHours, cursor);
+      if (!hours || hours.isClosed) {
+        cursor.setDate(cursor.getDate() + 1);
+        cursor.setHours(0, 0, 0, 0);
+        continue;
+      }
+      const opening = new Date(cursor);
+      const closing = new Date(cursor);
+      const [openHour, openMinute] = hours.startTime.split(':').map(Number);
+      const [closeHour, closeMinute] = hours.endTime.split(':').map(Number);
+      opening.setHours(openHour, openMinute, 0, 0);
+      closing.setHours(closeHour, closeMinute, 0, 0);
+      if (cursor < opening) cursor = opening;
+      if (cursor >= closing) {
+        cursor.setDate(cursor.getDate() + 1);
+        cursor.setHours(0, 0, 0, 0);
+        continue;
+      }
+      const availableMinutes = Math.floor((closing.getTime() - cursor.getTime()) / (1000 * 60));
+      const consumedMinutes = Math.min(availableMinutes, remainingMinutes);
+      cursor = new Date(cursor.getTime() + consumedMinutes * 60 * 1000);
+      remainingMinutes -= consumedMinutes;
+      if (remainingMinutes > 0) {
+        cursor.setDate(cursor.getDate() + 1);
+        cursor.setHours(0, 0, 0, 0);
+      }
+    }
+
+    return { date: getDateKey(cursor), time: `${String(cursor.getHours()).padStart(2, '0')}:${String(cursor.getMinutes()).padStart(2, '0')}` };
+  };
+
+  const isDateBlocked = (date) => {
+    if (!date) return false;
+    const hours = getHoursForDate(operatingHours, date);
+    if (hours?.isClosed) return true;
+    if (date !== getDateKey()) return false;
+    const now = new Date();
+    const [hour, minute] = (hours?.endTime || '17:00').split(':').map(Number);
+    const closing = new Date(now); closing.setHours(hour, minute, 0, 0);
+    return now >= closing;
+  };
+
+  const isRentalStartWithinHours = (schedule) => {
+    const start = new Date(schedule.start);
+    const hours = getHoursForDate(operatingHours, schedule.rentalDate);
+    if (!schedule.start || Number.isNaN(start.getTime()) || hours?.isClosed) return false;
+    const [openHour, openMinute] = (hours?.startTime || '08:00').split(':').map(Number);
+    const [closeHour, closeMinute] = (hours?.endTime || '17:00').split(':').map(Number);
+    const opening = new Date(start); opening.setHours(openHour, openMinute, 0, 0);
+    const closing = new Date(start); closing.setHours(closeHour, closeMinute, 0, 0);
+    return start >= opening && start < closing;
+  };
+
   const [instruments, setInstruments] = useState([]);
   const [schedules, setSchedules] = useState({});
   const [availability, setAvailability] = useState({});
@@ -111,6 +222,11 @@ export default function CreateInstrumentRental() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [operatingHours, setOperatingHours] = useState(null);
+
+  useEffect(() => {
+    getOperatingHours().then(setOperatingHours).catch(() => setOperatingHours(null));
+  }, []);
 
   useEffect(() => {
     const loadInstruments = async () => {
@@ -191,6 +307,11 @@ export default function CreateInstrumentRental() {
         [field]: value,
       };
 
+      if (field === 'rentalDate' && updatedSchedule.returnDate && updatedSchedule.returnDate < value) {
+        updatedSchedule.returnDate = '';
+        updatedSchedule.endTime = '';
+      }
+
       const rentalDate =
         field === 'rentalDate'
           ? value
@@ -235,6 +356,34 @@ export default function CreateInstrumentRental() {
     setError('');
   };
 
+  const handleRentalDateChange = (id, field, value) => {
+    const currentSchedule = schedules[id] || {};
+    if (field === 'returnDate' && currentSchedule.rentalDate && value < currentSchedule.rentalDate) {
+      updateSchedule(id, field, '');
+      return;
+    }
+    if (isDateBlocked(value)) {
+      updateSchedule(id, field, '');
+      return;
+    }
+    updateSchedule(id, field, value);
+    if (field === 'rentalDate' && currentSchedule.startTime) {
+      const automaticReturn = getEightHourReturn(value, currentSchedule.startTime);
+      updateSchedule(id, 'returnDate', automaticReturn.date);
+      updateSchedule(id, 'endTime', automaticReturn.time);
+    }
+  };
+
+  const handleRentalStartTimeChange = (id, value) => {
+    updateSchedule(id, 'startTime', value);
+    const schedule = schedules[id] || {};
+    if (schedule.rentalDate && value) {
+      const automaticReturn = getEightHourReturn(schedule.rentalDate, value);
+      updateSchedule(id, 'returnDate', automaticReturn.date);
+      updateSchedule(id, 'endTime', automaticReturn.time);
+    }
+  };
+
   const checkAvailability = async (instrument) => {
     const schedule = schedules[instrument.id];
 
@@ -253,7 +402,12 @@ export default function CreateInstrumentRental() {
       return false;
     }
 
-    const durationHours = getDurationHours(schedule);
+    const durationHours = getOperationalDurationHours(schedule);
+
+    if (!isRentalStartWithinHours(schedule)) {
+      setError(`${getName(instrument)} must be scheduled within the facility operating hours.`);
+      return false;
+    }
 
     if (durationHours < MINIMUM_RENTAL_HOURS) {
       setError(
@@ -344,8 +498,12 @@ export default function CreateInstrumentRental() {
         return;
       }
 
-      const durationHours =
-        getDurationHours(schedule);
+      const durationHours = getOperationalDurationHours(schedule);
+
+      if (!isRentalStartWithinHours(schedule)) {
+        setError(`${getName(instrument)} must be scheduled within the facility operating hours.`);
+        return;
+      }
 
       if (durationHours < MINIMUM_RENTAL_HOURS) {
         setError(
@@ -420,6 +578,7 @@ export default function CreateInstrumentRental() {
       getEstimate(
         instrument,
         schedules[instrument.id],
+        getOperationalDurationHours(schedules[instrument.id]),
       ).total,
     0,
   );
@@ -518,12 +677,21 @@ export default function CreateInstrumentRental() {
               getEstimate(
                 instrument,
                 schedule,
+                getOperationalDurationHours(schedule),
               );
 
             const isAvailable =
               availability[
                 instrument.id
               ] === true;
+            const startOptions = getDateTimeOptions(schedule.rentalDate, true);
+            const automaticReturn = schedule.rentalDate && schedule.startTime
+              ? getEightHourReturn(schedule.rentalDate, schedule.startTime)
+              : null;
+            const minimumReturnTime = automaticReturn && schedule.returnDate === automaticReturn.date
+              ? automaticReturn.time
+              : null;
+            const endOptions = getDateTimeOptions(schedule.returnDate, false, minimumReturnTime);
 
             return (
               <section
@@ -581,8 +749,8 @@ export default function CreateInstrumentRental() {
                         schedule.rentalDate ||
                         ''
                       }
-                      onChange={(event) =>
-                        updateSchedule(
+                        onChange={(event) =>
+                        handleRentalDateChange(
                           instrument.id,
                           'rentalDate',
                           event.target.value,
@@ -608,9 +776,8 @@ export default function CreateInstrumentRental() {
                         ''
                       }
                       onChange={(event) =>
-                        updateSchedule(
+                        handleRentalStartTimeChange(
                           instrument.id,
-                          'startTime',
                           event.target.value,
                         )
                       }
@@ -620,7 +787,7 @@ export default function CreateInstrumentRental() {
                         Select start time
                       </option>
 
-                      {timeOptions.map(
+                      {startOptions.map(
                         (option) => (
                           <option
                             key={
@@ -653,7 +820,7 @@ export default function CreateInstrumentRental() {
                         ''
                       }
                       onChange={(event) =>
-                        updateSchedule(
+                        handleRentalDateChange(
                           instrument.id,
                           'returnDate',
                           event.target.value,
@@ -694,7 +861,7 @@ export default function CreateInstrumentRental() {
                         Select return time
                       </option>
 
-                      {timeOptions.map(
+                      {endOptions.map(
                         (option) => (
                           <option
                             key={
@@ -799,6 +966,7 @@ export default function CreateInstrumentRental() {
                         schedules[
                           instrument.id
                         ],
+                        getOperationalDurationHours(schedules[instrument.id]),
                       ).total,
                     )}
                   </span>

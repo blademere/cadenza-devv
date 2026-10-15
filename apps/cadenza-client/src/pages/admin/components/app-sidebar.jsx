@@ -58,11 +58,11 @@ const data = {
       url: "/admin/courses",
       icon: <MusicIcon />,
     },
-    {
+    /*{
       title: "Class Schedule",
       url: "/admin/schedule",
       icon: <CalendarDaysIcon />,
-    },
+    },*/
 
     // Resources
     {

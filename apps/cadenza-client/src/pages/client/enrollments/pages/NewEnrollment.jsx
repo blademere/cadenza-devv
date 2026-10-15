@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import useAuth from '@/core/auth/useAuth';
+import { getOperatingHours, isWithinOperatingHours } from '@/services/operatingHoursService';
 
 import {
   getAvailablePackages,
@@ -45,6 +46,11 @@ export default function NewEnrollment() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [operatingHours, setOperatingHours] = useState(null);
+
+  useEffect(() => {
+    getOperatingHours().then(setOperatingHours).catch(() => setOperatingHours(null));
+  }, []);
 
   useEffect(() => {
     const handlePaymentComplete = (event) => {
@@ -307,6 +313,19 @@ export default function NewEnrollment() {
     const dayOfWeek = getDayOfWeekFromDate(value);
     const firstRule = firstSelectedRule;
 
+    if (firstRule && selectedPackage?.sessionDurationMinutes) {
+      const startHour = Math.floor(firstRule.startMinute / 60);
+      const startMinute = firstRule.startMinute % 60;
+      const sessionStart = new Date(`${value}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`);
+      const sessionEnd = new Date(sessionStart.getTime() + Number(selectedPackage.sessionDurationMinutes) * 60000);
+      if (!isWithinOperatingHours(operatingHours, sessionStart, sessionEnd)) {
+        setStartDate('');
+        setStartTime('');
+        setError('');
+        return;
+      }
+    }
+
     if (!firstRule || firstRule.dayOfWeek !== dayOfWeek) {
       setStartDate(value);
       setStartTime('');
@@ -493,6 +512,10 @@ export default function NewEnrollment() {
         const sessionEnd = new Date(
           sessionStart.getTime() + sessionDuration * 60 * 1000,
         );
+
+        if (!isWithinOperatingHours(operatingHours, sessionStart, sessionEnd)) {
+          throw new Error('One or more lesson sessions fall outside the facility operating hours.');
+        }
 
         if (
           sessionStart.getHours() * 60 + sessionStart.getMinutes() <

@@ -1,0 +1,13 @@
+model CadenzaOperatingHours {
+  id            String   @id @default(uuid())
+  appId         String   @unique
+  weeklyHours   Json
+  previousWeeklyHours Json?
+  defaultEffectiveFrom DateTime?
+  dateOverrides Json
+  timezone      String   @default("Asia/Manila")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+}

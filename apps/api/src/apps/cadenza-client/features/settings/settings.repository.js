@@ -3,6 +3,18 @@ import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 const prisma = getPrismaClient();
 
 export const settingsRepository = {
+  findOperatingHours(appId) {
+    return prisma.cadenzaOperatingHours.findUnique({ where: { appId } });
+  },
+
+  upsertOperatingHours(appId, data) {
+    return prisma.cadenzaOperatingHours.upsert({
+      where: { appId },
+      create: { appId, ...data },
+      update: data,
+    });
+  },
+
   findItemCategories(appId) {
     return prisma.cadenzaItemCategory.findMany({
       where: { appId },

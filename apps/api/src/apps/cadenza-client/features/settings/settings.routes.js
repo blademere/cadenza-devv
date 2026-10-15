@@ -1,9 +1,12 @@
 import { Router } from 'express';
 
-import { requireAdmin } from '../auth/authorization.js';
+import { requireAdmin, requireClientOrStaff } from '../auth/authorization.js';
 import { settingsController } from './settings.controller.js';
 
 const router = Router();
+
+router.get('/operating-hours', requireClientOrStaff, settingsController.getOperatingHours);
+router.put('/operating-hours', requireAdmin, settingsController.updateOperatingHours);
 
 router.get(
   '/item-categories',

@@ -4,6 +4,18 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import BookingSummary from '../components/BookingSummary';
 import roomBookingService from '../services/roomBookingsService';
+import { getHoursForDate, getOperatingHours, isWithinOperatingHours } from '@/services/operatingHoursService';
+
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const hour = Math.floor(index / 2);
+  const minute = index % 2 === 0 ? '00' : '30';
+  const value = `${String(hour).padStart(2, '0')}:${minute}`;
+  return { value, label: `${hour % 12 || 12}:${minute} ${hour < 12 ? 'AM' : 'PM'}` };
+});
+const timeToMinutes = (value) => {
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+};
 
 export default function CreateRoomBooking() {
   const navigate = useNavigate();
@@ -22,6 +34,41 @@ export default function CreateRoomBooking() {
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState('');
   const [error, setError] = useState('');
+  const [operatingHours, setOperatingHours] = useState(null);
+
+  const selectedOperatingHours = getHoursForDate(operatingHours, date || new Date());
+  const openTime = selectedOperatingHours?.startTime || '08:00';
+  const closeTime = selectedOperatingHours?.endTime || '17:00';
+  const availableStartTimes = selectedOperatingHours?.isClosed ? [] : TIME_OPTIONS.filter((time) => timeToMinutes(time.value) >= timeToMinutes(openTime) && timeToMinutes(time.value) <= timeToMinutes(closeTime) - 60);
+  const availableEndTimes = selectedOperatingHours?.isClosed ? [] : TIME_OPTIONS.filter((time) => timeToMinutes(time.value) >= timeToMinutes(startTime || openTime) + 60 && timeToMinutes(time.value) <= timeToMinutes(closeTime));
+
+  const localToday = new Date();
+  const todayKey = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, '0')}-${String(localToday.getDate()).padStart(2, '0')}`;
+  const todayOperatingHours = getHoursForDate(operatingHours, localToday);
+  const todayPastClosing = (() => {
+    const [closingHour, closingMinute] = (todayOperatingHours?.endTime || '17:00').split(':').map(Number);
+    const closing = new Date(localToday);
+    closing.setHours(closingHour, closingMinute, 0, 0);
+    return todayOperatingHours?.isClosed || localToday >= closing;
+  })();
+  const isSelectedDateClosedForToday = date === todayKey && (() => {
+    const now = new Date();
+    const [closingHour, closingMinute] = closeTime.split(':').map(Number);
+    const closing = new Date(now);
+    closing.setHours(closingHour, closingMinute, 0, 0);
+    return selectedOperatingHours?.isClosed || now >= closing;
+  })();
+  const currentStartCutoff = date === todayKey ? (() => {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    // Block the current half-hour slot. At 9:00-9:29, the first start is 9:30.
+    return (Math.floor(currentMinutes / 30) + 1) * 30;
+  })() : 0;
+  const selectableStartTimes = availableStartTimes.filter((time) => timeToMinutes(time.value) >= currentStartCutoff);
+
+  useEffect(() => {
+    getOperatingHours().then(setOperatingHours).catch(() => setOperatingHours(null));
+  }, []);
 
   const isValidTime = (time) => {
     if (!time) {
@@ -53,18 +100,31 @@ export default function CreateRoomBooking() {
         return;
       }
 
-      if (endTime <= startTime) {
+    if (timeToMinutes(endTime) < timeToMinutes(startTime) + 60) {
         setAvailableRooms([]);
         setRoom(null);
+        return;
+      }
+
+      if (isSelectedDateClosedForToday) {
+        setAvailableRooms([]);
+        setRoom(null);
+        setError('The current day is no longer available because operating hours have ended.');
+        return;
+      }
+
+      const scheduledStart = `${date}T${startTime}:00`;
+      const scheduledEnd = `${date}T${endTime}:00`;
+      if (!isWithinOperatingHours(operatingHours, scheduledStart, scheduledEnd)) {
+        setAvailableRooms([]);
+        setRoom(null);
+        setError('The selected booking must be within the facility operating hours.');
         return;
       }
 
       try {
         setChecking(true);
         setError('');
-
-        const scheduledStart = `${date}T${startTime}:00`;
-        const scheduledEnd = `${date}T${endTime}:00`;
 
         const rooms = await roomBookingService.getAvailableRooms(
           scheduledStart,
@@ -106,7 +166,7 @@ export default function CreateRoomBooking() {
     }
 
     checkAvailability();
-  }, [date, startTime, endTime, roomId]);
+  }, [date, startTime, endTime, roomId, operatingHours]);
 
   useEffect(() => {
     const handlePaymentComplete = (event) => {
@@ -135,11 +195,42 @@ export default function CreateRoomBooking() {
     }
   }, [room]);
 
+  const handleDateChange = (event) => {
+    const nextDate = event.target.value;
+    const nextHours = getHoursForDate(operatingHours, nextDate);
+    const nextIsToday = nextDate === todayKey;
+    const now = new Date();
+    const [closingHour, closingMinute] = (nextHours?.endTime || '17:00').split(':').map(Number);
+    const closing = new Date(now);
+    closing.setHours(closingHour, closingMinute, 0, 0);
+    if (nextIsToday && todayPastClosing) {
+      setDate('');
+      setStartTime('');
+      setEndTime('');
+      setRoom(null);
+      setAvailableRooms([]);
+      setError('');
+      return;
+    }
+
+    setDate(nextDate);
+    setStartTime('');
+    setEndTime('');
+    setRoom(null);
+    setAvailableRooms([]);
+    setError(nextHours?.isClosed ? 'The facility is closed on the selected date.' : nextIsToday && now >= closing ? 'The current day is no longer available because operating hours have ended.' : '');
+  };
+
   const handleStartTimeChange = (event) => {
     const value = event.target.value;
 
     if (!value || isValidTime(value)) {
       setStartTime(value);
+      if (value && timeToMinutes(value) + 60 <= timeToMinutes(closeTime)) {
+        setEndTime(closeTime);
+      } else {
+        setEndTime('');
+      }
       setError('');
     }
   };
@@ -183,8 +274,13 @@ export default function CreateRoomBooking() {
       return;
     }
 
-    if (endTime <= startTime) {
-      setError('End time must be later than start time.');
+    if (timeToMinutes(endTime) < timeToMinutes(startTime) + 60) {
+      setError('Room bookings must be at least 1 hour.');
+      return;
+    }
+
+    if (!isWithinOperatingHours(operatingHours, `${date}T${startTime}:00`, `${date}T${endTime}:00`)) {
+      setError('The selected booking must be within the facility operating hours.');
       return;
     }
 
@@ -281,8 +377,8 @@ export default function CreateRoomBooking() {
                   id="date"
                   type="date"
                   value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                  onChange={handleDateChange}
+                  min={todayPastClosing ? new Date(localToday.getFullYear(), localToday.getMonth(), localToday.getDate() + 1).toISOString().split('T')[0] : todayKey}
                   className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>
@@ -300,21 +396,7 @@ export default function CreateRoomBooking() {
                 >
                   <option value="">Select start time</option>
 
-                  {Array.from({ length: 48 }, (_, index) => {
-                    const hours = Math.floor(index / 2);
-                    const minutes = index % 2 === 0 ? '00' : '30';
-
-                    const value = `${String(hours).padStart(2, '0')}:${minutes}`;
-
-                    const displayHour = hours % 12 || 12;
-                    const period = hours < 12 ? 'AM' : 'PM';
-
-                    return (
-                      <option key={value} value={value}>
-                        {displayHour}:{minutes} {period}
-                      </option>
-                    );
-                  })}
+                  {selectableStartTimes.map((time) => <option key={time.value} value={time.value}>{time.label}</option>)}
                 </select>
               </div>
 
@@ -331,21 +413,7 @@ export default function CreateRoomBooking() {
                 >
                   <option value="">Select end time</option>
 
-                  {Array.from({ length: 48 }, (_, index) => {
-                    const hours = Math.floor(index / 2);
-                    const minutes = index % 2 === 0 ? '00' : '30';
-
-                    const value = `${String(hours).padStart(2, '0')}:${minutes}`;
-
-                    const displayHour = hours % 12 || 12;
-                    const period = hours < 12 ? 'AM' : 'PM';
-
-                    return (
-                      <option key={value} value={value}>
-                        {displayHour}:{minutes} {period}
-                      </option>
-                    );
-                  })}
+                  {availableEndTimes.map((time) => <option key={time.value} value={time.value}>{time.label}</option>)}
                 </select>
               </div>
             </div>

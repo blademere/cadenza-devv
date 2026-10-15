@@ -5,6 +5,12 @@ import {
 } from '../../../../common/errors/appError.js';
 
 import { instrumentRentalsRepository } from './instrument-rentals.repository.js';
+import {
+  assertRentalStartWithinOperatingHours,
+  getOperationalEnd,
+  getOperationalMinutesBetween,
+} from '../settings/operating-hours.js';
+import { settingsRepository } from '../settings/settings.repository.js';
 
 // Individual instrument rates represent the minimum charge for this period.
 const MINIMUM_RENTAL_HOURS = 8;
@@ -15,11 +21,13 @@ const RETURN_CONDITIONS = [
   { value: 'LOST', label: 'Lost / not returned', damageFee: 5000 },
 ];
 
-const calculateExcessCharge = (rental, returnedAt) => {
+const calculateExcessCharge = (rental, returnedAt, operatingHours) => {
   const expectedReturnAt = new Date(rental.scheduledEnd);
+  const operationalEnd = getOperationalEnd(operatingHours, expectedReturnAt);
+  const billableReturnedAt = operationalEnd && returnedAt > operationalEnd ? operationalEnd : returnedAt;
   const lateMinutes = Math.max(
     0,
-    Math.ceil((returnedAt.getTime() - expectedReturnAt.getTime()) / (1000 * 60)),
+    Math.ceil((billableReturnedAt.getTime() - expectedReturnAt.getTime()) / (1000 * 60)),
   );
   const excessHours = lateMinutes > 0 ? Math.ceil(lateMinutes / 60) : 0;
   const instrumentRate = (rental.items || []).reduce(
@@ -37,7 +45,7 @@ const calculateExcessCharge = (rental, returnedAt) => {
   };
 };
 
-const validateSchedule = (scheduledStart, scheduledEnd) => {
+const validateSchedule = (scheduledStart, scheduledEnd, operatingHours = null) => {
   const start = new Date(scheduledStart);
   const end = new Date(scheduledEnd);
 
@@ -53,7 +61,9 @@ const validateSchedule = (scheduledStart, scheduledEnd) => {
     );
   }
 
-  const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  const durationHours = operatingHours
+    ? getOperationalMinutesBetween(operatingHours, start, end) / 60
+    : (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
   if (durationHours < MINIMUM_RENTAL_HOURS) {
     throw new BadRequestError(
@@ -203,7 +213,8 @@ export const instrumentRentalsService = {
       throw new BadRequestError('Return time cannot be earlier than the rental start time.');
     }
 
-    const excess = calculateExcessCharge(rental, returnedAt);
+    const operatingHours = await settingsRepository.findOperatingHours(appId);
+    const excess = calculateExcessCharge(rental, returnedAt, operatingHours);
     const baseRentalAmount = Number(
       rental.metadata?.baseRentalAmount ?? rental.totalAmount ?? 0,
     );
@@ -330,7 +341,9 @@ export const instrumentRentalsService = {
       return instruments;
     }
 
-    const schedule = validateSchedule(scheduledStart, scheduledEnd);
+    const operatingHours = await settingsRepository.findOperatingHours(appId);
+    const schedule = validateSchedule(scheduledStart, scheduledEnd, operatingHours);
+    try { assertRentalStartWithinOperatingHours(operatingHours, schedule.scheduledStart); } catch (error) { throw new BadRequestError(error.message); }
 
     const instrumentIds = instruments.map((instrument) => instrument.id);
 
@@ -414,7 +427,9 @@ export const instrumentRentalsService = {
     scheduledStart,
     scheduledEnd,
   }) {
-    const schedule = validateSchedule(scheduledStart, scheduledEnd);
+    const operatingHours = await settingsRepository.findOperatingHours(appId);
+    const schedule = validateSchedule(scheduledStart, scheduledEnd, operatingHours);
+    try { assertRentalStartWithinOperatingHours(operatingHours, schedule.scheduledStart); } catch (error) { throw new BadRequestError(error.message); }
 
     const normalizedRentalType = normalizeRentalType(rentalType);
 

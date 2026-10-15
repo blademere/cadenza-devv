@@ -280,7 +280,7 @@ export default function InstrumentRentalsPage() {
                     <TableRow>
                       <TableHead>Instrument</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Rate (8 Hours Minimum)</TableHead>
+                      <TableHead>Rate (₱, 8 Hours Minimum)</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -311,19 +311,24 @@ export default function InstrumentRentalsPage() {
                             {getInstrumentCategory(instrument)}
                           </TableCell>
                           <TableCell>
-                            <Input
-                              className="w-32"
-                              type="number"
-                              min="0.01"
-                              step="0.01"
-                              value={rateDrafts[instrument.id] ?? ''}
-                              onChange={(event) =>
-                                updateRateDraft(
-                                  instrument.id,
-                                  event.target.value,
-                                )
-                              }
-                            />
+                            <div className="relative w-32">
+                              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
+                                ₱
+                              </span>
+                              <Input
+                                className="pl-7"
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={rateDrafts[instrument.id] ?? ''}
+                                onChange={(event) =>
+                                  updateRateDraft(
+                                    instrument.id,
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
