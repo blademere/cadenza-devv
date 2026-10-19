@@ -3,10 +3,13 @@ const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL ?? '/api/v1'}/cadenza-
 let accessToken = null;
 let csrfToken = null;
 let refreshHandler = null;
+let csrfRequestPromise = null;
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const CSRF_COOKIE_NAME = 'csrfToken';
 const CSRF_HEADER_NAME = 'x-csrf-token';
+const CSRF_ENDPOINT = '/auth/csrf';
+const REFRESH_ENDPOINT = '/auth/refresh';
 
 const getCookie = (name) => {
   if (typeof document === 'undefined') {
@@ -31,12 +34,22 @@ const getCookie = (name) => {
 };
 
 const getCsrfToken = () => {
+  // Prefer the in-memory token. The API is hosted on another domain,
+  // so its cookie may not be readable by the frontend.
   const cookieToken = getCookie(CSRF_COOKIE_NAME);
 
   if (cookieToken) {
     csrfToken = cookieToken;
-    return cookieToken;
   }
+
+  return csrfToken;
+};
+
+const setCsrfToken = (token) => {
+  csrfToken =
+    typeof token === 'string' && token.trim().length > 0
+      ? token
+      : null;
 
   return csrfToken;
 };
@@ -58,37 +71,6 @@ const isFormData = (body) => {
 
 const normalizeMethod = (method = 'GET') => method.toUpperCase();
 
-const addRequestHeaders = (options = {}) => {
-  const method = normalizeMethod(options.method);
-  const headers = new Headers(options.headers);
-  const body = options.body;
-
-  if (
-    body !== undefined &&
-    body !== null &&
-    !isFormData(body) &&
-    !headers.has('Content-Type')
-  ) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  if (accessToken) {
-    headers.set('Authorization', `Bearer ${accessToken}`);
-  }
-
-  if (!SAFE_METHODS.has(method)) {
-    const token = getCsrfToken();
-
-    if (token) {
-      headers.set(CSRF_HEADER_NAME, token);
-    } else {
-      headers.delete(CSRF_HEADER_NAME);
-    }
-  }
-
-  return { method, headers, body };
-};
-
 const parseResponse = async (response) => {
   if (response.status === 204) {
     return null;
@@ -108,17 +90,135 @@ const createApiError = (payload, status, fallbackMessage) => {
   return error;
 };
 
+const extractData = (payload) => {
+  // Supports APIs that return either { data: {...} } or the object directly.
+  return payload?.data ?? payload;
+};
+
+const isRefreshRequest = (path) => {
+  return path.replace(/\/+$/, '').endsWith(REFRESH_ENDPOINT);
+};
+
+const isCsrfRequest = (path) => {
+  return path.replace(/\/+$/, '').endsWith(CSRF_ENDPOINT);
+};
+
 const shouldRefresh = (response, path, allowRefresh) => {
   return (
     response.status === 401 &&
     allowRefresh &&
     typeof refreshHandler === 'function' &&
-    !path.endsWith('/auth/refresh')
+    !isRefreshRequest(path) &&
+    !isCsrfRequest(path)
   );
 };
 
+/**
+ * Fetch a CSRF token from the API.
+ *
+ * The backend must expose GET /auth/csrf, set the csrfToken cookie,
+ * and return { csrfToken } in its JSON response.
+ */
+const ensureCsrfToken = async ({ force = false } = {}) => {
+  if (!force && getCsrfToken()) {
+    return csrfToken;
+  }
+
+  if (csrfRequestPromise) {
+    return csrfRequestPromise;
+  }
+
+  csrfRequestPromise = (async () => {
+    const response = await fetch(`${API_BASE_URL}${CSRF_ENDPOINT}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const payload = await parseResponse(response);
+
+    if (!response.ok) {
+      throw createApiError(
+        payload,
+        response.status,
+        'Failed to obtain a CSRF token.',
+      );
+    }
+
+    const data = extractData(payload);
+    const token = data?.csrfToken;
+
+    if (typeof token !== 'string' || !token.trim()) {
+      throw new Error(
+        'The CSRF endpoint did not return a csrfToken. Check the backend response.',
+      );
+    }
+
+    setCsrfToken(token);
+
+    return token;
+  })();
+
+  try {
+    return await csrfRequestPromise;
+  } finally {
+    csrfRequestPromise = null;
+  }
+};
+
+const addRequestHeaders = (options = {}, tokenOverride = null) => {
+  const method = normalizeMethod(options.method);
+  const headers = new Headers(options.headers);
+  const body = options.body;
+
+  if (
+    body !== undefined &&
+    body !== null &&
+    !isFormData(body) &&
+    !headers.has('Content-Type')
+  ) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
+
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  if (!SAFE_METHODS.has(method)) {
+    const token = tokenOverride ?? getCsrfToken();
+
+    if (token) {
+      headers.set(CSRF_HEADER_NAME, token);
+    } else {
+      headers.delete(CSRF_HEADER_NAME);
+    }
+  }
+
+  return { method, headers, body };
+};
+
 const request = async (path, options = {}, allowRefresh = true) => {
-  const { method, headers, body } = addRequestHeaders(options);
+  const method = normalizeMethod(options.method);
+
+  // Obtain a token before unsafe requests. This is especially important
+  // when the frontend and API use different domains.
+  let tokenOverride = null;
+
+  if (
+    !SAFE_METHODS.has(method) &&
+    !isCsrfRequest(path) &&
+    !isRefreshRequest(path)
+  ) {
+    tokenOverride = await ensureCsrfToken();
+  }
+
+  const { headers, body } = addRequestHeaders(options, tokenOverride);
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -139,11 +239,77 @@ const request = async (path, options = {}, allowRefresh = true) => {
       }
     }
 
+    // Recover once if the server explicitly rejects the CSRF token.
+    // Do not loop indefinitely if the backend continues rejecting it.
+    const isCsrfError =
+      response.status === 400 &&
+      /csrf token (is missing|is invalid)|csrf/i.test(
+        payload?.message ?? '',
+      );
+
+    if (
+      isCsrfError &&
+      !SAFE_METHODS.has(method) &&
+      !isCsrfRequest(path) &&
+      !isRefreshRequest(path) &&
+      allowRefresh
+    ) {
+      setCsrfToken(null);
+
+      const newToken = await ensureCsrfToken({ force: true });
+      const retryHeaders = new Headers(options.headers);
+
+      if (
+        options.body !== undefined &&
+        options.body !== null &&
+        !isFormData(options.body) &&
+        !retryHeaders.has('Content-Type')
+      ) {
+        retryHeaders.set('Content-Type', 'application/json');
+      }
+
+      retryHeaders.set(CSRF_HEADER_NAME, newToken);
+
+      if (accessToken) {
+        retryHeaders.set('Authorization', `Bearer ${accessToken}`);
+      }
+
+      if (!retryHeaders.has('Accept')) {
+        retryHeaders.set('Accept', 'application/json');
+      }
+
+      const retryResponse = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        method,
+        headers: retryHeaders,
+        credentials: 'include',
+      });
+
+      const retryPayload = await parseResponse(retryResponse);
+
+      if (!retryResponse.ok) {
+        throw createApiError(
+          retryPayload,
+          retryResponse.status,
+          `API request failed with status ${retryResponse.status}`,
+        );
+      }
+
+      return retryPayload;
+    }
+
     throw createApiError(
       payload,
       response.status,
       `API request failed with status ${response.status}`,
     );
+  }
+
+  // Some endpoints may issue a fresh CSRF token.
+  const data = extractData(payload);
+
+  if (data?.csrfToken) {
+    setCsrfToken(data.csrfToken);
   }
 
   return payload;
@@ -199,11 +365,11 @@ export const apiClient = {
     csrfToken = null;
   },
 
-  setCsrfToken(token) {
-    csrfToken = token ?? null;
-  },
+  setCsrfToken,
 
   getCsrfToken,
+
+  ensureCsrfToken,
 
   setRefreshHandler(handler) {
     refreshHandler = typeof handler === 'function' ? handler : null;
