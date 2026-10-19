@@ -17,7 +17,6 @@ const getCookie = (name) => {
   }
 
   const prefix = `${encodeURIComponent(name)}=`;
-
   const cookie = document.cookie
     .split('; ')
     .find((value) => value.startsWith(prefix));
@@ -90,34 +89,24 @@ const createApiError = (payload, status, fallbackMessage) => {
   return error;
 };
 
-const extractData = (payload) => {
-  // Supports APIs that return either { data: {...} } or the object directly.
-  return payload?.data ?? payload;
-};
+const extractData = (payload) => payload?.data ?? payload;
 
-const isRefreshRequest = (path) => {
-  return path.replace(/\/+$/, '').endsWith(REFRESH_ENDPOINT);
-};
+const isRefreshRequest = (path) =>
+  path.replace(/\/+$/, '').endsWith(REFRESH_ENDPOINT);
 
-const isCsrfRequest = (path) => {
-  return path.replace(/\/+$/, '').endsWith(CSRF_ENDPOINT);
-};
+const isCsrfRequest = (path) =>
+  path.replace(/\/+$/, '').endsWith(CSRF_ENDPOINT);
 
-const shouldRefresh = (response, path, allowRefresh) => {
-  return (
-    response.status === 401 &&
-    allowRefresh &&
-    typeof refreshHandler === 'function' &&
-    !isRefreshRequest(path) &&
-    !isCsrfRequest(path)
-  );
-};
+const shouldRefresh = (response, path, allowRefresh) =>
+  response.status === 401 &&
+  allowRefresh &&
+  typeof refreshHandler === 'function' &&
+  !isRefreshRequest(path) &&
+  !isCsrfRequest(path);
 
 /**
- * Fetch a CSRF token from the API.
- *
- * The backend must expose GET /auth/csrf, set the csrfToken cookie,
- * and return { csrfToken } in its JSON response.
+ * Fetch a CSRF token from the API before any unsafe request, including refresh.
+ * The backend must set the csrfToken cookie and return { csrfToken } in JSON.
  */
 const ensureCsrfToken = async ({ force = false } = {}) => {
   if (!force && getCsrfToken()) {
@@ -132,9 +121,7 @@ const ensureCsrfToken = async ({ force = false } = {}) => {
     const response = await fetch(`${API_BASE_URL}${CSRF_ENDPOINT}`, {
       method: 'GET',
       credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-      },
+      headers: { Accept: 'application/json' },
     });
 
     const payload = await parseResponse(response);
@@ -147,8 +134,7 @@ const ensureCsrfToken = async ({ force = false } = {}) => {
       );
     }
 
-    const data = extractData(payload);
-    const token = data?.csrfToken;
+    const token = extractData(payload)?.csrfToken;
 
     if (typeof token !== 'string' || !token.trim()) {
       throw new Error(
@@ -157,7 +143,6 @@ const ensureCsrfToken = async ({ force = false } = {}) => {
     }
 
     setCsrfToken(token);
-
     return token;
   })();
 
@@ -205,16 +190,11 @@ const addRequestHeaders = (options = {}, tokenOverride = null) => {
 
 const request = async (path, options = {}, allowRefresh = true) => {
   const method = normalizeMethod(options.method);
-
-  // Obtain a token before unsafe requests. This is especially important
-  // when the frontend and API use different domains.
   let tokenOverride = null;
 
-  if (
-    !SAFE_METHODS.has(method) &&
-    !isCsrfRequest(path) &&
-    !isRefreshRequest(path)
-  ) {
+  // Refresh is also protected by csrfProtection in auth.routes.js, so it
+  // must bootstrap a token just like every other unsafe request.
+  if (!SAFE_METHODS.has(method) && !isCsrfRequest(path)) {
     tokenOverride = await ensureCsrfToken();
   }
 
@@ -239,23 +219,21 @@ const request = async (path, options = {}, allowRefresh = true) => {
       }
     }
 
-    // Recover once if the server explicitly rejects the CSRF token.
-    // Do not loop indefinitely if the backend continues rejecting it.
     const isCsrfError =
       response.status === 400 &&
       /csrf token (is missing|is invalid)|csrf/i.test(
         payload?.message ?? '',
       );
 
+    // Retry one time with a newly issued token if the cookie/header pair
+    // was stale or missing. This includes /auth/refresh.
     if (
       isCsrfError &&
       !SAFE_METHODS.has(method) &&
       !isCsrfRequest(path) &&
-      !isRefreshRequest(path) &&
       allowRefresh
     ) {
       setCsrfToken(null);
-
       const newToken = await ensureCsrfToken({ force: true });
       const retryHeaders = new Headers(options.headers);
 
@@ -295,6 +273,11 @@ const request = async (path, options = {}, allowRefresh = true) => {
         );
       }
 
+      const retryData = extractData(retryPayload);
+      if (retryData?.csrfToken) {
+        setCsrfToken(retryData.csrfToken);
+      }
+
       return retryPayload;
     }
 
@@ -305,7 +288,6 @@ const request = async (path, options = {}, allowRefresh = true) => {
     );
   }
 
-  // Some endpoints may issue a fresh CSRF token.
   const data = extractData(payload);
 
   if (data?.csrfToken) {
@@ -366,9 +348,7 @@ export const apiClient = {
   },
 
   setCsrfToken,
-
   getCsrfToken,
-
   ensureCsrfToken,
 
   setRefreshHandler(handler) {
@@ -376,10 +356,7 @@ export const apiClient = {
   },
 
   get: (path, options = {}) =>
-    request(path, {
-      ...options,
-      method: 'GET',
-    }),
+    request(path, { ...options, method: 'GET' }),
 
   post: (path, body, options = {}) =>
     request(path, {
