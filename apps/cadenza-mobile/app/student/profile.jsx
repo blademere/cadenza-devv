@@ -1,16 +1,15 @@
 import { ScrollView, Text, View } from 'react-native';
 import useMobileResource from '../../hooks/useMobileResource';
 import { getStudentProfile } from '../../services/studentService';
-import { MockDataNotice, ResourceFeedback } from '../../components/common/ResourceFeedback';
+import { ResourceFeedback } from '../../components/common/ResourceFeedback';
 
 const ACCENT = '#0C447C';
 
 export default function StudentProfile() {
-  const { data, loading, error, isMock, refresh } = useMobileResource(getStudentProfile);
+  const { data, loading, error, refresh } = useMobileResource(getStudentProfile);
   const fullName = [data?.firstName, data?.lastName].filter(Boolean).join(' ');
   return (
     <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 20, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-      {isMock && <MockDataNotice />}
       <Text className="text-2xl font-bold" style={{ color: ACCENT }}>My Profile</Text>
       <ResourceFeedback loading={loading} error={error} onRetry={refresh} />
       {data && <>

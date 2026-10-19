@@ -88,6 +88,10 @@ const getDayName = (dayOfWeek) => {
   );
 };
 
+const isFullTimeInstructor = (instructor) =>
+  String(instructor?.metadata?.employmentType || '').toUpperCase() ===
+  'FULL_TIME';
+
 const formatDateTime = (value) => {
   if (!value) return '—';
   return new Date(value).toLocaleString('en-US', {
@@ -920,10 +924,14 @@ export default function InstructorsPage() {
                       <p className="text-xs text-muted-foreground">Regular teaching hours.</p>
                     </div>
                     <Badge variant="secondary">
-                      {selectedInstructor.availabilityRules?.length || 0}
+                      {isFullTimeInstructor(selectedInstructor)
+                        ? 'Full Time'
+                        : selectedInstructor.availabilityRules?.length || 0}
                     </Badge>
                   </div>
-                  {selectedInstructor.availabilityRules?.length ? (
+                  {isFullTimeInstructor(selectedInstructor) ? (
+                    <p className="text-sm font-medium">Full Time</p>
+                  ) : selectedInstructor.availabilityRules?.length ? (
                     selectedInstructor.availabilityRules.map((schedule) => (
                       <div
                         key={schedule.id}
@@ -1501,23 +1509,27 @@ export default function InstructorsPage() {
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium">Weekly Availability</p>
 
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setError('');
-                          setScheduleDay('');
-                          setScheduleStartTime('');
-                          setShowAvailabilityDialog(true);
-                        }}
-                      >
-                        <PlusIcon className="mr-2 h-4 w-4" />
-                        Add Schedule
-                      </Button>
+                      {!isFullTimeInstructor(selectedInstructor) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setError('');
+                            setScheduleDay('');
+                            setScheduleStartTime('');
+                            setShowAvailabilityDialog(true);
+                          }}
+                        >
+                          <PlusIcon className="mr-2 h-4 w-4" />
+                          Add Schedule
+                        </Button>
+                      )}
                     </div>
 
-                    {selectedInstructor.availabilityRules?.length > 0 ? (
+                    {isFullTimeInstructor(selectedInstructor) ? (
+                      <p className="text-sm font-medium">Full Time</p>
+                    ) : selectedInstructor.availabilityRules?.length > 0 ? (
                       selectedInstructor.availabilityRules.map((schedule) => (
                         <div
                           key={schedule.id}

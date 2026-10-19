@@ -1,142 +1,69 @@
-import React, { useEffect, useState } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
-import { fonts } from '../../themes/fonts';
-import { days } from '../../constants/days';
-import ScheduleCard from '../../components/instructor/ScheduleCard';
-import { getSchedule } from '../../services/instructorScheduleService';
-import { isMockDataEnabled } from '../../services/dataMode';
-import { MockDataNotice, ResourceFeedback } from '../../components/common/ResourceFeedback';
-function extractArray(response) {
-  const payload = response?.data;
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-  if (Array.isArray(payload?.data)) {
-    return payload.data;
-  }
-  return [];
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ResourceFeedback } from '../../components/common/ResourceFeedback';
+import RescheduleRequestButton from '../../components/common/RescheduleRequestButton';
+import { getInstructorSchedule } from '../../services/instructor.service';
+
+const ACCENT = '#0C447C';
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : 'Date pending';
 }
+
+function formatTime(value) {
+  return value ? new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Time pending';
+}
+
 export default function SchedulePage() {
-  const [selectedDay, setSelectedDay] = useState('Monday');
-  const [allSchedules, setAllSchedules] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [isMock, setIsMock] = useState(false);
+
   async function loadSchedule() {
     try {
       setError(null);
-      setIsMock(await isMockDataEnabled());
-      setLoading(true);
-      const response = await getSchedule();
-      setAllSchedules(extractArray(response));
-    } catch (error) {
-      console.error('Failed to load schedule:', error);
-      setError(error?.response?.data?.message || error?.message || 'Unable to load schedule.');
-      setAllSchedules([]);
+      setSchedules(await getInstructorSchedule());
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || requestError?.message || 'Unable to load schedule.');
+      setSchedules([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
-  useEffect(() => {
-    loadSchedule();
-  }, []);
-  const filteredSchedules = allSchedules.filter(
-    (item) => item.day_of_week?.toLowerCase() === selectedDay.toLowerCase(),
-  );
+
+  useEffect(() => { void loadSchedule(); }, []);
+
+  async function refreshSchedule() {
+    setRefreshing(true);
+    await loadSchedule();
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-[#F7F7FB]">
-      <ScrollView contentContainerClassName="px-4 pt-3">
-        {isMock && <MockDataNotice />}
+      <ScrollView
+        contentContainerClassName="px-4 pb-8 pt-4"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshSchedule} />}
+      >
+        <Text className="text-2xl font-bold" style={{ color: ACCENT }}>My Schedule</Text>
+        <Text className="mt-2 text-gray-500">Lessons assigned to you from the database.</Text>
         <ResourceFeedback loading={loading} error={error} onRetry={loadSchedule} />
-      </ScrollView>
-      {/* Day Tabs */}
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerClassName="px-4 mt-4"
-      >
-        {days.map((day) => (
-          <TouchableOpacity
-            key={day.label}
-            onPress={() => setSelectedDay(day.label)}
-            className={`mr-2 h-10 w-10 items-center justify-center rounded-full ${selectedDay === day.label ? 'bg-blue-600' : 'bg-white'}`}
-          >
-            <Text
-              className={`text-sm ${selectedDay === day.label ? 'text-white' : 'text-[#555]'}`}
-              style={{
-                fontFamily: fonts.bold,
-              }}
-            >
-              {day.short}
-            </Text>
-          </TouchableOpacity>
+        {loading && <ActivityIndicator className="mt-6" size="small" color={ACCENT} />}
+        {!loading && !error && schedules.length === 0 && <Text className="mt-6 text-sm text-gray-500">No lessons scheduled.</Text>}
+        {schedules.map((item) => (
+          <View key={item.id} className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+            <Text className="text-base font-bold" style={{ color: ACCENT }}>{item.lesson || 'Lesson'}</Text>
+            <Text className="mt-2 font-semibold text-gray-900">{formatDate(item.scheduledStart)}</Text>
+            <Text className="mt-1 text-sm text-gray-600">{formatTime(item.scheduledStart)} - {formatTime(item.scheduledEnd)}</Text>
+            <Text className="mt-2 text-sm text-gray-600">Student: {item.studentName || item.student || 'Student'}</Text>
+            {item.room?.name && <Text className="mt-1 text-sm text-gray-600">Room: {item.room.name}</Text>}
+            <Text className="mt-2 text-xs font-semibold uppercase text-gray-500">{item.attendance?.status || item.status || 'Scheduled'}</Text>
+            {item.scheduleRequest?.status === 'PENDING' ? <Text className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">Reschedule request pending Front Desk review.</Text> : <RescheduleRequestButton sessionId={item.id} lesson={item.lesson || 'Lesson'} scheduledStart={item.scheduledStart} />}
+          </View>
         ))}
-      </ScrollView>
-
-      <ScrollView
-        contentContainerClassName="px-4 pb-8 pt-5"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text
-          className="mb-4 text-lg uppercase tracking-[0.5px] text-[#1A1A1A]"
-          style={{
-            fontFamily: fonts.bold,
-          }}
-        >
-          {selectedDay} Schedule
-        </Text>
-
-        {loading ? (
-          <ActivityIndicator size="small" color="#2563EB" />
-        ) : error ? null : filteredSchedules.length > 0 ? (
-          filteredSchedules.map((item) => (
-            <ScheduleCard
-              key={item.id}
-              lesson={item.lesson || 'Lesson'}
-              time={`${formatTime(item.time_slot?.start_time)} - ${formatTime(item.time_slot?.end_time)}`}
-              student={item.student || 'Available'}
-            />
-          ))
-        ) : (
-          <Text
-            className="text-sm text-[#999]"
-            style={{
-              fontFamily: fonts.regular,
-            }}
-          >
-            No schedule available.
-          </Text>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
-}
-function formatTime(value) {
-  if (!value) {
-    return '';
-  }
-  // MySQL TIME format: HH:mm:ss
-  if (/^\d{2}:\d{2}:\d{2}$/.test(value)) {
-    const [hour, minute] = value.split(':');
-    const h = Number(hour);
-    const m = Number(minute);
-    const period = h >= 12 ? 'PM' : 'AM';
-    const displayHour = h % 12 || 12;
-    return `${displayHour}:${m.toString().padStart(2, '0')} ${period}`;
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
 }

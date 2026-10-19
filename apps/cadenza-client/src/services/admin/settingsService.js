@@ -3,6 +3,7 @@ import { apiClient } from '@/core/api/apiClient';
 const ENDPOINT = '/settings/instrument-types';
 const CATEGORY_ENDPOINT = '/settings/item-categories';
 const OPERATING_HOURS_ENDPOINT = '/settings/operating-hours';
+const BANK_ACCOUNTS_ENDPOINT = '/settings/bank-accounts';
 
 const unwrap = (response) =>
   response?.data?.data ?? response?.data ?? response;
@@ -47,4 +48,20 @@ export async function getOperatingHours() {
 
 export async function updateOperatingHours(data) {
   return unwrap(await apiClient.put(OPERATING_HOURS_ENDPOINT, data));
+}
+
+export async function getBankAccounts() {
+  return unwrap(await apiClient.get(BANK_ACCOUNTS_ENDPOINT));
+}
+
+export async function createBankAccount(formData) {
+  return unwrap(await apiClient.post(BANK_ACCOUNTS_ENDPOINT, formData));
+}
+
+export async function updateBankAccountStatus(id, status) {
+  return unwrap(await apiClient.patch(`${BANK_ACCOUNTS_ENDPOINT}/${id}`, { status }));
+}
+
+export async function getBankAccountQr(id) {
+  return apiClient.file(`${BANK_ACCOUNTS_ENDPOINT}/${id}/qr`);
 }

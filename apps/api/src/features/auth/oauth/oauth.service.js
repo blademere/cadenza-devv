@@ -29,14 +29,18 @@ const ensureCadenzaClientAccount = async (user, identity, tx) => {
 
   let person = await tx.person.findUnique({
     where: { userId: user.id },
-    include: { cadenzaCustomers: { where: { appId: application.id } }, cadenzaStaff: { where: { appId: application.id } } },
   })
 
   if (!person) {
     person = await tx.person.create({ data: { userId: user.id, firstName: identity.firstName || 'Google', lastName: identity.lastName || 'User', email: identity.email } })
   }
 
-  if (!person.cadenzaCustomers.length && !person.cadenzaStaff.length) {
+  const [customer, staff] = await Promise.all([
+    tx.cadenzaCustomer.findFirst({ where: { appId: application.id, personId: person.id }, select: { id: true } }),
+    tx.cadenzaStaff.findFirst({ where: { appId: application.id, personId: person.id }, select: { id: true } }),
+  ])
+
+  if (!customer && !staff) {
     await tx.cadenzaCustomer.create({ data: { appId: application.id, personId: person.id, status: 'ACTIVE' } })
   }
 }

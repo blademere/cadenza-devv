@@ -12,6 +12,7 @@ const requestValidator = async (req) => z.object({
 router.use(requireClient);
 router.get('/dashboard', asyncHandler(studentController.dashboard));
 router.get('/schedule', asyncHandler(studentController.schedule));
+router.get('/progress', asyncHandler(studentController.progress));
 router.get('/materials', asyncHandler(studentController.materials));
 router.get('/materials/:materialId', asyncHandler(studentController.material));
 router.post(

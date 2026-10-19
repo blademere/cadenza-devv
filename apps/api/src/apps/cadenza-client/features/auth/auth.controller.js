@@ -5,6 +5,8 @@ import {
   refreshAccessToken,
   logout,
   getCurrentUser,
+  requestEmailOtp,
+  verifyEmailOtp,
 } from './auth.service.js';
 
 import { setCsrfCookie } from '../../../../common/middleware/csrf.js';
@@ -52,6 +54,22 @@ const loginController = async (req, res) => {
 const registerController = async (req, res) => {
   const result = await registerClient(req.validated?.body ?? req.body);
   return successResponse(res, 'Client account created successfully.', result, 201);
+};
+
+const requestEmailOtpController = async (req, res) => {
+  const result = await requestEmailOtp(req.validated?.body ?? req.body);
+  return successResponse(res, 'Verification code sent.', result, 202);
+};
+
+const verifyEmailOtpController = async (req, res) => {
+  const result = await verifyEmailOtp(req.validated?.body ?? req.body);
+  res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
+  return successResponse(res, 'Email verified and login successful.', {
+    accessToken: result.accessToken,
+    csrfToken: setCsrfCookie(res),
+    user: result.user,
+    account: result.account,
+  });
 };
 
 const currentUserController = async (req, res) => {
@@ -103,4 +121,6 @@ export {
   currentUserController,
   refreshController,
   logoutController,
+  requestEmailOtpController,
+  verifyEmailOtpController,
 };

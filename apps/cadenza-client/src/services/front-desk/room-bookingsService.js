@@ -21,3 +21,8 @@ export const checkInRoomBooking = async (id, checkedInAt) =>
 
 export const checkOutRoomBooking = async (id, checkedOutAt) =>
   unwrap(await apiClient.patch(`/room-bookings/${id}/check-out`, { checkedOutAt }));
+
+export const createWalkInRoomBooking = async (data) =>
+  unwrap(await apiClient.post('/room-bookings/walk-in', data, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  }));

@@ -29,22 +29,34 @@ export const getDateKey = (date = new Date()) => {
   return `${parts.year}-${parts.month}-${parts.day}`;
 };
 
+const getManilaWeekday = (date) => {
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    weekday: 'short',
+  }).format(date);
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekday);
+};
+
+// The application operating-hours timezone is Asia/Manila (UTC+08:00).
+// Convert a Manila calendar date/time into the actual instant before comparing
+// it with ISO timestamps received by the API.
+const getManilaDateTime = (date, time) =>
+  new Date(`${getDateKey(date)}T${time}:00+08:00`);
+
 export const getOperatingHoursForDate = (config, date) => {
-  const key = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  const key = getDateKey(date);
+  const weekday = getManilaWeekday(date);
   const effectiveKey = config?.defaultEffectiveFrom ? getDateKey(new Date(config.defaultEffectiveFrom)) : null;
   const weeklyHours = effectiveKey && key < effectiveKey && config.previousWeeklyHours
     ? config.previousWeeklyHours
     : config?.weeklyHours;
-  return config?.dateOverrides?.[key] || weeklyHours?.[String(date.getDay())] || DEFAULT_WEEKLY_HOURS[String(date.getDay())];
+  return config?.dateOverrides?.[key] || weeklyHours?.[String(weekday)] || DEFAULT_WEEKLY_HOURS[String(weekday)];
 };
 
 export const getOperationalEnd = (config, date) => {
   const hours = getOperatingHoursForDate(config, date);
   if (!hours || hours.isClosed) return null;
-  const end = new Date(date);
-  const [hour, minute] = hours.endTime.split(':').map(Number);
-  end.setHours(hour, minute, 0, 0);
-  return end;
+  return getManilaDateTime(date, hours.endTime);
 };
 
 // Rental time is measured only while the facility is open. This lets a rental
@@ -53,20 +65,14 @@ export const getOperationalMinutesBetween = (config, start, end) => {
   if (!(start instanceof Date) || !(end instanceof Date) || end <= start) return 0;
 
   let totalMinutes = 0;
-  const day = new Date(start);
-  day.setHours(0, 0, 0, 0);
-  const lastDay = new Date(end);
-  lastDay.setHours(0, 0, 0, 0);
+  const day = new Date(`${getDateKey(start)}T00:00:00+08:00`);
+  const lastDay = new Date(`${getDateKey(end)}T00:00:00+08:00`);
 
   for (let index = 0; index < 370 && day <= lastDay; index += 1) {
     const hours = getOperatingHoursForDate(config, day);
     if (hours && !hours.isClosed) {
-      const opening = new Date(day);
-      const closing = new Date(day);
-      const [openHour, openMinute] = hours.startTime.split(':').map(Number);
-      const [closeHour, closeMinute] = hours.endTime.split(':').map(Number);
-      opening.setHours(openHour, openMinute, 0, 0);
-      closing.setHours(closeHour, closeMinute, 0, 0);
+      const opening = getManilaDateTime(day, hours.startTime);
+      const closing = getManilaDateTime(day, hours.endTime);
 
       const overlapStart = Math.max(start.getTime(), opening.getTime());
       const overlapEnd = Math.min(end.getTime(), closing.getTime());
@@ -74,7 +80,7 @@ export const getOperationalMinutesBetween = (config, start, end) => {
         totalMinutes += (overlapEnd - overlapStart) / (1000 * 60);
       }
     }
-    day.setDate(day.getDate() + 1);
+    day.setUTCDate(day.getUTCDate() + 1);
   }
 
   return totalMinutes;
@@ -86,12 +92,8 @@ export const assertWithinOperatingHours = (config, start, end) => {
   if (getDateKey(start) === getDateKey(new Date()) && start < new Date()) {
     throw new Error('The selected start time has already passed.');
   }
-  const operationalStart = new Date(start);
-  const operationalEnd = new Date(start);
-  const [startHour, startMinute] = opening.startTime.split(':').map(Number);
-  const [endHour, endMinute] = opening.endTime.split(':').map(Number);
-  operationalStart.setHours(startHour, startMinute, 0, 0);
-  operationalEnd.setHours(endHour, endMinute, 0, 0);
+  const operationalStart = getManilaDateTime(start, opening.startTime);
+  const operationalEnd = getManilaDateTime(start, opening.endTime);
   if (start < operationalStart || end > operationalEnd) {
     throw new Error(`The selected time must be within operating hours (${opening.startTime}–${opening.endTime}).`);
   }
@@ -100,12 +102,8 @@ export const assertWithinOperatingHours = (config, start, end) => {
 export const assertRentalStartWithinOperatingHours = (config, start) => {
   const opening = getOperatingHoursForDate(config, start);
   if (!opening || opening.isClosed) throw new Error('The facility is closed on the selected date.');
-  const operationalStart = new Date(start);
-  const operationalEnd = new Date(start);
-  const [startHour, startMinute] = opening.startTime.split(':').map(Number);
-  const [endHour, endMinute] = opening.endTime.split(':').map(Number);
-  operationalStart.setHours(startHour, startMinute, 0, 0);
-  operationalEnd.setHours(endHour, endMinute, 0, 0);
+  const operationalStart = getManilaDateTime(start, opening.startTime);
+  const operationalEnd = getManilaDateTime(start, opening.endTime);
   if (start < operationalStart || start >= operationalEnd) {
     throw new Error(`The rental start time must be within operating hours (${opening.startTime}–${opening.endTime}).`);
   }

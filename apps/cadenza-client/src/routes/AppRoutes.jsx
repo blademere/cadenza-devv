@@ -8,6 +8,7 @@ import LandingPage from '@/pages/landing/pages/LandingPage';
 import LoginPage from '@/pages/auth/pages/LoginPage';
 import SignupPage from '@/pages/auth/pages/SignupPage';
 import OAuthCallbackPage from '@/pages/auth/pages/OAuthCallbackPage';
+import EmailOtpPage from '@/pages/auth/pages/EmailOtpPage';
 
 import DashboardPage from '@/pages/admin/pages/DashboardPage';
 import StudentsPage from '@/pages/admin/pages/StudentsPage';
@@ -38,6 +39,8 @@ import FrontDeskNotificationsPage from '@/pages/front-desk/pages/FrontDeskNotifi
 import FrontDeskProfilePage from '@/pages/front-desk/pages/FrontDeskProfilePage';
 import FrontDeskInstrumentRentalsPage from '@/pages/front-desk/pages/FrontDeskInstrumentRentalsPage';
 import FrontDeskRoomBookings from '@/pages/front-desk/pages/FrontDeskRoomBookings';
+import FrontDeskWalkInRoomBookingPage from '@/pages/front-desk/pages/FrontDeskWalkInRoomBookingPage';
+import FrontDeskWalkInRentalPage from '@/pages/front-desk/pages/FrontDeskWalkInRentalPage';
 import BillingPayments from '@/pages/front-desk/pages/FrontDeskBillingPayments';
 
 import ClientPageLayout from '@/pages/client/layouts/ClientPageLayout';
@@ -79,7 +82,10 @@ export default function AppRoutes() {
 
       <Route element={<AuthLayout />}>
         <Route path="login" element={<LoginPage />} />
+        <Route path="front-desk/login" element={<LoginPage audience="front-desk" />} />
+        <Route path="admin/login" element={<LoginPage audience="admin" />} />
         <Route path="signup" element={<SignupPage />} />
+        <Route path="signup/verify" element={<EmailOtpPage />} />
         <Route path="auth/callback/success" element={<OAuthCallbackPage />} />
         <Route path="auth/callback/failure" element={<OAuthCallbackPage />} />
       </Route>
@@ -127,7 +133,9 @@ export default function AppRoutes() {
             path="rentals"
             element={<FrontDeskInstrumentRentalsPage />}
           />
+          <Route path="rentals/walk-in" element={<FrontDeskWalkInRentalPage />} />
           <Route path="room-bookings" element={<FrontDeskRoomBookings />} />
+          <Route path="room-bookings/walk-in" element={<FrontDeskWalkInRoomBookingPage />} />
           <Route path="billing" element={<BillingPayments />} />
 
           <Route path="profile" element={<FrontDeskProfilePage />} />

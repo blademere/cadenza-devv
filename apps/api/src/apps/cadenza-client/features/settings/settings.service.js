@@ -6,6 +6,9 @@ import {
 
 import { settingsRepository } from './settings.repository.js';
 import { DEFAULT_WEEKLY_HOURS, getDateKey, validateHours } from './operating-hours.js';
+import { getStorageService } from '../../../../platform/storage/storage.registry.js';
+import { createStorageKey, sanitizeFileName } from '../../../../platform/storage/storage.key.js';
+import { allowedTypes } from './settings.upload.js';
 
 export const settingsService = {
   async getOperatingHours(appId) {
@@ -156,5 +159,79 @@ export const settingsService = {
     });
 
     return settingsRepository.findInstrumentType(appId, id);
+  },
+
+  async getBankAccounts(appId) {
+    const accounts = await settingsRepository.findBankAccounts(appId);
+    return accounts.map(({ qrStorageKey, ...account }) => ({
+      ...account,
+      hasQr: Boolean(qrStorageKey),
+    }));
+  },
+
+  async getPaymentBankAccounts(appId) {
+    const accounts = await settingsRepository.findBankAccounts(appId);
+    return accounts
+      .filter((account) => account.status === 'ACTIVE')
+      .map(({ qrStorageKey, ...account }) => ({ ...account, hasQr: Boolean(qrStorageKey) }));
+  },
+
+  async createBankAccount(appId, { bankName, accountNumber, file }) {
+    const normalizedBankName = String(bankName || '').trim().replace(/\s+/g, ' ');
+    if (!normalizedBankName || normalizedBankName.length > 100) {
+      throw new BadRequestError('A valid bank name is required.');
+    }
+    const normalizedAccountNumber = String(accountNumber || '').trim().replace(/\s+/g, ' ');
+    if (!/^[0-9][0-9 -]{3,49}$/.test(normalizedAccountNumber)) {
+      throw new BadRequestError('A valid bank account number is required.');
+    }
+    if (!file || !Buffer.isBuffer(file.buffer) || file.buffer.length === 0) {
+      throw new BadRequestError('A QR image is required.');
+    }
+    if (!allowedTypes.has(file.mimetype)) {
+      throw new BadRequestError('The QR file must be a PNG, JPG, or WebP image.');
+    }
+
+    let fileName;
+    try { fileName = sanitizeFileName(file.originalname || 'bank-account-qr'); } catch { fileName = 'bank-account-qr'; }
+    const storage = getStorageService();
+    const storageKey = createStorageKey(fileName, 'cadenza-bank-account-qr');
+    await storage.put({ key: storageKey, body: file.buffer, contentType: file.mimetype });
+
+    try {
+      const created = await settingsRepository.createBankAccount({
+        appId,
+        bankName: normalizedBankName,
+        accountNumber: normalizedAccountNumber,
+        qrStorageKey: storageKey,
+        qrMimeType: file.mimetype,
+        qrFileName: fileName,
+        qrFileSize: file.buffer.length,
+        status: 'ACTIVE',
+      });
+      const { qrStorageKey, ...account } = created;
+      return { ...account, hasQr: Boolean(qrStorageKey) };
+    } catch (error) {
+      await storage.delete({ key: storageKey }).catch(() => undefined);
+      if (error?.code === 'P2002') throw new ConflictError('This bank account is already registered.');
+      throw error;
+    }
+  },
+
+  async updateBankAccount(appId, id, status) {
+    if (!['ACTIVE', 'INACTIVE'].includes(status)) throw new BadRequestError('Invalid bank account status.');
+    const existing = await settingsRepository.findBankAccount(appId, id);
+    if (!existing) throw new NotFoundError('Bank account not found.');
+    await settingsRepository.updateBankAccount(appId, id, { status });
+    const { qrStorageKey, ...account } = await settingsRepository.findBankAccount(appId, id);
+    return { ...account, hasQr: Boolean(qrStorageKey) };
+  },
+
+  async getBankAccountQr(appId, id, activeOnly = false) {
+    const account = await settingsRepository.findBankAccount(appId, id);
+    if (!account) throw new NotFoundError('Bank account not found.');
+    if (activeOnly && account.status !== 'ACTIVE') throw new NotFoundError('Payment account not found.');
+    const { body } = await getStorageService().get({ key: account.qrStorageKey });
+    return { body, contentType: account.qrMimeType, fileName: account.qrFileName };
   },
 };

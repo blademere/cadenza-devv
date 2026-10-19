@@ -24,6 +24,7 @@ import {
 
 import { env } from '../../../../config/index.js';
 import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
+import { sendEmail } from '../../../../infrastructure/email/index.js';
 
 import { cadenzaAuthRepository } from './auth.repository.js';
 
@@ -408,4 +409,68 @@ const getCurrentUser = async (
   };
 };
 
-export { login, registerClient, refreshAccessToken, logout, getCurrentUser };
+const OTP_TTL_MS = 10 * 60 * 1000;
+const createOtp = () => String(crypto.randomInt(100000, 1000000));
+const otpHash = (email, otp) => hashToken(`cadenza-email-otp:${email}:${otp}`);
+
+const requestEmailOtp = async ({ email, purpose }) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const application = await cadenzaAuthRepository.findApplication();
+  if (!application || !application.isActive) throw new BadRequestError('Cadenza application is unavailable.');
+
+  let user = await cadenzaAuthRepository.findUserByEmail(normalizedEmail);
+  if (purpose === 'signup') {
+    if (user && (user.passwordHash || user.emailVerifiedAt)) throw new ConflictError('An account with this email already exists.');
+    if (!user) user = await prisma.user.create({ data: { email: normalizedEmail, passwordHash: null } });
+  } else if (!user || !user.isActive) {
+    throw new UnauthorizedError('No active account was found for this email.');
+  }
+
+  const otp = createOtp();
+  const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+  await prisma.$transaction(async (tx) => {
+    await tx.emailVerificationToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } });
+    await tx.emailVerificationToken.create({ data: { id: crypto.randomUUID(), userId: user.id, tokenHash: otpHash(normalizedEmail, otp), expiresAt } });
+  });
+
+  try {
+    await sendEmail({
+      to: normalizedEmail,
+      subject: 'Your Cadenza verification code',
+      text: `Your Cadenza verification code is ${otp}. It expires in 10 minutes.`,
+      html: `<p>Your Cadenza verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${otp}</p><p>This code expires in 10 minutes.</p>`,
+    });
+  } catch (error) {
+    if (purpose === 'signup' && !user.emailVerifiedAt && !user.passwordHash) await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
+    throw error;
+  }
+
+  return { email: normalizedEmail, expiresAt };
+};
+
+const verifyEmailOtp = async ({ email, otp, purpose }) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const record = await prisma.emailVerificationToken.findUnique({ where: { tokenHash: otpHash(normalizedEmail, otp) }, include: { user: true } });
+  if (!record || record.usedAt || record.expiresAt <= new Date() || record.user.email !== normalizedEmail) throw new UnauthorizedError('The verification code is invalid or expired.');
+  if (!record.user.isActive) throw new UnauthorizedError('This account is inactive.');
+
+  const application = await cadenzaAuthRepository.findApplication();
+  await prisma.$transaction(async (tx) => {
+    await tx.emailVerificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } });
+    await tx.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } });
+    if (purpose === 'signup') {
+      const person = await tx.person.findUnique({ where: { userId: record.userId } });
+      const ensuredPerson = person || await tx.person.create({ data: { userId: record.userId, firstName: normalizedEmail.split('@')[0], lastName: 'Client', email: normalizedEmail } });
+      const customer = await tx.cadenzaCustomer.findFirst({ where: { appId: application.id, personId: ensuredPerson.id }, select: { id: true } });
+      if (!customer) await tx.cadenzaCustomer.create({ data: { appId: application.id, personId: ensuredPerson.id, status: 'ACTIVE' } });
+    }
+  });
+
+  const account = await getAccount(record.userId, application.id);
+  const tokenId = createTokenId();
+  const refreshToken = createRefreshToken(record.user, tokenId);
+  await createRefreshTokenRecord({ tokenId, tokenHash: hashToken(refreshToken), userId: record.userId, expiresAt: getRefreshTokenExpiration() });
+  return { accessToken: createAccessToken(record.user), refreshToken, user: { id: record.user.id, email: record.user.email, emailVerified: true }, account: formatAccount(account) };
+};
+
+export { login, registerClient, refreshAccessToken, logout, getCurrentUser, requestEmailOtp, verifyEmailOtp };

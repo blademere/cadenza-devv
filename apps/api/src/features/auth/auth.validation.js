@@ -21,6 +21,12 @@ const passwordChangeSchema = z.object({
 const passwordResetRequestSchema = z.object({
   body: z.object({ email: z.email().trim().toLowerCase() }),
 })
+const emailOtpRequestSchema = z.object({
+  body: z.object({ email: z.email().trim().toLowerCase(), purpose: z.enum(['signup', 'login']) }),
+})
+const emailOtpVerifySchema = z.object({
+  body: z.object({ email: z.email().trim().toLowerCase(), otp: z.string().regex(/^\d{6}$/), purpose: z.enum(['signup', 'login']) }),
+})
 const passwordResetSchema = z.object({
   body: z.object({
     token: z.string().min(32).max(128),
@@ -34,9 +40,11 @@ const loginValidator = async (req) => loginSchema.parse({ body: req.body || {} }
 const registrationValidator = async (req) => registrationSchema.parse({ body: req.body || {} })
 const passwordChangeValidator = async (req) => passwordChangeSchema.parse({ body: req.body || {} })
 const passwordResetRequestValidator = async (req) => passwordResetRequestSchema.parse({ body: req.body || {} })
+const emailOtpRequestValidator = async (req) => emailOtpRequestSchema.parse({ body: req.body || {} })
+const emailOtpVerifyValidator = async (req) => emailOtpVerifySchema.parse({ body: req.body || {} })
 const passwordResetValidator = async (req) => passwordResetSchema.parse({ body: req.body || {} })
 const emailVerificationValidator = async (req) => emailVerificationSchema.parse({ body: req.body || {} })
 const applicationSelectionValidator = async (req) => applicationSelectionSchema.parse({ body: req.body || {} })
 const sessionIdValidator = async (req) => sessionIdSchema.parse({ params: req.params || {} })
 
-export { loginValidator, registrationValidator, passwordChangeValidator, passwordResetRequestValidator, passwordResetValidator, emailVerificationValidator, applicationSelectionValidator, sessionIdValidator }
+export { loginValidator, registrationValidator, passwordChangeValidator, passwordResetRequestValidator, emailOtpRequestValidator, emailOtpVerifyValidator, passwordResetValidator, emailVerificationValidator, applicationSelectionValidator, sessionIdValidator }

@@ -48,8 +48,14 @@ export function Header() {
           to="/"
           className="flex items-center gap-3 text-xl font-bold tracking-tight text-foreground"
         >
+          <img
+            src="/logo.png"
+            alt=""
+            className="h-10 w-10 rounded-full object-contain"
+            aria-hidden="true"
+          />
           <span
-            className="grid h-9 w-9 place-items-center rounded-full bg-primary text-lg text-primary-foreground"
+            className="hidden grid h-9 w-9 place-items-center rounded-full bg-primary text-lg text-primary-foreground"
             aria-hidden="true"
           >
             ♫

@@ -7,6 +7,9 @@ const profileFields = {
   suffix: z.string().trim().max(30).nullable().optional(),
   phone: z.string().trim().max(50).nullable().optional(),
   address: z.record(z.string(), z.unknown()).nullable().optional(),
+  age: z.coerce.number().int().min(1).max(120).nullable().optional(),
+  gender: z.enum(['MALE', 'FEMALE', 'PREFER_NOT_TO_SAY']).nullable().optional(),
+  guardianName: z.string().trim().max(200).nullable().optional(),
 }
 
 const createMyProfileSchema = z.object({

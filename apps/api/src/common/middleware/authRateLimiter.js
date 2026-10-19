@@ -3,7 +3,7 @@ import { rateLimit, ipKeyGenerator } from 'express-rate-limit'
 import RedisRateLimitStore from './redisRateLimitStore.js'
 
 const AUTH_RATE_WINDOW_MS = 15 * 60 * 1000
-const LOGIN_RATE_LIMIT = 5
+const LOGIN_RATE_LIMIT = 10
 const authRateLimitHandler = (_req, res) => {
   return res.status(429).json({
     success: false,

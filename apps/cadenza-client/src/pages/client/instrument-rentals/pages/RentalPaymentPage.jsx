@@ -3,6 +3,7 @@ import { CheckCircle2Icon, Loader2Icon, QrCodeIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { createInstrumentRental } from '../services/instrument-rental.service'
+import PaymentAccountInstructions from '../../components/PaymentAccountInstructions'
 
 export default function RentalPaymentPage() {
   const navigate = useNavigate()
@@ -101,19 +102,17 @@ export default function RentalPaymentPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
-      <section className="w-full max-w-sm rounded-2xl border bg-card p-8 text-center shadow-lg">
+      <section className="w-full max-w-2xl rounded-2xl border bg-card p-6 text-center shadow-lg sm:p-8">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <QrCodeIcon className="h-7 w-7" />
         </div>
 
         <h1 className="mt-5 text-2xl font-semibold">Scan to Pay</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Payment QR placeholder
+          Instrument rental payment
         </p>
 
-        <div className="mx-auto mt-7 w-fit rounded-xl bg-white p-5 shadow-sm">
-          <QrCodeIcon className="h-52 w-52 text-slate-900" />
-        </div>
+        <PaymentAccountInstructions />
 
         <p className="mt-5 text-xs text-muted-foreground">
           Online payment is not connected yet. Click Pay to submit this rental

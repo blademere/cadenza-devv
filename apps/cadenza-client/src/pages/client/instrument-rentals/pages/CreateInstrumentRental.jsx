@@ -82,10 +82,15 @@ const getTimeOptions = () =>
 const combineDateTime = (date, time) => {
   if (!date || !time) return '';
 
-  return `${date}T${time}`;
+  return `${date}T${time}:00+08:00`;
 };
 
-const getToday = () => new Date().toISOString().split('T')[0];
+const getToday = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date()).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
 
 export default function CreateInstrumentRental() {
   const navigate = useNavigate();
@@ -105,8 +110,9 @@ export default function CreateInstrumentRental() {
   const timeOptions = useMemo(() => getTimeOptions(), []);
 
   const getDateKey = (value = new Date()) => {
-    const date = value instanceof Date ? value : new Date(`${value}T00:00:00`);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const date = value instanceof Date ? value : new Date(`${value}T00:00:00+08:00`);
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+    return `${parts.year}-${parts.month}-${parts.day}`;
   };
 
   const getOperationalDurationHours = (schedule) => {
@@ -146,8 +152,10 @@ export default function CreateInstrumentRental() {
     const toMinutes = (value) => value.split(':').map(Number).reduce((total, part, index) => total + part * (index ? 1 : 60), 0);
     let minimum = Math.max(toMinutes(open), minimumTime ? toMinutes(minimumTime) : 0);
     if (isStart && date === getDateKey()) {
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const nowParts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false,
+      }).formatToParts(new Date()).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+      const currentMinutes = Number(nowParts.hour) * 60 + Number(nowParts.minute);
       // Always block the current half-hour slot. At 9:00 or 9:29, the first
       // available start is 9:30; at 9:30, it is 10:00.
       minimum = Math.max(minimum, (Math.floor(currentMinutes / 30) + 1) * 30);
@@ -157,7 +165,7 @@ export default function CreateInstrumentRental() {
   };
 
   const getEightHourReturn = (date, time) => {
-    let cursor = new Date(`${date}T${time}:00`);
+    let cursor = new Date(`${date}T${time}:00+08:00`);
     let remainingMinutes = MINIMUM_RENTAL_HOURS * 60;
 
     for (let index = 0; index < 370 && remainingMinutes > 0; index += 1) {
@@ -189,7 +197,10 @@ export default function CreateInstrumentRental() {
       }
     }
 
-    return { date: getDateKey(cursor), time: `${String(cursor.getHours()).padStart(2, '0')}:${String(cursor.getMinutes()).padStart(2, '0')}` };
+    const returnParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(cursor).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+    return { date: getDateKey(cursor), time: `${returnParts.hour}:${returnParts.minute}` };
   };
 
   const isDateBlocked = (date) => {
@@ -199,7 +210,7 @@ export default function CreateInstrumentRental() {
     if (date !== getDateKey()) return false;
     const now = new Date();
     const [hour, minute] = (hours?.endTime || '17:00').split(':').map(Number);
-    const closing = new Date(now); closing.setHours(hour, minute, 0, 0);
+    const closing = new Date(`${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+08:00`);
     return now >= closing;
   };
 
@@ -209,8 +220,9 @@ export default function CreateInstrumentRental() {
     if (!schedule.start || Number.isNaN(start.getTime()) || hours?.isClosed) return false;
     const [openHour, openMinute] = (hours?.startTime || '08:00').split(':').map(Number);
     const [closeHour, closeMinute] = (hours?.endTime || '17:00').split(':').map(Number);
-    const opening = new Date(start); opening.setHours(openHour, openMinute, 0, 0);
-    const closing = new Date(start); closing.setHours(closeHour, closeMinute, 0, 0);
+    const dateKey = getDateKey(start);
+    const opening = new Date(`${dateKey}T${String(openHour).padStart(2, '0')}:${String(openMinute).padStart(2, '0')}:00+08:00`);
+    const closing = new Date(`${dateKey}T${String(closeHour).padStart(2, '0')}:${String(closeMinute).padStart(2, '0')}:00+08:00`);
     return start >= opening && start < closing;
   };
 
@@ -424,13 +436,9 @@ export default function CreateInstrumentRental() {
       setError('');
 
       const data = await checkInstrumentAvailability({
-        scheduledStart: new Date(
-          schedule.start,
-        ).toISOString(),
+        scheduledStart: new Date(schedule.start).toISOString(),
 
-        scheduledEnd: new Date(
-          schedule.end,
-        ).toISOString(),
+        scheduledEnd: new Date(schedule.end).toISOString(),
       });
 
       const isAvailable = Array.isArray(data)

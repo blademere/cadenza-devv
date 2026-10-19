@@ -9,6 +9,7 @@ import {
 import {
   requireAdminOrFrontDesk,
   requireClient,
+  requireFrontDesk,
 } from '../auth/authorization.js';
 
 import * as controller from './room-booking.controller.js';
@@ -20,6 +21,7 @@ import {
   cancelValidator,
   checkInValidator,
   checkOutValidator,
+  walkInCreateValidator,
 } from './room-bookings.validation.js';
 
 const router = express.Router();
@@ -28,6 +30,14 @@ router.get(
   '/',
   requireAdminOrFrontDesk,
   asyncHandler(controller.listAllBookings),
+);
+
+router.post(
+  '/walk-in',
+  requireFrontDesk,
+  idempotency({ scope: 'cadenza-client-room-bookings-walk-in', required: true }),
+  validate(walkInCreateValidator),
+  asyncHandler(controller.createWalkIn),
 );
 
 router.patch(

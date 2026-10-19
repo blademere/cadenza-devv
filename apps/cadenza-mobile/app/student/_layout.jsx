@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { fonts } from '../../themes/fonts';
 import { logout } from '../../services/authService';
-import { getStudentNotifications } from '../../services/studentService';
 const ACCENT = '#0C447C';
 const ACCENT_SOFT = '#E6F1FB';
 const MUTED = '#888780';
@@ -22,65 +21,6 @@ function TabIcon({ name, focused }) {
     </View>
   );
 }
-function NotificationsModal({ visible, onClose, notifications, error }) {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable className="flex-1 bg-black/15" onPress={onClose}>
-        <View
-          onStartShouldSetResponder={() => true}
-          className="absolute right-[15px] top-[60px] w-[260px] rounded-xl bg-white px-4 py-3"
-          style={{
-            elevation: 6,
-            shadowColor: '#000',
-            shadowOffset: {
-              width: 0,
-              height: 2,
-            },
-            shadowOpacity: 0.15,
-            shadowRadius: 8,
-          }}
-        >
-          <Text className="mb-2.5 text-base" style={{ fontFamily: fonts.bold }}>
-            Notifications
-          </Text>
-
-          {notifications.length === 0 ? (
-            <Text className="text-[#888]" style={{ fontFamily: fonts.regular }}>
-              {error || 'No notifications'}
-            </Text>
-          ) : (
-            notifications.map((item, index) => (
-              <View
-                key={index}
-                className={`${index === 0 ? 'border-t-0' : 'border-t'} flex-row items-center border-[#f0f0f0] py-2`}
-              >
-                <Ionicons
-                  name="notifications-outline"
-                  size={18}
-                  color="#667EF9"
-                  style={{ marginRight: 10 }}
-                />
-
-                <Text
-                  className="flex-1 text-sm"
-                  style={{ fontFamily: fonts.regular }}
-                >
-                  {item.message || item.text}
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
-      </Pressable>
-    </Modal>
-  );
-}
-
 function ProfileMenu({ visible, onClose, onProfile, onLogout }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -125,23 +65,8 @@ function ProfileMenu({ visible, onClose, onProfile, onLogout }) {
 }
 
 export default function StudentLayout() {
-  const [visible, setVisible] = useState(false);
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [notificationError, setNotificationError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
-
-  async function openNotifications() {
-    setNotificationError('');
-    try {
-      const data = await getStudentNotifications();
-      setNotifications(Array.isArray(data) ? [...data].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)) : []);
-    } catch (error) {
-      setNotificationError(error?.response?.data?.message || error?.message || 'Unable to load notifications.');
-      setNotifications([]);
-    }
-    setVisible(true);
-  }
   async function completeLogout() {
     if (loggingOut) return;
 
@@ -190,9 +115,6 @@ export default function StudentLayout() {
           },
           headerRight: () => (
             <View className="mr-[15px] flex-row items-center gap-4">
-              <Pressable accessibilityRole="button" accessibilityLabel="Notifications" onPress={openNotifications} hitSlop={8}>
-                <Ionicons name="notifications-outline" size={23} color="#000" />
-              </Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Profile menu" onPress={() => setProfileMenuVisible(true)} hitSlop={8}>
                 {loggingOut ? <ActivityIndicator size="small" color="#e24b4a" /> : <Ionicons name="person-circle-outline" size={25} color={ACCENT} />}
               </Pressable>
@@ -256,19 +178,6 @@ export default function StudentLayout() {
         />
 
         <Tabs.Screen
-          name="attendance"
-          options={{
-            title: 'Attendance',
-            tabBarIcon: ({ focused }) => (
-              <TabIcon
-                name={focused ? 'checkmark-circle' : 'checkmark-circle-outline'}
-                focused={focused}
-              />
-            ),
-          }}
-        />
-
-        <Tabs.Screen
           name="progress"
           options={{
             title: 'Progress',
@@ -309,10 +218,8 @@ export default function StudentLayout() {
             href: null,
           }}
         />
-        <Tabs.Screen name="payments" options={{ href: null, title: 'Payments' }} />
       </Tabs>
 
-      <NotificationsModal visible={visible} onClose={() => setVisible(false)} notifications={notifications} error={notificationError} />
       <ProfileMenu
         visible={profileMenuVisible}
         onClose={() => setProfileMenuVisible(false)}

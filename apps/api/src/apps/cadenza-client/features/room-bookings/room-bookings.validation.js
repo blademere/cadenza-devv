@@ -22,6 +22,21 @@ const createSchema = z.object({
   }),
 });
 
+const walkInCreateSchema = z.object({
+  body: z.object({
+    customer: z.object({
+      firstName: z.string().trim().min(1).max(100),
+      lastName: z.string().trim().min(1).max(100),
+      phone: z.string().trim().min(3).max(50),
+      email: z.string().trim().email().max(255).optional().or(z.literal('')),
+    }),
+    roomId: z.uuid(),
+    scheduledStart: z.coerce.date(),
+    scheduledEnd: z.coerce.date(),
+    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD', 'OTHER']).optional(),
+  }),
+});
+
 const cancelSchema = z.object({
   params: z.object({
     id: z.uuid(),
@@ -60,6 +75,9 @@ const createValidator = async (req) =>
     body: req.body || {},
   });
 
+const walkInCreateValidator = async (req) =>
+  walkInCreateSchema.parse({ body: req.body || {} });
+
 const cancelValidator = async (req) =>
   cancelSchema.parse({
     params: req.params || {},
@@ -76,6 +94,7 @@ export {
   idValidator,
   scheduleValidator,
   createValidator,
+  walkInCreateValidator,
   cancelValidator,
   checkInValidator,
   checkOutValidator,

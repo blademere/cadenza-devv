@@ -1,16 +1,15 @@
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MockDataNotice, ResourceFeedback } from '../../components/common/ResourceFeedback';
+import { ResourceFeedback } from '../../components/common/ResourceFeedback';
 import useMobileResource from '../../hooks/useMobileResource';
 import { getInstructorProfile } from '../../services/instructor.service';
 
 export default function InstructorProfilePage() {
-  const { data, loading, error, isMock, refresh } = useMobileResource(getInstructorProfile);
+  const { data, loading, error, refresh } = useMobileResource(getInstructorProfile);
   const fullName = [data?.firstName, data?.lastName].filter(Boolean).join(' ');
   return (
     <SafeAreaView className="flex-1 bg-[#F7F7FB]">
       <ScrollView contentContainerClassName="px-4 pb-8 pt-4">
-        {isMock && <MockDataNotice />}
         <Text className="mb-4 text-lg font-bold uppercase tracking-[0.5px] text-[#1A1A1A]">My Profile</Text>
         <ResourceFeedback loading={loading} error={error} onRetry={refresh} />
         {data && <View className="rounded-2xl bg-white p-5">

@@ -11,6 +11,7 @@ import {
   getOperationalMinutesBetween,
 } from '../settings/operating-hours.js';
 import { settingsRepository } from '../settings/settings.repository.js';
+import { createWalkInCustomer } from '../walk-ins/walk-in-customer.service.js';
 
 // Individual instrument rates represent the minimum charge for this period.
 const MINIMUM_RENTAL_HOURS = 8;
@@ -424,6 +425,9 @@ export const instrumentRentalsService = {
     instrumentIds,
     rentalPackageId,
     paymentPlan,
+    paymentMethod = 'QR_PLACEHOLDER',
+    status = 'FOR_APPROVAL',
+    metadata = {},
     scheduledStart,
     scheduledEnd,
   }) {
@@ -453,6 +457,9 @@ export const instrumentRentalsService = {
         instrumentId,
         instrumentIds,
         paymentPlan,
+        paymentMethod,
+        status,
+        metadata,
         schedule,
       });
     }
@@ -461,7 +468,46 @@ export const instrumentRentalsService = {
       appId,
       customerId,
       rentalPackageId,
+      paymentMethod,
+      status,
+      metadata,
       schedule,
+    });
+  },
+
+  async createWalkInRental({
+    appId,
+    customer,
+    rentalType,
+    instrumentId,
+    instrumentIds,
+    rentalPackageId,
+    scheduledStart,
+    scheduledEnd,
+    paymentMethod = 'CASH',
+  }) {
+    const walkInCustomer = await createWalkInCustomer({ appId, ...customer });
+    return this.createInstrumentRental({
+      appId,
+      customerId: walkInCustomer.id,
+      rentalType,
+      instrumentId,
+      instrumentIds,
+      rentalPackageId,
+      scheduledStart,
+      scheduledEnd,
+      paymentPlan: 'FULL_PAYMENT',
+      paymentMethod,
+      status: 'APPROVED',
+      metadata: {
+        walkIn: true,
+        customerSnapshot: {
+          firstName: walkInCustomer.person.firstName,
+          lastName: walkInCustomer.person.lastName,
+          phone: walkInCustomer.person.phone,
+          email: walkInCustomer.person.email,
+        },
+      },
     });
   },
 
@@ -471,6 +517,9 @@ export const instrumentRentalsService = {
     instrumentId,
     instrumentIds,
     paymentPlan,
+    paymentMethod = 'QR_PLACEHOLDER',
+    status = 'FOR_APPROVAL',
+    metadata: additionalMetadata = {},
     schedule,
   }) {
     const selectedPaymentPlan = paymentPlan || 'FULL_PAYMENT';
@@ -553,10 +602,11 @@ export const instrumentRentalsService = {
       scheduledEnd: schedule.scheduledEnd,
       totalAmount,
       refundableDeposit: 0,
-      status: 'FOR_APPROVAL',
+      status,
       metadata: {
+        ...additionalMetadata,
         paymentPlan: selectedPaymentPlan,
-        paymentMethod: 'QR_PLACEHOLDER',
+        paymentMethod,
         paymentStatus:
           selectedPaymentPlan === 'DOWN_PAYMENT'
             ? 'PARTIALLY_PAID'
@@ -582,7 +632,15 @@ export const instrumentRentalsService = {
     );
   },
 
-  async createPackageRental({ appId, customerId, rentalPackageId, schedule }) {
+  async createPackageRental({
+    appId,
+    customerId,
+    rentalPackageId,
+    paymentMethod = 'QR_PLACEHOLDER',
+    status = 'FOR_APPROVAL',
+    metadata: additionalMetadata = {},
+    schedule,
+  }) {
     if (!rentalPackageId) {
       throw new BadRequestError(
         'Rental package is required for a package rental.',
@@ -654,7 +712,13 @@ export const instrumentRentalsService = {
       scheduledEnd: schedule.scheduledEnd,
       totalAmount: rentalPackage.rentalRate,
       refundableDeposit: rentalPackage.depositAmount,
-      status: 'FOR_APPROVAL',
+      status,
+      metadata: {
+        ...additionalMetadata,
+        paymentMethod,
+        paymentStatus: 'PAID',
+        paymentCompletedAt: new Date().toISOString(),
+      },
     });
 
     await instrumentRentalsRepository.createRentalItems(

@@ -36,6 +36,14 @@ function mapSession(session, enrollment) {
     scheduledStart: session.scheduledStart,
     scheduledEnd: session.scheduledEnd,
     status: session.status,
+    attendance: session.attendance
+      ? {
+          id: session.attendance.id,
+          status: session.attendance.status,
+          notes: session.attendance.notes,
+          markedAt: session.attendance.markedAt,
+        }
+      : null,
     instructor: session.instructor?.person
       ? { name: [session.instructor.person.firstName, session.instructor.person.lastName].filter(Boolean).join(' ') }
       : null,
@@ -89,6 +97,7 @@ async function findApprovedEnrollments(appId, customerId) {
       },
       sessions: {
         include: {
+          attendance: true,
           instructor: { select: { person: { select: { firstName: true, lastName: true } } } },
           room: { select: { resourceId: true } },
           rescheduleRequests: { where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' }, take: 1 },
@@ -137,6 +146,36 @@ export const studentService = {
         status: enrollment.status,
       })),
       schedules: enrollments.flatMap((enrollment) => enrollment.sessions.map((session) => mapSession(session, enrollment))),
+    };
+  },
+
+  async getProgress(req) {
+    const enrollments = await findApprovedEnrollments(req.cadenzaApp.id, req.cadenzaCustomer.id);
+    const records = enrollments
+      .flatMap((enrollment) => enrollment.sessions.map((session) => ({
+        ...mapSession(session, enrollment),
+        lesson: courseName(enrollment),
+      })))
+      .sort((a, b) => new Date(b.scheduledStart) - new Date(a.scheduledStart));
+    const completedStatuses = new Set(['PRESENT', 'LATE', 'COMPLETED', 'ATTENDED']);
+    const completedLessons = records.filter((record) => completedStatuses.has(String(record.attendance?.status || '').toUpperCase())).length;
+    const feedback = records
+      .filter((record) => record.attendance?.notes)
+      .map((record) => ({
+        id: record.attendance.id,
+        attendanceId: record.attendance.id,
+        message: record.attendance.notes,
+        createdAt: record.attendance.markedAt,
+        instructor: record.instructor,
+        lesson: record.lesson,
+      }));
+
+    return {
+      overallProgress: records.length ? Math.round((completedLessons / records.length) * 100) : 0,
+      completedLessons,
+      totalLessons: records.length,
+      records,
+      feedback,
     };
   },
 

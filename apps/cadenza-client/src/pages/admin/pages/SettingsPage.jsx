@@ -60,6 +60,10 @@ import {
   updateInstrumentTypeStatus,
   getOperatingHours,
   updateOperatingHours,
+  getBankAccounts,
+  createBankAccount,
+  updateBankAccountStatus,
+  getBankAccountQr,
 } from '@/services/admin/settingsService';
 
 const EMPTY_COURSE_FORM = {
@@ -103,6 +107,14 @@ export default function SettingsPage() {
   const [courses, setCourses] = React.useState(INITIAL_COURSES);
   const [instruments, setInstruments] = React.useState(INITIAL_INSTRUMENTS);
   const [categories, setCategories] = React.useState([]);
+  const [bankAccounts, setBankAccounts] = React.useState([]);
+  const [bankName, setBankName] = React.useState('');
+  const [bankAccountNumber, setBankAccountNumber] = React.useState('');
+  const [bankAccountQr, setBankAccountQr] = React.useState(null);
+  const [bankAccountSaving, setBankAccountSaving] = React.useState(false);
+  const [bankAccountUpdating, setBankAccountUpdating] = React.useState(null);
+  const [bankAccountQrUrls, setBankAccountQrUrls] = React.useState({});
+  const bankAccountQrUrlsRef = React.useRef({});
   const [operatingHours, setOperatingHours] = React.useState(DEFAULT_OPERATING_HOURS);
   const [hoursSaving, setHoursSaving] = React.useState(false);
   const today = new Date();
@@ -172,11 +184,12 @@ export default function SettingsPage() {
     try {
       setLoading(true);
 
-      const [courseData, instrumentTypeData, categoryData, hoursData] = await Promise.all([
+      const [courseData, instrumentTypeData, categoryData, hoursData, bankAccountData] = await Promise.all([
         getCourses(),
         getInstrumentTypes(),
         getItemCategories(),
         getOperatingHours(),
+        getBankAccounts(),
       ]);
 
       setCourses(Array.isArray(courseData) ? courseData.map(mapCourse) : []);
@@ -185,6 +198,7 @@ export default function SettingsPage() {
       );
       setCategories(Array.isArray(categoryData) ? categoryData : []);
       setOperatingHours({ ...DEFAULT_OPERATING_HOURS, ...(hoursData || {}), weeklyHours: { ...DEFAULT_OPERATING_HOURS.weeklyHours, ...(hoursData?.weeklyHours || {}) } });
+      setBankAccounts(Array.isArray(bankAccountData) ? bankAccountData : []);
     } catch (error) {
       toast.error(error?.message || 'Failed to load course setup.');
     } finally {
@@ -242,6 +256,58 @@ export default function SettingsPage() {
   React.useEffect(() => {
     loadData();
   }, [loadData]);
+
+  React.useEffect(() => () => {
+    Object.values(bankAccountQrUrlsRef.current).forEach((url) => URL.revokeObjectURL(url));
+  }, []);
+
+  const saveBankAccount = async (event) => {
+    event.preventDefault();
+    if (!bankName.trim() || !bankAccountNumber.trim() || !bankAccountQr) {
+      toast.error('Bank name, account number, and QR image are required.');
+      return;
+    }
+    try {
+      setBankAccountSaving(true);
+      const formData = new FormData();
+      formData.append('bankName', bankName.trim());
+      formData.append('accountNumber', bankAccountNumber.trim());
+      formData.append('qr', bankAccountQr);
+      const saved = await createBankAccount(formData);
+      setBankAccounts((current) => [...current, saved]);
+      setBankName('');
+      setBankAccountNumber('');
+      setBankAccountQr(null);
+      event.currentTarget.reset();
+      toast.success('Bank account added.');
+    } catch (error) {
+      toast.error(error?.message || 'Failed to add bank account.');
+    } finally { setBankAccountSaving(false); }
+  };
+
+  const toggleBankAccount = async (account) => {
+    const status = account.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    try {
+      setBankAccountUpdating(account.id);
+      const updated = await updateBankAccountStatus(account.id, status);
+      setBankAccounts((current) => current.map((item) => item.id === account.id ? updated : item));
+      toast.success(`Bank account ${status === 'ACTIVE' ? 'activated' : 'deactivated'}.`);
+    } catch (error) { toast.error(error?.message || 'Failed to update bank account.'); }
+    finally { setBankAccountUpdating(null); }
+  };
+
+  const viewBankAccountQr = async (account) => {
+    try {
+      let url = bankAccountQrUrls[account.id];
+      if (!url) {
+        const response = await getBankAccountQr(account.id);
+        url = URL.createObjectURL(await response.blob());
+        bankAccountQrUrlsRef.current = { ...bankAccountQrUrlsRef.current, [account.id]: url };
+        setBankAccountQrUrls(bankAccountQrUrlsRef.current);
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) { toast.error(error?.message || 'Failed to open QR image.'); }
+  };
 
   const openAddCourse = () => {
     setCourseForm({
@@ -630,6 +696,50 @@ export default function SettingsPage() {
                   </div>
                   {Object.keys(operatingHours.dateOverrides || {}).length > 0 && <div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Hours</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{Object.entries(operatingHours.dateOverrides).sort(([a], [b]) => a.localeCompare(b)).map(([date, entry]) => <TableRow key={date}><TableCell className="font-medium">{date}</TableCell><TableCell>{entry.isClosed ? 'Closed' : `${entry.startTime} – ${entry.endTime}`}</TableCell><TableCell className="text-right"><Button type="button" variant="ghost" size="sm" onClick={() => removeOverride(date)}>Remove</Button></TableCell></TableRow>)}</TableBody></Table></div>}
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Bank Accounts</CardTitle>
+                <CardDescription>Manage the bank accounts and QR codes customers can use when sending payment.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <form className="grid gap-4 rounded-md border p-4 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end" onSubmit={saveBankAccount}>
+                  <div>
+                    <Label htmlFor="bank-name">Bank name</Label>
+                    <Input id="bank-name" value={bankName} onChange={(event) => setBankName(event.target.value)} placeholder="e.g. BDO" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="bank-account-number">Account number</Label>
+                    <Input id="bank-account-number" value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} placeholder="Enter account number" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="bank-account-qr">QR image</Label>
+                    <Input id="bank-account-qr" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setBankAccountQr(event.target.files?.[0] || null)} required />
+                    <p className="mt-1 text-xs text-muted-foreground">PNG, JPG, or WebP up to 5 MB.</p>
+                  </div>
+                  <Button type="submit" disabled={bankAccountSaving}>{bankAccountSaving ? 'Adding...' : 'Add bank account'}</Button>
+                </form>
+
+                {bankAccounts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No bank accounts have been added yet.</p>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Bank</TableHead><TableHead>Account number</TableHead><TableHead>QR code</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                      <TableBody>{bankAccounts.map((account) => (
+                        <TableRow key={account.id}>
+                          <TableCell className="font-medium">{account.bankName || 'Bank name not set'}</TableCell>
+                          <TableCell>{account.accountNumber}</TableCell>
+                          <TableCell>{account.hasQr ? <Button type="button" variant="ghost" size="sm" onClick={() => viewBankAccountQr(account)}>View QR</Button> : 'Not uploaded'}</TableCell>
+                          <TableCell>{account.status === 'ACTIVE' ? 'Active' : 'Inactive'}</TableCell>
+                          <TableCell className="text-right"><Button type="button" variant="ghost" size="sm" disabled={bankAccountUpdating === account.id} onClick={() => toggleBankAccount(account)}>{bankAccountUpdating === account.id ? 'Saving...' : account.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</Button></TableCell>
+                        </TableRow>
+                      ))}</TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

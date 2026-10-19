@@ -10,7 +10,12 @@ export default function AuthenticatedLayout({ allowedStaffType, accountType }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    const loginPath = location.pathname.startsWith('/admin')
+      ? '/admin/login'
+      : location.pathname.startsWith('/front-desk')
+        ? '/front-desk/login'
+        : '/login';
+    return <Navigate to={loginPath} replace state={{ from: location }} />;
   }
 
   if (allowedStaffType) {
@@ -30,7 +35,7 @@ export default function AuthenticatedLayout({ allowedStaffType, accountType }) {
         return <Navigate to="/client" replace />;
       }
 
-      return <Navigate to="/login" replace />;
+      return <Navigate to={allowedStaffType === 'ADMIN' ? '/admin/login' : '/front-desk/login'} replace />;
     }
   }
 

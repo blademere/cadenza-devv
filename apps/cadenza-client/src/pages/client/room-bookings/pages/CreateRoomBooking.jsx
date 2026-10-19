@@ -113,8 +113,8 @@ export default function CreateRoomBooking() {
         return;
       }
 
-      const scheduledStart = `${date}T${startTime}:00`;
-      const scheduledEnd = `${date}T${endTime}:00`;
+      const scheduledStart = `${date}T${startTime}:00+08:00`;
+      const scheduledEnd = `${date}T${endTime}:00+08:00`;
       if (!isWithinOperatingHours(operatingHours, scheduledStart, scheduledEnd)) {
         setAvailableRooms([]);
         setRoom(null);
@@ -226,7 +226,13 @@ export default function CreateRoomBooking() {
 
     if (!value || isValidTime(value)) {
       setStartTime(value);
-      if (value && timeToMinutes(value) + 60 <= timeToMinutes(closeTime)) {
+      const closingMinutes = timeToMinutes(closeTime);
+      const selectedStartMinutes = value ? timeToMinutes(value) : 0;
+      const isWithinFinalOperatingHour = value && selectedStartMinutes >= closingMinutes - 60;
+
+      // Only the final one-hour start slot ends automatically at closing.
+      // Earlier starts remain flexible and let the client choose the end time.
+      if (isWithinFinalOperatingHour) {
         setEndTime(closeTime);
       } else {
         setEndTime('');
@@ -279,7 +285,7 @@ export default function CreateRoomBooking() {
       return;
     }
 
-    if (!isWithinOperatingHours(operatingHours, `${date}T${startTime}:00`, `${date}T${endTime}:00`)) {
+    if (!isWithinOperatingHours(operatingHours, `${date}T${startTime}:00+08:00`, `${date}T${endTime}:00+08:00`)) {
       setError('The selected booking must be within the facility operating hours.');
       return;
     }

@@ -42,4 +42,5 @@ model App {
   cadenzaRentalPackageItems     CadenzaRentalPackageItem[]
   cadenzaRentalItems            CadenzaRentalItem[]
   cadenzaOperatingHours         CadenzaOperatingHours?
+  cadenzaBankAccounts           CadenzaBankAccount[]
 }

@@ -313,6 +313,25 @@ model CadenzaItemCategory {
   @@index([appId, status])
 }
 
+model CadenzaBankAccount {
+  id            String   @id @default(uuid())
+  appId         String
+  bankName      String   @default("")
+  accountNumber String
+  qrStorageKey  String
+  qrMimeType    String
+  qrFileName    String
+  qrFileSize    Int
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, accountNumber])
+  @@index([appId, status])
+}
+
 model CadenzaCoursePackage {
   id        String   @id @default(uuid())
   appId     String

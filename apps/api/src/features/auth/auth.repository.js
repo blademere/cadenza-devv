@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 import { run as runTransaction } from '../../platform/transactions/transaction.service.js'
 
@@ -22,7 +23,7 @@ const changePassword = async ({ userId, passwordHash }) => runTransaction(async 
 const listActiveSessions = async (userId) => prisma.refreshToken.findMany({ where: { userId: Number(userId), revokedAt: null, expiresAt: { gt: new Date() } }, select: { id: true, createdAt: true, expiresAt: true }, orderBy: { createdAt: 'desc' } })
 const revokeSession = async ({ userId, sessionId }) => prisma.refreshToken.updateMany({ where: { id: sessionId, userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date() } })
 const findOAuthAccount = async ({ provider, providerAccountId }, db = prisma) => db.oAuthAccount.findUnique({ where: { provider_providerAccountId: { provider, providerAccountId } }, include: { user: true } })
-const createOAuthAccount = async ({ userId, provider, providerAccountId }, db = prisma) => db.oAuthAccount.create({ data: { userId: Number(userId), provider, providerAccountId } })
+const createOAuthAccount = async ({ userId, provider, providerAccountId }, db = prisma) => db.oAuthAccount.create({ data: { id: crypto.randomUUID(), userId: Number(userId), provider, providerAccountId } })
 const listOAuthAccounts = async (userId, db = prisma) => db.oAuthAccount.findMany({ where: { userId: Number(userId) }, select: { id: true, provider: true, providerAccountId: true, createdAt: true }, orderBy: { createdAt: 'asc' } })
 const findOAuthAccountByUserAndProvider = async ({ userId, provider }, db = prisma) => db.oAuthAccount.findFirst({ where: { userId: Number(userId), provider }, select: { id: true, provider: true, providerAccountId: true, createdAt: true } })
 const deleteOAuthAccount = async (accountId, db = prisma) => db.oAuthAccount.delete({ where: { id: accountId } })

@@ -1,11 +1,30 @@
 import { apiClient } from '@/core/api/apiClient';
 
+let refreshPromise = null;
+
 export const getGoogleOAuthUrl = () => {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
   return `${apiBaseUrl}/auth/oauth/google`;
 };
 
 export const authService = {
+  async requestOtp({ email, purpose }) {
+    const response = await apiClient.post('/auth/otp/request', { email, purpose });
+    return response?.data ?? response;
+  },
+
+  async verifyOtp({ email, otp, purpose }) {
+    const response = await apiClient.post('/auth/otp/verify', { email, otp, purpose });
+    const authData = response?.data ?? response;
+    apiClient.setAccessToken(authData.accessToken);
+    localStorage.setItem('accessToken', authData.accessToken);
+    if (authData.csrfToken) {
+      apiClient.setCsrfToken(authData.csrfToken);
+      localStorage.setItem('csrfToken', authData.csrfToken);
+    }
+    return authData;
+  },
+
   async login({ email, password }) {
     const response = await apiClient.post('/auth/login', {
       email,
@@ -39,36 +58,44 @@ export const authService = {
   },
 
   async refresh() {
-    try {
-      const response = await apiClient.post('/auth/refresh', {});
+    if (refreshPromise) return refreshPromise;
 
-      const authData = response?.data;
+    refreshPromise = (async () => {
+      try {
+        const response = await apiClient.post('/auth/refresh', {});
 
-      if (!authData?.accessToken) {
-        throw new Error('Refresh response did not contain an access token.');
-      }
+        const authData = response?.data;
 
-      apiClient.setAccessToken(authData.accessToken);
-      localStorage.setItem('accessToken', authData.accessToken);
+        if (!authData?.accessToken) {
+          throw new Error('Refresh response did not contain an access token.');
+        }
 
-      if (authData.csrfToken) {
-        apiClient.setCsrfToken(authData.csrfToken);
-        localStorage.setItem('csrfToken', authData.csrfToken);
-      } else {
+        apiClient.setAccessToken(authData.accessToken);
+        localStorage.setItem('accessToken', authData.accessToken);
+
+        if (authData.csrfToken) {
+          apiClient.setCsrfToken(authData.csrfToken);
+          localStorage.setItem('csrfToken', authData.csrfToken);
+        } else {
+          apiClient.setCsrfToken(null);
+          localStorage.removeItem('csrfToken');
+        }
+
+        return true;
+      } catch {
+        apiClient.clearAccessToken();
         apiClient.setCsrfToken(null);
+
+        localStorage.removeItem('accessToken');
         localStorage.removeItem('csrfToken');
+
+        return false;
+      } finally {
+        refreshPromise = null;
       }
+    })();
 
-      return true;
-    } catch {
-      apiClient.clearAccessToken();
-      apiClient.setCsrfToken(null);
-
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('csrfToken');
-
-      return false;
-    }
+    return refreshPromise;
   },
 
   async logout() {

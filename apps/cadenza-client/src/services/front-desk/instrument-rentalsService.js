@@ -47,6 +47,13 @@ export const getRentalPackage = async (id) => {
   return unwrap(response);
 };
 
+export const createWalkInRental = async (data) => {
+  const response = await apiClient.post(`${INSTRUMENT_RENTALS_URL}/walk-in`, data, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+  return unwrap(response);
+};
+
 export const createRentalPackage = async (data) => {
   const response = await apiClient.post(
     `${INSTRUMENT_RENTALS_URL}/packages`,

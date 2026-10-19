@@ -9,18 +9,14 @@ import ErrorMessage from '../../components/common/ErrorMessage';
 import StatCard from '../../components/instructor/StatCard';
 import StudentProgressCard from '../../components/instructor/StudentProgressCard';
 import { getInstructorDashboard } from '../../services/instructor.service';
-import { isMockDataEnabled } from '../../services/dataMode';
-import { MockDataNotice } from '../../components/common/ResourceFeedback';
 export default function InstructorDashboardScreen() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [isMock, setIsMock] = useState(false);
   const fetchDashboard = useCallback(async () => {
     try {
       setError(null);
-      setIsMock(await isMockDataEnabled());
       const result = await getInstructorDashboard();
       setData(result);
     } catch {
@@ -64,7 +60,6 @@ export default function InstructorDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {isMock && <MockDataNotice />}
         {/* Greeting */}
         <Text
           className="text-sm text-[#8A8A8A]"
@@ -120,7 +115,7 @@ export default function InstructorDashboardScreen() {
         >
           STUDENT PROGRESS OVERVIEW
         </Text>
-        {data.studentProgress.length === 0 ? (
+        {(!data.studentProgress || data.studentProgress.length === 0) ? (
           <Text
             className="mb-2 text-[13px] text-[#8A8A8A]"
             style={{ fontFamily: fonts.regular }}

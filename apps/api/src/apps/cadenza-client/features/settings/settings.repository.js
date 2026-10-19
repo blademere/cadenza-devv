@@ -77,4 +77,23 @@ export const settingsRepository = {
       data,
     });
   },
+
+  findBankAccounts(appId) {
+    return prisma.cadenzaBankAccount.findMany({
+      where: { appId },
+      orderBy: { createdAt: 'asc' },
+    });
+  },
+
+  findBankAccount(appId, id) {
+    return prisma.cadenzaBankAccount.findFirst({ where: { appId, id } });
+  },
+
+  createBankAccount(data) {
+    return prisma.cadenzaBankAccount.create({ data });
+  },
+
+  updateBankAccount(appId, id, data) {
+    return prisma.cadenzaBankAccount.updateMany({ where: { appId, id }, data });
+  },
 };

@@ -7,6 +7,7 @@ import {
 import * as repository from './room-booking.repository.js';
 import { assertWithinOperatingHours } from '../settings/operating-hours.js';
 import { settingsRepository } from '../settings/settings.repository.js';
+import { createWalkInCustomer } from '../walk-ins/walk-in-customer.service.js';
 
 const validateSchedule = (scheduledStart, scheduledEnd) => {
   const start = new Date(scheduledStart);
@@ -68,7 +69,6 @@ const ensureAvailable = async ({
   roomId,
   scheduledStart,
   scheduledEnd,
-  paymentPlan,
 }) => {
   const [bookings, sessions] = await Promise.all([
     repository.findOverlappingBookings({
@@ -105,6 +105,9 @@ const create = async ({
   scheduledStart,
   scheduledEnd,
   paymentPlan,
+  paymentMethod = 'QR_PLACEHOLDER',
+  status = 'FOR_APPROVAL',
+  metadata: additionalMetadata = {},
 }) => {
   const schedule = validateSchedule(
     scheduledStart,
@@ -168,10 +171,11 @@ const create = async ({
     scheduledStart: schedule.scheduledStart,
     scheduledEnd: schedule.scheduledEnd,
     totalAmount,
-    status: 'FOR_APPROVAL',
+    status,
     metadata: {
+      ...additionalMetadata,
       paymentPlan: selectedPaymentPlan,
-      paymentMethod: 'QR_PLACEHOLDER',
+      paymentMethod,
       paymentStatus:
         selectedPaymentPlan === 'DOWN_PAYMENT'
           ? 'PARTIALLY_PAID'
@@ -179,6 +183,38 @@ const create = async ({
       paymentCompletedAt: new Date().toISOString(),
       initialPaymentAmount,
       remainingAmount: totalAmount - initialPaymentAmount,
+    },
+  });
+};
+
+const createWalkIn = async ({
+  appId,
+  customer,
+  roomId,
+  scheduledStart,
+  scheduledEnd,
+  paymentMethod = 'CASH',
+}) => {
+  const walkInCustomer = await createWalkInCustomer({ appId, ...customer });
+  return create({
+    appId,
+    customerId: walkInCustomer.id,
+    roomId,
+    scheduledStart,
+    scheduledEnd,
+    paymentPlan: 'FULL_PAYMENT',
+    paymentMethod,
+    status: 'APPROVED',
+    metadata: {
+      walkIn: true,
+      paymentMethod,
+      paymentStatus: 'PAID',
+      customerSnapshot: {
+        firstName: walkInCustomer.person.firstName,
+        lastName: walkInCustomer.person.lastName,
+        phone: walkInCustomer.person.phone,
+        email: walkInCustomer.person.email,
+      },
     },
   });
 };
@@ -456,6 +492,7 @@ const cancel = async ({
 
 export {
   create,
+  createWalkIn,
   listMyBookings,
   listAllBookings,
   approveBooking,

@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import useAuth from '@/core/auth/useAuth';
-import { getOperatingHours, isWithinOperatingHours } from '@/services/operatingHoursService';
 
 import {
   getAvailablePackages,
@@ -9,12 +7,36 @@ import {
   getInstructorAvailability,
   validateEnrollmentSchedule,
 } from '../services/enrollmentServices';
+import { getMyProfile } from '../../profile/services/profile.service';
+
+const addDaysToDateKey = (value, days) => {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
+const getIsoDayOfWeek = (value) => {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = date.getUTCDay();
+  return day === 0 ? 7 : day;
+};
+
+const getManilaDateTime = (dateKey, minutes) => {
+  const hours = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return new Date(
+    `${dateKey}T${String(hours).padStart(2, '0')}:${String(minute).padStart(
+      2,
+      '0',
+    )}:00+08:00`,
+  );
+};
 
 export default function NewEnrollment() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
-
   const packageId = searchParams.get('package');
   const courseId = searchParams.get('course');
 
@@ -43,13 +65,32 @@ export default function NewEnrollment() {
   const [loadingInstructors, setLoadingInstructors] = useState(false);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingStudentProfile, setLoadingStudentProfile] = useState(true);
+  const [profileEmail, setProfileEmail] = useState('');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [operatingHours, setOperatingHours] = useState(null);
-
   useEffect(() => {
-    getOperatingHours().then(setOperatingHours).catch(() => setOperatingHours(null));
+    getMyProfile()
+      .then((profile) => {
+        const person = profile?.person || {};
+        const details = person.metadata?.studentDetails || {};
+        setProfileEmail(profile?.user?.email || person.email || '');
+        const address = typeof person.address === 'string'
+          ? person.address
+          : person.address?.line1 || person.address?.fullAddress || '';
+        setStudentDetails({
+          firstName: person.firstName || '',
+          lastName: person.lastName || '',
+          address,
+          age: details.age ?? '',
+          gender: details.gender || '',
+          guardianName: details.guardianName || '',
+          contactNo: person.phone || '',
+        });
+      })
+      .catch(() => setError('Unable to load your student profile.'))
+      .finally(() => setLoadingStudentProfile(false));
   }, []);
 
   useEffect(() => {
@@ -225,14 +266,31 @@ export default function NewEnrollment() {
     };
   }, [startDate, selectedPackage?.id, selectedInstructor, selectedCourseId]);
 
+  const availabilityForDisplay = useMemo(() => {
+    const duration = Number(selectedPackage?.sessionDurationMinutes) || 0;
+
+    return availability.filter((rule) => {
+      const ruleStart = Number(rule.startMinute);
+      const ruleEnd = Number(rule.endMinute);
+
+      return ruleEnd - ruleStart >= duration;
+    });
+  }, [availability, selectedPackage?.sessionDurationMinutes]);
+
+  useEffect(() => {
+    setSelectedAvailabilityIds((current) =>
+      current.filter((id) => availabilityForDisplay.some((rule) => rule.id === id)),
+    );
+  }, [availabilityForDisplay]);
+
   // Keep the order in which the student selected the weekly schedule.
   // The first selected rule is the first day of the enrollment cycle.
   const selectedAvailability = selectedAvailabilityIds
-    .map((id) => availability.find((rule) => rule.id === id))
+    .map((id) => availabilityForDisplay.find((rule) => rule.id === id))
     .filter(Boolean);
 
   const availabilityByDay = useMemo(() => {
-    return availability.reduce((groups, rule) => {
+    return availabilityForDisplay.reduce((groups, rule) => {
       const day = Number(rule.dayOfWeek);
       if (!groups[day]) {
         groups[day] = [];
@@ -240,7 +298,7 @@ export default function NewEnrollment() {
       groups[day].push(rule);
       return groups;
     }, {});
-  }, [availability]);
+  }, [availabilityForDisplay]);
 
   const getDayOfWeekFromDate = (value) => {
     const date = new Date(`${value}T00:00:00`);
@@ -277,7 +335,7 @@ export default function NewEnrollment() {
       }
 
       const requiredCount = Number(selectedPackage?.sessionsPerWeek);
-      const selectedDays = availability
+      const selectedDays = availabilityForDisplay
         .filter((item) => current.includes(item.id))
         .map((item) => item.dayOfWeek);
 
@@ -312,19 +370,6 @@ export default function NewEnrollment() {
 
     const dayOfWeek = getDayOfWeekFromDate(value);
     const firstRule = firstSelectedRule;
-
-    if (firstRule && selectedPackage?.sessionDurationMinutes) {
-      const startHour = Math.floor(firstRule.startMinute / 60);
-      const startMinute = firstRule.startMinute % 60;
-      const sessionStart = new Date(`${value}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`);
-      const sessionEnd = new Date(sessionStart.getTime() + Number(selectedPackage.sessionDurationMinutes) * 60000);
-      if (!isWithinOperatingHours(operatingHours, sessionStart, sessionEnd)) {
-        setStartDate('');
-        setStartTime('');
-        setError('');
-        return;
-      }
-    }
 
     if (!firstRule || firstRule.dayOfWeek !== dayOfWeek) {
       setStartDate(value);
@@ -368,22 +413,33 @@ export default function NewEnrollment() {
       return null;
     }
 
-    return new Date(`${startDate}T${resolvedStartTime}:00`);
+    return new Date(`${startDate}T${resolvedStartTime}:00+08:00`);
   };
 
   const formatLocalDateTime = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(date)
+      .reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
 
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}+08:00`;
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (loadingStudentProfile) {
+      setError('Please wait for your student profile to finish loading.');
+      return;
+    }
 
     if (
       !studentDetails.firstName.trim() ||
@@ -497,31 +553,17 @@ export default function NewEnrollment() {
         const week = Math.floor(index / sessionsPerWeek);
         const rule = selectedWeeklyRules[index % sessionsPerWeek];
         const dayOffset = (rule.dayOfWeek - dayOfWeek + 7) % 7;
-        const sessionStart = new Date(scheduledStart);
-
-        sessionStart.setDate(sessionStart.getDate() + week * 7 + dayOffset);
-        if (index > 0) {
-          sessionStart.setHours(
-            Math.floor(rule.startMinute / 60),
-            rule.startMinute % 60,
-            0,
-            0,
-          );
-        }
+        const sessionDate = addDaysToDateKey(
+          startDate,
+          week * 7 + dayOffset,
+        );
+        const sessionStart = getManilaDateTime(sessionDate, rule.startMinute);
 
         const sessionEnd = new Date(
           sessionStart.getTime() + sessionDuration * 60 * 1000,
         );
 
-        if (!isWithinOperatingHours(operatingHours, sessionStart, sessionEnd)) {
-          throw new Error('One or more lesson sessions fall outside the facility operating hours.');
-        }
-
-        if (
-          sessionStart.getHours() * 60 + sessionStart.getMinutes() <
-            rule.startMinute ||
-          sessionEnd.getHours() * 60 + sessionEnd.getMinutes() > rule.endMinute
-        ) {
+        if (rule.startMinute + sessionDuration > rule.endMinute) {
           throw new Error(
             `The generated ${formatDay(rule.dayOfWeek)} session is outside the instructor's availability.`,
           );
@@ -589,7 +631,7 @@ export default function NewEnrollment() {
           studentDetails: {
             ...studentDetails,
             age: Number(studentDetails.age),
-            email: user?.email || '',
+            email: profileEmail,
           },
         },
       });
@@ -607,7 +649,7 @@ export default function NewEnrollment() {
             studentDetails: {
               ...studentDetails,
               age: Number(studentDetails.age),
-              email: user?.email || '',
+              email: profileEmail,
             },
           },
         }),
@@ -722,76 +764,29 @@ export default function NewEnrollment() {
           <div className="mb-5">
             <h2 className="text-lg font-semibold">Student Details</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Enter the student information for this enrollment. The email is taken from the signed-in client account.
+              These details are fetched from your Account profile and will be used for this enrollment.
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              ['firstName', 'First name', 'text'],
-              ['lastName', 'Last name', 'text'],
-              ['address', 'Address', 'text'],
-              ['age', 'Age', 'number'],
-              ['guardianName', 'Guardian name', 'text'],
-              ['contactNo', 'Contact number', 'tel'],
-            ].map(([field, label, type]) => (
-              <div key={field} className={field === 'address' ? 'sm:col-span-2' : ''}>
-                <label htmlFor={`student-${field}`} className="mb-1.5 block text-sm font-medium">
-                  {label}{field !== 'guardianName' && <span className="text-destructive"> *</span>}
-                </label>
-                <input
-                  id={`student-${field}`}
-                  type={type}
-                  min={field === 'age' ? 1 : undefined}
-                  max={field === 'age' ? 120 : undefined}
-                  value={studentDetails[field]}
-                  onChange={(event) =>
-                    setStudentDetails((current) => ({
-                      ...current,
-                      [field]: event.target.value,
-                    }))
-                  }
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                />
-              </div>
-            ))}
-
-            <div>
-              <label htmlFor="student-gender" className="mb-1.5 block text-sm font-medium">
-                Gender <span className="text-destructive">*</span>
-              </label>
-              <select
-                id="student-gender"
-                value={studentDetails.gender}
-                onChange={(event) =>
-                  setStudentDetails((current) => ({
-                    ...current,
-                    gender: event.target.value,
-                  }))
-                }
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">Select gender</option>
-                <option value="MALE">Male</option>
-                <option value="FEMALE">Female</option>
-                <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="student-email" className="mb-1.5 block text-sm font-medium">
-                Email
-              </label>
-              <input
-                id="student-email"
-                type="email"
-                value={user?.email || ''}
-                readOnly
-                disabled
-                className="h-10 w-full rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">Fetched from your client account.</p>
-            </div>
+            {loadingStudentProfile ? (
+              <p className="text-sm text-muted-foreground sm:col-span-2">Loading student profile...</p>
+            ) : (
+              <>
+                {[
+                  ['firstName', 'First name'],
+                  ['lastName', 'Last name'],
+                  ['address', 'Address'],
+                  ['age', 'Age'],
+                  ['guardianName', 'Guardian name'],
+                  ['contactNo', 'Contact number'],
+                  ['gender', 'Gender'],
+                ].map(([field, label]) => (
+                  <DetailField key={field} label={label} value={studentDetails[field]} wide={field === 'address'} />
+                ))}
+                <DetailField label="Email" value={profileEmail} />
+              </>
+            )}
           </div>
         </section>
 
@@ -800,12 +795,11 @@ export default function NewEnrollment() {
             <h2 className="text-lg font-semibold">Choose Instructor</h2>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Only instructors mapped to{' '}
+              Active instructors mapped to{' '}
               <span className="font-medium text-foreground">
                 {selectedCourse?.name || 'this course'}
               </span>{' '}
-              with enough available days for {selectedPackage?.sessionsPerWeek}{' '}
-              session(s) per week are shown.
+              with registered availability are shown.
             </p>
           </div>
 
@@ -818,10 +812,8 @@ export default function NewEnrollment() {
           ) : instructors.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-6 text-center">
               <p className="text-sm text-muted-foreground">
-                No instructors match this course and package schedule. An
-                instructor must be active, mapped to this course, and have at
-                least {selectedPackage?.sessionsPerWeek || 1} active schedule
-                day(s) long enough for each lesson.
+                No active instructors mapped to this course have registered
+                availability.
               </p>
             </div>
           ) : (
@@ -1024,7 +1016,7 @@ export default function NewEnrollment() {
 
                   <p className="mt-1 text-sm text-muted-foreground">
                     {new Date(
-                      `${startDate}T${resolvedStartTime}:00`,
+                      `${startDate}T${resolvedStartTime}:00+08:00`,
                     ).toLocaleDateString(undefined, {
                       weekday: 'long',
                       year: 'numeric',
@@ -1033,10 +1025,11 @@ export default function NewEnrollment() {
                     })}{' '}
                     at{' '}
                     {new Date(
-                      `${startDate}T${resolvedStartTime}:00`,
+                      `${startDate}T${resolvedStartTime}:00+08:00`,
                     ).toLocaleTimeString(undefined, {
                       hour: 'numeric',
                       minute: '2-digit',
+                      hour12: true,
                     })}
                   </p>
 
@@ -1116,6 +1109,17 @@ export default function NewEnrollment() {
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function DetailField({ label, value, wide = false }) {
+  return (
+    <div className={wide ? 'sm:col-span-2' : ''}>
+      <p className="mb-1.5 text-sm font-medium">{label}</p>
+      <div className="min-h-10 rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+        {value || 'Not provided'}
+      </div>
     </div>
   );
 }

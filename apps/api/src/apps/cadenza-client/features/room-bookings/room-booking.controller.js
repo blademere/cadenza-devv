@@ -108,6 +108,17 @@ const create = async (req, res) =>
     201,
   );
 
+const createWalkIn = async (req, res) =>
+  successResponse(
+    res,
+    'Walk-in room booking created successfully.',
+    await service.createWalkIn({
+      appId: req.cadenzaApp.id,
+      ...req.validated.body,
+    }),
+    201,
+  );
+
 const cancel = async (req, res) =>
   successResponse(
     res,
@@ -131,5 +142,6 @@ export {
   checkOut,
   getMyBooking,
   create,
+  createWalkIn,
   cancel,
 };

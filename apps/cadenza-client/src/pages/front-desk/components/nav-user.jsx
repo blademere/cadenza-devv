@@ -54,7 +54,7 @@ export function NavUser({ user }) {
     try {
       setSigningOut(true);
       await logout();
-      navigate('/login', { replace: true });
+      navigate('/front-desk/login', { replace: true });
     } catch (error) {
       toast.error(error?.message || 'Failed to log out.');
       setSigningOut(false);

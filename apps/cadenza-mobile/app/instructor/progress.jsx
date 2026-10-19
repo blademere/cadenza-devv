@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MockDataNotice, ResourceFeedback } from '../../components/common/ResourceFeedback';
+import { ResourceFeedback } from '../../components/common/ResourceFeedback';
 import RescheduleRequestButton from '../../components/common/RescheduleRequestButton';
 import useMobileResource from '../../hooks/useMobileResource';
-import { getInstructorAttendance, markInstructorAttendance } from '../../services/instructor.service';
+import { getInstructorProgress, markInstructorAttendance } from '../../services/instructor.service';
 
 const ACCENT = '#0C447C';
 
@@ -30,11 +30,11 @@ function getProgressPercent(record) {
   if (total > 0) {
     return Math.max(0, Math.min(100, Math.round((Number(record.completedLessons || 0) / total) * 100)));
   }
-  return ['PRESENT', 'LATE'].includes(String(record.status || '').toUpperCase()) ? 100 : 0;
+  return ['PRESENT', 'LATE', 'COMPLETED', 'ATTENDED'].includes(String(record.attendance?.status || record.status || '').toUpperCase()) ? 100 : 0;
 }
 
 export default function InstructorProgressPage() {
-  const { data, loading, error, isMock, refresh } = useMobileResource(getInstructorAttendance);
+  const { data, loading, error, refresh } = useMobileResource(getInstructorProgress);
   const records = Array.isArray(data) ? data : data?.records || [];
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [savingId, setSavingId] = useState(null);
@@ -45,7 +45,7 @@ export default function InstructorProgressPage() {
     try {
       setSavingId(record.id);
       setSaveError('');
-      const notes = feedbackDrafts[record.id] ?? record.notes ?? '';
+      const notes = feedbackDrafts[record.id] ?? record.attendance?.notes ?? '';
       await markInstructorAttendance(record.id, status, notes.trim());
       await refresh();
     } catch (requestError) {
@@ -61,15 +61,14 @@ export default function InstructorProgressPage() {
         contentContainerClassName="px-4 pb-8 pt-4"
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
       >
-        {isMock && <MockDataNotice />}
         <Text className="text-2xl font-bold text-[#0C447C]">Lesson Progress</Text>
         <Text className="mb-5 mt-2 text-gray-500">Record attendance and leave feedback for each lesson.</Text>
         {!!saveError && <Text accessibilityRole="alert" className="mb-4 text-sm text-red-700">{saveError}</Text>}
         <ResourceFeedback loading={loading} error={error} onRetry={refresh} />
         {!loading && !error && records.length === 0 && <Text className="text-sm text-gray-500">No lessons available.</Text>}
         {records.map((record) => {
-          const status = String(record.status || 'SCHEDULED').toUpperCase();
-          const notes = feedbackDrafts[record.id] ?? record.notes ?? '';
+          const status = String(record.attendance?.status || record.status || 'SCHEDULED').toUpperCase();
+          const notes = feedbackDrafts[record.id] ?? record.attendance?.notes ?? '';
           const saving = savingId === record.id;
           const progress = getProgressPercent(record);
           return (

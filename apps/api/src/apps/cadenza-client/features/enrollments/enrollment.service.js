@@ -6,53 +6,104 @@ import {
 
 import { enrollmentRepository } from './enrollment.repository.js';
 import { settingsRepository } from '../settings/settings.repository.js';
-import { assertWithinOperatingHours } from '../settings/operating-hours.js';
+import {
+  assertWithinOperatingHours,
+  DEFAULT_WEEKLY_HOURS,
+} from '../settings/operating-hours.js';
 
 function getDayOfWeek(date) {
-  const day = date.getDay();
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    weekday: 'short',
+  }).format(date);
+  const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(
+    weekday,
+  );
 
   return day === 0 ? 7 : day;
 }
 
 function getMinuteOfDay(date) {
-  return date.getHours() * 60 + date.getMinutes();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(date)
+    .reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+
+  return Number(parts.hour) * 60 + Number(parts.minute);
 }
 
-const FULL_TIME_START_MINUTE = 8 * 60;
-const FULL_TIME_END_MINUTE = 18 * 60;
-const FULL_TIME_DAYS = [1, 2, 3, 4, 5];
+function getManilaDateKey(value) {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .formatToParts(new Date(value))
+    .reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function addDaysToManilaDateKey(dateKey, days) {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function createManilaDateTime(dateKey, minute) {
+  const hour = String(Math.floor(minute / 60)).padStart(2, '0');
+  const minutes = String(minute % 60).padStart(2, '0');
+
+  return new Date(`${dateKey}T${hour}:${minutes}:00+08:00`);
+}
 
 function isFullTimeInstructor(instructor) {
   return instructor?.metadata?.employmentType === 'FULL_TIME';
 }
 
-function getFullTimeAvailability(requiredDuration) {
-  if (
-    FULL_TIME_END_MINUTE - FULL_TIME_START_MINUTE <
-    requiredDuration
-  ) {
-    return [];
+function getFullTimeAvailability(operatingHours, sessionDuration) {
+  const weeklyHours = operatingHours?.weeklyHours || DEFAULT_WEEKLY_HOURS;
+  const duration = Number(sessionDuration);
+  const rules = [];
+
+  for (let javascriptDay = 0; javascriptDay < 7; javascriptDay += 1) {
+    const hours = weeklyHours[String(javascriptDay)];
+
+    if (!hours || hours.isClosed) {
+      continue;
+    }
+
+    const [startHour, startMinute] = hours.startTime.split(':').map(Number);
+    const [endHour, endMinute] = hours.endTime.split(':').map(Number);
+    const openingMinute = startHour * 60 + startMinute;
+    const closingMinute = endHour * 60 + endMinute;
+    const dayOfWeek = javascriptDay === 0 ? 7 : javascriptDay;
+
+    for (
+      let start = openingMinute;
+      start + duration <= closingMinute;
+      start += 30
+    ) {
+      rules.push({
+        id: `full-time-${dayOfWeek}-${start}-${duration}`,
+        dayOfWeek,
+        startMinute: start,
+        endMinute: start + duration,
+        isActive: true,
+      });
+    }
   }
 
-  return FULL_TIME_DAYS.flatMap((dayOfWeek) =>
-    Array.from(
-      {
-        length: (FULL_TIME_END_MINUTE - FULL_TIME_START_MINUTE) / 60,
-      },
-      (_, index) => {
-        const startMinute = FULL_TIME_START_MINUTE + index * 60;
-
-        return {
-          id: `full-time-${dayOfWeek}-${startMinute}`,
-          dayOfWeek,
-          startMinute,
-          endMinute: startMinute + 60,
-          isActive: true,
-          isAutomatic: true,
-        };
-      },
-    ),
-  );
+  return rules;
 }
 
 function getInstructorName(instructor) {
@@ -78,9 +129,7 @@ function mapInstructor(instructor) {
       instructor.metadata?.employmentType === 'FULL_TIME'
         ? 'FULL_TIME'
         : 'PART_TIME',
-    automaticScheduleWindow: isFullTimeInstructor(instructor)
-      ? { start: '08:00', end: '18:00' }
-      : null,
+    automaticScheduleWindow: null,
     courses:
       instructor.courseMappings?.map((mapping) => ({
         id: mapping.courseId,
@@ -333,53 +382,10 @@ export const enrollmentService = {
         course.id,
       );
 
-    const requiredSessionsPerWeek = Number(
-      packageItem.sessionsPerWeek,
-    );
-    const requiredDuration = Number(
-      packageItem.sessionDurationMinutes,
-    );
-
-    if (
-      !Number.isInteger(requiredSessionsPerWeek) ||
-      requiredSessionsPerWeek < 1 ||
-      !Number.isInteger(requiredDuration) ||
-      requiredDuration < 1
-    ) {
-      return [];
-    }
-
-    const eligibleInstructors = [];
-
-    for (const instructor of instructors) {
-      if (isFullTimeInstructor(instructor)) {
-        if (getFullTimeAvailability(requiredDuration).length >= requiredSessionsPerWeek) {
-          eligibleInstructors.push(instructor);
-        }
-        continue;
-      }
-
-      const availability =
-        await enrollmentRepository.findInstructorAvailability(
-          appId,
-          instructor.id,
-        );
-
-      const availableDays = new Set(
-        availability
-          .filter(
-            (rule) =>
-              rule.endMinute - rule.startMinute >= requiredDuration,
-          )
-          .map((rule) => rule.dayOfWeek),
-      );
-
-      if (availableDays.size >= requiredSessionsPerWeek) {
-        eligibleInstructors.push(instructor);
-      }
-    }
-
-    return eligibleInstructors.map(mapInstructor);
+    // Course mapping determines who is shown in Choose Instructor. Schedule
+    // availability is loaded separately after selection and must not hide a
+    // valid active instructor from the course list.
+    return instructors.map(mapInstructor);
   },
 
   async getInstructorAvailability(
@@ -456,8 +462,15 @@ export const enrollmentService = {
       packageItem.sessionDurationMinutes,
     );
 
+    const operatingHours = isFullTimeInstructor(instructor)
+      ? await settingsRepository.findOperatingHours(appId)
+      : null;
+
     let availability = isFullTimeInstructor(instructor)
-      ? getFullTimeAvailability(requiredDuration)
+      ? getFullTimeAvailability(
+          operatingHours,
+          packageItem.sessionDurationMinutes,
+        )
       : await enrollmentRepository.findInstructorAvailability(
           appId,
           instructorId,
@@ -468,11 +481,11 @@ export const enrollmentService = {
     );
 
     if (startDate) {
-      const dateStart = new Date(startDate);
+      const dateKey = getManilaDateKey(startDate);
+      const dateStart = new Date(`${dateKey}T12:00:00+08:00`);
       if (Number.isNaN(dateStart.getTime())) {
         throw new BadRequestError('Invalid start date.');
       }
-      dateStart.setHours(0, 0, 0, 0);
       const dateDayOfWeek = getDayOfWeek(dateStart);
 
       // Check every occurrence in the enrollment cycle. This prevents a slot
@@ -497,15 +510,13 @@ export const enrollmentService = {
         let isAvailable = true;
 
         for (let week = 0; week < enrollmentWeeks; week += 1) {
-          const sessionStart = new Date(dateStart);
-          sessionStart.setDate(
-            sessionStart.getDate() + dayOffset + week * 7,
+          const sessionDateKey = addDaysToManilaDateKey(
+            dateKey,
+            dayOffset + week * 7,
           );
-          sessionStart.setHours(
-            Math.floor(rule.startMinute / 60),
-            rule.startMinute % 60,
-            0,
-            0,
+          const sessionStart = createManilaDateTime(
+            sessionDateKey,
+            rule.startMinute,
           );
           const sessionEnd = new Date(
             sessionStart.getTime() +
@@ -631,24 +642,32 @@ export const enrollmentService = {
     const endMinute =
       getMinuteOfDay(endsAt);
 
-    const availability = isFullTimeInstructor(instructor)
-      ? getFullTimeAvailability(expectedDuration)
-      : await enrollmentRepository.findInstructorAvailability(
-          appId,
-          instructor.id,
-        );
+    if (isFullTimeInstructor(instructor)) {
+      const operatingHours = await settingsRepository.findOperatingHours(appId);
 
-    const matchingAvailability = availability.find(
-      (rule) =>
-        rule.dayOfWeek === dayOfWeek &&
-        rule.startMinute <= startMinute &&
-        rule.endMinute >= endMinute,
-    );
-
-    if (!isFullTimeInstructor(instructor) && !matchingAvailability) {
-      throw new BadRequestError(
-        `Instructor is not available on ${startsAt.toLocaleDateString()} at the selected time.`,
+      try {
+        assertWithinOperatingHours(operatingHours, startsAt, endsAt);
+      } catch (error) {
+        throw new BadRequestError(error.message);
+      }
+    } else {
+      const availability = await enrollmentRepository.findInstructorAvailability(
+        appId,
+        instructor.id,
       );
+
+      const matchingAvailability = availability.find(
+        (rule) =>
+          rule.dayOfWeek === dayOfWeek &&
+          rule.startMinute <= startMinute &&
+          rule.endMinute >= endMinute,
+      );
+
+      if (!matchingAvailability) {
+        throw new BadRequestError(
+          `Instructor is not available on ${startsAt.toLocaleDateString()} at the selected time.`,
+        );
+      }
     }
 
     const block =

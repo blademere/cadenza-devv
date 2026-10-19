@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Check, ChevronDown, FileIcon, Loader2, X } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
@@ -49,6 +50,7 @@ const mapBooking = (booking) => {
 };
 
 export default function FrontDeskRoomBookings() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -68,7 +70,12 @@ export default function FrontDeskRoomBookings() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredBookings = statusFilter === 'All' ? bookings : bookings.filter((booking) => booking.status === statusFilter);
+  const walkInBookings = statusFilter === 'All'
+    ? bookings.filter((booking) => booking.metadata?.walkIn)
+    : bookings.filter((booking) => booking.metadata?.walkIn && booking.status === statusFilter);
+  const filteredBookings = statusFilter === 'All'
+    ? bookings.filter((booking) => !booking.metadata?.walkIn)
+    : bookings.filter((booking) => !booking.metadata?.walkIn && booking.status === statusFilter);
   const openDetails = (booking) => {
     setSelectedBooking(booking);
     setError('');
@@ -139,6 +146,28 @@ export default function FrontDeskRoomBookings() {
             <h1 className="text-2xl font-semibold">Room Bookings</h1>
             <p className="text-muted-foreground">Review payment details and manage room booking requests.</p>
           </div>
+          <Card className="border-blue-500/30 bg-blue-500/5">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle>Walk-in Room Bookings</CardTitle>
+                  <CardDescription>Create a room booking for a customer without a client account.</CardDescription>
+                </div>
+                <Button onClick={() => navigate('/front-desk/room-bookings/walk-in')}>New walk-in booking</Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-3 text-sm text-muted-foreground">Walk-in bookings use the same room availability, operating-hour, and payment validation rules.</p>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Booking ID</TableHead><TableHead>Customer</TableHead><TableHead>Room</TableHead><TableHead>Schedule</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {walkInBookings.length ? walkInBookings.map((booking) => <TableRow key={booking.id}><TableCell className="font-medium">{formatBookingReference(booking.id)}</TableCell><TableCell><div className="font-medium">{booking.student}</div><div className="text-sm text-muted-foreground">{booking.email}</div></TableCell><TableCell>{booking.roomName}</TableCell><TableCell>{formatDate(booking.scheduledStart)} {formatTime(booking.scheduledStart)} — {formatTime(booking.scheduledEnd)}</TableCell><TableCell><Badge variant={statusVariant(booking.status)}>{booking.status}</Badge></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => openDetails(booking)}><FileIcon className="size-4" /></Button></TableCell></TableRow>) : <TableRow><TableCell colSpan={6} className="h-20 text-center text-muted-foreground">No walk-in room bookings found.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between gap-4">

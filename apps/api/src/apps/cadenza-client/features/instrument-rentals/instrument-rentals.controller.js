@@ -257,6 +257,23 @@ export const instrumentRentalsController = {
     }
   },
 
+  async createWalkInRental(req, res, next) {
+    try {
+      const rental = await instrumentRentalsService.createWalkInRental({
+        appId: req.cadenzaApp.id,
+        ...req.validated.body,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Walk-in instrument rental created successfully.',
+        data: rental,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async cancelInstrumentRental(req, res, next) {
     try {
       const rental =

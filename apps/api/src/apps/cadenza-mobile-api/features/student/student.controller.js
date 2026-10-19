@@ -9,6 +9,10 @@ export const studentController = {
     res.json({ success: true, data: await studentService.getSchedule(req) });
   },
 
+  async progress(req, res) {
+    res.json({ success: true, data: await studentService.getProgress(req) });
+  },
+
   async materials(req, res) {
     res.json({ success: true, data: await studentService.getMaterials(req) });
   },

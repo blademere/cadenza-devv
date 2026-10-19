@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { createMockRescheduleRequest, getMockRescheduleRequest } from '../../services/rescheduleService';
+import { requestInstructorReschedule } from '../../services/instructor.service';
 
 const ACCENT = '#0C447C';
 
@@ -19,12 +19,12 @@ function getDefaultTime(value) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-export default function RescheduleRequestButton({ sessionId, lesson, scheduledStart, requesterRole }) {
+export default function RescheduleRequestButton({ sessionId, lesson, scheduledStart }) {
   const [visible, setVisible] = useState(false);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [reason, setReason] = useState('');
-  const [request, setRequest] = useState(() => getMockRescheduleRequest(sessionId));
+  const [request, setRequest] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,7 +36,7 @@ export default function RescheduleRequestButton({ sessionId, lesson, scheduledSt
     setVisible(true);
   }
 
-  function submitRequest() {
+  async function submitRequest() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
       setError('Enter a valid date (YYYY-MM-DD) and time (24-hour HH:MM).');
       return;
@@ -54,13 +54,7 @@ export default function RescheduleRequestButton({ sessionId, lesson, scheduledSt
 
     try {
       setSaving(true);
-      const created = createMockRescheduleRequest({
-        sessionId,
-        lesson,
-        requesterRole,
-        requestedStart: requestedStart.toISOString(),
-        reason: reason.trim(),
-      });
+      const created = await requestInstructorReschedule(sessionId, requestedStart.toISOString(), reason.trim());
       setRequest(created);
       setVisible(false);
     } catch (requestError) {
@@ -74,9 +68,9 @@ export default function RescheduleRequestButton({ sessionId, lesson, scheduledSt
     <>
       {request ? (
         <View className="mt-4 rounded-xl bg-amber-50 p-3">
-          <Text className="font-semibold text-amber-800">Demo reschedule request pending</Text>
+          <Text className="font-semibold text-amber-800">Reschedule request pending</Text>
           <Text className="mt-1 text-sm text-amber-700">Requested: {new Date(request.requestedStart).toLocaleString()}</Text>
-          <Text className="mt-1 text-xs text-amber-700">Local mock only. Admin/front desk approval is not connected, so the lesson time has not changed.</Text>
+          <Text className="mt-1 text-xs text-amber-700">Front Desk will review this request. The lesson time has not changed yet.</Text>
         </View>
       ) : (
         <Pressable accessibilityRole="button" onPress={openForm} className="mt-4 self-start rounded-xl border border-[#0C447C] px-4 py-2">
@@ -88,7 +82,7 @@ export default function RescheduleRequestButton({ sessionId, lesson, scheduledSt
         <View className="flex-1 justify-end bg-black/40">
           <ScrollView className="max-h-[85%] rounded-t-3xl bg-white p-5" keyboardShouldPersistTaps="handled">
             <Text className="text-xl font-bold text-gray-900">Request lesson reschedule</Text>
-            <Text className="mt-1 text-gray-500">{lesson}. This mock request represents a request for admin or front desk review; it does not change the lesson time.</Text>
+            <Text className="mt-1 text-gray-500">{lesson}. Front Desk must review the request before the lesson time changes.</Text>
             <Text className="mb-2 mt-5 font-semibold text-gray-800">Preferred date</Text>
             <TextInput value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" accessibilityLabel="Preferred reschedule date" className="rounded-xl border border-gray-300 px-4 py-3 text-gray-900" />
             <Text className="mb-2 mt-4 font-semibold text-gray-800">Preferred start time</Text>

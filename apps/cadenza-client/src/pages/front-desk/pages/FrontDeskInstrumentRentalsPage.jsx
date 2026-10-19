@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FileIcon, ChevronDown, Check, X, Loader2 } from "lucide-react";
 
 import { AppSidebar } from "../components/app-sidebar";
@@ -211,6 +212,7 @@ const initialRentals = [
 -------------------------------------------------- */
 
 export default function RentalsPage() {
+  const navigate = useNavigate();
   const [rentals, setRentals] = useState([]);
 
   const [statusFilter, setStatusFilter] = useState("All");
@@ -499,11 +501,11 @@ export default function RentalsPage() {
               Page Header
           --------------------------------------------- */}
           <div>
-            <h1 className="text-2xl font-semibold">Rentals</h1>
+            <div className="flex items-center justify-between gap-4"><div><h1 className="text-2xl font-semibold">Rentals</h1>
 
             <p className="text-muted-foreground">
               Review and manage instrument rental requests.
-            </p>
+            </p></div><Button onClick={() => navigate('/front-desk/rentals/walk-in')}>New walk-in rental</Button></div>
           </div>
           {/* ---------------------------------------------
               Rental Card

@@ -52,6 +52,16 @@ export const requireAdminOrFrontDesk = (req, res, next) => {
   return next();
 };
 
+export const requireFrontDesk = (req, res, next) => {
+  if (!req.cadenzaAccount) {
+    return next(new ForbiddenError('Cadenza account is required.'));
+  }
+  if (req.cadenzaAccount.type !== 'STAFF' || req.cadenzaAccount.staffType !== 'FRONT_DESK') {
+    return next(new ForbiddenError('Front Desk access is required.'));
+  }
+  return next();
+};
+
 export const requireClient = (req, res, next) => {
   if (!req.cadenzaAccount) {
     return next(new ForbiddenError('Cadenza account is required.'));

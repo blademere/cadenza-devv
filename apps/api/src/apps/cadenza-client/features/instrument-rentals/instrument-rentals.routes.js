@@ -4,6 +4,7 @@ import {
   requireAdminOrFrontDesk,
   requireClient,
   requireClientOrStaff,
+  requireFrontDesk,
 } from '../auth/authorization.js';
 
 import { instrumentRentalsController } from './instrument-rentals.controller.js';
@@ -15,6 +16,7 @@ import {
   cancelRentalValidator,
   returnRentalValidator,
   receiveRentalValidator,
+  walkInRentalValidator,
 } from './instrument-rentals.validation.js';
 
 const router = Router();
@@ -76,6 +78,13 @@ router.post(
   requireClient,
   createRentalValidator,
   instrumentRentalsController.createInstrumentRental,
+);
+
+router.post(
+  '/walk-in',
+  requireFrontDesk,
+  walkInRentalValidator,
+  instrumentRentalsController.createWalkInRental,
 );
 
 router.patch(
