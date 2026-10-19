@@ -5,7 +5,8 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "preDeployCommand": ["npm run prisma:migrate:deploy --workspace @cadenza-app/api"],
+    "preDeployCommand": [  "npx prisma migrate resolve --applied 20261014000000_cadenza_baseline --config ./apps/api/prisma.config.ts"
+],
     "startCommand": "node apps/api/src/server.js",
     "healthcheckPath": "/health/live",
     "healthcheckTimeout": 300,
