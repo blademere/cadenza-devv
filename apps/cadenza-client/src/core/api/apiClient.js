@@ -1,24 +1,52 @@
-const API_BASE_URL = `${
-  import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
-}/cadenza-client`;
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL ?? '/api/v1'}/cadenza-client`;
 
 let accessToken = null;
 let csrfToken = null;
 let refreshHandler = null;
 
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const CSRF_COOKIE_NAME = 'csrfToken';
+const CSRF_HEADER_NAME = 'x-csrf-token';
+
 const getCookie = (name) => {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
   const prefix = `${encodeURIComponent(name)}=`;
 
   const cookie = document.cookie
     .split('; ')
     .find((value) => value.startsWith(prefix));
 
-  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
+  if (!cookie) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(cookie.slice(prefix.length));
+  } catch {
+    return null;
+  }
+};
+
+const getCsrfToken = () => {
+  const cookieToken = getCookie(CSRF_COOKIE_NAME);
+
+  if (cookieToken) {
+    csrfToken = cookieToken;
+    return cookieToken;
+  }
+
+  return csrfToken;
 };
 
 const createIdempotencyKey = () => {
-  if (typeof crypto?.randomUUID === 'function') {
-    return crypto.randomUUID();
+  if (
+    typeof globalThis.crypto !== 'undefined' &&
+    typeof globalThis.crypto.randomUUID === 'function'
+  ) {
+    return globalThis.crypto.randomUUID();
   }
 
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -28,12 +56,19 @@ const isFormData = (body) => {
   return typeof FormData !== 'undefined' && body instanceof FormData;
 };
 
-const request = async (path, options = {}, allowRefresh = true) => {
-  const method = options.method ?? 'GET';
+const normalizeMethod = (method = 'GET') => method.toUpperCase();
+
+const addRequestHeaders = (options = {}) => {
+  const method = normalizeMethod(options.method);
   const headers = new Headers(options.headers);
   const body = options.body;
 
-  if (body !== undefined && !isFormData(body) && !headers.has('Content-Type')) {
+  if (
+    body !== undefined &&
+    body !== null &&
+    !isFormData(body) &&
+    !headers.has('Content-Type')
+  ) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -41,13 +76,49 @@ const request = async (path, options = {}, allowRefresh = true) => {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-    const token = csrfToken ?? getCookie('csrfToken');
+  if (!SAFE_METHODS.has(method)) {
+    const token = getCsrfToken();
 
     if (token) {
-      headers.set('x-csrf-token', token);
+      headers.set(CSRF_HEADER_NAME, token);
+    } else {
+      headers.delete(CSRF_HEADER_NAME);
     }
   }
+
+  return { method, headers, body };
+};
+
+const parseResponse = async (response) => {
+  if (response.status === 204) {
+    return null;
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const createApiError = (payload, status, fallbackMessage) => {
+  const error = new Error(payload?.message ?? fallbackMessage);
+  error.status = status;
+  error.errors = payload?.errors ?? [];
+  return error;
+};
+
+const shouldRefresh = (response, path, allowRefresh) => {
+  return (
+    response.status === 401 &&
+    allowRefresh &&
+    typeof refreshHandler === 'function' &&
+    !path.endsWith('/auth/refresh')
+  );
+};
+
+const request = async (path, options = {}, allowRefresh = true) => {
+  const { method, headers, body } = addRequestHeaders(options);
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -57,23 +128,10 @@ const request = async (path, options = {}, allowRefresh = true) => {
     credentials: 'include',
   });
 
-  let payload = null;
-
-  if (response.status !== 204) {
-    try {
-      payload = await response.json();
-    } catch {
-      payload = null;
-    }
-  }
+  const payload = await parseResponse(response);
 
   if (!response.ok) {
-    if (
-      response.status === 401 &&
-      allowRefresh &&
-      refreshHandler &&
-      !path.endsWith('/auth/refresh')
-    ) {
+    if (shouldRefresh(response, path, allowRefresh)) {
       const refreshed = await refreshHandler();
 
       if (refreshed) {
@@ -81,14 +139,11 @@ const request = async (path, options = {}, allowRefresh = true) => {
       }
     }
 
-    const error = new Error(
-      payload?.message ?? `API request failed with status ${response.status}`,
+    throw createApiError(
+      payload,
+      response.status,
+      `API request failed with status ${response.status}`,
     );
-
-    error.status = response.status;
-    error.errors = payload?.errors ?? [];
-
-    throw error;
   }
 
   return payload;
@@ -108,12 +163,7 @@ const requestFile = async (path, allowRefresh = true) => {
   });
 
   if (!response.ok) {
-    if (
-      response.status === 401 &&
-      allowRefresh &&
-      refreshHandler &&
-      !path.endsWith('/auth/refresh')
-    ) {
+    if (shouldRefresh(response, path, allowRefresh)) {
       const refreshed = await refreshHandler();
 
       if (refreshed) {
@@ -121,23 +171,19 @@ const requestFile = async (path, allowRefresh = true) => {
       }
     }
 
-    let message = `Failed to open file (${response.status})`;
+    let payload = null;
 
     try {
-      const payload = await response.json();
-
-      if (payload?.message) {
-        message = payload.message;
-      }
+      payload = await response.json();
     } catch {
-      //
+      // The response may not contain JSON.
     }
 
-    const error = new Error(message);
-    error.status = response.status;
-    error.errors = [];
-
-    throw error;
+    throw createApiError(
+      payload,
+      response.status,
+      `Failed to open file (${response.status})`,
+    );
   }
 
   return response;
@@ -157,11 +203,13 @@ export const apiClient = {
     csrfToken = token ?? null;
   },
 
+  getCsrfToken,
+
   setRefreshHandler(handler) {
     refreshHandler = typeof handler === 'function' ? handler : null;
   },
 
-  get: (path, options) =>
+  get: (path, options = {}) =>
     request(path, {
       ...options,
       method: 'GET',

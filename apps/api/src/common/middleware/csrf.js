@@ -1,16 +1,15 @@
-import crypto from 'node:crypto'
-import { BadRequestError } from '../errors/appError.js'
-import { env } from '../../config/index.js'
 
-const CSRF_COOKIE_NAME = 'csrfToken'
-const CSRF_HEADER_NAME = 'x-csrf-token'
+import crypto from 'node:crypto';
+import { BadRequestError } from '../errors/appError.js';
+import { env } from '../../config/index.js';
 
-const createCsrfToken = () => {
-  return crypto.randomBytes(32).toString('hex')
-}
+const CSRF_COOKIE_NAME = 'csrfToken';
+const CSRF_HEADER_NAME = 'x-csrf-token';
+
+const createCsrfToken = () => crypto.randomBytes(32).toString('hex');
 
 const setCsrfCookie = (res) => {
-  const token = createCsrfToken()
+  const token = createCsrfToken();
 
   res.cookie(CSRF_COOKIE_NAME, token, {
     httpOnly: false,
@@ -19,34 +18,38 @@ const setCsrfCookie = (res) => {
     domain: env.COOKIE_DOMAIN || undefined,
     path: '/',
     maxAge: env.COOKIE_REFRESH_MAX_AGE_MS,
-  })
+  });
 
-  return token
-}
+  return token;
+};
 
 const csrfProtection = (req, _res, next) => {
-  const cookieToken = req.cookies?.[CSRF_COOKIE_NAME]
-  const headerToken = req.headers[CSRF_HEADER_NAME]
+  const cookieToken = req.cookies?.[CSRF_COOKIE_NAME];
+  const headerToken = req.get(CSRF_HEADER_NAME);
+
   if (!cookieToken || !headerToken) {
-    return next(new BadRequestError('CSRF token is missing.'))
+    return next(new BadRequestError('CSRF token is missing.'));
   }
 
-  if (typeof cookieToken !== 'string' || typeof headerToken !== 'string') {
-    return next(new BadRequestError('Invalid CSRF token.'))
+  if (
+    typeof cookieToken !== 'string' ||
+    typeof headerToken !== 'string'
+  ) {
+    return next(new BadRequestError('Invalid CSRF token.'));
   }
 
-  if (cookieToken.length !== headerToken.length) {
-    return next(new BadRequestError('Invalid CSRF token.'))
+  const cookieBuffer = Buffer.from(cookieToken, 'utf8');
+  const headerBuffer = Buffer.from(headerToken, 'utf8');
+
+  if (
+    cookieBuffer.length !== headerBuffer.length ||
+    !crypto.timingSafeEqual(cookieBuffer, headerBuffer)
+  ) {
+    return next(new BadRequestError('Invalid CSRF token.'));
   }
 
-  const cookieBuffer = Buffer.from(cookieToken, 'utf8')
-  const headerBuffer = Buffer.from(headerToken, 'utf8')
-
-  if (!crypto.timingSafeEqual(cookieBuffer, headerBuffer)) {
-    return next(new BadRequestError('Invalid CSRF token.'))
-  }
-  return next()
-}
+  return next();
+};
 
 export {
   CSRF_COOKIE_NAME,
@@ -54,4 +57,4 @@ export {
   createCsrfToken,
   setCsrfCookie,
   csrfProtection,
-}
+};
