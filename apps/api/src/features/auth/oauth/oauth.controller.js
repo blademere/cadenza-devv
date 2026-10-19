@@ -33,8 +33,8 @@ import {
 const setAuthCookies = (res, refreshToken) =>
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
-    secure: env.COOKIE_SECURE,
-    sameSite: env.COOKIE_SAME_SITE,
+    secure: true,
+    sameSite: 'none',
     domain: env.COOKIE_DOMAIN || undefined,
     path: '/api/v1/cadenza-client/auth',
     maxAge: env.COOKIE_REFRESH_MAX_AGE_MS,
