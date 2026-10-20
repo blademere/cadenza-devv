@@ -29,6 +29,18 @@ Set `EXPO_PUBLIC_MOBILE_API_URL` to the API base URL expected by the mobile serv
 - Use HTTPS for remote environments.
 - Test login, token expiry, logout, authorization failures, offline behavior, and server errors on a physical device before release.
 
+## Google sign-in (development build)
+
+Google sign-in uses an ID token obtained by the native Google OAuth flow and verified by the API. It does not create accounts or link Google identities. Only an existing active Cadenza client with an approved enrollment or an active registered instructor can sign in.
+
+1. In Google Cloud Console, select the existing project and configure OAuth consent screen / audience.
+2. Create or reuse OAuth client IDs for the Android application ID and iOS bundle ID configured in `app.json`, plus a Web application client ID.
+3. Put the three public client IDs in `apps/cadenza-mobile/.env` as `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, and `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. Client IDs are public; never add a client secret to the mobile app.
+4. Configure the API environment variable `OAUTH_GOOGLE_MOBILE_CLIENT_IDS` as a comma-separated list of the accepted mobile OAuth audience IDs (Android, iOS, and Web IDs). Restart/redeploy the API after changing it.
+5. Use an EAS development build for native-device testing. Expo Go is not a substitute for verifying native OAuth behavior. Ensure the package/bundle IDs and signing SHA-1 fingerprints in Google Cloud match the build being tested.
+
+The existing web OAuth variables `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET`, and `OAUTH_GOOGLE_CALLBACK_URL` remain for web OAuth; the mobile endpoint uses the separate audience allowlist above.
+
 ## EAS builds
 
 Authenticate with the Expo account that owns this app, then create/configure the EAS project:
