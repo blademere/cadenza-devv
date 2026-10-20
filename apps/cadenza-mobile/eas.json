@@ -21,6 +21,9 @@
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_MOBILE_DATA_MODE": "live"
+      },
+      "android": {
+        "buildType": "apk"
       }
     }
   },
