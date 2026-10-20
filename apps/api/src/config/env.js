@@ -30,6 +30,7 @@ const envSchema = z.object({
   SEED_CADENZA_ADMIN_EMAIL: z.email().optional(),
   SEED_CADENZA_ADMIN_PASSWORD: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_ID: optionalEnvString,
+  OAUTH_GOOGLE_MOBILE_CLIENT_IDS: optionalEnvString,
   OAUTH_GOOGLE_CLIENT_SECRET: optionalEnvString,
   OAUTH_GOOGLE_CALLBACK_URL: optionalEnvUrl,
   OAUTH_FACEBOOK_CLIENT_ID: optionalEnvString,
