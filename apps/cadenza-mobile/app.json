@@ -1,25 +1,23 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Cadenza",
+    "slug": "cadenza-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "mobile",
+    "scheme": "cadenza",
     "userInterfaceStyle": "automatic",
-
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "site.cadenza.mobile"
     },
-
     "android": {
-      "predictiveBackGestureEnabled": false
+      "package": "site.cadenza.mobile",
+      "predictiveBackGestureEnabled": true
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       "expo-router",
       [
@@ -39,7 +37,6 @@
       "expo-image",
       "expo-status-bar"
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
