@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { UnauthorizedError, ServiceUnavailableError } from '../../../../common/errors/appError.js';
+import { AppError, UnauthorizedError } from '../../../../common/errors/appError.js';
 import { createAccessToken, createRefreshToken, hashToken } from '../../../../features/auth/auth.tokens.js';
 import { createRefreshTokenRecord } from '../../../../features/auth/auth.repository.js';
 import { env } from '../../../../config/index.js';
@@ -19,8 +19,9 @@ const verifyGoogleIdToken = async (idToken) => {
   const allowedAudiences = getAllowedGoogleAudiences();
 
   if (!allowedAudiences.length) {
-    throw new ServiceUnavailableError(
+    throw new AppError(
       'Google sign-in is not configured on the server.',
+      503,
     );
   }
 
@@ -38,6 +39,7 @@ const verifyGoogleIdToken = async (idToken) => {
   } catch {
     throw new ServiceUnavailableError(
       'Google verification is temporarily unavailable. Please try again.',
+      503,
     );
   }
 
