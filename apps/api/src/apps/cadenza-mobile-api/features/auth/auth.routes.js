@@ -13,6 +13,7 @@ import cadenzaAuthenticate from '../../../cadenza-client/features/auth/authentic
 import {
   csrfController,
   loginController,
+  googleLoginController,
   currentUserController,
   refreshController,
   logoutController,
@@ -27,6 +28,11 @@ const requireAuthIdempotency = idempotency({
 
 authRouter.get('/csrf', asyncHandler(csrfController));
 authRouter.post('/login', loginRateLimiter, asyncHandler(loginController));
+authRouter.post(
+  '/google',
+  loginRateLimiter,
+  asyncHandler(googleLoginController),
+);
 authRouter.get(
   '/me',
   cadenzaAuthenticate,
