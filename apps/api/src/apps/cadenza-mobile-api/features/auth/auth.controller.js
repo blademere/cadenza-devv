@@ -8,6 +8,7 @@ import {
   logout,
   refreshAccessToken,
 } from '../../../cadenza-client/features/auth/auth.service.js';
+import { loginWithGoogleIdToken } from './google-auth.service.js';
 
 const refreshCookiePath = '/api/v1/cadenza-mobile/auth';
 
@@ -36,12 +37,10 @@ const csrfController = async (_req, res) => {
   });
 };
 
-const loginController = async (req, res) => {
-  const result = await login(req.body);
-
+const sendLoginResponse = (res, result, message = 'Login successful.') => {
   res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
-  return successResponse(res, 'Login successful.', {
+  return successResponse(res, message, {
     accessToken: result.accessToken,
     csrfToken: setCsrfCookie(res),
     user: result.user,
@@ -49,8 +48,26 @@ const loginController = async (req, res) => {
   });
 };
 
+const loginController = async (req, res) => {
+  const result = await login(req.body, { requireActiveEnrollment: true });
+  return sendLoginResponse(res, result);
+};
+
+const googleLoginController = async (req, res) => {
+  const { idToken } = req.body ?? {};
+
+  if (typeof idToken !== 'string' || !idToken.trim()) {
+    throw new UnauthorizedError('A valid Google ID token is required.');
+  }
+
+  const result = await loginWithGoogleIdToken({ idToken });
+  return sendLoginResponse(res, result, 'Google sign-in successful.');
+};
+
 const currentUserController = async (req, res) => {
-  const result = await getCurrentUser(req.user.id);
+  const result = await getCurrentUser(req.user.id, {
+    requireActiveEnrollment: true,
+  });
 
   return successResponse(res, 'Current user retrieved.', result);
 };
@@ -62,7 +79,10 @@ const refreshController = async (req, res) => {
     throw new UnauthorizedError('Refresh token is missing.');
   }
 
-  const result = await refreshAccessToken({ refreshToken });
+  const result = await refreshAccessToken({
+    refreshToken,
+    requireActiveEnrollment: true,
+  });
 
   res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
@@ -89,6 +109,7 @@ const logoutController = async (req, res) => {
 export {
   csrfController,
   loginController,
+  googleLoginController,
   currentUserController,
   refreshController,
   logoutController,
