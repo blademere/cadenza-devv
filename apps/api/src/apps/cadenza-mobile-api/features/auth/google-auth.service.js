@@ -32,12 +32,14 @@ const verifyGoogleIdToken = async (idToken) => {
   let response;
 
   try {
-    response = await fetch(
-      `${GOOGLE_TOKEN_INFO_URL}?id_token=${encodeURIComponent(idToken)}`,
-      { signal: AbortSignal.timeout(GOOGLE_TIMEOUT_MS) },
-    );
+    response = await fetch(GOOGLE_TOKEN_INFO_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ id_token: idToken }),
+      signal: AbortSignal.timeout(GOOGLE_TIMEOUT_MS),
+    });
   } catch {
-    throw new ServiceUnavailableError(
+    throw new AppError(
       'Google verification is temporarily unavailable. Please try again.',
       503,
     );
