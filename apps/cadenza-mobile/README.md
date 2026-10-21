@@ -1,50 +1,68 @@
-# Welcome to your Expo app 👋
+# Cadenza Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo / React Native client for Cadenza, managed as part of the repository npm workspace.
 
-## Get started
+## Requirements
 
-1. Install dependencies
+- Node.js and npm versions supported by the repository root
+- Expo Go for local development, or an EAS development/production build for release testing
+- A reachable Cadenza API for live authentication and data
 
-   ```bash
-   npm install
-   ```
+## Install and run
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Run commands from the repository root so npm resolves the monorepo workspaces consistently:
 
 ```bash
-npm run reset-project
+npm install
+cp apps/cadenza-mobile/.env.example apps/cadenza-mobile/.env
+npx expo start --project-dir apps/cadenza-mobile
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Scan the QR code with Expo Go. A physical phone cannot use `localhost` to reach an API running on your computer; use the computer's LAN IP for local testing or a deployed HTTPS API.
 
-## Learn more
+## API configuration
 
-To learn more about developing your project with Expo, look at the following resources:
+Set `EXPO_PUBLIC_MOBILE_API_URL` to the API base URL expected by the mobile services. Verify that the corresponding mobile routes exist on the deployed backend and are covered by integration tests before switching `EXPO_PUBLIC_MOBILE_DATA_MODE` to `live`.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- `mock` is for local development only.
+- Never put private API keys, database credentials, OAuth client secrets, or other server secrets in an `EXPO_PUBLIC_*` variable. Expo embeds these values in the client bundle.
+- Use HTTPS for remote environments.
+- Test login, token expiry, logout, authorization failures, offline behavior, and server errors on a physical device before release.
 
-## Join the community
+## Google sign-in (development build)
 
-Join our community of developers creating universal apps.
+Google sign-in uses an ID token obtained by the native Google OAuth flow and verified by the API. It does not create accounts or link Google identities. Only an existing active Cadenza client with an approved enrollment or an active registered instructor can sign in.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. In Google Cloud Console, select the existing project and configure OAuth consent screen / audience.
+2. Create or reuse OAuth client IDs for the Android application ID and iOS bundle ID configured in `app.json`, plus a Web application client ID.
+3. Put the three public client IDs in `apps/cadenza-mobile/.env` as `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, and `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. Client IDs are public; never add a client secret to the mobile app.
+4. Configure the API environment variable `OAUTH_GOOGLE_MOBILE_CLIENT_IDS` as a comma-separated list of the accepted mobile OAuth audience IDs (Android, iOS, and Web IDs). Restart/redeploy the API after changing it.
+5. Use an EAS development build for native-device testing. Expo Go is not a substitute for verifying native OAuth behavior. Ensure the package/bundle IDs and signing SHA-1 fingerprints in Google Cloud match the build being tested.
+
+The existing web OAuth variables `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET`, and `OAUTH_GOOGLE_CALLBACK_URL` remain for web OAuth; the mobile endpoint uses the separate audience allowlist above.
+
+## EAS builds
+
+Authenticate with the Expo account that owns this app, then create/configure the EAS project:
+
+```bash
+npx eas-cli login
+npx eas-cli build:configure
+npx eas-cli build --platform android --profile production
+npx eas-cli build --platform ios --profile production
+```
+
+Confirm that the iOS bundle identifier and Android application ID in `app.json` are available to your organization and match any existing store registrations. Configure EAS project identifiers and store signing credentials through EAS; never commit signing keys or service credentials.
+
+## Release checklist
+
+- [ ] Verify production API base URL and mobile endpoint contracts.
+- [ ] Confirm live mode is enabled only in release environments.
+- [ ] Validate authentication and authorization against the deployed backend.
+- [ ] Test token expiry, logout, and secure token persistence.
+- [ ] Test on physical iOS and Android devices.
+- [ ] Review app icon, splash artwork, store metadata, privacy policy, and data disclosures.
+- [ ] Run lint/type checks and a release build; resolve all warnings and errors.
+- [ ] Verify crash reporting, privacy-safe logs, and release rollback process.
+
+Expo Go is useful for development but is not a substitute for testing a production build.
