@@ -2,6 +2,16 @@ import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
 const prisma = getPrismaClient();
 
+const hydrateRoom = async (room, db = prisma) => {
+  if (!room) return room;
+
+  const resource = await db.resource.findFirst({
+    where: { id: room.resourceId, appId: room.appId },
+  });
+
+  return { ...room, resource };
+};
+
 const findRoomById = (roomId, appId, db = prisma) =>
   db.cadenzaRoom.findFirst({
     where: {
@@ -154,6 +164,11 @@ const findById = (id, customerId, appId, db = prisma) =>
     },
     include: {
       room: true,
+      customer: {
+        include: {
+          person: true,
+        },
+      },
     },
   });
 
@@ -234,8 +249,10 @@ const listAvailableRooms = async (
     ...sessions.map((session) => session.roomId),
   ]);
 
-  return rooms.filter(
-    (room) => !unavailableRoomIds.has(room.id),
+  return Promise.all(
+    rooms
+      .filter((room) => !unavailableRoomIds.has(room.id))
+      .map((room) => hydrateRoom(room, db)),
   );
 };
 

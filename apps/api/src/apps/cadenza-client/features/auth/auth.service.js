@@ -424,6 +424,11 @@ const requestEmailOtp = async ({ email, purpose }) => {
     if (!user) user = await prisma.user.create({ data: { email: normalizedEmail, passwordHash: null } });
   } else if (!user || !user.isActive) {
     throw new UnauthorizedError('No active account was found for this email.');
+  } else {
+    const account = await getAccount(user.id, application.id);
+    if (account.type !== 'CLIENT') {
+      throw new UnauthorizedError('Invalid credentials.');
+    }
   }
 
   const otp = createOtp();

@@ -345,7 +345,7 @@ export default function CreateRoomBooking() {
     }
   };
 
-  const roomName = room?.roomType || room?.resource?.name || 'Band Room';
+  const roomName = room?.resource?.name || room?.roomType || 'Band Room';
 
   const hourlyRate = Number(room?.rentalRate ?? 0);
 
@@ -474,8 +474,8 @@ export default function CreateRoomBooking() {
               <div className="mt-4 space-y-3">
                 {availableRooms.map((availableRoom) => {
                   const name =
-                    availableRoom.roomType ||
                     availableRoom.resource?.name ||
+                    availableRoom.roomType ||
                     'Band Room';
 
                   const rate = Number(availableRoom.rentalRate ?? 0);

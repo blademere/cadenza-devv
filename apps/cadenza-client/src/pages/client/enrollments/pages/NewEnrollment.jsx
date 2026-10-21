@@ -8,6 +8,7 @@ import {
   validateEnrollmentSchedule,
 } from '../services/enrollmentServices';
 import { getMyProfile } from '../../profile/services/profile.service';
+import { getHoursForDate, getOperatingHours } from '@/services/operatingHoursService';
 
 const addDaysToDateKey = (value, days) => {
   const date = new Date(`${value}T00:00:00Z`);
@@ -67,6 +68,7 @@ export default function NewEnrollment() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingStudentProfile, setLoadingStudentProfile] = useState(true);
   const [profileEmail, setProfileEmail] = useState('');
+  const [operatingHours, setOperatingHours] = useState(null);
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -91,6 +93,10 @@ export default function NewEnrollment() {
       })
       .catch(() => setError('Unable to load your student profile.'))
       .finally(() => setLoadingStudentProfile(false));
+  }, []);
+
+  useEffect(() => {
+    getOperatingHours().then(setOperatingHours).catch(() => setOperatingHours(null));
   }, []);
 
   const isStudentProfileComplete = Boolean(
@@ -278,14 +284,28 @@ export default function NewEnrollment() {
 
   const availabilityForDisplay = useMemo(() => {
     const duration = Number(selectedPackage?.sessionDurationMinutes) || 0;
+    const selectedHours = startDate ? getHoursForDate(operatingHours, startDate) : null;
+    const openingMinute = selectedHours?.isClosed ? null : selectedHours?.startTime?.split(':').map(Number);
+    const closingMinute = selectedHours?.isClosed ? null : selectedHours?.endTime?.split(':').map(Number);
+    const opening = openingMinute ? openingMinute[0] * 60 + openingMinute[1] : null;
+    const closing = closingMinute ? closingMinute[0] * 60 + closingMinute[1] : null;
 
     return availability.filter((rule) => {
       const ruleStart = Number(rule.startMinute);
       const ruleEnd = Number(rule.endMinute);
 
-      return ruleEnd - ruleStart >= duration;
+      if (ruleEnd - ruleStart < duration) return false;
+      if (!startDate) return true;
+      const selectedDateDay = new Date(`${startDate}T00:00:00`).getDay() || 7;
+      if (Number(rule.dayOfWeek) !== selectedDateDay) return true;
+      return (
+        opening !== null &&
+        closing !== null &&
+        ruleStart >= opening &&
+        ruleEnd <= closing
+      );
     });
-  }, [availability, selectedPackage?.sessionDurationMinutes]);
+  }, [availability, operatingHours, selectedPackage?.sessionDurationMinutes, startDate]);
 
   useEffect(() => {
     setSelectedAvailabilityIds((current) =>
@@ -317,15 +337,39 @@ export default function NewEnrollment() {
   };
 
   const startDayOfWeek = startDate ? getDayOfWeekFromDate(startDate) : null;
-  const firstSelectedRule = selectedAvailability[0];
+  const firstSelectedRule = [...selectedAvailability]
+    .sort((first, second) => first.dayOfWeek - second.dayOfWeek)[0];
+  const leastSelectedRule = firstSelectedRule;
+
+  useEffect(() => {
+    if (!leastSelectedRule) {
+      setStartDate('');
+      return;
+    }
+
+    const today = new Date();
+    const todayDay = today.getDay() === 0 ? 7 : today.getDay();
+    const daysUntil = (leastSelectedRule.dayOfWeek - todayDay + 7) % 7 || 7;
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    setStartDate(addDaysToDateKey(todayKey, daysUntil));
+    setStartTime('');
+  }, [leastSelectedRule?.dayOfWeek]);
+
   const selectedStartRule =
-    firstSelectedRule?.dayOfWeek === startDayOfWeek ? firstSelectedRule : null;
+    leastSelectedRule?.dayOfWeek === startDayOfWeek ? leastSelectedRule : null;
   const resolvedStartTime = selectedStartRule
     ? `${String(Math.floor(selectedStartRule.startMinute / 60)).padStart(
         2,
         '0',
       )}:${String(selectedStartRule.startMinute % 60).padStart(2, '0')}`
     : '';
+  const scheduleEndDate =
+    startDate && Number(selectedPackage?.numberOfSessions) > 0
+      ? addDaysToDateKey(
+          startDate,
+          Number(selectedPackage.numberOfSessions) - 1,
+        )
+      : '';
 
   const handleInstructorSelect = (instructor) => {
     setSelectedInstructor(instructor.id);
@@ -1006,9 +1050,8 @@ export default function NewEnrollment() {
                   type="date"
                   value={startDate}
                   min={new Date().toISOString().split('T')[0]}
-                  onChange={(event) =>
-                    handleStartDateChange(event.target.value)
-                  }
+                  readOnly
+                  disabled
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
               </div>
@@ -1064,6 +1107,32 @@ export default function NewEnrollment() {
                   <p className="mt-1 text-xs font-medium text-primary">
                     The schedule will include exactly{' '}
                     {selectedPackage.sessionsPerWeek} session(s) per week.
+                  </p>
+
+                  {(() => {
+                    const hours = getHoursForDate(operatingHours, startDate);
+                    if (!hours || hours.isClosed) {
+                      return (
+                        <p className="mt-1 text-xs font-medium text-destructive">
+                          The facility is closed on this date.
+                        </p>
+                      );
+                    }
+                  })()}
+
+                  <p className="mt-1 text-xs font-medium text-primary">
+                    End date:{' '}
+                    {scheduleEndDate
+                      ? new Date(`${scheduleEndDate}T00:00:00`).toLocaleDateString(
+                          undefined,
+                          {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          },
+                        )
+                      : 'Not available'}
                   </p>
                 </div>
               )}

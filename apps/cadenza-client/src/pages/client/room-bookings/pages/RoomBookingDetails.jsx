@@ -12,7 +12,9 @@ import {
 } from "react-router-dom";
 
 import BookingStatus from "../components/BookingStatus";
-import roomBookingService from "../services/roomBookingsService";
+import roomBookingService, {
+  getRoomBookingReferences,
+} from "../services/roomBookingsService";
 
 export default function RoomBookingDetails() {
   const navigate = useNavigate();
@@ -117,8 +119,8 @@ export default function RoomBookingDetails() {
   }
 
   const roomName =
+    booking.room?.resource?.name ||
     booking.room?.roomType ||
-    booking.room?.name ||
     "Band Room";
 
   const start = new Date(
@@ -144,6 +146,7 @@ export default function RoomBookingDetails() {
   const totalAmount = Number(
     booking.totalAmount || 0,
   );
+  const references = getRoomBookingReferences(booking);
 
   return (
     <div className="space-y-8 px-4 py-6 lg:px-6">
@@ -162,7 +165,7 @@ export default function RoomBookingDetails() {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Booking #{booking.id}
+              Booking {references.booking}
             </p>
 
             <h1 className="mt-1 text-2xl font-semibold">
@@ -199,6 +202,16 @@ export default function RoomBookingDetails() {
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-6">
+          <p className="text-xs text-muted-foreground">
+            Payment reference
+          </p>
+
+          <p className="mt-1 font-medium">
+            {references.payment}
+          </p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-6">

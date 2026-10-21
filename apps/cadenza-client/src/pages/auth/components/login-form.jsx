@@ -5,7 +5,7 @@ import { FieldDescription, FieldGroup } from '@/components/ui/field';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/Input';
 import { useNavigate } from 'react-router-dom';
-import { getGoogleOAuthUrl } from '@/services/auth/authService';
+import { authService, getGoogleOAuthUrl } from '@/services/auth/authService';
 import { AuthContext } from '@/core/auth/AuthContext';
 import { useContext, useState } from 'react';
 
@@ -32,8 +32,8 @@ export function LoginForm({ className, audience = 'client', ...props }) {
         navigate(audience === 'admin' ? '/admin' : '/front-desk', { replace: true });
         return;
       }
-      await login({ email, password });
-      navigate('/client', { replace: true });
+      await authService.requestOtp({ email, purpose: 'login' });
+      navigate('/signup/verify', { state: { email, purpose: 'login', audience } });
     } catch (requestError) {
       setError(requestError?.message || 'Unable to log in.');
     } finally {
@@ -48,7 +48,7 @@ export function LoginForm({ className, audience = 'client', ...props }) {
         <Field><FieldLabel htmlFor="login-email">Email</FieldLabel><Input id="login-email" type="email" autoComplete="email" placeholder="m@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required /></Field>
         <Field><FieldLabel htmlFor="login-password">Password</FieldLabel><Input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></Field>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit" disabled={isLoading}>{isLoading ? 'Logging in...' : 'Login'}</Button>
+        <Button type="submit" disabled={isLoading}>{isLoading ? 'Sending code...' : 'Send login code'}</Button>
         {audience === 'client' ? <Button type="button" onClick={() => { window.location.href = getGoogleOAuthUrl(); }}><GoogleIcon />Continue with Google</Button> : null}
         {audience === 'client' ? <FieldDescription className="text-center">New to Cadenza? <button type="button" className="underline" onClick={() => navigate('/signup')}>Sign up</button></FieldDescription> : <FieldDescription className="text-center">Forgot your password? Contact your Cadenza administrator.</FieldDescription>}
       </FieldGroup></form><div className="relative hidden bg-muted md:block" />

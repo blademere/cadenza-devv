@@ -20,6 +20,7 @@ const createRentalSchema = z.object({
     instrumentIds: z.array(z.uuid()).min(1).optional(),
     rentalPackageId: z.uuid().optional(),
     paymentPlan: z.enum(['DOWN_PAYMENT', 'FULL_PAYMENT']).optional(),
+    paymentReference: z.string().trim().min(3).max(100),
     scheduledStart: z.coerce.date(),
     scheduledEnd: z.coerce.date(),
   }),

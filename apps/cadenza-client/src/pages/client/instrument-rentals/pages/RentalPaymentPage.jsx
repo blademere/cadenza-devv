@@ -9,6 +9,7 @@ export default function RentalPaymentPage() {
   const navigate = useNavigate()
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState('')
+  const [paymentReference, setPaymentReference] = useState('')
 
   const checkout = useMemo(() => {
     try {
@@ -28,6 +29,10 @@ export default function RentalPaymentPage() {
       setError('No pending payment was found.')
       return
     }
+    if (paymentReference.trim().length < 3) {
+      setError('Enter the payment reference number before continuing.')
+      return
+    }
 
     try {
       setPaying(true)
@@ -39,6 +44,7 @@ export default function RentalPaymentPage() {
             rentalType: 'INDIVIDUAL',
             instrumentId: instrument.id,
             paymentPlan: checkout.paymentPlan,
+            paymentReference: paymentReference.trim(),
             scheduledStart: new Date(schedule.start).toISOString(),
             scheduledEnd: new Date(schedule.end).toISOString(),
           }),
@@ -114,6 +120,23 @@ export default function RentalPaymentPage() {
 
         <PaymentAccountInstructions />
 
+        <div className="mt-5 text-left">
+          <label htmlFor="rental-payment-reference" className="text-sm font-medium">
+            Payment reference number
+          </label>
+          <input
+            id="rental-payment-reference"
+            value={paymentReference}
+            onChange={(event) => setPaymentReference(event.target.value)}
+            placeholder="Enter the reference from your payment receipt"
+            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+            required
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            This reference will be checked by the front desk.
+          </p>
+        </div>
+
         <p className="mt-5 text-xs text-muted-foreground">
           Online payment is not connected yet. Click Pay to submit this rental
           request for front desk confirmation.
@@ -128,7 +151,7 @@ export default function RentalPaymentPage() {
         <button
           type="button"
           onClick={handlePay}
-          disabled={paying}
+          disabled={paying || paymentReference.trim().length < 3}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {paying ? (

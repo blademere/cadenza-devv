@@ -199,7 +199,10 @@ export default function Profile() {
       </section>
       <section className="max-w-3xl rounded-xl border border-border bg-card p-6">
         <h2 className="font-semibold">Password</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Set a password to sign in your account.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Set or update your password. This remains available even when your
+          personal information is locked by an active enrollment.
+        </p>
         <form onSubmit={handlePasswordSubmit} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
           <div className="relative">
             <input type={showPassword ? 'text' : 'password'} minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" className="h-10 w-full rounded-md border border-input bg-background px-3 pr-10 text-sm" />

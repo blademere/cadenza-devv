@@ -9,6 +9,7 @@ import { settingsService } from '../settings/settings.service.js';
 import {
   assertWithinOperatingHours,
 } from '../settings/operating-hours.js';
+import { getOperatingHoursForDate } from '../settings/operating-hours.js';
 
 function getDayOfWeek(date) {
   const weekday = new Intl.DateTimeFormat('en-US', {
@@ -67,6 +68,51 @@ function createManilaDateTime(dateKey, minute) {
 
 function isFullTimeInstructor(instructor) {
   return instructor?.metadata?.employmentType === 'FULL_TIME';
+}
+
+function moveOutsideHoursToNextWeek(session, operatingHours) {
+  const start = new Date(session.scheduledStart);
+  const end = new Date(session.scheduledEnd);
+  const duration = end.getTime() - start.getTime();
+
+  for (let attempt = 0; attempt < 52; attempt += 1) {
+    const hours = getOperatingHoursForDate(operatingHours, start);
+    const dateKey = getManilaDateKey(start);
+    const opening = hours?.startTime
+      ? new Date(`${dateKey}T${hours.startTime}:00+08:00`)
+      : null;
+    const closing = hours?.endTime
+      ? new Date(`${dateKey}T${hours.endTime}:00+08:00`)
+      : null;
+
+    if (!hours?.isClosed && opening && closing && start >= opening && end <= closing) {
+      return { ...session, scheduledStart: start, scheduledEnd: end };
+    }
+
+    start.setTime(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+    end.setTime(start.getTime() + duration);
+  }
+
+  return { ...session, scheduledStart: start, scheduledEnd: end };
+}
+
+function moveSessionOneWeek(session) {
+  const start = new Date(session.scheduledStart);
+  const end = new Date(session.scheduledEnd);
+  start.setTime(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+  end.setTime(end.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return { ...session, scheduledStart: start, scheduledEnd: end };
+}
+
+function overlapsExistingSession(session, sessions) {
+  const start = new Date(session.scheduledStart).getTime();
+  const end = new Date(session.scheduledEnd).getTime();
+  return sessions.some((existing) => {
+    if (existing.instructorId !== session.instructorId) return false;
+    const existingStart = new Date(existing.scheduledStart).getTime();
+    const existingEnd = new Date(existing.scheduledEnd).getTime();
+    return start < existingEnd && end > existingStart;
+  });
 }
 
 function getFullTimeAvailability(operatingHours, sessionDuration) {
@@ -828,11 +874,15 @@ export const enrollmentService = {
     const operatingHours = await settingsService.getOperatingHours(appId);
 
     for (const session of data.sessions) {
+      let adjustedSession = moveOutsideHoursToNextWeek(session, operatingHours);
+      while (overlapsExistingSession(adjustedSession, validatedSessions)) {
+        adjustedSession = moveSessionOneWeek(adjustedSession);
+      }
       const validated =
         await this.validateSession(
           appId,
           packageItem,
-          session,
+          adjustedSession,
           courseId,
         );
 
@@ -844,16 +894,16 @@ export const enrollmentService = {
 
       validatedSessions.push({
         instructorId:
-          session.instructorId,
+          adjustedSession.instructorId,
         roomId:
-          session.roomId || null,
+          adjustedSession.roomId || null,
         scheduledStart:
           validated.startsAt,
         scheduledEnd:
           validated.endsAt,
         status: 'SCHEDULED',
         metadata:
-          session.metadata || null,
+          adjustedSession.metadata || null,
       });
     }
 
@@ -937,12 +987,17 @@ export const enrollmentService = {
     }
 
     const operatingHours = await settingsService.getOperatingHours(appId);
+    const validatedScheduleSessions = [];
 
     for (const session of data.sessions) {
+      let adjustedSession = moveOutsideHoursToNextWeek(session, operatingHours);
+      while (overlapsExistingSession(adjustedSession, validatedScheduleSessions)) {
+        adjustedSession = moveSessionOneWeek(adjustedSession);
+      }
       const validated = await this.validateSession(
         appId,
         packageItem,
-        session,
+        adjustedSession,
         courseId,
       );
       try {
@@ -950,6 +1005,12 @@ export const enrollmentService = {
       } catch (error) {
         throw new BadRequestError(error.message);
       }
+
+      validatedScheduleSessions.push({
+        instructorId: adjustedSession.instructorId,
+        scheduledStart: validated.startsAt,
+        scheduledEnd: validated.endsAt,
+      });
     }
 
     return { valid: true, courseId, configuredCourseCount: configuredLessons.length };

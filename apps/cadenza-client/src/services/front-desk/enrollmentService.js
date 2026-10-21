@@ -3,8 +3,23 @@ import { apiClient } from '@/core/api/apiClient';
 export const enrollmentService = {
   async getEnrollments(params = {}) {
     const response = await apiClient.get('/enrollments', { params });
+    const payload = response.data;
 
-    return response.data?.data ?? response.data ?? [];
+    if (Array.isArray(payload?.data)) {
+      return {
+        items: payload.data,
+        pagination: payload.pagination || null,
+      };
+    }
+
+    if (Array.isArray(payload?.items)) {
+      return payload;
+    }
+
+    return {
+      items: Array.isArray(payload) ? payload : [],
+      pagination: null,
+    };
   },
 
   async approveEnrollment(enrollmentId) {

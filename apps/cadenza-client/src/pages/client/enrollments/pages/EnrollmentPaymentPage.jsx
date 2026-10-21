@@ -3,6 +3,7 @@ import { CheckCircle2, Loader2, QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { createEnrollment } from '../services/enrollmentServices';
+import PaymentAccountInstructions from '../../components/PaymentAccountInstructions';
 
 const formatCurrency = (value) =>
   `₱${Number(value || 0).toLocaleString('en-PH', {
@@ -101,7 +102,7 @@ export default function EnrollmentPaymentPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
-      <section className="w-full max-w-sm rounded-2xl border bg-card p-8 text-center shadow-lg">
+      <section className="w-full max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-lg">
         {completedEnrollment ? (
           <>
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -152,9 +153,7 @@ export default function EnrollmentPaymentPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Lesson enrollment
         </p>
-        <div className="mx-auto mt-7 w-fit rounded-xl bg-white p-5 shadow-sm">
-          <QrCode className="h-52 w-52 text-slate-900" />
-        </div>
+        <PaymentAccountInstructions />
         <p className="mt-5 text-sm text-muted-foreground">
           Amount due:{' '}
           <span className="font-semibold text-foreground">

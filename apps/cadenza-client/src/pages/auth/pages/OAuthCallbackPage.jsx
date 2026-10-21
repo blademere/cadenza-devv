@@ -19,6 +19,11 @@ export default function OAuthCallbackPage() {
       try {
         const account = (await authService.me())?.data?.account;
         if (!account) throw new Error('Missing account.');
+        if (account.type !== 'CLIENT') {
+          await authService.logout();
+          setMessage('Invalid credentials.');
+          return;
+        }
         const destination = account.type === 'STAFF'
           ? (account.staffType === 'FRONT_DESK' ? '/front-desk' : '/admin')
           : '/client';

@@ -2,6 +2,14 @@ import { apiClient } from '@/core/api/apiClient';
 
 const ROOM_BOOKINGS_ENDPOINT = '/room-bookings';
 
+export const formatRoomBookingReference = (id) =>
+  id ? `RB-${String(id).slice(0, 8).toUpperCase()}` : '—';
+
+export const getRoomBookingReferences = (booking) => ({
+  booking: formatRoomBookingReference(booking?.id),
+  payment: booking?.metadata?.paymentReference || '—',
+});
+
 const roomBookingService = {
   async getAvailableRooms(scheduledStart, scheduledEnd) {
     if (!scheduledStart || !scheduledEnd) {

@@ -439,6 +439,7 @@ export const instrumentRentalsService = {
     instrumentIds,
     rentalPackageId,
     paymentPlan,
+    paymentReference,
     paymentMethod = 'QR_PLACEHOLDER',
     status = 'FOR_APPROVAL',
     metadata = {},
@@ -620,6 +621,7 @@ export const instrumentRentalsService = {
       status,
       metadata: {
         ...additionalMetadata,
+        paymentReference: paymentReference.trim(),
         paymentPlan: selectedPaymentPlan,
         paymentMethod,
         paymentStatus:
@@ -651,6 +653,7 @@ export const instrumentRentalsService = {
     appId,
     customerId,
     rentalPackageId,
+    paymentReference,
     paymentMethod = 'QR_PLACEHOLDER',
     status = 'FOR_APPROVAL',
     metadata: additionalMetadata = {},
@@ -730,6 +733,7 @@ export const instrumentRentalsService = {
       status,
       metadata: {
         ...additionalMetadata,
+        paymentReference: paymentReference.trim(),
         paymentMethod,
         paymentStatus: 'PAID',
         paymentCompletedAt: new Date().toISOString(),

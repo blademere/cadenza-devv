@@ -5,7 +5,8 @@ import {
 } from '../../../../common/errors/appError.js';
 
 import { settingsRepository } from './settings.repository.js';
-import { getDateKey, validateHours } from './operating-hours.js';
+import { getDateKey, getOperatingHoursForDate, validateHours } from './operating-hours.js';
+import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 import { getStorageService } from '../../../../platform/storage/storage.registry.js';
 import { createStorageKey, sanitizeFileName } from '../../../../platform/storage/storage.key.js';
 import { allowedTypes } from './settings.upload.js';
@@ -16,6 +17,53 @@ const INITIAL_WEEKLY_HOURS = Object.fromEntries(
     { isClosed: false, startTime: '08:00', endTime: '17:00' },
   ]),
 );
+const prisma = getPrismaClient();
+
+const nextWeek = (date) => new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+async function moveSessionsOutsideDateOverride(appId, operatingHours, dateOverrides) {
+  const dates = new Set(Object.keys(dateOverrides));
+  if (!dates.size) return;
+
+  const sessions = await prisma.cadenzaLessonSession.findMany({
+    where: {
+      appId,
+      scheduledStart: { gte: new Date() },
+      enrollment: { status: 'APPROVED' },
+      status: { notIn: ['COMPLETED', 'CANCELLED'] },
+    },
+  });
+
+  for (const session of sessions) {
+    if (!dates.has(getDateKey(session.scheduledStart))) continue;
+    const duration = session.scheduledEnd.getTime() - session.scheduledStart.getTime();
+    let candidateStart = session.scheduledStart;
+    let candidateEnd = session.scheduledEnd;
+
+    for (let attempt = 0; attempt < 52; attempt += 1) {
+      const hours = getOperatingHoursForDate(operatingHours, candidateStart);
+      const dateKey = getDateKey(candidateStart);
+      const [startHour, startMinute] = String(hours?.startTime || '00:00').split(':').map(Number);
+      const [endHour, endMinute] = String(hours?.endTime || '00:00').split(':').map(Number);
+      const opening = new Date(`${dateKey}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00+08:00`);
+      const closing = new Date(`${dateKey}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00+08:00`);
+      if (!hours?.isClosed && candidateStart >= opening && candidateEnd <= closing) break;
+      candidateStart = nextWeek(candidateStart);
+      candidateEnd = new Date(candidateStart.getTime() + duration);
+    }
+
+    if (candidateStart.getTime() !== session.scheduledStart.getTime()) {
+      await prisma.cadenzaLessonSession.update({
+        where: { id: session.id },
+        data: {
+          scheduledStart: candidateStart,
+          scheduledEnd: candidateEnd,
+          metadata: { ...(session.metadata || {}), automaticallyRescheduled: true, rescheduleReason: 'Operating hours customization' },
+        },
+      });
+    }
+  }
+}
 
 export const settingsService = {
   async getOperatingHours(appId) {
@@ -39,7 +87,7 @@ export const settingsService = {
     const weeklyChanged = JSON.stringify(weeklyHours) !== JSON.stringify(existing?.weeklyHours);
     const tomorrow = new Date(`${new Date(Date.now() + 86400000).toISOString().slice(0, 10)}T00:00:00+08:00`);
     const effectiveKey = existing?.defaultEffectiveFrom ? getDateKey(new Date(existing.defaultEffectiveFrom)) : null;
-    return settingsRepository.upsertOperatingHours(appId, {
+    const saved = await settingsRepository.upsertOperatingHours(appId, {
       weeklyHours,
       previousWeeklyHours: weeklyChanged
         ? (effectiveKey && effectiveKey > today ? existing?.previousWeeklyHours || existing?.weeklyHours : existing?.weeklyHours)
@@ -48,6 +96,8 @@ export const settingsService = {
       dateOverrides,
       timezone: data?.timezone || 'Asia/Manila',
     });
+    await moveSessionsOutsideDateOverride(appId, saved, dateOverrides);
+    return saved;
   },
 
   async getItemCategories(appId) {
