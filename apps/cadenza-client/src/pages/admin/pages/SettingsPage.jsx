@@ -227,17 +227,44 @@ export default function SettingsPage() {
     setOverrideForm(operatingHours.dateOverrides?.[date] || { ...DEFAULT_OPERATING_HOURS.weeklyHours['1'] });
   };
 
-  const saveDateOverride = () => {
+  const saveDateOverride = async () => {
     if (selectedDate < tomorrowKey) return toast.error('Custom operating hours can only be set from tomorrow onward.');
-    setOperatingHours((current) => ({ ...current, dateOverrides: { ...current.dateOverrides, [selectedDate]: { ...overrideForm } } }));
-    toast.success(`${selectedDate} customization added.`);
+    try {
+      setHoursSaving(true);
+      const nextOperatingHours = {
+        ...operatingHours,
+        dateOverrides: {
+          ...operatingHours.dateOverrides,
+          [selectedDate]: { ...overrideForm },
+        },
+      };
+      const saved = await updateOperatingHours(nextOperatingHours);
+      setOperatingHours(saved);
+      toast.success(`${selectedDate} customization saved.`);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to save date customization.');
+    } finally {
+      setHoursSaving(false);
+    }
   };
 
-  const removeOverride = (date) => setOperatingHours((current) => {
-    const next = { ...current.dateOverrides };
-    delete next[date];
-    return { ...current, dateOverrides: next };
-  });
+  const removeOverride = async (date) => {
+    try {
+      setHoursSaving(true);
+      const nextDateOverrides = { ...operatingHours.dateOverrides };
+      delete nextDateOverrides[date];
+      const saved = await updateOperatingHours({
+        ...operatingHours,
+        dateOverrides: nextDateOverrides,
+      });
+      setOperatingHours(saved);
+      toast.success(`${date} customization removed.`);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to remove date customization.');
+    } finally {
+      setHoursSaving(false);
+    }
+  };
 
   const monthDays = React.useMemo(() => {
     const [year, month] = selectedMonth.split('-').map(Number);

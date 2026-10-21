@@ -11,3 +11,8 @@ export async function updateMyProfile(data) {
   const response = await apiClient.patch('/users/me/profile', data);
   return unwrap(response);
 }
+
+export async function updateMyPassword(password) {
+  const response = await apiClient.put('/users/me/password', { password });
+  return unwrap(response);
+}

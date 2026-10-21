@@ -41,6 +41,9 @@ export default function CreateRoomBooking() {
   const closeTime = selectedOperatingHours?.endTime || '17:00';
   const availableStartTimes = selectedOperatingHours?.isClosed ? [] : TIME_OPTIONS.filter((time) => timeToMinutes(time.value) >= timeToMinutes(openTime) && timeToMinutes(time.value) <= timeToMinutes(closeTime) - 60);
   const availableEndTimes = selectedOperatingHours?.isClosed ? [] : TIME_OPTIONS.filter((time) => timeToMinutes(time.value) >= timeToMinutes(startTime || openTime) + 60 && timeToMinutes(time.value) <= timeToMinutes(closeTime));
+  const selectedDateHoursLabel = selectedOperatingHours?.isClosed
+    ? 'Closed'
+    : `${selectedOperatingHours?.startTime || openTime}–${selectedOperatingHours?.endTime || closeTime}`;
 
   const localToday = new Date();
   const todayKey = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, '0')}-${String(localToday.getDate()).padStart(2, '0')}`;
@@ -213,12 +216,22 @@ export default function CreateRoomBooking() {
       return;
     }
 
+    if (nextHours?.isClosed) {
+      setDate('');
+      setStartTime('');
+      setEndTime('');
+      setRoom(null);
+      setAvailableRooms([]);
+      setError('The selected date is blocked by the facility schedule. Please choose another date.');
+      return;
+    }
+
     setDate(nextDate);
     setStartTime('');
     setEndTime('');
     setRoom(null);
     setAvailableRooms([]);
-    setError(nextHours?.isClosed ? 'The facility is closed on the selected date.' : nextIsToday && now >= closing ? 'The current day is no longer available because operating hours have ended.' : '');
+    setError(nextIsToday && now >= closing ? 'The current day is no longer available because operating hours have ended.' : '');
   };
 
   const handleStartTimeChange = (event) => {
@@ -387,6 +400,11 @@ export default function CreateRoomBooking() {
                   min={todayPastClosing ? new Date(localToday.getFullYear(), localToday.getMonth(), localToday.getDate() + 1).toISOString().split('T')[0] : todayKey}
                   className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 />
+                {date && (
+                  <p className={`mt-2 text-xs ${selectedOperatingHours?.isClosed ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    Operating hours for this date: <span className="font-medium">{selectedDateHoursLabel}</span>
+                  </p>
+                )}
               </div>
 
               <div>

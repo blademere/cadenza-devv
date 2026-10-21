@@ -17,6 +17,8 @@ const createSchema = z.object({
   body: z.object({
     roomId: z.uuid(),
     paymentPlan: z.enum(['DOWN_PAYMENT', 'FULL_PAYMENT']).optional(),
+    paymentMethod: z.enum(['GCASH']).optional(),
+    paymentReference: z.string().trim().min(3).max(100).optional(),
     scheduledStart: z.coerce.date(),
     scheduledEnd: z.coerce.date(),
   }),

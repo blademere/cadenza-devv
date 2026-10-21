@@ -93,6 +93,16 @@ export default function NewEnrollment() {
       .finally(() => setLoadingStudentProfile(false));
   }, []);
 
+  const isStudentProfileComplete = Boolean(
+    profileEmail.trim() &&
+      studentDetails.firstName.trim() &&
+      studentDetails.lastName.trim() &&
+      studentDetails.address.trim() &&
+      studentDetails.age &&
+      studentDetails.gender &&
+      studentDetails.contactNo.trim(),
+  );
+
   useEffect(() => {
     const handlePaymentComplete = (event) => {
       if (
@@ -766,6 +776,19 @@ export default function NewEnrollment() {
             <p className="mt-1 text-sm text-muted-foreground">
               These details are fetched from your Account profile and will be used for this enrollment.
             </p>
+            {!loadingStudentProfile && !isStudentProfileComplete && (
+              <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800">
+                <p className="font-medium">Complete your profile before enrolling.</p>
+                <p className="mt-1">Required Student Details must be completed in your Account profile.</p>
+                <button
+                  type="button"
+                  className="mt-2 font-medium underline"
+                  onClick={() => navigate('/client/profile')}
+                >
+                  Go to Account profile
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1101,7 +1124,8 @@ export default function NewEnrollment() {
               !selectedPackage ||
               !selectedInstructor ||
               !startDate ||
-              !paymentPlan
+              !paymentPlan ||
+              !isStudentProfileComplete
             }
             className="h-10 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground disabled:pointer-events-none disabled:opacity-50"
           >

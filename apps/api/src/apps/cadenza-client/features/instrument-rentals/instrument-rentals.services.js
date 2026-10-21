@@ -10,7 +10,7 @@ import {
   getOperationalEnd,
   getOperationalMinutesBetween,
 } from '../settings/operating-hours.js';
-import { settingsRepository } from '../settings/settings.repository.js';
+import { settingsService } from '../settings/settings.service.js';
 import { createWalkInCustomer } from '../walk-ins/walk-in-customer.service.js';
 
 // Individual instrument rates represent the minimum charge for this period.
@@ -77,6 +77,20 @@ const validateSchedule = (scheduledStart, scheduledEnd, operatingHours = null) =
     scheduledEnd: end,
     durationHours,
   };
+};
+
+const manilaDateKey = (date) => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(date);
+
+const assertWalkInDateWindow = (scheduledStart) => {
+  const today = manilaDateKey(new Date());
+  const startDate = manilaDateKey(scheduledStart);
+  const todayMs = Date.parse(`${today}T00:00:00Z`);
+  const startMs = Date.parse(`${startDate}T00:00:00Z`);
+  if (startMs <= todayMs || startMs > todayMs + 5 * 24 * 60 * 60 * 1000) {
+    throw new BadRequestError('Walk-in rentals are only allowed from tomorrow through the next 5 days.');
+  }
 };
 
 const getCustomerId = (req) => {
@@ -214,7 +228,7 @@ export const instrumentRentalsService = {
       throw new BadRequestError('Return time cannot be earlier than the rental start time.');
     }
 
-    const operatingHours = await settingsRepository.findOperatingHours(appId);
+    const operatingHours = await settingsService.getOperatingHours(appId);
     const excess = calculateExcessCharge(rental, returnedAt, operatingHours);
     const baseRentalAmount = Number(
       rental.metadata?.baseRentalAmount ?? rental.totalAmount ?? 0,
@@ -342,7 +356,7 @@ export const instrumentRentalsService = {
       return instruments;
     }
 
-    const operatingHours = await settingsRepository.findOperatingHours(appId);
+    const operatingHours = await settingsService.getOperatingHours(appId);
     const schedule = validateSchedule(scheduledStart, scheduledEnd, operatingHours);
     try { assertRentalStartWithinOperatingHours(operatingHours, schedule.scheduledStart); } catch (error) { throw new BadRequestError(error.message); }
 
@@ -431,8 +445,9 @@ export const instrumentRentalsService = {
     scheduledStart,
     scheduledEnd,
   }) {
-    const operatingHours = await settingsRepository.findOperatingHours(appId);
+    const operatingHours = await settingsService.getOperatingHours(appId);
     const schedule = validateSchedule(scheduledStart, scheduledEnd, operatingHours);
+    assertWalkInDateWindow(schedule.scheduledStart);
     try { assertRentalStartWithinOperatingHours(operatingHours, schedule.scheduledStart); } catch (error) { throw new BadRequestError(error.message); }
 
     const normalizedRentalType = normalizeRentalType(rentalType);

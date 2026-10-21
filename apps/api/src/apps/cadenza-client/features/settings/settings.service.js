@@ -5,22 +5,29 @@ import {
 } from '../../../../common/errors/appError.js';
 
 import { settingsRepository } from './settings.repository.js';
-import { DEFAULT_WEEKLY_HOURS, getDateKey, validateHours } from './operating-hours.js';
+import { getDateKey, validateHours } from './operating-hours.js';
 import { getStorageService } from '../../../../platform/storage/storage.registry.js';
 import { createStorageKey, sanitizeFileName } from '../../../../platform/storage/storage.key.js';
 import { allowedTypes } from './settings.upload.js';
+
+const INITIAL_WEEKLY_HOURS = Object.fromEntries(
+  Array.from({ length: 7 }, (_, day) => [
+    day,
+    { isClosed: false, startTime: '08:00', endTime: '17:00' },
+  ]),
+);
 
 export const settingsService = {
   async getOperatingHours(appId) {
     const current = await settingsRepository.findOperatingHours(appId);
     if (current) return current;
-    return settingsRepository.upsertOperatingHours(appId, { weeklyHours: DEFAULT_WEEKLY_HOURS, previousWeeklyHours: null, defaultEffectiveFrom: null, dateOverrides: {}, timezone: 'Asia/Manila' });
+    return settingsRepository.upsertOperatingHours(appId, { weeklyHours: INITIAL_WEEKLY_HOURS, previousWeeklyHours: null, defaultEffectiveFrom: null, dateOverrides: {}, timezone: 'Asia/Manila' });
   },
 
   async updateOperatingHours(appId, data) {
-    const weeklyHours = data?.weeklyHours || DEFAULT_WEEKLY_HOURS;
     const dateOverrides = data?.dateOverrides || {};
     const existing = await settingsRepository.findOperatingHours(appId);
+    const weeklyHours = data?.weeklyHours || existing?.weeklyHours || INITIAL_WEEKLY_HOURS;
     const today = getDateKey();
     for (const [date, entry] of Object.entries(dateOverrides)) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new BadRequestError('Customization dates must use YYYY-MM-DD format.');

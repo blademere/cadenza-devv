@@ -5,10 +5,9 @@ import {
 } from '../../../../common/errors/appError.js';
 
 import { enrollmentRepository } from './enrollment.repository.js';
-import { settingsRepository } from '../settings/settings.repository.js';
+import { settingsService } from '../settings/settings.service.js';
 import {
   assertWithinOperatingHours,
-  DEFAULT_WEEKLY_HOURS,
 } from '../settings/operating-hours.js';
 
 function getDayOfWeek(date) {
@@ -71,7 +70,9 @@ function isFullTimeInstructor(instructor) {
 }
 
 function getFullTimeAvailability(operatingHours, sessionDuration) {
-  const weeklyHours = operatingHours?.weeklyHours || DEFAULT_WEEKLY_HOURS;
+  // The settings service creates the app-scoped row when it does not exist.
+  // Do not silently replace a missing/invalid DB schedule with hardcoded hours.
+  const weeklyHours = operatingHours?.weeklyHours || {};
   const duration = Number(sessionDuration);
   const rules = [];
 
@@ -274,7 +275,7 @@ export const enrollmentService = {
       filters,
     );
 
-    return enrollments.map(mapEnrollment);
+    return { ...enrollments, items: enrollments.items.map(mapEnrollment) };
   },
 
   async getAvailablePackages(appId, customerId) {
@@ -382,10 +383,35 @@ export const enrollmentService = {
         course.id,
       );
 
-    // Course mapping determines who is shown in Choose Instructor. Schedule
-    // availability is loaded separately after selection and must not hide a
-    // valid active instructor from the course list.
-    return instructors.map(mapInstructor);
+    const requiredSessionsPerWeek = Number(packageItem.sessionsPerWeek);
+    const eligibleInstructors = await Promise.all(
+      instructors.map(async (instructor) => {
+        // Full-time instructors use the operating-hour schedule. Part-time
+        // instructors must have enough distinct submitted days for this package.
+        if (
+          isFullTimeInstructor(instructor) ||
+          !Number.isInteger(requiredSessionsPerWeek) ||
+          requiredSessionsPerWeek <= 0
+        ) {
+          return instructor;
+        }
+
+        const submittedAvailability =
+          await enrollmentRepository.findInstructorAvailability(
+            appId,
+            instructor.id,
+          );
+        const submittedDays = new Set(
+          submittedAvailability.map((rule) => Number(rule.dayOfWeek)),
+        );
+
+        return submittedDays.size >= requiredSessionsPerWeek
+          ? instructor
+          : null;
+      }),
+    );
+
+    return eligibleInstructors.filter(Boolean).map(mapInstructor);
   },
 
   async getInstructorAvailability(
@@ -463,7 +489,7 @@ export const enrollmentService = {
     );
 
     const operatingHours = isFullTimeInstructor(instructor)
-      ? await settingsRepository.findOperatingHours(appId)
+      ? await settingsService.getOperatingHours(appId)
       : null;
 
     let availability = isFullTimeInstructor(instructor)
@@ -643,7 +669,7 @@ export const enrollmentService = {
       getMinuteOfDay(endsAt);
 
     if (isFullTimeInstructor(instructor)) {
-      const operatingHours = await settingsRepository.findOperatingHours(appId);
+      const operatingHours = await settingsService.getOperatingHours(appId);
 
       try {
         assertWithinOperatingHours(operatingHours, startsAt, endsAt);
@@ -799,7 +825,7 @@ export const enrollmentService = {
     }
 
     const validatedSessions = [];
-    const operatingHours = await settingsRepository.findOperatingHours(appId);
+    const operatingHours = await settingsService.getOperatingHours(appId);
 
     for (const session of data.sessions) {
       const validated =
@@ -910,7 +936,7 @@ export const enrollmentService = {
       );
     }
 
-    const operatingHours = await settingsRepository.findOperatingHours(appId);
+    const operatingHours = await settingsService.getOperatingHours(appId);
 
     for (const session of data.sessions) {
       const validated = await this.validateSession(
@@ -964,9 +990,9 @@ export const enrollmentService = {
   },
 
   async approveEnrollment(appId, enrollmentId) {
-    const enrollments = await enrollmentRepository.findAll(appId, {
+    const enrollments = (await enrollmentRepository.findAll(appId, {
       status: 'FOR_APPROVAL',
-    });
+    })).items;
     const enrollment = enrollments.find((item) => item.id === enrollmentId);
 
     if (!enrollment) {
@@ -1011,9 +1037,9 @@ export const enrollmentService = {
   },
 
   async cancelStaffEnrollment(appId, enrollmentId) {
-    const enrollments = await enrollmentRepository.findAll(appId, {
+    const enrollments = (await enrollmentRepository.findAll(appId, {
       status: 'FOR_APPROVAL',
-    });
+    })).items;
     const enrollment = enrollments.find((item) => item.id === enrollmentId);
 
     if (!enrollment) {

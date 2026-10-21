@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, FileText, Loader2, Printer } from 'lucide-react';
+import { Check, ChevronDown, FileText, Loader2, Printer, Search } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
 import { SiteHeader } from '../components/site-header';
@@ -21,7 +21,7 @@ const unwrapList = (response) => {
 };
 const personName = (record) => {
   const person = record.customer?.person;
-  return [person?.firstName, person?.lastName].filter(Boolean).join(' ') || 'Client';
+  return [person?.firstName, person?.lastName].filter(Boolean).join(' ') || record.student || 'Client';
 };
 const paymentStatus = (paid, total) => paid >= total && total > 0 ? 'Paid' : paid > 0 ? 'Partially Paid' : 'Unpaid';
 const statusVariant = (status) => status === 'Paid' ? 'default' : status === 'Partially Paid' ? 'secondary' : 'outline';
@@ -30,7 +30,7 @@ const mapTransaction = (record, type, details, totalAmount, paidAmount, referenc
   id: `${type.toUpperCase().replace(/\s/g, '-')}-${record.id}`,
   sourceId: record.id,
   person: personName(record),
-  email: record.customer?.person?.email || '—',
+  email: record.customer?.person?.email || record.studentEmail || '—',
   type,
   details,
   date: record.createdAt || record.scheduledStart,
@@ -42,9 +42,9 @@ const mapTransaction = (record, type, details, totalAmount, paidAmount, referenc
 });
 
 const mapRecords = (enrollments, bookings, rentals) => [
-  ...enrollments.map((item) => mapTransaction(item, 'Enrollment', item.packageName || 'Enrollment package', item.price, item.metadata?.paymentAmount || (item.metadata?.paymentPlan === 'FULL_PAYMENT' ? item.price : 0), item.metadata?.paymentReference)),
-  ...bookings.map((item) => mapTransaction(item, 'Room Booking', item.room?.name || 'Room booking', item.totalAmount, item.metadata?.initialPaymentAmount || 0, item.metadata?.paymentReference)),
-  ...rentals.map((item) => mapTransaction(item, 'Instrument Rental', item.items?.map((entry) => [entry.instrument?.brand, entry.instrument?.model].filter(Boolean).join(' ')).filter(Boolean).join(', ') || 'Instrument rental', item.totalAmount, item.metadata?.initialPaymentAmount || 0, item.metadata?.paymentReference)),
+  ...enrollments.filter((item) => item.status === 'APPROVED').map((item) => mapTransaction(item, 'Enrollment', item.packageName || 'Enrollment package', item.price, item.metadata?.paymentAmount || (item.metadata?.paymentPlan === 'FULL_PAYMENT' ? item.price : 0), item.metadata?.paymentReference)),
+  ...bookings.filter((item) => ['APPROVED', 'CHECKED_IN', 'COMPLETED'].includes(item.status)).map((item) => mapTransaction(item, 'Room Booking', item.room?.name || 'Room booking', item.totalAmount, item.metadata?.initialPaymentAmount || 0, item.metadata?.paymentReference)),
+  ...rentals.filter((item) => ['APPROVED', 'COMPLETED'].includes(item.status)).map((item) => mapTransaction(item, 'Instrument Rental', item.items?.map((entry) => [entry.instrument?.brand, entry.instrument?.model].filter(Boolean).join(' ')).filter(Boolean).join(', ') || 'Instrument rental', item.totalAmount, item.metadata?.initialPaymentAmount || 0, item.metadata?.paymentReference)),
 ].map((transaction) => ({ ...transaction, status: paymentStatus(transaction.payments.reduce((sum, payment) => sum + payment.amount, 0), transaction.totalAmount) }));
 
 const paidAmount = (transaction) => transaction.payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
@@ -57,6 +57,8 @@ export default function BillingPayments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('All');
+  const [search, setSearch] = useState('');
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
@@ -64,6 +66,12 @@ export default function BillingPayments() {
   const [paymentReference, setPaymentReference] = useState('');
   const [amountToPay, setAmountToPay] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, typeFilter, search]);
 
   useEffect(() => {
     Promise.allSettled([
@@ -79,7 +87,17 @@ export default function BillingPayments() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredTransactions = useMemo(() => statusFilter === 'All' ? transactions : transactions.filter((transaction) => transaction.status === statusFilter), [statusFilter, transactions]);
+  const filteredTransactions = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return transactions.filter((transaction) => {
+      const matchesStatus = statusFilter === 'All' || transaction.status === statusFilter;
+      const matchesType = typeFilter === 'All' || transaction.type === typeFilter;
+      const searchable = [transaction.id, transaction.person, transaction.email, transaction.details, transaction.type].filter(Boolean).join(' ').toLowerCase();
+      return matchesStatus && matchesType && (!query || searchable.includes(query));
+    });
+  }, [search, statusFilter, transactions, typeFilter]);
+  const pageCount = Math.ceil(filteredTransactions.length / pageSize);
+  const pagedTransactions = filteredTransactions.slice((page - 1) * pageSize, page * pageSize);
   const paidCount = transactions.filter((transaction) => transaction.status === 'Paid').length;
   const partialCount = transactions.filter((transaction) => transaction.status === 'Partially Paid').length;
   const outstanding = transactions.reduce((sum, transaction) => sum + remainingAmount(transaction), 0);
@@ -186,8 +204,8 @@ export default function BillingPayments() {
             <Card><CardHeader className="pb-2"><CardDescription>Outstanding Balance</CardDescription><CardTitle className="text-2xl">{formatCurrency(outstanding)}</CardTitle></CardHeader><CardContent><p className="text-xs text-muted-foreground">Remaining cashier balance</p></CardContent></Card>
           </div>
           <Card>
-            <CardHeader><div className="flex items-center justify-between gap-4"><div><CardTitle>Cashier Transactions</CardTitle><CardDescription>Use the receipt action to record a continuation payment or reprint a receipt.</CardDescription></div><DropdownMenu><DropdownMenuTrigger render={<Button variant="outline" />}>{statusFilter === 'All' ? 'All Transactions' : statusFilter}<ChevronDown className="ml-2 size-4" /></DropdownMenuTrigger><DropdownMenuContent align="end">{['All', 'Unpaid', 'Partially Paid', 'Paid'].map((status) => <DropdownMenuItem key={status} onClick={() => setStatusFilter(status)}>{status === 'All' ? 'All Transactions' : status}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu></div></CardHeader>
-            <CardContent>{error && <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}<div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Transaction</TableHead><TableHead>Client</TableHead><TableHead>Service</TableHead><TableHead>Total</TableHead><TableHead>Paid</TableHead><TableHead>Balance</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={8} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow> : filteredTransactions.length ? filteredTransactions.map((transaction) => <TableRow key={transaction.id}><TableCell className="font-medium">{transaction.id.split('-').slice(-1)[0].slice(0, 8).toUpperCase()}</TableCell><TableCell><div className="font-medium">{transaction.person}</div><div className="text-sm text-muted-foreground">{transaction.email}</div></TableCell><TableCell><Badge variant="outline">{transaction.type}</Badge><div className="mt-1 text-sm text-muted-foreground">{transaction.details}</div></TableCell><TableCell>{formatCurrency(transaction.totalAmount)}</TableCell><TableCell>{formatCurrency(paidAmount(transaction))}</TableCell><TableCell className="font-medium">{formatCurrency(remainingAmount(transaction))}</TableCell><TableCell><Badge variant={statusVariant(transaction.status)}>{transaction.status}</Badge></TableCell><TableCell className="text-right">{transaction.status === 'Paid' ? <Button variant="ghost" size="sm" onClick={() => { setSelectedTransaction(transaction); setShowReceiptDialog(true); }}><FileText className="mr-2 size-4" />Receipt</Button> : <Button size="sm" onClick={() => openPayment(transaction)}>Continue payment</Button>}</TableCell></TableRow>) : <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">No transactions found.</TableCell></TableRow>}</TableBody></Table></div></CardContent>
+            <CardHeader><div className="flex flex-col gap-4"><div><CardTitle>Cashier Transactions</CardTitle><CardDescription>Use the receipt action to record a continuation payment or reprint a receipt.</CardDescription></div><div className="flex flex-wrap items-center gap-2"><div className="relative min-w-56 flex-1"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input className="pl-9" placeholder="Search transactions..." value={search} onChange={(event) => setSearch(event.target.value)} /></div><DropdownMenu><DropdownMenuTrigger render={<Button variant="outline" />}>{statusFilter === 'All' ? 'All Statuses' : statusFilter}<ChevronDown className="ml-2 size-4" /></DropdownMenuTrigger><DropdownMenuContent align="end">{['All', 'Unpaid', 'Partially Paid', 'Paid'].map((value) => <DropdownMenuItem key={value} onClick={() => setStatusFilter(value)}>{value === 'All' ? 'All Statuses' : value}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu><DropdownMenu><DropdownMenuTrigger render={<Button variant="outline" />}>{typeFilter === 'All' ? 'All Types' : typeFilter}<ChevronDown className="ml-2 size-4" /></DropdownMenuTrigger><DropdownMenuContent align="end">{['All', 'Enrollment', 'Room Booking', 'Instrument Rental'].map((value) => <DropdownMenuItem key={value} onClick={() => setTypeFilter(value)}>{value === 'All' ? 'All Types' : value}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu></div></div></CardHeader>
+            <CardContent>{error && <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}<div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Transaction</TableHead><TableHead>Client</TableHead><TableHead>Type</TableHead><TableHead>Total</TableHead><TableHead>Paid</TableHead><TableHead>Balance</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={8} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow> : pagedTransactions.length ? pagedTransactions.map((transaction) => <TableRow key={transaction.id}><TableCell className="font-medium">{transaction.id.split('-').slice(-1)[0].slice(0, 8).toUpperCase()}</TableCell><TableCell><div className="font-medium">{transaction.person}</div><div className="text-sm text-muted-foreground">{transaction.email}</div></TableCell><TableCell><Badge variant="outline">{transaction.type}</Badge><div className="mt-1 text-sm text-muted-foreground">{transaction.details}</div></TableCell><TableCell>{formatCurrency(transaction.totalAmount)}</TableCell><TableCell>{formatCurrency(paidAmount(transaction))}</TableCell><TableCell className="font-medium">{formatCurrency(remainingAmount(transaction))}</TableCell><TableCell><Badge variant={statusVariant(transaction.status)}>{transaction.status}</Badge></TableCell><TableCell className="text-right">{transaction.status === 'Paid' ? <Button variant="ghost" size="sm" onClick={() => { setSelectedTransaction(transaction); setShowReceiptDialog(true); }}><FileText className="mr-2 size-4" />Receipt</Button> : <Button size="sm" onClick={() => openPayment(transaction)}>Continue payment</Button>}</TableCell></TableRow>) : <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">No transactions found.</TableCell></TableRow>}</TableBody></Table></div><div className="flex items-center justify-between pt-4 text-sm text-muted-foreground"><span>{filteredTransactions.length} transactions</span><div className="flex items-center gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span>Page {page} of {pageCount || 1}</span><Button size="sm" variant="outline" disabled={page >= pageCount || pageCount === 0} onClick={() => setPage((value) => value + 1)}>Next</Button></div></div></CardContent>
           </Card>
         </main>
         <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}><DialogContent><DialogHeader><DialogTitle>Continue payment</DialogTitle><DialogDescription>{selectedTransaction?.person} · {selectedTransaction?.type}</DialogDescription></DialogHeader>{selectedTransaction && <div className="space-y-4"><div className="grid grid-cols-2 gap-3 rounded-lg border p-4"><div><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{formatCurrency(selectedTransaction.totalAmount)}</p></div><div><p className="text-xs text-muted-foreground">Remaining</p><p className="font-semibold">{formatCurrency(remainingAmount(selectedTransaction))}</p></div></div><div><label className="text-sm font-medium">Amount received</label><Input type="number" min="0.01" max={remainingAmount(selectedTransaction)} value={amountToPay} onChange={(event) => setAmountToPay(event.target.value)} className="mt-2" /></div><div><label className="text-sm font-medium">Payment method</label><select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); setPaymentReference(''); }} className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"><option>Cash</option><option>GCash</option><option>Bank transfer</option></select></div>{paymentMethod !== 'Cash' ? <div><label className="text-sm font-medium">External payment reference</label><Input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Enter GCash or bank reference" maxLength={100} className="mt-2" /><p className="mt-1 text-xs text-muted-foreground">Required for non-cash payments.</p></div> : <p className="text-xs text-muted-foreground">A receipt reference will be generated automatically for cash payments.</p>}</div>}<DialogFooter><Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button><Button className="border border-green-300 bg-green-100 text-green-800 hover:bg-green-200 hover:text-green-900" disabled={processing || !selectedTransaction || Number(amountToPay) !== remainingAmount(selectedTransaction)} onClick={markAsPaid}><Check className="mr-2 size-4" />Paid</Button><Button disabled={processing || (paymentMethod !== 'Cash' && paymentReference.trim().length < 3)} onClick={processPayment}>{processing ? <Loader2 className="animate-spin" /> : <Check />} Issue receipt</Button></DialogFooter></DialogContent></Dialog>

@@ -25,6 +25,11 @@ const localDate = () => {
 
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
+const addDays = (dateKey, amount) => {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
+};
 
 const timeOptions = Array.from(
   { length: 48 },
@@ -156,10 +161,11 @@ export default function FrontDeskWalkInRoomBookingPage() {
     phone: '',
     email: '',
     roomId: '',
-    date: localDate(),
+    date: addDays(localDate(), 1),
     startTime: '',
     endTime: '',
     paymentMethod: 'CASH',
+    paymentReference: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -316,15 +322,6 @@ export default function FrontDeskWalkInRoomBookingPage() {
       return;
     }
 
-    if (!form.date || form.date < today) {
-      setMessage({
-        type: 'error',
-        text: 'Please select today or a future date.',
-      });
-
-      return;
-    }
-
     if (
       selectedHours?.isClosed ||
       !startTimes.includes(form.startTime) ||
@@ -349,9 +346,13 @@ export default function FrontDeskWalkInRoomBookingPage() {
           email: form.email.trim(),
         },
         roomId: form.roomId,
-        scheduledStart: `${form.date}T${form.startTime}:00`,
-        scheduledEnd: `${form.date}T${form.endTime}:00`,
+        // The form values are Manila wall-clock time. Include the business
+        // timezone so the API does not reinterpret them in the browser/server
+        // timezone before checking operating hours.
+        scheduledStart: `${form.date}T${form.startTime}:00+08:00`,
+        scheduledEnd: `${form.date}T${form.endTime}:00+08:00`,
         paymentMethod: form.paymentMethod,
+        paymentReference: form.paymentReference.trim() || undefined,
       });
 
       setMessage({
@@ -613,18 +614,49 @@ export default function FrontDeskWalkInRoomBookingPage() {
                     </select>
                   </label>
 
+                  {form.paymentMethod === 'GCASH' && (
+                    <label className="text-sm">
+                      Scan to Pay reference
+                      <input
+                        required
+                        className={fieldClass}
+                        value={form.paymentReference}
+                        onChange={(event) => update('paymentReference', event.target.value)}
+                        placeholder="Enter the GCash reference number"
+                        maxLength={100}
+                      />
+                    </label>
+                  )}
+
                   <label className="text-sm">
                     Date
                     <input
                       required
-                      min={today}
+                      min={addDays(today, 1)}
+                      max={addDays(today, 5)}
                       type="date"
                       className={fieldClass}
                       value={form.date}
                       onChange={(event) => {
-                        update('date', event.target.value);
+                        const selectedDate = event.target.value;
+                        update(
+                          'date',
+                          selectedDate < addDays(today, 1)
+                            ? addDays(today, 1)
+                            : selectedDate > addDays(today, 5)
+                              ? addDays(today, 5)
+                              : selectedDate,
+                        );
                         update('startTime', '');
                         update('endTime', '');
+                      }}
+                      onBlur={(event) => {
+                        const selectedDate = event.target.value;
+                        if (selectedDate < addDays(today, 1)) {
+                          update('date', addDays(today, 1));
+                        } else if (selectedDate > addDays(today, 5)) {
+                          update('date', addDays(today, 5));
+                        }
                       }}
                     />
                   </label>

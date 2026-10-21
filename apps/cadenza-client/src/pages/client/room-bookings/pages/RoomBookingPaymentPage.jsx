@@ -15,6 +15,7 @@ export default function RoomBookingPaymentPage() {
   const navigate = useNavigate()
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState('')
+  const [paymentReference, setPaymentReference] = useState('')
 
   const checkout = useMemo(() => {
     try {
@@ -45,6 +46,10 @@ export default function RoomBookingPaymentPage() {
       setError('No pending room booking was found.')
       return
     }
+    if (paymentReference.trim().length < 3) {
+      setError('Enter the payment reference before continuing.')
+      return
+    }
 
     try {
       setPaying(true)
@@ -55,6 +60,8 @@ export default function RoomBookingPaymentPage() {
         paymentPlan: checkout.paymentPlan,
         scheduledStart: start.toISOString(),
         scheduledEnd: end.toISOString(),
+        paymentMethod: 'GCASH',
+        paymentReference: paymentReference.trim(),
       })
 
       localStorage.removeItem('cadenza-pending-room-checkout')
@@ -101,6 +108,18 @@ export default function RoomBookingPaymentPage() {
           Online payment is not connected yet. Click Pay to submit this booking
           for front desk confirmation.
         </p>
+        <label className="mt-5 block text-left text-sm font-medium">
+          Scan to Pay reference
+          <input
+            type="text"
+            value={paymentReference}
+            onChange={(event) => setPaymentReference(event.target.value)}
+            placeholder="Enter the GCash reference number"
+            maxLength={100}
+            className="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm font-normal outline-none focus:ring-2 focus:ring-primary"
+            required
+          />
+        </label>
         {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
         <button
           type="button"

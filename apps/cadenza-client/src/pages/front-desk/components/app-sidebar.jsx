@@ -1,5 +1,9 @@
+import { useEffect, useState } from "react";
 import { NavMain } from "@/pages/admin/components/nav-main";
 import { NavUser } from "@/pages/front-desk/components/nav-user";
+import { getInstrumentRentals } from "@/services/front-desk/instrument-rentalsService";
+import { getRoomBookings } from "@/services/front-desk/room-bookingsService";
+import { apiClient } from "@/core/api/apiClient";
 
 import {
   Sidebar,
@@ -79,6 +83,35 @@ const data = {
 };
 
 export function AppSidebar({ ...props }) {
+  const [pendingCounts, setPendingCounts] = useState({ rentals: 0, bookings: 0, billing: 0 });
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.allSettled([getInstrumentRentals(), getRoomBookings(), apiClient.get('/enrollments')]).then(([rentalsResult, bookingsResult, enrollmentsResult]) => {
+      if (!mounted) return;
+      const rentals = rentalsResult.status === 'fulfilled' && Array.isArray(rentalsResult.value) ? rentalsResult.value : [];
+      const bookings = bookingsResult.status === 'fulfilled' && Array.isArray(bookingsResult.value) ? bookingsResult.value : [];
+      const enrollments = enrollmentsResult.status === 'fulfilled' && Array.isArray(enrollmentsResult.value?.data?.data) ? enrollmentsResult.value.data.data : [];
+      const pendingRentalStatuses = ['FOR_APPROVAL', 'PENDING', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION'];
+      const pendingBilling = [
+        ...enrollments.map((item) => ({ total: item.price, paid: item.metadata?.paymentAmount || (item.metadata?.paymentPlan === 'FULL_PAYMENT' ? item.price : 0) })),
+        ...bookings.map((item) => ({ total: item.totalAmount, paid: item.metadata?.initialPaymentAmount })),
+        ...rentals.map((item) => ({ total: item.totalAmount, paid: item.metadata?.initialPaymentAmount })),
+      ].filter((item) => Number(item.total || 0) > Number(item.paid || 0)).length;
+      setPendingCounts({
+        rentals: rentals.filter((rental) => pendingRentalStatuses.includes(rental.status)).length,
+        bookings: bookings.filter((booking) => booking.status === 'FOR_APPROVAL').length,
+        billing: pendingBilling,
+      });
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  const navItems = data.navMain.map((item) => ({
+    ...item,
+    badge: item.title === 'Rentals' ? pendingCounts.rentals : item.title === 'Room Bookings' ? pendingCounts.bookings : item.title === 'Billing & Payments' ? pendingCounts.billing : undefined,
+  }));
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       {/* Header */}
@@ -101,7 +134,7 @@ export function AppSidebar({ ...props }) {
 
       {/* Navigation */}
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navItems} />
 
       </SidebarContent>
 

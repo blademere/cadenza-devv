@@ -11,7 +11,12 @@ const unwrapList = (response) => {
   return Array.isArray(data) ? data : [];
 };
 
-export async function getStudents() {
-  const response = await apiClient.get(STUDENTS_ENDPOINT);
-  return unwrapList(response);
+export async function getStudents(params = {}) {
+  const response = await apiClient.get(STUDENTS_ENDPOINT, { params });
+  const payload = unwrap(response);
+  const result = {
+    items: unwrapList(response),
+    pagination: payload?.pagination ?? null,
+  };
+  return Object.keys(params).length ? result : result.items;
 }

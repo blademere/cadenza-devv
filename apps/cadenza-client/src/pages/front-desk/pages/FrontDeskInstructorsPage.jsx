@@ -57,6 +57,7 @@ import {
 import { Badge } from '@/components/ui/Badge';
 
 import { instructorService } from '@/services/front-desk/instructorService';
+import { getOperatingHours } from '@/services/operatingHoursService';
 
 const dayOptions = [
   { value: 1, label: 'Monday' },
@@ -195,6 +196,8 @@ export default function InstructorsPage() {
   const [courses, setCourses] = useState([]);
 
   const [search, setSearch] = useState('');
+  const [instructorPage, setInstructorPage] = useState(1);
+  const [instructorPagination, setInstructorPagination] = useState(null);
 
   const [selectedInstructor, setSelectedInstructor] = useState(null);
 
@@ -207,6 +210,8 @@ export default function InstructorsPage() {
   const [showSpecialtyDialog, setShowSpecialtyDialog] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
+  const [instructorToDeactivate, setInstructorToDeactivate] = useState(null);
+  const [deactivatingInstructor, setDeactivatingInstructor] = useState(false);
 
   const [selectedSpecializations, setSelectedSpecializations] = useState([]);
 
@@ -224,6 +229,7 @@ export default function InstructorsPage() {
 
   const [scheduleDay, setScheduleDay] = useState('');
   const [scheduleStartTime, setScheduleStartTime] = useState('');
+  const [operatingHours, setOperatingHours] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [scheduleLoading, setScheduleLoading] = useState(false);
@@ -242,18 +248,21 @@ export default function InstructorsPage() {
       setLoading(true);
       setError('');
 
-      const [response, courseResponse] = await Promise.all([
-        instructorService.getInstructors(),
+      const [response, courseResponse, operatingHoursResponse] = await Promise.all([
+        instructorService.getInstructors({ page: instructorPage, limit: 10 }),
         instructorService.getCourses(),
+        getOperatingHours(),
       ]);
 
       setInstructors(response.data || []);
+      setInstructorPagination(response.pagination || null);
 
       setCourses(
         (courseResponse.data || []).filter(
           (course) => course.status === 'ACTIVE',
         ),
       );
+      setOperatingHours(operatingHoursResponse);
     } catch (err) {
       console.error(err);
 
@@ -269,7 +278,7 @@ export default function InstructorsPage() {
 
   useEffect(() => {
     loadInstructors();
-  }, []);
+  }, [instructorPage]);
 
   const filtered = instructors.filter((instructor) => {
     const fullName = [
@@ -307,6 +316,20 @@ export default function InstructorsPage() {
     return instructor.person?.user?.email || instructor.person?.email || '—';
   };
 
+  const scheduleDayHours = operatingHours?.weeklyHours?.[
+    String(Number(scheduleDay) === 7 ? 0 : Number(scheduleDay))
+  ];
+  const scheduleTimeOptions = scheduleDayHours?.isClosed
+    ? []
+    : timeOptions.filter((time) => {
+        if (!scheduleDayHours) return false;
+        const start = timeToMinutes(time.value);
+        return (
+          start >= timeToMinutes(scheduleDayHours.startTime) &&
+          start + 60 <= timeToMinutes(scheduleDayHours.endTime)
+        );
+      });
+
   const refreshSelectedInstructor = async (instructorId) => {
     const [instructorResponse, availabilityResponse, assignmentsResponse] =
       await Promise.all([
@@ -343,6 +366,22 @@ export default function InstructorsPage() {
       );
     } finally {
       setScheduleLoading(false);
+    }
+  };
+
+  const confirmDeactivateInstructor = async () => {
+    if (!instructorToDeactivate || deactivatingInstructor) return;
+    try {
+      setDeactivatingInstructor(true);
+      setError('');
+      await instructorService.deactivateInstructor(instructorToDeactivate.id);
+      setInstructorToDeactivate(null);
+      setSuccess('Instructor deactivated successfully.');
+      await loadInstructors();
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to deactivate instructor.');
+    } finally {
+      setDeactivatingInstructor(false);
     }
   };
 
@@ -437,7 +476,24 @@ export default function InstructorsPage() {
 
     const startMinute = timeToMinutes(scheduleStartTime);
 
+    const dayKey = String(Number(scheduleDay) === 7 ? 0 : Number(scheduleDay));
+    const dayHours = operatingHours?.weeklyHours?.[dayKey];
+    if (!dayHours || dayHours.isClosed) {
+      setError('The facility is closed on the selected day.');
+      return;
+    }
+
     const endMinute = startMinute + 60;
+
+    if (
+      startMinute < timeToMinutes(dayHours.startTime) ||
+      endMinute > timeToMinutes(dayHours.endTime)
+    ) {
+      setError(
+        `The schedule must fit within operating hours (${dayHours.startTime}–${dayHours.endTime}).`,
+      );
+      return;
+    }
 
     if (endMinute > 24 * 60) {
       setError('The schedule cannot extend past midnight.');
@@ -738,16 +794,18 @@ export default function InstructorsPage() {
 
                         <TableHead>Specialization</TableHead>
 
+                        <TableHead>Employment Type</TableHead>
+
                         <TableHead>Status</TableHead>
 
-                        <TableHead className="text-right">Schedule</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
 
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="h-24 text-center">
+                          <TableCell colSpan={5} className="h-24 text-center">
                             <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                           </TableCell>
                         </TableRow>
@@ -774,6 +832,13 @@ export default function InstructorsPage() {
                             </TableCell>
 
                             <TableCell className="py-4">
+                              {String(instructor.metadata?.employmentType || '')
+                                .replace('_', ' ')
+                                .toLowerCase()
+                                .replace(/\b\w/g, (letter) => letter.toUpperCase()) || '—'}
+                            </TableCell>
+
+                            <TableCell className="py-4">
                               <Badge
                                 variant={
                                   instructor.status === 'ACTIVE'
@@ -786,26 +851,37 @@ export default function InstructorsPage() {
                             </TableCell>
 
                             <TableCell className="py-4 text-right">
-                              <Button
-                                variant="outline"
-                                className="p-2"
-                                onClick={() => handleViewSchedule(instructor)}
-                                disabled={scheduleLoading}
-                              >
-                                {scheduleLoading &&
-                                selectedInstructor?.id === instructor.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  'View'
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleViewSchedule(instructor)}
+                                  disabled={scheduleLoading}
+                                >
+                                  {scheduleLoading &&
+                                  selectedInstructor?.id === instructor.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    'View'
+                                  )}
+                                </Button>
+                                {instructor.status === 'ACTIVE' && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => setInstructorToDeactivate(instructor)}
+                                  >
+                                    Deactivate
+                                  </Button>
                                 )}
-                              </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
                           <TableCell
-                            colSpan={4}
+                            colSpan={5}
                             className="h-24 text-center text-muted-foreground"
                           >
                             No instructors found.
@@ -814,6 +890,14 @@ export default function InstructorsPage() {
                       )}
                     </TableBody>
                   </Table>
+                </div>
+                <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
+                  <span>{instructorPagination?.total || 0} instructors</span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled={!instructorPagination?.hasPreviousPage || loading} onClick={() => setInstructorPage((value) => value - 1)}>Previous</Button>
+                    <span>Page {instructorPagination?.page || instructorPage} of {instructorPagination?.pages || 0}</span>
+                    <Button variant="outline" size="sm" disabled={!instructorPagination?.hasNextPage || loading} onClick={() => setInstructorPage((value) => value + 1)}>Next</Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -859,19 +943,21 @@ export default function InstructorsPage() {
                   <PlusIcon className="mr-2 h-4 w-4" />
                   Add Specialty
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setError('');
-                    setScheduleDay('');
-                    setScheduleStartTime('');
-                    setShowAvailabilityDialog(true);
-                  }}
-                >
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Add Schedule
-                </Button>
+                {!isFullTimeInstructor(selectedInstructor) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setError('');
+                      setScheduleDay('');
+                      setScheduleStartTime('');
+                      setShowAvailabilityDialog(true);
+                    }}
+                  >
+                    <PlusIcon className="mr-2 h-4 w-4" />
+                    Add Schedule
+                  </Button>
+                )}
                 </div>
               </div>
 
@@ -1090,6 +1176,43 @@ export default function InstructorsPage() {
         )}
 
         <Dialog
+          open={Boolean(instructorToDeactivate)}
+          onOpenChange={(open) => {
+            if (!open && !deactivatingInstructor) setInstructorToDeactivate(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>Deactivate instructor?</DialogTitle>
+              <DialogDescription>
+                {instructorToDeactivate
+                  ? `${getInstructorName(instructorToDeactivate)} will no longer be available for new lessons or instructor login.`
+                  : ''}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setInstructorToDeactivate(null)}
+                disabled={deactivatingInstructor}
+              >
+                Keep active
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={confirmDeactivateInstructor}
+                disabled={deactivatingInstructor}
+              >
+                {deactivatingInstructor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Deactivate
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
           open={showAddInstructorDialog}
           onOpenChange={(open) => {
             if (!open) {
@@ -1276,7 +1399,7 @@ export default function InstructorsPage() {
                         </SelectTrigger>
 
                         <SelectContent>
-                          {timeOptions.map((time) => (
+                          {scheduleTimeOptions.map((time) => (
                             <SelectItem key={time.value} value={time.value}>
                               {time.label}
                             </SelectItem>
@@ -1608,7 +1731,10 @@ export default function InstructorsPage() {
 
                 <select
                   value={scheduleDay}
-                  onChange={(e) => setScheduleDay(e.target.value)}
+                  onChange={(e) => {
+                    setScheduleDay(e.target.value);
+                    setScheduleStartTime('');
+                  }}
                   disabled={scheduleSubmitting}
                   className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                 >
@@ -1636,7 +1762,7 @@ export default function InstructorsPage() {
                     </SelectTrigger>
 
                     <SelectContent>
-                      {timeOptions.map((time) => (
+                      {scheduleTimeOptions.map((time) => (
                         <SelectItem key={time.value} value={time.value}>
                           {time.label}
                         </SelectItem>

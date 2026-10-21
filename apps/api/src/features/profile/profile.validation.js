@@ -22,13 +22,21 @@ const updateMyProfileSchema = z.object({
   }),
 })
 
+const updateMyPasswordSchema = z.object({
+  body: z.object({ password: z.string().min(8).max(128) }),
+})
+
 const createMyProfileValidator = async (req) =>
   createMyProfileSchema.parse({ body: req.body || {} })
 
 const updateMyProfileValidator = async (req) =>
   updateMyProfileSchema.parse({ body: req.body || {} })
 
+const updateMyPasswordValidator = async (req) =>
+  updateMyPasswordSchema.parse({ body: req.body || {} })
+
 export {
   createMyProfileValidator,
   updateMyProfileValidator,
+  updateMyPasswordValidator,
 }

@@ -1,11 +1,22 @@
 import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
+import { paginate } from '../../../../common/pagination/pagination.js';
 
 const prisma = getPrismaClient();
 
 export const studentsRepository = {
-  async findAll(appId) {
-    return prisma.cadenzaCustomer.findMany({
-      where: { appId },
+  async findAll(appId, filters = {}) {
+    const where = {
+      appId,
+      enrollments: {
+        some: { status: { notIn: ['CANCELLED', 'COMPLETED'] } },
+      },
+    };
+
+    return paginate({
+      page: filters.page,
+      limit: filters.limit,
+      findMany: ({ skip, take }) => prisma.cadenzaCustomer.findMany({
+      where,
       include: {
         person: {
           select: {
@@ -52,6 +63,10 @@ export const studentsRepository = {
         { person: { lastName: 'asc' } },
         { person: { firstName: 'asc' } },
       ],
+      skip,
+      take,
+      }),
+      count: () => prisma.cadenzaCustomer.count({ where }),
     });
   },
 };

@@ -53,6 +53,8 @@ export default function EnrollmentsPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
   const [selectedEnrollment, setSelectedEnrollment] = useState(null);
 
@@ -67,8 +69,9 @@ export default function EnrollmentsPage() {
       try {
         setLoading(true);
         setError('');
-        const data = await enrollmentService.getEnrollments();
-        setEnrollments(Array.isArray(data) ? data : []);
+        const result = await enrollmentService.getEnrollments({ status: 'FOR_APPROVAL', page, limit: 10 });
+        setEnrollments(result.items || []);
+        setPagination(result.pagination || null);
       } catch (err) {
         console.error(err);
         setError(
@@ -82,7 +85,7 @@ export default function EnrollmentsPage() {
     };
 
     loadEnrollments();
-  }, []);
+  }, [page]);
 
   /* ----------------------------------------
      Search
@@ -191,7 +194,7 @@ export default function EnrollmentsPage() {
               <CardTitle>Enrollment Records</CardTitle>
 
               <CardDescription>
-                Students currently enrolled in music programs.
+                Enrollment requests waiting for front-desk approval.
               </CardDescription>
 
               <div className="relative max-w-sm">
@@ -290,6 +293,14 @@ export default function EnrollmentsPage() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+              <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
+                <span>{pagination?.total || 0} enrollment records</span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={!pagination?.hasPreviousPage || loading} onClick={() => setPage((value) => value - 1)}>Previous</Button>
+                  <span>Page {pagination?.page || page} of {pagination?.pages || 0}</span>
+                  <Button variant="outline" size="sm" disabled={!pagination?.hasNextPage || loading} onClick={() => setPage((value) => value + 1)}>Next</Button>
+                </div>
               </div>
             </CardContent>
           </Card>

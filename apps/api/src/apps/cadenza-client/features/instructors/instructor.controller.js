@@ -2,14 +2,16 @@ import { instructorService } from './instructor.service.js';
 export const instructorController = {
   async getInstructors(req, res, next) {
     try {
-      const instructors = await instructorService.getInstructors(
+      const result = await instructorService.getInstructors(
         req.cadenzaApp.id,
         {
           status: req.query.status,
           courseId: req.query.courseId,
+          page: req.query.page,
+          limit: req.query.limit,
         },
       );
-      return res.json({ success: true, data: instructors });
+      return res.json({ success: true, data: result.items, pagination: result.pagination });
     } catch (error) {
       next(error);
     }

@@ -38,6 +38,50 @@ const minutes = (value) => {
   return hour * 60 + minute;
 };
 
+const addDays = (dateKey, amount) => {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
+};
+const earliestRentalDate = (today) => addDays(today, 1);
+const latestRentalDate = (today) => addDays(today, 5);
+
+const minimumReturn = (config, dateKey, startTime) => {
+  if (!dateKey || !startTime) return null;
+  let date = dateKey;
+  let time = minutes(startTime);
+  let remaining = 8 * 60;
+
+  for (let index = 0; index < 370 && remaining > 0; index += 1) {
+    const hours = getHoursForDate(config, date);
+    if (!hours || hours.isClosed) {
+      date = addDays(date, 1);
+      time = 0;
+      continue;
+    }
+
+    const opening = minutes(hours.startTime);
+    const closing = minutes(hours.endTime);
+    const cursor = Math.max(time, opening);
+    if (cursor < closing) {
+      const available = closing - cursor;
+      if (remaining <= available) {
+        const end = cursor + remaining;
+        return {
+          date,
+          time: `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`,
+        };
+      }
+      remaining -= available;
+    }
+
+    date = addDays(date, 1);
+    time = 0;
+  }
+
+  return null;
+};
+
 const displayTime = (value) => {
   const [hour, minute] = value.split(':').map(Number);
 
@@ -147,7 +191,7 @@ export default function FrontDeskWalkInRentalPage() {
     phone: '',
     email: '',
     instrumentId: '',
-    date: localDate(),
+    date: earliestRentalDate(localDate()),
     returnDate: localDate(),
     startTime: '',
     endTime: '',
@@ -264,8 +308,24 @@ export default function FrontDeskWalkInRentalPage() {
     : timeOptions.filter(
         (time) =>
           minutes(time) >= minutes(returnHours?.startTime || '08:00') &&
-          minutes(time) <= minutes(returnHours?.endTime || '17:00'),
+          minutes(time) <= minutes(returnHours?.endTime || '17:00') &&
+          (() => {
+            const minimum = minimumReturn(operatingHours, form.date, form.startTime);
+            return !minimum || form.returnDate > minimum.date ||
+              (form.returnDate === minimum.date && time >= minimum.time);
+          })(),
       );
+
+  const setStartTime = (value) => {
+    const minimum = minimumReturn(operatingHours, form.date, value);
+    setForm((current) => ({
+      ...current,
+      startTime: value,
+      ...(minimum
+        ? { returnDate: minimum.date, endTime: minimum.time }
+        : { endTime: '' }),
+    }));
+  };
 
   const operationalHoursBetween = () => {
     if (!form.startTime || !form.endTime || !form.date || !form.returnDate) {
@@ -311,6 +371,15 @@ export default function FrontDeskWalkInRentalPage() {
 
     return total;
   };
+
+  const selectedInstrument = instruments.find(
+    (instrument) => instrument.id === form.instrumentId,
+  );
+  const rentalHours = operationalHoursBetween();
+  const billableHours = Math.max(8, Math.ceil(rentalHours));
+  const rentalAmount = selectedInstrument
+    ? (Number(selectedInstrument.rentalRate) / 8) * billableHours
+    : 0;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -388,8 +457,8 @@ export default function FrontDeskWalkInRentalPage() {
         },
         rentalType: 'INDIVIDUAL',
         instrumentId: form.instrumentId,
-        scheduledStart: `${form.date}T${form.startTime}:00`,
-        scheduledEnd: `${form.returnDate}T${form.endTime}:00`,
+        scheduledStart: `${form.date}T${form.startTime}:00+08:00`,
+        scheduledEnd: `${form.returnDate}T${form.endTime}:00+08:00`,
         paymentMethod: form.paymentMethod,
       });
 
@@ -671,14 +740,15 @@ export default function FrontDeskWalkInRentalPage() {
 
                     <input
                       required
-                      min={today}
+                      min={earliestRentalDate(today)}
+                      max={latestRentalDate(today)}
                       type="date"
                       className={fieldClass}
                       value={form.date}
                       onChange={(event) => {
                         const nextDate = event.target.value;
 
-                        update('date', nextDate);
+                        update('date', nextDate < earliestRentalDate(today) || nextDate > latestRentalDate(today) ? earliestRentalDate(today) : nextDate);
                         update('startTime', '');
                         update('endTime', '');
 
@@ -712,9 +782,7 @@ export default function FrontDeskWalkInRentalPage() {
                       required
                       className={fieldClass}
                       value={form.startTime}
-                      onChange={(event) =>
-                        update('startTime', event.target.value)
-                      }
+                      onChange={(event) => setStartTime(event.target.value)}
                     >
                       <option value="">
                         {startHours?.isClosed
@@ -729,6 +797,18 @@ export default function FrontDeskWalkInRentalPage() {
                       ))}
                     </select>
                   </label>
+
+                  {form.instrumentId && form.startTime && form.endTime && (
+                    <div className="rounded-md border bg-muted/30 p-3 text-sm sm:col-span-2">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground">Rental amount</span>
+                        <span className="text-lg font-semibold">₱{rentalAmount.toLocaleString()}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {rentalHours.toFixed(1)} operating hours · minimum 8 hours
+                      </p>
+                    </div>
+                  )}
 
                   <label className="text-sm">
                     Return time

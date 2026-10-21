@@ -6,7 +6,7 @@ import {
 
 import * as repository from './room-booking.repository.js';
 import { assertWithinOperatingHours } from '../settings/operating-hours.js';
-import { settingsRepository } from '../settings/settings.repository.js';
+import { settingsService } from '../settings/settings.service.js';
 import { createWalkInCustomer } from '../walk-ins/walk-in-customer.service.js';
 
 const validateSchedule = (scheduledStart, scheduledEnd) => {
@@ -33,6 +33,20 @@ const validateSchedule = (scheduledStart, scheduledEnd) => {
     scheduledStart: start,
     scheduledEnd: end,
   };
+};
+
+const manilaDateKey = (date) => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(date);
+
+const assertWalkInDateWindow = (scheduledStart) => {
+  const today = manilaDateKey(new Date());
+  const startDate = manilaDateKey(scheduledStart);
+  const todayMs = Date.parse(`${today}T00:00:00Z`);
+  const startMs = Date.parse(`${startDate}T00:00:00Z`);
+  if (startMs <= todayMs || startMs > todayMs + 5 * 24 * 60 * 60 * 1000) {
+    throw new BadRequestError('Walk-in bookings are only allowed from tomorrow through the next 5 days.');
+  }
 };
 
 const calculateTotalAmount = (
@@ -106,6 +120,7 @@ const create = async ({
   scheduledEnd,
   paymentPlan,
   paymentMethod = 'QR_PLACEHOLDER',
+  paymentReference,
   status = 'FOR_APPROVAL',
   metadata: additionalMetadata = {},
 }) => {
@@ -113,7 +128,7 @@ const create = async ({
     scheduledStart,
     scheduledEnd,
   );
-  try { assertWithinOperatingHours(await settingsRepository.findOperatingHours(appId), schedule.scheduledStart, schedule.scheduledEnd); } catch (error) { throw new BadRequestError(error.message); }
+  try { assertWithinOperatingHours(await settingsService.getOperatingHours(appId), schedule.scheduledStart, schedule.scheduledEnd); } catch (error) { throw new BadRequestError(error.message); }
 
   const [customer, room] = await Promise.all([
     repository.findCustomerById(customerId, appId),
@@ -176,6 +191,7 @@ const create = async ({
       ...additionalMetadata,
       paymentPlan: selectedPaymentPlan,
       paymentMethod,
+      ...(paymentReference ? { paymentReference } : {}),
       paymentStatus:
         selectedPaymentPlan === 'DOWN_PAYMENT'
           ? 'PARTIALLY_PAID'
@@ -429,6 +445,7 @@ const listAvailableRooms = async ({
     scheduledStart,
     scheduledEnd,
   );
+  assertWalkInDateWindow(schedule.scheduledStart);
 
   return repository.listAvailableRooms({
     appId,

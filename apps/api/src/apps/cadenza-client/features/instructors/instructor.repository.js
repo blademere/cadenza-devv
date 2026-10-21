@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
+import { paginate } from '../../../../common/pagination/pagination.js';
 
 const prisma = getPrismaClient();
 
@@ -73,12 +74,17 @@ export const instructorRepository = {
       };
     }
 
-    return prisma.cadenzaInstructor.findMany({
-      where,
-      include: instructorInclude,
-      orderBy: {
-        createdAt: 'desc',
-      },
+    return paginate({
+      page: filters.page,
+      limit: filters.limit,
+      findMany: ({ skip, take }) => prisma.cadenzaInstructor.findMany({
+        where,
+        include: instructorInclude,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      count: () => prisma.cadenzaInstructor.count({ where }),
     });
   },
 

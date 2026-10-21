@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2, LockKeyhole, Mail, Pencil, Save, UserRound, X } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LockKeyhole, Mail, Pencil, Save, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { getMyProfile, updateMyProfile } from '../services/profile.service';
+import { getMyProfile, updateMyPassword, updateMyProfile } from '../services/profile.service';
 
 const emptyForm = {
   firstName: '',
@@ -34,6 +34,10 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [hasActiveEnrollment, setHasActiveEnrollment] = useState(false);
+  const [password, setPassword] = useState('');
+  const [retypePassword, setRetypePassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     getMyProfile()
@@ -109,6 +113,29 @@ export default function Profile() {
     .filter(Boolean)
     .join(' ');
 
+  const handlePasswordSubmit = async (event) => {
+    event.preventDefault();
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+    if (password !== retypePassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+    try {
+      setSavingPassword(true);
+      await updateMyPassword(password);
+      setPassword('');
+      setRetypePassword('');
+      toast.success('Password saved. You can now sign in with email and password.');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Unable to save password.');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   return (
     <div className="space-y-8 px-4 py-6 lg:px-8">
       <div>
@@ -169,6 +196,25 @@ export default function Profile() {
             </div>
           </div>
         )}
+      </section>
+      <section className="max-w-3xl rounded-xl border border-border bg-card p-6">
+        <h2 className="font-semibold">Password</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Set a password to sign in your account.</p>
+        <form onSubmit={handlePasswordSubmit} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+          <div className="relative">
+            <input type={showPassword ? 'text' : 'password'} minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" className="h-10 w-full rounded-md border border-input bg-background px-3 pr-10 text-sm" />
+            <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-2 top-2 text-muted-foreground" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+              {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+            </button>
+          </div>
+          <div className="relative">
+            <input type={showPassword ? 'text' : 'password'} minLength={8} value={retypePassword} onChange={(event) => setRetypePassword(event.target.value)} placeholder="Retype password" className="h-10 w-full rounded-md border border-input bg-background px-3 pr-10 text-sm" />
+            <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-2 top-2 text-muted-foreground" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+              {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+            </button>
+          </div>
+          <button type="submit" disabled={savingPassword || password.length < 8 || retypePassword.length < 8} className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60">{savingPassword ? 'Saving...' : 'Save password'}</button>
+        </form>
       </section>
     </div>
   );

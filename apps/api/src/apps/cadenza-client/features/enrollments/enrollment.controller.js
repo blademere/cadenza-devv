@@ -5,12 +5,13 @@ export const enrollmentController = {
     try {
       const enrollments = await enrollmentService.getEnrollments(
         req.cadenzaApp.id,
-        { status: req.query.status },
+        { status: req.query.status, page: req.query.page, limit: req.query.limit },
       );
 
       return res.json({
         success: true,
-        data: enrollments,
+        data: enrollments.items,
+        pagination: enrollments.pagination,
       });
     } catch (error) {
       next(error);

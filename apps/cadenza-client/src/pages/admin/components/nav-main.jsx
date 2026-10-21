@@ -35,6 +35,11 @@ export function NavMain({ items }) {
                 >
                   {item.icon}
                   <span>{item.title}</span>
+                  {item.badge > 0 && (
+                    <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )

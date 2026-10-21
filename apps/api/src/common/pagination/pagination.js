@@ -1,5 +1,5 @@
 const DEFAULT_PAGE = 1
-const DEFAULT_LIMIT = 20
+const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 100
 
 const parsePositiveInteger = (value, fallback, max = Number.MAX_SAFE_INTEGER) => {
@@ -49,6 +49,20 @@ const pickFilters = (query = {}, allowedFilters = []) => {
   )
 }
 
+// Reusable Prisma-independent pagination runner for any list endpoint.
+const paginate = async ({ page, limit, findMany, count }) => {
+  const pagination = normalizePagination({ page, limit })
+  const [items, total] = await Promise.all([
+    findMany({ skip: pagination.skip, take: pagination.take }),
+    count(),
+  ])
+
+  return {
+    items,
+    pagination: createPaginationMeta({ ...pagination, total }),
+  }
+}
+
 export {
   DEFAULT_PAGE,
   DEFAULT_LIMIT,
@@ -57,4 +71,5 @@ export {
   createPaginationMeta,
   createOrderBy,
   pickFilters,
+  paginate,
 }

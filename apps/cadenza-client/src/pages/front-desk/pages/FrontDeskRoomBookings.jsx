@@ -53,6 +53,8 @@ export default function FrontDeskRoomBookings() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState('All');
+  const [bookingPage, setBookingPage] = useState(1);
+  const bookingPageSize = 10;
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -76,6 +78,8 @@ export default function FrontDeskRoomBookings() {
   const filteredBookings = statusFilter === 'All'
     ? bookings.filter((booking) => !booking.metadata?.walkIn)
     : bookings.filter((booking) => !booking.metadata?.walkIn && booking.status === statusFilter);
+  const bookingPageCount = Math.max(1, Math.ceil(filteredBookings.length / bookingPageSize));
+  const paginatedBookings = filteredBookings.slice((bookingPage - 1) * bookingPageSize, bookingPage * bookingPageSize);
   const openDetails = (booking) => {
     setSelectedBooking(booking);
     setError('');
@@ -188,7 +192,7 @@ export default function FrontDeskRoomBookings() {
                 <Table>
                   <TableHeader><TableRow><TableHead>Booking ID</TableHead><TableHead>Student</TableHead><TableHead>Room</TableHead><TableHead>Schedule</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow> : filteredBookings.length ? filteredBookings.map((booking) => (
+                    {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow> : filteredBookings.length ? paginatedBookings.map((booking) => (
                       <TableRow key={booking.id}>
                         <TableCell className="font-medium">{formatBookingReference(booking.id)}</TableCell>
                         <TableCell><div className="font-medium">{booking.student}</div><div className="text-sm text-muted-foreground">{booking.email}</div></TableCell>
@@ -201,6 +205,15 @@ export default function FrontDeskRoomBookings() {
                   </TableBody>
                 </Table>
               </div>
+              {bookingPageCount > 1 && (
+                <div className="mt-4 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Page {bookingPage} of {bookingPageCount}</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={bookingPage === 1} onClick={() => setBookingPage((page) => page - 1)}>Previous</Button>
+                    <Button variant="outline" size="sm" disabled={bookingPage === bookingPageCount} onClick={() => setBookingPage((page) => page + 1)}>Next</Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

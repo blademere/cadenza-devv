@@ -2,6 +2,7 @@ import {
   ConflictError,
   NotFoundError,
 } from '../../common/errors/appError.js'
+import bcrypt from 'bcrypt'
 import {
   findUser,
 } from '../users/user.repository.js'
@@ -85,14 +86,25 @@ const updateMyProfile = async (userId, data) => {
   return { user: toUserResponse({ ...user, roles: [] }), person: updatedPerson, ...enrollmentState }
 }
 
+const updateMyPassword = async (userId, password) => {
+  const user = await getUser(userId)
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await bcrypt.hash(password, 12) },
+  })
+  return { updated: true }
+}
+
 export {
   getMyProfile,
   createMyProfile,
   updateMyProfile,
+  updateMyPassword,
 }
 
 export default {
   getMyProfile,
   createMyProfile,
   updateMyProfile,
+  updateMyPassword,
 }

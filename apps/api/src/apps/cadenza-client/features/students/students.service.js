@@ -46,8 +46,8 @@ const mapStudent = (student) => {
 };
 
 export const studentsService = {
-  async getStudents(appId) {
-    const students = await studentsRepository.findAll(appId);
-    return students.map(mapStudent);
+  async getStudents(appId, filters = {}) {
+    const result = await studentsRepository.findAll(appId, filters);
+    return { ...result, items: result.items.map(mapStudent) };
   },
 };

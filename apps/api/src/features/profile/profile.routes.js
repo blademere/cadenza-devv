@@ -4,11 +4,13 @@ import authenticate from '../auth/authenticate.secure.js'
 import {
   createMyProfileValidator,
   updateMyProfileValidator,
+  updateMyPasswordValidator,
 } from './profile.validation.js'
 import {
   getMyProfileController,
   createMyProfileController,
   updateMyProfileController,
+  updateMyPasswordController,
 } from './profile.controller.js'
 
 const profileRouter = express.Router()
@@ -33,6 +35,13 @@ profileRouter.patch(
   authenticate,
   validate(updateMyProfileValidator),
   asyncHandler(updateMyProfileController),
+)
+
+profileRouter.put(
+  '/me/password',
+  authenticate,
+  validate(updateMyPasswordValidator),
+  asyncHandler(updateMyPasswordController),
 )
 
 export default profileRouter

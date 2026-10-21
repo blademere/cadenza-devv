@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
+import { paginate } from '../../../../common/pagination/pagination.js';
 
 const prisma = getPrismaClient();
 
@@ -91,11 +92,16 @@ const instructorSelect = {
 
 export const enrollmentRepository = {
   async findAll(appId, filters = {}) {
-    return prisma.cadenzaEnrollment.findMany({
-      where: {
-        appId,
-        ...(filters.status ? { status: filters.status } : {}),
-      },
+    const where = {
+      appId,
+      ...(filters.status ? { status: filters.status } : {}),
+    };
+
+    return paginate({
+      page: filters.page,
+      limit: filters.limit,
+      findMany: ({ skip, take }) => prisma.cadenzaEnrollment.findMany({
+      where,
       include: {
         lessonPackage: {
           include: packageInclude,
@@ -126,6 +132,10 @@ export const enrollmentRepository = {
       orderBy: {
         createdAt: 'desc',
       },
+      skip,
+      take,
+      }),
+      count: () => prisma.cadenzaEnrollment.count({ where }),
     });
   },
 
@@ -144,7 +154,7 @@ export const enrollmentRepository = {
     }
 
     const enrollments = await this.findAll(appId);
-    return enrollments.find((enrollment) => enrollment.id === enrollmentId) || null;
+    return enrollments.items.find((enrollment) => enrollment.id === enrollmentId) || null;
   },
 
   async findAvailablePackages(appId) {

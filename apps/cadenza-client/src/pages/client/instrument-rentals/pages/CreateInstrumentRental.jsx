@@ -376,6 +376,7 @@ export default function CreateInstrumentRental() {
     }
     if (isDateBlocked(value)) {
       updateSchedule(id, field, '');
+      setError('The selected date is blocked by the facility schedule. Please choose another date.');
       return;
     }
     updateSchedule(id, field, value);
@@ -692,6 +693,9 @@ export default function CreateInstrumentRental() {
               availability[
                 instrument.id
               ] === true;
+            const rentalDateHours = schedule.rentalDate
+              ? getHoursForDate(operatingHours, schedule.rentalDate)
+              : null;
             const startOptions = getDateTimeOptions(schedule.rentalDate, true);
             const automaticReturn = schedule.rentalDate && schedule.startTime
               ? getEightHourReturn(schedule.rentalDate, schedule.startTime)
@@ -767,6 +771,11 @@ export default function CreateInstrumentRental() {
                       min={getToday()}
                       className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                     />
+                    {schedule.rentalDate && (
+                      <p className={`mt-2 text-xs ${rentalDateHours?.isClosed ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        Operating hours for this date: <span className="font-medium">{rentalDateHours?.isClosed ? 'Closed' : `${rentalDateHours?.startTime || '08:00'}–${rentalDateHours?.endTime || '17:00'}`}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div>

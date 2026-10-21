@@ -55,6 +55,24 @@ import {
 const formatRentalReference = (id) =>
   id ? `RNT-${id.slice(0, 8).toUpperCase()}` : "—";
 
+const rentalIndicatorColor = (name) => {
+  const colors = [
+    "text-blue-600",
+    "text-emerald-600",
+    "text-violet-600",
+    "text-orange-600",
+    "text-pink-600",
+    "text-cyan-600",
+  ];
+  const normalizedName = String(name || "");
+  const colorIndex = [...normalizedName].reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  ) % colors.length;
+
+  return colors[colorIndex];
+};
+
 const formatRentalDate = (value) => {
   if (!value) {
     return "—";
@@ -216,6 +234,8 @@ export default function RentalsPage() {
   const [rentals, setRentals] = useState([]);
 
   const [statusFilter, setStatusFilter] = useState("All");
+  const [rentalPage, setRentalPage] = useState(1);
+  const rentalPageSize = 10;
 
   const [selectedRental, setSelectedRental] = useState(null);
 
@@ -242,14 +262,12 @@ export default function RentalsPage() {
           const payment = rental.metadata || {};
           const items = rental.items || [];
           const instrumentNames = items
-            .map((item) => {
-              const instrument = item.instrument || {};
-              return (
-                [instrument.brand, instrument.model]
-                  .filter(Boolean)
-                  .join(" ") || "Instrument"
-              );
-            })
+            .map((item) => item.instrument?.brand)
+            .filter(Boolean)
+            .join(", ");
+          const instrumentModels = items
+            .map((item) => item.instrument?.model)
+            .filter(Boolean)
             .join(", ");
 
           return {
@@ -261,7 +279,7 @@ export default function RentalsPage() {
             email: person?.email || "—",
             phone: person?.phone || "—",
             instrument: instrumentNames || "Instrument",
-            type: "—",
+            type: instrumentModels || "—",
             rentalDate: rental.scheduledStart,
             returnDate: rental.scheduledEnd,
             rentalFee: rental.totalAmount,
@@ -330,6 +348,8 @@ export default function RentalsPage() {
     statusFilter === "All"
       ? rentals
       : rentals.filter((rental) => rental.status === statusFilter);
+  const rentalPageCount = Math.max(1, Math.ceil(filteredRentals.length / rentalPageSize));
+  const paginatedRentals = filteredRentals.slice((rentalPage - 1) * rentalPageSize, rentalPage * rentalPageSize);
 
   /* --------------------------------------------------
      View Details
@@ -590,9 +610,9 @@ export default function RentalsPage() {
                     <TableRow>
                       <TableHead>Rental ID</TableHead>
 
-                      <TableHead>Student</TableHead>
+                      <TableHead>Client</TableHead>
 
-                      <TableHead>Instrument</TableHead>
+                      <TableHead>Instrument Name</TableHead>
 
                       <TableHead>Rental Period</TableHead>
 
@@ -606,7 +626,7 @@ export default function RentalsPage() {
 
                   <TableBody>
                     {filteredRentals.length > 0 ? (
-                      filteredRentals.map((rental) => (
+                      paginatedRentals.map((rental) => (
                         <TableRow key={rental.id}>
                           {/* Rental ID */}
 
@@ -614,7 +634,7 @@ export default function RentalsPage() {
                             {formatRentalReference(rental.id)}
                           </TableCell>
 
-                          {/* Student */}
+                          {/* Client */}
 
                           <TableCell>
                             <div>
@@ -632,7 +652,9 @@ export default function RentalsPage() {
 
                           <TableCell>
                             <div>
-                              <div className="font-medium">
+                              <div
+                                className={`font-medium ${rentalIndicatorColor(rental.instrument)}`}
+                              >
                                 {rental.instrument}
                               </div>
 
@@ -700,6 +722,15 @@ export default function RentalsPage() {
                   </TableBody>
                 </Table>
               </div>
+              {rentalPageCount > 1 && (
+                <div className="mt-4 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Page {rentalPage} of {rentalPageCount}</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={rentalPage === 1} onClick={() => setRentalPage((page) => page - 1)}>Previous</Button>
+                    <Button variant="outline" size="sm" disabled={rentalPage === rentalPageCount} onClick={() => setRentalPage((page) => page + 1)}>Next</Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
           {/* ---------------------------------------------
@@ -726,12 +757,12 @@ export default function RentalsPage() {
                   </DialogHeader>
 
                   <div className="space-y-4">
-                    {/* Student & Instrument */}
+                    {/* Client & Instrument */}
                     <div className="rounded-lg border bg-muted/30 p-4">
                       <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                         <div>
                           <p className="text-xs text-muted-foreground">
-                            Student
+                            Client
                           </p>
                           <p className="font-medium">
                             {selectedRental.student}

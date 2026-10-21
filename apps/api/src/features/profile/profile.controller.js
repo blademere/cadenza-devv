@@ -3,6 +3,7 @@ import {
   getMyProfile,
   createMyProfile,
   updateMyProfile,
+  updateMyPassword,
 } from './profile.service.js'
 
 const getMyProfileController = async (req, res) =>
@@ -28,8 +29,16 @@ const updateMyProfileController = async (req, res) =>
     200,
   )
 
+const updateMyPasswordController = async (req, res) =>
+  successResponse(
+    res,
+    'Password updated successfully.',
+    await updateMyPassword(req.user.id, req.validated.body.password),
+  )
+
 export {
   getMyProfileController,
   createMyProfileController,
   updateMyProfileController,
+  updateMyPasswordController,
 }
