@@ -5,6 +5,7 @@ import {
 } from '../../../../common/errors/appError.js';
 
 import { enrollmentPackagesRepository } from './enrollment-packages.repository.js';
+import { recordCadenzaAudit } from '../audit/cadenza-audit.service.js';
 
 const PACKAGE_STATUSES = ['ACTIVE', 'INACTIVE'];
 
@@ -262,6 +263,7 @@ export const enrollmentPackagesService = {
       );
     }
 
+    await recordCadenzaAudit({ appId, action: 'ENROLLMENT_PACKAGE_UPDATED', entityType: 'EnrollmentPackage', entityId: id, before: current, after: updated });
     return updated;
   },
 

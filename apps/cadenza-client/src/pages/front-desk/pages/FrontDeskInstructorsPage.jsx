@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { useEffect, useState } from 'react';
+import { RefreshCwIcon } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
 import { SiteHeader } from '../components/site-header';
@@ -248,11 +249,12 @@ export default function InstructorsPage() {
       setLoading(true);
       setError('');
 
-      const [response, courseResponse, operatingHoursResponse] = await Promise.all([
-        instructorService.getInstructors({ page: instructorPage, limit: 10 }),
-        instructorService.getCourses(),
-        getOperatingHours(),
-      ]);
+      const [response, courseResponse, operatingHoursResponse] =
+        await Promise.all([
+          instructorService.getInstructors({ page: instructorPage, limit: 10 }),
+          instructorService.getCourses(),
+          getOperatingHours(),
+        ]);
 
       setInstructors(response.data || []);
       setInstructorPagination(response.pagination || null);
@@ -316,9 +318,10 @@ export default function InstructorsPage() {
     return instructor.person?.user?.email || instructor.person?.email || '—';
   };
 
-  const scheduleDayHours = operatingHours?.weeklyHours?.[
-    String(Number(scheduleDay) === 7 ? 0 : Number(scheduleDay))
-  ];
+  const scheduleDayHours =
+    operatingHours?.weeklyHours?.[
+      String(Number(scheduleDay) === 7 ? 0 : Number(scheduleDay))
+    ];
   const scheduleTimeOptions = scheduleDayHours?.isClosed
     ? []
     : timeOptions.filter((time) => {
@@ -379,7 +382,11 @@ export default function InstructorsPage() {
       setSuccess('Instructor deactivated successfully.');
       await loadInstructors();
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to deactivate instructor.');
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to deactivate instructor.',
+      );
     } finally {
       setDeactivatingInstructor(false);
     }
@@ -748,10 +755,19 @@ export default function InstructorsPage() {
               </p>
             </div>
 
-            <Button size="lg" onClick={handleAddInstructor}>
-              <PlusIcon className="mr-2 h-4 w-4" />
-              Add Instructor
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
+                <RefreshCwIcon className="mr-2 size-4" />
+                Refresh
+              </Button>
+              <Button size="lg" onClick={handleAddInstructor}>
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Add Instructor
+              </Button>
+            </div>
           </div>
 
           {error && (
@@ -835,7 +851,9 @@ export default function InstructorsPage() {
                               {String(instructor.metadata?.employmentType || '')
                                 .replace('_', ' ')
                                 .toLowerCase()
-                                .replace(/\b\w/g, (letter) => letter.toUpperCase()) || '—'}
+                                .replace(/\b\w/g, (letter) =>
+                                  letter.toUpperCase(),
+                                ) || '—'}
                             </TableCell>
 
                             <TableCell className="py-4">
@@ -869,7 +887,9 @@ export default function InstructorsPage() {
                                     type="button"
                                     variant="ghost"
                                     className="text-destructive hover:text-destructive"
-                                    onClick={() => setInstructorToDeactivate(instructor)}
+                                    onClick={() =>
+                                      setInstructorToDeactivate(instructor)
+                                    }
                                   >
                                     Deactivate
                                   </Button>
@@ -894,9 +914,28 @@ export default function InstructorsPage() {
                 <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
                   <span>{instructorPagination?.total || 0} instructors</span>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" disabled={!instructorPagination?.hasPreviousPage || loading} onClick={() => setInstructorPage((value) => value - 1)}>Previous</Button>
-                    <span>Page {instructorPagination?.page || instructorPage} of {instructorPagination?.pages || 0}</span>
-                    <Button variant="outline" size="sm" disabled={!instructorPagination?.hasNextPage || loading} onClick={() => setInstructorPage((value) => value + 1)}>Next</Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        !instructorPagination?.hasPreviousPage || loading
+                      }
+                      onClick={() => setInstructorPage((value) => value - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span>
+                      Page {instructorPagination?.page || instructorPage} of{' '}
+                      {instructorPagination?.pages || 0}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!instructorPagination?.hasNextPage || loading}
+                      onClick={() => setInstructorPage((value) => value + 1)}
+                    >
+                      Next
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -908,19 +947,32 @@ export default function InstructorsPage() {
           <div className="w-full space-y-8 px-6 pb-8">
             <div className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Instructor profile</p>
+                <p className="text-sm text-muted-foreground">
+                  Instructor profile
+                </p>
                 <h2 className="text-2xl font-semibold tracking-tight">
                   {getInstructorName(selectedInstructor)}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Review teaching details, student assignments, and upcoming lessons.
+                  Review teaching details, student assignments, and upcoming
+                  lessons.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={selectedInstructor.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                <Badge
+                  variant={
+                    selectedInstructor.status === 'ACTIVE'
+                      ? 'default'
+                      : 'secondary'
+                  }
+                >
                   {selectedInstructor.status}
                 </Badge>
-                <Button type="button" variant="outline" onClick={() => setSelectedInstructor(null)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelectedInstructor(null)}
+                >
                   Back to instructors
                 </Button>
               </div>
@@ -929,35 +981,37 @@ export default function InstructorsPage() {
               <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">Manage instructor</p>
-                  <p className="text-sm text-muted-foreground">Update specialties or weekly availability.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Update specialties or weekly availability.
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedSpecialtyId('');
-                    setShowSpecialtyDialog(true);
-                  }}
-                >
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Add Specialty
-                </Button>
-                {!isFullTimeInstructor(selectedInstructor) && (
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      setError('');
-                      setScheduleDay('');
-                      setScheduleStartTime('');
-                      setShowAvailabilityDialog(true);
+                      setSelectedSpecialtyId('');
+                      setShowSpecialtyDialog(true);
                     }}
                   >
                     <PlusIcon className="mr-2 h-4 w-4" />
-                    Add Schedule
+                    Add Specialty
                   </Button>
-                )}
+                  {!isFullTimeInstructor(selectedInstructor) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setError('');
+                        setScheduleDay('');
+                        setScheduleStartTime('');
+                        setShowAvailabilityDialog(true);
+                      }}
+                    >
+                      <PlusIcon className="mr-2 h-4 w-4" />
+                      Add Schedule
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -966,7 +1020,9 @@ export default function InstructorsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold">Specialties</h3>
-                      <p className="text-xs text-muted-foreground">Courses this instructor can teach.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Courses this instructor can teach.
+                      </p>
                     </div>
                     <Badge variant="secondary">
                       {selectedInstructor.courseMappings?.length || 0}
@@ -1007,7 +1063,9 @@ export default function InstructorsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold">Weekly Availability</h3>
-                      <p className="text-xs text-muted-foreground">Regular teaching hours.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Regular teaching hours.
+                      </p>
                     </div>
                     <Badge variant="secondary">
                       {isFullTimeInstructor(selectedInstructor)
@@ -1054,7 +1112,9 @@ export default function InstructorsPage() {
 
               <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-3">
                 <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Email</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Email
+                  </p>
                   <p className="font-medium">
                     {getInstructorName(selectedInstructor)}
                   </p>
@@ -1063,13 +1123,17 @@ export default function InstructorsPage() {
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Phone</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Phone
+                  </p>
                   <p className="font-medium">
                     {selectedInstructor.person?.phone || '—'}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Account status</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Account status
+                  </p>
                   <Badge
                     variant={
                       selectedInstructor.status === 'ACTIVE'
@@ -1087,7 +1151,9 @@ export default function InstructorsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold">Assigned Students</h3>
-                      <p className="text-xs text-muted-foreground">Students with active lesson sessions.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Students with active lesson sessions.
+                      </p>
                     </div>
                     <Badge variant="secondary">
                       {selectedInstructor.assignedStudents?.length || 0}
@@ -1130,9 +1196,9 @@ export default function InstructorsPage() {
                   {selectedInstructor.unusedSchedules?.length ? (
                     <div className="space-y-2">
                       {selectedInstructor.unusedSchedules.map((session) => (
-                      <div
-                        key={session.id}
-                        className="rounded-md bg-muted/30 px-3 py-3"
+                        <div
+                          key={session.id}
+                          className="rounded-md bg-muted/30 px-3 py-3"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
@@ -1178,7 +1244,8 @@ export default function InstructorsPage() {
         <Dialog
           open={Boolean(instructorToDeactivate)}
           onOpenChange={(open) => {
-            if (!open && !deactivatingInstructor) setInstructorToDeactivate(null);
+            if (!open && !deactivatingInstructor)
+              setInstructorToDeactivate(null);
           }}
         >
           <DialogContent className="sm:max-w-[400px]">
@@ -1205,7 +1272,9 @@ export default function InstructorsPage() {
                 onClick={confirmDeactivateInstructor}
                 disabled={deactivatingInstructor}
               >
-                {deactivatingInstructor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {deactivatingInstructor && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Deactivate
               </Button>
             </DialogFooter>

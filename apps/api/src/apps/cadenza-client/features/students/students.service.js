@@ -5,12 +5,26 @@ const fullName = (person) =>
     .filter(Boolean)
     .join(' ');
 
+const getEnrollmentCourses = (enrollment) => {
+  const packageItem = enrollment.lessonPackage;
+  const legacyCourses = packageItem?.lessons ?? [];
+  const mappedCourses = (packageItem?.courseMappings ?? [])
+    .map((mapping) => mapping.course)
+    .filter(Boolean);
+  const availableCourses = [...legacyCourses, ...mappedCourses];
+  const selectedCourseId = enrollment.metadata?.courseId;
+
+  return selectedCourseId
+    ? availableCourses.filter((course) => course.id === selectedCourseId)
+    : availableCourses;
+};
+
 const mapStudent = (student) => {
   const enrollments = student.enrollments ?? [];
   const courses = [
     ...new Map(
       enrollments
-        .flatMap((enrollment) => enrollment.lessonPackage?.lessons ?? [])
+        .flatMap(getEnrollmentCourses)
         .map((course) => [course.id, course]),
     ).values(),
   ];
@@ -39,7 +53,7 @@ const mapStudent = (student) => {
       packageName: enrollment.lessonPackage?.name ?? null,
       status: enrollment.status,
       enrolledAt: enrollment.enrolledAt,
-      courses: enrollment.lessonPackage?.lessons ?? [],
+      courses: getEnrollmentCourses(enrollment),
     })),
     createdAt: student.createdAt,
   };

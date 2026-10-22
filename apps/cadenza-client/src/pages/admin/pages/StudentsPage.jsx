@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangleIcon,
   MoreHorizontalIcon,
+  RefreshCwIcon,
   SearchIcon,
   UserIcon,
   UserRoundIcon,
@@ -86,41 +87,35 @@ export default function StudentsPage() {
   const [error, setError] = useState('');
   const [showStudentDetailsDialog, setShowStudentDetails] = useState(false);
 
-  useEffect(() => {
+  const loadStudents = useCallback(async () => {
     let isMounted = true;
+    setIsLoading(true);
+    setError('');
 
-    const fetchStudents = async () => {
-      setIsLoading(true);
-      setError('');
-
-      try {
-        const data = await getStudents();
-
-        if (isMounted) {
-          setStudents(data);
-        }
-      } catch (requestError) {
-        if (isMounted) {
-          setError(
-            requestError?.response?.data?.message ||
-              requestError?.message ||
-              'Failed to load students. Please try again.',
-          );
-          setStudents([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+    try {
+      const data = await getStudents();
+      if (isMounted) setStudents(data);
+    } catch (requestError) {
+      if (isMounted) {
+        setError(getErrorMessage(requestError));
+        setStudents([]);
       }
-    };
-
-    fetchStudents();
+    } finally {
+      if (isMounted) setIsLoading(false);
+    }
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const cleanup = loadStudents();
+
+    return () => {
+      cleanup.then((dispose) => dispose?.());
+    };
+  }, [loadStudents]);
 
   const filteredStudents = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -173,12 +168,20 @@ export default function StudentsPage() {
         <SiteHeader />
 
         <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-          <div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
             <h1 className="text-2xl font-semibold tracking-tight">Students</h1>
 
             <p className="text-muted-foreground">
-              Manage students registered at Cadenza Music Center.
+              Manage students with approved enrollments at Cadenza Music Center.
             </p>
+            </div>
+
+            <Button variant="outline" onClick={loadStudents} disabled={isLoading}>
+              {isLoading && <RefreshCwIcon className="mr-2 size-4 animate-spin" />}
+              {!isLoading && <RefreshCwIcon className="mr-2 size-4" />}
+              Refresh
+            </Button>
           </div>
 
           <Card>
@@ -186,7 +189,7 @@ export default function StudentsPage() {
               <CardTitle>Student List</CardTitle>
 
               <CardDescription>
-                View student accounts, enrolled courses, and instructors.
+                View enrolled students, their courses, and instructors.
               </CardDescription>
 
               <div className="relative max-w-sm">
@@ -261,7 +264,7 @@ export default function StudentsPage() {
                         >
                           {search.trim()
                             ? 'No students match your search.'
-                            : 'No students found.'}
+                            : 'No enrolled students found.'}
                         </TableCell>
                       </TableRow>
                     ) : (

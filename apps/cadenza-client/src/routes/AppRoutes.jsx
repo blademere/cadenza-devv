@@ -25,6 +25,7 @@ import PaymentsPage from '@/pages/admin/pages/PaymentsPage';
 import EnrollmentRatesPage from '@/pages/admin/pages/EnrollmentRatesPage';
 import UserManagementPage from '@/pages/admin/pages/UserManagementPage';
 import ReportsPage from '@/pages/admin/pages/ReportsPage';
+import AuditLogsPage from '@/pages/admin/pages/AuditLogsPage';
 import SettingsPage from '@/pages/admin/pages/SettingsPage';
 import AdminProfilePage from '@/pages/admin/pages/AdminProfilePage';
 import NotificationsPage from '@/pages/admin/pages/NotificationsPage';
@@ -113,6 +114,7 @@ export default function AppRoutes() {
           <Route path="enrollment-rates" element={<EnrollmentRatesPage />} />
           <Route path="users" element={<UserManagementPage />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="audit-logs" element={<AuditLogsPage />} />
 
           <Route path="profile" element={<AdminProfilePage />} />
           <Route path="notifications" element={<NotificationsPage />} />

@@ -8,7 +8,7 @@ export const studentsRepository = {
     const where = {
       appId,
       enrollments: {
-        some: { status: { notIn: ['CANCELLED', 'COMPLETED'] } },
+        some: { status: 'APPROVED' },
       },
     };
 
@@ -31,12 +31,20 @@ export const studentsRepository = {
           },
         },
         enrollments: {
+          where: { status: 'APPROVED' },
           orderBy: { createdAt: 'desc' },
           include: {
             lessonPackage: {
               include: {
                 lessons: {
                   select: { id: true, name: true },
+                },
+                courseMappings: {
+                  select: {
+                    course: {
+                      select: { id: true, name: true },
+                    },
+                  },
                 },
               },
             },

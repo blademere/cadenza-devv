@@ -31,6 +31,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -63,6 +64,7 @@ export default function RoomRentalsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const [confirmationOpen, setConfirmationOpen] = useState(false)
 
   const fetchRooms = useCallback(async () => {
     try {
@@ -163,6 +165,23 @@ export default function RoomRentalsPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const hasRoomChanges = () => {
+    if (!editingRoom) return true
+
+    return (
+      Number(form.rentalRate) !== Number(editingRoom.rentalRate) ||
+      Number(form.duration) !== Number(editingRoom.rentalDurationHours)
+    )
+  }
+
+  const requestSaveRental = (event) => {
+    event?.preventDefault()
+    if (!editingRoom) return
+
+    if (!hasRoomChanges()) return
+    setConfirmationOpen(true)
   }
 
   return (
@@ -350,7 +369,7 @@ export default function RoomRentalsPage() {
             onOpenChange={setDialogOpen}
           >
             <DialogContent className="sm:max-w-[460px]">
-              <form onSubmit={saveRental}>
+              <form onSubmit={requestSaveRental}>
                 <DialogHeader>
                   <DialogTitle>
                     {editingRoom?.rentalRate !== null &&
@@ -456,7 +475,19 @@ export default function RoomRentalsPage() {
 
                   <Button
                     type="submit"
-                    disabled={isSaving}
+                    disabled={
+                      isSaving ||
+                      (editingRoom?.rentalRate !== null &&
+                        editingRoom?.rentalRate !== undefined &&
+                        !hasRoomChanges())
+                    }
+                    title={
+                      editingRoom?.rentalRate !== null &&
+                      editingRoom?.rentalRate !== undefined &&
+                      !hasRoomChanges()
+                        ? 'No changes to update'
+                        : undefined
+                    }
                   >
                     {isSaving
                       ? 'Saving...'
@@ -467,6 +498,43 @@ export default function RoomRentalsPage() {
                   </Button>
                 </DialogFooter>
               </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={confirmationOpen}
+            onOpenChange={(open) => {
+              if (!isSaving) setConfirmationOpen(open)
+            }}
+          >
+            <DialogContent className="sm:max-w-[460px]">
+              <DialogHeader>
+                <DialogTitle>Confirm room rental update</DialogTitle>
+                <DialogDescription>
+                  This update applies only to future room bookings. Existing
+                  pending, approved, active, and completed bookings keep their
+                  saved amount and rental duration.
+                </DialogDescription>
+              </DialogHeader>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmationOpen(false)}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setConfirmationOpen(false)
+                    await saveRental()
+                  }}
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Updating...' : 'Confirm Update'}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </main>

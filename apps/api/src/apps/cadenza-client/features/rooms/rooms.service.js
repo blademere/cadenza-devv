@@ -4,6 +4,7 @@ import {
   NotFoundError,
 } from '../../../../common/errors/appError.js';
 import * as repository from './rooms.repository.js';
+import { recordCadenzaAudit } from '../audit/cadenza-audit.service.js';
 
 const ROOM_STATUSES = new Set([
   'AVAILABLE',
@@ -196,7 +197,31 @@ const update = async ({ appId, id, ...data }) => {
     throw new ConflictError('Room was modified or no longer exists.');
   }
 
-  return repository.findById(id, appId);
+  const updatedRoom = await repository.findById(id, appId);
+  try {
+    await recordCadenzaAudit({
+      appId,
+      personId: data.personId,
+      action: 'ROOM_RENTAL_RATE_UPDATED',
+      entityType: 'RoomRental',
+      entityId: id,
+      before: {
+        roomType: current.roomType,
+        rentalRate: current.rentalRate,
+        rentalDurationHours: current.rentalDurationHours,
+        status: current.status,
+      },
+      after: {
+        roomType: updatedRoom.roomType,
+        rentalRate: updatedRoom.rentalRate,
+        rentalDurationHours: updatedRoom.rentalDurationHours,
+        status: updatedRoom.status,
+      },
+    });
+  } catch (auditError) {
+    console.error('Failed to record room rental rate audit log.', auditError);
+  }
+  return updatedRoom;
 };
 
 const saveCourses = async (appId, roomId, courseIds, db) => {

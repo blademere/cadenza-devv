@@ -22,8 +22,8 @@ export function NavMain({ items }) {
         <SidebarMenu>
           {items.map((item) => {
             const isActive =
-              item.url === "/admin"
-                ? location.pathname === "/admin"
+              item.url === "/client"
+                ? location.pathname === "/client"
                 : location.pathname.startsWith(item.url)
 
             return (
@@ -31,6 +31,7 @@ export function NavMain({ items }) {
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={isActive}
+                  className={isActive ? "!bg-blue-100 !text-blue-700 !font-semibold hover:!bg-blue-100 hover:!text-blue-700" : ""}
                   render={<Link to={item.url} />}
                 >
                   {item.icon}

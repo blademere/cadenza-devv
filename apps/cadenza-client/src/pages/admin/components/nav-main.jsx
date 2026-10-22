@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-export function NavMain({ items }) {
+export function NavMain({ items, activeClassName = '' }) {
   const location = useLocation()
 
   return (
@@ -22,8 +22,8 @@ export function NavMain({ items }) {
         <SidebarMenu>
           {items.map((item) => {
             const isActive =
-              item.url === "/admin"
-                ? location.pathname === "/admin"
+              item.url === "/admin" || item.url === "/front-desk"
+                ? location.pathname === item.url
                 : location.pathname.startsWith(item.url)
 
             return (
@@ -31,6 +31,7 @@ export function NavMain({ items }) {
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={isActive}
+                  className={isActive ? activeClassName : ''}
                   render={<Link to={item.url} />}
                 >
                   {item.icon}

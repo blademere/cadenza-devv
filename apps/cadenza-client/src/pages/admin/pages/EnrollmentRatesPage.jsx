@@ -76,6 +76,7 @@ export default function EnrollmentRatesPage() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [updateConfirmationOpen, setUpdateConfirmationOpen] = React.useState(false);
   const [editingPackage, setEditingPackage] = React.useState(null);
   const [form, setForm] = React.useState(emptyForm);
   const [packageNameError, setPackageNameError] = React.useState('');
@@ -123,7 +124,7 @@ export default function EnrollmentRatesPage() {
       name: item.name || '',
       price: item.price ?? '',
       sessions: item.sessions ?? '',
-      duration: 1,
+      duration: item.duration ?? 1,
       frequency: item.frequency ?? 1,
       status: item.status || 'ACTIVE',
     });
@@ -131,6 +132,19 @@ export default function EnrollmentRatesPage() {
     setPackageNameError('');
     setStatusError('');
     setDialogOpen(true);
+  };
+
+  const hasPackageChanges = () => {
+    if (!editingPackage) return true;
+
+    return (
+      form.name.trim() !== String(editingPackage.name || '').trim() ||
+      Number(form.price) !== Number(editingPackage.price) ||
+      Number(form.sessions) !== Number(editingPackage.sessions) ||
+      Number(form.duration) !== Number(editingPackage.duration) ||
+      Number(form.frequency) !== Number(editingPackage.frequency) ||
+      (form.status || 'ACTIVE') !== (editingPackage.status || 'ACTIVE')
+    );
   };
 
   const savePackage = async () => {
@@ -193,7 +207,7 @@ export default function EnrollmentRatesPage() {
       name: form.name.trim(),
       price: Number(form.price),
       numberOfSessions: Number(form.sessions),
-      sessionDurationMinutes: 60,
+      sessionDurationMinutes: Number(form.duration) * 60,
       sessionsPerWeek: Number(form.frequency),
       status: form.status || 'ACTIVE',
     };
@@ -404,6 +418,8 @@ export default function EnrollmentRatesPage() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => openEdit(item)}
+                                aria-label={`Update ${item.name}`}
+                                title="Update package"
                                 disabled={
                                   saving
                                 }
@@ -433,20 +449,19 @@ export default function EnrollmentRatesPage() {
               <DialogHeader className="text-left">
                 <DialogTitle>
                   {editingPackage
-                    ? 'Update Enrollment Package Status'
+                    ? 'Update Enrollment Package'
                     : 'Add Enrollment Package'}
                 </DialogTitle>
 
                 <DialogDescription>
                   {editingPackage
-                    ? 'Update the status for this enrollment package.'
+                    ? 'Update the package details. Existing enrollments keep their saved terms.'
                     : 'Set the package price, sessions, duration, and frequency.'}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="grid gap-5">
-                {!editingPackage && (
-                  <>
+                <>
                     <div className="grid gap-2">
                       <Label htmlFor="package-name">
                         Package Name
@@ -537,9 +552,13 @@ export default function EnrollmentRatesPage() {
                       id="duration"
                       type="number"
                       min="1"
-                      value="1"
-                      readOnly
-                      aria-readonly="true"
+                      value={form.duration}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          duration: event.target.value,
+                        }))
+                      }
                     />
                   </div>
 
@@ -564,7 +583,6 @@ export default function EnrollmentRatesPage() {
                   </div>
                     </div>
                   </>
-                )}
 
                 {editingPackage && (
                   <div className="grid gap-2">
@@ -645,8 +663,19 @@ export default function EnrollmentRatesPage() {
                 </Button>
 
                 <Button
-                  onClick={savePackage}
-                  disabled={saving}
+                  onClick={() => {
+                    if (editingPackage) {
+                      setUpdateConfirmationOpen(true);
+                    } else {
+                      savePackage();
+                    }
+                  }}
+                  disabled={saving || (editingPackage && !hasPackageChanges())}
+                  title={
+                    editingPackage && !hasPackageChanges()
+                      ? 'No changes to update'
+                      : undefined
+                  }
                 >
                   {saving && (
                     <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
@@ -655,6 +684,44 @@ export default function EnrollmentRatesPage() {
                   {editingPackage
                     ? 'Save Changes'
                     : 'Add Package'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={updateConfirmationOpen}
+            onOpenChange={(open) => {
+              if (!saving) setUpdateConfirmationOpen(open);
+            }}
+          >
+            <DialogContent className="sm:max-w-[460px]">
+              <DialogHeader>
+                <DialogTitle>Confirm package update</DialogTitle>
+                <DialogDescription>
+                  {editingPackage?.activeEnrollmentCount > 0
+                    ? 'This package already has booked or active enrollments. The update will apply only to future enrollments. Existing enrollments will keep their saved price, sessions, duration, and frequency.'
+                    : 'The updated package settings will apply to future enrollments. Please confirm before saving.'}
+                </DialogDescription>
+              </DialogHeader>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setUpdateConfirmationOpen(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setUpdateConfirmationOpen(false);
+                    await savePackage();
+                  }}
+                  disabled={saving}
+                >
+                  {saving && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+                  Confirm Update
                 </Button>
               </DialogFooter>
             </DialogContent>

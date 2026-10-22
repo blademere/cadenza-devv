@@ -19,11 +19,18 @@ const parseOptionalInt = (value) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
 }
 
-const buildAuditWhere = ({ entityType, entityId, actorId, action, appId, from, to } = {}) => {
+const buildAuditWhere = ({ entityType, entityId, actorId, action, q, appId, from, to } = {}) => {
   const where = {}
   if (entityType) where.entityType = entityType
   if (entityId) where.entityId = String(entityId)
   if (action) where.action = action
+  if (q) {
+    where.OR = [
+      { action: { contains: q, mode: 'insensitive' } },
+      { entityType: { contains: q, mode: 'insensitive' } },
+      { entityId: { contains: q, mode: 'insensitive' } },
+    ]
+  }
   const parsedActorId = parseOptionalInt(actorId)
   if (parsedActorId) where.actorId = parsedActorId
   const resolvedAppId = appId ?? getContext()?.appId ?? null
@@ -39,9 +46,9 @@ const buildAuditWhere = ({ entityType, entityId, actorId, action, appId, from, t
   return where
 }
 
-const listAuditLogs = async ({ page, limit, sortBy, sortOrder, entityType, entityId, actorId, action, appId, from, to } = {}, db) => {
+const listAuditLogs = async ({ page, limit, sortBy, sortOrder, entityType, entityId, actorId, action, q, appId, from, to } = {}, db) => {
   const pagination = normalizePagination({ page, limit })
-  const where = buildAuditWhere({ entityType, entityId, actorId, action, appId, from, to })
+  const where = buildAuditWhere({ entityType, entityId, actorId, action, q, appId, from, to })
   const orderBy = createOrderBy({ sortBy, sortOrder }, ['createdAt', 'action', 'entityType'], 'createdAt')
   const [data, total] = await repository.findPage({ where, orderBy, skip: pagination.skip, take: pagination.take }, db)
   return {

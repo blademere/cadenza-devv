@@ -23,6 +23,8 @@ import frontDeskInstructorRoutes from './features/instructors/instructor.routes.
 //Client routes
 import roomBookingsRoutes from './features/room-bookings/room-booking.routes.js';
 import enrollmentRoutes from './features/enrollments/enrollment.routes.js';
+import { requireAdminOrFrontDesk } from './features/auth/authorization.js';
+import { listCadenzaAudit } from './features/audit/cadenza-audit.service.js';
 
 const router = express.Router();
 
@@ -50,6 +52,21 @@ router.use('/instructors', frontDeskInstructorRoutes);
 //client routes
 router.use('/room-bookings', roomBookingsRoutes);
 router.use('/enrollments', enrollmentRoutes);
+
+router.get('/audit', requireAdminOrFrontDesk, async (req, res, next) => {
+  try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    const result = await listCadenzaAudit({
+      ...req.query,
+      appId: req.cadenzaApp.id,
+    });
+    return res.json({ success: true, data: result.data, pagination: result.pagination });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 
 export default router;

@@ -10,6 +10,7 @@ const listAuditLogsSchema = z.object({
     entityId: z.string().trim().min(1).max(200).optional(),
     actorId: z.coerce.number().int().positive().optional(),
     action: z.string().trim().min(1).max(100).optional(),
+    q: z.string().trim().min(1).max(200).optional(),
     from: z.string().datetime({ offset: true }).optional(),
     to: z.string().datetime({ offset: true }).optional(),
   }),

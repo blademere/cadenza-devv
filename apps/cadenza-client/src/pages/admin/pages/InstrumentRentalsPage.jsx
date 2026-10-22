@@ -26,6 +26,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog'
+import {
   Table,
   TableBody,
   TableCell,
@@ -57,6 +65,7 @@ export default function InstrumentRentalsPage() {
   const [categoryFilter, setCategoryFilter] = useState('ALL')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [confirmationInstrument, setConfirmationInstrument] = useState(null)
 
   const activeInstruments = useMemo(
     () =>
@@ -140,6 +149,9 @@ export default function InstrumentRentalsPage() {
     }))
   }
 
+  const hasRateChanges = (instrument) =>
+    Number(rateDrafts[instrument.id]) !== Number(instrument.rentalRate)
+
   const saveInstrumentRate = async (instrument) => {
     const rentalRate = Number(rateDrafts[instrument.id])
 
@@ -163,6 +175,18 @@ export default function InstrumentRentalsPage() {
     } finally {
       setSavingRateId(null)
     }
+  }
+
+  const requestInstrumentRateUpdate = (instrument) => {
+    const rentalRate = Number(rateDrafts[instrument.id])
+
+    if (!Number.isFinite(rentalRate) || rentalRate <= 0) {
+      setError('Rental rate must be greater than zero.')
+      return
+    }
+
+    setError('')
+    setConfirmationInstrument(instrument)
   }
 
   return (
@@ -333,13 +357,21 @@ export default function InstrumentRentalsPage() {
                           <TableCell className="text-right">
                             <Button
                               size="sm"
-                              onClick={() => saveInstrumentRate(instrument)}
-                              disabled={savingRateId === instrument.id}
+                              onClick={() => requestInstrumentRateUpdate(instrument)}
+                              disabled={
+                                savingRateId === instrument.id ||
+                                !hasRateChanges(instrument)
+                              }
+                              title={
+                                hasRateChanges(instrument)
+                                  ? 'Update rental rate'
+                                  : 'No changes to update'
+                              }
                             >
                               <SaveIcon />
                               {savingRateId === instrument.id
                                 ? 'Saving...'
-                                : 'Save'}
+                                : 'Update'}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -351,6 +383,51 @@ export default function InstrumentRentalsPage() {
             </CardContent>
           </Card>
         </main>
+
+        <Dialog
+          open={Boolean(confirmationInstrument)}
+          onOpenChange={(open) => {
+            if (!open && !savingRateId) setConfirmationInstrument(null)
+          }}
+        >
+          <DialogContent className="sm:max-w-[460px]">
+            <DialogHeader>
+              <DialogTitle>Confirm rental rate update</DialogTitle>
+              <DialogDescription>
+                Updating the rate for{' '}
+                <span className="font-medium">
+                  {confirmationInstrument
+                    ? getInstrumentName(confirmationInstrument)
+                    : 'this instrument'}
+                </span>{' '}
+                applies only to future rentals. Existing pending, approved,
+                active, and completed rentals keep their saved amount and
+                rental terms.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setConfirmationInstrument(null)}
+                disabled={Boolean(savingRateId)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  const instrument = confirmationInstrument
+                  setConfirmationInstrument(null)
+                  if (instrument) await saveInstrumentRate(instrument)
+                }}
+                disabled={Boolean(savingRateId)}
+              >
+                {savingRateId && <RefreshCwIcon className="mr-2 animate-spin" />}
+                Confirm Update
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   )

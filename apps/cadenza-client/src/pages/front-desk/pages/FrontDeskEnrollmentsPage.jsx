@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { RefreshCwIcon } from 'lucide-react';
 import {
   SearchIcon,
   Loader2Icon,
@@ -51,6 +52,7 @@ const formatEnrollmentReference = (id) =>
 export default function EnrollmentsPage() {
   const [enrollments, setEnrollments] = useState([]);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('FOR_APPROVAL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
@@ -69,7 +71,11 @@ export default function EnrollmentsPage() {
       try {
         setLoading(true);
         setError('');
-        const result = await enrollmentService.getEnrollments({ status: 'FOR_APPROVAL', page, limit: 10 });
+        const result = await enrollmentService.getEnrollments({
+          ...(statusFilter === 'ALL' ? {} : { status: statusFilter }),
+          page,
+          limit: 10,
+        });
         setEnrollments(result.items || []);
         setPagination(result.pagination || null);
       } catch (err) {
@@ -85,7 +91,7 @@ export default function EnrollmentsPage() {
     };
 
     loadEnrollments();
-  }, [page]);
+  }, [page, statusFilter]);
 
   /* ----------------------------------------
      Search
@@ -187,6 +193,10 @@ export default function EnrollmentsPage() {
                 Manage student course enrollments.
               </p>
             </div>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              <RefreshCwIcon className="mr-2 size-4" />
+              Refresh
+            </Button>
           </div>
 
           <Card>
@@ -206,6 +216,22 @@ export default function EnrollmentsPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
+              </div>
+              <div className="mt-3 flex gap-2">
+                <select
+                  value={statusFilter}
+                  onChange={(event) => {
+                    setStatusFilter(event.target.value);
+                    setPage(1);
+                  }}
+                  className="h-10 rounded-md border bg-background px-3 text-sm"
+                >
+                  <option value="FOR_APPROVAL">For approval</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="CANCELLED">Cancelled</option>
+                  <option value="ALL">All statuses</option>
+                </select>
               </div>
             </CardHeader>
 
@@ -297,9 +323,25 @@ export default function EnrollmentsPage() {
               <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
                 <span>{pagination?.total || 0} enrollment records</span>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled={!pagination?.hasPreviousPage || loading} onClick={() => setPage((value) => value - 1)}>Previous</Button>
-                  <span>Page {pagination?.page || page} of {pagination?.pages || 0}</span>
-                  <Button variant="outline" size="sm" disabled={!pagination?.hasNextPage || loading} onClick={() => setPage((value) => value + 1)}>Next</Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!pagination?.hasPreviousPage || loading}
+                    onClick={() => setPage((value) => value - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <span>
+                    Page {pagination?.page || page} of {pagination?.pages || 0}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!pagination?.hasNextPage || loading}
+                    onClick={() => setPage((value) => value + 1)}
+                  >
+                    Next
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -475,8 +517,7 @@ export default function EnrollmentsPage() {
                         </p>
 
                         <p className="font-medium">
-                          {selectedEnrollment.metadata?.paymentReference ||
-                            '—'}
+                          {selectedEnrollment.metadata?.paymentReference || '—'}
                         </p>
                       </div>
                     </div>

@@ -134,6 +134,9 @@ model CadenzaRoomBooking {
   scheduledStart     DateTime
   scheduledEnd       DateTime
   totalAmount        Decimal   @db.Decimal(19, 4)
+  rateAtBooking       Decimal?  @db.Decimal(19, 4)
+  durationHoursAtBooking Int?
+  roomNameAtBooking   String?
   status             String    @default("FOR_APPROVAL")
   cancelledAt        DateTime?
   cancellationReason String?
@@ -177,6 +180,12 @@ model CadenzaEnrollment {
   appId               String
   customerId          String
   lessonPackageId     String
+  priceAtEnrollment   Decimal   @db.Decimal(19, 4)
+  packageNameAtEnrollment String
+  numberOfSessionsAtEnrollment Int
+  sessionDurationMinutesAtEnrollment Int
+  sessionsPerWeekAtEnrollment Int
+  termsSnapshot       Json?
   paymentObligationId String?
   status              String    @default("FOR_APPROVAL")
   paymentExpiresAt    DateTime?
@@ -472,6 +481,10 @@ model CadenzaRental {
   customerId          String
   rentalPackageId     String?
   rentalType          String
+  rentalPackageNameAtRental String?
+  rentalRateAtRental  Decimal?  @db.Decimal(19, 4)
+  rentalHoursAtRental Int?
+  depositAtRental     Decimal?  @db.Decimal(19, 4)
   scheduledStart      DateTime
   scheduledEnd        DateTime
   totalAmount         Decimal   @db.Decimal(19, 4)

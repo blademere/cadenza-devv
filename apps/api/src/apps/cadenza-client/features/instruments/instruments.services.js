@@ -9,6 +9,7 @@ import {
 import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
 import { instrumentsRepository } from './instruments.repository.js';
+import { recordCadenzaAudit } from '../audit/cadenza-audit.service.js';
 
 const prisma = getPrismaClient();
 
@@ -389,6 +390,10 @@ export const instrumentsService = {
       throw new NotFoundError(
         'Instrument not found.',
       );
+    }
+
+    if (data.rentalRate !== undefined) {
+      await recordCadenzaAudit({ appId, action: 'INSTRUMENT_RENTAL_RATE_UPDATED', entityType: 'InstrumentRental', entityId: id, before: instrument, after: updated });
     }
 
     return updated;

@@ -104,6 +104,11 @@ const data = {
       url: "/admin/reports",
       icon: <FileChartColumnIcon />,
     },
+    {
+      title: "Audit Logs",
+      url: "/admin/audit-logs",
+      icon: <ClipboardListIcon />,
+    },
   ],
 
   navSecondary: [
@@ -143,7 +148,10 @@ export function AppSidebar({ ...props }) {
 
       {/* Navigation */}
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain
+          items={data.navMain}
+          activeClassName="!bg-blue-100 !text-blue-700 !font-semibold hover:!bg-blue-100 hover:!text-blue-700"
+        />
 
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>

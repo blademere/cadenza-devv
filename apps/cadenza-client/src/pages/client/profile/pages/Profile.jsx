@@ -1,8 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, Loader2, LockKeyhole, Mail, Pencil, Save, UserRound, X } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  LockKeyhole,
+  Mail,
+  Pencil,
+  Save,
+  UserRound,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
-import { getMyProfile, updateMyPassword, updateMyProfile } from '../services/profile.service';
+import {
+  getMyProfile,
+  updateMyPassword,
+  updateMyProfile,
+} from '../services/profile.service';
 
 const emptyForm = {
   firstName: '',
@@ -104,12 +118,7 @@ export default function Profile() {
     }
   };
 
-  const fullName = [
-    form.firstName,
-    form.middleName,
-    form.lastName,
-    form.suffix,
-  ]
+  const fullName = [form.firstName, form.middleName, form.lastName, form.suffix]
     .filter(Boolean)
     .join(' ');
 
@@ -128,7 +137,9 @@ export default function Profile() {
       await updateMyPassword(password);
       setPassword('');
       setRetypePassword('');
-      toast.success('Password saved. You can now sign in with email and password.');
+      toast.success(
+        'Password saved. You can now sign in with email and password.',
+      );
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Unable to save password.');
     } finally {
@@ -154,45 +165,99 @@ export default function Profile() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <ProfileHeader editing onCancel={() => setEditing(false)} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="First name" value={form.firstName} onChange={updateField('firstName')} required />
-              <Field label="Last name" value={form.lastName} onChange={updateField('lastName')} required />
-              <Field label="Middle name" value={form.middleName} onChange={updateField('middleName')} />
-              <Field label="Suffix" value={form.suffix} onChange={updateField('suffix')} />
-              <Field label="Contact number" value={form.contactNo} onChange={updateField('contactNo')} />
-              <Field label="Age" type="number" value={form.age} onChange={updateField('age')} />
-              <SelectField label="Gender" value={form.gender} onChange={updateField('gender')} />
-              <Field label="Guardian name" value={form.guardianName} onChange={updateField('guardianName')} />
-              <Detail label="Email" value={email} icon={<Mail className="h-4 w-4" />} />
+              <Field
+                label="First name"
+                value={form.firstName}
+                onChange={updateField('firstName')}
+                required
+              />
+              <Field
+                label="Last name"
+                value={form.lastName}
+                onChange={updateField('lastName')}
+                required
+              />
+              <Field
+                label="Middle name"
+                value={form.middleName}
+                onChange={updateField('middleName')}
+              />
+              <Field
+                label="Suffix"
+                value={form.suffix}
+                onChange={updateField('suffix')}
+              />
+              <Field
+                label="Contact number"
+                value={form.contactNo}
+                onChange={updateField('contactNo')}
+              />
+              <Field
+                label="Age"
+                type="number"
+                value={form.age}
+                onChange={updateField('age')}
+              />
+              <SelectField
+                label="Gender"
+                value={form.gender}
+                onChange={updateField('gender')}
+              />
+              <Detail
+                label="Email"
+                value={email}
+                icon={<Mail className="h-4 w-4" />}
+              />
             </div>
-            <Field label="Address" value={form.address} onChange={updateField('address')} />
+            <Field
+              label="Address"
+              value={form.address}
+              onChange={updateField('address')}
+            />
             <div className="flex justify-end border-t border-border pt-5">
               <button
                 type="submit"
                 disabled={saving}
                 className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
               >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
                 {saving ? 'Saving...' : 'Save changes'}
               </button>
             </div>
           </form>
         ) : (
           <div className="space-y-6">
-            <ProfileHeader onEdit={() => setEditing(true)} locked={hasActiveEnrollment} />
+            <ProfileHeader
+              onEdit={() => setEditing(true)}
+              locked={hasActiveEnrollment}
+            />
             {hasActiveEnrollment && (
               <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                 <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>Student details are locked while you have an active enrollment.</span>
+                <span>
+                  Student details are locked while you have an active
+                  enrollment.
+                </span>
               </div>
             )}
             <div className="grid gap-5 sm:grid-cols-2">
               <Detail label="Full name" value={fullName || 'Not provided'} />
-              <Detail label="Email" value={email || 'Not available'} icon={<Mail className="h-4 w-4" />} />
-              <Detail label="Contact number" value={form.contactNo || 'Not provided'} />
+              <Detail
+                label="Email"
+                value={email || 'Not available'}
+                icon={<Mail className="h-4 w-4" />}
+              />
+              <Detail
+                label="Contact number"
+                value={form.contactNo || 'Not provided'}
+              />
               <Detail label="Address" value={form.address || 'Not provided'} />
               <Detail label="Age" value={form.age || 'Not provided'} />
               <Detail label="Gender" value={form.gender || 'Not provided'} />
-              <Detail label="Guardian name" value={form.guardianName || 'Not provided'} />
             </div>
           </div>
         )}
@@ -203,20 +268,63 @@ export default function Profile() {
           Set or update your password. This remains available even when your
           personal information is locked by an active enrollment.
         </p>
-        <form onSubmit={handlePasswordSubmit} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+        <form
+          onSubmit={handlePasswordSubmit}
+          className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
+        >
           <div className="relative">
-            <input type={showPassword ? 'text' : 'password'} minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" className="h-10 w-full rounded-md border border-input bg-background px-3 pr-10 text-sm" />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-2 top-2 text-muted-foreground" aria-label={showPassword ? 'Hide password' : 'Show password'}>
-              {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+            <input
+              type={showPassword ? 'text' : 'password'}
+              minLength={8}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="New password"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 pr-10 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute right-2 top-2 text-muted-foreground"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? (
+                <EyeOff className="size-5" />
+              ) : (
+                <Eye className="size-5" />
+              )}
             </button>
           </div>
           <div className="relative">
-            <input type={showPassword ? 'text' : 'password'} minLength={8} value={retypePassword} onChange={(event) => setRetypePassword(event.target.value)} placeholder="Retype password" className="h-10 w-full rounded-md border border-input bg-background px-3 pr-10 text-sm" />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-2 top-2 text-muted-foreground" aria-label={showPassword ? 'Hide password' : 'Show password'}>
-              {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+            <input
+              type={showPassword ? 'text' : 'password'}
+              minLength={8}
+              value={retypePassword}
+              onChange={(event) => setRetypePassword(event.target.value)}
+              placeholder="Retype password"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 pr-10 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute right-2 top-2 text-muted-foreground"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? (
+                <EyeOff className="size-5" />
+              ) : (
+                <Eye className="size-5" />
+              )}
             </button>
           </div>
-          <button type="submit" disabled={savingPassword || password.length < 8 || retypePassword.length < 8} className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60">{savingPassword ? 'Saving...' : 'Save password'}</button>
+          <button
+            type="submit"
+            disabled={
+              savingPassword || password.length < 8 || retypePassword.length < 8
+            }
+            className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
+          >
+            {savingPassword ? 'Saving...' : 'Save password'}
+          </button>
         </form>
       </section>
     </div>
@@ -233,17 +341,28 @@ function ProfileHeader({ editing, onEdit, onCancel, locked = false }) {
         <div>
           <h2 className="font-semibold">Account details</h2>
           <p className="text-sm text-muted-foreground">
-            {editing ? 'Update your personal information.' : 'Your personal information.'}
+            {editing
+              ? 'Update your personal information.'
+              : 'Your personal information.'}
           </p>
         </div>
       </div>
       {editing ? (
-        <button type="button" onClick={onCancel} className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+        >
           <X className="h-4 w-4" />
           Cancel
         </button>
       ) : (
-        <button type="button" onClick={onEdit} disabled={locked} className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+        <button
+          type="button"
+          onClick={onEdit}
+          disabled={locked}
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
           <Pencil className="h-4 w-4" />
           Edit profile
         </button>
@@ -255,7 +374,9 @@ function ProfileHeader({ editing, onEdit, onCancel, locked = false }) {
 function Detail({ label, value, icon }) {
   return (
     <div className="space-y-1">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
       <div className="flex items-center gap-2 text-sm font-medium">
         {icon}
         <span>{value || 'Not provided'}</span>
@@ -286,7 +407,11 @@ function SelectField({ label, value, onChange }) {
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">{label}</label>
-      <select value={value} onChange={onChange} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+      <select
+        value={value}
+        onChange={onChange}
+        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+      >
         <option value="">Select gender</option>
         <option value="MALE">Male</option>
         <option value="FEMALE">Female</option>

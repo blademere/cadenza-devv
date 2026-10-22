@@ -186,6 +186,9 @@ const create = async ({
     scheduledStart: schedule.scheduledStart,
     scheduledEnd: schedule.scheduledEnd,
     totalAmount,
+    rateAtBooking: Number(room.rentalRate),
+    durationHoursAtBooking: room.rentalDurationHours,
+    roomNameAtBooking: room.metadata?.name || room.roomType,
     status,
     metadata: {
       ...additionalMetadata,

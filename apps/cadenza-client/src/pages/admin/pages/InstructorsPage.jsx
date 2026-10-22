@@ -22,6 +22,13 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import {
   Card,
@@ -101,12 +108,14 @@ function normalizeInstructor(instructor) {
     name,
     email: user.email ?? person.email ?? instructor?.email ?? "—",
     courses,
-    students:
-      typeof instructor?.students === "number"
-        ? instructor.students
-        : typeof instructor?.studentCount === "number"
-          ? instructor.studentCount
-          : null,
+    students: Array.isArray(instructor?.students)
+      ? instructor.students.length
+      : typeof instructor?.studentCount === "number"
+        ? instructor.studentCount
+        : 0,
+    assignedStudents: Array.isArray(instructor?.students)
+      ? instructor.students
+      : [],
     status,
   };
 }
@@ -136,6 +145,7 @@ function getStatusBadgeVariant(status) {
   }
 }
 
+/* Internal instructor UUIDs are intentionally not shown in the admin dialog. */
 function formatInstructorId(id) {
   const value = String(id ?? "");
 
@@ -159,6 +169,7 @@ function getErrorMessage(error, fallback) {
 
 export default function InstructorsPage() {
   const [search, setSearch] = useState("");
+  const [courseFilter, setCourseFilter] = useState("all");
   const [instructors, setInstructors] = useState([]);
   const [selectedInstructor, setSelectedInstructor] = useState(null);
 
@@ -203,9 +214,12 @@ export default function InstructorsPage() {
   const filteredInstructors = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) return instructors;
+    if (!query && courseFilter === "all") return instructors;
 
     return instructors.filter((instructor) => {
+      const matchesCourse =
+        courseFilter === "all" ||
+        instructor.courses.some((course) => course.name === courseFilter);
       const searchableText = [
         instructor.name,
         instructor.email,
@@ -216,9 +230,14 @@ export default function InstructorsPage() {
         .join(" ")
         .toLowerCase();
 
-      return searchableText.includes(query);
+      return matchesCourse && searchableText.includes(query);
     });
-  }, [instructors, search]);
+  }, [courseFilter, instructors, search]);
+
+  const courseOptions = useMemo(() => instructors
+    .flatMap((instructor) => instructor.courses)
+    .filter((course, index, list) => list.findIndex((item) => item.id === course.id) === index)
+    .sort((a, b) => a.name.localeCompare(b.name)), [instructors]);
 
   const handleInstructorDetails = (instructor) => {
     setSelectedInstructor(instructor);
@@ -318,15 +337,30 @@ export default function InstructorsPage() {
                 All instructors currently registered in the system.
               </CardDescription>
 
-              <div className="relative max-w-sm">
-                <SearchIcon className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+                <div className="relative w-full sm:max-w-sm">
+                  <SearchIcon className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search by name, email, or course..."
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                  />
+                </div>
 
-                <Input
-                  className="pl-9"
-                  placeholder="Search by name, email, or course..."
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
+                <Select value={courseFilter} onValueChange={setCourseFilter}>
+                  <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by course">
+                    <SelectValue placeholder="Filter by course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All courses</SelectItem>
+                    {courseOptions.map((course) => (
+                      <SelectItem key={course.id} value={course.name}>
+                        {course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
 
@@ -397,8 +431,18 @@ export default function InstructorsPage() {
                           <TableCell>{instructor.email}</TableCell>
 
                           <TableCell>
-                            {instructor.courses.length > 0
+                            {(courseFilter === "all"
                               ? instructor.courses
+                              : instructor.courses.filter(
+                                  (course) => course.name === courseFilter,
+                                )
+                            ).length > 0
+                              ? (courseFilter === "all"
+                                  ? instructor.courses
+                                  : instructor.courses.filter(
+                                      (course) => course.name === courseFilter,
+                                    )
+                                )
                                   .map((course) => course.name)
                                   .join(", ")
                               : "No courses assigned"}
@@ -563,11 +607,15 @@ export default function InstructorsPage() {
 
                     <div className="p-4">
                       <p className="text-sm text-muted-foreground">
-                        Instructor ID
+                        Assigned Students
                       </p>
 
-                      <p className="mt-1 break-all font-medium">
-                        {formatInstructorId(selectedInstructor.id)}
+                      <p className="mt-1 break-words font-medium">
+                        {selectedInstructor.assignedStudents?.length > 0
+                          ? selectedInstructor.assignedStudents
+                              .map((student) => student.name)
+                              .join(", ")
+                          : "No assigned students"}
                       </p>
                     </div>
                   </div>

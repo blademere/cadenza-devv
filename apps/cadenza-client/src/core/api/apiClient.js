@@ -1,4 +1,17 @@
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL ?? '/api/v1'}/cadenza-client`;
+const API_ROOT_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+const resolveApiUrl = (path) =>
+  path.startsWith('/__platform__')
+    ? `${API_ROOT_URL}${path.replace('/__platform__', '')}`
+    : `${API_BASE_URL}${path}`;
+
+const buildRequestUrl = (path, params) => {
+  const url = new URL(resolveApiUrl(path), window.location.origin);
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
+  });
+  return url.toString();
+};
 
 let accessToken = null;
 let csrfToken = null;
@@ -118,7 +131,7 @@ const ensureCsrfToken = async ({ force = false } = {}) => {
   }
 
   csrfRequestPromise = (async () => {
-    const response = await fetch(`${API_BASE_URL}${CSRF_ENDPOINT}`, {
+    const response = await fetch(resolveApiUrl(CSRF_ENDPOINT), {
       method: 'GET',
       credentials: 'include',
       headers: { Accept: 'application/json' },
@@ -200,7 +213,7 @@ const request = async (path, options = {}, allowRefresh = true) => {
 
   const { headers, body } = addRequestHeaders(options, tokenOverride);
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(buildRequestUrl(path, options.params), {
     ...options,
     method,
     headers,
@@ -256,7 +269,7 @@ const request = async (path, options = {}, allowRefresh = true) => {
         retryHeaders.set('Accept', 'application/json');
       }
 
-      const retryResponse = await fetch(`${API_BASE_URL}${path}`, {
+      const retryResponse = await fetch(resolveApiUrl(path), {
         ...options,
         method,
         headers: retryHeaders,
@@ -304,7 +317,7 @@ const requestFile = async (path, allowRefresh = true) => {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(resolveApiUrl(path), {
     method: 'GET',
     headers,
     credentials: 'include',

@@ -271,21 +271,21 @@ function mapEnrollment(enrollment) {
       : null,
     studentEmail: enrollment.customer?.person?.email || null,
     packageId: enrollment.lessonPackageId,
-    packageName: enrollment.lessonPackage?.name,
+    packageName: enrollment.packageNameAtEnrollment || enrollment.lessonPackage?.name,
     courseId: enrollment.metadata?.courseId || null,
     metadata: enrollment.metadata,
-    price: enrollment.lessonPackage
-      ? Number(enrollment.lessonPackage.price)
-      : null,
-    numberOfSessions:
-      enrollment.lessonPackage
-        ?.numberOfSessions || 0,
-    sessionDurationMinutes:
-      enrollment.lessonPackage
-        ?.sessionDurationMinutes || 0,
-    sessionsPerWeek:
-      enrollment.lessonPackage
-        ?.sessionsPerWeek || 0,
+    price: enrollment.priceAtEnrollment != null
+      ? Number(enrollment.priceAtEnrollment)
+      : enrollment.lessonPackage
+        ? Number(enrollment.lessonPackage.price)
+        : null,
+    numberOfSessions: enrollment.numberOfSessionsAtEnrollment
+      ?? enrollment.lessonPackage?.numberOfSessions ?? 0,
+    sessionDurationMinutes: enrollment.sessionDurationMinutesAtEnrollment
+      ?? enrollment.lessonPackage?.sessionDurationMinutes ?? 0,
+    sessionsPerWeek: enrollment.sessionsPerWeekAtEnrollment
+      ?? enrollment.lessonPackage?.sessionsPerWeek ?? 0,
+    termsSnapshot: enrollment.termsSnapshot,
     lessons,
     status: enrollment.status,
     paymentObligationId:
@@ -940,6 +940,20 @@ export const enrollmentService = {
       appId,
       customerId,
       lessonPackageId: packageItem.id,
+      priceAtEnrollment: Number(packageItem.price),
+      packageNameAtEnrollment: packageItem.name,
+      numberOfSessionsAtEnrollment: packageItem.numberOfSessions,
+      sessionDurationMinutesAtEnrollment: packageItem.sessionDurationMinutes,
+      sessionsPerWeekAtEnrollment: packageItem.sessionsPerWeek,
+      termsSnapshot: {
+        packageId: packageItem.id,
+        packageName: packageItem.name,
+        price: Number(packageItem.price),
+        numberOfSessions: packageItem.numberOfSessions,
+        sessionDurationMinutes: packageItem.sessionDurationMinutes,
+        sessionsPerWeek: packageItem.sessionsPerWeek,
+        courseId: data.metadata?.courseId || null,
+      },
       status: 'FOR_APPROVAL',
       paymentObligationId:
         data.paymentObligationId || null,
@@ -1065,7 +1079,9 @@ export const enrollmentService = {
       ? 'DOWN_PAYMENT'
       : 'FULL_PAYMENT';
     const paymentAmount = Number(metadata.paymentAmount || 0);
-    const totalAmount = Number(enrollment.lessonPackage?.price || 0);
+    const totalAmount = Number(
+      enrollment.priceAtEnrollment ?? enrollment.lessonPackage?.price ?? 0,
+    );
     const paymentContinuationRequired = paymentPlan === 'DOWN_PAYMENT';
 
     const approved = await enrollmentRepository.updateStaffDecision(

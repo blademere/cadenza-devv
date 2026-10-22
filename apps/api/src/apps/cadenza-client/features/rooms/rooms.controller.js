@@ -8,6 +8,7 @@ const list = async (req, res) =>
     'Cadenza Client rooms retrieved successfully.',
     await service.list({
       appId: req.cadenzaApp.id,
+      personId: req.cadenzaStaff?.personId,
     }),
   );
 
@@ -38,6 +39,7 @@ const update = async (req, res) =>
     'Cadenza Client room updated successfully.',
     await service.update({
       appId: req.cadenzaApp.id,
+      personId: req.cadenzaStaff?.personId,
       id: req.validated.params.id,
       ...req.validated.body,
     }),

@@ -17,6 +17,34 @@ const INSTRUCTOR_STATUS = [
   'SUSPENDED',
 ];
 
+const mapInstructor = (instructor) => {
+  const students = Array.from(
+    new Map(
+      (instructor.sessions ?? [])
+        .map((session) => session.enrollment?.customer)
+        .filter(Boolean)
+        .map((customer) => [
+          customer.id,
+          {
+            id: customer.id,
+            name: [
+              customer.person?.firstName,
+              customer.person?.middleName,
+              customer.person?.lastName,
+              customer.person?.suffix,
+            ].filter(Boolean).join(' '),
+          },
+        ]),
+    ).values(),
+  );
+
+  return {
+    ...instructor,
+    students,
+    studentCount: students.length,
+  };
+};
+
 function getDayOfWeek(date) {
   const day = date.getDay();
 
@@ -79,7 +107,8 @@ function normalizeAvailabilityRules(availability) {
 
 export const instructorService = {
   async getInstructors(appId, filters = {}) {
-    return instructorRepository.findAll(appId, filters);
+    const result = await instructorRepository.findAll(appId, filters);
+    return { ...result, items: result.items.map(mapInstructor) };
   },
 
   async getInstructorById(appId, instructorId) {

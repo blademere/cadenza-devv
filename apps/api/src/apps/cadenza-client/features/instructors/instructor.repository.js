@@ -53,6 +53,32 @@ const instructorInclude = {
       startsAt: 'asc',
     },
   },
+
+  sessions: {
+    where: {
+      status: { notIn: ['COMPLETED', 'CANCELLED'] },
+      enrollment: { status: 'APPROVED' },
+    },
+    select: {
+      enrollment: {
+        select: {
+          customer: {
+            select: {
+              id: true,
+              person: {
+                select: {
+                  firstName: true,
+                  middleName: true,
+                  lastName: true,
+                  suffix: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 };
 
 export const instructorRepository = {
