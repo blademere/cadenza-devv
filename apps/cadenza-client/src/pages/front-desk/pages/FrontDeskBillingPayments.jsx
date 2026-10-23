@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   ChevronDown,
@@ -192,6 +192,7 @@ export default function BillingPayments() {
   const [paymentReference, setPaymentReference] = useState('');
   const [amountToPay, setAmountToPay] = useState('');
   const [processing, setProcessing] = useState(false);
+  const paymentAttempt = useRef(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -307,7 +308,11 @@ export default function BillingPayments() {
     }
     setProcessing(true);
     setError('');
-    const idempotencyKey = crypto.randomUUID();
+    const signature = JSON.stringify([selectedTransaction.sourceId, selectedTransaction.type, amount, method, reference.trim()]);
+    if (paymentAttempt.current?.signature !== signature) {
+      paymentAttempt.current = { signature, key: crypto.randomUUID() };
+    }
+    const idempotencyKey = paymentAttempt.current.key;
     const receiptReference = method === 'Cash' ? `FD-${idempotencyKey}` : reference.trim();
     try {
       const response = await apiClient.post('/billing/payments/transactions', {
@@ -329,6 +334,7 @@ export default function BillingPayments() {
       setSelectedTransaction(updated);
       setShowPaymentDialog(false);
       setShowReceiptDialog(true);
+      paymentAttempt.current = null;
     } catch (requestError) {
       setError(requestError?.message || 'Unable to record this payment.');
     } finally {
