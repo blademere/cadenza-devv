@@ -307,6 +307,11 @@ export default function CreateInstrumentRental() {
       setError('Please choose a future rental date.');
       return;
     }
+    if (field === 'rentalDate' && value && (!Array.isArray(reservedTimes[id]) || getDateTimeOptions(value, true, null, id).length === 0)) {
+      updateSchedule(id, field, '');
+      setError('This instrument has no available one-hour start slot on the selected date. Please choose another date.');
+      return;
+    }
     updateSchedule(id, field, value);
     if (field === 'rentalDate' && currentSchedule.startTime) {
       const automaticReturn = getEightHourReturn(value, currentSchedule.startTime);
