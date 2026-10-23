@@ -5,12 +5,13 @@ import {
 } from '../../../../common/errors/appError.js';
 
 import { instrumentRentalsRepository } from './instrument-rentals.repository.js';
-import { assertRentalStartWithinOperatingHours, getOperationalEnd, getOperationalMinutesBetween } from '../settings/operating-hours.js';
+import { assertRentalStartWithinOperatingHours, getOperationalEnd, getOperationalMinutesBetween, getOperatingHoursForDate } from '../settings/operating-hours.js';
 import { settingsService } from '../settings/settings.service.js';
 import { createWalkInCustomer } from '../walk-ins/walk-in-customer.service.js';
 
 // Individual instrument rates represent the minimum charge for this period.
 const MINIMUM_RENTAL_HOURS = 24;
+const WALK_IN_MINIMUM_HOURS = 8;
 const RETURN_CONDITIONS = [
   { value: 'GOOD', label: 'Good condition', damageFee: 0 },
   { value: 'MINOR_DAMAGE', label: 'Minor damage', damageFee: 500 },
@@ -62,9 +63,9 @@ const validateSchedule = (scheduledStart, scheduledEnd, operatingHours = null) =
     ? getOperationalMinutesBetween(operatingHours, start, end) / 60
     : (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
-  if (durationHours < (operatingHours ? MINIMUM_RENTAL_HOURS : 1)) {
+  if (durationHours < (operatingHours ? WALK_IN_MINIMUM_HOURS : 1)) {
     throw new BadRequestError(
-      `The minimum rental period is ${operatingHours ? MINIMUM_RENTAL_HOURS : 1} hour(s).`,
+      `The minimum rental period is ${operatingHours ? WALK_IN_MINIMUM_HOURS : 1} hour(s).`,
     );
   }
 
@@ -451,6 +452,23 @@ export const instrumentRentalsService = {
       catch (error) { throw new BadRequestError(error.message); }
     } else if (schedule.scheduledStart <= new Date()) {
       throw new BadRequestError('Rental start must be in the future.');
+    }
+
+    if (status !== 'APPROVED') {
+      const hours = await settingsService.getOperatingHours(appId);
+      const validBoundary = (instant, isReturn) => {
+        const dayHours = getOperatingHoursForDate(hours, instant);
+        if (!dayHours || dayHours.isClosed) return false;
+        const dayKey = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+        }).format(instant);
+        const opening = new Date(`${dayKey}T${dayHours.startTime}:00+08:00`);
+        const closing = new Date(`${dayKey}T${dayHours.endTime}:00+08:00`);
+        return instant >= opening && (isReturn ? instant <= closing : instant < closing);
+      };
+      if (!validBoundary(schedule.scheduledStart, false) || !validBoundary(schedule.scheduledEnd, true)) {
+        throw new BadRequestError('Rental pickup and return must be within operating hours on their selected dates.');
+      }
     }
 
     const normalizedRentalType = normalizeRentalType(rentalType);
