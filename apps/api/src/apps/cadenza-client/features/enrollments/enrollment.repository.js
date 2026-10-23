@@ -175,6 +175,22 @@ export const enrollmentRepository = {
     });
   },
 
+  async findConflictingCustomerSession(appId, customerId, startsAt, endsAt) {
+    return prisma.cadenzaLessonSession.findFirst({
+      where: {
+        appId,
+        enrollment: {
+          customerId,
+          status: { notIn: ['CANCELLED', 'COMPLETED', 'REJECTED'] },
+        },
+        status: { notIn: ['CANCELLED'] },
+        scheduledStart: { lt: endsAt },
+        scheduledEnd: { gt: startsAt },
+      },
+      select: { id: true },
+    });
+  },
+
   async findActiveEnrollmentsByCustomer(appId, customerId) {
     return prisma.cadenzaEnrollment.findMany({
       where: {
