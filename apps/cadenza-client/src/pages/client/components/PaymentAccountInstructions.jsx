@@ -9,28 +9,33 @@ export default function PaymentAccountInstructions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copiedAccountId, setCopiedAccountId] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const [qrErrors, setQrErrors] = useState({});
 
   useEffect(() => {
     let active = true;
     const objectUrls = [];
-    const failedAccountIds = [];
 
     const load = async () => {
       try {
         const paymentAccounts = await getPaymentAccounts();
         if (!active) return;
         setAccounts(paymentAccounts);
-        const results = await Promise.allSettled(paymentAccounts.filter((account) => account.hasQr).map(async (account) => {
-          const response = await getPaymentAccountQr(account.id);
-          const blob = await response.blob();
-          if (!blob.type.startsWith('image/') || blob.size === 0) throw new Error('Invalid QR image');
-          const url = URL.createObjectURL(blob);
-          objectUrls.push(url);
-          return [account.id, url];
+        const results = await Promise.all(paymentAccounts.filter((account) => account.hasQr).map(async (account) => {
+          try {
+            const response = await getPaymentAccountQr(account.id);
+            const blob = await response.blob();
+            if (!blob.type.startsWith('image/') || blob.size === 0) throw new Error('Invalid QR image');
+            const url = URL.createObjectURL(blob);
+            objectUrls.push(url);
+            return { id: account.id, url };
+          } catch (requestError) {
+            return { id: account.id, error: requestError?.message || 'QR image could not be loaded.' };
+          }
         }));
         if (active) {
-          setQrUrls(Object.fromEntries(results.filter((result) => result.status === 'fulfilled').map((result) => result.value)));
-          if (results.some((result) => result.status === 'rejected')) setError('Some QR images could not be loaded. Check payment QR storage on the server.');
+          setQrUrls(Object.fromEntries(results.filter((result) => result.url).map(({ id, url }) => [id, url])));
+          setQrErrors(Object.fromEntries(results.filter((result) => result.error).map(({ id, error }) => [id, error])));
         }
       } catch (requestError) {
         if (active) setError(requestError?.message || 'Unable to load payment accounts.');
@@ -44,7 +49,7 @@ export default function PaymentAccountInstructions() {
       active = false;
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, []);
+  }, [retryKey]);
 
   const copyAccountNumber = async (account) => {
     try {
@@ -66,6 +71,7 @@ export default function PaymentAccountInstructions() {
       {loading && <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading payment accounts...</div>}
       {!loading && error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       {!loading && !error && accounts.length === 0 && <p className="mt-4 text-sm text-muted-foreground">No active payment account is available yet.</p>}
+      {!loading && <button type="button" className="mt-3 rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted" onClick={() => { setError(''); setLoading(true); setRetryKey((value) => value + 1); }}>Refresh payment QR accounts</button>}
       <div className="mt-4 grid gap-4">
         {accounts.map((account) => (
           <div key={account.id} className="w-full rounded-lg border bg-background p-4">
@@ -88,7 +94,7 @@ export default function PaymentAccountInstructions() {
             <div className="mt-5 border-t pt-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">QR payment code</p>
               <div className="mt-3 flex min-h-72 w-full items-center justify-center overflow-hidden rounded-lg bg-white p-3 sm:min-h-96 sm:p-5">
-                {qrUrls[account.id] ? <img src={qrUrls[account.id]} alt={`${account.bankName} payment QR`} className="h-auto max-h-[32rem] w-full rounded-md object-contain" /> : <div className="flex min-h-72 w-full items-center justify-center rounded-md bg-muted text-xs text-muted-foreground sm:min-h-96">QR unavailable</div>}
+                {qrUrls[account.id] ? <img src={qrUrls[account.id]} alt={`${account.bankName} payment QR`} className="h-auto max-h-[32rem] w-full rounded-md object-contain" /> : <div className="flex min-h-72 w-full flex-col items-center justify-center gap-2 rounded-md bg-muted p-4 text-center text-xs text-muted-foreground sm:min-h-96"><p className="font-semibold">QR unavailable</p><p>{qrErrors[account.id] || (account.hasQr ? "Unable to retrieve this QR image. Please refresh." : "The QR image is missing from the server. Ask an administrator to use Replace QR in Payment Bank Accounts.")}</p><p>You can still view and copy the account number above.</p></div>}
               </div>
             </div>
           </div>
