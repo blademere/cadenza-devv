@@ -32,6 +32,13 @@ export function LoginForm({ className, audience = 'client', ...props }) {
         navigate(audience === 'admin' ? '/admin' : '/front-desk', { replace: true });
         return;
       }
+      // The client login must validate the profile password before sending OTP.
+      // A failed bcrypt comparison is rejected by the /auth/login backend.
+      const result = await login({ email, password });
+      if (result.account?.type !== 'CLIENT') {
+        await logout();
+        throw new Error('Invalid credentials.');
+      }
       await authService.requestOtp({ email, purpose: 'login' });
       navigate('/signup/verify', { state: { email, purpose: 'login', audience } });
     } catch (requestError) {
