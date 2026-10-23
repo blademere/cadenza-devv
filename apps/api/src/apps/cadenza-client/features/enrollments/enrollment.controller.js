@@ -94,6 +94,7 @@ export const enrollmentController = {
       const result = await enrollmentService.validateSchedule(
         req.cadenzaApp.id,
         req.body,
+        req.cadenzaCustomer.id,
       );
 
       return res.json({ success: true, data: result });
