@@ -15,7 +15,7 @@ import {
   getInstrument,
 } from '../services/instrument-rental.service';
 
-const MINIMUM_RENTAL_HOURS = 24;
+const MINIMUM_RENTAL_HOURS = 8;
 
 const formatCurrency = (value) =>
   `₱${Number(value || 0).toLocaleString('en-PH', {
@@ -1007,7 +1007,7 @@ export default function CreateInstrumentRental() {
           </div>
 
           <p className="mt-3 text-xs text-muted-foreground">
-            Each instrument has a minimum 24-hour billing period; pickup and return times follow operating hours.
+            Each instrument has a minimum 8-hour billing period; pickup and return times follow operating hours.
           </p>
 
           <button
