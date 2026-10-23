@@ -220,17 +220,26 @@ export const settingsService = {
 
   async getBankAccounts(appId) {
     const accounts = await settingsRepository.findBankAccounts(appId);
-    return accounts.map(({ qrStorageKey, ...account }) => ({
-      ...account,
-      hasQr: Boolean(qrStorageKey),
+    const storage = getStorageService();
+    return Promise.all(accounts.map(async ({ qrStorageKey, ...account }) => {
+      let hasQr = false;
+      if (qrStorageKey) {
+        try {
+          const details = await storage.head({ key: qrStorageKey });
+          hasQr = Number(details?.size) > 0;
+        } catch (error) {
+          if (error?.code !== 'ENOENT' && error?.code !== 'NoSuchKey' && error?.name !== 'NoSuchKey') {
+            throw error;
+          }
+        }
+      }
+      return { ...account, hasQr };
     }));
   },
 
   async getPaymentBankAccounts(appId) {
-    const accounts = await settingsRepository.findBankAccounts(appId);
-    return accounts
-      .filter((account) => account.status === 'ACTIVE')
-      .map(({ qrStorageKey, ...account }) => ({ ...account, hasQr: Boolean(qrStorageKey) }));
+    const accounts = await this.getBankAccounts(appId);
+    return accounts.filter((account) => account.status === 'ACTIVE');
   },
 
   async createBankAccount(appId, { bankName, accountNumber, file }) {
