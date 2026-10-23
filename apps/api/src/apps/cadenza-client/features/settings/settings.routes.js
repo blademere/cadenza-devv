@@ -54,6 +54,12 @@ router.post(
   uploadBankAccountQr.single('qr'),
   settingsController.createBankAccount,
 );
+router.put(
+  '/bank-accounts/:id/qr',
+  requireAdmin,
+  uploadBankAccountQr.single('qr'),
+  settingsController.replaceBankAccountQr,
+);
 router.patch(
   '/bank-accounts/:id',
   requireAdmin,
