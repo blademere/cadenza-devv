@@ -321,7 +321,7 @@ export default function RoomBookingDetails() {
                 <p className="mt-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm">
                   <strong>Front Desk reason:</strong> {booking.metadata?.cancellationReason || booking.cancellationReason}
                 </p>
-              )
+              )}
             </>
           )}
         </div>
