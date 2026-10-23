@@ -627,7 +627,7 @@ export default function EnrollmentsPage() {
                   <p className="mt-2">
                     Confirmed paid: ₱{Number(refundQuote?.paidAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     {' · '}Refunded: ₱{Number(refundQuote?.refundedAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                    {' · '}Refundable confirmed: ₱{Number(refundQuote?.refundableAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    {' · '}Refundable (subject to receipt verification): ₱{Number(refundQuote?.refundableAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     {' · '}Unverified submitted: ₱{Number(refundQuote?.unverifiedSubmittedAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </p>
                 )}
@@ -649,7 +649,7 @@ export default function EnrollmentsPage() {
               >
                 Close
               </Button>
-              {selectedEnrollment?.status === 'CANCELLED' && !refundLoading && (Number(refundQuote?.refundableAmount || 0) + Number(refundQuote?.unverifiedSubmittedAmount || 0)) > 0 && (
+              {selectedEnrollment?.status === 'CANCELLED' && !refundLoading && Number(refundQuote?.refundableAmount || 0) > 0 && (
                 <Button type="button" variant="destructive" disabled={actionLoading}
                   onClick={() => { setRefundReference(''); setRefundConfirmed(false); setRefundReceivedConfirmed(false); setShowRefundDialog(true); }}>
                   Refund
@@ -684,7 +684,7 @@ export default function EnrollmentsPage() {
             <DialogHeader>
               <DialogTitle>Record confirmed enrollment refund</DialogTitle>
               <DialogDescription>
-                Refund amount: ₱{(Number(refundQuote?.refundableAmount || 0) + Number(refundQuote?.unverifiedSubmittedAmount || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2 })}.
+                Refund amount: ₱{Number(refundQuote?.refundableAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}.
                 Return this amount to the client outside Cadenza before recording it here. Recording does not send money.
               </DialogDescription>
             </DialogHeader>
