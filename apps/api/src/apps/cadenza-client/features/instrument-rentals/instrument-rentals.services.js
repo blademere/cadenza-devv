@@ -1,3 +1,4 @@
+import { assertUnusedPaymentReference } from '../billing-payments/payment-reference.js';
 import {
   BadRequestError,
   ConflictError,
@@ -444,6 +445,7 @@ export const instrumentRentalsService = {
     scheduledStart,
     scheduledEnd,
   }) {
+    if (status !== 'APPROVED') await assertUnusedPaymentReference(appId, paymentReference);
     const walkInHours = status === 'APPROVED' ? await settingsService.getOperatingHours(appId) : null;
     const schedule = validateSchedule(scheduledStart, scheduledEnd, walkInHours);
     if (status === 'APPROVED') {
@@ -493,6 +495,7 @@ export const instrumentRentalsService = {
         instrumentId,
         instrumentIds,
         paymentPlan,
+        paymentReference,
         paymentMethod,
         status,
         metadata,
@@ -504,6 +507,7 @@ export const instrumentRentalsService = {
       appId,
       customerId,
       rentalPackageId,
+      paymentReference,
       paymentMethod,
       status,
       metadata,
@@ -553,6 +557,7 @@ export const instrumentRentalsService = {
     instrumentId,
     instrumentIds,
     paymentPlan,
+    paymentReference,
     paymentMethod = 'QR_PLACEHOLDER',
     status = 'FOR_APPROVAL',
     metadata: additionalMetadata = {},
