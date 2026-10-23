@@ -275,8 +275,8 @@ export default function RentalsPage() {
             .map((item) => item.instrument?.brand)
             .filter(Boolean)
             .join(', ');
-          const instrumentModels = items
-            .map((item) => item.instrument?.model)
+          const instrumentItemNames = items
+            .map((item) => item.instrument?.instrumentType?.name)
             .filter(Boolean)
             .join(', ');
 
@@ -288,7 +288,7 @@ export default function RentalsPage() {
             email: person?.email || '—',
             phone: person?.phone || '—',
             instrument: instrumentNames || 'Instrument',
-            type: instrumentModels || '—',
+            type: instrumentItemNames || '—',
             rentalDate: rental.scheduledStart,
             returnDate: rental.scheduledEnd,
             rentalFee: rental.totalAmount,
