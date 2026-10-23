@@ -40,6 +40,109 @@ export const billingPaymentsService = {
   async listPayments(appId) {
     return prisma.cadenzaCashierPayment.findMany({ where: { appId }, orderBy: { createdAt: 'asc' } });
   },
+  async getBookingRentalRefundQuote(appId, type, sourceId) {
+    const transactionType = normalizeType(type);
+    if (transactionType === 'ENROLLMENT') throw new BadRequestError('Use the enrollment refund endpoint.');
+    const record = await modelFor(prisma, transactionType).findFirst({
+      where: { id: sourceId, appId },
+    });
+    if (!record) throw new NotFoundError('Transaction not found.');
+    const [payments, refund] = await Promise.all([
+      prisma.cadenzaCashierPayment.findMany({
+        where: { appId, transactionType, sourceId }, select: { amount: true },
+      }),
+      prisma.cadenzaBookingRentalRefund.findFirst({
+        where: { appId, transactionType, sourceId },
+      }),
+    ]);
+    const metadata = record.metadata || {};
+    const original = metadata.paymentStatus === 'PENDING_CONFIRMATION' ||
+      metadata.paymentStatus === 'PENDING_PROCEED'
+      ? 0 : cents(metadata.initialPaymentAmount ?? metadata.paymentAmount ?? 0);
+    const cashier = payments.reduce((sum, payment) => sum + cents(payment.amount), 0);
+    const submitted = ['PENDING_CONFIRMATION', 'PENDING_PROCEED'].includes(metadata.paymentStatus)
+      ? Math.max(0, cents(metadata.initialPaymentAmount ?? metadata.paymentAmount ?? 0)) : 0;
+    const total = cents(record.totalAmount);
+    const paid = Math.max(0, original + cashier);
+    const refundable = refund ? 0 : Math.min(total, paid + submitted);
+    return {
+      transactionType, sourceId, status: record.status,
+      paidAmount: paid / 100, unverifiedSubmittedAmount: refund ? 0 : submitted / 100,
+      refundedAmount: refund ? Number(refund.amount) : 0,
+      refundableAmount: refundable / 100, refund,
+    };
+  },
+
+  async recordBookingRentalRefund(appId, userId, type, sourceId, input) {
+    const transactionType = normalizeType(type);
+    if (transactionType === 'ENROLLMENT') throw new BadRequestError('Use the enrollment refund endpoint.');
+    const method = String(input?.method || '').trim().toUpperCase().replace(/\s+/g, '_');
+    const reference = String(input?.reference || '').trim();
+    if (!Number.isInteger(userId) || userId <= 0) throw new BadRequestError('A staff account is required.');
+    if (!['CASH', 'GCASH', 'BANK_TRANSFER'].includes(method)) throw new BadRequestError('Invalid refund method.');
+    if (reference.length < 3 || reference.length > 100) throw new BadRequestError('A refund receipt or transfer reference is required.');
+    if (input?.confirmedReturned !== true) throw new BadRequestError('Confirm the refund was already transferred to the client.');
+    try {
+      return await prisma.$transaction(async (db) => {
+        const table = transactionType === 'ROOM_BOOKING' ? 'CadenzaRoomBooking' : 'CadenzaRental';
+        const locked = await db.$queryRawUnsafe(
+          'SELECT id FROM "' + table + '" WHERE id = $1 AND "appId" = $2 FOR UPDATE',
+          sourceId, appId,
+        );
+        if (!locked.length) throw new NotFoundError('Transaction not found.');
+        const existing = await db.cadenzaBookingRentalRefund.findFirst({
+          where: { appId, transactionType, sourceId },
+        });
+        if (existing) throw new ConflictError('This transaction has already been refunded.');
+        const model = modelFor(db, transactionType);
+        const record = await model.findFirst({ where: { id: sourceId, appId } });
+        if (!['CANCELLED', 'REJECTED'].includes(record.status)) {
+          throw new BadRequestError('Only cancelled or rejected transactions can be refunded.');
+        }
+        const metadata = record.metadata || {};
+        const submitted = ['PENDING_CONFIRMATION', 'PENDING_PROCEED'].includes(metadata.paymentStatus)
+          ? Math.max(0, cents(metadata.initialPaymentAmount ?? metadata.paymentAmount ?? 0)) : 0;
+        if (submitted && input?.confirmedReceived !== true) {
+          throw new BadRequestError('Verify the original submitted payment was received before refunding.');
+        }
+        const original = submitted ? 0 : cents(metadata.initialPaymentAmount ?? metadata.paymentAmount ?? 0);
+        const prior = await db.cadenzaCashierPayment.findMany({
+          where: { appId, transactionType, sourceId }, select: { amount: true },
+        });
+        const paid = original + submitted + prior.reduce((sum, p) => sum + cents(p.amount), 0);
+        const maximum = cents(record.totalAmount);
+        if (!Number.isSafeInteger(paid) || !Number.isSafeInteger(maximum) || maximum <= 0 ||
+            paid <= 0 || paid > maximum) {
+          throw new BadRequestError('Refund cannot exceed valid payments or the transaction total.');
+        }
+        const refund = await db.cadenzaBookingRentalRefund.create({
+          data: { appId, transactionType, sourceId, amount: paid / 100, method, reference, processedByUserId: userId },
+        });
+        await model.update({
+          where: { id: sourceId },
+          data: { metadata: {
+            ...metadata, paymentStatus: 'REFUNDED', refundStatus: 'RECORDED',
+            refundAmount: paid / 100, refundReference: reference, refundMethod: method,
+            refundedAt: refund.createdAt.toISOString(), netPaidAmount: 0,
+            remainingAmount: 0, paymentBalanceDue: 0, paymentContinuationRequired: false,
+          } },
+        });
+        await db.cadenzaAuditLog.create({
+          data: {
+            appId, personId: null, action: 'BOOKING_RENTAL_REFUND_RECORDED',
+            entityType: transactionType, entityId: sourceId,
+            description: 'Staff confirmed external refund and recorded accounting deduction',
+            metadata: { refundId: refund.id, amount: paid / 100, method, reference, processedByUserId: userId },
+          },
+        });
+        return refund;
+      }, { timeout: 10000 });
+    } catch (error) {
+      if (error?.code === 'P2002') throw new ConflictError('Refund already recorded.');
+      throw error;
+    }
+  },
+
   async getEnrollmentRefundQuote(appId, enrollmentId) {
     const enrollment = await prisma.cadenzaEnrollment.findFirst({
       where: { id: enrollmentId, appId },
