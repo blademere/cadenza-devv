@@ -87,7 +87,7 @@ export function AppSidebar({ ...props }) {
 
   useEffect(() => {
     let mounted = true;
-    Promise.allSettled([getInstrumentRentals(), getRoomBookings(), apiClient.get('/enrollments')]).then(([rentalsResult, bookingsResult, enrollmentsResult]) => {
+    Promise.allSettled([getInstrumentRentals(), getRoomBookings(), apiClient.get('/enrollments'), apiClient.get('/enrollments', { params: { status: 'FOR_APPROVAL', page: 1, limit: 1 } })]).then(([rentalsResult, bookingsResult, enrollmentsResult, approvalResult]) => {
       if (!mounted) return;
       const rentals = rentalsResult.status === 'fulfilled' && Array.isArray(rentalsResult.value) ? rentalsResult.value : [];
       const bookings = bookingsResult.status === 'fulfilled' && Array.isArray(bookingsResult.value) ? bookingsResult.value : [];
@@ -102,8 +102,11 @@ export function AppSidebar({ ...props }) {
         const paid = Number(item.paid || 0);
         return total > 0 && paid > 0 && paid < total;
       }).length;
+      const approvalTotal = approvalResult.status === 'fulfilled'
+        ? Number(approvalResult.value?.data?.pagination?.total ?? approvalResult.value?.pagination?.total ?? 0)
+        : 0;
       setPendingCounts({
-        enrollments: enrollments.filter((enrollment) => enrollment.status === 'FOR_APPROVAL').length,
+        enrollments: Number.isFinite(approvalTotal) ? approvalTotal : 0,
         rentals: rentals.filter((rental) => pendingRentalStatuses.includes(rental.status)).length,
         bookings: bookings.filter((booking) => booking.status === 'FOR_APPROVAL').length,
         billing: pendingBilling,
