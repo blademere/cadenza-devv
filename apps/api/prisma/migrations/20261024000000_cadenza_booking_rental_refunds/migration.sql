@@ -1,0 +1,4 @@
+CREATE TABLE "CadenzaBookingRentalRefund" ("id" TEXT NOT NULL,"appId" TEXT NOT NULL,"transactionType" TEXT NOT NULL,"sourceId" TEXT NOT NULL,"amount" DECIMAL(19,4) NOT NULL,"method" TEXT NOT NULL,"reference" TEXT NOT NULL,"processedByUserId" INTEGER NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "CadenzaBookingRentalRefund_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "CadenzaBookingRentalRefund_appId_transactionType_sourceId_key" ON "CadenzaBookingRentalRefund"("appId","transactionType","sourceId");
+CREATE INDEX "CadenzaBookingRentalRefund_appId_createdAt_idx" ON "CadenzaBookingRentalRefund"("appId","createdAt");
+ALTER TABLE "CadenzaBookingRentalRefund" ADD CONSTRAINT "CadenzaBookingRentalRefund_appId_fkey" FOREIGN KEY ("appId") REFERENCES "App"("id") ON DELETE CASCADE ON UPDATE CASCADE;
