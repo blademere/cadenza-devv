@@ -196,6 +196,7 @@ export default function FrontDeskWalkInRentalPage() {
     startTime: '',
     endTime: '',
     paymentMethod: 'CASH',
+    paymentReference: '',
   });
 
   const [loading, setLoading] = useState(true);
@@ -460,6 +461,7 @@ export default function FrontDeskWalkInRentalPage() {
         scheduledStart: `${form.date}T${form.startTime}:00+08:00`,
         scheduledEnd: `${form.returnDate}T${form.endTime}:00+08:00`,
         paymentMethod: form.paymentMethod,
+        paymentReference: form.paymentReference.trim() || undefined,
       });
 
       setFieldErrors({});
