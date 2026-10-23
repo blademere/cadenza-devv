@@ -84,8 +84,8 @@ export default function Profile() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.firstName.trim() || !form.lastName.trim()) {
-      toast.error('First name and last name are required.');
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.contactNo.trim() || !form.address.trim() || !form.age || !form.gender || !form.guardianName.trim()) {
+      toast.error('First name, last name, contact number, age, gender, address and guardian are required.');
       return;
     }
 
@@ -191,17 +191,20 @@ export default function Profile() {
                 label="Contact number"
                 value={form.contactNo}
                 onChange={updateField('contactNo')}
+                required
               />
               <Field
                 label="Age"
                 type="number"
                 value={form.age}
                 onChange={updateField('age')}
+                required
               />
               <SelectField
                 label="Gender"
                 value={form.gender}
                 onChange={updateField('gender')}
+                required
               />
               <Detail
                 label="Email"
@@ -213,7 +216,9 @@ export default function Profile() {
               label="Address"
               value={form.address}
               onChange={updateField('address')}
+              required
             />
+            <Field label="Guardian" value={form.guardianName} onChange={updateField('guardianName')} required />
             <div className="flex justify-end border-t border-border pt-5">
               <button
                 type="submit"
@@ -258,6 +263,7 @@ export default function Profile() {
               <Detail label="Address" value={form.address || 'Not provided'} />
               <Detail label="Age" value={form.age || 'Not provided'} />
               <Detail label="Gender" value={form.gender || 'Not provided'} />
+              <Detail label="Guardian" value={form.guardianName || 'Not provided'} />
             </div>
           </div>
         )}
