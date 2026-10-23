@@ -32,6 +32,89 @@ export const billingPaymentsService = {
   async listPayments(appId) {
     return prisma.cadenzaCashierPayment.findMany({ where: { appId }, orderBy: { createdAt: 'asc' } });
   },
+  async getEnrollmentRefundQuote(appId, enrollmentId) {
+    const enrollment = await prisma.cadenzaEnrollment.findFirst({
+      where: { id: enrollmentId, appId },
+      select: { id: true, status: true, metadata: true },
+    });
+    if (!enrollment) throw new NotFoundError('Enrollment not found.');
+    const [cashierPayments, refund] = await Promise.all([
+      prisma.cadenzaCashierPayment.findMany({
+        where: { appId, transactionType: 'ENROLLMENT', sourceId: enrollmentId },
+        select: { amount: true },
+      }),
+      prisma.cadenzaEnrollmentRefund.findFirst({ where: { appId, enrollmentId } }),
+    ]);
+    const initial = cents(initialPaid(enrollment));
+    const recorded = cashierPayments.reduce((sum, item) => sum + cents(item.amount), 0);
+    const verifiedTotal = Math.max(0, initial + recorded);
+    const refunded = refund ? cents(refund.amount) : 0;
+    return {
+      enrollmentId,
+      status: enrollment.status,
+      paidAmount: verifiedTotal / 100,
+      refundedAmount: refunded / 100,
+      refundableAmount: Math.max(0, verifiedTotal - refunded) / 100,
+      refund: refund || null,
+    };
+  },
+
+  async recordEnrollmentRefund(appId, userId, enrollmentId, input) {
+    const method = String(input?.method || '').trim().toUpperCase().replace(/\s+/g, '_');
+    const reference = String(input?.reference || '').trim();
+    if (!Number.isInteger(userId) || userId <= 0) throw new BadRequestError('An authenticated staff account is required.');
+    if (!['CASH', 'GCASH', 'BANK_TRANSFER'].includes(method)) throw new BadRequestError('Choose the method used to return the money.');
+    if (reference.length < 3 || reference.length > 100) throw new BadRequestError('A refund transfer reference or receipt number is required.');
+    if (input?.confirmedReturned !== true) throw new BadRequestError('Confirm the refund has already been returned to the client before recording it.');
+    try {
+      return await prisma.$transaction(async (db) => {
+        const locked = await db.$queryRaw`SELECT id FROM "CadenzaEnrollment" WHERE id = ${enrollmentId} AND "appId" = ${appId} FOR UPDATE`;
+        if (!locked.length) throw new NotFoundError('Enrollment not found.');
+        const existingRefund = await db.cadenzaEnrollmentRefund.findFirst({ where: { appId, enrollmentId } });
+        if (existingRefund) throw new ConflictError('This enrollment has already been refunded.');
+        const record = await db.cadenzaEnrollment.findFirst({ where: { appId, id: enrollmentId } });
+        if (record.status !== 'CANCELLED') throw new BadRequestError('Only cancelled enrollments can be refunded.');
+        const cashierPayments = await db.cadenzaCashierPayment.findMany({
+          where: { appId, transactionType: 'ENROLLMENT', sourceId: enrollmentId }, select: { amount: true },
+        });
+        const verifiedTotal = cents(initialPaid(record)) + cashierPayments.reduce((sum, item) => sum + cents(item.amount), 0);
+        if (!Number.isSafeInteger(verifiedTotal) || verifiedTotal <= 0) {
+          throw new BadRequestError('No confirmed received payment is recorded for this enrollment. Verify receipt before processing a refund.');
+        }
+        const refund = await db.cadenzaEnrollmentRefund.create({
+          data: { appId, enrollmentId, amount: verifiedTotal / 100, method, reference, processedByUserId: userId },
+        });
+        const metadata = record.metadata || {};
+        await db.cadenzaEnrollment.update({
+          where: { id: enrollmentId },
+          data: { metadata: {
+            ...metadata,
+            refundStatus: 'RECORDED',
+            refundAmount: verifiedTotal / 100,
+            refundedAt: refund.createdAt.toISOString(),
+            refundReference: reference,
+            refundMethod: method,
+            netPaidAmount: 0,
+            remainingAmount: 0,
+            paymentBalanceDue: 0,
+            paymentContinuationRequired: false,
+          } },
+        });
+        await db.cadenzaAuditLog.create({
+          data: {
+            appId, personId: null, action: 'ENROLLMENT_REFUND_RECORDED',
+            entityType: 'ENROLLMENT', entityId: enrollmentId,
+            description: 'Staff confirmed external refund and recorded ledger deduction',
+            metadata: { refundId: refund.id, amount: verifiedTotal / 100, method, reference, processedByUserId: userId },
+          },
+        });
+        return refund;
+      }, { timeout: 10000 });
+    } catch (error) {
+      if (error?.code === 'P2002') throw new ConflictError('This refund was already recorded.');
+      throw error;
+    }
+  },
   async recordPayment(appId, userId, input) {
     const type = normalizeType(input?.type);
     const id = String(input?.id || '');
