@@ -191,6 +191,25 @@ export const enrollmentRepository = {
     });
   },
 
+  async findCustomerProfile(appId, customerId) {
+    return prisma.cadenzaCustomer.findFirst({
+      where: { appId, id: customerId },
+      select: {
+        person: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            address: true,
+            metadata: true,
+            user: { select: { email: true } },
+          },
+        },
+      },
+    });
+  },
+
   async findActiveEnrollmentsByCustomer(appId, customerId) {
     return prisma.cadenzaEnrollment.findMany({
       where: {
