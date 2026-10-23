@@ -481,20 +481,18 @@ export default function EnrollmentsPage() {
 
                     <div>
                       <p className="text-xs text-muted-foreground">
-                        Start Date
+                        Enrollment Start Date & Time
                       </p>
 
                       <p className="font-medium">
-                        {selectedEnrollment.sessions?.[0]?.scheduledStart
-                          ? new Date(
-                              selectedEnrollment.sessions[0].scheduledStart,
-                            ).toLocaleDateString()
+                        {selectedEnrollment.sessions?.length
+                          ? new Date(Math.min(...selectedEnrollment.sessions.map((session) => new Date(session.scheduledStart).getTime()))).toLocaleString('en-PH')
                           : '—'}
                       </p>
                     </div>
 
                     <div>
-                      <p className="text-xs text-muted-foreground">Enrollment End Date</p>
+                      <p className="text-xs text-muted-foreground">Enrollment End Date & Time</p>
                       <p className="font-medium">
                         {selectedEnrollment.sessions?.length
                           ? new Date(Math.max(...selectedEnrollment.sessions.map((session) => new Date(session.scheduledEnd).getTime()))).toLocaleString('en-PH')
