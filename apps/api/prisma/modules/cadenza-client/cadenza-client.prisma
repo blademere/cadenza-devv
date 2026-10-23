@@ -410,6 +410,22 @@ model CadenzaCashierPayment {
   @@index([appId, transactionType, sourceId, createdAt])
 }
 
+model CadenzaEnrollmentRefund {
+  id                String   @id @default(uuid())
+  appId             String
+  enrollmentId      String
+  amount            Decimal  @db.Decimal(19, 4)
+  method            String
+  reference         String
+  processedByUserId Int
+  createdAt         DateTime @default(now())
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, enrollmentId])
+  @@index([appId, createdAt])
+}
+
 model CadenzaAuditLog {
   id          String   @id @default(uuid())
   appId       String
