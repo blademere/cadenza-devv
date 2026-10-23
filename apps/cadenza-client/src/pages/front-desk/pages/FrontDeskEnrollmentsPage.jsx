@@ -452,17 +452,6 @@ export default function EnrollmentsPage() {
 
                     <div>
                       <p className="text-xs text-muted-foreground">
-                        Instructor
-                      </p>
-
-                      <p className="font-medium">
-                        {selectedEnrollment.sessions?.[0]?.instructorName ||
-                          '—'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-muted-foreground">
                         Instrument
                       </p>
 
