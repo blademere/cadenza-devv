@@ -12,7 +12,7 @@ export const normalizePaymentReference = (reference) => {
 // Payment verification remains manual; a reference is NOT proof of payment.
 export const assertUnusedPaymentReference = async (appId, reference) => {
   const normalized = normalizePaymentReference(reference);
-  const filters = { appId, metadata: { path: ['paymentReference'], string_equals: reference.trim(), mode: 'insensitive' } };
+  const filters = { appId, metadata: { path: ['paymentReference'], string_equals: normalized } };
   const [enrollment, room, rental, cashier] = await Promise.all([
     prisma.cadenzaEnrollment.findFirst({ where: filters, select: { id: true } }),
     prisma.cadenzaRoomBooking.findFirst({ where: filters, select: { id: true } }),
