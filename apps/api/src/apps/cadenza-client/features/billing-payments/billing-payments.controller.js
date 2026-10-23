@@ -4,6 +4,16 @@ export const billingPaymentsController = {
     try { return res.json({ success: true, data: await billingPaymentsService.listPayments(req.cadenzaApp.id) }); }
     catch (error) { return next(error); }
   },
+  async getBookingRentalRefundQuote(req, res, next) {
+    try {
+      return res.json({ success: true, data: await billingPaymentsService.getBookingRentalRefundQuote(req.cadenzaApp.id, req.params.type, req.params.id) });
+    } catch (error) { return next(error); }
+  },
+  async recordBookingRentalRefund(req, res, next) {
+    try {
+      return res.json({ success: true, data: await billingPaymentsService.recordBookingRentalRefund(req.cadenzaApp.id, req.user.id, req.params.type, req.params.id, req.body) });
+    } catch (error) { return next(error); }
+  },
   async getEnrollmentRefundQuote(req, res, next) {
     try {
       const result = await billingPaymentsService.getEnrollmentRefundQuote(req.cadenzaApp.id, req.params.id);
