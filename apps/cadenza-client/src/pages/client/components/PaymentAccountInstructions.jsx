@@ -13,6 +13,7 @@ export default function PaymentAccountInstructions() {
   useEffect(() => {
     let active = true;
     const objectUrls = [];
+    const failedAccountIds = [];
 
     const load = async () => {
       try {
@@ -21,12 +22,15 @@ export default function PaymentAccountInstructions() {
         setAccounts(paymentAccounts);
         const results = await Promise.allSettled(paymentAccounts.filter((account) => account.hasQr).map(async (account) => {
           const response = await getPaymentAccountQr(account.id);
-          const url = URL.createObjectURL(await response.blob());
+          const blob = await response.blob();
+          if (!blob.type.startsWith('image/') || blob.size === 0) throw new Error('Invalid QR image');
+          const url = URL.createObjectURL(blob);
           objectUrls.push(url);
           return [account.id, url];
         }));
         if (active) {
           setQrUrls(Object.fromEntries(results.filter((result) => result.status === 'fulfilled').map((result) => result.value)));
+          if (results.some((result) => result.status === 'rejected')) setError('Some QR images could not be loaded. Check payment QR storage on the server.');
         }
       } catch (requestError) {
         if (active) setError(requestError?.message || 'Unable to load payment accounts.');
