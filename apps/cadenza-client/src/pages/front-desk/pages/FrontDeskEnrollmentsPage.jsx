@@ -212,7 +212,7 @@ export default function EnrollmentsPage() {
       setRefundQuote(quote);
       setSelectedEnrollment((current) => current ? {
         ...current,
-        metadata: { ...current.metadata, refundStatus: 'RECORDED', refundAmount: quote.refundedAmount },
+        metadata: { ...current.metadata, refundStatus: 'RECORDED', paymentStatus: 'REFUNDED', refundAmount: quote.refundedAmount, netPaidAmount: 0 },
       } : current);
       setShowRefundDialog(false);
       setRefundReference('');
