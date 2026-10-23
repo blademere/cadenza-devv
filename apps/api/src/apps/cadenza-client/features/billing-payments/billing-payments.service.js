@@ -20,6 +20,14 @@ const initialPaid = (record) => {
   if (m.paymentStatus === 'PENDING_CONFIRMATION') return 0;
   return Number(m.initialPaymentAmount ?? m.paymentAmount ?? 0);
 };
+const unverifiedSubmittedCents = (record) => {
+  const m = record.metadata || {};
+  if (m.paymentStatus !== 'PENDING_CONFIRMATION') return 0;
+  const total = cents(record.priceAtEnrollment || 0);
+  const stated = cents(m.initialPaymentAmount ?? m.paymentAmount ?? 0);
+  if (!Number.isSafeInteger(total) || !Number.isSafeInteger(stated) || total <= 0 || stated <= 0) return 0;
+  return Math.min(total, stated);
+};
 const cents = (value) => Math.round(Number(value) * 100);
 const validateCents = (value) => {
   if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(String(value))) throw new BadRequestError('Amount must use at most two decimal places.');
@@ -35,7 +43,7 @@ export const billingPaymentsService = {
   async getEnrollmentRefundQuote(appId, enrollmentId) {
     const enrollment = await prisma.cadenzaEnrollment.findFirst({
       where: { id: enrollmentId, appId },
-      select: { id: true, status: true, metadata: true },
+      select: { id: true, status: true, metadata: true, priceAtEnrollment: true },
     });
     if (!enrollment) throw new NotFoundError('Enrollment not found.');
     const [cashierPayments, refund] = await Promise.all([
@@ -54,6 +62,7 @@ export const billingPaymentsService = {
       status: enrollment.status,
       paidAmount: verifiedTotal / 100,
       refundedAmount: refunded / 100,
+      unverifiedSubmittedAmount: unverifiedSubmittedCents(enrollment) / 100,
       refundableAmount: Math.max(0, verifiedTotal - refunded) / 100,
       refund: refund || null,
     };
@@ -77,7 +86,12 @@ export const billingPaymentsService = {
         const cashierPayments = await db.cadenzaCashierPayment.findMany({
           where: { appId, transactionType: 'ENROLLMENT', sourceId: enrollmentId }, select: { amount: true },
         });
-        const verifiedTotal = cents(initialPaid(record)) + cashierPayments.reduce((sum, item) => sum + cents(item.amount), 0);
+        const submittedCents = unverifiedSubmittedCents(record);
+        if (submittedCents > 0 && input?.confirmedReceived !== true) {
+          throw new BadRequestError('Confirm the original payment was received before recording its refund.');
+        }
+        const verifiedTotal = cents(initialPaid(record)) + submittedCents +
+          cashierPayments.reduce((sum, item) => sum + cents(item.amount), 0);
         if (!Number.isSafeInteger(verifiedTotal) || verifiedTotal <= 0) {
           throw new BadRequestError('No confirmed received payment is recorded for this enrollment. Verify receipt before processing a refund.');
         }
@@ -94,6 +108,7 @@ export const billingPaymentsService = {
             refundedAt: refund.createdAt.toISOString(),
             refundReference: reference,
             refundMethod: method,
+            ...(submittedCents > 0 ? { paymentVerifiedAt: new Date().toISOString() } : {}),
             netPaidAmount: 0,
             remainingAmount: 0,
             paymentBalanceDue: 0,
@@ -105,7 +120,7 @@ export const billingPaymentsService = {
             appId, personId: null, action: 'ENROLLMENT_REFUND_RECORDED',
             entityType: 'ENROLLMENT', entityId: enrollmentId,
             description: 'Staff confirmed external refund and recorded ledger deduction',
-            metadata: { refundId: refund.id, amount: verifiedTotal / 100, method, reference, processedByUserId: userId },
+            metadata: { refundId: refund.id, amount: verifiedTotal / 100, method, reference, confirmedOriginalPayment: submittedCents > 0, processedByUserId: userId },
           },
         });
         return refund;
