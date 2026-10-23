@@ -1,3 +1,4 @@
+import { assertUnusedPaymentReference } from '../billing-payments/payment-reference.js';
 import {
   BadRequestError,
   ConflictError,
@@ -376,6 +377,8 @@ export const enrollmentService = {
     courseId,
     customerId,
   ) {
+    await assertUnusedPaymentReference(appId, paymentReference);
+
     const packageItem =
       await enrollmentRepository.findPackageById(
         appId,
