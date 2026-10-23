@@ -41,7 +41,7 @@ const getAddressText = (address) => {
   );
 };
 
-export default function Profile() {
+export default function Profile({ showGuardian = true }) {
   const [form, setForm] = useState(emptyForm);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
@@ -84,8 +84,8 @@ export default function Profile() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.contactNo.trim() || !form.address.trim() || !form.age || !form.gender || !form.guardianName.trim()) {
-      toast.error('First name, last name, contact number, age, gender, address and guardian are required.');
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.contactNo.trim() || !form.address.trim() || !form.age || !form.gender || (showGuardian && !form.guardianName.trim())) {
+      toast.error(showGuardian ? 'First name, last name, contact number, age, gender, address and guardian are required.' : 'First name, last name, contact number, age, gender and address are required.');
       return;
     }
 
@@ -218,7 +218,7 @@ export default function Profile() {
               onChange={updateField('address')}
               required
             />
-            <Field label="Guardian" value={form.guardianName} onChange={updateField('guardianName')} required />
+            {showGuardian && <Field label="Guardian" value={form.guardianName} onChange={updateField('guardianName')} required />}
             <div className="flex justify-end border-t border-border pt-5">
               <button
                 type="submit"
@@ -263,7 +263,7 @@ export default function Profile() {
               <Detail label="Address" value={form.address || 'Not provided'} />
               <Detail label="Age" value={form.age || 'Not provided'} />
               <Detail label="Gender" value={form.gender || 'Not provided'} />
-              <Detail label="Guardian" value={form.guardianName || 'Not provided'} />
+              {showGuardian && <Detail label="Guardian" value={form.guardianName || 'Not provided'} />}
             </div>
           </div>
         )}
