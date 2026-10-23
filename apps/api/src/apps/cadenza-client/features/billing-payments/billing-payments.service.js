@@ -56,14 +56,18 @@ export const billingPaymentsService = {
     const initial = cents(initialPaid(enrollment));
     const recorded = cashierPayments.reduce((sum, item) => sum + cents(item.amount), 0);
     const verifiedTotal = Math.max(0, initial + recorded);
+    const submitted = unverifiedSubmittedCents(enrollment);
     const refunded = refund ? cents(refund.amount) : 0;
+    // Show the submitted payment as refundable only after staff verifies receipt.
+    // Never include an already-recorded refund as available again.
+    const available = refund ? 0 : verifiedTotal + submitted;
     return {
       enrollmentId,
       status: enrollment.status,
       paidAmount: Math.max(verifiedTotal, refunded) / 100,
       refundedAmount: refunded / 100,
-      unverifiedSubmittedAmount: refund ? 0 : unverifiedSubmittedCents(enrollment) / 100,
-      refundableAmount: Math.max(0, verifiedTotal - refunded) / 100,
+      unverifiedSubmittedAmount: refund ? 0 : submitted / 100,
+      refundableAmount: available / 100,
       refund: refund || null,
     };
   },
