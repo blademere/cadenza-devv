@@ -8,13 +8,14 @@ import {
   ShoppingCartIcon,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getOperatingHours, getHoursForDate } from '@/services/operatingHoursService';
 
 import {
   checkInstrumentAvailability,
   getInstrument,
 } from '../services/instrument-rental.service';
 
-const MINIMUM_RENTAL_HOURS = 8;
+const MINIMUM_RENTAL_HOURS = 24;
 
 const formatCurrency = (value) =>
   `₱${Number(value || 0).toLocaleString('en-PH', {
@@ -44,8 +45,8 @@ const getDurationHours = (schedule) => {
   return (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 };
 
-const getEstimate = (instrument, schedule, operationalDurationHours = null) => {
-  const durationHours = operationalDurationHours ?? getDurationHours(schedule);
+const getEstimate = (instrument, schedule) => {
+  const durationHours = getDurationHours(schedule);
 
   const billableHours = durationHours
     ? Math.max(MINIMUM_RENTAL_HOURS, Math.ceil(durationHours))
@@ -115,10 +116,13 @@ export default function CreateInstrumentRental() {
   };
 
   const getDateTimeOptions = (date, isStart, minimumTime = null, instrumentId = null) => {
-    const minDateTime = new Date(Date.now() + 30 * 60 * 1000);
+    const minDateTime = new Date(now + 30 * 60 * 1000);
     const earliest = new Date(Math.ceil(minDateTime.getTime() / (30 * 60 * 1000)) * (30 * 60 * 1000));
     return timeOptions.filter((option) => {
-      if (!date) return false;
+      if (!date || !operatingHours) return false;
+      const hours = getHoursForDate(operatingHours, date);
+      if (!hours || hours.isClosed) return false;
+      if (option.value < hours.startTime || (isStart ? option.value >= hours.endTime : option.value > hours.endTime)) return false;
       const time = new Date(combineDateTime(date, option.value));
       if (Number.isNaN(time.getTime())) return false;
       if (isStart && time < earliest) return false;
@@ -143,14 +147,22 @@ export default function CreateInstrumentRental() {
       return true;
     });
   };
-  const getEightHourReturn = (date, time) => {
-    const end = new Date(new Date(combineDateTime(date, time)).getTime() + 8 * 60 * 60 * 1000);
-    const parts = new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(end).reduce((a,p)=>({...a,[p.type]:p.value}),{});
-    return {date:getDateKey(end),time:`${parts.hour}:${parts.minute}`};
-  };
   const isDateBlocked = (date) => Boolean(date && date < getDateKey());
-  const isRentalStartWithinHours = (schedule) => schedule.start && new Date(schedule.start) > new Date();
+  const isRentalStartWithinHours = (schedule) => schedule.start && new Date(schedule.start).getTime() > now;
+  const [operatingHours, setOperatingHours] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
   const [instruments, setInstruments] = useState([]);
+  useEffect(() => {
+    const refresh = () => setNow(Date.now());
+    const interval = setInterval(refresh, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+  useEffect(() => {
+    let active = true;
+    getOperatingHours().then((hours) => { if (active) setOperatingHours(hours); })
+      .catch(() => { if (active) setError('Unable to load operating hours. Please refresh.'); });
+    return () => { active = false; };
+  }, []);
   const [schedules, setSchedules] = useState({});
   const [availability, setAvailability] = useState({});
   const [reservedTimes, setReservedTimes] = useState({});
@@ -240,94 +252,53 @@ export default function CreateInstrumentRental() {
 
   const updateSchedule = (id, field, value) => {
     setSchedules((current) => {
-      const currentSchedule = current[id] || {};
-
-      const updatedSchedule = {
-        ...currentSchedule,
-        [field]: value,
-      };
-
-      if (field === 'rentalDate' && updatedSchedule.returnDate && updatedSchedule.returnDate < value) {
-        updatedSchedule.returnDate = '';
-        updatedSchedule.endTime = '';
+      const next = { ...(current[id] || {}), [field]: value };
+      if (field === 'rentalDate' || field === 'startTime') {
+        next.returnDate = '';
+        next.endTime = '';
       }
-
-      const rentalDate =
-        field === 'rentalDate'
-          ? value
-          : updatedSchedule.rentalDate;
-
-      const startTime =
-        field === 'startTime'
-          ? value
-          : updatedSchedule.startTime;
-
-      const returnDate =
-        field === 'returnDate'
-          ? value
-          : updatedSchedule.returnDate;
-
-      const endTime =
-        field === 'endTime'
-          ? value
-          : updatedSchedule.endTime;
-
-      return {
-        ...current,
-        [id]: {
-          ...updatedSchedule,
-          start: combineDateTime(
-            rentalDate,
-            startTime,
-          ),
-          end: combineDateTime(
-            returnDate,
-            endTime,
-          ),
-        },
-      };
+      if (field === 'returnDate') next.endTime = '';
+      next.start = combineDateTime(next.rentalDate, next.startTime);
+      next.end = combineDateTime(next.returnDate, next.endTime);
+      return { ...current, [id]: next };
     });
-
-    setAvailability((current) => ({
-      ...current,
-      [id]: null,
-    }));
-
+    setAvailability((current) => ({ ...current, [id]: null }));
     setError('');
   };
 
   const handleRentalDateChange = (id, field, value) => {
-    const currentSchedule = schedules[id] || {};
-    if (field === 'returnDate' && currentSchedule.rentalDate && value < currentSchedule.rentalDate) {
-      updateSchedule(id, field, '');
+    const current = schedules[id] || {};
+    if (field === 'returnDate' && current.rentalDate && value < current.rentalDate) {
+      setError('Return date cannot be before the rental date.');
       return;
     }
     if (isDateBlocked(value)) {
-      updateSchedule(id, field, '');
-      setError('Please choose a future rental date.');
+      setError('Please choose today or a future date.');
       return;
     }
-    if (field === 'rentalDate' && value && (!Array.isArray(reservedTimes[id]) || getDateTimeOptions(value, true, null, id).length === 0)) {
-      updateSchedule(id, field, '');
-      setError('This instrument has no available one-hour start slot on the selected date. Please choose another date.');
+    if (field === 'rentalDate' && value && !getDateTimeOptions(value, true, null, id).length) {
+      setError('No available pickup times during operating hours on this date.');
       return;
     }
     updateSchedule(id, field, value);
-    if (field === 'rentalDate' && currentSchedule.startTime) {
-      const automaticReturn = getEightHourReturn(value, currentSchedule.startTime);
-      updateSchedule(id, 'returnDate', automaticReturn.date);
-      updateSchedule(id, 'endTime', automaticReturn.time);
-    }
   };
 
   const handleRentalStartTimeChange = (id, value) => {
     updateSchedule(id, 'startTime', value);
-    const schedule = schedules[id] || {};
-    if (schedule.rentalDate && value) {
-      const automaticReturn = getEightHourReturn(schedule.rentalDate, value);
-      updateSchedule(id, 'returnDate', automaticReturn.date);
-      updateSchedule(id, 'endTime', automaticReturn.time);
-    }
+  };
+
+  const isScheduleWithinHours = (schedule) => {
+    if (!operatingHours || !schedule?.rentalDate || !schedule?.startTime || !schedule?.returnDate || !schedule?.endTime) return false;
+    const startHours = getHoursForDate(operatingHours, schedule.rentalDate);
+    const endHours = getHoursForDate(operatingHours, schedule.returnDate);
+    return Boolean(
+      startHours && !startHours.isClosed &&
+      endHours && !endHours.isClosed &&
+      schedule.startTime >= startHours.startTime &&
+      schedule.startTime < startHours.endTime &&
+      schedule.endTime >= endHours.startTime &&
+      schedule.endTime <= endHours.endTime
+    );
   };
 
   const checkAvailability = async (instrument) => {
@@ -349,6 +320,11 @@ export default function CreateInstrumentRental() {
     }
 
     const durationHours = getDurationHours(schedule);
+
+    if (!isScheduleWithinHours(schedule)) {
+      setError('Pickup and return must be within operating hours for their respective dates.');
+      return false;
+    }
 
     if (!isRentalStartWithinHours(schedule)) {
       setError(`${getName(instrument)} must start in the future.`);
@@ -450,6 +426,11 @@ export default function CreateInstrumentRental() {
       }
 
       const durationHours = getDurationHours(schedule);
+
+      if (!isScheduleWithinHours(schedule)) {
+        setError('Pickup and return must be within operating hours for their respective dates.');
+        return;
+      }
 
       if (!isRentalStartWithinHours(schedule)) {
         setError(`${getName(instrument)} must start in the future.`);
@@ -667,7 +648,7 @@ export default function CreateInstrumentRental() {
                       {formatCurrency(
                         instrument.rentalRate,
                       )}{' '}
-                      / 8 hours
+                      / 24 hours
                     </p>
                   </div>
                 </div>
@@ -1025,8 +1006,7 @@ export default function CreateInstrumentRental() {
           </div>
 
           <p className="mt-3 text-xs text-muted-foreground">
-            Each instrument must have at
-            least an 8-hour rental period.
+            Each instrument has a minimum 24-hour billing period; pickup and return times follow operating hours.
           </p>
 
           <button
