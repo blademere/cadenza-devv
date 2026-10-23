@@ -65,9 +65,9 @@ const validateSchedule = (scheduledStart, scheduledEnd, operatingHours = null) =
     ? getOperationalMinutesBetween(operatingHours, start, end) / 60
     : (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
-  if (durationHours < (operatingHours ? WALK_IN_MINIMUM_HOURS : 1)) {
+  if (durationHours < (operatingHours ? WALK_IN_MINIMUM_HOURS : MINIMUM_RENTAL_HOURS)) {
     throw new BadRequestError(
-      `The minimum rental period is ${operatingHours ? WALK_IN_MINIMUM_HOURS : 1} hour(s).`,
+      `The minimum rental period is ${operatingHours ? WALK_IN_MINIMUM_HOURS : MINIMUM_RENTAL_HOURS} hour(s).`,
     );
   }
 
