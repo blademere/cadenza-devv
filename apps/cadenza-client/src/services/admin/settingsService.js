@@ -62,6 +62,12 @@ export async function updateBankAccountStatus(id, status) {
   return unwrap(await apiClient.patch(`${BANK_ACCOUNTS_ENDPOINT}/${id}`, { status }));
 }
 
+export async function replaceBankAccountQr(id, file) {
+  const formData = new FormData();
+  formData.append('qr', file);
+  return unwrap(await apiClient.put(`${BANK_ACCOUNTS_ENDPOINT}/${id}/qr`, formData));
+}
+
 export async function getBankAccountQr(id) {
   return apiClient.file(`${BANK_ACCOUNTS_ENDPOINT}/${id}/qr`);
 }
