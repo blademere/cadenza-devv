@@ -22,6 +22,16 @@ export const enrollmentService = {
     };
   },
 
+  async getRefundQuote(enrollmentId) {
+    const response = await apiClient.get(`/billing-payments/enrollments/${enrollmentId}/refund`);
+    return response.data?.data ?? response.data;
+  },
+
+  async recordRefund(enrollmentId, data) {
+    const response = await apiClient.post(`/billing-payments/enrollments/${enrollmentId}/refund`, data);
+    return response.data?.data ?? response.data;
+  },
+
   async approveEnrollment(enrollmentId) {
     const response = await apiClient.patch(
       `/enrollments/${enrollmentId}/approve`,
