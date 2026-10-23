@@ -14,6 +14,7 @@ import studentsRoutes from './features/students/students.routes.js';
 import reportsRoutes from './features/reports/reports.routes.js';
 import billingPaymentsRoutes from './features/billing-payments/billing-payments.routes.js';
 import profileRoutes from '../../features/profile/profile.routes.js';
+import { listNotifications } from '../../features/notifications/notification.service.js';
 
 import { coursesController } from './features/courses/courses.controller.js';
 
@@ -43,6 +44,15 @@ router.use('/students', studentsRoutes);
 router.use('/reports', reportsRoutes);
 router.use('/billing/payments', billingPaymentsRoutes);
 router.use('/users', profileRoutes);
+
+router.get('/notifications', async (req, res, next) => {
+  try {
+    const result = await listNotifications({ userId: req.user.id, page: 1, limit: 100 });
+    return res.json({ success: true, data: result.data, pagination: result.pagination });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 router.get('/courses/:courseId/:filename', coursesController.getCourseFile);
 
