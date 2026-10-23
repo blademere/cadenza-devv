@@ -419,11 +419,34 @@ const checkOut = async ({ appId, id, checkedOutAt }) => {
     throw new BadRequestError('Check-out time must be on or after check-in time.');
   }
 
+  // The snapshot rate and rate duration are authoritative for the booking.
+  // Charge one additional rate unit for any fraction of a unit past the registered end.
+  const bookedEnd = new Date(booking.metadata?.originalScheduledEnd || booking.scheduledEnd);
+  const rate = Number(booking.rateAtBooking);
+  const rateHours = Number(booking.durationHoursAtBooking);
+  if (!Number.isFinite(bookedEnd.getTime()) || !Number.isFinite(rate) || rate < 0 ||
+      !Number.isFinite(rateHours) || rateHours <= 0) {
+    throw new BadRequestError('Room rate or booking duration is invalid. Contact an administrator.');
+  }
+  const excessMinutes = Math.max(0, Math.ceil((actualEnd.getTime() - bookedEnd.getTime()) / 60000));
+  const excessUnits = excessMinutes ? Math.ceil(excessMinutes / (rateHours * 60)) : 0;
+  const excessAmount = Math.round((excessUnits * rate + Number.EPSILON) * 100) / 100;
+  const originalTotal = Number(booking.totalAmount);
+  if (!Number.isFinite(originalTotal) || originalTotal < 0) {
+    throw new BadRequestError('The booking total is invalid.');
+  }
   const result = await repository.updateCheckOut(id, appId, {
     status: 'COMPLETED',
+    totalAmount: Math.round((originalTotal + excessAmount + Number.EPSILON) * 100) / 100,
     metadata: {
       ...(booking.metadata || {}),
       checkedOutAt: actualEnd.toISOString(),
+      excessMinutes,
+      excessUnits,
+      excessRate: rate,
+      excessRateDurationHours: rateHours,
+      excessAmount,
+      originalTotalAmount: originalTotal,
     },
   });
   if (!result.count) throw new ConflictError('This room booking was already updated.');
