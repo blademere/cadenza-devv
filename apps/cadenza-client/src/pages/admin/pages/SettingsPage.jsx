@@ -63,6 +63,7 @@ import {
   getBankAccounts,
   createBankAccount,
   updateBankAccountStatus,
+  replaceBankAccountQr,
   getBankAccountQr,
 } from '@/services/admin/settingsService';
 
@@ -321,6 +322,28 @@ export default function SettingsPage() {
       toast.success(`Bank account ${status === 'ACTIVE' ? 'activated' : 'deactivated'}.`);
     } catch (error) { toast.error(error?.message || 'Failed to update bank account.'); }
     finally { setBankAccountUpdating(null); }
+  };
+
+  const replaceQrForAccount = async (account, file) => {
+    if (!file) return;
+    try {
+      setBankAccountUpdating(account.id);
+      const updated = await replaceBankAccountQr(account.id, file);
+      setBankAccounts((current) => current.map((item) =>
+        item.id === account.id ? updated : item,
+      ));
+      const previousUrl = bankAccountQrUrlsRef.current[account.id];
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
+      const nextUrls = { ...bankAccountQrUrlsRef.current };
+      delete nextUrls[account.id];
+      bankAccountQrUrlsRef.current = nextUrls;
+      setBankAccountQrUrls(nextUrls);
+      toast.success('QR image replaced. Clients can now load the updated QR.');
+    } catch (error) {
+      toast.error(error?.message || 'Unable to replace QR image.');
+    } finally {
+      setBankAccountUpdating(null);
+    }
   };
 
   const viewBankAccountQr = async (account) => {
@@ -761,7 +784,25 @@ export default function SettingsPage() {
                           <TableCell>{account.accountNumber}</TableCell>
                           <TableCell>{account.hasQr ? <Button type="button" variant="ghost" size="sm" onClick={() => viewBankAccountQr(account)}>View QR</Button> : 'Not uploaded'}</TableCell>
                           <TableCell>{account.status === 'ACTIVE' ? 'Active' : 'Inactive'}</TableCell>
-                          <TableCell className="text-right"><Button type="button" variant="ghost" size="sm" disabled={bankAccountUpdating === account.id} onClick={() => toggleBankAccount(account)}>{bankAccountUpdating === account.id ? 'Saving...' : account.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</Button></TableCell>
+                          <TableCell className="text-right">
+                             <div className="flex flex-wrap items-center justify-end gap-2">
+                               <label className="cursor-pointer rounded-md border px-3 py-1.5 text-xs font-medium">
+                                 Replace QR
+                                 <input
+                                   type="file"
+                                   accept="image/png,image/jpeg,image/webp"
+                                   className="sr-only"
+                                   disabled={bankAccountUpdating === account.id}
+                                   onChange={async (event) => {
+                                     const file = event.target.files?.[0];
+                                     event.target.value = '';
+                                     await replaceQrForAccount(account, file);
+                                   }}
+                                 />
+                               </label>
+                               <Button type="button" variant="ghost" size="sm" disabled={bankAccountUpdating === account.id} onClick={() => toggleBankAccount(account)}>{bankAccountUpdating === account.id ? 'Saving...' : account.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</Button>
+                             </div>
+                           </TableCell>
                         </TableRow>
                       ))}</TableBody>
                     </Table>
