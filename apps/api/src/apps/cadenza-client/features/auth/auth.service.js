@@ -413,7 +413,7 @@ const OTP_TTL_MS = 10 * 60 * 1000;
 const createOtp = () => String(crypto.randomInt(100000, 1000000));
 const otpHash = (email, otp) => hashToken(`cadenza-email-otp:${email}:${otp}`);
 
-const requestEmailOtp = async ({ email, purpose }) => {
+const requestEmailOtp = async ({ email, purpose, password }) => {
   const normalizedEmail = email.trim().toLowerCase();
   const application = await cadenzaAuthRepository.findApplication();
   if (!application || !application.isActive) throw new BadRequestError('Cadenza application is unavailable.');
@@ -425,6 +425,10 @@ const requestEmailOtp = async ({ email, purpose }) => {
   } else if (!user || !user.isActive) {
     throw new UnauthorizedError('No active account was found for this email.');
   } else {
+    if (!user.passwordHash || typeof password !== 'string' ||
+        !(await bcrypt.compare(password, user.passwordHash))) {
+      throw new UnauthorizedError('Invalid credentials.');
+    }
     const account = await getAccount(user.id, application.id);
     if (account.type !== 'CLIENT') {
       throw new UnauthorizedError('Invalid credentials.');
