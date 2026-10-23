@@ -96,4 +96,8 @@ export const settingsRepository = {
   updateBankAccount(appId, id, data) {
     return prisma.cadenzaBankAccount.updateMany({ where: { appId, id }, data });
   },
+
+  updateBankAccountQr(appId, id, data) {
+    return prisma.cadenzaBankAccount.updateMany({ where: { appId, id }, data });
+  },
 };
