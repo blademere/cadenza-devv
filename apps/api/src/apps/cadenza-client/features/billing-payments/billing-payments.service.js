@@ -2,6 +2,33 @@ import { BadRequestError, NotFoundError, ConflictError } from '../../../../commo
 import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
 const prisma = getPrismaClient();
+const refundNotification = async (db, { appId, customerId, transactionType, sourceId, refund }) => {
+  const customer = await db.cadenzaCustomer.findFirst({
+    where: { appId, id: customerId },
+    select: { person: { select: { userId: true } } },
+  });
+  const recipientId = customer?.person?.userId;
+  if (!recipientId) return;
+  const name = transactionType === 'ENROLLMENT' ? 'Enrollment' :
+    transactionType === 'ROOM_BOOKING' ? 'Room booking' : 'Instrument rental';
+  const amount = Number(refund.amount).toLocaleString('en-PH', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
+  await db.notification.upsert({
+    where: { idempotencyKey: `cadenza-refund:${refund.id}` },
+    create: {
+      userId: recipientId,
+      type: 'PAYMENT_REFUNDED',
+      title: `${name} refund recorded`,
+      message: `Your ${name.toLowerCase()} refund of ₱${amount} has been recorded. Refund reference: ${refund.reference}.`,
+      data: { appId, transactionType, sourceId, refundId: refund.id, amount: Number(refund.amount), reference: refund.reference, method: refund.method },
+      idempotencyKey: `cadenza-refund:${refund.id}`,
+    },
+    update: {},
+  });
+};
+
+
 const normalizeType = (type) => {
   const value = String(type || '').toUpperCase().replace(/[ -]/g, '_');
   if (['ENROLLMENT', 'ROOM_BOOKING', 'INSTRUMENT_RENTAL'].includes(value)) return value;
@@ -135,6 +162,9 @@ export const billingPaymentsService = {
             metadata: { refundId: refund.id, amount: paid / 100, method, reference, processedByUserId: userId },
           },
         });
+        await refundNotification(db, {
+          appId, customerId: record.customerId, transactionType, sourceId, refund,
+        });
         return refund;
       }, { timeout: 10000 });
     } catch (error) {
@@ -230,6 +260,9 @@ export const billingPaymentsService = {
             description: 'Staff confirmed external refund and recorded ledger deduction',
             metadata: { refundId: refund.id, amount: verifiedTotal / 100, method, reference, confirmedOriginalPayment: submittedCents > 0, processedByUserId: userId },
           },
+        });
+        await refundNotification(db, {
+          appId, customerId: record.customerId, transactionType: 'ENROLLMENT', sourceId: enrollmentId, refund,
         });
         return refund;
       }, { timeout: 10000 });
