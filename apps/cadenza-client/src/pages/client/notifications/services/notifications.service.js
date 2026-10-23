@@ -1,3 +1,4 @@
+import { apiClient } from '@/core/api/apiClient';
 import { getMyEnrollment } from '@/pages/client/enrollments/services/enrollmentServices';
 import roomBookingService from '@/pages/client/room-bookings/services/roomBookingsService';
 import { getMyInstrumentRentals } from '@/pages/client/instrument-rentals/services/instrument-rental.service';
@@ -73,14 +74,35 @@ export async function getMyNotifications() {
     getMyEnrollment(),
     roomBookingService.getMyRoomBookings(),
     getMyInstrumentRentals(),
+    apiClient.get('/notifications'),
   ]);
 
   if (results.every((result) => result.status === 'rejected')) {
     throw results[0].reason || new Error('Unable to load client notifications.');
   }
 
-  const [enrollments, bookings, rentals] = results.map((result) => result.status === 'fulfilled' ? result.value : []);
+  const [enrollments, bookings, rentals, savedResponse] = results.map((result) => result.status === 'fulfilled' ? result.value : []);
+  const saved = savedResponse?.data?.data ?? savedResponse?.data ?? [];
+  const refundNotifications = asList(saved).filter((item) => item.type === 'PAYMENT_REFUNDED').map((item) => {
+    const transactionType = item.data?.transactionType;
+    const id = item.data?.sourceId;
+    const href = transactionType === 'ENROLLMENT'
+      ? `/client/enrollments/${id}`
+      : transactionType === 'ROOM_BOOKING'
+        ? `/client/room-bookings/${id}`
+        : `/client/instrument-rentals/${id}`;
+    return {
+      id: item.id,
+      type: 'PAYMENT',
+      title: item.title,
+      message: item.message,
+      status: 'REFUNDED',
+      href: id ? href : '/client/notifications',
+      createdAt: item.createdAt,
+    };
+  });
   return [
+    ...refundNotifications,
     ...asList(enrollments).map(enrollmentNotification),
     ...asList(bookings).map(roomBookingNotification),
     ...asList(rentals).map(rentalNotification),
