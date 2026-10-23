@@ -8,8 +8,8 @@ export const getGoogleOAuthUrl = () => {
 };
 
 export const authService = {
-  async requestOtp({ email, purpose }) {
-    const response = await apiClient.post('/auth/otp/request', { email, purpose });
+  async requestOtp({ email, purpose, password }) {
+    const response = await apiClient.post('/auth/otp/request', { email, purpose, ...(purpose === 'login' ? { password } : {}) });
     return response?.data ?? response;
   },
 
