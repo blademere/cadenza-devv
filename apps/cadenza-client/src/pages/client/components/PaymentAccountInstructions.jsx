@@ -21,7 +21,9 @@ export default function PaymentAccountInstructions() {
         const paymentAccounts = await getPaymentAccounts();
         if (!active) return;
         setAccounts(paymentAccounts);
-        const results = await Promise.all(paymentAccounts.filter((account) => account.hasQr).map(async (account) => {
+        // Request each QR directly, even when the API's availability metadata is stale.
+        // The image endpoint is authoritative; a missing file returns a helpful error.
+        const results = await Promise.all(paymentAccounts.map(async (account) => {
           try {
             const response = await getPaymentAccountQr(account.id);
             const blob = await response.blob();
@@ -94,7 +96,7 @@ export default function PaymentAccountInstructions() {
             <div className="mt-5 border-t pt-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">QR payment code</p>
               <div className="mt-3 flex min-h-72 w-full items-center justify-center overflow-hidden rounded-lg bg-white p-3 sm:min-h-96 sm:p-5">
-                {qrUrls[account.id] ? <img src={qrUrls[account.id]} alt={`${account.bankName} payment QR`} className="h-auto max-h-[32rem] w-full rounded-md object-contain" /> : <div className="flex min-h-72 w-full flex-col items-center justify-center gap-2 rounded-md bg-muted p-4 text-center text-xs text-muted-foreground sm:min-h-96"><p className="font-semibold">QR unavailable</p><p>{qrErrors[account.id] || (account.hasQr ? "Unable to retrieve this QR image. Please refresh." : "The QR image is missing from the server. Ask an administrator to use Replace QR in Payment Bank Accounts.")}</p><p>You can still view and copy the account number above.</p></div>}
+                {qrUrls[account.id] ? <img src={qrUrls[account.id]} alt={`${account.bankName} payment QR`} className="h-auto max-h-[32rem] w-full rounded-md object-contain" /> : <div className="flex min-h-72 w-full flex-col items-center justify-center gap-2 rounded-md bg-muted p-4 text-center text-xs text-muted-foreground sm:min-h-96"><p className="font-semibold">QR unavailable</p><p>{qrErrors[account.id] || "Unable to retrieve this QR image. Ask an administrator to verify persistent QR storage and replace the missing QR image."}</p><p>You can still view and copy the account number above.</p></div>}
               </div>
             </div>
           </div>
