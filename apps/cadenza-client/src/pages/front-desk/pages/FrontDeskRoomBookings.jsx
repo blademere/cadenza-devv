@@ -1,3 +1,4 @@
+import TransactionRefundPanel from '../components/TransactionRefundPanel';
 import { useEffect, useState } from 'react';
 import { RefreshCwIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -647,6 +648,22 @@ export default function FrontDeskRoomBookings() {
                         ).toLocaleString()}
                         .
                       </div>
+                    )}
+                    {['Rejected', 'CANCELLED', 'REJECTED'].includes(selectedBooking.status) && (
+                      <TransactionRefundPanel
+                        type="ROOM_BOOKING"
+                        transactionId={selectedBooking.id}
+                        onRefundRecorded={(quote) => {
+                          setSelectedBooking((current) => current ? {
+                            ...current, paymentStatus: 'REFUNDED',
+                            metadata: { ...current.metadata, refundStatus: 'RECORDED', refundAmount: quote.refundedAmount, paymentStatus: 'REFUNDED', netPaidAmount: 0 },
+                          } : current);
+                          setBookings((current) => current.map((item) => item.id === selectedBooking.id ? {
+                            ...item, paymentStatus: 'REFUNDED',
+                            metadata: { ...item.metadata, refundStatus: 'RECORDED', refundAmount: quote.refundedAmount, paymentStatus: 'REFUNDED' },
+                          } : item));
+                        }}
+                      />
                     )}
                     {cancellationMode && (
                       <div>
