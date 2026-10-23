@@ -627,11 +627,8 @@ export const instrumentRentalsService = {
         paymentReference: paymentReference.trim(),
         paymentPlan: selectedPaymentPlan,
         paymentMethod,
-        paymentStatus:
-          selectedPaymentPlan === 'DOWN_PAYMENT'
-            ? 'PARTIALLY_PAID'
-            : 'PAID',
-        paymentCompletedAt: new Date().toISOString(),
+        paymentStatus: status === 'APPROVED' ? 'PAID' : 'PENDING_CONFIRMATION',
+        ...(status === 'APPROVED' ? { paymentCompletedAt: new Date().toISOString() } : {}),
         initialPaymentAmount,
         remainingAmount: totalAmount - initialPaymentAmount,
       },
