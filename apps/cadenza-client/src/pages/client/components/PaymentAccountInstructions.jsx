@@ -19,13 +19,15 @@ export default function PaymentAccountInstructions() {
         const paymentAccounts = await getPaymentAccounts();
         if (!active) return;
         setAccounts(paymentAccounts);
-        const entries = await Promise.all(paymentAccounts.filter((account) => account.hasQr).map(async (account) => {
+        const results = await Promise.allSettled(paymentAccounts.filter((account) => account.hasQr).map(async (account) => {
           const response = await getPaymentAccountQr(account.id);
           const url = URL.createObjectURL(await response.blob());
           objectUrls.push(url);
           return [account.id, url];
         }));
-        if (active) setQrUrls(Object.fromEntries(entries));
+        if (active) {
+          setQrUrls(Object.fromEntries(results.filter((result) => result.status === 'fulfilled').map((result) => result.value)));
+        }
       } catch (requestError) {
         if (active) setError(requestError?.message || 'Unable to load payment accounts.');
       } finally {

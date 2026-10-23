@@ -35,7 +35,12 @@ export default function RoomBookingPaymentPage() {
     : null
   const durationHours =
     start && end ? (end.getTime() - start.getTime()) / (1000 * 60 * 60) : 0
-  const totalAmount = Number(room?.rentalRate || 0) * durationHours
+  const rateDurationHours = Number(room?.rentalDurationHours)
+  const totalAmount =
+    Number.isFinite(durationHours) && durationHours > 0 &&
+    Number.isFinite(rateDurationHours) && rateDurationHours > 0
+      ? Number(room?.rentalRate || 0) * Math.ceil(durationHours / rateDurationHours)
+      : 0
   const amountDue =
     checkout?.paymentPlan === 'DOWN_PAYMENT'
       ? totalAmount * 0.5
@@ -44,6 +49,13 @@ export default function RoomBookingPaymentPage() {
   const handlePay = async () => {
     if (!checkout?.room?.id || !checkout?.paymentPlan) {
       setError('No pending room booking was found.')
+      return
+    }
+    if (!start || !end || !Number.isFinite(durationHours) || durationHours < 1 ||
+        !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) ||
+        !Number.isFinite(rateDurationHours) || rateDurationHours <= 0 ||
+        !Number.isFinite(totalAmount) || totalAmount <= 0) {
+      setError('Invalid booking schedule or room rate. Please select your room again.')
       return
     }
     if (paymentReference.trim().length < 3) {
