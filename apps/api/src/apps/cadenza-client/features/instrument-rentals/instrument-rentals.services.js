@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { assertUnusedPaymentReference } from '../billing-payments/payment-reference.js';
 import {
   BadRequestError,
@@ -525,7 +526,10 @@ export const instrumentRentalsService = {
     scheduledStart,
     scheduledEnd,
     paymentMethod = 'CASH',
+    paymentReference = null,
   }) {
+    if (paymentMethod === 'GCASH' && !paymentReference?.trim()) throw new BadRequestError('GCash reference is required.');
+    if (paymentReference?.trim()) await assertUnusedPaymentReference(appId, paymentReference);
     const walkInCustomer = await createWalkInCustomer({ appId, ...customer });
     return this.createInstrumentRental({
       appId,
@@ -538,6 +542,7 @@ export const instrumentRentalsService = {
       scheduledEnd,
       paymentPlan: 'FULL_PAYMENT',
       paymentMethod,
+      paymentReference: paymentReference?.trim() || `WALKIN-${randomUUID()}`,
       status: 'APPROVED',
       metadata: {
         walkIn: true,
