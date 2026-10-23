@@ -39,6 +39,7 @@ const walkInRentalSchema = z.object({
     instrumentIds: z.array(z.uuid()).min(1).optional(),
     rentalPackageId: z.uuid().optional(),
     paymentMethod: z.enum(['CASH', 'GCASH', 'CARD', 'OTHER']).optional(),
+    paymentReference: z.string().trim().min(3).max(100).optional(),
     scheduledStart: z.coerce.date(),
     scheduledEnd: z.coerce.date(),
   }),
