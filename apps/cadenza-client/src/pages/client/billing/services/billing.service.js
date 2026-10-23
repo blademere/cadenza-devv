@@ -25,21 +25,20 @@ const formatDate = (value) => {
 };
 
 const normalizePaymentStatus = (record) => {
-  const metadataStatus = record.metadata?.paymentStatus;
-
-  if (['PAID', 'SUCCEEDED', 'COMPLETED'].includes(metadataStatus)) {
-    return 'PAID';
-  }
-
-  if (record.status === 'CANCELLED') {
-    return 'CANCELLED';
-  }
-
-  if (['FAILED', 'REFUNDED'].includes(metadataStatus)) {
-    return metadataStatus;
-  }
-
-  return 'PENDING';
+  const status = String(record.metadata?.paymentStatus || '').toUpperCase();
+  if (record.status === 'CANCELLED') return 'CANCELLED';
+  if (['REJECTED', 'FAILED'].includes(status)) return 'REJECTED';
+  if (status === 'REFUNDED') return 'REFUNDED';
+  if (['PENDING_CONFIRMATION', 'PENDING_VERIFICATION', 'PENDING'].includes(status)) return 'PENDING_VERIFICATION';
+  if (['PARTIALLY_PAID', 'PARTIAL'].includes(status)) return 'PARTIALLY_PAID';
+  if (['PAID', 'SUCCEEDED', 'COMPLETED', 'SUCCESSFUL'].includes(status)) return 'PAID';
+  return 'PENDING_VERIFICATION';
+};
+const amounts = (record, total) => {
+  const metadata = record.metadata || {};
+  const isVerified = ['PAID', 'PARTIALLY_PAID', 'COMPLETED'].includes(normalizePaymentStatus(record));
+  const paid = isVerified ? Math.min(total, Math.max(0, Number(metadata.paymentAmount ?? metadata.initialPaymentAmount ?? total) || 0)) : 0;
+  return { totalAmount: total, amountPaid: paid, remainingBalance: Math.max(0, total - paid), claimedAmount: Number(metadata.initialPaymentAmount ?? metadata.paymentAmount ?? 0) || 0 };
 };
 
 const mapEnrollment = (enrollment) => {
@@ -57,12 +56,15 @@ const mapEnrollment = (enrollment) => {
     serviceId: enrollment.id,
     serviceName,
     serviceDescription: 'Music lesson enrollment.',
-    amount: Number(metadata.paymentAmount ?? enrollment.price ?? 0),
+    amount: Number(enrollment.priceAtEnrollment ?? enrollment.price ?? 0),
+    ...amounts(enrollment, Number(enrollment.priceAtEnrollment ?? enrollment.price ?? 0)),
     currency: 'PHP',
     paymentMethod: metadata.paymentMethod || 'QR',
     paymentStatus: normalizePaymentStatus(enrollment),
     transactionDate: formatDate(enrollment.createdAt),
     paidAt: formatDate(metadata.paymentCompletedAt),
+    rawDate: booking.createdAt || booking.scheduledStart,
+    rawDate: enrollment.createdAt,
     notes:
       metadata.paymentStatus === 'PENDING_CONFIRMATION'
         ? 'Payment reference submitted for front desk confirmation.'
@@ -84,6 +86,7 @@ const mapRoomBooking = (booking) => {
     serviceName,
     serviceDescription: 'Music room booking.',
     amount: Number(booking.totalAmount || 0),
+    ...amounts(booking, Number(booking.totalAmount || 0)),
     currency: 'PHP',
     paymentMethod: metadata.paymentMethod || 'QR',
     paymentStatus: normalizePaymentStatus(booking),
@@ -106,6 +109,7 @@ const mapRental = (rental) => {
     serviceName,
     serviceDescription: 'Instrument rental.',
     amount: Number(rental.totalAmount || 0),
+    ...amounts(rental, Number(rental.totalAmount || 0)),
     currency: 'PHP',
     paymentMethod: metadata.paymentMethod || 'QR',
     paymentStatus: normalizePaymentStatus(rental),
