@@ -22,7 +22,7 @@ const passwordResetRequestSchema = z.object({
   body: z.object({ email: z.email().trim().toLowerCase() }),
 })
 const emailOtpRequestSchema = z.object({
-  body: z.object({ email: z.email().trim().toLowerCase(), purpose: z.enum(['signup', 'login']) }),
+  body: z.object({ email: z.email().trim().toLowerCase(), purpose: z.enum(['signup', 'login']), password: z.string().min(1).max(1024).optional() }).superRefine((data, ctx) => { if (data.purpose === 'login' && !data.password) ctx.addIssue({ code: 'custom', path: ['password'], message: 'Password is required.' }); }),
 })
 const emailOtpVerifySchema = z.object({
   body: z.object({ email: z.email().trim().toLowerCase(), otp: z.string().regex(/^\d{6}$/), purpose: z.enum(['signup', 'login']) }),
