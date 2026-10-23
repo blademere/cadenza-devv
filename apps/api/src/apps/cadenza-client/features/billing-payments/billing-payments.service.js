@@ -104,6 +104,7 @@ export const billingPaymentsService = {
           data: { metadata: {
             ...metadata,
             refundStatus: 'RECORDED',
+            paymentStatus: 'REFUNDED',
             refundAmount: verifiedTotal / 100,
             refundedAt: refund.createdAt.toISOString(),
             refundReference: reference,
