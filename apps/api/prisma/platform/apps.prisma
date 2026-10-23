@@ -26,6 +26,7 @@ model App {
   cadenzaItemCategories         CadenzaItemCategory[]
   cadenzaAuditLogs              CadenzaAuditLog[]
   cadenzaCashierPayments        CadenzaCashierPayment[]
+  cadenzaEnrollmentRefunds      CadenzaEnrollmentRefund[]
   cadenzaInstruments            CadenzaInstrument[]
   cadenzaRooms                  CadenzaRoom[]
   cadenzaRoomCourses            CadenzaRoomCourse[]
