@@ -111,6 +111,17 @@ export const settingsController = {
     } catch (error) { next(error); }
   },
 
+  async replaceBankAccountQr(req, res, next) {
+    try {
+      const data = await settingsService.replaceBankAccountQr(
+        req.cadenzaApp.id,
+        req.params.id,
+        req.file,
+      );
+      return res.json({ success: true, message: 'QR image updated successfully.', data });
+    } catch (error) { next(error); }
+  },
+
   async updateBankAccount(req, res, next) {
     try {
       const data = await settingsService.updateBankAccount(req.cadenzaApp.id, req.params.id, req.body?.status);
