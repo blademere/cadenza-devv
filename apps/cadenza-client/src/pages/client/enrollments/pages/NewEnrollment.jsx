@@ -106,7 +106,8 @@ export default function NewEnrollment() {
       studentDetails.address.trim() &&
       studentDetails.age &&
       studentDetails.gender &&
-      studentDetails.contactNo.trim(),
+      studentDetails.contactNo.trim() &&
+      studentDetails.guardianName.trim(),
   );
 
   useEffect(() => {
@@ -363,13 +364,26 @@ export default function NewEnrollment() {
         '0',
       )}:${String(selectedStartRule.startMinute % 60).padStart(2, '0')}`
     : '';
-  const scheduleEndDate =
-    startDate && Number(selectedPackage?.numberOfSessions) > 0
-      ? addDaysToDateKey(
-          startDate,
-          Number(selectedPackage.numberOfSessions) - 1,
-        )
-      : '';
+  // End date is the date of the final recurring lesson, not the number of calendar days.
+  const scheduleEndDate = useMemo(() => {
+    const total = Number(selectedPackage?.numberOfSessions || 0);
+    const perWeek = Number(selectedPackage?.sessionsPerWeek || 0);
+    if (!startDate || !total || !perWeek || selectedAvailability.length < perWeek) return '';
+    const rules = [...selectedAvailability]
+      .sort((a, b) => Number(a.dayOfWeek) - Number(b.dayOfWeek))
+      .filter((rule, index, all) =>
+        all.findIndex((entry) => Number(entry.dayOfWeek) === Number(rule.dayOfWeek)) === index,
+      );
+    const first = rules[0];
+    if (!first || getIsoDayOfWeek(startDate) !== Number(first.dayOfWeek)) return '';
+    const selected = rules.slice(0, perWeek);
+    if (selected.length !== perWeek) return '';
+    const lastIndex = total - 1;
+    const rule = selected[lastIndex % perWeek];
+    const days = Math.floor(lastIndex / perWeek) * 7 +
+      (Number(rule.dayOfWeek) - Number(first.dayOfWeek) + 7) % 7;
+    return addDaysToDateKey(startDate, days) || '';
+  }, [startDate, selectedPackage?.numberOfSessions, selectedPackage?.sessionsPerWeek, selectedAvailabilityIds.join(','), availabilityForDisplay]);
 
   const handleInstructorSelect = (instructor) => {
     setSelectedInstructor(instructor.id);
