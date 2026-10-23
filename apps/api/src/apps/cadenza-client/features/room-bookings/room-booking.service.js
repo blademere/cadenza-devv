@@ -1,3 +1,4 @@
+import { assertUnusedPaymentReference } from '../billing-payments/payment-reference.js';
 import {
   BadRequestError,
   ConflictError,
@@ -128,6 +129,7 @@ const create = async ({
   status = 'FOR_APPROVAL',
   metadata: additionalMetadata = {},
 }) => {
+  if (status !== 'APPROVED') await assertUnusedPaymentReference(appId, paymentReference);
   const schedule = validateSchedule(
     scheduledStart,
     scheduledEnd,
