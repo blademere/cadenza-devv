@@ -1,5 +1,6 @@
 'use client';
 
+import TransactionRefundPanel from '../components/TransactionRefundPanel';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -1080,6 +1081,23 @@ export default function RentalsPage() {
                           per hour.
                         </p>
                       </div>
+                    )}
+                    {['Rejected', 'CANCELLED', 'REJECTED'].includes(selectedRental.status) && (
+                      <TransactionRefundPanel
+                        type="INSTRUMENT_RENTAL"
+                        transactionId={selectedRental.id}
+                        onRefundRecorded={(quote) => {
+                          setSelectedRental((current) => current ? {
+                            ...current,
+                            paymentStatus: 'REFUNDED',
+                            metadata: { ...current.metadata, refundStatus: 'RECORDED', refundAmount: quote.refundedAmount, paymentStatus: 'REFUNDED', netPaidAmount: 0 },
+                          } : current);
+                          setRentals((current) => current.map((item) => item.id === selectedRental.id ? {
+                            ...item, paymentStatus: 'REFUNDED',
+                            metadata: { ...item.metadata, refundStatus: 'RECORDED', refundAmount: quote.refundedAmount, paymentStatus: 'REFUNDED' },
+                          } : item));
+                        }}
+                      />
                     )}
                     {cancellationMode && (
                       <div>
