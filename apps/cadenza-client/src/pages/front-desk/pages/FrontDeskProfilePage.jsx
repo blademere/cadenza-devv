@@ -10,7 +10,7 @@ export default function FrontDeskProfilePage() {
       <SidebarInset>
         <SiteHeader />
         <main className="flex flex-1 flex-col">
-          <ClientProfile />
+          <ClientProfile showGuardian={false} />
         </main>
       </SidebarInset>
     </SidebarProvider>
