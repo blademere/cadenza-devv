@@ -435,6 +435,14 @@ const checkOut = async ({ appId, id, checkedOutAt }) => {
   if (!Number.isFinite(originalTotal) || originalTotal < 0) {
     throw new BadRequestError('The booking total is invalid.');
   }
+  if (actualEnd.getTime() > Date.now() + 60 * 1000) {
+    throw new BadRequestError('Check-out time cannot be in the future.');
+  }
+  if (booking.metadata?.checkedInAt && actualEnd < new Date(booking.metadata.checkedInAt)) {
+    throw new BadRequestError('Check-out cannot precede the recorded check-in.');
+  }
+  const previousBalance = Number(booking.metadata?.paymentBalanceDue ?? booking.metadata?.remainingAmount ?? 0);
+  const extraBalance = Number.isFinite(previousBalance) ? Math.max(0, previousBalance) + excessAmount : excessAmount;
   const result = await repository.updateCheckOut(id, appId, {
     status: 'COMPLETED',
     totalAmount: Math.round((originalTotal + excessAmount + Number.EPSILON) * 100) / 100,
@@ -447,6 +455,10 @@ const checkOut = async ({ appId, id, checkedOutAt }) => {
       excessRateDurationHours: rateHours,
       excessAmount,
       originalTotalAmount: originalTotal,
+      remainingAmount: extraBalance,
+      paymentBalanceDue: extraBalance,
+      paymentContinuationRequired: extraBalance > 0,
+      ...(extraBalance > 0 ? { paymentContinuationStatus: 'PENDING' } : {}),
     },
   });
   if (!result.count) throw new ConflictError('This room booking was already updated.');
