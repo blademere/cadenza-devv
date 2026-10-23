@@ -1,19 +1,13 @@
 import { billingPaymentsService } from './billing-payments.service.js';
-
 export const billingPaymentsController = {
-  async markPaid(req, res, next) {
+  async listPayments(req, res, next) {
+    try { return res.json({ success: true, data: await billingPaymentsService.listPayments(req.cadenzaApp.id) }); }
+    catch (error) { return next(error); }
+  },
+  async recordPayment(req, res, next) {
     try {
-      const transaction = await billingPaymentsService.markPaid(
-        req.cadenzaApp.id,
-        req.body,
-      );
-      return res.json({
-        success: true,
-        message: 'Billing transaction marked as paid.',
-        data: transaction,
-      });
-    } catch (error) {
-      return next(error);
-    }
+      const result = await billingPaymentsService.recordPayment(req.cadenzaApp.id, req.user.id, req.body);
+      return res.json({ success: true, data: result });
+    } catch (error) { return next(error); }
   },
 };

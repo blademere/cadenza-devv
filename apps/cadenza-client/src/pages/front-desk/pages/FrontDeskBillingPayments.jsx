@@ -122,8 +122,7 @@ const mapRecords = (enrollments, bookings, rentals) =>
           'Enrollment',
           item.packageName || 'Enrollment package',
           item.price,
-          item.metadata?.paymentAmount ||
-            (item.metadata?.paymentPlan === 'FULL_PAYMENT' ? item.price : 0),
+          item.metadata?.paymentStatus === 'PENDING_CONFIRMATION' ? 0 : (item.metadata?.initialPaymentAmount ?? item.metadata?.paymentAmount ?? 0),
           item.metadata?.paymentReference,
         ),
       ),
@@ -137,7 +136,7 @@ const mapRecords = (enrollments, bookings, rentals) =>
           'Room Booking',
           item.room?.name || 'Room booking',
           item.totalAmount,
-          item.metadata?.initialPaymentAmount || 0,
+          item.metadata?.paymentStatus === 'PENDING_CONFIRMATION' ? 0 : (item.metadata?.initialPaymentAmount ?? 0),
           item.metadata?.paymentReference,
         ),
       ),
@@ -156,7 +155,7 @@ const mapRecords = (enrollments, bookings, rentals) =>
             .filter(Boolean)
             .join(', ') || 'Instrument rental',
           item.totalAmount,
-          item.metadata?.initialPaymentAmount || 0,
+          item.metadata?.paymentStatus === 'PENDING_CONFIRMATION' ? 0 : (item.metadata?.initialPaymentAmount ?? 0),
           item.metadata?.paymentReference,
         ),
       ),
@@ -206,11 +205,29 @@ export default function BillingPayments() {
       apiClient.get('/room-bookings'),
       apiClient.get('/instrument-rentals'),
     ])
-      .then((results) => {
+      .then(async (results) => {
         const [enrollments, bookings, rentals] = results.map((result) =>
           result.status === 'fulfilled' ? unwrapList(result.value) : [],
         );
-        setTransactions(mapRecords(enrollments, bookings, rentals));
+        let history = [];
+        try {
+          history = unwrapList(await apiClient.get('/billing/payments/transactions'));
+        } catch {
+          setError('Unable to load the cashier payment history.');
+        }
+        const grouped = new Map();
+        for (const payment of history) {
+          const key = `${payment.transactionType}:${payment.sourceId}`;
+          grouped.set(key, [...(grouped.get(key) || []), {
+            id: payment.id, amount: Number(payment.amount), method: payment.method,
+            reference: payment.reference, processedAt: payment.createdAt,
+          }]);
+        }
+        setTransactions(mapRecords(enrollments, bookings, rentals).map((item) => {
+          const kind = item.type === 'Enrollment' ? 'ENROLLMENT' : item.type === 'Room Booking' ? 'ROOM_BOOKING' : 'INSTRUMENT_RENTAL';
+          const payments = [...item.payments, ...(grouped.get(`${kind}:${item.sourceId}`) || [])];
+          return { ...item, payments, status: paymentStatus(payments.reduce((sum, p) => sum + Number(p.amount), 0), item.totalAmount) };
+        }));
         if (results.every((result) => result.status === 'rejected'))
           setError('Unable to load billing records.');
       })
@@ -273,106 +290,54 @@ export default function BillingPayments() {
     setShowPaymentDialog(true);
   };
 
-  const processPayment = async () => {
+  const submitCashierPayment = async (amount, method, reference) => {
     if (!selectedTransaction || processing) return;
     if (!canProcessTransaction(selectedTransaction)) {
-      setError(
-        selectedTransaction.type === 'Room Booking'
-          ? 'Check out the room booking before issuing a receipt.'
-          : 'Mark the instrument rental as returned before issuing a receipt.',
-      );
+      setError('Complete the rental or room booking before recording payment.');
       return;
     }
-    const amount = Number(amountToPay);
-    if (
-      !amount ||
-      amount <= 0 ||
-      amount > remainingAmount(selectedTransaction)
-    ) {
-      setError('Enter a valid payment amount before issuing the receipt.');
+    const amountText = String(amount);
+    if (!Number.isFinite(amount) || amount <= 0 || !/^\d+(?:\.\d{1,2})?$/.test(amountText) || amount > remainingAmount(selectedTransaction)) {
+      setError('Enter a valid payment amount no greater than the balance.');
       return;
     }
-    if (paymentMethod !== 'Cash' && paymentReference.trim().length < 3) {
-      setError('Enter the payment reference for this non-cash payment.');
+    if (method !== 'Cash' && reference.trim().length < 3) {
+      setError('Enter the verified external payment reference.');
       return;
     }
     setProcessing(true);
-    const receiptReference =
-      paymentMethod === 'Cash'
-        ? `FD-${selectedTransaction.type.replace(/\s+/g, '-').toUpperCase()}-${Date.now()}`
-        : paymentReference.trim();
-    const payment = {
-      id: `PAY-${Date.now()}`,
-      amount,
-      method: paymentMethod,
-      reference: receiptReference,
-      processedAt: new Date().toISOString(),
-    };
-    const updated = {
-      ...selectedTransaction,
-      payments: [...selectedTransaction.payments, payment],
-    };
-    updated.status = paymentStatus(paidAmount(updated), updated.totalAmount);
-    setTransactions((current) =>
-      current.map((item) => (item.id === updated.id ? updated : item)),
-    );
-    setSelectedTransaction(updated);
-    setShowPaymentDialog(false);
-    setShowReceiptDialog(true);
-    setProcessing(false);
-  };
-
-  const markAsPaid = async () => {
-    if (!selectedTransaction || processing) return;
-
-    if (!canProcessTransaction(selectedTransaction)) {
-      setError(
-        selectedTransaction.type === 'Room Booking'
-          ? 'Check out the room booking before issuing a receipt.'
-          : 'Mark the instrument rental as returned before issuing a receipt.',
-      );
-      return;
-    }
-
-    const balance = remainingAmount(selectedTransaction);
-
-    if (balance <= 0) return;
-
-    setProcessing(true);
-
+    setError('');
+    const idempotencyKey = crypto.randomUUID();
+    const receiptReference = method === 'Cash' ? `FD-${idempotencyKey}` : reference.trim();
     try {
-      await apiClient.patch('/billing/payments/mark-paid', {
-        type: selectedTransaction.type,
-        id: selectedTransaction.sourceId,
+      const response = await apiClient.post('/billing/payments/transactions', {
+        type: selectedTransaction.type, id: selectedTransaction.sourceId,
+        amount, method, reference: receiptReference, idempotencyKey,
       });
-
+      const record = response.data?.data?.payment;
+      if (!record?.id) throw new Error('Payment could not be confirmed.');
       const payment = {
-        id: `PAY-${Date.now()}`,
-        amount: balance,
-        method: 'Cashier marked paid',
-        reference: `FD-PAID-${Date.now()}`,
-        processedAt: new Date().toISOString(),
+        id: record.id, amount: Number(record.amount), method: record.method,
+        reference: record.reference, processedAt: record.createdAt,
       };
       const updated = {
         ...selectedTransaction,
         payments: [...selectedTransaction.payments, payment],
-        status: 'Paid',
       };
-
-      setTransactions((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      );
+      updated.status = paymentStatus(paidAmount(updated), updated.totalAmount);
+      setTransactions((current) => current.map((item) => item.id === updated.id ? updated : item));
       setSelectedTransaction(updated);
       setShowPaymentDialog(false);
+      setShowReceiptDialog(true);
     } catch (requestError) {
-      setError(
-        requestError?.message ||
-          'Failed to mark this transaction as paid. Please try again.',
-      );
+      setError(requestError?.message || 'Unable to record this payment.');
     } finally {
       setProcessing(false);
     }
   };
+
+  const processPayment = () => submitCashierPayment(Number(amountToPay), paymentMethod, paymentReference);
+  const markAsPaid = () => submitCashierPayment(remainingAmount(selectedTransaction), 'Cash', '');
 
   return (
     <SidebarProvider>
@@ -710,6 +675,7 @@ export default function BillingPayments() {
                 disabled={
                   processing ||
                   !selectedTransaction ||
+                  paymentMethod !== 'Cash' ||
                   Number(amountToPay) !== remainingAmount(selectedTransaction)
                 }
                 onClick={markAsPaid}

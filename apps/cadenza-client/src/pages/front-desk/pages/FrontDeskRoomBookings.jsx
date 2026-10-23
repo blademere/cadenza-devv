@@ -494,11 +494,11 @@ export default function FrontDeskRoomBookings() {
           </Card>
 
           <Dialog open={showDetails} onOpenChange={setShowDetails}>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto p-5 sm:max-w-2xl sm:p-7">
               {selectedBooking && (
                 <>
                   <DialogHeader>
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-5">
                       <div>
                         <DialogTitle>Room Booking Details</DialogTitle>
                         <DialogDescription>
@@ -511,38 +511,43 @@ export default function FrontDeskRoomBookings() {
                       </Badge>
                     </div>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3 rounded-lg border p-4">
+                  <div className="space-y-5">
+                    <section className="space-y-3">
+                      <h3 className="text-sm font-semibold">Booking information</h3>
+                      <div className="grid grid-cols-1 gap-x-8 gap-y-4 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
                       <div>
                         <p className="text-xs text-muted-foreground">Student</p>
-                        <p className="font-medium">{selectedBooking.student}</p>
+                        <p className="mt-1 break-words text-sm font-medium sm:text-base">{selectedBooking.student}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Room</p>
-                        <p className="font-medium">
+                        <p className="mt-1 break-words text-sm font-medium sm:text-base">
                           {selectedBooking.roomName}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Date</p>
-                        <p className="font-medium">
+                        <p className="mt-1 break-words text-sm font-medium sm:text-base">
                           {formatDate(selectedBooking.scheduledStart)}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Time</p>
-                        <p className="font-medium">
+                        <p className="mt-1 break-words text-sm font-medium sm:text-base">
                           {formatTime(selectedBooking.scheduledStart)} —{' '}
                           {formatTime(selectedBooking.scheduledEnd)}
                         </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 rounded-lg border p-4">
+                    </section>
+                    <section className="space-y-3">
+                      <h3 className="text-sm font-semibold">Payment details</h3>
+                      <div className="grid grid-cols-1 gap-x-8 gap-y-4 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
                       <div>
                         <p className="text-xs text-muted-foreground">
                           Payment amount
                         </p>
-                        <p className="font-medium">
+                        <p className="mt-1 text-lg font-semibold tabular-nums">
                           ₱
                           {Number(
                             selectedBooking.paymentAmount || 0,
@@ -553,7 +558,7 @@ export default function FrontDeskRoomBookings() {
                         <p className="text-xs text-muted-foreground">
                           Payment plan
                         </p>
-                        <p className="font-medium">
+                        <p className="mt-1 break-words text-sm font-medium sm:text-base">
                           {selectedBooking.paymentPlan}
                         </p>
                       </div>
@@ -561,7 +566,7 @@ export default function FrontDeskRoomBookings() {
                         <p className="text-xs text-muted-foreground">
                           Payment status
                         </p>
-                        <p className="font-medium">
+                        <p className="mt-1 break-words text-sm font-medium sm:text-base">
                           {selectedBooking.paymentStatus}
                         </p>
                       </div>
@@ -569,11 +574,12 @@ export default function FrontDeskRoomBookings() {
                         <p className="text-xs text-muted-foreground">
                           Reference
                         </p>
-                        <p className="font-medium">
+                        <p className="mt-1 break-all font-mono text-sm">
                           {selectedBooking.paymentReference}
                         </p>
                       </div>
                     </div>
+                    </section>
                     {selectedBooking.metadata?.paymentContinuationRequired && (
                       <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-sm">
                         Payment continuation required. Remaining balance: ₱
@@ -608,7 +614,7 @@ export default function FrontDeskRoomBookings() {
                       <p className="text-sm text-destructive">{error}</p>
                     )}
                   </div>
-                  <DialogFooter>
+                  <DialogFooter className="flex flex-wrap gap-2 border-t pt-4">
                     {isPendingBooking(selectedBooking.status) ? (
                       <>
                         {cancellationMode ? (
