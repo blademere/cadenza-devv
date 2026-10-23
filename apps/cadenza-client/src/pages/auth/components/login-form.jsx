@@ -32,14 +32,7 @@ export function LoginForm({ className, audience = 'client', ...props }) {
         navigate(audience === 'admin' ? '/admin' : '/front-desk', { replace: true });
         return;
       }
-      // The client login must validate the profile password before sending OTP.
-      // A failed bcrypt comparison is rejected by the /auth/login backend.
-      const result = await login({ email, password });
-      if (result.account?.type !== 'CLIENT') {
-        await logout();
-        throw new Error('Invalid credentials.');
-      }
-      await authService.requestOtp({ email, purpose: 'login' });
+      await authService.requestOtp({ email, password, purpose: 'login' });
       navigate('/signup/verify', { state: { email, purpose: 'login', audience } });
     } catch (requestError) {
       setError(requestError?.message || 'Unable to log in.');
@@ -51,7 +44,7 @@ export function LoginForm({ className, audience = 'client', ...props }) {
   return <div className={cn('flex flex-col gap-6', className)} {...props}>
     <Card className="overflow-hidden p-0"><CardContent className="grid p-0 md:grid-cols-2">
       <form className="p-5 sm:p-6 md:p-8" onSubmit={handleSubmit}><FieldGroup>
-        <div className="flex flex-col items-center gap-2 text-center"><h1 className="text-2xl font-bold">{audience === 'front-desk' ? 'Front Desk Login' : audience === 'admin' ? 'Admin Login' : 'Welcome back'}</h1><p className="text-balance text-muted-foreground">Enter your email and we’ll send you a one-time login code.</p></div>
+        <div className="flex flex-col items-center gap-2 text-center"><h1 className="text-2xl font-bold">{audience === 'front-desk' ? 'Front Desk Login' : audience === 'admin' ? 'Admin Login' : 'Welcome back'}</h1><p className="text-balance text-muted-foreground">Enter your email and password to receive a one-time login code.</p></div>
         <Field><FieldLabel htmlFor="login-email">Email</FieldLabel><Input id="login-email" type="email" autoComplete="email" placeholder="m@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required /></Field>
         <Field><FieldLabel htmlFor="login-password">Password</FieldLabel><Input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></Field>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
