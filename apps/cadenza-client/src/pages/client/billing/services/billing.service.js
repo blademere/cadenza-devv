@@ -63,7 +63,6 @@ const mapEnrollment = (enrollment) => {
     paymentStatus: normalizePaymentStatus(enrollment),
     transactionDate: formatDate(enrollment.createdAt),
     paidAt: formatDate(metadata.paymentCompletedAt),
-    rawDate: booking.createdAt || booking.scheduledStart,
     rawDate: enrollment.createdAt,
     notes:
       metadata.paymentStatus === 'PENDING_CONFIRMATION'
@@ -91,6 +90,7 @@ const mapRoomBooking = (booking) => {
     paymentMethod: metadata.paymentMethod || 'QR',
     paymentStatus: normalizePaymentStatus(booking),
     transactionDate: formatDate(booking.createdAt || booking.scheduledStart),
+    rawDate: booking.createdAt || booking.scheduledStart,
     paidAt: formatDate(metadata.paymentCompletedAt),
     notes: 'Room booking payment.',
   };
@@ -114,6 +114,7 @@ const mapRental = (rental) => {
     paymentMethod: metadata.paymentMethod || 'QR',
     paymentStatus: normalizePaymentStatus(rental),
     transactionDate: formatDate(rental.createdAt || rental.scheduledStart),
+    rawDate: rental.createdAt || rental.scheduledStart,
     paidAt: formatDate(metadata.paymentCompletedAt),
     notes: 'Instrument rental payment.',
   };
@@ -135,7 +136,7 @@ export async function getMyTransactions() {
     ...roomBookings.map(mapRoomBooking),
     ...rentals.map(mapRental),
   ].sort((first, second) =>
-    second.transactionDate.localeCompare(first.transactionDate),
+    new Date(second.rawDate || 0) - new Date(first.rawDate || 0),
   );
 
   return transactionCache;
