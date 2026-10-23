@@ -16,7 +16,11 @@ export const instrumentRentalsRepository = {
         },
         items: {
           include: {
-            instrument: true,
+            instrument: {
+              include: {
+                itemCategory: true,
+              },
+            },
           },
         },
         customer: {
