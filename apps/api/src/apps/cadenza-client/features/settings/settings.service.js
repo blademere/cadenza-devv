@@ -288,7 +288,16 @@ export const settingsService = {
     const account = await settingsRepository.findBankAccount(appId, id);
     if (!account) throw new NotFoundError('Bank account not found.');
     if (activeOnly && account.status !== 'ACTIVE') throw new NotFoundError('Payment account not found.');
-    const { body } = await getStorageService().get({ key: account.qrStorageKey });
+    if (!account.qrStorageKey) throw new NotFoundError('Payment account QR image has not been uploaded.');
+    let body;
+    try {
+      ({ body } = await getStorageService().get({ key: account.qrStorageKey }));
+    } catch (error) {
+      if (error?.code === 'ENOENT' || error?.code === 'NoSuchKey' || error?.name === 'NoSuchKey') {
+        throw new NotFoundError('Payment account QR image is missing from storage. Please re-upload the QR image.');
+      }
+      throw error;
+    }
     return { body, contentType: account.qrMimeType, fileName: account.qrFileName };
   },
 };
