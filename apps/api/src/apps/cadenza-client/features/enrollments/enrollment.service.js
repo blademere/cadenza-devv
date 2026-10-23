@@ -989,7 +989,7 @@ export const enrollmentService = {
     });
   },
 
-  async validateSchedule(appId, data) {
+  async validateSchedule(appId, data, customerId = null) {
     const packageItem = await enrollmentRepository.findPackageById(
       appId,
       data.lessonPackageId,
@@ -1037,6 +1037,18 @@ export const enrollmentService = {
         assertWithinOperatingHours(operatingHours, validated.startsAt, validated.endsAt);
       } catch (error) {
         throw new BadRequestError(error.message);
+      }
+
+      if (customerId) {
+        const conflict = await enrollmentRepository.findConflictingCustomerSession(
+          appId,
+          customerId,
+          validated.startsAt,
+          validated.endsAt,
+        );
+        if (conflict) {
+          throw new ConflictError('Your selected session overlaps an existing enrollment.');
+        }
       }
 
       validatedScheduleSessions.push({
