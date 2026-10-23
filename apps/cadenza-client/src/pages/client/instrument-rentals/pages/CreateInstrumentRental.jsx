@@ -126,6 +126,7 @@ export default function CreateInstrumentRental() {
       const time = new Date(combineDateTime(date, option.value));
       if (Number.isNaN(time.getTime())) return false;
       if (isStart && time < earliest) return false;
+      if (!isStart && time.getTime() <= now) return false;
       if (minimumTime && time < new Date(combineDateTime(date, minimumTime))) return false;
       if (instrumentId && isStart) {
         const intervals = reservedTimes[instrumentId];
