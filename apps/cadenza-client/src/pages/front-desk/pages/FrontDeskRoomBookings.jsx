@@ -130,6 +130,8 @@ export default function FrontDeskRoomBookings() {
   const [cancellationMode, setCancellationMode] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [checkInAt, setCheckInAt] = useState(toDateTimeLocalValue());
+  const [showCheckOutDialog, setShowCheckOutDialog] = useState(false);
+  const [checkOutAt, setCheckOutAt] = useState(toDateTimeLocalValue());
 
   useEffect(() => {
     getRoomBookings()
@@ -184,6 +186,7 @@ export default function FrontDeskRoomBookings() {
     setCancellationReason('');
     setCancellationMode(false);
     setCheckInAt(toDateTimeLocalValue());
+    setCheckOutAt(toDateTimeLocalValue());
     setShowDetails(true);
   };
 
@@ -245,13 +248,14 @@ export default function FrontDeskRoomBookings() {
       setError('');
       const updated = await checkOutRoomBooking(
         selectedBooking.id,
-        new Date().toISOString(),
+        new Date(checkOutAt).toISOString(),
       );
       const next = mapBooking({ ...selectedBooking, ...updated });
       setBookings((current) =>
         current.map((booking) => (booking.id === next.id ? next : booking)),
       );
       setSelectedBooking(next);
+      setShowCheckOutDialog(false);
     } catch (requestError) {
       setError(
         requestError?.response?.data?.message ||
@@ -601,6 +605,29 @@ export default function FrontDeskRoomBookings() {
                     </div>
                     </section>
                     <section className="space-y-3">
+                      <h3 className="text-sm font-semibold">Actual attendance & checkout</h3>
+                      <div className="grid grid-cols-1 gap-3 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
+                        <div><p className="text-xs text-muted-foreground">Actual check-in</p>
+                          <p className="font-medium">{selectedBooking.metadata?.checkedInAt ? new Date(selectedBooking.metadata.checkedInAt).toLocaleString('en-PH') : 'Not checked in'}</p>
+                        </div>
+                        <div><p className="text-xs text-muted-foreground">Actual check-out</p>
+                          <p className="font-medium">{selectedBooking.metadata?.checkedOutAt ? new Date(selectedBooking.metadata.checkedOutAt).toLocaleString('en-PH') : 'Not checked out'}</p>
+                        </div>
+                        <div><p className="text-xs text-muted-foreground">Original booked end</p>
+                          <p className="font-medium">{new Date(selectedBooking.metadata?.originalScheduledEnd || selectedBooking.scheduledEnd).toLocaleString('en-PH')}</p>
+                        </div>
+                        <div><p className="text-xs text-muted-foreground">Excess time</p>
+                          <p className="font-medium">{Number(selectedBooking.metadata?.excessMinutes || 0)} minute(s)</p>
+                        </div>
+                        <div><p className="text-xs text-muted-foreground">Excess charge</p>
+                          <p className="font-semibold">₱{Number(selectedBooking.metadata?.excessAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
+                        <div><p className="text-xs text-muted-foreground">Updated booking total</p>
+                          <p className="font-semibold">₱{Number(selectedBooking.totalAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                    </section>
+                    <section className="space-y-3">
                       <h3 className="text-sm font-semibold">Payment details</h3>
                       <div className="grid grid-cols-1 gap-x-8 gap-y-4 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
                       <div>
@@ -768,9 +795,9 @@ export default function FrontDeskRoomBookings() {
                         </Button>
                         <Button
                           disabled={actionLoading}
-                          onClick={applyCheckOut}
+                          onClick={() => { setCheckOutAt(toDateTimeLocalValue()); setShowCheckOutDialog(true); }}
                         >
-                          <Check /> Check out
+                          <Check /> Mark as checked out
                         </Button>
                       </>
                     ) : (
@@ -784,6 +811,38 @@ export default function FrontDeskRoomBookings() {
                   </DialogFooter>
                 </>
               )}
+            </DialogContent>
+          </Dialog>
+          <Dialog open={showCheckOutDialog} onOpenChange={(open) => { if (!actionLoading) setShowCheckOutDialog(open); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Mark room as checked out</DialogTitle>
+                <DialogDescription>
+                  Confirm the actual checkout time. Excess time beyond the original booked end is billed automatically from the saved room rate.
+                </DialogDescription>
+              </DialogHeader>
+              <label htmlFor="room-checkout-timestamp" className="text-sm font-medium">Actual checkout date and time</label>
+              <div className="flex gap-2">
+                <input id="room-checkout-timestamp" type="datetime-local" value={checkOutAt}
+                  onChange={(event) => setCheckOutAt(event.target.value)}
+                  className="h-10 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm" />
+                <Button type="button" variant="outline" onClick={() => setCheckOutAt(toDateTimeLocalValue())}>Now</Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Original booked end: {selectedBooking ? new Date(selectedBooking.metadata?.originalScheduledEnd || selectedBooking.scheduledEnd).toLocaleString('en-PH') : '—'}
+              </p>
+              <p className="text-sm font-medium">
+                Estimated excess: ₱{selectedBooking && checkOutAt && Number(selectedBooking.rateAtBooking) >= 0 && Number(selectedBooking.durationHoursAtBooking) > 0
+                  ? (Math.ceil(Math.max(0, new Date(checkOutAt).getTime() - new Date(selectedBooking.metadata?.originalScheduledEnd || selectedBooking.scheduledEnd).getTime()) / (Number(selectedBooking.durationHoursAtBooking) * 3600000)) * Number(selectedBooking.rateAtBooking)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : '0.00'}
+              </p>
+              <p className="text-xs text-muted-foreground">The backend determines the final charge. Any additional amount remains subject to payment collection.</p>
+              <DialogFooter>
+                <Button type="button" variant="outline" disabled={actionLoading} onClick={() => setShowCheckOutDialog(false)}>Cancel</Button>
+                <Button type="button" disabled={actionLoading || !checkOutAt || Number.isNaN(new Date(checkOutAt).getTime()) || new Date(checkOutAt) < new Date(selectedBooking?.metadata?.checkedInAt || selectedBooking?.scheduledStart)} onClick={applyCheckOut}>
+                  {actionLoading ? 'Checking out...' : 'Confirm checkout'}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
           <Dialog open={showCheckInDialog} onOpenChange={setShowCheckInDialog}>
