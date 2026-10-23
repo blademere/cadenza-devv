@@ -60,7 +60,7 @@ export const billingPaymentsService = {
     return {
       enrollmentId,
       status: enrollment.status,
-      paidAmount: verifiedTotal / 100,
+      paidAmount: Math.max(verifiedTotal, refunded) / 100,
       refundedAmount: refunded / 100,
       unverifiedSubmittedAmount: refund ? 0 : unverifiedSubmittedCents(enrollment) / 100,
       refundableAmount: Math.max(0, verifiedTotal - refunded) / 100,
