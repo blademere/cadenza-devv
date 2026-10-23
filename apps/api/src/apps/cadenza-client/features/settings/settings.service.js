@@ -275,6 +275,45 @@ export const settingsService = {
     }
   },
 
+  async replaceBankAccountQr(appId, id, file) {
+    const existing = await settingsRepository.findBankAccount(appId, id);
+    if (!existing) throw new NotFoundError('Bank account not found.');
+    if (!file || !Buffer.isBuffer(file.buffer) || file.buffer.length === 0) {
+      throw new BadRequestError('A replacement QR image is required.');
+    }
+    if (!allowedTypes.has(file.mimetype)) {
+      throw new BadRequestError('The QR image must be PNG, JPG, or WebP.');
+    }
+
+    let fileName;
+    try { fileName = sanitizeFileName(file.originalname || 'bank-account-qr'); }
+    catch { fileName = 'bank-account-qr'; }
+    const storage = getStorageService();
+    const storageKey = createStorageKey(fileName, 'cadenza-bank-account-qr');
+    await storage.put({ key: storageKey, body: file.buffer, contentType: file.mimetype });
+
+    try {
+      // Only update the database after the new object is saved.
+      await settingsRepository.updateBankAccountQr(appId, id, {
+        qrStorageKey: storageKey,
+        qrMimeType: file.mimetype,
+        qrFileName: fileName,
+        qrFileSize: file.buffer.length,
+      });
+    } catch (error) {
+      await storage.delete({ key: storageKey }).catch(() => undefined);
+      throw error;
+    }
+
+    // The old key may no longer exist after a Railway deployment.
+    if (existing.qrStorageKey && existing.qrStorageKey !== storageKey) {
+      await storage.delete({ key: existing.qrStorageKey }).catch(() => undefined);
+    }
+    const { qrStorageKey: _qrStorageKey, ...updated } =
+      await settingsRepository.findBankAccount(appId, id);
+    return { ...updated, hasQr: Boolean(_qrStorageKey) };
+  },
+
   async updateBankAccount(appId, id, status) {
     if (!['ACTIVE', 'INACTIVE'].includes(status)) throw new BadRequestError('Invalid bank account status.');
     const existing = await settingsRepository.findBankAccount(appId, id);
