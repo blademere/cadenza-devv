@@ -83,6 +83,10 @@ export default function EnrollmentPaymentPage() {
           },
           window.location.origin,
         );
+        window.close();
+        // Some browsers refuse script-initiated closes; details remain accessible.
+      } else {
+        navigate(`/client/enrollments/${enrollment.id}`, { replace: true });
       }
     } catch (requestError) {
       setError(requestError?.message || 'Unable to process payment.');
