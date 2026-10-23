@@ -4,4 +4,6 @@ import { billingPaymentsController } from './billing-payments.controller.js';
 const router = Router();
 router.get('/transactions', requireAdminOrFrontDesk, billingPaymentsController.listPayments);
 router.post('/transactions', requireAdminOrFrontDesk, billingPaymentsController.recordPayment);
+router.get('/enrollments/:id/refund', requireAdminOrFrontDesk, billingPaymentsController.getEnrollmentRefundQuote);
+router.post('/enrollments/:id/refund', requireAdminOrFrontDesk, billingPaymentsController.recordEnrollmentRefund);
 export default router;
