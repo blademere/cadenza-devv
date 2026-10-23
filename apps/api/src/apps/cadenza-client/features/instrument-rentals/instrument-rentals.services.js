@@ -764,8 +764,10 @@ export const instrumentRentalsService = {
         ...additionalMetadata,
         paymentReference: paymentReference.trim(),
         paymentMethod,
-        paymentStatus: 'PAID',
-        paymentCompletedAt: new Date().toISOString(),
+        paymentStatus: status === 'APPROVED' ? 'PAID' : 'PENDING_CONFIRMATION',
+        ...(status === 'APPROVED' ? { paymentCompletedAt: new Date().toISOString() } : {}),
+        initialPaymentAmount: Number(rentalPackage.rentalRate),
+        remainingAmount: status === 'APPROVED' ? 0 : Number(rentalPackage.rentalRate),
       },
     });
 
