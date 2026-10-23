@@ -1,67 +1,147 @@
-import { useEffect, useMemo, useState } from "react";
-import { BarChart3Icon, BookOpenCheckIcon, CalendarDaysIcon, CreditCardIcon, GraduationCapIcon, PrinterIcon, UsersIcon } from "lucide-react";
-import { AppSidebar } from "../components/app-sidebar";
-import ReportsPageLayout from "../layouts/ReportsPageLayout";
-import { SiteHeader } from "../components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { apiClient } from "@/core/api/apiClient";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIcon, BarChart3Icon, BookOpenCheckIcon, CalendarDaysIcon,
+  CreditCardIcon, GraduationCapIcon, GuitarIcon, PrinterIcon,
+  UsersIcon, WalletIcon, AlertCircleIcon,
+} from 'lucide-react';
+import { AppSidebar } from '../components/app-sidebar';
+import ReportsPageLayout from '../layouts/ReportsPageLayout';
+import { SiteHeader } from '../components/site-header';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { apiClient } from '@/core/api/apiClient';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 
-const today = new Date();
-const dateValue = (date) => date.toISOString().slice(0, 10);
-const reportTypes = [
-  { id: "enrollment-summary", title: "Enrollment Summary Reports", description: "Enrollment counts, active packages, and course demand.", icon: GraduationCapIcon, columns: ["Metric", "Value"], rows: [["Total enrollments", "-"], ["Active enrollments", "-"], ["Completed enrollments", "-"], ["Most enrolled course", "-"]] },
-  { id: "billing-payments", title: "Billing and Payment Reports", description: "Revenue, payment methods, outstanding balances, and status.", icon: CreditCardIcon, columns: ["Metric", "Amount / Count"], rows: [["Total billed", "-"], ["Payments received", "-"], ["Outstanding balance", "-"], ["Pending payments", "-"]] },
-  { id: "instructor-assignments", title: "Instructor Assignments Reports", description: "Instructor workload, assigned courses, and student coverage.", icon: UsersIcon, columns: ["Instructor", "Courses", "Students"], rows: [["No assignment data loaded", "-", "-"]] },
-  { id: "studio-bookings", title: "Studio Booking Reports", description: "Room usage, booking volume, and booking status by date.", icon: CalendarDaysIcon, columns: ["Metric", "Value"], rows: [["Total bookings", "-"], ["Approved bookings", "-"], ["Cancelled bookings", "-"], ["Most used room", "-"]] },
-  { id: "instrument-usage", title: "Instrument Usage Reports", description: "Instrument rentals, utilization, and return activity.", icon: BarChart3Icon, columns: ["Metric", "Value"], rows: [["Total rentals", "-"], ["Active rentals", "-"], ["Returned instruments", "-"], ["Most used instrument", "-"]] },
-  { id: "lesson-progress", title: "Student Lesson Progress Reports", description: "Attendance, completed lessons, and student progress trends.", icon: BookOpenCheckIcon, columns: ["Metric", "Value"], rows: [["Lessons scheduled", "-"], ["Lessons completed", "-"], ["Attendance rate", "-"], ["Students needing follow-up", "-"]] },
+const CATEGORIES = [
+  { id: 'all', name: 'All reports' },
+  { id: 'financial', name: 'Financial Reports' },
+  { id: 'students', name: 'Enrollment and Student Reports' },
+  { id: 'rentals', name: 'Rental and Inventory Reports' },
+  { id: 'instructors', name: 'Instructor Reports' },
+  { id: 'operations', name: 'Operational Reports' },
 ];
 
+const REPORTS = [
+  { id: 'revenue-sales', title: 'Revenue and Sales', description: 'Collected revenue by transaction type.', category: 'financial', icon: WalletIcon },
+  { id: 'billing-payments', title: 'Billing and Payments', description: 'Bills, collections, pending payments and balances.', category: 'financial', icon: CreditCardIcon },
+  { id: 'enrollment-summary', title: 'Enrollment Summary', description: 'Enrollment totals, statuses and course demand.', category: 'students', icon: GraduationCapIcon },
+  { id: 'student-attendance', title: 'Student Attendance', description: 'Attendance recording and presence rates.', category: 'students', icon: UsersIcon },
+  { id: 'lesson-progress', title: 'Student Lesson Progress', description: 'Completed lessons and students needing follow-up.', category: 'students', icon: BookOpenCheckIcon },
+  { id: 'course-performance', title: 'Course Performance', description: 'Enrollments by course.', category: 'students', icon: BarChart3Icon },
+  { id: 'instrument-usage', title: 'Instrument Usage', description: 'Instrument rental volume and popular items.', category: 'rentals', icon: GuitarIcon },
+  { id: 'rental-monitoring', title: 'Rental Monitoring', description: 'Active rentals, returns and overdue rentals.', category: 'rentals', icon: ActivityIcon },
+  { id: 'studio-bookings', title: 'Room Rental Bookings', description: 'Booking volume, approvals and cancellations.', category: 'rentals', icon: CalendarDaysIcon },
+  { id: 'instructor-assignments', title: 'Instructor Workload', description: 'Assigned teaching sessions and courses.', category: 'instructors', icon: UsersIcon },
+  { id: 'cancellation-summary', title: 'Cancellation Summary', description: 'Cancelled enrollments, rooms and instrument rentals.', category: 'operations', icon: AlertCircleIcon },
+];
+
+const dateValue = (date) => {
+  const year = date.getFullYear();
+  return `${year}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+const peso = (value) => `₱${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const unwrap = (response) => response?.data?.data ?? response?.data ?? response;
+
+function RevenueChart({ series }) {
+  const items = Array.isArray(series) ? series : [];
+  const monthly = new Map();
+  for (const point of items) {
+    const key = String(point.date || '').slice(0, 7);
+    if (!key) continue;
+    monthly.set(key, (monthly.get(key) || 0) + Number(point.successfulPayments || 0));
+  }
+  const data = [...monthly.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const maximum = Math.max(1, ...data.map(([, amount]) => amount));
+  return (
+    <Card className="reports-ui print:hidden">
+      <CardHeader>
+        <CardTitle>Revenue trend</CardTitle>
+        <CardDescription>Successful payment amounts by month within the selected report period.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {data.length ? (
+          <div className="flex min-h-48 items-end gap-3 overflow-x-auto pb-2" role="img" aria-label="Revenue bar chart">
+            {data.map(([month, amount]) => (
+              <div key={month} className="flex min-w-16 flex-1 flex-col items-center gap-2">
+                <span className="text-xs font-medium tabular-nums">{peso(amount)}</span>
+                <div className="flex h-36 w-full items-end rounded bg-muted/50">
+                  <div className="w-full rounded-t bg-primary" style={{ height: `${Math.max(3, amount / maximum * 100)}%` }} />
+                </div>
+                <span className="text-xs text-muted-foreground">{month}</span>
+              </div>
+            ))}
+          </div>
+        ) : <p className="py-12 text-center text-sm text-muted-foreground">No successful payments found for this date range.</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ReportsPage() {
-  const [selectedReportId, setSelectedReportId] = useState(reportTypes[0].id);
-  const [startDate, setStartDate] = useState(dateValue(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30)));
-  const [endDate, setEndDate] = useState(dateValue(today));
+  const [startDate, setStartDate] = useState(() => dateValue(new Date(Date.now() - 29 * 86400000)));
+  const [endDate, setEndDate] = useState(() => dateValue(new Date()));
+  const [category, setCategory] = useState('all');
+  const [selectedId, setSelectedId] = useState('revenue-sales');
   const [reportData, setReportData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [isPrintRequested, setIsPrintRequested] = useState(false);
-  const generatedAt = useMemo(() => new Date().toLocaleString(), []);
-  const selectedReport = useMemo(() => reportTypes.find((report) => report.id === selectedReportId) ?? reportTypes[0], [selectedReportId]);
-  const columns = reportData?.columns ?? selectedReport.columns;
-  const rows = reportData?.rows ?? selectedReport.rows;
+  const [overview, setOverview] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [overviewError, setOverviewError] = useState('');
+  const [printing, setPrinting] = useState(false);
+
+  const selectedReport = REPORTS.find((report) => report.id === selectedId) || REPORTS[0];
+  const visibleReports = useMemo(() => REPORTS.filter((report) => category === 'all' || report.category === category), [category]);
+  const dateValid = Boolean(startDate && endDate && startDate <= endDate);
+  const queryRange = `from=${encodeURIComponent(startDate)}&to=${encodeURIComponent(endDate)}`;
 
   useEffect(() => {
-    if (!startDate || !endDate) return undefined;
-    let isMounted = true;
-    setIsLoading(true);
-    setError("");
-    apiClient.get(`/reports?type=${selectedReportId}&from=${startDate}&to=${endDate}`)
-      .then((response) => { if (isMounted) setReportData(response?.data ?? null); })
-      .catch((requestError) => { if (isMounted) { setReportData(null); setError(requestError.message || "Failed to load report data."); } })
-      .finally(() => { if (isMounted) setIsLoading(false); });
-    return () => { isMounted = false; };
-  }, [endDate, selectedReportId, startDate]);
-
-  const setDateRange = (days) => {
-    const start = new Date(today);
-    start.setDate(start.getDate() - days);
-    setStartDate(dateValue(start));
-    setEndDate(dateValue(today));
-  };
+    if (!dateValid) return;
+    let active = true;
+    setReportLoading(true);
+    setReportData(null);
+    setError('');
+    apiClient.get(`/reports?type=${encodeURIComponent(selectedId)}&${queryRange}`)
+      .then((response) => { if (active) setReportData(unwrap(response)); })
+      .catch((requestError) => { if (active) setError(requestError?.response?.data?.message || requestError.message || 'Unable to load the report.'); })
+      .finally(() => { if (active) setReportLoading(false); });
+    return () => { active = false; };
+  }, [selectedId, startDate, endDate, dateValid]);
 
   useEffect(() => {
-    const clearPrintState = () => setIsPrintRequested(false);
-    window.addEventListener("afterprint", clearPrintState);
-    return () => window.removeEventListener("afterprint", clearPrintState);
+    if (!dateValid) return;
+    let active = true;
+    setOverviewLoading(true);
+    setOverviewError('');
+    apiClient.get(`/reports?type=dashboard-activity&${queryRange}`)
+      .then((response) => { if (active) setOverview(unwrap(response)); })
+      .catch((requestError) => { if (active) { setOverview(null); setOverviewError(requestError?.response?.data?.message || requestError.message || 'Unable to load overview.'); } })
+      .finally(() => { if (active) setOverviewLoading(false); });
+    return () => { active = false; };
+  }, [startDate, endDate, dateValid]);
+
+  useEffect(() => {
+    const reset = () => setPrinting(false);
+    window.addEventListener('afterprint', reset);
+    return () => window.removeEventListener('afterprint', reset);
   }, []);
 
-  const handlePrint = () => {
-    setIsPrintRequested(true);
-    requestAnimationFrame(() => window.print());
+  const setRange = (days) => {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - (days - 1));
+    setStartDate(dateValue(start));
+    setEndDate(dateValue(end));
   };
+  const generatedAt = new Date().toLocaleString('en-PH');
+  const summary = overview?.summary || {};
+  const kpis = [
+    { label: 'Total revenue collected', value: peso(summary.successfulPaymentAmount), icon: WalletIcon },
+    { label: 'Active enrollments', value: summary.activeEnrollments ?? '—', icon: GraduationCapIcon },
+    { label: 'Outstanding balance', value: peso(summary.outstandingBalance), icon: CreditCardIcon },
+    { label: 'Active / pending rentals', value: summary.activeRentals ?? '—', icon: GuitarIcon },
+  ];
 
   return (
     <SidebarProvider>
@@ -69,35 +149,83 @@ export default function ReportsPage() {
       <SidebarInset>
         <SiteHeader className="print:hidden" />
         <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-          <div className="reports-ui flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
-            <div><h1 className="text-2xl font-semibold tracking-tight">Reports</h1><p className="text-muted-foreground">Generate reports for any date range and print them as PDF.</p></div>
-            <Button onClick={handlePrint} disabled={isPrintRequested}><PrinterIcon className="mr-2 size-4" />{isPrintRequested ? "Preparing PDF..." : "Print / Save PDF"}</Button>
+          <div className="reports-ui flex flex-wrap items-start justify-between gap-4 print:hidden">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
+              <p className="text-sm text-muted-foreground">Operational overview and detailed reports for Cadenza Music Center.</p>
+            </div>
+            <Button onClick={() => { setPrinting(true); requestAnimationFrame(() => window.print()); }} disabled={printing || reportLoading || Boolean(error) || !reportData || !dateValid}>
+              <PrinterIcon className="mr-2 size-4" /> Print / Save PDF
+            </Button>
           </div>
           <Card className="reports-ui print:hidden">
-            <CardHeader><CardTitle>Report period</CardTitle><CardDescription>Choose any custom time range, then select the report to preview.</CardDescription></CardHeader>
-            <CardContent className="flex flex-col gap-4 lg:flex-row lg:items-end">
-              <div className="grid flex-1 gap-2"><label htmlFor="report-start" className="text-sm font-medium">From</label><Input id="report-start" type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div>
-              <div className="grid flex-1 gap-2"><label htmlFor="report-end" className="text-sm font-medium">To</label><Input id="report-end" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} /></div>
-              <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDateRange(7)}>Last 7 days</Button><Button variant="outline" onClick={() => setDateRange(30)}>Last 30 days</Button><Button variant="outline" onClick={() => setDateRange(90)}>Last 90 days</Button></div>
+            <CardHeader><CardTitle>Report period</CardTitle><CardDescription>All dashboard metrics and report tables follow the selected date range.</CardDescription></CardHeader>
+            <CardContent className="flex flex-wrap items-end gap-3">
+              <div className="min-w-36 flex-1 space-y-2"><label className="text-sm font-medium" htmlFor="report-from">From</label><Input id="report-from" type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div>
+              <div className="min-w-36 flex-1 space-y-2"><label className="text-sm font-medium" htmlFor="report-to">To</label><Input id="report-to" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} /></div>
+              <div className="flex flex-wrap gap-2">{[7, 30, 90].map((days) => <Button key={days} variant="outline" onClick={() => setRange(days)}>Last {days} days</Button>)}</div>
             </CardContent>
           </Card>
-          <section className="reports-ui grid gap-4 md:grid-cols-2 xl:grid-cols-3 print:hidden" aria-label="Report types">
-            {reportTypes.map((report) => { const Icon = report.icon; return <button key={report.id} type="button" onClick={() => setSelectedReportId(report.id)} className={`rounded-xl border bg-card p-5 text-left shadow-xs transition-colors hover:bg-muted/50 ${report.id === selectedReport.id ? "border-primary ring-2 ring-primary/20" : ""}`}><Icon className="mb-4 size-6 text-primary" /><h2 className="font-semibold">{report.title}</h2><p className="mt-1 text-sm text-muted-foreground">{report.description}</p></button>; })}
+
+          <section className="reports-ui space-y-3 print:hidden">
+            <h2 className="text-lg font-semibold">Admin reports dashboard</h2>
+            {!dateValid && <p role="alert" className="text-sm text-destructive">Select a valid date range.</p>}
+            {overviewError && <p role="alert" className="text-sm text-destructive">{overviewError}</p>}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {kpis.map(({ label, value, icon: Icon }) => (
+                <Card key={label}><CardContent className="flex flex-col gap-3 p-5">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon className="size-4" />{label}</div>
+                  <p className="text-2xl font-semibold tabular-nums">{overviewLoading || overviewError || !overview ? '—' : value}</p>
+                </CardContent></Card>
+              ))}
+            </div>
+            <RevenueChart series={overview?.series} />
           </section>
+
+          <section className="reports-ui space-y-4 print:hidden">
+            <h2 className="text-lg font-semibold">Report categories</h2>
+            <div className="flex flex-wrap gap-2" aria-label="Report categories">
+              {CATEGORIES.map((item) => (
+                <Button key={item.id} type="button" variant={category === item.id ? 'default' : 'outline'} onClick={() => {
+                  setCategory(item.id);
+                  if (item.id !== 'all') {
+                    const first = REPORTS.find((report) => report.category === item.id);
+                    if (first) setSelectedId(first.id);
+                  }
+                }}>{item.name}</Button>
+              ))}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {visibleReports.map((report) => {
+                const Icon = report.icon;
+                return (
+                  <button key={report.id} type="button" onClick={() => setSelectedId(report.id)} aria-pressed={selectedId === report.id}
+                    className={`rounded-xl border bg-card p-5 text-left transition-colors hover:bg-muted/50 ${selectedId === report.id ? 'border-primary ring-2 ring-primary/20' : ''}`}>
+                    <Icon className="mb-3 size-5 text-primary" />
+                    <h3 className="font-semibold">{report.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{report.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <div className="reports-ui print:hidden">
+            <h2 className="text-lg font-semibold">Report preview</h2>
+            <p className="text-sm text-muted-foreground">Select a report above to preview or print it using the existing PDF layout.</p>
+          </div>
           <ReportsPageLayout
             report={selectedReport}
-            columns={columns}
-            rows={rows}
+            columns={Array.isArray(reportData?.columns) ? reportData.columns : ['Metric', 'Value']}
+            rows={Array.isArray(reportData?.rows) ? reportData.rows : []}
             startDate={startDate}
             endDate={endDate}
             generatedAt={generatedAt}
-            isLoading={isLoading}
-            error={error}
+            isLoading={reportLoading}
+            error={error || (!dateValid ? 'Invalid report date range.' : '')}
           />
         </main>
       </SidebarInset>
-      <style>{`.report-template { display: flex; min-height: 620px; flex-direction: column; gap: 24px; border: 1px solid #d1d5db; border-radius: 12px; background: #fff; padding: 32px; color: #111827; } .report-template__header { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 2px solid #111827; padding-bottom: 20px; } .report-template__eyebrow { margin: 0 0 4px; color: #6b7280; font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; } .report-template__title { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 700; } .report-template__mark { display: grid; height: 36px; width: 36px; place-items: center; border: 2px solid #111827; border-radius: 50%; font-weight: 700; } .report-template__details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; border-bottom: 1px solid #d1d5db; padding-bottom: 20px; } .report-template__details div { display: grid; gap: 5px; } .report-template__details span { color: #6b7280; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; } .report-template__details strong { font-size: 14px; } .report-template__body { flex: 1; } .report-template__table { width: 100%; border-collapse: collapse; font-size: 13px; } .report-template__table th { background: #f3f4f6; font-weight: 700; text-align: left; } .report-template__table th, .report-template__table td { border: 1px solid #d1d5db; padding: 11px 12px; vertical-align: top; } .report-template__message { margin: 0; color: #6b7280; font-size: 13px; } .report-template__message--error { color: #b91c1c; } .report-template__footer { display: flex; justify-content: space-between; border-top: 1px solid #d1d5db; padding-top: 14px; color: #6b7280; font-size: 11px; } @media print { @page { size: A4 portrait; margin: 14mm; } html, body, #root { background: white !important; } .reports-ui, [data-slot="sidebar"], header { display: none !important; } .report-template { display: flex !important; visibility: visible !important; width: 100% !important; min-height: 260mm; border: 0 !important; border-radius: 0 !important; padding: 0 !important; background: #fff !important; color: #111827 !important; } .report-template__table { display: table !important; visibility: visible !important; width: 100% !important; } .report-template__table th, .report-template__table td { color: #111827 !important; } .report-template__footer { margin-top: auto; } }`}</style>
-      <style>{`@media print { .report-template__header { display: flex !important; visibility: visible !important; } }`}</style>
     </SidebarProvider>
   );
 }
