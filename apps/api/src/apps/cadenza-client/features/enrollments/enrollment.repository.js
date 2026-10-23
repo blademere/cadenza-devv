@@ -197,7 +197,7 @@ export const enrollmentRepository = {
         appId,
         customerId,
         status: {
-          notIn: ['CANCELLED', 'COMPLETED'],
+          notIn: ['CANCELLED', 'COMPLETED', 'REJECTED'],
         },
       },
       select: {
