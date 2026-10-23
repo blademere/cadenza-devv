@@ -18,7 +18,7 @@ export const instrumentRentalsRepository = {
           include: {
             instrument: {
               include: {
-                itemCategory: true,
+                instrumentType: true,
               },
             },
           },
