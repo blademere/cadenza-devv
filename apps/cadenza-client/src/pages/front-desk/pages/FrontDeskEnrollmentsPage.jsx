@@ -63,6 +63,12 @@ export default function EnrollmentsPage() {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
+  const [refundQuote, setRefundQuote] = useState(null);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [showRefundDialog, setShowRefundDialog] = useState(false);
+  const [refundMethod, setRefundMethod] = useState('GCASH');
+  const [refundReference, setRefundReference] = useState('');
+  const [refundConfirmed, setRefundConfirmed] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
@@ -115,7 +121,15 @@ export default function EnrollmentsPage() {
 
   const handleViewDetails = (enrollment) => {
     setSelectedEnrollment(enrollment);
+    setRefundQuote(null);
     setActionError('');
+    if (enrollment.status === 'CANCELLED') {
+      setRefundLoading(true);
+      enrollmentService.getRefundQuote(enrollment.id)
+        .then(setRefundQuote)
+        .catch((error) => setActionError(error?.message || 'Unable to load refund status.'))
+        .finally(() => setRefundLoading(false));
+    }
     setActionMessage('');
     setShowDetailsDialog(true);
   };
@@ -179,6 +193,32 @@ export default function EnrollmentsPage() {
           err?.message ||
           'Unable to cancel this enrollment.',
       );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRecordRefund = async () => {
+    if (!selectedEnrollment || actionLoading || !refundConfirmed) return;
+    try {
+      setActionLoading(true);
+      setActionError('');
+      await enrollmentService.recordRefund(selectedEnrollment.id, {
+        method: refundMethod, reference: refundReference.trim(), confirmedReturned: true,
+      });
+      const quote = await enrollmentService.getRefundQuote(selectedEnrollment.id);
+      setRefundQuote(quote);
+      setSelectedEnrollment((current) => current ? {
+        ...current,
+        metadata: { ...current.metadata, refundStatus: 'RECORDED', refundAmount: quote.refundedAmount },
+      } : current);
+      setShowRefundDialog(false);
+      setRefundReference('');
+      setRefundConfirmed(false);
+      setActionMessage('Refund recorded and deducted from the payment ledger.');
+    } catch (error) {
+      setActionError(error?.response?.data?.message || error?.message || 'Unable to record refund.');
+      setShowRefundDialog(false);
     } finally {
       setActionLoading(false);
     }
@@ -579,6 +619,20 @@ export default function EnrollmentsPage() {
               </div>
             )}
 
+            {selectedEnrollment?.status === 'CANCELLED' && (
+              <div className="rounded-lg border p-4 text-sm">
+                <p className="font-semibold">Refund accounting</p>
+                {refundLoading ? <p className="mt-2">Checking confirmed payments...</p> : (
+                  <p className="mt-2">
+                    Confirmed paid: ₱{Number(refundQuote?.paidAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    {' · '}Refunded: ₱{Number(refundQuote?.refundedAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    {' · '}Refundable: ₱{Number(refundQuote?.refundableAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  </p>
+                )}
+                {refundQuote?.refund && <p className="mt-1 text-muted-foreground">Refund reference: {refundQuote.refund.reference}</p>}
+                <p className="mt-2 text-xs text-muted-foreground">Refunds are sent outside Cadenza. The button records the payment ledger deduction after transfer confirmation.</p>
+              </div>
+            )}
             {actionError && (
               <p className="text-sm text-destructive">{actionError}</p>
             )}
@@ -593,6 +647,12 @@ export default function EnrollmentsPage() {
               >
                 Close
               </Button>
+              {selectedEnrollment?.status === 'CANCELLED' && !refundLoading && Number(refundQuote?.refundableAmount || 0) > 0 && (
+                <Button type="button" variant="destructive" disabled={actionLoading}
+                  onClick={() => { setRefundReference(''); setRefundConfirmed(false); setShowRefundDialog(true); }}>
+                  Refund
+                </Button>
+              )}
               {selectedEnrollment?.status === 'FOR_APPROVAL' && (
                 <>
                   <Button
@@ -613,6 +673,36 @@ export default function EnrollmentsPage() {
                   </Button>
                 </>
               )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showRefundDialog} onOpenChange={(open) => { if (!actionLoading) setShowRefundDialog(open); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Record confirmed enrollment refund</DialogTitle>
+              <DialogDescription>
+                Refund amount: ₱{Number(refundQuote?.refundableAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}.
+                Return this amount to the client outside Cadenza before recording it here. Recording does not send money.
+              </DialogDescription>
+            </DialogHeader>
+            <label className="text-sm font-medium" htmlFor="refund-method">Refund method</label>
+            <select id="refund-method" className="w-full rounded-md border bg-background p-2" value={refundMethod} onChange={(e) => setRefundMethod(e.target.value)}>
+              <option value="GCASH">GCash</option>
+              <option value="BANK_TRANSFER">Bank transfer</option>
+              <option value="CASH">Cash</option>
+            </select>
+            <label className="text-sm font-medium" htmlFor="refund-reference">Refund receipt / transfer reference</label>
+            <Input id="refund-reference" maxLength={100} value={refundReference} onChange={(e) => setRefundReference(e.target.value)} placeholder="Enter refund reference" />
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={refundConfirmed} onChange={(e) => setRefundConfirmed(e.target.checked)} />
+              I confirm the full refundable amount has been returned to the client.
+            </label>
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={actionLoading} onClick={() => setShowRefundDialog(false)}>Cancel</Button>
+              <Button type="button" disabled={actionLoading || !refundConfirmed || refundReference.trim().length < 3} onClick={handleRecordRefund}>
+                {actionLoading ? 'Recording...' : 'Record refund'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
