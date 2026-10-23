@@ -52,7 +52,7 @@ const formatEnrollmentReference = (id) =>
 export default function EnrollmentsPage() {
   const [enrollments, setEnrollments] = useState([]);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('FOR_APPROVAL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
@@ -384,7 +384,7 @@ export default function EnrollmentsPage() {
                         Enrollment ID
                       </p>
 
-                      <p className="font-medium">{selectedEnrollment.id}</p>
+                      <p className="font-medium">{formatEnrollmentReference(selectedEnrollment.id)}</p>
                     </div>
 
                     <div>
@@ -401,8 +401,9 @@ export default function EnrollmentsPage() {
                       <p className="font-medium">
                         {' '}
                         {selectedEnrollment.lessons
-                          ?.map((lesson) => lesson.name)
-                          .join(', ') || '—'}
+                          ?.filter((lesson) => String(lesson.id) === String(selectedEnrollment.courseId))
+                          .map((lesson) => lesson.name)
+                          .join(', ') || selectedEnrollment.lessons?.find((lesson) => String(lesson.id) === String(selectedEnrollment.courseId))?.name || '—'}
                       </p>
                     </div>
 
@@ -449,6 +450,20 @@ export default function EnrollmentsPage() {
                       </p>
                     </div>
 
+                    <div>
+                      <p className="text-xs text-muted-foreground">Enrollment End Date</p>
+                      <p className="font-medium">
+                        {selectedEnrollment.sessions?.length
+                          ? new Date(Math.max(...selectedEnrollment.sessions.map((session) => new Date(session.scheduledEnd).getTime()))).toLocaleString('en-PH')
+                          : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Scheduled Instructors</p>
+                      <p className="font-medium">
+                        {[...new Set(selectedEnrollment.sessions?.map((session) => session.instructorName).filter(Boolean) || [])].join(', ') || '—'}
+                      </p>
+                    </div>
                     <div>
                       <p className="text-xs text-muted-foreground">
                         Enrollment Rate
