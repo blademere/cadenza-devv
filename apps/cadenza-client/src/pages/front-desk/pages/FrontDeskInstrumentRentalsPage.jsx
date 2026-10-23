@@ -240,6 +240,7 @@ const initialRentals = [
 export default function RentalsPage() {
   const navigate = useNavigate();
   const [rentals, setRentals] = useState([]);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   const [statusFilter, setStatusFilter] = useState('All');
   const [rentalPage, setRentalPage] = useState(1);
@@ -442,6 +443,18 @@ export default function RentalsPage() {
     }
   };
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const inUsedInstruments = rentals.filter(
+    (rental) => rental.status === 'Approved' && Boolean(rental.metadata?.receivedAt),
+  ).sort((a, b) => new Date(a.scheduledEnd) - new Date(b.scheduledEnd));
+  const instrumentOverdue = (rental) =>
+    Number.isFinite(new Date(rental.scheduledEnd).getTime()) &&
+    new Date(rental.scheduledEnd).getTime() <= currentTime;
+
   const handleReturn = () => {
     setReturnAt(toDateTimeLocalValue());
     setReturnCondition('GOOD');
@@ -582,6 +595,52 @@ export default function RentalsPage() {
               </div>
             </div>
           </div>
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle>In Used Instruments</CardTitle>
+                  <CardDescription>Instruments handed over to clients and awaiting return processing.</CardDescription>
+                </div>
+                <Badge variant="secondary">{inUsedInstruments.length} in use</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {inUsedInstruments.length === 0 ? (
+                <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+                  No instruments are currently in use.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {inUsedInstruments.map((rental) => {
+                    const overdue = instrumentOverdue(rental);
+                    return (
+                      <div key={rental.id} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 space-y-1">
+                          <p className="font-semibold">{rental.instrument}</p>
+                          <p className="text-sm text-muted-foreground">{rental.student} · {formatRentalReference(rental.id)}</p>
+                          <p className="text-sm text-muted-foreground">Expected return: {formatRentalDate(rental.scheduledEnd)}</p>
+                          {overdue && (
+                            <p role="alert" className="text-sm font-medium text-destructive">
+                              Return time passed — process instrument return.
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          <Badge variant={overdue ? 'destructive' : 'secondary'}>
+                            {overdue ? 'Return overdue' : 'In use'}
+                          </Badge>
+                          <Button size="sm" onClick={() => handleViewDetails(rental)}>
+                            Process return
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
           {/* ---------------------------------------------
               Rental Card
           --------------------------------------------- */}

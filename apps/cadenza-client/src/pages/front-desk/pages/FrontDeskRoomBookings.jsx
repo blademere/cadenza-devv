@@ -116,6 +116,7 @@ const mapBooking = (booking) => {
 export default function FrontDeskRoomBookings() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [statusFilter, setStatusFilter] = useState('All');
   const [bookingPage, setBookingPage] = useState(1);
   const bookingPageSize = 10;
@@ -143,6 +144,16 @@ export default function FrontDeskRoomBookings() {
       )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const inUsedRooms = bookings.filter((booking) => booking.status === 'Checked In')
+    .sort((a, b) => new Date(a.scheduledEnd) - new Date(b.scheduledEnd));
+  const roomOverdue = (booking) => Number.isFinite(new Date(booking.scheduledEnd).getTime()) &&
+    new Date(booking.scheduledEnd).getTime() <= currentTime;
 
   const walkInBookings =
     statusFilter === 'All'
@@ -269,6 +280,54 @@ export default function FrontDeskRoomBookings() {
               Refresh
             </Button>
           </div>
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle>In Used Rooms</CardTitle>
+                  <CardDescription>Checked-in rooms awaiting checkout. Overdue bookings need Front Desk attention.</CardDescription>
+                </div>
+                <Badge variant="secondary">{inUsedRooms.length} in use</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {inUsedRooms.length === 0 ? (
+                <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+                  No rooms are currently checked in.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {inUsedRooms.map((booking) => {
+                    const overdue = roomOverdue(booking);
+                    return (
+                      <div key={booking.id} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 space-y-1">
+                          <p className="font-semibold">{booking.roomName}</p>
+                          <p className="text-sm text-muted-foreground">{booking.student} · {formatBookingReference(booking.id)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Scheduled end: {formatDate(booking.scheduledEnd)} at {formatTime(booking.scheduledEnd)}
+                          </p>
+                          {overdue && (
+                            <p role="alert" className="text-sm font-medium text-destructive">
+                              Scheduled time ended — checkout is required.
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          <Badge variant={overdue ? 'destructive' : 'secondary'}>
+                            {overdue ? 'Checkout overdue' : 'In use'}
+                          </Badge>
+                          <Button size="sm" onClick={() => openDetails(booking)}>
+                            Check out
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
           <Card className="border-blue-500/30 bg-blue-500/5">
             <CardHeader>
               <div className="flex items-center justify-between gap-4">
