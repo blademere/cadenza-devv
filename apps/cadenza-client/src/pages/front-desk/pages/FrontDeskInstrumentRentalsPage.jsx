@@ -770,11 +770,11 @@ export default function RentalsPage() {
                               <div
                                 className={`font-medium ${rentalIndicatorColor(rental.instrument)}`}
                               >
-                                {rental.instrument}
+                                {rental.type}
                               </div>
 
                               <div className="text-sm text-muted-foreground">
-                                {rental.type}
+                                {rental.instrument}
                               </div>
                             </div>
                           </TableCell>
