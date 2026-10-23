@@ -10,7 +10,7 @@ import { settingsService } from '../settings/settings.service.js';
 import { createWalkInCustomer } from '../walk-ins/walk-in-customer.service.js';
 
 // Individual instrument rates represent the minimum charge for this period.
-const MINIMUM_RENTAL_HOURS = 8;
+const MINIMUM_RENTAL_HOURS = 24;
 const RETURN_CONDITIONS = [
   { value: 'GOOD', label: 'Good condition', damageFee: 0 },
   { value: 'MINOR_DAMAGE', label: 'Minor damage', damageFee: 500 },
