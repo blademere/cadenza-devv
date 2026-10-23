@@ -784,6 +784,28 @@ export const enrollmentService = {
     customerId,
     data,
   ) {
+    const customer = await enrollmentRepository.findCustomerProfile(appId, customerId);
+    const person = customer?.person;
+    const details = person?.metadata?.studentDetails || {};
+    const address = typeof person?.address === 'string'
+      ? person.address
+      : person?.address?.line1 || person?.address?.fullAddress || '';
+    if (
+      !person?.firstName?.trim() ||
+      !person?.lastName?.trim() ||
+      !(person?.user?.email || person?.email)?.trim() ||
+      !person?.phone?.trim() ||
+      !String(address).trim() ||
+      !Number.isFinite(Number(details.age)) ||
+      Number(details.age) <= 0 ||
+      !details.gender ||
+      !String(details.guardianName || '').trim()
+    ) {
+      throw new BadRequestError(
+        'Complete your required Account profile details before enrolling.',
+      );
+    }
+
     const paymentReference = data.metadata?.paymentReference;
 
     if (
