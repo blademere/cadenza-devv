@@ -9,6 +9,11 @@ const REPORT_TYPES = new Set([
   'instrument-usage',
   'lesson-progress',
   'dashboard-activity',
+  'revenue-sales',
+  'student-attendance',
+  'course-performance',
+  'rental-monitoring',
+  'cancellation-summary',
 ]);
 
 const money = (amount) => `₱${Number(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
@@ -24,6 +29,58 @@ const countBy = (items, getKey) => {
 
 const buildReport = async (appId, type, from, to) => {
   if (!REPORT_TYPES.has(type)) throw new BadRequestError('Unknown report type.');
+
+
+  if (type === 'revenue-sales') {
+    const obligations = await reportsRepository.findPayments(appId, from, to);
+    const payments = obligations.flatMap((o) => (o.payments || []).filter((p) => ['PAID', 'COMPLETED', 'SUCCESSFUL'].includes(p.status)).map((p) => ({ ...p, referenceType: o.referenceType })));
+    const total = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const categories = new Map();
+    for (const payment of payments) {
+      const type = String(payment.referenceType || 'OTHER').replaceAll('_', ' ');
+      categories.set(type, (categories.get(type) || 0) + Number(payment.amount || 0));
+    }
+    return { columns: ['Revenue source', 'Amount'], rows: [['Total received', money(total)], ...[...categories.entries()].sort((a,b) => b[1] - a[1]).map(([type, value]) => [type, money(value)])] };
+  }
+
+  if (type === 'student-attendance') {
+    const sessions = await reportsRepository.findSessions(appId, from, to);
+    const counts = countBy(sessions, (session) => session.attendance?.status || 'NOT_RECORDED');
+    const attended = sessions.filter((s) => s.attendance?.status === 'PRESENT').length;
+    const marked = sessions.filter((s) => s.attendance?.status).length;
+    return { columns: ['Attendance metric', 'Count / Rate'], rows: [['Sessions scheduled', sessions.length], ['Recorded attendance', marked], ['Present', attended], ['Attendance rate (recorded)', marked ? `${Math.round(attended / marked * 100)}%` : 'N/A'], ...counts.map(([status, count]) => [status.replaceAll('_',' '), count])] };
+  }
+
+  if (type === 'course-performance') {
+    const enrollments = await reportsRepository.findEnrollments(appId, from, to);
+    const courseCounts = countBy(enrollments.flatMap((item) => item.lessonPackage?.lessons || []), (course) => course.name);
+    return { columns: ['Course', 'Enrollments'], rows: courseCounts };
+  }
+
+  if (type === 'rental-monitoring') {
+    const rentals = await reportsRepository.findRentals(appId, from, to);
+    const now = new Date();
+    return { columns: ['Rental metric', 'Value'], rows: [
+      ['Total rentals', rentals.length],
+      ['Active / pending', rentals.filter((r) => !['COMPLETED','CANCELLED','RETURNED'].includes(r.status)).length],
+      ['Overdue (not completed)', rentals.filter((r) => r.scheduledEnd < now && !['COMPLETED','CANCELLED','RETURNED'].includes(r.status)).length],
+      ['Completed / returned', rentals.filter((r) => ['COMPLETED','RETURNED'].includes(r.status) || r.returnedAt).length],
+      ['Scheduled rental value', money(rentals.filter((r) => r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.totalAmount || 0), 0))],
+    ] };
+  }
+
+  if (type === 'cancellation-summary') {
+    const [enrollments, rooms, rentals] = await Promise.all([
+      reportsRepository.findEnrollments(appId, from, to),
+      reportsRepository.findRoomBookings(appId, from, to),
+      reportsRepository.findRentals(appId, from, to),
+    ]);
+    return { columns: ['Service', 'Cancelled / Total'], rows: [
+      ['Enrollments', `${enrollments.filter((x) => x.status === 'CANCELLED').length} / ${enrollments.length}`],
+      ['Room bookings', `${rooms.filter((x) => x.status === 'CANCELLED').length} / ${rooms.length}`],
+      ['Instrument rentals', `${rentals.filter((x) => x.status === 'CANCELLED').length} / ${rentals.length}`],
+    ] };
+  }
 
   if (type === 'enrollment-summary') {
     const enrollments = await reportsRepository.findEnrollments(appId, from, to);
@@ -49,7 +106,10 @@ const buildReport = async (appId, type, from, to) => {
       rows: [
         ['Total billed', money(obligations.reduce((sum, item) => sum + Number(item.totalAmount), 0))],
         ['Payments received', money(received.reduce((sum, item) => sum + Number(item.amount), 0))],
-        ['Outstanding balance', money(obligations.filter((item) => item.status !== 'PAID').reduce((sum, item) => sum + Number(item.totalAmount), 0))],
+        ['Outstanding balance', money(obligations.reduce((sum, item) => {
+          const paid = (item.payments || []).filter((p) => ['PAID','COMPLETED','SUCCESSFUL'].includes(p.status)).reduce((n,p) => n + Number(p.amount || 0),0);
+          return sum + Math.max(0, Number(item.totalAmount || 0) - paid);
+        }, 0))],
         ['Pending payments', payments.filter((payment) => payment.status === 'PENDING').length],
       ],
     };
@@ -118,6 +178,12 @@ const buildReport = async (appId, type, from, to) => {
     const successfulPayments = payments.filter((payment) =>
       ['PAID', 'COMPLETED', 'SUCCESSFUL'].includes(payment.status),
     );
+    const outstandingBalance = obligations.reduce((sum, o) => {
+      const paid = (o.payments || []).filter((p) => ['PAID','COMPLETED','SUCCESSFUL'].includes(p.status)).reduce((n,p) => n + Number(p.amount || 0),0);
+      return sum + Math.max(0, Number(o.totalAmount || 0) - paid);
+    },0);
+    const activeEnrollments = enrollments.filter((e) => !['CANCELLED','COMPLETED'].includes(e.status)).length;
+    const activeRentals = rentals.filter((r) => !['CANCELLED','COMPLETED','RETURNED'].includes(r.status)).length;
     const days = new Map();
     const addDay = (value) => {
       const date = new Date(value).toISOString().slice(0, 10);
@@ -149,6 +215,9 @@ const buildReport = async (appId, type, from, to) => {
         bookings: bookings.length,
         rentals: rentals.length,
         enrollments: enrollments.length,
+        activeEnrollments,
+        activeRentals,
+        outstandingBalance,
         successfulPaymentAmount: successfulPayments.reduce(
           (sum, payment) => sum + Number(payment.amount || 0),
           0,
