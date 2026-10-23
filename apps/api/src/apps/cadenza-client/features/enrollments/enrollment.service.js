@@ -889,6 +889,16 @@ export const enrollmentService = {
           courseId,
         );
 
+      const conflictingCustomerSession = await enrollmentRepository.findConflictingCustomerSession(
+        appId,
+        customerId,
+        validated.startsAt,
+        validated.endsAt,
+      );
+      if (conflictingCustomerSession) {
+        throw new ConflictError('Your selected session overlaps an existing enrollment.');
+      }
+
       try {
         assertWithinOperatingHours(operatingHours, validated.startsAt, validated.endsAt);
       } catch (error) {
