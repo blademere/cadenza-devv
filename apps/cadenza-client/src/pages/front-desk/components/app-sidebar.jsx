@@ -83,7 +83,7 @@ const data = {
 };
 
 export function AppSidebar({ ...props }) {
-  const [pendingCounts, setPendingCounts] = useState({ rentals: 0, bookings: 0, billing: 0 });
+  const [pendingCounts, setPendingCounts] = useState({ enrollments: 0, rentals: 0, bookings: 0, billing: 0 });
 
   useEffect(() => {
     let mounted = true;
@@ -103,6 +103,7 @@ export function AppSidebar({ ...props }) {
         return total > 0 && paid > 0 && paid < total;
       }).length;
       setPendingCounts({
+        enrollments: enrollments.filter((enrollment) => enrollment.status === 'FOR_APPROVAL').length,
         rentals: rentals.filter((rental) => pendingRentalStatuses.includes(rental.status)).length,
         bookings: bookings.filter((booking) => booking.status === 'FOR_APPROVAL').length,
         billing: pendingBilling,
@@ -113,7 +114,7 @@ export function AppSidebar({ ...props }) {
 
   const navItems = data.navMain.map((item) => ({
     ...item,
-    badge: item.title === 'Rentals' ? pendingCounts.rentals : item.title === 'Room Bookings' ? pendingCounts.bookings : item.title === 'Billing & Payments' ? pendingCounts.billing : undefined,
+    badge: item.title === 'Enrollments' ? pendingCounts.enrollments : item.title === 'Rentals' ? pendingCounts.rentals : item.title === 'Room Bookings' ? pendingCounts.bookings : item.title === 'Billing & Payments' ? pendingCounts.billing : undefined,
   }));
 
   return (
