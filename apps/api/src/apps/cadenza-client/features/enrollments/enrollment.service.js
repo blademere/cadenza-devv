@@ -1113,7 +1113,10 @@ export const enrollmentService = {
     return mapEnrollment(approved);
   },
 
-  async cancelStaffEnrollment(appId, enrollmentId) {
+  async cancelStaffEnrollment(appId, enrollmentId, reason) {
+    if (typeof reason !== 'string' || reason.trim().length < 3 || reason.trim().length > 500) {
+      throw new BadRequestError('Cancellation reason must be between 3 and 500 characters.');
+    }
     const enrollments = (await enrollmentRepository.findAll(appId, {
       status: 'FOR_APPROVAL',
     })).items;
@@ -1132,6 +1135,7 @@ export const enrollmentService = {
           ...(enrollment.metadata || {}),
           approvalStatus: 'CANCELLED',
           cancelledAt: new Date().toISOString(),
+          cancellationReason: reason.trim(),
         },
       },
     );

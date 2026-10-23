@@ -69,6 +69,11 @@ const statusVariant = (status) =>
       ? 'secondary'
       : 'outline';
 
+const formatSourceReference = (transaction) => {
+  const prefix = transaction.type === 'Enrollment' ? 'ENR' : transaction.type === 'Instrument Rental' ? 'RNT' : 'RB';
+  return `${prefix}-${String(transaction.sourceId || '').slice(0, 8).toUpperCase()}`;
+};
+
 const mapTransaction = (
   record,
   type,
@@ -221,6 +226,8 @@ export default function BillingPayments() {
         typeFilter === 'All' || transaction.type === typeFilter;
       const searchable = [
         transaction.id,
+        transaction.sourceId,
+        formatSourceReference(transaction),
         transaction.person,
         transaction.email,
         transaction.details,
@@ -495,6 +502,7 @@ export default function BillingPayments() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Transaction</TableHead>
+                      <TableHead>Reference ID</TableHead>
                       <TableHead>Client</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Total</TableHead>
@@ -507,7 +515,7 @@ export default function BillingPayments() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="h-24 text-center">
+                        <TableCell colSpan={9} className="h-24 text-center">
                           <Loader2 className="mx-auto animate-spin" />
                         </TableCell>
                       </TableRow>
@@ -521,6 +529,7 @@ export default function BillingPayments() {
                               .slice(0, 8)
                               .toUpperCase()}
                           </TableCell>
+                          <TableCell className="font-mono text-xs">{formatSourceReference(transaction)}</TableCell>
                           <TableCell>
                             <div className="font-medium">
                               {transaction.person}

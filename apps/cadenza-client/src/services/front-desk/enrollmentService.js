@@ -30,9 +30,10 @@ export const enrollmentService = {
     return response.data?.data ?? response.data;
   },
 
-  async cancelEnrollment(enrollmentId) {
+  async cancelEnrollment(enrollmentId, reason) {
     const response = await apiClient.patch(
       `/enrollments/${enrollmentId}/cancel-by-staff`,
+      { reason },
     );
 
     return response.data?.data ?? response.data;

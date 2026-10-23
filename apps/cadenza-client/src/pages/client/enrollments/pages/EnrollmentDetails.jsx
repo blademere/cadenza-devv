@@ -220,6 +220,16 @@ export default function EnrollmentDetails() {
             </>
           )}
 
+          {enrollment.status === "CANCELLED" && (
+            <div>
+              <h3 className="font-medium">Enrollment Cancelled</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Your enrollment request was cancelled by the front desk.</p>
+              {paymentMetadata.cancellationReason && (
+                <p className="mt-3 text-sm"><span className="font-medium">Reason:</span> {paymentMetadata.cancellationReason}</p>
+              )}
+            </div>
+          )}
+
           {enrollment.status === "REJECTED" && (
             <>
               <h3 className="font-medium">Enrollment Rejected</h3>

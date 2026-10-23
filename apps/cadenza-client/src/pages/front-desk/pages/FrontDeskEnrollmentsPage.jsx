@@ -62,6 +62,7 @@ export default function EnrollmentsPage() {
 
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
@@ -156,13 +157,19 @@ export default function EnrollmentsPage() {
 
   const handleCancel = async () => {
     if (!selectedEnrollment || actionLoading) return;
+    if (cancellationReason.trim().length < 3) {
+      setActionError('Please enter a cancellation reason (at least 3 characters).');
+      return;
+    }
 
     try {
       setActionLoading(true);
       setActionError('');
       const updatedEnrollment = await enrollmentService.cancelEnrollment(
         selectedEnrollment.id,
+        cancellationReason.trim(),
       );
+      setCancellationReason('');
       updateEnrollmentInList(updatedEnrollment);
       setShowCancelDialog(false);
       setActionMessage('Enrollment cancelled.');
@@ -576,7 +583,7 @@ export default function EnrollmentsPage() {
                   <Button
                     variant="destructive"
                     disabled={actionLoading}
-                    onClick={() => setShowCancelDialog(true)}
+                    onClick={() => { setCancellationReason(''); setActionError(''); setShowCancelDialog(true); }}
                   >
                     <XCircleIcon />
                     Cancel enrollment
@@ -595,7 +602,7 @@ export default function EnrollmentsPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <Dialog open={showCancelDialog} onOpenChange={(open) => { if (!actionLoading) setShowCancelDialog(open); }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Cancel this enrollment?</DialogTitle>
@@ -604,6 +611,18 @@ export default function EnrollmentsPage() {
                 the approval queue.
               </DialogDescription>
             </DialogHeader>
+            <label htmlFor="enrollment-cancellation-reason" className="text-sm font-medium">Reason for cancellation</label>
+            <textarea
+              id="enrollment-cancellation-reason"
+              value={cancellationReason}
+              onChange={(event) => { setCancellationReason(event.target.value); setActionError(''); }}
+              maxLength={500}
+              rows={3}
+              placeholder="Explain why this enrollment request is being cancelled"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              required
+            />
+            {actionError && <p className="text-sm text-destructive">{actionError}</p>}
             <DialogFooter>
               <Button
                 variant="outline"
@@ -614,7 +633,7 @@ export default function EnrollmentsPage() {
               </Button>
               <Button
                 variant="destructive"
-                disabled={actionLoading}
+                disabled={actionLoading || cancellationReason.trim().length < 3}
                 onClick={handleCancel}
               >
                 {actionLoading && <Loader2Icon className="animate-spin" />}

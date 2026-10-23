@@ -94,10 +94,14 @@ export function AppSidebar({ ...props }) {
       const enrollments = enrollmentsResult.status === 'fulfilled' && Array.isArray(enrollmentsResult.value?.data?.data) ? enrollmentsResult.value.data.data : [];
       const pendingRentalStatuses = ['FOR_APPROVAL', 'PENDING', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION'];
       const pendingBilling = [
-        ...enrollments.map((item) => ({ total: item.price, paid: item.metadata?.paymentAmount || (item.metadata?.paymentPlan === 'FULL_PAYMENT' ? item.price : 0) })),
-        ...bookings.map((item) => ({ total: item.totalAmount, paid: item.metadata?.initialPaymentAmount })),
-        ...rentals.map((item) => ({ total: item.totalAmount, paid: item.metadata?.initialPaymentAmount })),
-      ].filter((item) => Number(item.total || 0) > Number(item.paid || 0)).length;
+        ...enrollments.filter((item) => item.status === 'APPROVED').map((item) => ({ total: item.price, paid: item.metadata?.paymentAmount ?? (item.metadata?.paymentPlan === 'FULL_PAYMENT' ? item.price : 0) })),
+        ...bookings.filter((item) => ['APPROVED', 'CHECKED_IN', 'COMPLETED'].includes(item.status)).map((item) => ({ total: item.totalAmount, paid: item.metadata?.paymentAmount ?? item.metadata?.initialPaymentAmount })),
+        ...rentals.filter((item) => ['APPROVED', 'COMPLETED'].includes(item.status)).map((item) => ({ total: item.totalAmount, paid: item.metadata?.paymentAmount ?? item.metadata?.initialPaymentAmount })),
+      ].filter((item) => {
+        const total = Number(item.total || 0);
+        const paid = Number(item.paid || 0);
+        return total > 0 && paid > 0 && paid < total;
+      }).length;
       setPendingCounts({
         rentals: rentals.filter((rental) => pendingRentalStatuses.includes(rental.status)).length,
         bookings: bookings.filter((booking) => booking.status === 'FOR_APPROVAL').length,

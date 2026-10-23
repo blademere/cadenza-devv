@@ -157,6 +157,7 @@ export const enrollmentController = {
       const enrollment = await enrollmentService.cancelStaffEnrollment(
         req.cadenzaApp.id,
         req.params.id,
+        req.body?.reason,
       );
 
       return res.json({
