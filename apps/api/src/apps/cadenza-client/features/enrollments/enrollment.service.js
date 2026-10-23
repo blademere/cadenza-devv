@@ -377,7 +377,6 @@ export const enrollmentService = {
     courseId,
     customerId,
   ) {
-    await assertUnusedPaymentReference(appId, paymentReference);
 
     const packageItem =
       await enrollmentRepository.findPackageById(
@@ -796,6 +795,8 @@ export const enrollmentService = {
         'A valid payment reference is required before submitting an enrollment.',
       );
     }
+
+    await assertUnusedPaymentReference(appId, paymentReference);
 
     const packageItem =
       await enrollmentRepository.findPackageById(
