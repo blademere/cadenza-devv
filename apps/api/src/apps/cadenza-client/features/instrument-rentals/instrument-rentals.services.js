@@ -5,6 +5,7 @@ import {
 } from '../../../../common/errors/appError.js';
 
 import { instrumentRentalsRepository } from './instrument-rentals.repository.js';
+import { assertRentalStartWithinOperatingHours, getOperationalEnd, getOperationalMinutesBetween } from '../settings/operating-hours.js';
 import { settingsService } from '../settings/settings.service.js';
 import { createWalkInCustomer } from '../walk-ins/walk-in-customer.service.js';
 
@@ -19,9 +20,11 @@ const RETURN_CONDITIONS = [
 
 const calculateExcessCharge = (rental, returnedAt, operatingHours) => {
   const expectedReturnAt = new Date(rental.scheduledEnd);
+  const operationalEnd = operatingHours ? getOperationalEnd(operatingHours, expectedReturnAt) : null;
+  const billableReturnedAt = operationalEnd && returnedAt > operationalEnd ? operationalEnd : returnedAt;
   const lateMinutes = Math.max(
     0,
-    Math.ceil((returnedAt.getTime() - expectedReturnAt.getTime()) / (1000 * 60)),
+    Math.ceil((billableReturnedAt.getTime() - expectedReturnAt.getTime()) / (1000 * 60)),
   );
   const excessHours = lateMinutes > 0 ? Math.ceil(lateMinutes / 60) : 0;
   const instrumentRate = (rental.items || []).reduce(
@@ -55,7 +58,9 @@ const validateSchedule = (scheduledStart, scheduledEnd, operatingHours = null) =
     );
   }
 
-  const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  const durationHours = operatingHours
+    ? getOperationalMinutesBetween(operatingHours, start, end) / 60
+    : (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
   if (durationHours < (operatingHours ? MINIMUM_RENTAL_HOURS : 1)) {
     throw new BadRequestError(
@@ -222,7 +227,8 @@ export const instrumentRentalsService = {
       throw new BadRequestError('Return time cannot be earlier than the rental start time.');
     }
 
-    const excess = calculateExcessCharge(rental, returnedAt);
+    const operatingHours = rental.metadata?.walkIn ? await settingsService.getOperatingHours(appId) : null;
+    const excess = calculateExcessCharge(rental, returnedAt, operatingHours);
     const baseRentalAmount = Number(
       rental.metadata?.baseRentalAmount ?? rental.totalAmount ?? 0,
     );
@@ -437,8 +443,15 @@ export const instrumentRentalsService = {
     scheduledStart,
     scheduledEnd,
   }) {
-    const schedule = validateSchedule(scheduledStart, scheduledEnd);
-    if (schedule.scheduledStart <= new Date()) throw new BadRequestError('Rental start must be in the future.');
+    const walkInHours = status === 'APPROVED' ? await settingsService.getOperatingHours(appId) : null;
+    const schedule = validateSchedule(scheduledStart, scheduledEnd, walkInHours);
+    if (status === 'APPROVED') {
+      assertWalkInDateWindow(schedule.scheduledStart);
+      try { assertRentalStartWithinOperatingHours(walkInHours, schedule.scheduledStart); }
+      catch (error) { throw new BadRequestError(error.message); }
+    } else if (schedule.scheduledStart <= new Date()) {
+      throw new BadRequestError('Rental start must be in the future.');
+    }
 
     const normalizedRentalType = normalizeRentalType(rentalType);
 
