@@ -139,7 +139,7 @@ export default function CreateInstrumentRental() {
       }
       if (instrumentId && !isStart) {
         const schedule = schedules[instrumentId];
-        if (!schedule?.start || time < new Date(new Date(schedule.start).getTime() + 60 * 60 * 1000)) return false;
+        if (!schedule?.start || time < new Date(new Date(schedule.start).getTime() + MINIMUM_RENTAL_HOURS * 60 * 60 * 1000)) return false;
         if ((reservedTimes[instrumentId] || []).some((slot) =>
           new Date(schedule.start) < new Date(slot.scheduledEnd) &&
           time > new Date(slot.scheduledStart)
@@ -332,11 +332,11 @@ export default function CreateInstrumentRental() {
       return false;
     }
 
-    if (durationHours < 1) {
+    if (durationHours < MINIMUM_RENTAL_HOURS) {
       setError(
         `${getName(
           instrument,
-        )} requires a minimum rental period of 1 hour.`,
+        )} requires a minimum rental period of ${MINIMUM_RENTAL_HOURS} hours.`,
       );
 
       return false;
