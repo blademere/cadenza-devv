@@ -6,6 +6,7 @@ import {
   FileText,
   Loader2,
   Receipt,
+  Printer,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -105,7 +106,7 @@ export default function TransactionDetails() {
           </div>
         </div>
 
-        <TransactionStatus status={transaction.paymentStatus} />
+        <div className="flex items-center gap-3"><TransactionStatus status={transaction.paymentStatus} />{transaction.paymentStatus === "PAID" && <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm print:hidden"><Printer className="h-4 w-4" />Print Receipt</button>}</div>
       </div>
 
       {/* Transaction Information */}
@@ -219,7 +220,9 @@ export default function TransactionDetails() {
             <TransactionStatus status={transaction.paymentStatus} />
           </div>
 
-          <div className="border-t border-border pt-4">
+          <div className="space-y-3 border-t border-border pt-4">
+            <div className="flex justify-between gap-3 text-sm"><span>Confirmed payment</span><strong>₱{Number(transaction.amountPaid || 0).toLocaleString("en-PH", {minimumFractionDigits:2})}</strong></div>
+            <div className="flex justify-between gap-3 text-sm"><span>Remaining balance</span><strong>₱{Number(transaction.remainingBalance || 0).toLocaleString("en-PH", {minimumFractionDigits:2})}</strong></div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 Total Amount
@@ -247,7 +250,7 @@ export default function TransactionDetails() {
       {/* Read-only notice */}
       <div className="rounded-lg border border-border bg-muted/30 p-4">
         <p className="text-sm text-muted-foreground">
-          This transaction is view-only. Transaction information cannot be
+          A receipt is available only for confirmed fully paid transactions. This transaction is view-only. Transaction information cannot be
           modified from the client portal.
         </p>
       </div>
