@@ -6,4 +6,6 @@ router.get('/transactions', requireAdminOrFrontDesk, billingPaymentsController.l
 router.post('/transactions', requireAdminOrFrontDesk, billingPaymentsController.recordPayment);
 router.get('/enrollments/:id/refund', requireAdminOrFrontDesk, billingPaymentsController.getEnrollmentRefundQuote);
 router.post('/enrollments/:id/refund', requireAdminOrFrontDesk, billingPaymentsController.recordEnrollmentRefund);
+router.get('/refunds/:type/:id', requireAdminOrFrontDesk, billingPaymentsController.getBookingRentalRefundQuote);
+router.post('/refunds/:type/:id', requireAdminOrFrontDesk, billingPaymentsController.recordBookingRentalRefund);
 export default router;
