@@ -46,7 +46,19 @@ export default function CreateRoomBooking() {
     : `${selectedOperatingHours?.startTime || openTime}–${selectedOperatingHours?.endTime || closeTime}`;
 
   const localToday = new Date();
-  const todayKey = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, '0')}-${String(localToday.getDate()).padStart(2, '0')}`;
+  const localDateKey = (value) => {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(value).reduce((all, part) => ({ ...all, [part.type]: part.value }), {});
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  };
+  const todayKey = localDateKey(localToday);
+  const maxBookingDate = localDateKey(new Date(localToday.getTime() + 4 * 24 * 60 * 60 * 1000));
+  const validClientWindow = (selectedDate, selectedTime) => {
+    const start = new Date(`${selectedDate}T${selectedTime}:00+08:00`);
+    return Number.isFinite(start.getTime()) &&
+      start.getTime() >= Date.now() + 30 * 60 * 1000 &&
+      selectedDate >= localDateKey(new Date()) &&
+      selectedDate <= localDateKey(new Date(Date.now() + 4 * 24 * 60 * 60 * 1000));
+  };
   const todayOperatingHours = getHoursForDate(operatingHours, localToday);
   const todayPastClosing = (() => {
     const [closingHour, closingMinute] = (todayOperatingHours?.endTime || '17:00').split(':').map(Number);
@@ -67,7 +79,10 @@ export default function CreateRoomBooking() {
     // Block the current half-hour slot. At 9:00-9:29, the first start is 9:30.
     return (Math.floor(currentMinutes / 30) + 1) * 30;
   })() : 0;
-  const selectableStartTimes = availableStartTimes.filter((time) => timeToMinutes(time.value) >= currentStartCutoff);
+  const selectableStartTimes = availableStartTimes.filter((time) =>
+    timeToMinutes(time.value) >= currentStartCutoff &&
+    (!date || validClientWindow(date, time.value))
+  );
 
   useEffect(() => {
     getOperatingHours().then(setOperatingHours).catch(() => setOperatingHours(null));
@@ -116,6 +131,12 @@ export default function CreateRoomBooking() {
         return;
       }
 
+      if (!validClientWindow(date, startTime)) {
+        setAvailableRooms([]);
+        setRoom(null);
+        setError('Select a start time at least 30 minutes from now, before the fifth calendar day.');
+        return;
+      }
       const scheduledStart = `${date}T${startTime}:00+08:00`;
       const scheduledEnd = `${date}T${endTime}:00+08:00`;
       if (!isWithinOperatingHours(operatingHours, scheduledStart, scheduledEnd)) {
@@ -201,6 +222,10 @@ export default function CreateRoomBooking() {
   const handleDateChange = (event) => {
     const nextDate = event.target.value;
     const nextHours = getHoursForDate(operatingHours, nextDate);
+    if (nextDate && (nextDate < todayKey || nextDate > maxBookingDate)) {
+      setError('Booking dates are limited to today and the next four calendar days.');
+      return;
+    }
     const nextIsToday = nextDate === todayKey;
     const now = new Date();
     const [closingHour, closingMinute] = (nextHours?.endTime || '17:00').split(':').map(Number);
@@ -298,6 +323,10 @@ export default function CreateRoomBooking() {
       return;
     }
 
+    if (!validClientWindow(date, startTime)) {
+      setError('Bookings must begin at least 30 minutes from now and before the fifth calendar day.');
+      return;
+    }
     if (!isWithinOperatingHours(operatingHours, `${date}T${startTime}:00+08:00`, `${date}T${endTime}:00+08:00`)) {
       setError('The selected booking must be within the facility operating hours.');
       return;
@@ -397,7 +426,8 @@ export default function CreateRoomBooking() {
                   type="date"
                   value={date}
                   onChange={handleDateChange}
-                  min={todayPastClosing ? new Date(localToday.getFullYear(), localToday.getMonth(), localToday.getDate() + 1).toISOString().split('T')[0] : todayKey}
+                  min={todayPastClosing ? localDateKey(new Date(localToday.getTime() + 24 * 60 * 60 * 1000)) : todayKey}
+                  max={maxBookingDate}
                   className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 />
                 {date && (

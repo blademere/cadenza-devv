@@ -34,6 +34,13 @@ router.get(
 );
 
 router.get(
+  '/reserved/:id',
+  requireClient,
+  idValidator,
+  instrumentRentalsController.getReservedTimes,
+);
+
+router.get(
   '/available/:id',
   requireClient,
   idValidator,

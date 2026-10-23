@@ -70,7 +70,7 @@ export default function Enrollments() {
 
   const enrolledCourseKeys = new Set(
     myEnrollments
-      .filter((enrollment) => enrollment.packageId && enrollment.courseId)
+      .filter((enrollment) => enrollment.status !== 'CANCELLED' && enrollment.packageId && enrollment.courseId)
       .map(
         (enrollment) =>
           `${String(enrollment.packageId)}:${String(enrollment.courseId)}`,
@@ -126,6 +126,7 @@ export default function Enrollments() {
         enrolledPackage?.sessionsPerWeek || enrollment.sessionsPerWeek,
       price: enrolledPackage?.price || enrollment.price || 0,
       status: enrollment.status,
+      cancellationReason: enrollment.metadata?.cancellationReason,
     }));
   });
 
@@ -169,6 +170,11 @@ export default function Enrollments() {
                         </p>
                         <EnrollmentStatus status={courseData.status} />
                       </div>
+                      {courseData.status === 'CANCELLED' && courseData.cancellationReason && (
+                        <p className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+                          Front Desk reason: {courseData.cancellationReason}
+                        </p>
+                      )}
                       <PackageCard
                         packageData={courseData}
                         enrolled

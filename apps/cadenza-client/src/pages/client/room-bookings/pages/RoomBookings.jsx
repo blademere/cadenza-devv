@@ -264,6 +264,11 @@ export default function RoomBookings() {
                   </div>
                 </div>
 
+                {booking.status === 'CANCELLED' && (booking.metadata?.cancellationReason || booking.cancellationReason) && (
+                  <p className="col-span-full rounded-lg bg-destructive/5 p-2 text-xs text-destructive">
+                    Front Desk reason: {booking.metadata?.cancellationReason || booking.cancellationReason}
+                  </p>
+                )}
                 <div>
                   <p className="text-xs text-muted-foreground">
                     Total Amount

@@ -39,13 +39,17 @@ const manilaDateKey = (date) => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(date);
 
-const assertWalkInDateWindow = (scheduledStart) => {
-  const today = manilaDateKey(new Date());
+const assertClientBookingWindow = (scheduledStart) => {
+  const now = new Date();
+  if (scheduledStart.getTime() < now.getTime() + 30 * 60 * 1000) {
+    throw new BadRequestError('Room bookings must start at least 30 minutes from now.');
+  }
+  const today = manilaDateKey(now);
   const startDate = manilaDateKey(scheduledStart);
-  const todayMs = Date.parse(`${today}T00:00:00Z`);
-  const startMs = Date.parse(`${startDate}T00:00:00Z`);
-  if (startMs <= todayMs || startMs > todayMs + 5 * 24 * 60 * 60 * 1000) {
-    throw new BadRequestError('Walk-in bookings are only allowed from tomorrow through the next 5 days.');
+  const day0 = Date.parse(`${today}T00:00:00Z`);
+  const selectedDay = Date.parse(`${startDate}T00:00:00Z`);
+  if (selectedDay >= day0 + 5 * 24 * 60 * 60 * 1000) {
+    throw new BadRequestError('Room bookings are only allowed today through the next four calendar days.');
   }
 };
 
@@ -128,6 +132,7 @@ const create = async ({
     scheduledStart,
     scheduledEnd,
   );
+  if (status !== 'APPROVED') assertClientBookingWindow(schedule.scheduledStart);
   try { assertWithinOperatingHours(await settingsService.getOperatingHours(appId), schedule.scheduledStart, schedule.scheduledEnd); } catch (error) { throw new BadRequestError(error.message); }
 
   const [customer, room] = await Promise.all([
@@ -445,7 +450,7 @@ const listAvailableRooms = async ({
     scheduledStart,
     scheduledEnd,
   );
-  assertWalkInDateWindow(schedule.scheduledStart);
+  assertClientBookingWindow(schedule.scheduledStart);
 
   return repository.listAvailableRooms({
     appId,

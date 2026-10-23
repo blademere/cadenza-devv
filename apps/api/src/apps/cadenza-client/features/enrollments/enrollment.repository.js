@@ -420,7 +420,7 @@ export const enrollmentRepository = {
         appId,
         customerId,
         status: {
-          notIn: ['CANCELLED', 'COMPLETED', 'REJECTED'],
+          notIn: ['COMPLETED', 'REJECTED'],
         },
       },
       include: {

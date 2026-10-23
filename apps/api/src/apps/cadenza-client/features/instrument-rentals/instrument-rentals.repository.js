@@ -106,6 +106,21 @@ export const instrumentRentalsRepository = {
     });
   },
 
+  findReservedIntervals(appId, instrumentId) {
+    return prisma.cadenzaRentalItem.findMany({
+      where: {
+        appId, instrumentId,
+        rental: { status: { in: ['FOR_APPROVAL', 'PENDING', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'PARTIALLY_PAID', 'APPROVED'] },
+          scheduledEnd: { gt: new Date() },
+        },
+      },
+      select: { rental: { select: { scheduledStart: true, scheduledEnd: true } } },
+    }).then((rows) => rows.map(({ rental }) => ({
+      scheduledStart: rental.scheduledStart,
+      scheduledEnd: rental.scheduledEnd,
+    })));
+  },
+
   findOverlappingInstrumentIds(
     appId,
     instrumentIds,

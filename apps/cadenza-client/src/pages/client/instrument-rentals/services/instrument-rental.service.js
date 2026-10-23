@@ -5,6 +5,11 @@ const INSTRUMENT_RENTALS_URL = '/instrument-rentals'
 const unwrap = (response) =>
   response?.data?.data ?? response?.data ?? response
 
+export const getReservedInstrumentTimes = async (id) => {
+  const response = await apiClient.get(`${INSTRUMENT_RENTALS_URL}/reserved/${id}`)
+  return unwrap(response)
+}
+
 export const getInstrument = async (id) => {
   const response = await apiClient.get(
     `${INSTRUMENT_RENTALS_URL}/available/${id}`,

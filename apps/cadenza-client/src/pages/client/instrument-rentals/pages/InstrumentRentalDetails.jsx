@@ -108,6 +108,13 @@ export default function InstrumentRentalDetails() {
         <RentalStatus status={rental.status} />
       </div>
 
+      {rental.status === 'CANCELLED' && rental.metadata?.cancellationReason && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <p className="font-medium">Cancelled by Front Desk</p>
+          <p className="mt-1 text-sm">Reason: {rental.metadata.cancellationReason}</p>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="rounded-xl border border-border bg-card p-6">
           <h2 className="text-lg font-semibold">Rental Information</h2>

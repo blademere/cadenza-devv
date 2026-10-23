@@ -317,6 +317,11 @@ export default function RoomBookingDetails() {
               <p className="mt-1 text-sm text-muted-foreground">
                 This room booking has been cancelled.
               </p>
+              {(booking.metadata?.cancellationReason || booking.cancellationReason) && (
+                <p className="mt-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm">
+                  <strong>Front Desk reason:</strong> {booking.metadata?.cancellationReason || booking.cancellationReason}
+                </p>
+              )
             </>
           )}
         </div>

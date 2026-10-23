@@ -24,7 +24,8 @@ const enrollmentNotification = (enrollment) => {
     CANCELLED: ['Enrollment cancelled', `Your ${name} has been cancelled.`],
   };
   const [title, message] = messages[status] || ['Enrollment updated', `Your ${name} status is now ${statusLabel(status)}.`];
-  return { id: `enrollment-${enrollment.id}-${status}`, type: 'ENROLLMENT', title, message, status, href: `/client/enrollments/${enrollment.id}`, createdAt: updatedAt(enrollment) };
+  const reason = status === 'CANCELLED' ? enrollment.metadata?.cancellationReason : null;
+  return { id: `enrollment-${enrollment.id}-${status}`, type: 'ENROLLMENT', title, message: reason ? `${message} Reason: ${reason}` : message, status, href: `/client/enrollments/${enrollment.id}`, createdAt: updatedAt(enrollment) };
 };
 
 const roomBookingNotification = (booking) => {
@@ -42,7 +43,8 @@ const roomBookingNotification = (booking) => {
     CANCELLED: ['Room booking cancelled', `Your ${room} booking has been cancelled.`],
   };
   const [title, message] = messages[status] || ['Room booking updated', `Your ${room} status is now ${statusLabel(status)}.`];
-  return { id: `room-booking-${booking.id}-${status}`, type: 'BOOKING', title, message, status, href: `/client/room-bookings/${booking.id}`, createdAt: updatedAt(booking) };
+  const reason = status === 'CANCELLED' ? booking.metadata?.cancellationReason || booking.cancellationReason : null;
+  return { id: `room-booking-${booking.id}-${status}`, type: 'BOOKING', title, message: reason ? `${message} Reason: ${reason}` : message, status, href: `/client/room-bookings/${booking.id}`, createdAt: updatedAt(booking) };
 };
 
 const rentalNotification = (rental) => {
@@ -62,7 +64,8 @@ const rentalNotification = (rental) => {
     CANCELLED: ['Rental cancelled', `Your ${name} rental has been cancelled.`],
   };
   const [title, message] = messages[status] || ['Rental updated', `Your ${name} status is now ${statusLabel(status)}.`];
-  return { id: `rental-${rental.id}-${status}`, type: 'RENTAL', title, message, status, href: `/client/instrument-rentals/${rental.id}`, createdAt: updatedAt(rental) };
+  const reason = status === 'CANCELLED' ? rental.metadata?.cancellationReason : null;
+  return { id: `rental-${rental.id}-${status}`, type: 'RENTAL', title, message: reason ? `${message} Reason: ${reason}` : message, status, href: `/client/instrument-rentals/${rental.id}`, createdAt: updatedAt(rental) };
 };
 
 export async function getMyNotifications() {

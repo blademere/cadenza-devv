@@ -152,6 +152,12 @@ export const instrumentRentalsController = {
     }
   },
 
+  async getReservedTimes(req, res, next) {
+    try {
+      const data = await instrumentRentalsService.getReservedTimes(req.cadenzaApp.id, req.params.id);
+      return res.json({ success: true, data });
+    } catch (error) { next(error); }
+  },
   async checkInstrumentAvailability(req, res, next) {
     try {
       const instruments =

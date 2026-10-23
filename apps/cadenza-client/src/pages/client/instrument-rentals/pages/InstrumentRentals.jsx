@@ -314,6 +314,9 @@ export default function InstrumentRentalsPage() {
                           <TableCell>{formatCurrency(rental.totalAmount)}</TableCell>
                           <TableCell>
                             <RentalStatus status={rental.status} />
+                            {rental.status === 'CANCELLED' && rental.metadata?.cancellationReason && (
+                              <p className="mt-2 max-w-xs text-xs text-destructive">Reason: {rental.metadata.cancellationReason}</p>
+                            )
                           </TableCell>
                           <TableCell className="text-right">
                             <Button

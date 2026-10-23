@@ -8,7 +8,6 @@ import {
   ShoppingCartIcon,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getHoursForDate, getOperatingHours } from '@/services/operatingHoursService';
 
 import {
   checkInstrumentAvailability,
@@ -115,130 +114,59 @@ export default function CreateInstrumentRental() {
     return `${parts.year}-${parts.month}-${parts.day}`;
   };
 
-  const getOperationalDurationHours = (schedule) => {
-    if (!schedule?.start || !schedule?.end) return 0;
-    const start = new Date(schedule.start);
-    const end = new Date(schedule.end);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
-
-    let totalMinutes = 0;
-    const day = new Date(start);
-    day.setHours(0, 0, 0, 0);
-    const lastDay = new Date(end);
-    lastDay.setHours(0, 0, 0, 0);
-    for (let index = 0; index < 370 && day <= lastDay; index += 1) {
-      const hours = getHoursForDate(operatingHours, day);
-      if (hours && !hours.isClosed) {
-        const opening = new Date(day);
-        const closing = new Date(day);
-        const [openHour, openMinute] = hours.startTime.split(':').map(Number);
-        const [closeHour, closeMinute] = hours.endTime.split(':').map(Number);
-        opening.setHours(openHour, openMinute, 0, 0);
-        closing.setHours(closeHour, closeMinute, 0, 0);
-        const overlapStart = Math.max(start.getTime(), opening.getTime());
-        const overlapEnd = Math.min(end.getTime(), closing.getTime());
-        if (overlapEnd > overlapStart) totalMinutes += (overlapEnd - overlapStart) / (1000 * 60);
+  const getDateTimeOptions = (date, isStart, minimumTime = null, instrumentId = null) => {
+    const minDateTime = new Date(Date.now() + 30 * 60 * 1000);
+    const earliest = new Date(Math.ceil(minDateTime.getTime() / (30 * 60 * 1000)) * (30 * 60 * 1000));
+    return timeOptions.filter((option) => {
+      if (!date) return false;
+      const time = new Date(combineDateTime(date, option.value));
+      if (Number.isNaN(time.getTime())) return false;
+      if (isStart && time < earliest) return false;
+      if (minimumTime && time < new Date(combineDateTime(date, minimumTime))) return false;
+      if (instrumentId && isStart) {
+        const intervals = reservedTimes[instrumentId];
+        if (!Array.isArray(intervals)) return false;
+        // An available fragment shorter than one hour is not selectable.
+        if (intervals.some((slot) =>
+          time < new Date(slot.scheduledEnd) &&
+          new Date(time.getTime() + 60 * 60 * 1000) > new Date(slot.scheduledStart)
+        )) return false;
       }
-      day.setDate(day.getDate() + 1);
-    }
-    return totalMinutes / 60;
+      if (instrumentId && !isStart) {
+        const schedule = schedules[instrumentId];
+        if (!schedule?.start || time < new Date(new Date(schedule.start).getTime() + 60 * 60 * 1000)) return false;
+        if ((reservedTimes[instrumentId] || []).some((slot) =>
+          new Date(schedule.start) < new Date(slot.scheduledEnd) &&
+          time > new Date(slot.scheduledStart)
+        )) return false;
+      }
+      return true;
+    });
   };
-
-  const getDateTimeOptions = (date, isStart, minimumTime = null) => {
-    const hours = getHoursForDate(operatingHours, date || new Date());
-    if (hours?.isClosed) return [];
-    const open = hours?.startTime || '08:00';
-    const close = hours?.endTime || '17:00';
-    const toMinutes = (value) => value.split(':').map(Number).reduce((total, part, index) => total + part * (index ? 1 : 60), 0);
-    let minimum = Math.max(toMinutes(open), minimumTime ? toMinutes(minimumTime) : 0);
-    if (isStart && date === getDateKey()) {
-      const nowParts = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false,
-      }).formatToParts(new Date()).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
-      const currentMinutes = Number(nowParts.hour) * 60 + Number(nowParts.minute);
-      // Always block the current half-hour slot. At 9:00 or 9:29, the first
-      // available start is 9:30; at 9:30, it is 10:00.
-      minimum = Math.max(minimum, (Math.floor(currentMinutes / 30) + 1) * 30);
-    }
-    const latestStart = toMinutes(close) - 30;
-    return timeOptions.filter((option) => toMinutes(option.value) >= minimum && toMinutes(option.value) <= (isStart ? latestStart : toMinutes(close)));
-  };
-
   const getEightHourReturn = (date, time) => {
-    let cursor = new Date(`${date}T${time}:00+08:00`);
-    let remainingMinutes = MINIMUM_RENTAL_HOURS * 60;
-
-    for (let index = 0; index < 370 && remainingMinutes > 0; index += 1) {
-      const hours = getHoursForDate(operatingHours, cursor);
-      if (!hours || hours.isClosed) {
-        cursor.setDate(cursor.getDate() + 1);
-        cursor.setHours(0, 0, 0, 0);
-        continue;
-      }
-      const opening = new Date(cursor);
-      const closing = new Date(cursor);
-      const [openHour, openMinute] = hours.startTime.split(':').map(Number);
-      const [closeHour, closeMinute] = hours.endTime.split(':').map(Number);
-      opening.setHours(openHour, openMinute, 0, 0);
-      closing.setHours(closeHour, closeMinute, 0, 0);
-      if (cursor < opening) cursor = opening;
-      if (cursor >= closing) {
-        cursor.setDate(cursor.getDate() + 1);
-        cursor.setHours(0, 0, 0, 0);
-        continue;
-      }
-      const availableMinutes = Math.floor((closing.getTime() - cursor.getTime()) / (1000 * 60));
-      const consumedMinutes = Math.min(availableMinutes, remainingMinutes);
-      cursor = new Date(cursor.getTime() + consumedMinutes * 60 * 1000);
-      remainingMinutes -= consumedMinutes;
-      if (remainingMinutes > 0) {
-        cursor.setDate(cursor.getDate() + 1);
-        cursor.setHours(0, 0, 0, 0);
-      }
-    }
-
-    const returnParts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: false,
-    }).formatToParts(cursor).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
-    return { date: getDateKey(cursor), time: `${returnParts.hour}:${returnParts.minute}` };
+    const end = new Date(new Date(combineDateTime(date, time)).getTime() + 8 * 60 * 60 * 1000);
+    const parts = new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(end).reduce((a,p)=>({...a,[p.type]:p.value}),{});
+    return {date:getDateKey(end),time:`${parts.hour}:${parts.minute}`};
   };
-
-  const isDateBlocked = (date) => {
-    if (!date) return false;
-    const hours = getHoursForDate(operatingHours, date);
-    if (hours?.isClosed) return true;
-    if (date !== getDateKey()) return false;
-    const now = new Date();
-    const [hour, minute] = (hours?.endTime || '17:00').split(':').map(Number);
-    const closing = new Date(`${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+08:00`);
-    return now >= closing;
-  };
-
-  const isRentalStartWithinHours = (schedule) => {
-    const start = new Date(schedule.start);
-    const hours = getHoursForDate(operatingHours, schedule.rentalDate);
-    if (!schedule.start || Number.isNaN(start.getTime()) || hours?.isClosed) return false;
-    const [openHour, openMinute] = (hours?.startTime || '08:00').split(':').map(Number);
-    const [closeHour, closeMinute] = (hours?.endTime || '17:00').split(':').map(Number);
-    const dateKey = getDateKey(start);
-    const opening = new Date(`${dateKey}T${String(openHour).padStart(2, '0')}:${String(openMinute).padStart(2, '0')}:00+08:00`);
-    const closing = new Date(`${dateKey}T${String(closeHour).padStart(2, '0')}:${String(closeMinute).padStart(2, '0')}:00+08:00`);
-    return start >= opening && start < closing;
-  };
-
+  const isDateBlocked = (date) => Boolean(date && date < getDateKey());
+  const isRentalStartWithinHours = (schedule) => schedule.start && new Date(schedule.start) > new Date();
   const [instruments, setInstruments] = useState([]);
   const [schedules, setSchedules] = useState({});
   const [availability, setAvailability] = useState({});
+  const [reservedTimes, setReservedTimes] = useState({});
   const [checkingId, setCheckingId] = useState(null);
   const [paymentPlan, setPaymentPlan] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [operatingHours, setOperatingHours] = useState(null);
-
   useEffect(() => {
-    getOperatingHours().then(setOperatingHours).catch(() => setOperatingHours(null));
-  }, []);
+    let active = true;
+    import('../services/instrument-rental.service').then(({ getReservedInstrumentTimes }) =>
+      Promise.all(instrumentIds.map(async (id) => [id, await getReservedInstrumentTimes(id)]))
+    ).then((entries) => { if (active) setReservedTimes(Object.fromEntries(entries)); })
+      .catch(() => { if (active) setError('Unable to load reserved rental times.'); });
+    return () => { active = false; };
+  }, [instrumentIds.join(',')]);
 
   useEffect(() => {
     const loadInstruments = async () => {
@@ -376,7 +304,7 @@ export default function CreateInstrumentRental() {
     }
     if (isDateBlocked(value)) {
       updateSchedule(id, field, '');
-      setError('The selected date is blocked by the facility schedule. Please choose another date.');
+      setError('Please choose a future rental date.');
       return;
     }
     updateSchedule(id, field, value);
@@ -415,23 +343,32 @@ export default function CreateInstrumentRental() {
       return false;
     }
 
-    const durationHours = getOperationalDurationHours(schedule);
+    const durationHours = getDurationHours(schedule);
 
     if (!isRentalStartWithinHours(schedule)) {
-      setError(`${getName(instrument)} must be scheduled within the facility operating hours.`);
+      setError(`${getName(instrument)} must start in the future.`);
       return false;
     }
 
-    if (durationHours < MINIMUM_RENTAL_HOURS) {
+    if (durationHours < 1) {
       setError(
         `${getName(
           instrument,
-        )} requires a minimum rental period of 8 hours.`,
+        )} requires a minimum rental period of 1 hour.`,
       );
 
       return false;
     }
 
+    const reserved = reservedTimes[instrument.id];
+    if (!Array.isArray(reserved)) {
+      setError('Reserved times are still loading. Please refresh and try again.');
+      return false;
+    }
+    if (reserved.some((slot) => new Date(slot.scheduledStart) < new Date(schedule.end) && new Date(slot.scheduledEnd) > new Date(schedule.start))) {
+      setError('This instrument is already reserved during the selected period.');
+      return false;
+    }
     try {
       setCheckingId(instrument.id);
       setError('');
@@ -507,18 +444,18 @@ export default function CreateInstrumentRental() {
         return;
       }
 
-      const durationHours = getOperationalDurationHours(schedule);
+      const durationHours = getDurationHours(schedule);
 
       if (!isRentalStartWithinHours(schedule)) {
-        setError(`${getName(instrument)} must be scheduled within the facility operating hours.`);
+        setError(`${getName(instrument)} must start in the future.`);
         return;
       }
 
-      if (durationHours < MINIMUM_RENTAL_HOURS) {
+      if (durationHours < 1) {
         setError(
           `${getName(
             instrument,
-          )} must have a rental period of at least 8 hours.`,
+          )} must have a rental period of at least 1 hour.`,
         );
 
         return;
@@ -584,11 +521,7 @@ export default function CreateInstrumentRental() {
   const totalEstimate = instruments.reduce(
     (total, instrument) =>
       total +
-      getEstimate(
-        instrument,
-        schedules[instrument.id],
-        getOperationalDurationHours(schedules[instrument.id]),
-      ).total,
+      getEstimate(instrument, schedules[instrument.id]).total,
     0,
   );
 
@@ -683,27 +616,16 @@ export default function CreateInstrumentRental() {
               schedules[instrument.id] || {};
 
             const estimate =
-              getEstimate(
-                instrument,
-                schedule,
-                getOperationalDurationHours(schedule),
-              );
+              getEstimate(instrument, schedule);
 
             const isAvailable =
               availability[
                 instrument.id
               ] === true;
-            const rentalDateHours = schedule.rentalDate
-              ? getHoursForDate(operatingHours, schedule.rentalDate)
-              : null;
-            const startOptions = getDateTimeOptions(schedule.rentalDate, true);
-            const automaticReturn = schedule.rentalDate && schedule.startTime
-              ? getEightHourReturn(schedule.rentalDate, schedule.startTime)
-              : null;
-            const minimumReturnTime = automaticReturn && schedule.returnDate === automaticReturn.date
-              ? automaticReturn.time
-              : null;
-            const endOptions = getDateTimeOptions(schedule.returnDate, false, minimumReturnTime);
+            
+            const startOptions = getDateTimeOptions(schedule.rentalDate, true, null, instrument.id);
+            
+            const endOptions = getDateTimeOptions(schedule.returnDate, false, null, instrument.id);
 
             return (
               <section
@@ -771,11 +693,6 @@ export default function CreateInstrumentRental() {
                       min={getToday()}
                       className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                     />
-                    {schedule.rentalDate && (
-                      <p className={`mt-2 text-xs ${rentalDateHours?.isClosed ? 'text-destructive' : 'text-muted-foreground'}`}>
-                        Operating hours for this date: <span className="font-medium">{rentalDateHours?.isClosed ? 'Closed' : `${rentalDateHours?.startTime || '08:00'}–${rentalDateHours?.endTime || '17:00'}`}</span>
-                      </p>
-                    )}
                   </div>
 
                   <div>
@@ -978,13 +895,7 @@ export default function CreateInstrumentRental() {
 
                   <span className="shrink-0 font-medium">
                     {formatCurrency(
-                      getEstimate(
-                        instrument,
-                        schedules[
-                          instrument.id
-                        ],
-                        getOperationalDurationHours(schedules[instrument.id]),
-                      ).total,
+                      getEstimate(instrument, schedules[instrument.id]).total,
                     )}
                   </span>
                 </div>
