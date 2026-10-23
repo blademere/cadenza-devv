@@ -36,6 +36,7 @@ const walkInCreateSchema = z.object({
     scheduledStart: z.coerce.date(),
     scheduledEnd: z.coerce.date(),
     paymentMethod: z.enum(['CASH', 'GCASH', 'CARD', 'OTHER']).optional(),
+    paymentReference: z.string().trim().min(3).max(100).optional(),
   }),
 });
 
