@@ -967,6 +967,12 @@ export const enrollmentService = {
       enrolledAt: null,
       metadata: {
         ...(data.metadata || {}),
+        paymentPlan: data.metadata?.paymentPlan === 'DOWN_PAYMENT' ? 'DOWN_PAYMENT' : 'FULL_PAYMENT',
+        paymentMethod: 'QR',
+        paymentStatus: 'PENDING_CONFIRMATION',
+        paymentAmount: Number(packageItem.price) * (data.metadata?.paymentPlan === 'DOWN_PAYMENT' ? 0.5 : 1),
+        initialPaymentAmount: Number(packageItem.price) * (data.metadata?.paymentPlan === 'DOWN_PAYMENT' ? 0.5 : 1),
+        remainingAmount: Number(packageItem.price) * (data.metadata?.paymentPlan === 'DOWN_PAYMENT' ? 0.5 : 1),
         paymentReference: paymentReference.trim(),
       },
       sessions: validatedSessions,
