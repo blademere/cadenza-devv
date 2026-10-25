@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { BellIcon, CircleUserRoundIcon, EllipsisVerticalIcon, Loader2, LogOutIcon } from 'lucide-react';
 import useAuth from '@/core/auth/useAuth';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -42,7 +43,7 @@ export function NavUser({ user }) {
           <DropdownMenuContent className="min-w-56" side={isMobile ? 'bottom' : 'right'} align="end" sideOffset={4}>
             <DropdownMenuGroup><DropdownMenuLabel className="p-0 font-normal"><div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm"><Avatar className="size-8"><AvatarImage src={displayUser.avatar} alt={displayUser.name || 'User'} /><AvatarFallback className="rounded-lg">AD</AvatarFallback></Avatar><div className="grid flex-1 text-left text-sm leading-tight"><span className="truncate font-medium">{displayUser.name || 'Admin'}</span><span className="truncate text-xs text-muted-foreground">{displayUser.email || ''}</span></div></div></DropdownMenuLabel></DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup><DropdownMenuItem onClick={() => navigate('/admin/profile')}><CircleUserRoundIcon />Account</DropdownMenuItem><DropdownMenuItem onClick={() => navigate('/admin/notifications')}><BellIcon />Notifications</DropdownMenuItem></DropdownMenuGroup>
+            <DropdownMenuGroup><DropdownMenuItem onClick={() => navigate('/admin/profile')}><CircleUserRoundIcon />Account</DropdownMenuItem><DropdownMenuItem onClick={() => navigate('/admin/notifications')}><BellIcon />Notifications<Badge className="ml-auto">3</Badge></DropdownMenuItem></DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setLogoutOpen(true)} disabled={signingOut}><LogOutIcon />Log out</DropdownMenuItem>
           </DropdownMenuContent>

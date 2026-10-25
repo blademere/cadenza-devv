@@ -91,6 +91,58 @@ const instructorSelect = {
 };
 
 export const enrollmentRepository = {
+  async findRescheduleRequestById(appId, id) {
+    return prisma.cadenzaRescheduleRequest.findFirst({ where: { id, appId, status: 'PENDING' } });
+  },
+  async updateRescheduleRequest(id, data) {
+    return prisma.cadenzaRescheduleRequest.update({ where: { id }, data });
+  },
+  async confirmReschedule(appId, requestId, targetStart, targetEnd) {
+    return prisma.$transaction(async (tx) => {
+      const request = await tx.cadenzaRescheduleRequest.findFirst({ where: { id: requestId, appId, status: 'PENDING' } });
+      if (!request) return null;
+      const session = await tx.cadenzaLessonSession.update({
+        where: { id: request.sessionId },
+        data: { scheduledStart: targetStart, scheduledEnd: targetEnd, metadata: { ...(await tx.cadenzaLessonSession.findUnique({ where: { id: request.sessionId }, select: { metadata: true } }))?.metadata, rescheduled: true, rescheduledAt: new Date().toISOString() } },
+      });
+      await tx.cadenzaRescheduleRequest.update({
+        where: { id: request.id },
+        data: { status: 'APPROVED', metadata: { ...(request.metadata || {}), confirmedAt: new Date().toISOString(), confirmedStart: targetStart.toISOString(), confirmedEnd: targetEnd.toISOString() } },
+      });
+      return session;
+    });
+  },
+  async findRescheduleRequests(appId) {
+    return prisma.cadenzaRescheduleRequest.findMany({
+      where: { status: 'PENDING', session: { appId } },
+      include: {
+        session: {
+          include: {
+            enrollment: { include: { customer: { include: { person: true } } } },
+            instructor: { include: { person: true } },
+            room: true,
+          },
+        },
+        requestedByPerson: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  },
+  async emergencyRescheduleSessions(appId, sessionIds, targetStart, targetEnd) {
+    return prisma.$transaction(async (tx) => {
+      const sessions = await tx.cadenzaLessonSession.findMany({ where: { appId, id: { in: sessionIds } } });
+      if (sessions.length !== sessionIds.length) return null;
+      const duration = targetEnd.getTime() - targetStart.getTime();
+      await Promise.all(sessions.map((session, index) => {
+        const start = new Date(targetStart.getTime() + index * duration);
+        return tx.cadenzaLessonSession.update({
+          where: { id: session.id },
+          data: { scheduledStart: start, scheduledEnd: new Date(start.getTime() + duration), metadata: { ...(session.metadata || {}), emergencyRescheduled: true } },
+        });
+      }));
+      return tx.cadenzaLessonSession.findMany({ where: { appId, id: { in: sessionIds } }, orderBy: { scheduledStart: 'asc' } });
+    });
+  },
   async findAll(appId, filters = {}) {
     const where = {
       appId,

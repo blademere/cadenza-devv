@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -11,6 +11,8 @@ import {
 
 import useAuth from '@/core/auth/useAuth';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { apiClient } from '@/core/api/apiClient';
 import {
   Dialog,
   DialogContent,
@@ -42,11 +44,20 @@ export function NavUser({ user }) {
   const { logout, user: authUser } = useAuth();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const displayUser = {
     ...user,
     name: authUser?.name || user?.name,
     email: authUser?.email || user?.email,
   };
+  useEffect(() => {
+    Promise.allSettled([apiClient.get('/enrollments'), apiClient.get('/room-bookings'), apiClient.get('/instrument-rentals')])
+      .then((results) => setUnreadCount(results.reduce((count, result) => {
+        if (result.status !== 'fulfilled') return count;
+        const data = result.value?.data?.data ?? result.value?.data ?? result.value;
+        return count + (Array.isArray(data) ? data.length : 0);
+      }, 0)));
+  }, []);
 
   const handleLogout = async () => {
     if (signingOut) return;
@@ -107,7 +118,7 @@ export function NavUser({ user }) {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/front-desk/notifications')}>
                 <BellIcon />
-                Notifications
+                Notifications{unreadCount > 0 && <Badge className="ml-auto">{unreadCount > 99 ? '99+' : unreadCount}</Badge>}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

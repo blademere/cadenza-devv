@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Tabs } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { fonts } from '../../themes/fonts';
 import { logout } from '../../services/authService';
 const ACCENT = '#0C447C';
@@ -66,6 +66,7 @@ function ProfileMenu({ visible, onClose, onProfile, onLogout }) {
 
 export default function StudentLayout() {
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   async function completeLogout() {
     if (loggingOut) return;
@@ -83,26 +84,7 @@ export default function StudentLayout() {
 
   function handleLogout() {
     if (loggingOut) return;
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      if (window.confirm('Are you sure you want to log out of the mobile application?')) {
-        void completeLogout();
-      }
-      return;
-    }
-
-    Alert.alert(
-      'Log out',
-      'Are you sure you want to log out of the mobile application?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log out',
-          style: 'destructive',
-          onPress: () => void completeLogout(),
-        },
-      ],
-    );
+    setLogoutDialogVisible(true);
   }
   return (
     <>
@@ -226,6 +208,19 @@ export default function StudentLayout() {
         onProfile={() => router.push('/student/profile')}
         onLogout={handleLogout}
       />
+      <Modal visible={logoutDialogVisible} transparent animationType="fade" onRequestClose={() => !loggingOut && setLogoutDialogVisible(false)}>
+        <View className="flex-1 items-center justify-center bg-black/40 px-6">
+          <View className="w-full max-w-[360px] rounded-3xl bg-white p-6" style={{ elevation: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 16 }}>
+            <View className="h-12 w-12 items-center justify-center rounded-2xl bg-red-50"><Text className="text-2xl">↪</Text></View>
+            <Text className="mt-5 text-2xl font-bold text-gray-900">Log out?</Text>
+            <Text className="mt-2 leading-6 text-gray-500">You will need to sign in again to view your lessons and progress.</Text>
+            <View className="mt-7 flex-row justify-end gap-3">
+              <Pressable disabled={loggingOut} onPress={() => setLogoutDialogVisible(false)} className="rounded-xl px-4 py-3"><Text className="font-semibold text-gray-600">Cancel</Text></Pressable>
+              <Pressable disabled={loggingOut} onPress={() => { setLogoutDialogVisible(false); void completeLogout(); }} className="rounded-xl bg-[#E24B4A] px-5 py-3"><Text className="font-semibold text-white">{loggingOut ? 'Logging out...' : 'Log out'}</Text></Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }

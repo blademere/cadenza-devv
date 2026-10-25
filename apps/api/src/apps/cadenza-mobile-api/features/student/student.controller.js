@@ -28,4 +28,8 @@ export const studentController = {
     );
     res.status(201).json({ success: true, message: 'Schedule request submitted for review.', data: request });
   },
+  async chooseSchedule(req, res) {
+    const result = await studentService.chooseSchedule(req, req.params.sessionId, req.body.optionIds);
+    res.json({ success: true, message: 'Schedule choices submitted.', data: result });
+  },
 };

@@ -25,6 +25,15 @@ export async function requestStudentSchedule(sessionId) {
   return response.data?.data ?? response.data;
 }
 
+export async function chooseStudentSchedule(sessionId, optionIds) {
+  const response = await api.post(
+    `/student/schedule/${sessionId}/choice`,
+    { optionIds },
+    { headers: { 'Idempotency-Key': `mobile-student-choice-${sessionId}-${Date.now()}` } },
+  );
+  return response.data?.data ?? response.data;
+}
+
 export async function getStudentMaterials() {
   const response = await api.get('/student/materials');
   return response.data?.data ?? response.data;

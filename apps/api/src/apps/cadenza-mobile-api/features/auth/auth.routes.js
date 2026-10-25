@@ -14,6 +14,7 @@ import requireActiveEnrollment from '../../middleware/require-active-enrollment.
 import {
   csrfController,
   loginController,
+  googleLoginController,
   currentUserController,
   refreshController,
   logoutController,
@@ -28,6 +29,7 @@ const requireAuthIdempotency = idempotency({
 
 authRouter.get('/csrf', asyncHandler(csrfController));
 authRouter.post('/login', loginRateLimiter, asyncHandler(loginController));
+authRouter.post('/oauth/google', loginRateLimiter, asyncHandler(googleLoginController));
 authRouter.get(
   '/me',
   cadenzaAuthenticate,

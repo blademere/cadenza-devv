@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ResourceFeedback } from '../../components/common/ResourceFeedback';
-import RescheduleRequestButton from '../../components/common/RescheduleRequestButton';
 import useMobileResource from '../../hooks/useMobileResource';
-import { getInstructorProgress, markInstructorAttendance } from '../../services/instructor.service';
+import { getInstructorProgress, markInstructorAttendance, saveInstructorFeedback } from '../../services/instructor.service';
 
 const ACCENT = '#0C447C';
 
@@ -19,6 +18,13 @@ function getStudentName(record) {
 function getLessonTime(record) {
   const startsAt = record.scheduledStart || record.startsAt;
   return startsAt ? new Date(startsAt).toLocaleString() : 'Time pending';
+}
+
+function isLessonInProgress(record) {
+  const start = new Date(record.scheduledStart || record.startsAt).getTime();
+  const end = new Date(record.scheduledEnd || record.endsAt).getTime();
+  const now = Date.now();
+  return Number.isFinite(start) && Number.isFinite(end) && now >= start && now < end;
 }
 
 function getProgressPercent(record) {
@@ -39,6 +45,7 @@ export default function InstructorProgressPage() {
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [savingId, setSavingId] = useState(null);
   const [saveError, setSaveError] = useState('');
+  const [savingFeedbackId, setSavingFeedbackId] = useState(null);
 
   async function saveLesson(record, status) {
     if (savingId) return;
@@ -52,6 +59,19 @@ export default function InstructorProgressPage() {
       setSaveError(requestError?.response?.data?.message || requestError?.message || 'Could not save attendance and feedback. Try again.');
     } finally {
       setSavingId(null);
+    }
+  }
+
+  async function saveFeedback(record) {
+    try {
+      setSavingFeedbackId(record.id);
+      setSaveError('');
+      await saveInstructorFeedback(record.id, (feedbackDrafts[record.id] ?? record.attendance?.notes ?? '').trim());
+      await refresh();
+    } catch (requestError) {
+      setSaveError(requestError?.response?.data?.message || requestError?.message || 'Could not save instructor feedback. Try again.');
+    } finally {
+      setSavingFeedbackId(null);
     }
   }
 
@@ -71,12 +91,14 @@ export default function InstructorProgressPage() {
           const notes = feedbackDrafts[record.id] ?? record.attendance?.notes ?? '';
           const saving = savingId === record.id;
           const progress = getProgressPercent(record);
+          const lessonInProgress = isLessonInProgress(record);
+          const attendanceRecorded = ['PRESENT', 'ABSENT', 'EXCUSED'].includes(status);
           return (
             <View key={record.id} className="mb-4 rounded-2xl border border-gray-100 bg-white p-4">
               <Text className="text-base font-bold text-gray-900">{getLessonName(record)}</Text>
               <View className="mt-3 flex-row items-center justify-between gap-3">
                 <Text className="flex-1 text-sm text-gray-600">{getStudentName(record)}</Text>
-                <View className="flex-row gap-2">
+                {lessonInProgress && <View className="flex-row gap-2">
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Mark ${getStudentName(record)} present`}
@@ -95,7 +117,16 @@ export default function InstructorProgressPage() {
                   >
                     <Text className="font-semibold text-red-800">{saving && status !== 'ABSENT' ? 'Saving…' : 'Absent'}</Text>
                   </Pressable>
-                </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Mark ${getStudentName(record)} excused`}
+                    disabled={!!savingId}
+                    onPress={() => saveLesson(record, 'EXCUSED')}
+                    className={`rounded-lg px-3 py-2 ${status === 'EXCUSED' ? 'bg-amber-200' : 'bg-amber-100'}`}
+                  >
+                    <Text className="font-semibold text-amber-800">{saving && status !== 'EXCUSED' ? 'Saving...' : 'Excuse'}</Text>
+                  </Pressable>
+                </View>}
               </View>
               <Text className="mt-3 text-sm text-gray-500">{getLessonTime(record)}</Text>
               <Text className="mt-1 text-xs text-gray-500">Attendance: {status}</Text>
@@ -107,23 +138,23 @@ export default function InstructorProgressPage() {
                 <View className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: ACCENT }} />
               </View>
               {record.totalLessons > 0 && <Text className="mt-2 text-xs text-gray-500">{record.completedLessons ?? 0} of {record.totalLessons} lessons attended</Text>}
-              <RescheduleRequestButton
-                sessionId={record.id}
-                lesson={getLessonName(record)}
-                scheduledStart={record.scheduledStart || record.startsAt}
-                requesterRole="INSTRUCTOR"
-              />
-              <Text className="mb-2 mt-4 font-semibold text-gray-800">Instructor feedback</Text>
-              <TextInput
-                value={notes}
-                onChangeText={(value) => setFeedbackDrafts((current) => ({ ...current, [record.id]: value }))}
-                multiline
-                textAlignVertical="top"
-                accessibilityLabel={`Instructor feedback for ${getStudentName(record)}`}
-                className="min-h-24 rounded-xl border border-gray-300 px-4 py-3 text-gray-900"
-                placeholder="Add feedback for this lesson"
-                editable={!saving}
-              />
+              {lessonInProgress && <Text className="mt-4 rounded-xl bg-green-50 p-3 text-sm font-semibold text-green-800">Attendance is available while this lesson is in progress.</Text>}
+              {attendanceRecorded && <>
+                <Text className="mb-2 mt-4 font-semibold text-gray-800">Instructor feedback</Text>
+                <TextInput
+                  value={notes}
+                  onChangeText={(value) => setFeedbackDrafts((current) => ({ ...current, [record.id]: value }))}
+                  multiline
+                  textAlignVertical="top"
+                  accessibilityLabel={`Instructor feedback for ${getStudentName(record)}`}
+                  className="min-h-24 rounded-xl border border-gray-300 px-4 py-3 text-gray-900"
+                  placeholder="Add feedback for this lesson"
+                  editable={!saving}
+                />
+                <Pressable accessibilityRole="button" disabled={savingFeedbackId === record.id} onPress={() => saveFeedback(record)} className="mt-3 self-start rounded-xl bg-[#0C447C] px-4 py-3">
+                  <Text className="font-semibold text-white">{savingFeedbackId === record.id ? 'Saving feedback...' : 'Save feedback'}</Text>
+                </Pressable>
+              </>}
               {saving && <View className="mt-3 flex-row items-center"><ActivityIndicator size="small" color={ACCENT} /><Text className="ml-2 text-sm text-gray-500">Saving attendance and feedback…</Text></View>}
             </View>
           );

@@ -31,13 +31,13 @@ import {
 import { getAuditLogs } from '@/services/admin/auditService';
 
 const categories = ['ALL', 'ROOM_RENTALS', 'INSTRUMENT_RENTALS', 'ENROLLMENT_PACKAGES'];
-const categoryLabel = { ALL: 'All categories', ROOM_RENTALS: 'Room rentals', INSTRUMENT_RENTALS: 'Instrument rentals', ENROLLMENT_PACKAGES: 'Enrollment packages' };
+const categoryLabel = { ALL: 'All categories', ROOM_RENTALS: 'Room Booking', INSTRUMENT_RENTALS: 'Item Rentals', ENROLLMENT_PACKAGES: 'Enrollment' };
 const categoryName = (type) =>
-  type === 'RoomBooking'
-    ? 'Booking'
+  type === 'RoomBooking' || type === 'RoomRental'
+    ? 'Room Booking'
     : type === 'EnrollmentPackage'
-      ? 'Enrollment Package'
-      : 'Rental';
+      ? 'Enrollment'
+      : 'Item Rentals';
 const fieldName = (field) =>
   field
     .replace(/At(?:Booking|Enrollment|Rental)$/, '')

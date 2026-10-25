@@ -131,6 +131,9 @@ export default function AppRoutes() {
           <Route path="instructors" element={<FrontDeskInstructorsPage />} />
           <Route path="enrollments" element={<FrontDeskEnrollmentsPage />} />
           <Route path="schedule" element={<FrontDeskClassSchedulePage />} />
+          <Route path="schedule/manage" element={<FrontDeskClassSchedulePage />} />
+          <Route path="schedule/manage-request" element={<FrontDeskClassSchedulePage />} />
+          <Route path="schedule/emergency" element={<FrontDeskClassSchedulePage />} />
           <Route
             path="rentals"
             element={<FrontDeskInstrumentRentalsPage />}

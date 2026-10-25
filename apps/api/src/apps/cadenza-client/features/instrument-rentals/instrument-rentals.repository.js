@@ -90,6 +90,24 @@ export const instrumentRentalsRepository = {
       where: {
         id,
         appId,
+        status: 'AVAILABLE',
+        rentalItems: {
+          none: {
+            rental: {
+              status: {
+                in: [
+                  'FOR_APPROVAL',
+                  'PENDING',
+                  'PENDING_PAYMENT',
+                  'PENDING_CONFIRMATION',
+                  'PARTIALLY_PAID',
+                  'APPROVED',
+                ],
+              },
+              returnedAt: null,
+            },
+          },
+        },
       },
     });
   },
@@ -99,6 +117,23 @@ export const instrumentRentalsRepository = {
       where: {
         appId,
         status: 'AVAILABLE',
+        rentalItems: {
+          none: {
+            rental: {
+              status: {
+                in: [
+                  'FOR_APPROVAL',
+                  'PENDING',
+                  'PENDING_PAYMENT',
+                  'PENDING_CONFIRMATION',
+                  'PARTIALLY_PAID',
+                  'APPROVED',
+                ],
+              },
+              returnedAt: null,
+            },
+          },
+        },
       },
       include: {
         instrumentType: true,

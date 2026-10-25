@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CalendarDaysIcon,
   CheckCircle2Icon,
@@ -30,6 +31,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/Card';
+
+import { enrollmentService } from '@/services/front-desk/enrollmentService';
+import { getRooms } from '@/services/admin/roomsService';
+import { getHoursForDate, getOperatingHours } from '@/services/operatingHoursService';
+import { apiClient } from '@/core/api/apiClient';
 
 const rooms = [
   {
@@ -137,6 +143,21 @@ const getRescheduleWindow = (requestDate) => {
   });
 };
 
+const getNextSameWeekdayDate = (date) => {
+  const value = new Date(`${date}T00:00:00+08:00`);
+  value.setDate(value.getDate() + 7);
+  return formatDateKey(value);
+};
+
+const getSameWeekdayDates = (date, count = 7) => {
+  const start = new Date(`${date}T00:00:00+08:00`);
+  return Array.from({ length: count }, (_, index) => {
+    const value = new Date(start);
+    value.setDate(start.getDate() + ((index + 1) * 7));
+    return value;
+  });
+};
+
 const parseTime = (time) => {
   const match = time.match(
     /^(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i,
@@ -208,7 +229,7 @@ const isScheduleConflict = (firstSchedule, secondSchedule) => {
 
 const today = new Date();
 
-const schedule = [
+const fallbackSchedule = [
   {
     id: 1,
     date: formatDateKey(today),
@@ -365,37 +386,8 @@ const schedule = [
   },
 ];
 
-const rescheduleRequests = [
-  {
-    id: 1,
-    classId: 1,
-    reason: 'Instructor requested a schedule change.',
-    requestedBy: 'John Cruz',
-    requestedAt: formatDateKey(today),
-    course: 'Piano Beginner',
-    student: 'Maria Santos',
-    instructor: 'John Cruz',
-    currentDate: formatDateKey(today),
-    currentTime: '7:00 AM - 8:00 AM',
-    currentRoom: 'Room 1',
-  },
-  {
-    id: 2,
-    classId: 2,
-    reason: 'Student requested a schedule change.',
-    requestedBy: 'James Reyes',
-    requestedAt: formatDateKey(today),
-    course: 'Guitar Basics',
-    student: 'James Reyes',
-    instructor: 'Anna Lee',
-    currentDate: formatDateKey(today),
-    currentTime: '9:00 AM - 10:00 AM',
-    currentRoom: 'Room 2',
-  },
-];
-
 const buildGeneratedSchedules = (request) => {
-  const requestDate = new Date(request.requestedAt);
+  const requestDate = new Date(request.rescheduleFromDate || request.requestedAt);
   const windowDates = getRescheduleWindow(requestDate);
 
   const options = [
@@ -452,7 +444,9 @@ const buildGeneratedSchedules = (request) => {
   ];
 
   return options.map((option, index) => {
-    const date = windowDates[option.dayOffset];
+    const date = request.rescheduleToDate
+      ? new Date(`${request.rescheduleToDate}T00:00:00+08:00`)
+      : windowDates[option.dayOffset];
     const endHour = option.hour + 1;
 
     return {
@@ -554,27 +548,61 @@ function ScheduleRow({
 }
 
 export default function ClassSchedule() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const processMode = location.pathname.includes('/manage-request')
+    ? 'manage-request'
+    : location.pathname.endsWith('/emergency')
+      ? 'emergency'
+      : 'schedule';
+  const processTitle = processMode === 'manage-request'
+    ? 'Manage Reschedule Request'
+    : processMode === 'emergency'
+      ? 'Emergency Center Reschedule'
+      : 'Class Schedule';
+  const processDescription = processMode === 'manage-request'
+    ? 'Review generated schedules, matching preferences, and required approvals.'
+    : processMode === 'emergency'
+      ? 'Select a closure date and reschedule affected enrolled classes.'
+      : 'View today and weekly classes, assigned rooms, instructors, and students.';
+  const [schedule, setSchedule] = useState([]);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [scheduleError, setScheduleError] = useState('');
+  const [operatingHours, setOperatingHours] = useState(null);
+  const [operatingHoursError, setOperatingHoursError] = useState('');
   const [activeTab, setActiveTab] = useState('today');
   const [selectedDay, setSelectedDay] = useState(formatDateKey(today));
   const [weeklySearch, setWeeklySearch] = useState('');
 
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [rescheduleRequests, setRescheduleRequests] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
 
   const [generatedSchedules, setGeneratedSchedules] = useState([]);
   const [generated, setGenerated] = useState(false);
   const [submittedOptions, setSubmittedOptions] = useState(false);
+  const [submitOptionsError, setSubmitOptionsError] = useState('');
+  const [submittingOptions, setSubmittingOptions] = useState(false);
 
   const [instructorChoices, setInstructorChoices] = useState([]);
   const [studentChoices, setStudentChoices] = useState([]);
 
   const [finalSchedule, setFinalSchedule] = useState(null);
   const [confirmedSchedule, setConfirmedSchedule] = useState(null);
+  const [emergencySaving, setEmergencySaving] = useState(false);
+  const [emergencySaveError, setEmergencySaveError] = useState('');
+  const [studentApproved, setStudentApproved] = useState(false);
+  const [instructorApproved, setInstructorApproved] = useState(false);
 
   const [noMatchNotificationSent, setNoMatchNotificationSent] =
     useState(false);
 
-  const [centerReschedule, setCenterReschedule] = useState(false);
+  const [centerRescheduleState, setCenterReschedule] = useState(false);
+  const centerReschedule = centerRescheduleState && processMode === 'emergency';
+  const [centerStartMessage, setCenterStartMessage] = useState('');
+  const [emergencyDate, setEmergencyDate] = useState(() => formatDateKey(today));
+  const [emergencyTargetDate, setEmergencyTargetDate] = useState('');
 
   const [assignedRooms, setAssignedRooms] = useState({});
 
@@ -585,7 +613,89 @@ export default function ClassSchedule() {
 
   const weekDates = useMemo(() => getWeekDates(today), []);
 
+  useEffect(() => {
+    let active = true;
+    const loadSchedule = async () => {
+      try {
+        setScheduleLoading(true);
+        setScheduleError('');
+        const [{ items: enrollments }, roomsResponse] = await Promise.all([
+          enrollmentService.getEnrollments({ limit: 1000 }),
+          getRooms(),
+        ]);
+        const roomById = new Map((Array.isArray(roomsResponse) ? roomsResponse : []).map((room) => [room.id, room.roomName || room.resource?.name || room.roomType]));
+        const items = (enrollments || []).flatMap((enrollment) => (enrollment.sessions || []).map((session) => {
+          const start = new Date(session.scheduledStart);
+          const end = new Date(session.scheduledEnd);
+          return {
+            id: session.id,
+            date: formatDateKey(start),
+            time: `${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`,
+            course: enrollment.lessons?.[0]?.name || enrollment.packageName || 'Lesson',
+            student: enrollment.student || 'Unassigned',
+            instructor: session.instructorName || 'Unassigned',
+            room: roomById.get(session.roomId) || null,
+            status: session.status || 'UPCOMING',
+            enrolled: true,
+          };
+        }));
+        if (active) setSchedule(items);
+      } catch (error) {
+        if (active) {
+          setSchedule([]);
+          setScheduleError(error?.response?.data?.message || error.message || 'Unable to load class schedule.');
+        }
+      } finally {
+        if (active) setScheduleLoading(false);
+      }
+    };
+    loadSchedule();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getOperatingHours()
+      .then((config) => { if (active) setOperatingHours(config); })
+      .catch((error) => {
+        if (active) setOperatingHoursError(error?.response?.data?.message || 'Unable to load operating hours.');
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadRescheduleRequests = () => apiClient.get('/enrollments/reschedule-requests')
+      .then((response) => {
+        if (active) {
+          const requests = Array.isArray(response?.data) ? response.data : [];
+          setRescheduleRequests(requests);
+          setSelectedRequest((current) => {
+            if (!current) return current;
+            return requests.find((request) => request.id === current.id) || current;
+          });
+        }
+      })
+      .catch(() => { if (active) setRescheduleRequests([]); });
+    loadRescheduleRequests();
+    const refreshTimer = window.setInterval(loadRescheduleRequests, 15000);
+    return () => { active = false; window.clearInterval(refreshTimer); };
+  }, []);
+
   const todayKey = formatDateKey(today);
+
+  const emergencySchedules = useMemo(
+    () => schedule.filter((item) => item.date === emergencyDate),
+    [schedule, emergencyDate],
+  );
+  const emergencyHours = useMemo(
+    () => getHoursForDate(operatingHours, emergencyDate),
+    [operatingHours, emergencyDate],
+  );
+  const customizedOperatingDates = useMemo(
+    () => Object.entries(operatingHours?.dateOverrides || {}).sort(([first], [second]) => first.localeCompare(second)),
+    [operatingHours],
+  );
 
   const todaySchedules = useMemo(() => {
     return schedule.filter((item) => item.date === todayKey);
@@ -670,20 +780,35 @@ export default function ClassSchedule() {
   }, [selectedDay, weeklySearch]);
 
   const matchingSchedules = useMemo(() => {
-    return generatedSchedules.filter(
-      (option) =>
-        instructorChoices.includes(option.id) &&
-        studentChoices.includes(option.id),
+    const options = selectedRequest?.generatedOptions?.length
+      ? selectedRequest.generatedOptions
+      : generatedSchedules;
+    const instructorIds = new Set(
+      instructorChoices.length
+        ? instructorChoices
+        : selectedRequest?.instructorChoices || [],
     );
-  }, [generatedSchedules, instructorChoices, studentChoices]);
+    const studentIds = new Set(
+      studentChoices.length
+        ? studentChoices
+        : selectedRequest?.studentChoices || [],
+    );
+
+    return options.filter(
+      (option) => instructorIds.has(option.id) && studentIds.has(option.id),
+    );
+  }, [generatedSchedules, instructorChoices, studentChoices, selectedRequest]);
 
   const selectedRequestWindow = useMemo(() => {
     if (!selectedRequest) {
       return [];
     }
 
+    if (centerReschedule && selectedRequest.rescheduleFromDate) {
+      return getSameWeekdayDates(selectedRequest.rescheduleFromDate);
+    }
     return getRescheduleWindow(selectedRequest.requestedAt);
-  }, [selectedRequest]);
+  }, [selectedRequest, centerReschedule]);
 
   const roomConflicts = useMemo(() => {
     if (!roomAssignmentClass) {
@@ -823,26 +948,39 @@ export default function ClassSchedule() {
   };
 
   const openNormalReschedule = (request) => {
+    if (processMode !== 'manage-request') {
+      navigate(`/front-desk/schedule/manage-request?requestId=${encodeURIComponent(request.id)}`);
+    }
     setCenterReschedule(false);
     setSelectedRequest(request);
     setSelectedClass(null);
-    setGenerated(false);
-    setSubmittedOptions(false);
-    setGeneratedSchedules([]);
-    setInstructorChoices([]);
-    setStudentChoices([]);
+    const savedOptions = request.generatedOptions || [];
+    setGenerated(savedOptions.length > 0);
+    setSubmittedOptions(savedOptions.length > 0 || request.workflowStatus === 'AWAITING_PARTICIPANT_CHOICES' || request.workflowStatus === 'AWAITING_TWO_APPROVALS');
+    setGeneratedSchedules(savedOptions);
+    setInstructorChoices(request.instructorChoices || []);
+    setStudentChoices(request.studentChoices || []);
     setFinalSchedule(null);
     setConfirmedSchedule(null);
+    setStudentApproved(false);
+    setInstructorApproved(false);
     setNoMatchNotificationSent(false);
   };
 
   const openCenterReschedule = (classItem) => {
+    if (!classItem) {
+      setCenterStartMessage('No class schedule is available for today. Select another date or refresh the schedule after the class data loads.');
+      return;
+    }
+    setCenterStartMessage('');
     const request = {
       id: `center-${classItem.id}`,
       classId: classItem.id,
-      reason: 'Music Center schedule change.',
+      reason: `Center emergency or closure on ${formatFullDate(classItem.date)}.`,
       requestedBy: 'Music Center',
       requestedAt: formatDateKey(today),
+      rescheduleFromDate: classItem.date,
+      rescheduleToDate: emergencyTargetDate || getNextSameWeekdayDate(classItem.date),
       course: classItem.course,
       student: classItem.student,
       instructor: classItem.instructor,
@@ -862,17 +1000,32 @@ export default function ClassSchedule() {
     setStudentChoices([]);
     setFinalSchedule(null);
     setConfirmedSchedule(null);
+    setStudentApproved(false);
+    setInstructorApproved(false);
     setNoMatchNotificationSent(false);
   };
 
+  const openEmergencyReschedule = () => {
+    setCenterStartMessage('');
+    const affectedClass = emergencySchedules[0];
+    if (!affectedClass) {
+      const message = `No enrolled class was found for ${formatFullDate(emergencyDate)}. The closure alert is ready, but a class is required before replacement schedules can be generated.`;
+      setCenterStartMessage(message);
+      window.setTimeout(() => setCenterStartMessage(''), 3000);
+      return;
+    }
+    openCenterReschedule(affectedClass);
+  };
+
   const generateSchedules = () => {
-    if (!selectedRequest) {
+    if (!selectedRequest || submittedOptions || selectedRequest.generatedOptions?.length) {
       return;
     }
 
     const options = buildGeneratedSchedules(selectedRequest);
 
     setGeneratedSchedules(options);
+    if (centerReschedule) setFinalSchedule(options[0] || null);
     setGenerated(true);
     setSubmittedOptions(false);
     setInstructorChoices([]);
@@ -882,32 +1035,23 @@ export default function ClassSchedule() {
     setNoMatchNotificationSent(false);
   };
 
-  const submitGeneratedSchedules = () => {
+  const submitGeneratedSchedules = async () => {
     if (!generatedSchedules.length) {
       return;
     }
-
-    setSubmittedOptions(true);
-
-    setInstructorChoices(
-      [
-        generatedSchedules[0]?.id,
-        generatedSchedules[2]?.id,
-        generatedSchedules[4]?.id,
-        generatedSchedules[6]?.id,
-        generatedSchedules[8]?.id,
-      ].filter(Boolean),
-    );
-
-    setStudentChoices(
-      [
-        generatedSchedules[0]?.id,
-        generatedSchedules[1]?.id,
-        generatedSchedules[3]?.id,
-        generatedSchedules[6]?.id,
-        generatedSchedules[9]?.id,
-      ].filter(Boolean),
-    );
+    if (!selectedRequest || submittingOptions) return;
+    setSubmittingOptions(true);
+    setSubmitOptionsError('');
+    try {
+      await apiClient.post(`/enrollments/${selectedRequest.id}/submit-options`, { options: generatedSchedules });
+      setSubmittedOptions(true);
+      setInstructorChoices([]);
+      setStudentChoices([]);
+    } catch (error) {
+      setSubmitOptionsError(error?.message || 'Unable to submit replacement schedule options.');
+    } finally {
+      setSubmittingOptions(false);
+    }
   };
 
   const toggleInstructorChoice = (id) => {
@@ -918,6 +1062,8 @@ export default function ClassSchedule() {
     );
 
     setFinalSchedule(null);
+    setStudentApproved(false);
+    setInstructorApproved(false);
     setNoMatchNotificationSent(false);
   };
 
@@ -929,19 +1075,48 @@ export default function ClassSchedule() {
     );
 
     setFinalSchedule(null);
+    setStudentApproved(false);
+    setInstructorApproved(false);
     setNoMatchNotificationSent(false);
   };
 
-  const notifyParticipants = () => {
-    setNoMatchNotificationSent(true);
-  };
-
-  const submitFinalSchedule = () => {
-    if (!finalSchedule) {
+  const submitFinalSchedule = async (scheduleOverride = null) => {
+    const scheduleToSave = scheduleOverride?.id ? scheduleOverride : finalSchedule;
+    if (!scheduleToSave) {
       return;
     }
 
-    setConfirmedSchedule(finalSchedule);
+    if (centerReschedule) {
+      setEmergencySaving(true);
+      setEmergencySaveError('');
+      const parsed = parseTime(scheduleToSave.time);
+      const date = scheduleToSave.date;
+      const toIso = (minutes) => {
+        const hours = String(Math.floor(minutes / 60)).padStart(2, '0');
+        const mins = String(minutes % 60).padStart(2, '0');
+        return `${date}T${hours}:${mins}:00+08:00`;
+      };
+      try {
+        await apiClient.post('/enrollments/emergency-reschedule', {
+          sessionIds: emergencySchedules.map((item) => item.id),
+          targetStart: toIso(parsed.start),
+          targetEnd: toIso(parsed.end),
+        });
+      } catch (error) {
+        setEmergencySaveError(error?.response?.data?.message || error.message || 'Unable to update the emergency schedule.');
+        setEmergencySaving(false);
+        return;
+      }
+      setEmergencySaving(false);
+    } else {
+      try {
+        await apiClient.post(`/enrollments/${selectedRequest.id}/confirm-reschedule`, { option: scheduleToSave });
+      } catch (error) {
+        setSubmitOptionsError(error?.message || 'Unable to confirm the matching schedule.');
+        return;
+      }
+    }
+    setConfirmedSchedule(scheduleToSave);
   };
 
   const resetReschedule = () => {
@@ -954,9 +1129,27 @@ export default function ClassSchedule() {
     setStudentChoices([]);
     setFinalSchedule(null);
     setConfirmedSchedule(null);
+    setStudentApproved(false);
+    setInstructorApproved(false);
     setNoMatchNotificationSent(false);
     setCenterReschedule(false);
+    setCenterStartMessage('');
   };
+
+  useEffect(() => {
+    if (processMode === 'manage-request' && centerReschedule) {
+      setCenterReschedule(false);
+    }
+    if (selectedRequest) return;
+    if (processMode === 'manage-request') {
+      const requestId = searchParams.get('requestId');
+      const request = requestId ? rescheduleRequests.find((item) => item.id === requestId) : null;
+      if (request) openNormalReschedule(request);
+    }
+    if (processMode === 'emergency' && emergencySchedules[0]) {
+      openCenterReschedule(emergencySchedules[0]);
+    }
+  }, [processMode, searchParams, selectedRequest, emergencySchedules]);
 
   return (
     <SidebarProvider>
@@ -966,36 +1159,41 @@ export default function ClassSchedule() {
         <SiteHeader />
 
         <main className="flex flex-1 flex-col gap-6 p-6">
-          <Card>
+          {processMode === 'schedule' && !centerReschedule && <Card>
             <CardHeader>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <CardTitle>Class Schedule</CardTitle>
+                  <CardTitle>{processTitle}</CardTitle>
 
                   <CardDescription>
-                    View today's classes, weekly schedules, assign rooms
-                    ahead of time, and manage class rescheduling.
+                    {processDescription}
                   </CardDescription>
                 </div>
 
-                <Button
+                {processMode !== 'schedule' && <Button
+                  variant="outline"
+                  onClick={() => navigate('/front-desk/schedule')}
+                >
+                  Back to Class Schedule
+                </Button>}
+                {processMode === 'schedule' && <Button
                   onClick={() => {
                     setActiveTab('today');
-
-                    const firstClass = todaySchedules[0];
-
-                    if (firstClass) {
-                      openCenterReschedule(firstClass);
-                    }
+                    openEmergencyReschedule();
                   }}
                 >
                   <RefreshCwIcon className="mr-2 h-4 w-4" />
                   Re-Sched
-                </Button>
+                </Button>}
               </div>
             </CardHeader>
 
             <CardContent>
+              {centerStartMessage && (
+                <div role="alert" className="mb-5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  {centerStartMessage}
+                </div>
+              )}
               <div className="mb-5 flex flex-wrap gap-2 border-b pb-4">
                 <Button
                   variant={
@@ -1440,15 +1638,18 @@ export default function ClassSchedule() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </Card>}
 
           <Card>
             <CardHeader>
-              <CardTitle>Re-Schedule</CardTitle>
-
+              <div className="flex items-center gap-2">
+                <CardTitle>{centerReschedule ? 'Emergency Reschedule' : 'Instructor & Student Schedule Requests'}</CardTitle>
+                {!centerReschedule && rescheduleRequests.length > 0 && <Badge variant="destructive">{rescheduleRequests.length} pending</Badge>}
+              </div>
               <CardDescription>
-                Manage participant requests and music center initiated
-                schedule changes.
+                {centerReschedule
+                  ? 'Manage the affected class schedules for the Admin-customized date.'
+                  : 'Instructor and student schedule requests fetched from the database.'}
               </CardDescription>
             </CardHeader>
 
@@ -1456,84 +1657,92 @@ export default function ClassSchedule() {
               {!selectedRequest && (
                 <>
                   <div className="grid gap-4">
-                    {rescheduleRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className="flex flex-col gap-4 rounded-xl border p-4 lg:flex-row lg:items-center lg:justify-between"
-                      >
+                    {rescheduleRequests.length ? rescheduleRequests.map((request) => (
+                      <div key={request.id} className="flex flex-col gap-4 rounded-xl border p-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-semibold">
-                              {request.course}
-                            </p>
-
-                            <Badge variant="secondary">
-                              Reschedule Request
-                            </Badge>
+                            <p className="font-semibold">{request.course}</p>
+                            <Badge variant="secondary">{request.requesterType || 'Schedule'} Request</Badge>
                           </div>
-
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {request.reason}
-                          </p>
-
+                          <p className="mt-1 text-sm text-muted-foreground">{request.reason}</p>
                           <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-                            <span className="inline-flex items-center gap-1.5">
-                              <UserIcon className="h-4 w-4" />
-                              {request.student}
-                            </span>
-
-                            <span className="inline-flex items-center gap-1.5">
-                              <UsersIcon className="h-4 w-4" />
-                              {request.instructor}
-                            </span>
-
-                            <span className="inline-flex items-center gap-1.5">
-                              <CalendarDaysIcon className="h-4 w-4" />
-                              Requested{' '}
-                              {formatFullDate(
-                                request.requestedAt,
-                              )}
-                            </span>
+                            <span className="inline-flex items-center gap-1.5"><UserIcon className="h-4 w-4" />{request.student}</span>
+                            <span className="inline-flex items-center gap-1.5"><UsersIcon className="h-4 w-4" />{request.instructor}</span>
+                            <span className="inline-flex items-center gap-1.5"><CalendarDaysIcon className="h-4 w-4" />Requested {formatFullDate(request.requestedAt)}</span>
                           </div>
                         </div>
-
-                        <Button
-                          onClick={() =>
-                            openNormalReschedule(request)
-                          }
-                        >
-                          Manage Request
-                        </Button>
+                        <Button onClick={() => openNormalReschedule(request)}>Manage Request</Button>
                       </div>
-                    ))}
+                    )) : (
+                      <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No pending schedule requests from instructors or students.</div>
+                    )}
                   </div>
 
-                  <div className="rounded-xl border border-dashed p-5">
+                  <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/40 p-5">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
                         <p className="font-semibold">
-                          Music Center Reschedule
+                          Emergency Center Reschedule
                         </p>
 
                         <p className="mt-1 text-sm text-muted-foreground">
-                          Use this when a class must be rescheduled because
-                          of a calamity, event, closure, or another music
-                          center schedule change.
+                          Frontdesk can start a center-initiated reschedule
+                          for an emergency, closure, event, or other center
+                          schedule change.
                         </p>
+                        <div className="mt-3 flex flex-wrap items-end gap-3">
+                          <div className="space-y-1">
+                            <label htmlFor="emergency-reschedule-date" className="text-xs font-medium">Closed / affected date</label>
+                            <input
+                              id="emergency-reschedule-date"
+                              type="date"
+                              value={emergencyDate}
+                              onChange={(event) => {
+                                setEmergencyDate(event.target.value);
+                                setEmergencyTargetDate(getNextSameWeekdayDate(event.target.value));
+                                setCenterStartMessage('');
+                              }}
+                              className="block h-9 rounded-md border bg-background px-3 text-sm"
+                            />
+                          </div>
+                          <p className="pb-2 text-sm text-muted-foreground">
+                            {emergencySchedules.length} enrolled class{emergencySchedules.length === 1 ? '' : 'es'} affected on this date.
+                          </p>
+                        </div>
+                        {operatingHoursError && <p role="alert" className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">{operatingHoursError}</p>}
+                        {!operatingHoursError && customizedOperatingDates.length > 0 && (
+                          <div className="mt-3 rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
+                            <p className="font-semibold">Admin customized operating dates</p>
+                            <p className="mt-1">These dates may require Frontdesk emergency rescheduling because their hours differ from the regular schedule.</p>
+                            <div className="mt-2 space-y-1">
+                              {customizedOperatingDates.map(([date, override]) => (
+                                <div key={date} className="rounded-lg border border-amber-300/70 bg-background/70 p-3">
+                                  <button type="button" className="text-left font-medium underline-offset-2 hover:underline" onClick={() => setEmergencyDate(date)}>
+                                    {formatFullDate(date)}
+                                  </button>
+                                  <p className="mt-1">
+                                    {override?.isClosed ? 'Closed by Admin.' : `Open ${override?.startTime}–${override?.endTime}; possible schedule conflict.`}
+                                  </p>
+                                  <div className="mt-2 space-y-1 text-muted-foreground">
+                                    {schedule.filter((item) => item.date === date).length > 0 ? schedule.filter((item) => item.date === date).map((item) => (
+                                      <p key={item.id}>
+                                        {item.time} · {item.course} · {item.student} · {item.instructor}
+                                      </p>
+                                    )) : <p>No class schedule found for this customized date.</p>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          const firstClass = todaySchedules[0];
-
-                          if (firstClass) {
-                            openCenterReschedule(firstClass);
-                          }
-                        }}
+                        onClick={() => openEmergencyReschedule()}
                       >
                         <RefreshCwIcon className="mr-2 h-4 w-4" />
-                        Re-Sched Class
+                        Start Emergency Re-Schedule
                       </Button>
                     </div>
                   </div>
@@ -1610,26 +1819,57 @@ export default function ClassSchedule() {
 
                     <Button
                       variant="outline"
-                      onClick={resetReschedule}
+                      onClick={() => {
+                        resetReschedule();
+                        navigate('/front-desk/schedule', { replace: true });
+                      }}
                     >
-                      Close
+                      Back
                     </Button>
                   </div>
+
+                  {!centerReschedule && <div className="rounded-xl border bg-background p-5">
+                    <p className="font-semibold">Participant choices</p>
+                    {(!selectedRequest.instructorChoices?.length || !selectedRequest.studentChoices?.length) && <p className="mt-1 text-sm text-muted-foreground">Waiting for the instructor and student to submit their choices.</p>}
+                      <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Instructor choices</p><p className="mt-1 font-medium">{selectedRequest.instructorChoices?.length ? selectedRequest.instructorChoices.map((id) => selectedRequest.generatedOptions?.find((option) => option.id === id)).filter(Boolean).map((option) => `${option.date} · ${option.time}`).join(', ') : 'Not submitted'}</p></div>
+                      <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Student choices</p><p className="mt-1 font-medium">{selectedRequest.studentChoices?.length ? selectedRequest.studentChoices.map((id) => selectedRequest.generatedOptions?.find((option) => option.id === id)).filter(Boolean).map((option) => `${option.date} · ${option.time}`).join(', ') : 'Not submitted'}</p></div>
+                  </div>}
 
                   {centerReschedule && !generated && (
                     <div className="rounded-xl border bg-background p-5">
                       <div className="mb-4">
                         <p className="font-semibold">
-                          Select Affected Class
+                          Affected Classes
                         </p>
 
                         <p className="text-sm text-muted-foreground">
-                          Select the class affected by the calamity, event,
-                          closure, or music center schedule change.
+                          All enrolled classes on {formatFullDate(emergencyDate)} are included automatically.
                         </p>
                       </div>
 
-                      <div className="rounded-lg border p-4">
+                      <div className="space-y-3">
+                        {emergencySchedules.map((classItem) => (
+                          <div
+                            key={classItem.id}
+                            className="w-full rounded-lg border p-4 text-left"
+                          >
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                              <div>
+                                <p className="font-medium">{classItem.course}</p>
+                                <p className="text-sm text-muted-foreground">{classItem.student} · {classItem.instructor}</p>
+                                <p className="mt-1 text-sm text-muted-foreground">{formatFullDate(classItem.date)} · {classItem.time} · {getRoomForSchedule(classItem) || 'Room Unassigned'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {!emergencySchedules.length && (
+                          <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
+                            <p className="font-semibold">No Affected Schedule</p>
+                            <p className="mt-1">No enrolled class schedule was found for {formatFullDate(emergencyDate)}. There are no schedules to reschedule for this date.</p>
+                          </div>
+                        )}
+                      </div>
+                      {false && selectedClass && <div className="rounded-lg border bg-muted/30 p-4">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                           <div>
                             <p className="font-medium">
@@ -1654,11 +1894,11 @@ export default function ClassSchedule() {
                             Selected
                           </Badge>
                         </div>
-                      </div>
+                      </div>}
                     </div>
                   )}
 
-                  {!generated && (
+                  {selectedRequest && !generated && (
                     <div className="rounded-xl border p-5">
                       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                         <div>
@@ -1667,9 +1907,9 @@ export default function ClassSchedule() {
                           </p>
 
                           <p className="mt-1 text-sm text-muted-foreground">
-                            Available schedules will be generated from the
-                            reschedule request date through the next 7
-                            calendar days.
+                            {centerReschedule
+                              ? `Choose a replacement ${new Date(`${selectedRequest.rescheduleFromDate}T00:00:00+08:00`).toLocaleDateString('en-US', { weekday: 'long' })}. Other weekdays are not allowed.`
+                              : 'Available schedules will be generated from the reschedule request date through the next 7 calendar days.'}
                           </p>
 
                           <div className="mt-3 flex flex-wrap gap-2">
@@ -1679,17 +1919,42 @@ export default function ClassSchedule() {
                                   key={formatDateKey(date)}
                                   variant="outline"
                                 >
-                                  Day {index + 1}:{' '}
+                                {centerReschedule ? 'Replacement' : `Day ${index + 1}:`}{' '}
                                   {formatShortDate(date)}
                                 </Badge>
                               ),
                             )}
                           </div>
+                          {centerReschedule && (
+                            <div className="mt-4 max-w-xs space-y-2">
+                              <label htmlFor="emergency-target-date" className="text-sm font-medium">New schedule date</label>
+                              <input
+                                id="emergency-target-date"
+                                type="date"
+                                value={emergencyTargetDate || getNextSameWeekdayDate(emergencyDate)}
+                                onChange={(event) => {
+                                  const value = event.target.value;
+                                  const sourceWeekday = new Date(`${emergencyDate}T00:00:00+08:00`).getDay();
+                                  const targetWeekday = new Date(`${value}T00:00:00+08:00`).getDay();
+                                  if (sourceWeekday !== targetWeekday) {
+                                    setCenterStartMessage(`Choose a ${new Date(`${emergencyDate}T00:00:00+08:00`).toLocaleDateString('en-US', { weekday: 'long' })}. The affected classes must move together to the same weekday.`);
+                                    return;
+                                  }
+                                  setEmergencyTargetDate(value);
+                                  setCenterStartMessage('');
+                                }}
+                                className="block h-9 w-full rounded-md border bg-background px-3 text-sm"
+                              />
+                              <p className="text-xs text-muted-foreground">All {emergencySchedules.length} affected class{emergencySchedules.length === 1 ? '' : 'es'} will be moved to this date.</p>
+                            </div>
+                          )}
                         </div>
 
-                        <Button onClick={generateSchedules}>
+                        <Button onClick={generateSchedules} disabled={generated || submittedOptions || selectedRequest?.generatedOptions?.length > 0}>
                           <CalendarDaysIcon className="mr-2 h-4 w-4" />
-                          Generate
+                          {generated || submittedOptions || selectedRequest?.generatedOptions?.length > 0
+                            ? 'Schedules Generated'
+                            : centerReschedule ? 'Choose New Schedule' : 'Generate'}
                         </Button>
                       </div>
                     </div>
@@ -1701,31 +1966,41 @@ export default function ClassSchedule() {
                         <CardHeader>
                           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
-                              <CardTitle>
-                                Generated Schedule Options
-                              </CardTitle>
+                              <CardTitle>{centerReschedule ? 'Affected Schedule' : 'Generated Schedule Options'}</CardTitle>
 
                               <CardDescription>
-                                These schedules were generated within the
-                                7-day reschedule window and checked for
-                                conflicts.
+                                {centerReschedule
+                                  ? 'All classes affected by the selected Admin closure or customized date.'
+                                  : 'Replacement schedules generated for this reschedule request.'}
                               </CardDescription>
                             </div>
 
-                            {!submittedOptions && (
+                            {!centerReschedule && !submittedOptions && (
                               <Button
                                 onClick={
                                   submitGeneratedSchedules
                                 }
                               >
                                 <SendIcon className="mr-2 h-4 w-4" />
-                                Submit Options
+                                {submittingOptions ? 'Submitting...' : 'Submit Options'}
+                              </Button>
+                            )}
+                            {centerReschedule && (
+                              <Button disabled={!emergencySchedules.length || !generatedSchedules.length || emergencySaving} onClick={() => {
+                                const schedule = finalSchedule || generatedSchedules[0];
+                                setFinalSchedule(schedule);
+                                submitFinalSchedule(schedule);
+                              }}>
+                                <CheckCircle2Icon className="mr-2 h-4 w-4" />
+                                {emergencySaving ? 'Updating...' : 'Update Emergency Schedule'}
                               </Button>
                             )}
                           </div>
+                          {submitOptionsError && <p role="alert" className="mt-3 text-sm text-destructive">{submitOptionsError}</p>}
+                          {emergencySaveError && <p role="alert" className="mt-3 text-sm text-destructive">{emergencySaveError}</p>}
                         </CardHeader>
 
-                        <CardContent>
+                        {!centerReschedule && <CardContent>
                           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                             {generatedSchedules.map((option) => (
                               <div
@@ -1754,10 +2029,36 @@ export default function ClassSchedule() {
                               </div>
                             ))}
                           </div>
-                        </CardContent>
+                        </CardContent>}
                       </Card>
 
-                      {submittedOptions && (
+                      {false && centerReschedule && (
+                        <Card className="border-amber-300">
+                          <CardContent className="space-y-3">
+                            {generatedSchedules.map((option) => {
+                              const selected = finalSchedule?.id === option.id;
+                              return (
+                                <button key={option.id} type="button" onClick={() => setFinalSchedule(option)} className={`w-full rounded-xl border p-4 text-left transition ${selected ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-muted/50'}`}>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="font-semibold">{formatFullDate(option.date)}</p>
+                                      <p className="mt-1 text-sm text-muted-foreground">{option.time} · {option.room}</p>
+                                    </div>
+                                    {selected && <CheckCircle2Icon className="size-5 text-primary" />}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                            <div className="flex justify-end pt-2">
+                              <Button disabled={!finalSchedule} onClick={submitFinalSchedule}>
+                                <CheckCircle2Icon className="mr-2 size-4" /> Confirm Emergency Reschedule
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {!centerReschedule && submittedOptions && (
                         <>
                           <Card>
                             <CardHeader>
@@ -1783,12 +2084,13 @@ export default function ClassSchedule() {
                                     <button
                                       key={option.id}
                                       type="button"
+                                      disabled={!!confirmedSchedule}
                                       onClick={() =>
                                         toggleInstructorChoice(
                                           option.id,
                                         )
                                       }
-                                      className={`rounded-xl border p-4 text-left transition ${
+                                      className={`rounded-xl border p-4 text-left transition ${confirmedSchedule ? 'cursor-not-allowed opacity-70' : ''} ${
                                         selected
                                           ? 'border-primary bg-primary/5 ring-1 ring-primary'
                                           : 'hover:bg-muted/50'
@@ -1846,12 +2148,13 @@ export default function ClassSchedule() {
                                     <button
                                       key={option.id}
                                       type="button"
+                                      disabled={!!confirmedSchedule}
                                       onClick={() =>
                                         toggleStudentChoice(
                                           option.id,
                                         )
                                       }
-                                      className={`rounded-xl border p-4 text-left transition ${
+                                      className={`rounded-xl border p-4 text-left transition ${confirmedSchedule ? 'cursor-not-allowed opacity-70' : ''} ${
                                         selected
                                           ? 'border-primary bg-primary/5 ring-1 ring-primary'
                                           : 'hover:bg-muted/50'
@@ -1891,11 +2194,6 @@ export default function ClassSchedule() {
                                 Matching Schedules
                               </CardTitle>
 
-                              <CardDescription>
-                                Every schedule selected by both the
-                                instructor and student is shown here.
-                                Select exactly one for confirmation.
-                              </CardDescription>
                             </CardHeader>
 
                             <CardContent>
@@ -1910,10 +2208,13 @@ export default function ClassSchedule() {
                                       <button
                                         key={option.id}
                                         type="button"
+                                        disabled={!!confirmedSchedule}
                                         onClick={() =>
                                           setFinalSchedule(option)
                                         }
                                         className={`w-full rounded-xl border p-5 text-left transition ${
+                                          confirmedSchedule ? 'cursor-not-allowed opacity-70' : ''
+                                        } ${
                                           selected
                                             ? 'border-primary bg-primary/5 ring-1 ring-primary'
                                             : 'hover:bg-muted/50'
@@ -1954,7 +2255,7 @@ export default function ClassSchedule() {
                                     );
                                   })}
 
-                                  <div className="flex justify-end pt-3">
+                                  {!confirmedSchedule && <div className="flex justify-end pt-3">
                                     <Button
                                       disabled={!finalSchedule}
                                       onClick={submitFinalSchedule}
@@ -1962,7 +2263,7 @@ export default function ClassSchedule() {
                                       <CheckCircle2Icon className="mr-2 h-4 w-4" />
                                       Confirm Final Schedule
                                     </Button>
-                                  </div>
+                                  </div>}
                                 </div>
                               ) : (
                                 <div className="rounded-xl border border-dashed p-6">
@@ -1987,27 +2288,6 @@ export default function ClassSchedule() {
                                       </div>
                                     </div>
 
-                                    <div>
-                                      <Button
-                                        variant="outline"
-                                        onClick={
-                                          notifyParticipants
-                                        }
-                                      >
-                                        <BellIcon className="mr-2 h-4 w-4" />
-                                        Notify Them
-                                      </Button>
-                                    </div>
-
-                                    {noMatchNotificationSent && (
-                                      <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-                                        Notification sent to the
-                                        instructor and student. The
-                                        reschedule process remains active
-                                        until a matching schedule is
-                                        selected and confirmed.
-                                      </div>
-                                    )}
                                   </div>
                                 </div>
                               )}
@@ -2023,7 +2303,7 @@ export default function ClassSchedule() {
 
                                     <div>
                                       <p className="font-semibold">
-                                        Schedule Confirmed
+                                        Schedule Updated
                                       </p>
 
                                       <p className="mt-1 text-sm text-muted-foreground">
@@ -2037,16 +2317,21 @@ export default function ClassSchedule() {
 
                                       <p className="mt-1 text-sm text-muted-foreground">
                                         The instructor and student will be
-                                        notified of the final schedule.
+                                        The updated schedule is now saved for the student and instructor.
                                       </p>
+                                      {centerReschedule && (
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                          {emergencySchedules.length} affected class{emergencySchedules.length === 1 ? '' : 'es'} moved from {formatFullDate(emergencyDate)} to the saved replacement schedule.
+                                        </p>
+                                      )}
                                     </div>
                                   </div>
 
                                   <Button
                                     variant="outline"
-                                    onClick={resetReschedule}
+                                    onClick={() => navigate('/front-desk/schedule')}
                                   >
-                                    Done
+                                    Close
                                   </Button>
                                 </div>
                               </CardContent>

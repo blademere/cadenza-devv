@@ -9,6 +9,7 @@ import {
 } from '../services/enrollmentServices';
 import { getMyProfile } from '../../profile/services/profile.service';
 import { getHoursForDate, getOperatingHours } from '@/services/operatingHoursService';
+import { getPaymentAccounts } from '@/services/paymentAccountsService';
 
 const addDaysToDateKey = (value, days) => {
   const date = new Date(`${value}T00:00:00Z`);
@@ -47,6 +48,8 @@ export default function NewEnrollment() {
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [selectedInstructor, setSelectedInstructor] = useState('');
   const [paymentPlan, setPaymentPlan] = useState('');
+  const [paymentAccounts, setPaymentAccounts] = useState([]);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
   const [studentDetails, setStudentDetails] = useState({
     firstName: '',
     lastName: '',
@@ -97,6 +100,16 @@ export default function NewEnrollment() {
 
   useEffect(() => {
     getOperatingHours().then(setOperatingHours).catch(() => setOperatingHours(null));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getPaymentAccounts().then((accounts) => {
+      if (!active) return;
+      setPaymentAccounts(accounts);
+      if (accounts.length === 1) setPaymentAccountId(String(accounts[0].id));
+    }).catch(() => { if (active) setError('Unable to load active payment accounts.'); });
+    return () => { active = false; };
   }, []);
 
   const isStudentProfileComplete = Boolean(
@@ -259,6 +272,9 @@ export default function NewEnrollment() {
           ? result.availability
           : [];
 
+        // The API returns the instructor's complete availability after
+        // removing occupied/conflicting times across the enrollment cycle.
+        // Replace the list and retain only selections that are still valid.
         setAvailability(availableRules);
         setSelectedAvailabilityIds((current) =>
           current.filter((id) => availableRules.some((rule) => rule.id === id)),
@@ -299,14 +315,43 @@ export default function NewEnrollment() {
       if (!startDate) return true;
       const selectedDateDay = new Date(`${startDate}T00:00:00`).getDay() || 7;
       if (Number(rule.dayOfWeek) !== selectedDateDay) return true;
+      // A closed date does not make the weekday unavailable. The API rolls
+      // this session forward to the same weekday in the following week.
+      if (selectedHours?.isClosed) return true;
       return (
         opening !== null &&
         closing !== null &&
         ruleStart >= opening &&
         ruleEnd <= closing
       );
+    }).sort((first, second) => {
+      const dayDifference = Number(first.dayOfWeek) - Number(second.dayOfWeek);
+      if (dayDifference !== 0) return dayDifference;
+      const startDifference = Number(first.startMinute) - Number(second.startMinute);
+      if (startDifference !== 0) return startDifference;
+      const endDifference = Number(first.endMinute) - Number(second.endMinute);
+      if (endDifference !== 0) return endDifference;
+      return String(first.id).localeCompare(String(second.id));
     });
   }, [availability, operatingHours, selectedPackage?.sessionDurationMinutes, startDate]);
+
+  const closedStartDateNotice = useMemo(() => {
+    if (!startDate || !operatingHours) return null;
+    const hours = getHoursForDate(operatingHours, startDate);
+    if (!hours?.isClosed) return null;
+
+    const nextWeekDate = addDaysToDateKey(startDate, 7);
+    if (!nextWeekDate) return null;
+    const formatDate = (dateKey) => new Date(`${dateKey}T00:00:00`).toLocaleDateString(
+      undefined,
+      { month: 'long', day: 'numeric', year: 'numeric', weekday: 'long' },
+    );
+
+    return {
+      selected: formatDate(startDate),
+      next: formatDate(nextWeekDate),
+    };
+  }, [operatingHours, startDate]);
 
   useEffect(() => {
     setSelectedAvailabilityIds((current) =>
@@ -338,8 +383,10 @@ export default function NewEnrollment() {
   };
 
   const startDayOfWeek = startDate ? getDayOfWeekFromDate(startDate) : null;
-  const firstSelectedRule = [...selectedAvailability]
-    .sort((first, second) => first.dayOfWeek - second.dayOfWeek)[0];
+  // The first schedule is the one the student selected first, not the
+  // chronologically earliest weekday. This lets a Tuesday-only selection
+  // start on Tuesday instead of requiring a Monday schedule first.
+  const firstSelectedRule = selectedAvailability[0] || null;
   const leastSelectedRule = firstSelectedRule;
 
   useEffect(() => {
@@ -539,6 +586,11 @@ export default function NewEnrollment() {
       return;
     }
 
+    if (!paymentAccountId) {
+      setError('Please select a bank account for payment.');
+      return;
+    }
+
     if (!startDate) {
       setError('Please select a start date.');
       return;
@@ -709,6 +761,7 @@ export default function NewEnrollment() {
         JSON.stringify({
           package: selectedPackage,
           paymentPlan,
+          paymentAccountId,
           lessonPackageId: selectedPackage.id,
           sessions: formattedSessions,
           metadata: {
@@ -1123,16 +1176,13 @@ export default function NewEnrollment() {
                     {selectedPackage.sessionsPerWeek} session(s) per week.
                   </p>
 
-                  {(() => {
-                    const hours = getHoursForDate(operatingHours, startDate);
-                    if (!hours || hours.isClosed) {
-                      return (
-                        <p className="mt-1 text-xs font-medium text-destructive">
-                          The facility is closed on this date.
-                        </p>
-                      );
-                    }
-                  })()}
+                  {closedStartDateNotice && (
+                    <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs font-medium text-amber-900">
+                      {closedStartDateNotice.selected} is closed. Your schedule
+                      will continue on {closedStartDateNotice.next} if that date
+                      is open and has no custom operating-hours closure.
+                    </p>
+                  )}
 
                   <p className="mt-1 text-xs font-medium text-primary">
                     End date:{' '}
@@ -1186,6 +1236,15 @@ export default function NewEnrollment() {
             ))}
           </div>
 
+          <div className="mt-4 space-y-2">
+            <label htmlFor="enrollment-payment-account" className="text-sm font-medium">Bank account for payment</label>
+            <select id="enrollment-payment-account" value={paymentAccountId} onChange={(event) => setPaymentAccountId(event.target.value)} disabled={submitting || paymentAccounts.length === 0} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+              <option value="">{paymentAccounts.length ? 'Select an active bank account' : 'No active bank accounts available'}</option>
+              {paymentAccounts.map((account) => <option key={account.id} value={account.id}>{account.bankName} · {account.accountNumber}</option>)}
+            </select>
+            <p className="text-xs text-muted-foreground">The next payment page will show the QR code for this account.</p>
+          </div>
+
           <p className="mt-3 text-xs text-muted-foreground">
             The QR payment page will open in a separate tab.
           </p>
@@ -1208,6 +1267,7 @@ export default function NewEnrollment() {
               !selectedInstructor ||
               !startDate ||
               !paymentPlan ||
+              !paymentAccountId ||
               !isStudentProfileComplete
             }
             className="h-10 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground disabled:pointer-events-none disabled:opacity-50"

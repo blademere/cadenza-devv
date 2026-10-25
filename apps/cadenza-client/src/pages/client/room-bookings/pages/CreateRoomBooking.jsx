@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import BookingSummary from '../components/BookingSummary';
 import roomBookingService from '../services/roomBookingsService';
 import { getHoursForDate, getOperatingHours, isWithinOperatingHours } from '@/services/operatingHoursService';
+import { getPaymentAccounts } from '@/services/paymentAccountsService';
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
   const hour = Math.floor(index / 2);
@@ -33,8 +34,20 @@ export default function CreateRoomBooking() {
   const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState('');
+  const [paymentAccounts, setPaymentAccounts] = useState([]);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
   const [error, setError] = useState('');
   const [operatingHours, setOperatingHours] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    getPaymentAccounts().then((accounts) => {
+      if (!active) return;
+      setPaymentAccounts(accounts);
+      if (accounts.length === 1) setPaymentAccountId(String(accounts[0].id));
+    }).catch(() => { if (active) setError('Unable to load active payment accounts.'); });
+    return () => { active = false; };
+  }, []);
 
   const selectedOperatingHours = getHoursForDate(operatingHours, date || new Date());
   const openTime = selectedOperatingHours?.startTime || '08:00';
@@ -303,6 +316,11 @@ export default function CreateRoomBooking() {
       return;
     }
 
+    if (!paymentAccountId) {
+      setError('Please select a bank account for payment.');
+      return;
+    }
+
     if (!date) {
       setError('Please select a booking date.');
       return;
@@ -352,6 +370,7 @@ export default function CreateRoomBooking() {
           startTime,
           endTime,
           paymentPlan,
+          paymentAccountId,
         }),
       );
 
@@ -655,6 +674,15 @@ export default function CreateRoomBooking() {
                 ))}
               </div>
 
+              <div className="mt-4 space-y-2">
+                <label htmlFor="room-payment-account" className="text-sm font-medium">Bank account for payment</label>
+                <select id="room-payment-account" value={paymentAccountId} onChange={(event) => setPaymentAccountId(event.target.value)} disabled={submitting || paymentAccounts.length === 0} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="">{paymentAccounts.length ? 'Select an active bank account' : 'No active bank accounts available'}</option>
+                  {paymentAccounts.map((account) => <option key={account.id} value={account.id}>{account.bankName} · {account.accountNumber}</option>)}
+                </select>
+                <p className="text-xs text-muted-foreground">The next payment page will show the QR code for this account.</p>
+              </div>
+
               <p className="mt-3 text-xs text-muted-foreground">
                 The QR payment page will open in a separate tab.
               </p>
@@ -670,6 +698,7 @@ export default function CreateRoomBooking() {
                 !startTime ||
                 !endTime ||
                 !paymentPlan ||
+                !paymentAccountId ||
                 !isValidTime(startTime) ||
                 !isValidTime(endTime)
               }

@@ -23,17 +23,17 @@ const CATEGORIES = [
 ];
 
 const REPORTS = [
-  { id: 'revenue-sales', title: 'Revenue and Sales', description: 'Collected revenue by transaction type.', category: 'financial', icon: WalletIcon },
-  { id: 'billing-payments', title: 'Billing and Payments', description: 'Bills, collections, pending payments and balances.', category: 'financial', icon: CreditCardIcon },
+  { id: 'revenue-sales', title: 'Cashflow', description: 'Money received and cash inflow by transaction type.', category: 'financial', icon: WalletIcon },
+  { id: 'billing-payments', title: 'Payment Reports', description: 'Billed amounts, confirmed payments, pending payments and outstanding balances.', category: 'financial', icon: CreditCardIcon },
   { id: 'enrollment-summary', title: 'Enrollment Summary', description: 'Enrollment totals, statuses and course demand.', category: 'students', icon: GraduationCapIcon },
-  { id: 'student-attendance', title: 'Student Attendance', description: 'Attendance recording and presence rates.', category: 'students', icon: UsersIcon },
-  { id: 'lesson-progress', title: 'Student Lesson Progress', description: 'Completed lessons and students needing follow-up.', category: 'students', icon: BookOpenCheckIcon },
+  { id: 'student-attendance', title: 'Lesson & Attendance', description: 'Scheduled lessons, attendance records and attendance rates.', category: 'students', icon: UsersIcon },
+  { id: 'lesson-progress', title: 'Lesson Progress', description: 'Completed lessons and students needing follow-up.', category: 'students', icon: BookOpenCheckIcon },
   { id: 'course-performance', title: 'Course Performance', description: 'Enrollments by course.', category: 'students', icon: BarChart3Icon },
   { id: 'instrument-usage', title: 'Instrument Usage', description: 'Instrument rental volume and popular items.', category: 'rentals', icon: GuitarIcon },
-  { id: 'rental-monitoring', title: 'Rental Monitoring', description: 'Active rentals, returns and overdue rentals.', category: 'rentals', icon: ActivityIcon },
-  { id: 'studio-bookings', title: 'Room Rental Bookings', description: 'Booking volume, approvals and cancellations.', category: 'rentals', icon: CalendarDaysIcon },
-  { id: 'instructor-assignments', title: 'Instructor Workload', description: 'Assigned teaching sessions and courses.', category: 'instructors', icon: UsersIcon },
-  { id: 'cancellation-summary', title: 'Cancellation Summary', description: 'Cancelled enrollments, rooms and instrument rentals.', category: 'operations', icon: AlertCircleIcon },
+  { id: 'rental-monitoring', title: 'Rentals Reports', description: 'Rental volume, active rentals, returns, overdue rentals and value.', category: 'rentals', icon: ActivityIcon },
+  { id: 'studio-bookings', title: 'Bookings Reports', description: 'Room booking volume, approvals, cancellations and usage.', category: 'rentals', icon: CalendarDaysIcon },
+  { id: 'instructor-assignments', title: 'Instructor Assignments', description: 'Assigned teaching sessions and courses by instructor.', category: 'instructors', icon: UsersIcon },
+  { id: 'cancellation-summary', title: 'Cancellations & Exceptions', description: 'Cancelled enrollments, room bookings and instrument rentals for operational follow-up.', category: 'operations', icon: AlertCircleIcon },
 ];
 
 const dateValue = (date) => {

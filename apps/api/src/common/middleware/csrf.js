@@ -12,10 +12,10 @@ const setCsrfCookie = (res) => {
 
   res.cookie(CSRF_COOKIE_NAME, token, {
     httpOnly: false,
-    // The client frontend and Railway API are different sites.
-    // SameSite=None is required for credentialed cross-site fetches.
-    secure: true,
-    sameSite: 'none',
+    // Match the refresh/session cookies. Production validates that cross-site
+    // cookies use Secure + SameSite=None through the environment config.
+    secure: env.COOKIE_SECURE,
+    sameSite: env.COOKIE_SAME_SITE,
     domain: env.COOKIE_DOMAIN || undefined,
     path: '/',
     maxAge: env.COOKIE_REFRESH_MAX_AGE_MS,

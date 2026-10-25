@@ -36,9 +36,11 @@ const normalizePaymentStatus = (record) => {
 };
 const amounts = (record, total) => {
   const metadata = record.metadata || {};
-  const isVerified = ['PAID', 'PARTIALLY_PAID', 'COMPLETED'].includes(normalizePaymentStatus(record));
-  const paid = isVerified ? Math.min(total, Math.max(0, Number(metadata.paymentAmount ?? metadata.initialPaymentAmount ?? total) || 0)) : 0;
-  return { totalAmount: total, amountPaid: paid, remainingBalance: Math.max(0, total - paid), claimedAmount: Number(metadata.initialPaymentAmount ?? metadata.paymentAmount ?? 0) || 0 };
+  // paymentAmount is the amount submitted/recorded for this transaction.
+  // Pending verification must not hide a partial payment as ₱0.00.
+  const submitted = Number(metadata.paymentAmount ?? metadata.initialPaymentAmount ?? 0) || 0;
+  const paid = Math.min(total, Math.max(0, submitted));
+  return { totalAmount: total, amountPaid: paid, remainingBalance: Math.max(0, total - paid), claimedAmount: paid };
 };
 
 const mapEnrollment = (enrollment) => {

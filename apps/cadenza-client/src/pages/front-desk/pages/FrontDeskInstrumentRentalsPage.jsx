@@ -1082,6 +1082,18 @@ export default function RentalsPage() {
                         </p>
                       </div>
                     )}
+                    {selectedRental.metadata?.depositAmount != null && selectedRental.metadata?.returnStatus === 'RETURNED' && (
+                      <div className="rounded-md border border-green-500/30 bg-green-500/10 p-3">
+                        <p className="text-sm font-medium">Deposit settlement</p>
+                        <div className="mt-2 space-y-1 text-sm">
+                          <div className="flex justify-between"><span>Deposit collected</span><span>₱{Number(selectedRental.metadata.depositAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
+                          <div className="flex justify-between"><span>Applied to charges</span><span>₱{Number(selectedRental.metadata.depositAppliedAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
+                          <div className="flex justify-between font-semibold"><span>Deposit to return</span><span>₱{Number(selectedRental.metadata.depositRefundAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
+                          {Number(selectedRental.metadata.additionalAmountDue || 0) > 0 && <div className="flex justify-between font-semibold text-destructive"><span>Additional damage balance</span><span>₱{Number(selectedRental.metadata.additionalAmountDue).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>}
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">The deposit is tracked separately from rental payments and must be returned or applied according to this settlement.</p>
+                      </div>
+                    )}
                     {['Rejected', 'CANCELLED', 'REJECTED'].includes(selectedRental.status) && (
                       <TransactionRefundPanel
                         type="INSTRUMENT_RENTAL"

@@ -83,11 +83,11 @@ const data = {
 };
 
 export function AppSidebar({ ...props }) {
-  const [pendingCounts, setPendingCounts] = useState({ enrollments: 0, rentals: 0, bookings: 0, billing: 0 });
+  const [pendingCounts, setPendingCounts] = useState({ enrollments: 0, rentals: 0, bookings: 0, billing: 0, reschedules: 0 });
 
   useEffect(() => {
     let mounted = true;
-    Promise.allSettled([getInstrumentRentals(), getRoomBookings(), apiClient.get('/enrollments'), apiClient.get('/enrollments', { params: { status: 'FOR_APPROVAL', page: 1, limit: 1 } })]).then(([rentalsResult, bookingsResult, enrollmentsResult, approvalResult]) => {
+    Promise.allSettled([getInstrumentRentals(), getRoomBookings(), apiClient.get('/enrollments'), apiClient.get('/enrollments', { params: { status: 'FOR_APPROVAL', page: 1, limit: 1 } }), apiClient.get('/enrollments/reschedule-requests')]).then(([rentalsResult, bookingsResult, enrollmentsResult, approvalResult, rescheduleResult]) => {
       if (!mounted) return;
       const rentals = rentalsResult.status === 'fulfilled' && Array.isArray(rentalsResult.value) ? rentalsResult.value : [];
       const bookings = bookingsResult.status === 'fulfilled' && Array.isArray(bookingsResult.value) ? bookingsResult.value : [];
@@ -105,11 +105,15 @@ export function AppSidebar({ ...props }) {
       const approvalTotal = approvalResult.status === 'fulfilled'
         ? Number(approvalResult.value?.data?.pagination?.total ?? approvalResult.value?.pagination?.total ?? 0)
         : 0;
+      const reschedules = rescheduleResult.status === 'fulfilled' && Array.isArray(rescheduleResult.value?.data)
+        ? rescheduleResult.value.data.length
+        : 0;
       setPendingCounts({
         enrollments: Number.isFinite(approvalTotal) ? approvalTotal : 0,
         rentals: rentals.filter((rental) => pendingRentalStatuses.includes(rental.status)).length,
         bookings: bookings.filter((booking) => booking.status === 'FOR_APPROVAL').length,
         billing: pendingBilling,
+        reschedules,
       });
     });
     return () => { mounted = false; };
@@ -117,7 +121,7 @@ export function AppSidebar({ ...props }) {
 
   const navItems = data.navMain.map((item) => ({
     ...item,
-    badge: item.title === 'Enrollments' ? pendingCounts.enrollments : item.title === 'Rentals' ? pendingCounts.rentals : item.title === 'Room Bookings' ? pendingCounts.bookings : item.title === 'Billing & Payments' ? pendingCounts.billing : undefined,
+    badge: item.title === 'Enrollments' ? pendingCounts.enrollments : item.title === 'Rentals' ? pendingCounts.rentals : item.title === 'Room Bookings' ? pendingCounts.bookings : item.title === 'Billing & Payments' ? pendingCounts.billing : item.title === 'Class Schedule' ? pendingCounts.reschedules : undefined,
   }));
 
   return (

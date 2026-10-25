@@ -237,6 +237,11 @@ export const instrumentRentalsService = {
     );
     const totalAmount = baseRentalAmount + excess.excessCharge;
     const damageCharge = Number(requestedDamageFee);
+    const depositAmount = Math.max(0, Number(rental.metadata?.depositAmount ?? rental.refundableDeposit ?? 0));
+    const returnCharges = excess.excessCharge + damageCharge;
+    const depositAppliedAmount = Math.min(depositAmount, returnCharges);
+    const depositRefundAmount = Math.max(0, depositAmount - returnCharges);
+    const additionalAmountDue = Math.max(0, returnCharges - depositAmount);
 
     const returned = await instrumentRentalsRepository.returnRental(
       appId,
@@ -258,6 +263,15 @@ export const instrumentRentalsService = {
           returnCondition: selectedCondition.value,
           returnConditionLabel: selectedCondition.label,
           damageCharge,
+          depositAmount,
+          depositAppliedAmount,
+          depositRefundAmount,
+          additionalAmountDue,
+          depositStatus: depositRefundAmount > 0
+            ? 'REFUND_DUE'
+            : additionalAmountDue > 0
+              ? 'FULLY_APPLIED_ADDITIONAL_BALANCE_DUE'
+              : 'FULLY_APPLIED',
         },
       },
     );
@@ -646,11 +660,13 @@ export const instrumentRentalsService = {
       rentalType: 'INDIVIDUAL',
       rentalRateAtRental: rentalRate,
       rentalHoursAtRental: billableHours,
-      depositAtRental: 0,
+      // Individual rentals do not have a package deposit, so use the rental
+      // rate as the default refundable security deposit and snapshot it.
+      depositAtRental: rentalRate,
       scheduledStart: schedule.scheduledStart,
       scheduledEnd: schedule.scheduledEnd,
       totalAmount,
-      refundableDeposit: 0,
+      refundableDeposit: rentalRate,
       status,
       metadata: {
         ...additionalMetadata,

@@ -254,6 +254,7 @@ model CadenzaRescheduleRequest {
   reviewedByPersonId  String?
   reviewedAt          DateTime?
   reason              String?
+  metadata            Json?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 

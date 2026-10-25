@@ -35,6 +35,7 @@ function mapSession(session, enrollment) {
     lesson: courseName(enrollment),
     scheduledStart: session.scheduledStart,
     scheduledEnd: session.scheduledEnd,
+    rescheduled: session.metadata?.rescheduled === true,
     status: session.status,
     attendance: session.attendance
       ? {
@@ -54,8 +55,62 @@ function mapSession(session, enrollment) {
           status: session.rescheduleRequests[0].status,
           requestedStart: session.rescheduleRequests[0].requestedStart,
           requestedEnd: session.rescheduleRequests[0].requestedEnd,
+          generatedOptions: session.rescheduleRequests[0].metadata?.generatedOptions || [],
+          instructorChoices: session.rescheduleRequests[0].metadata?.instructorChoices || [],
+          studentChoices: session.rescheduleRequests[0].metadata?.studentChoices || [],
         }
       : null,
+  };
+}
+
+const MANILA_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Manila',
+  weekday: 'long',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+function mapEnrollmentSchedule(enrollment) {
+  const sessions = [...(enrollment.sessions || [])]
+    .sort((first, second) => new Date(first.scheduledStart) - new Date(second.scheduledStart));
+  const firstStart = sessions[0] ? new Date(sessions[0].scheduledStart).getTime() : null;
+  const sessionsPerWeek = Number(enrollment.sessionsPerWeekAtEnrollment ?? enrollment.lessonPackage?.sessionsPerWeek ?? 0) || null;
+  const weeklySlots = new Map();
+
+  const mappedSessions = sessions.map((session) => {
+    const start = new Date(session.scheduledStart);
+    const end = new Date(session.scheduledEnd);
+    const parts = MANILA_DATE_FORMATTER.formatToParts(start).reduce((result, part) => {
+      result[part.type] = part.value;
+      return result;
+    }, {});
+    const dayTime = `${parts.weekday}|${parts.hour}:${parts.minute}`;
+    const week = firstStart === null
+      ? 1
+      : Math.floor((start.getTime() - firstStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
+    const slot = weeklySlots.get(dayTime) || {
+      dayOfWeek: parts.weekday,
+      startTime: `${parts.hour}:${parts.minute}`,
+      endTime: MANILA_DATE_FORMATTER.formatToParts(end).filter((part) => part.type === 'hour' || part.type === 'minute').map((part) => part.value).join(':'),
+      sessions: 0,
+    };
+    slot.sessions += 1;
+    weeklySlots.set(dayTime, slot);
+    return { ...mapSession(session, enrollment), week, dayOfWeek: parts.weekday, startTime: `${parts.hour}:${parts.minute}` };
+  });
+
+  return {
+    sessionsPerWeek,
+    totalSessions: mappedSessions.length,
+    weeklySlots: [...weeklySlots.values()],
+    weeks: mappedSessions.reduce((groups, session) => {
+      const group = groups.find((item) => item.week === session.week);
+      if (group) group.sessions.push(session);
+      else groups.push({ week: session.week, sessions: [session] });
+      return groups;
+    }, []),
+    sessions: mappedSessions,
   };
 }
 
@@ -146,6 +201,11 @@ export const studentService = {
         status: enrollment.status,
       })),
       schedules: enrollments.flatMap((enrollment) => enrollment.sessions.map((session) => mapSession(session, enrollment))),
+      scheduleGroups: enrollments.map((enrollment) => ({
+        enrollmentId: enrollment.id,
+        courseName: courseName(enrollment),
+        schedule: mapEnrollmentSchedule(enrollment),
+      })),
     };
   },
 
@@ -249,6 +309,33 @@ export const studentService = {
         status: 'PENDING',
         reason: 'Student requested a schedule change.',
       },
+    });
+  },
+
+  async chooseSchedule(req, sessionId, optionIds) {
+    const session = await prisma.cadenzaLessonSession.findFirst({
+      where: {
+        id: sessionId,
+        appId: req.cadenzaApp.id,
+        enrollment: { customerId: req.cadenzaCustomer.id, status: 'APPROVED' },
+      },
+      include: { rescheduleRequests: { where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' }, take: 1 } },
+    });
+    if (!session || !session.rescheduleRequests[0]) throw new NotFoundError('Pending schedule request not found.');
+    const request = session.rescheduleRequests[0];
+    const options = request.metadata?.generatedOptions || [];
+    const uniqueOptionIds = [...new Set(optionIds)];
+    if (!uniqueOptionIds.every((id) => options.some((option) => option.id === id))) {
+      throw new ConflictError('One or more selected schedules are no longer available.');
+    }
+    if ((request.metadata?.studentChoices || []).length) throw new ConflictError('Schedule choices have already been submitted.');
+    const instructorChoices = request.metadata?.instructorChoices || [];
+    const workflowStatus = instructorChoices.some((id) => uniqueOptionIds.includes(id))
+      ? 'AWAITING_FRONTDESK_CONFIRMATION'
+      : 'AWAITING_TWO_APPROVALS';
+    return prisma.cadenzaRescheduleRequest.update({
+      where: { id: request.id },
+      data: { metadata: { ...(request.metadata || {}), studentChoices: uniqueOptionIds, workflowStatus } },
     });
   },
 };

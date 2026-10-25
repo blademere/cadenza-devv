@@ -20,6 +20,11 @@ import {
 
 const router = Router();
 
+router.post('/emergency-reschedule', requireAdminOrFrontDesk, asyncHandler(enrollmentController.emergencyReschedule));
+router.get('/reschedule-requests', requireAdminOrFrontDesk, asyncHandler(enrollmentController.getRescheduleRequests));
+router.post('/:id/submit-options', requireAdminOrFrontDesk, asyncHandler(enrollmentController.submitRescheduleOptions));
+router.post('/:id/confirm-reschedule', requireAdminOrFrontDesk, asyncHandler(enrollmentController.confirmReschedule));
+
 router.get(
   '/',
   requireAdminOrFrontDesk,

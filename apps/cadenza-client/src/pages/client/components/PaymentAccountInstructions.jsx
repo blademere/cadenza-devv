@@ -3,13 +3,12 @@ import { Check, Copy, Loader2, QrCode } from 'lucide-react';
 
 import { getPaymentAccountQr, getPaymentAccounts } from '@/services/paymentAccountsService';
 
-export default function PaymentAccountInstructions() {
+export default function PaymentAccountInstructions({ selectedAccountId = '' } = {}) {
   const [accounts, setAccounts] = useState([]);
   const [qrUrls, setQrUrls] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copiedAccountId, setCopiedAccountId] = useState(null);
-  const [retryKey, setRetryKey] = useState(0);
   const [qrErrors, setQrErrors] = useState({});
 
   useEffect(() => {
@@ -20,7 +19,10 @@ export default function PaymentAccountInstructions() {
       try {
         const paymentAccounts = await getPaymentAccounts();
         if (!active) return;
-        setAccounts(paymentAccounts);
+        const visibleAccounts = selectedAccountId
+          ? paymentAccounts.filter((account) => String(account.id) === String(selectedAccountId))
+          : paymentAccounts;
+        setAccounts(visibleAccounts);
         // Request each QR directly, even when the API's availability metadata is stale.
         // The image endpoint is authoritative; a missing file returns a helpful error.
         const results = await Promise.all(paymentAccounts.map(async (account) => {
@@ -51,7 +53,7 @@ export default function PaymentAccountInstructions() {
       active = false;
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [retryKey]);
+  }, [selectedAccountId]);
 
   const copyAccountNumber = async (account) => {
     try {
@@ -73,7 +75,6 @@ export default function PaymentAccountInstructions() {
       {loading && <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading payment accounts...</div>}
       {!loading && error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       {!loading && !error && accounts.length === 0 && <p className="mt-4 text-sm text-muted-foreground">No active payment account is available yet.</p>}
-      {!loading && <button type="button" className="mt-3 rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted" onClick={() => { setError(''); setLoading(true); setRetryKey((value) => value + 1); }}>Refresh payment QR accounts</button>}
       <div className="mt-4 grid gap-4">
         {accounts.map((account) => (
           <div key={account.id} className="w-full rounded-lg border bg-background p-4">

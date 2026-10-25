@@ -9,7 +9,7 @@
     "start:worker": "node src/worker.js",
     "predev": "npm run prisma:generate",
     "dev": "nodemon --legacy-watch src/server.js",
-    "prestart": "npm run prisma:generate",
+    "prestart": "npm run prisma:generate && npm run prisma:migrate:deploy",
     "lint": "eslint src tests --max-warnings=0",
     "test": "vitest run",
     "test:watch": "vitest",

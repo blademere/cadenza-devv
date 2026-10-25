@@ -118,7 +118,7 @@ export default function RentalPaymentPage() {
           Instrument rental payment
         </p>
 
-        <PaymentAccountInstructions />
+        <PaymentAccountInstructions selectedAccountId={checkout?.paymentAccountId} />
 
         <div className="mt-5 text-left">
           <label htmlFor="rental-payment-reference" className="text-sm font-medium">

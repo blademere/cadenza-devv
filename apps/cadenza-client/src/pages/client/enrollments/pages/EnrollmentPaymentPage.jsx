@@ -157,7 +157,7 @@ export default function EnrollmentPaymentPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Lesson enrollment
         </p>
-        <PaymentAccountInstructions />
+        <PaymentAccountInstructions selectedAccountId={checkout?.metadata?.paymentAccountId || checkout?.paymentAccountId} />
         <p className="mt-5 text-sm text-muted-foreground">
           Amount due:{' '}
           <span className="font-semibold text-foreground">

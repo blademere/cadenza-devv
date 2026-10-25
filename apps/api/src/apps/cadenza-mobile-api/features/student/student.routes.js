@@ -8,6 +8,10 @@ const router = Router();
 const requestValidator = async (req) => z.object({
   params: z.object({ sessionId: z.uuid() }),
 }).parse({ params: req.params || {} });
+const choiceValidator = async (req) => z.object({
+  params: z.object({ sessionId: z.uuid() }),
+  body: z.object({ optionIds: z.array(z.string().min(1)).min(1) }),
+}).parse({ params: req.params || {}, body: req.body || {} });
 
 router.use(requireClient);
 router.get('/dashboard', asyncHandler(studentController.dashboard));
@@ -20,6 +24,12 @@ router.post(
   validate(requestValidator),
   idempotency({ scope: 'cadenza-mobile-schedule-request', required: true }),
   asyncHandler(studentController.requestSchedule),
+);
+router.post(
+  '/schedule/:sessionId/choice',
+  validate(choiceValidator),
+  idempotency({ scope: 'cadenza-mobile-student-schedule-choice', required: true }),
+  asyncHandler(studentController.chooseSchedule),
 );
 
 export default router;

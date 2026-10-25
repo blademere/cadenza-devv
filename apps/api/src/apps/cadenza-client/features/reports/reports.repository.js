@@ -31,7 +31,7 @@ export const reportsRepository = {
   },
 
   async findRoomBookings(appId, from, to) {
-    return prisma.cadenzaRoomBooking.findMany({
+    const bookings = await prisma.cadenzaRoomBooking.findMany({
       where: { appId, scheduledStart: range(from, to) },
       include: {
         room: true,
@@ -39,6 +39,22 @@ export const reportsRepository = {
       },
       orderBy: { scheduledStart: 'asc' },
     });
+
+    const resourceIds = [...new Set(bookings.map((booking) => booking.room?.resourceId).filter(Boolean))];
+    const resources = resourceIds.length
+      ? await prisma.resource.findMany({
+        where: { appId, id: { in: resourceIds } },
+        select: { id: true, name: true },
+      })
+      : [];
+    const resourceNames = new Map(resources.map((resource) => [resource.id, resource.name]));
+
+    return bookings.map((booking) => ({
+      ...booking,
+      room: booking.room
+        ? { ...booking.room, resource: { name: resourceNames.get(booking.room.resourceId) || null } }
+        : booking.room,
+    }));
   },
 
   async findRentals(appId, from, to) {

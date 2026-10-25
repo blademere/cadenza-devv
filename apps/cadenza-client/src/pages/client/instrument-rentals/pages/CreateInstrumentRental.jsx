@@ -14,6 +14,7 @@ import {
   checkInstrumentAvailability,
   getInstrument,
 } from '../services/instrument-rental.service';
+import { getPaymentAccounts } from '@/services/paymentAccountsService';
 
 const MINIMUM_RENTAL_HOURS = 8;
 
@@ -169,6 +170,8 @@ export default function CreateInstrumentRental() {
   const [reservedTimes, setReservedTimes] = useState({});
   const [checkingId, setCheckingId] = useState(null);
   const [paymentPlan, setPaymentPlan] = useState('');
+  const [paymentAccounts, setPaymentAccounts] = useState([]);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -180,6 +183,18 @@ export default function CreateInstrumentRental() {
       .catch(() => { if (active) setError('Unable to load reserved rental times.'); });
     return () => { active = false; };
   }, [instrumentIds.join(',')]);
+
+  useEffect(() => {
+    let active = true;
+    getPaymentAccounts()
+      .then((accounts) => {
+        if (!active) return;
+        setPaymentAccounts(accounts);
+        if (accounts.length === 1) setPaymentAccountId(String(accounts[0].id));
+      })
+      .catch(() => { if (active) setError('Unable to load active payment accounts.'); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const loadInstruments = async () => {
@@ -407,6 +422,10 @@ export default function CreateInstrumentRental() {
       setError('Please select a payment option.');
       return;
     }
+    if (!paymentAccountId) {
+      setError('Please select a bank account for payment.');
+      return;
+    }
 
     for (const instrument of instruments) {
       const schedule = schedules[instrument.id];
@@ -463,6 +482,7 @@ export default function CreateInstrumentRental() {
         'cadenza-pending-rental-checkout',
         JSON.stringify({
           paymentPlan,
+          paymentAccountId,
 
           items: instruments.map(
             (instrument) => ({
@@ -998,6 +1018,31 @@ export default function CreateInstrumentRental() {
                   </label>
                 ),
               )}
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label htmlFor="rental-payment-account" className="text-sm font-medium">
+                Bank account for payment
+              </label>
+              <select
+                id="rental-payment-account"
+                value={paymentAccountId}
+                onChange={(event) => setPaymentAccountId(event.target.value)}
+                disabled={submitting || paymentAccounts.length === 0}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">
+                  {paymentAccounts.length ? 'Select an active bank account' : 'No active bank accounts available'}
+                </option>
+                {paymentAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.bankName} · {account.accountNumber}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                The next payment page will show the QR code for this selected account.
+              </p>
             </div>
 
             <p className="mt-4 text-xs text-muted-foreground">

@@ -1,12 +1,18 @@
 import { Text, View } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import Constants from 'expo-constants';
+import { useEffect } from 'react';
 
 import Input from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { login, MOCK_INSTRUCTOR_CREDENTIALS } from '../../services/authService';
+import { login, loginWithGoogle, MOCK_INSTRUCTOR_CREDENTIALS } from '../../services/authService';
 import { API_BASE_URL } from '../../services/api';
 import { saveAuth } from '../../services/authStorage';
+
+WebBrowser.maybeCompleteAuthSession();
 
 function getLoginErrorMessage(error) {
   if (error?.response) {
@@ -32,6 +38,26 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const googleClientIds = Constants.expoConfig?.extra ?? {};
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: googleClientIds.googleAndroidClientId,
+    iosClientId: googleClientIds.googleIosClientId,
+    webClientId: googleClientIds.googleWebClientId,
+  });
+
+  useEffect(() => {
+    if (response?.type !== 'success' || !response.authentication?.accessToken) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const authData = await loginWithGoogle(response.authentication.accessToken);
+        await saveAuth(authData);
+        router.replace('/student/dashboard');
+      } catch (error) {
+        setErrorMessage('Invalid credentials.');
+      } finally { setLoading(false); }
+    })();
+  }, [response]);
 
   async function handleLogin() {
     setErrorMessage('');
@@ -120,6 +146,9 @@ export default function Login() {
 
         <Button onPress={handleLogin} disabled={loading}>
           {loading ? 'Loading...' : 'Login'}
+        </Button>
+        <Button onPress={() => promptAsync()} disabled={!request || loading} variant="outline">
+          Login with Google
         </Button>
       </View>
     </View>

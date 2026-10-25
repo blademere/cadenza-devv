@@ -6,20 +6,18 @@
     "orientation": "portrait",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
-
     "ios": {
+      "bundleIdentifier": "com.cadenza.mobile",
       "supportsTablet": true
     },
-
     "android": {
+      "package": "com.cadenza.mobile",
       "predictiveBackGestureEnabled": false
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       "expo-router",
       [
@@ -39,10 +37,18 @@
       "expo-image",
       "expo-status-bar"
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "googleWebClientId": "539575657827-l47dbsjueh6fp9noec8pqiughlskl5bv.apps.googleusercontent.com",
+      "googleAndroidClientId": "539575657827-4g0j1q3f7v6b8k2h5r9l0m1n2o3p4q5r.apps.googleusercontent.com",
+      "googleIosClientId": "539575657827-l47dbsjueh6fp9noec8pqiughlskl5bv.apps.googleusercontent.com",
+      "router": {},
+      "eas": {
+        "projectId": "20fa3689-2185-4c61-a6be-e45650b914ae"
+      }
     }
   }
 }

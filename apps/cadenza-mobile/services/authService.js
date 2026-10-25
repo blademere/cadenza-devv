@@ -63,6 +63,11 @@ export async function login(email, password) {
   return response.data?.data ?? response.data;
 }
 
+export async function loginWithGoogle(accessToken) {
+  const response = await api.post('/auth/oauth/google', { accessToken });
+  return response.data?.data ?? response.data;
+}
+
 export async function getMe() {
   const response = await api.get('/auth/me');
 

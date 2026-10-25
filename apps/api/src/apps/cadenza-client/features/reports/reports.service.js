@@ -134,7 +134,7 @@ const buildReport = async (appId, type, from, to) => {
 
   if (type === 'studio-bookings') {
     const bookings = await reportsRepository.findRoomBookings(appId, from, to);
-    const topRoom = countBy(bookings, (booking) => booking.room?.resourceId)[0];
+    const topRoom = countBy(bookings, (booking) => booking.room?.resource?.name || booking.roomNameAtBooking || booking.room?.resourceId)[0];
     return {
       columns: ['Metric', 'Value'],
       rows: [

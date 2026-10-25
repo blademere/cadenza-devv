@@ -316,6 +316,71 @@ function mapEnrollment(enrollment) {
 }
 
 export const enrollmentService = {
+  async submitRescheduleOptions(appId, requestId, options) {
+    if (!Array.isArray(options) || !options.length) throw new BadRequestError('At least one replacement schedule option is required.');
+    const request = await enrollmentRepository.findRescheduleRequestById(appId, requestId);
+    if (!request) throw new NotFoundError('Reschedule request not found.');
+    if (request.metadata?.optionsSubmittedAt) throw new ConflictError('Replacement schedule options have already been submitted.');
+    const metadata = { ...(request.metadata || {}), generatedOptions: options, optionsSubmittedAt: new Date().toISOString(), workflowStatus: 'AWAITING_PARTICIPANT_CHOICES' };
+    return enrollmentRepository.updateRescheduleRequest(requestId, { metadata });
+  },
+  async confirmReschedule(appId, requestId, option) {
+    if (!option?.date || !option?.time) throw new BadRequestError('A valid matching schedule is required.');
+    const times = option.time.split(' - ').map((value) => value.trim());
+    if (times.length !== 2) throw new BadRequestError('The selected schedule time is invalid.');
+    const toDate = (value) => {
+      const match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!match) return null;
+      let hour = Number(match[1]);
+      if (match[3].toUpperCase() === 'PM' && hour !== 12) hour += 12;
+      if (match[3].toUpperCase() === 'AM' && hour === 12) hour = 0;
+      return `${option.date}T${String(hour).padStart(2, '0')}:${match[2]}:00+08:00`;
+    };
+    const start = new Date(toDate(times[0]));
+    const end = new Date(toDate(times[1]));
+    if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf()) || end <= start) throw new BadRequestError('The selected schedule time is invalid.');
+    const result = await enrollmentRepository.confirmReschedule(appId, requestId, start, end);
+    if (!result) throw new NotFoundError('Pending reschedule request not found.');
+    return result;
+  },
+  async getRescheduleRequests(appId) {
+    const requests = await enrollmentRepository.findRescheduleRequests(appId);
+    const todayInManila = new Date(new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date()) + 'T00:00:00+08:00');
+    return requests.map((request) => ({
+      id: request.id,
+      status: request.status,
+      reason: request.reason,
+      requestedAt: request.createdAt,
+      requestedStart: request.requestedStart,
+      requestedEnd: request.requestedEnd,
+      rescheduleFromDate: request.session?.scheduledStart ? new Date(request.session.scheduledStart).toISOString().slice(0, 10) : null,
+      sessionId: request.sessionId,
+      requesterType: request.requestedByPersonId === request.session?.instructor?.personId ? 'Instructor' : 'Student',
+      student: [request.session?.enrollment?.customer?.person?.firstName, request.session?.enrollment?.customer?.person?.lastName].filter(Boolean).join(' ') || 'Student',
+      instructor: [request.session?.instructor?.person?.firstName, request.session?.instructor?.person?.lastName].filter(Boolean).join(' ') || 'Instructor',
+      scheduledStart: request.session?.scheduledStart,
+      scheduledEnd: request.session?.scheduledEnd,
+      lesson: request.session?.enrollment?.packageNameAtEnrollment || 'Lesson',
+      roomName: request.session?.room?.resource?.name || request.session?.room?.resourceId || null,
+      generatedOptions: request.metadata?.generatedOptions || [],
+      instructorChoices: request.metadata?.instructorChoices || [],
+      studentChoices: request.metadata?.studentChoices || [],
+      workflowStatus: request.metadata?.workflowStatus || 'PENDING',
+    })).filter((request) => request.status === 'PENDING' && request.scheduledStart && new Date(request.scheduledStart) >= todayInManila);
+  },
+  async emergencyReschedule(appId, data = {}) {
+    const sessionIds = Array.isArray(data.sessionIds) ? [...new Set(data.sessionIds.filter(Boolean))] : [];
+    const start = new Date(data.targetStart);
+    const end = new Date(data.targetEnd);
+    if (!sessionIds.length || Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf()) || end <= start) {
+      throw new BadRequestError('Affected sessions and a valid replacement schedule are required.');
+    }
+    const result = await enrollmentRepository.emergencyRescheduleSessions(appId, sessionIds, start, end);
+    if (!result) throw new NotFoundError('One or more affected class schedules were not found.');
+    return result;
+  },
   async getEnrollments(appId, filters = {}) {
     const enrollments = await enrollmentRepository.findAll(
       appId,
@@ -818,7 +883,7 @@ export const enrollmentService = {
       );
     }
 
-    await assertUnusedPaymentReference(appId, paymentReference);
+    const normalizedPaymentReference = await assertUnusedPaymentReference(appId, paymentReference);
 
     const packageItem =
       await enrollmentRepository.findPackageById(
@@ -1006,7 +1071,7 @@ export const enrollmentService = {
         paymentAmount: Number(packageItem.price) * (data.metadata?.paymentPlan === 'DOWN_PAYMENT' ? 0.5 : 1),
         initialPaymentAmount: Number(packageItem.price) * (data.metadata?.paymentPlan === 'DOWN_PAYMENT' ? 0.5 : 1),
         remainingAmount: Number(packageItem.price) * (data.metadata?.paymentPlan === 'DOWN_PAYMENT' ? 0.5 : 1),
-        paymentReference: paymentReference.trim(),
+        paymentReference: normalizedPaymentReference,
       },
       sessions: validatedSessions,
     });

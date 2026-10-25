@@ -17,6 +17,7 @@ import { env } from '../../../config/index.js'
 import { publish } from '../../../platform/event-bus/event-bus.js'
 import { run as runTransaction } from '../../../platform/transactions/transaction.service.js'
 import { getProviderConfig } from './oauth.providers.js'
+import { cadenzaAuthRepository } from '../../../apps/cadenza-client/features/auth/auth.repository.js'
 const OAUTH_REQUEST_TIMEOUT_MS = 5000
 const fetchJson = async (url, options = {}) => { const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), OAUTH_REQUEST_TIMEOUT_MS); try { const response = await fetch(url, { ...options, signal: options.signal || controller.signal }); const text = await response.text(); let data; try { data = text ? JSON.parse(text) : null } catch { throw new Error('OAuth provider returned an invalid response.') }; if (!response.ok) { const providerError = data?.error; const providerDescription = data?.error_description; const detail = [providerError, providerDescription].filter(Boolean).join(': '); const error = new Error(`OAuth provider request failed with status ${response.status}${detail ? ` (${detail})` : '.'}`); error.providerStatus = response.status; error.providerError = typeof providerError === 'string' ? providerError : undefined; error.providerErrorDescription = typeof providerDescription === 'string' ? providerDescription : undefined; throw error }; return { data, response } } finally { clearTimeout(timeout) } }
 const exchangeCode = async (provider, code, codeVerifier) => { const config = getProviderConfig(provider); if (typeof codeVerifier !== 'string' || codeVerifier.length < 43) throw new UnauthorizedError('OAuth authorization could not be completed.'); const body = new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, code, grant_type: 'authorization_code', redirect_uri: config.callbackUrl, code_verifier: codeVerifier }); const { data } = await fetchJson(config.tokenUrl, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body }); if (!data?.access_token) throw new UnauthorizedError('OAuth authorization could not be completed.'); return data.access_token }
@@ -81,6 +82,20 @@ const authenticateWithOAuth = async ({ provider, code, codeVerifier }) => {
   await createRefreshTokenRecord({ tokenId, tokenHash: hashToken(refreshToken), userId: user.id, expiresAt: new Date(Date.now() + env.COOKIE_REFRESH_MAX_AGE_MS) })
   return { user, accessToken: accessTokenJwt, refreshToken }
 }
+const authenticateWithGoogleAccessToken = async (accessToken) => {
+  const identity = await getProviderIdentity('google', accessToken)
+  const user = await findUserByEmail(identity.email)
+  if (!user || !user.isActive) throw new UnauthorizedError('Invalid credentials.')
+  const application = await cadenzaAuthRepository.findApplication()
+  const customer = application ? await cadenzaAuthRepository.findCustomerByUserIdAndAppId(user.id, application.id) : null
+  const enrollment = customer ? await cadenzaAuthRepository.findActiveEnrollmentByCustomerId(customer.id) : null
+  if (!customer || !enrollment) throw new UnauthorizedError('Invalid credentials.')
+  const tokenId = crypto.randomUUID()
+  const refreshToken = createRefreshToken(user, tokenId)
+  const accessTokenJwt = createAccessToken(user)
+  await createRefreshTokenRecord({ tokenId, tokenHash: hashToken(refreshToken), userId: user.id, expiresAt: new Date(Date.now() + env.COOKIE_REFRESH_MAX_AGE_MS) })
+  return { user, accessToken: accessTokenJwt, refreshToken }
+}
 const linkOAuthAccountWithCode = async ({ userId, provider, code, codeVerifier }) => {
   const accessToken = await exchangeCode(provider, code, codeVerifier)
   const identity = await getProviderIdentity(provider, accessToken)
@@ -118,4 +133,4 @@ const unlinkOAuthAccount = async ({ userId, provider }) => {
   return { provider }
 }
 
-export { authenticateWithOAuth, linkOAuthAccountWithCode, getLinkedOAuthAccounts, unlinkOAuthAccount }
+export { authenticateWithOAuth, authenticateWithGoogleAccessToken, linkOAuthAccountWithCode, getLinkedOAuthAccounts, unlinkOAuthAccount }

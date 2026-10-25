@@ -1,6 +1,29 @@
 import { enrollmentService } from './enrollment.service.js';
 
 export const enrollmentController = {
+  async emergencyReschedule(req, res, next) {
+    try {
+      return res.json({ success: true, message: 'Emergency reschedule saved successfully.', data: await enrollmentService.emergencyReschedule(req.cadenzaApp.id, req.body) });
+    } catch (error) { next(error); }
+  },
+  async getRescheduleRequests(req, res, next) {
+    try {
+      const requests = await enrollmentService.getRescheduleRequests(req.cadenzaApp.id);
+      return res.json({ success: true, data: requests });
+    } catch (error) { next(error); }
+  },
+  async submitRescheduleOptions(req, res, next) {
+    try {
+      const result = await enrollmentService.submitRescheduleOptions(req.cadenzaApp.id, req.params.id, req.body?.options || []);
+      return res.json({ success: true, message: 'Replacement schedule options submitted.', data: result });
+    } catch (error) { next(error); }
+  },
+  async confirmReschedule(req, res, next) {
+    try {
+      const result = await enrollmentService.confirmReschedule(req.cadenzaApp.id, req.params.id, req.body?.option);
+      return res.json({ success: true, message: 'Matching schedule confirmed.', data: result });
+    } catch (error) { next(error); }
+  },
   async getEnrollments(req, res, next) {
     try {
       const enrollments = await enrollmentService.getEnrollments(

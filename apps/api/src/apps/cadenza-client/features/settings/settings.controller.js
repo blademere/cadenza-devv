@@ -142,6 +142,7 @@ export const settingsController = {
     try {
       const { body, contentType, fileName } = await settingsService.getBankAccountQr(req.cadenzaApp.id, req.params.id, true);
       res.set('Content-Type', contentType);
+      res.set('Cache-Control', 'no-store, max-age=0');
       res.set('Content-Disposition', `inline; filename="${fileName.replace(/"/g, '')}"`);
       return res.send(body);
     } catch (error) { next(error); }

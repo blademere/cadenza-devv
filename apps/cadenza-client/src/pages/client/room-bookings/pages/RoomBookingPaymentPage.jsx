@@ -112,7 +112,7 @@ export default function RoomBookingPaymentPage() {
         </div>
         <h1 className="mt-5 text-2xl font-semibold">Scan to Pay</h1>
         <p className="mt-2 text-sm text-muted-foreground">Band room booking</p>
-        <PaymentAccountInstructions />
+        <PaymentAccountInstructions selectedAccountId={checkout?.paymentAccountId} />
         <p className="mt-5 text-sm text-muted-foreground">
           Amount due: <span className="font-semibold text-foreground">{formatCurrency(amountDue)}</span>
         </p>
