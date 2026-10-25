@@ -6,24 +6,29 @@
     "orientation": "portrait",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/images/logo.png",
     "ios": {
       "bundleIdentifier": "com.cadenza.mobile",
       "supportsTablet": true
     },
     "android": {
       "package": "com.cadenza.mobile",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

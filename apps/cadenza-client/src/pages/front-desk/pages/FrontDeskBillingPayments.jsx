@@ -174,6 +174,13 @@ const paidAmount = (transaction) =>
   );
 const remainingAmount = (transaction) =>
   Math.max(transaction.totalAmount - paidAmount(transaction), 0);
+const moneyInCents = (amount) => Math.round(Number(amount || 0) * 100);
+const createPaymentAttemptKey = () => {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
 const canProcessTransaction = (transaction) =>
   !['Instrument Rental', 'Room Booking'].includes(transaction.type) ||
   transaction.rentalStatus === 'COMPLETED';
@@ -310,7 +317,7 @@ export default function BillingPayments() {
     setError('');
     const signature = JSON.stringify([selectedTransaction.sourceId, selectedTransaction.type, amount, method, reference.trim()]);
     if (paymentAttempt.current?.signature !== signature) {
-      paymentAttempt.current = { signature, key: crypto.randomUUID() };
+      paymentAttempt.current = { signature, key: createPaymentAttemptKey() };
     }
     const idempotencyKey = paymentAttempt.current.key;
     const receiptReference = method === 'Cash' ? `FD-${idempotencyKey}` : reference.trim();
@@ -319,7 +326,8 @@ export default function BillingPayments() {
         type: selectedTransaction.type, id: selectedTransaction.sourceId,
         amount, method, reference: receiptReference, idempotencyKey,
       });
-      const record = response.data?.data?.payment;
+      // apiClient returns the API envelope unchanged: { success, data: { payment } }.
+      const record = response.data?.payment;
       if (!record?.id) throw new Error('Payment could not be confirmed.');
       const payment = {
         id: record.id, amount: Number(record.amount), method: record.method,
@@ -682,7 +690,7 @@ export default function BillingPayments() {
                   processing ||
                   !selectedTransaction ||
                   paymentMethod !== 'Cash' ||
-                  Number(amountToPay) !== remainingAmount(selectedTransaction)
+                  moneyInCents(amountToPay) !== moneyInCents(remainingAmount(selectedTransaction))
                 }
                 onClick={markAsPaid}
               >
