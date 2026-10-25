@@ -21,6 +21,15 @@ export const studentController = {
     res.json({ success: true, data: await studentService.getMaterial(req, req.params.materialId) });
   },
 
+  async materialFile(req, res) {
+    const file = await studentService.getMaterialFile(req, req.params.materialId);
+    const filename = String(file.filename).replace(/[\r\n"\\]/g, '_');
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Content-Disposition', `${req.query.download === '1' ? 'attachment' : 'inline'}; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.sendFile(file.absolutePath);
+  },
+
   async requestSchedule(req, res) {
     const request = await studentService.requestSchedule(
       req,

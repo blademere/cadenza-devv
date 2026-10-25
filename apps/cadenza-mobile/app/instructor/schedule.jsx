@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import ReadablePicker from '../../components/ui/ReadablePicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ResourceFeedback } from '../../components/common/ResourceFeedback';
 import RescheduleRequestButton from '../../components/common/RescheduleRequestButton';
@@ -93,8 +93,8 @@ export default function SchedulePage() {
       >
         <Text className="text-2xl font-bold" style={{ color: ACCENT }}>My Schedule</Text>
         <Text className="mt-2 text-gray-500">Lessons assigned to you from the database.</Text>
-        {courses.length > 0 && <View className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white"><Picker selectedValue={selectedCourse} onValueChange={setSelectedCourse}><Picker.Item label="All courses" value="ALL" />{courses.map((course) => <Picker.Item key={course.id} label={course.name} value={course.id} />)}</Picker></View>}
-        {students.length > 0 && <View className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white"><Picker selectedValue={selectedStudent} onValueChange={setSelectedStudent}><Picker.Item label="All students" value="ALL" />{students.map((student) => <Picker.Item key={student.id} label={student.name} value={student.id} />)}</Picker></View>}
+        {courses.length > 0 && <View className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white"><ReadablePicker selectedValue={selectedCourse} onValueChange={setSelectedCourse}><ReadablePicker.Item label="All courses" value="ALL" />{courses.map((course) => <ReadablePicker.Item key={course.id} label={course.name} value={course.id} />)}</ReadablePicker></View>}
+        {students.length > 0 && <View className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white"><ReadablePicker selectedValue={selectedStudent} onValueChange={setSelectedStudent}><ReadablePicker.Item label="All students" value="ALL" />{students.map((student) => <ReadablePicker.Item key={student.id} label={student.name} value={student.id} />)}</ReadablePicker></View>}
         <ResourceFeedback loading={loading} error={error} onRetry={loadSchedule} />
         {loading && <ActivityIndicator className="mt-6" size="small" color={ACCENT} />}
         {!loading && !error && filteredSchedules.length === 0 && <Text className="mt-6 text-sm text-gray-500">No lessons scheduled for this course.</Text>}

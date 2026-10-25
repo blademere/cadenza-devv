@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { access } from 'node:fs/promises';
 import { ConflictError, NotFoundError } from '../../../../common/errors/appError.js';
 import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
@@ -276,6 +278,20 @@ export const studentService = {
     }
 
     return { groups: [...groups.values()] };
+  },
+
+  async getMaterialFile(req, materialId) {
+    const material = await this.getMaterial(req, materialId);
+    if (!material.fileUrl) throw new NotFoundError('Material file not found.');
+    const root = path.resolve(process.env.CADENZA_STORAGE_PATH || path.join(process.cwd(), 'storage'));
+    const normalized = String(material.fileUrl).replaceAll('\\', '/');
+    if (path.isAbsolute(normalized) || normalized.split('/').includes('..') || !normalized.startsWith(`cadenza-client/courses/${material.courseId}/`)) {
+      throw new NotFoundError('Material file not found.');
+    }
+    const absolutePath = path.resolve(root, normalized);
+    if (!absolutePath.startsWith(`${root}${path.sep}`)) throw new NotFoundError('Material file not found.');
+    try { await access(absolutePath); } catch { throw new NotFoundError('Material file not found.'); }
+    return { absolutePath, filename: material.title || 'material', contentType: material.type || 'application/octet-stream' };
   },
 
   async getMaterial(req, materialId) {

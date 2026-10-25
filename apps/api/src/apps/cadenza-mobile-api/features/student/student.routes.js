@@ -19,6 +19,7 @@ router.get('/schedule', asyncHandler(studentController.schedule));
 router.get('/progress', asyncHandler(studentController.progress));
 router.get('/materials', asyncHandler(studentController.materials));
 router.get('/materials/:materialId', asyncHandler(studentController.material));
+router.get('/materials/:materialId/file', asyncHandler(studentController.materialFile));
 router.post(
   '/schedule/:sessionId/request',
   validate(requestValidator),
