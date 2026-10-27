@@ -430,7 +430,7 @@ const requestEmailOtp = async ({ email, purpose, password }) => {
       throw new UnauthorizedError('Invalid credentials.');
     }
     const account = await getAccount(user.id, application.id);
-    if (account.type !== 'CLIENT') {
+    if (!account || !['CLIENT', 'STAFF'].includes(account.type)) {
       throw new UnauthorizedError('Invalid credentials.');
     }
   }

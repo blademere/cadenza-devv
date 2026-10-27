@@ -29,10 +29,13 @@ export default function Notifications() {
   });
 
   useEffect(() => {
-    getMyNotifications()
+    const loadNotifications = () => getMyNotifications()
       .then((items) => setNotifications(items.map((item) => ({ ...item, read: readIds.includes(item.id) }))))
       .catch(() => toast.error('Unable to load notifications.'))
       .finally(() => setLoading(false));
+    loadNotifications();
+    const refreshTimer = window.setInterval(loadNotifications, 15000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   const unreadCount = notifications.filter((item) => !item.read).length;

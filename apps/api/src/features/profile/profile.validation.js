@@ -1,11 +1,12 @@
 import { z } from 'zod'
 
 const profileFields = {
+  email: z.email().trim().toLowerCase().optional(),
   firstName: z.string().trim().min(1).max(100),
   middleName: z.string().trim().max(100).nullable().optional(),
   lastName: z.string().trim().min(1).max(100),
   suffix: z.string().trim().max(30).nullable().optional(),
-  phone: z.string().trim().max(50).nullable().optional(),
+  phone: z.string().trim().regex(/^(09\d{9}|\+639\d{9})$/, 'Phone number must be a valid Philippine mobile number.').nullable().optional(),
   address: z.record(z.string(), z.unknown()).nullable().optional(),
   age: z.coerce.number().int().min(1).max(120).nullable().optional(),
   gender: z.enum(['MALE', 'FEMALE', 'PREFER_NOT_TO_SAY']).nullable().optional(),
@@ -23,7 +24,7 @@ const updateMyProfileSchema = z.object({
 })
 
 const updateMyPasswordSchema = z.object({
-  body: z.object({ password: z.string().min(8).max(128) }),
+  body: z.object({ currentPassword: z.string().min(8).optional(), password: z.string().min(8).max(128) }),
 })
 
 const createMyProfileValidator = async (req) =>

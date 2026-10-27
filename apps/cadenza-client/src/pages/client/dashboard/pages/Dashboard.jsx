@@ -77,8 +77,19 @@ export default function Dashboard() {
         }
       });
 
+    const refreshTimer = window.setInterval(() => {
+      Promise.all([getMyEnrollment(), getMyTransactions()])
+        .then(([enrollmentData, transactionData]) => {
+          if (!active) return;
+          setEnrollments(Array.isArray(enrollmentData) ? enrollmentData : enrollmentData ? [enrollmentData] : []);
+          setTransactions(Array.isArray(transactionData) ? transactionData : []);
+        })
+        .catch(() => {});
+    }, 15000);
+
     return () => {
       active = false;
+      window.clearInterval(refreshTimer);
     };
   }, []);
 

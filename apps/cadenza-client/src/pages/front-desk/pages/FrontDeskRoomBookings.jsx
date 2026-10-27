@@ -1,5 +1,5 @@
 import TransactionRefundPanel from '../components/TransactionRefundPanel';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RefreshCwIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronDown, FileIcon, Loader2, X } from 'lucide-react';
@@ -132,26 +132,66 @@ export default function FrontDeskRoomBookings() {
   const [checkInAt, setCheckInAt] = useState(toDateTimeLocalValue());
   const [showCheckOutDialog, setShowCheckOutDialog] = useState(false);
   const [checkOutAt, setCheckOutAt] = useState(toDateTimeLocalValue());
+  const autoCheckedOut = useRef(new Set());
+
+  const loadRoomBookings = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await getRoomBookings();
+      setBookings((Array.isArray(data) ? data : []).map(mapBooking));
+    } catch (requestError) {
+      setError(
+        requestError?.response?.data?.message ||
+          requestError?.message ||
+          'Unable to load room bookings.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    getRoomBookings()
-      .then((data) =>
-        setBookings((Array.isArray(data) ? data : []).map(mapBooking)),
-      )
-      .catch((requestError) =>
-        setError(
-          requestError?.response?.data?.message ||
-            requestError?.message ||
-            'Unable to load room bookings.',
-        ),
-      )
-      .finally(() => setLoading(false));
-  }, []);
+    loadRoomBookings();
+  }, [loadRoomBookings]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 30000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    bookings
+      .filter(
+        (booking) =>
+          booking.status === 'Checked In' &&
+          roomOverdue(booking) &&
+          !autoCheckedOut.current.has(booking.id),
+      )
+      .forEach(async (booking) => {
+        autoCheckedOut.current.add(booking.id);
+        try {
+          const updated = await checkOutRoomBooking(
+            booking.id,
+            new Date(booking.scheduledEnd).toISOString(),
+          );
+          const next = mapBooking({ ...booking, ...updated });
+          setBookings((current) =>
+            current.map((item) => (item.id === next.id ? next : item)),
+          );
+          setSelectedBooking((current) =>
+            current?.id === next.id ? next : current,
+          );
+        } catch (requestError) {
+          autoCheckedOut.current.delete(booking.id);
+          setError(
+            requestError?.response?.data?.message ||
+              requestError?.message ||
+              'Unable to automatically check out this room booking.',
+          );
+        }
+      });
+  }, [bookings, currentTime]);
 
   const inUsedRooms = bookings.filter((booking) => booking.status === 'Checked In')
     .sort((a, b) => new Date(a.scheduledEnd) - new Date(b.scheduledEnd));
@@ -230,6 +270,7 @@ export default function FrontDeskRoomBookings() {
       );
       setSelectedBooking(next);
       setShowCheckInDialog(false);
+      setShowDetails(false);
     } catch (requestError) {
       setError(
         requestError?.response?.data?.message ||
@@ -280,7 +321,7 @@ export default function FrontDeskRoomBookings() {
                 Review payment details and manage room booking requests.
               </p>
             </div>
-            <Button variant="outline" onClick={() => window.location.reload()}>
+            <Button variant="outline" onClick={loadRoomBookings} disabled={loading}>
               <RefreshCwIcon className="mr-2 size-4" />
               Refresh
             </Button>
@@ -322,8 +363,8 @@ export default function FrontDeskRoomBookings() {
                           <Badge variant={overdue ? 'destructive' : 'secondary'}>
                             {overdue ? 'Checkout overdue' : 'In use'}
                           </Badge>
-                          <Button size="sm" onClick={() => openDetails(booking)}>
-                            Check out
+                          <Button size="sm" variant="outline" onClick={() => openDetails(booking)}>
+                            View details
                           </Button>
                         </div>
                       </div>
@@ -795,9 +836,12 @@ export default function FrontDeskRoomBookings() {
                         </Button>
                         <Button
                           disabled={actionLoading}
-                          onClick={() => { setCheckOutAt(toDateTimeLocalValue()); setShowCheckOutDialog(true); }}
+                          onClick={() => {
+                            setCheckOutAt(toDateTimeLocalValue());
+                            setShowCheckOutDialog(true);
+                          }}
                         >
-                          <Check /> Mark as checked out
+                          Check out
                         </Button>
                       </>
                     ) : (
@@ -851,7 +895,7 @@ export default function FrontDeskRoomBookings() {
                 <DialogTitle>Check in client</DialogTitle>
                 <DialogDescription>
                   Adjust the start time while preserving the original booked
-                  duration. No extra room charge is added.
+                  duration. Any early check-in is billed by the minute.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -901,6 +945,11 @@ export default function FrontDeskRoomBookings() {
                     </Button>
                   </div>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  Estimated advance check-in charge: ₱{selectedBooking && checkInAt
+                    ? (Math.max(0, (new Date(selectedBooking.metadata?.originalScheduledStart || selectedBooking.scheduledStart).getTime() - new Date(checkInAt).getTime()) / 60000) * (Number(selectedBooking.totalAmount || 0) / ((new Date(selectedBooking.metadata?.originalScheduledEnd || selectedBooking.scheduledEnd).getTime() - new Date(selectedBooking.metadata?.originalScheduledStart || selectedBooking.scheduledStart).getTime()) / 60000))).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : '0.00'}
+                </p>
               </div>
               <DialogFooter>
                 <Button

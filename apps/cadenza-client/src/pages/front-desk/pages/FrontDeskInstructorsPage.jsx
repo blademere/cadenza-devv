@@ -758,7 +758,7 @@ export default function InstructorsPage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => window.location.reload()}
+                onClick={loadInstructors}
               >
                 <RefreshCwIcon className="mr-2 size-4" />
                 Refresh

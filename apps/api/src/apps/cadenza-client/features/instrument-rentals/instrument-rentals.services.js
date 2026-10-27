@@ -286,6 +286,8 @@ export const instrumentRentalsService = {
   async receiveInstrumentRental(appId, id, {
     receivedAt: requestedReceivedAt,
     depositAmount,
+    idNumber,
+    idType,
   }) {
     const receivedAt = new Date(requestedReceivedAt || new Date());
     if (Number.isNaN(receivedAt.getTime())) {
@@ -305,6 +307,8 @@ export const instrumentRentalsService = {
         ...(rental.metadata || {}),
         receivedAt: receivedAt.toISOString(),
         depositAmount: Number(depositAmount),
+        idNumber,
+        idType: idType.trim(),
         depositStatus: 'RECEIVED',
       },
     });
@@ -460,7 +464,7 @@ export const instrumentRentalsService = {
     scheduledStart,
     scheduledEnd,
   }) {
-    if (status !== 'APPROVED') await assertUnusedPaymentReference(appId, paymentReference);
+    if (status !== 'APPROVED') await assertUnusedPaymentReference(appId, paymentReference, { minLength: 13, maxLength: 100, alphanumericOnly: true });
     const walkInHours = status === 'APPROVED' ? await settingsService.getOperatingHours(appId) : null;
     const schedule = validateSchedule(scheduledStart, scheduledEnd, walkInHours);
     if (status === 'APPROVED') {

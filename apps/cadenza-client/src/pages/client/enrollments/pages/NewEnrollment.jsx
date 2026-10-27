@@ -36,28 +36,36 @@ const getManilaDateTime = (dateKey, minutes) => {
   );
 };
 
+const getEnrollmentDraftKey = (packageId, courseId) =>
+  `cadenza-enrollment-draft:${packageId || 'none'}:${courseId || 'none'}`;
+
+const readEnrollmentDraft = (key) => {
+  try {
+    return JSON.parse(localStorage.getItem(key) || 'null');
+  } catch {
+    return null;
+  }
+};
+
 export default function NewEnrollment() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const packageId = searchParams.get('package');
   const courseId = searchParams.get('course');
+  const draftKey = getEnrollmentDraftKey(packageId, courseId);
+  const savedDraft = useMemo(() => readEnrollmentDraft(draftKey), [draftKey]);
 
   const [instructors, setInstructors] = useState([]);
   const [availability, setAvailability] = useState([]);
 
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [selectedInstructor, setSelectedInstructor] = useState('');
-  const [paymentPlan, setPaymentPlan] = useState('');
+  const [paymentPlan, setPaymentPlan] = useState(savedDraft?.paymentPlan || '');
   const [paymentAccounts, setPaymentAccounts] = useState([]);
-  const [paymentAccountId, setPaymentAccountId] = useState('');
+  const [paymentAccountId, setPaymentAccountId] = useState(savedDraft?.paymentAccountId || '');
   const [studentDetails, setStudentDetails] = useState({
-    firstName: '',
-    lastName: '',
-    address: '',
-    age: '',
-    gender: '',
-    guardianName: '',
-    contactNo: '',
+    firstName: '', middleName: '', lastName: '', suffix: '', address: '', age: '',
+    gender: '', guardianName: '', contactNo: '',
   });
 
   const [startDate, setStartDate] = useState('');
@@ -86,7 +94,9 @@ export default function NewEnrollment() {
           : person.address?.line1 || person.address?.fullAddress || '';
         setStudentDetails({
           firstName: person.firstName || '',
+          middleName: person.middleName || '',
           lastName: person.lastName || '',
+          suffix: person.suffix || '',
           address,
           age: details.age ?? '',
           gender: details.gender || '',
@@ -122,6 +132,23 @@ export default function NewEnrollment() {
       studentDetails.contactNo.trim() &&
       studentDetails.guardianName.trim(),
   );
+
+  const saveDraft = () => {
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        paymentPlan,
+        paymentAccountId,
+        selectedInstructor,
+        startDate,
+        selectedAvailabilityIds,
+        savedAt: new Date().toISOString(),
+      }));
+      setSuccess('Enrollment draft saved. You can continue later.');
+      setError('');
+    } catch {
+      setError('Unable to save your enrollment draft in this browser.');
+    }
+  };
 
   useEffect(() => {
     const handlePaymentComplete = (event) => {
@@ -224,6 +251,18 @@ export default function NewEnrollment() {
     loadInstructors();
   }, [selectedPackage, selectedCourseId]);
 
+  useEffect(() => {
+    if (
+      !selectedInstructor &&
+      savedDraft?.selectedInstructor &&
+      instructors.some(
+        (instructor) => String(instructor.id) === String(savedDraft.selectedInstructor),
+      )
+    ) {
+      setSelectedInstructor(String(savedDraft.selectedInstructor));
+    }
+  }, [instructors, savedDraft, selectedInstructor]);
+
   const selectedInstructorData = useMemo(
     () =>
       instructors.find(
@@ -238,6 +277,24 @@ export default function NewEnrollment() {
     setStartDate('');
     setStartTime('');
   }, [selectedInstructorData]);
+
+  useEffect(() => {
+    if (
+      !selectedInstructorData ||
+      String(savedDraft?.selectedInstructor) !== String(selectedInstructor)
+    ) {
+      return;
+    }
+
+    const savedSlots = savedDraft.scheduleSlots || [];
+    const restoredIds = savedSlots.length
+      ? availability
+          .filter((rule) => savedSlots.some((slot) => Number(slot.dayOfWeek) === Number(rule.dayOfWeek) && Number(slot.startMinute) === Number(rule.startMinute)))
+          .map((rule) => rule.id)
+      : savedDraft.selectedAvailabilityIds || [];
+    setSelectedAvailabilityIds(restoredIds);
+    setStartDate(savedDraft.startDate || '');
+  }, [availability, savedDraft, selectedInstructor, selectedInstructorData]);
 
   // Once the student chooses a start date, refresh the selected instructor's
   // slots for that exact date. The API removes slots occupied by an active
@@ -775,6 +832,7 @@ export default function NewEnrollment() {
           },
         }),
       );
+      localStorage.removeItem(draftKey);
 
       paymentWindow.location.href = `${window.location.origin}/client/enrollments/payment`;
     } catch (error) {
@@ -909,7 +967,9 @@ export default function NewEnrollment() {
               <>
                 {[
                   ['firstName', 'First name'],
+                  ['middleName', 'Middle name'],
                   ['lastName', 'Last name'],
+                  ['suffix', 'Suffix'],
                   ['address', 'Address'],
                   ['age', 'Age'],
                   ['guardianName', 'Guardian name'],
@@ -1257,6 +1317,15 @@ export default function NewEnrollment() {
             className="h-10 rounded-md border border-border px-5 text-sm font-medium hover:bg-muted"
           >
             Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={saveDraft}
+            disabled={submitting}
+            className="h-10 rounded-md border border-border px-5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+          >
+            Save draft
           </button>
 
           <button

@@ -172,9 +172,12 @@ const paidAmount = (transaction) =>
     (sum, payment) => sum + Number(payment.amount || 0),
     0,
   );
-const remainingAmount = (transaction) =>
-  Math.max(transaction.totalAmount - paidAmount(transaction), 0);
 const moneyInCents = (amount) => Math.round(Number(amount || 0) * 100);
+const remainingAmount = (transaction) =>
+  Math.max(
+    0,
+    (moneyInCents(transaction.totalAmount) - moneyInCents(paidAmount(transaction))) / 100,
+  );
 const createPaymentAttemptKey = () => {
   if (typeof globalThis.crypto?.randomUUID === 'function') {
     return globalThis.crypto.randomUUID();
@@ -186,6 +189,7 @@ const canProcessTransaction = (transaction) =>
   transaction.rentalStatus === 'COMPLETED';
 
 export default function BillingPayments() {
+  const [refreshKey, setRefreshKey] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -240,7 +244,7 @@ export default function BillingPayments() {
           setError('Unable to load billing records.');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshKey]);
 
   const filteredTransactions = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -367,7 +371,7 @@ export default function BillingPayments() {
                 continuation.
               </p>
             </div>
-            <Button variant="outline" onClick={() => window.location.reload()}>
+            <Button variant="outline" onClick={() => setRefreshKey((key) => key + 1)}>
               Refresh
             </Button>
           </div>
@@ -611,7 +615,7 @@ export default function BillingPayments() {
             </DialogHeader>
             {selectedTransaction && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 rounded-lg border p-4">
+                <div className="grid grid-cols-3 gap-3 rounded-lg border p-4">
                   <div>
                     <p className="text-xs text-muted-foreground">Total</p>
                     <p className="font-semibold">
@@ -619,7 +623,13 @@ export default function BillingPayments() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Remaining</p>
+                    <p className="text-xs text-muted-foreground">Paid</p>
+                    <p className="font-semibold">
+                      {formatCurrency(paidAmount(selectedTransaction))}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Balance</p>
                     <p className="font-semibold">
                       {formatCurrency(remainingAmount(selectedTransaction))}
                     </p>

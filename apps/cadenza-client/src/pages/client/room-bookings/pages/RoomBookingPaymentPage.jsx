@@ -58,8 +58,13 @@ export default function RoomBookingPaymentPage() {
       setError('Invalid booking schedule or room rate. Please select your room again.')
       return
     }
-    if (paymentReference.trim().length < 3) {
-      setError('Enter the payment reference before continuing.')
+    const normalizedPaymentReference = paymentReference.trim()
+    if (normalizedPaymentReference.length < 13) {
+      setError('The payment reference must be at least 13 characters.')
+      return
+    }
+    if (!/^[a-z0-9]+$/i.test(normalizedPaymentReference)) {
+      setError('The payment reference may contain letters and numbers only.')
       return
     }
 
@@ -73,7 +78,7 @@ export default function RoomBookingPaymentPage() {
         scheduledStart: start.toISOString(),
         scheduledEnd: end.toISOString(),
         paymentMethod: 'GCASH',
-        paymentReference: paymentReference.trim(),
+        paymentReference: normalizedPaymentReference,
       })
 
       localStorage.removeItem('cadenza-pending-room-checkout')
@@ -125,13 +130,19 @@ export default function RoomBookingPaymentPage() {
           <input
             type="text"
             value={paymentReference}
-            onChange={(event) => setPaymentReference(event.target.value)}
+            onChange={(event) =>
+              setPaymentReference(event.target.value.replace(/[^a-z0-9]/gi, '').slice(0, 100))
+            }
             placeholder="Enter the GCash reference number"
+            minLength={13}
             maxLength={100}
             className="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm font-normal outline-none focus:ring-2 focus:ring-primary"
             required
           />
         </label>
+        <p className="mt-1 text-left text-xs text-muted-foreground">
+          Use letters and numbers only, with at least 13 characters.
+        </p>
         {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
         <button
           type="button"

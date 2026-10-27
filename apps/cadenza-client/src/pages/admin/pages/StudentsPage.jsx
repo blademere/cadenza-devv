@@ -220,7 +220,7 @@ export default function StudentsPage() {
                       variant="outline"
                       size="sm"
                       className="mt-2"
-                      onClick={() => window.location.reload()}
+                      onClick={loadStudents}
                     >
                       Retry
                     </Button>

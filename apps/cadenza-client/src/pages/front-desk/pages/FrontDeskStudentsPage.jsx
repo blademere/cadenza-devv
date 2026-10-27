@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCwIcon } from 'lucide-react';
 import { SearchIcon } from 'lucide-react';
 import { AppSidebar } from '../components/app-sidebar';
@@ -42,30 +42,23 @@ export default function FrontDeskStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    let mounted = true;
+  const loadStudents = useCallback(async () => {
     setLoading(true);
-    getStudents({ page, limit: 10 })
-      .then((result) => {
-        if (mounted) {
-          setStudents(result.items);
-          setPagination(result.pagination);
-        }
-      })
-      .catch(
-        (err) =>
-          mounted &&
-          setError(
-            err?.response?.data?.message ||
-              err?.message ||
-              'Failed to load students.',
-          ),
-      )
-      .finally(() => mounted && setLoading(false));
-    return () => {
-      mounted = false;
-    };
+    setError('');
+    try {
+      const result = await getStudents({ page, limit: 10 });
+      setStudents(result.items);
+      setPagination(result.pagination);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to load students.');
+    } finally {
+      setLoading(false);
+    }
   }, [page]);
+
+  useEffect(() => {
+    loadStudents();
+  }, [loadStudents]);
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -209,7 +202,7 @@ export default function FrontDeskStudentsPage() {
             <p className="text-muted-foreground">
               Only students with an active enrollment are shown.
             </p>
-            <Button variant="outline" onClick={() => window.location.reload()}>
+            <Button variant="outline" onClick={loadStudents} disabled={loading}>
               <RefreshCwIcon className="mr-2 size-4" />
               Refresh
             </Button>

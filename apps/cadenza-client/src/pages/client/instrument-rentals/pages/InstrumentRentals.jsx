@@ -141,6 +141,8 @@ export default function InstrumentRentalsPage() {
 
   useEffect(() => {
     loadData()
+    const refreshTimer = window.setInterval(loadData, 15000)
+    return () => window.clearInterval(refreshTimer)
   }, [loadData])
 
   useEffect(() => {

@@ -11,6 +11,15 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import { Button } from '@/components/ui/Button';
 
 import {
   getMyProfile,
@@ -41,23 +50,27 @@ const getAddressText = (address) => {
   );
 };
 
-export default function Profile({ showGuardian = true }) {
+export default function Profile({ showGuardian = true, staffProfile = false }) {
   const [form, setForm] = useState(emptyForm);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [profileConfirmOpen, setProfileConfirmOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [hasActiveEnrollment, setHasActiveEnrollment] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [retypePassword, setRetypePassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordConfirmOpen, setPasswordConfirmOpen] = useState(false);
 
   useEffect(() => {
-    getMyProfile()
+    const loadProfile = () => getMyProfile()
       .then((profile) => {
         const person = profile?.person || {};
-        setEmail(profile?.user?.email || '');
+        setEmail(profile?.user?.email || person.email || '');
         setHasActiveEnrollment(Boolean(profile?.hasActiveEnrollment));
         const studentDetails = person.metadata?.studentDetails || {};
         setForm({
@@ -75,6 +88,9 @@ export default function Profile({ showGuardian = true }) {
       })
       .catch(() => toast.error('Unable to load your profile.'))
       .finally(() => setLoading(false));
+    loadProfile();
+    const refreshTimer = window.setInterval(loadProfile, 15000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   const updateField = (field) => (event) => {
@@ -84,23 +100,46 @@ export default function Profile({ showGuardian = true }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.contactNo.trim() || !form.address.trim() || !form.age || !form.gender || (showGuardian && !form.guardianName.trim())) {
+    if (
+      !form.firstName.trim() ||
+      !form.lastName.trim() ||
+      (!staffProfile && (!form.contactNo.trim() || !form.address.trim() || !form.age || !form.gender || (showGuardian && !form.guardianName.trim())))
+    ) {
       toast.error(showGuardian ? 'First name, last name, contact number, age, gender, address and guardian are required.' : 'First name, last name, contact number, age, gender and address are required.');
       return;
     }
 
+    const phonePattern = staffProfile ? /^09\d{9}$/ : /^(09\d{9}|\+639\d{9})$/;
+    if (form.contactNo.trim() && !phonePattern.test(form.contactNo.trim())) {
+      toast.error(staffProfile
+        ? 'Enter an 11-digit Philippine mobile number starting with 09.'
+        : 'Enter a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).');
+      return;
+    }
+
+    if (staffProfile && (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
+      toast.error('Enter a valid email address.');
+      return;
+    }
+
+    setProfileConfirmOpen(true);
+  };
+
+  const confirmProfileUpdate = async () => {
     try {
       setSaving(true);
+      setProfileConfirmOpen(false);
       const updated = await updateMyProfile({
         firstName: form.firstName,
-        middleName: form.middleName,
+        middleName: form.middleName.trim() || null,
         lastName: form.lastName,
         suffix: form.suffix,
-        phone: form.contactNo,
+        phone: form.contactNo.trim() || null,
         address: form.address.trim() ? { line1: form.address.trim() } : null,
         age: form.age === '' ? null : Number(form.age),
         gender: form.gender || null,
         guardianName: form.guardianName.trim() || null,
+        ...(staffProfile ? { email: email.trim() } : {}),
       });
       const person = updated?.person || {};
       setForm((current) => ({
@@ -124,28 +163,45 @@ export default function Profile({ showGuardian = true }) {
 
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
+    setPasswordError('');
+    if (currentPassword.length < 8) {
+      setPasswordError('Enter your current password.');
+      return;
+    }
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters.');
+      setPasswordError('The new password must be at least 8 characters.');
       return;
     }
     if (password !== retypePassword) {
-      toast.error('Passwords do not match.');
+      setPasswordError('The new passwords do not match.');
       return;
     }
+    setPasswordConfirmOpen(true);
+  };
+
+  const confirmPasswordChange = async () => {
     try {
       setSavingPassword(true);
-      await updateMyPassword(password);
+      setPasswordConfirmOpen(false);
+      await updateMyPassword(currentPassword, password);
+      setCurrentPassword('');
       setPassword('');
       setRetypePassword('');
+      setPasswordError('');
       toast.success(
         'Password saved. You can now sign in with email and password.',
       );
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Unable to save password.');
+      setPasswordError(error?.response?.data?.message || 'Unable to save password.');
     } finally {
       setSavingPassword(false);
     }
   };
+
+  const passwordHasMinimumLength = password.length >= 8;
+  const hasCurrentPassword = currentPassword.length >= 8;
+  const passwordsMatch = retypePassword.length > 0 && password === retypePassword;
+  const preventPasswordClipboard = (event) => event.preventDefault();
 
   return (
     <div className="space-y-8 px-4 py-6 lg:px-8">
@@ -189,36 +245,46 @@ export default function Profile({ showGuardian = true }) {
               />
               <Field
                 label="Contact number"
+                type="tel"
                 value={form.contactNo}
-                onChange={updateField('contactNo')}
-                required
+                onChange={staffProfile
+                  ? (event) => updateField('contactNo')({
+                    target: {
+                      value: event.target.value.replace(/\D/g, '').slice(0, 11),
+                    },
+                  })
+                  : updateField('contactNo')}
+                placeholder="09XXXXXXXXX"
+                inputMode="numeric"
+                maxLength={staffProfile ? 11 : undefined}
+                required={!staffProfile}
               />
               <Field
                 label="Age"
                 type="number"
                 value={form.age}
                 onChange={updateField('age')}
-                required
+                required={!staffProfile}
               />
               <SelectField
                 label="Gender"
                 value={form.gender}
                 onChange={updateField('gender')}
-                required
+                required={!staffProfile}
               />
-              <Detail
-                label="Email"
-                value={email}
-                icon={<Mail className="h-4 w-4" />}
-              />
+              {staffProfile ? (
+                <Field label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+              ) : (
+                <Detail label="Email" value={email} icon={<Mail className="h-4 w-4" />} />
+              )}
             </div>
             <Field
               label="Address"
               value={form.address}
               onChange={updateField('address')}
-              required
+              required={!staffProfile}
             />
-            {showGuardian && <Field label="Guardian" value={form.guardianName} onChange={updateField('guardianName')} required />}
+            {showGuardian && <Field label="Guardian name" value={form.guardianName} onChange={updateField('guardianName')} required />}
             <div className="flex justify-end border-t border-border pt-5">
               <button
                 type="submit"
@@ -263,29 +329,83 @@ export default function Profile({ showGuardian = true }) {
               <Detail label="Address" value={form.address || 'Not provided'} />
               <Detail label="Age" value={form.age || 'Not provided'} />
               <Detail label="Gender" value={form.gender || 'Not provided'} />
-              {showGuardian && <Detail label="Guardian" value={form.guardianName || 'Not provided'} />}
+              {showGuardian && <Detail label="Guardian name" value={form.guardianName || 'Not provided'} />}
             </div>
           </div>
         )}
       </section>
+      <Dialog
+        open={profileConfirmOpen}
+        onOpenChange={(open) => !saving && setProfileConfirmOpen(open)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure you want to save your profile?</DialogTitle>
+            <DialogDescription>
+              Your account details will be updated with the information you entered.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={() => setProfileConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={saving}
+              onClick={confirmProfileUpdate}
+            >
+              {saving ? 'Saving...' : 'Yes, save profile'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <section className="max-w-3xl rounded-xl border border-border bg-card p-6">
         <h2 className="font-semibold">Password</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set or update your password. This remains available even when your
-          personal information is locked by an active enrollment.
+          Set or update your sign-in password. This is separate from your
+          student details and remains available during an active enrollment.
         </p>
         <form
           onSubmit={handlePasswordSubmit}
-          className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
+          className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
         >
+          <input
+            type="password"
+            minLength={8}
+            value={currentPassword}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+            onPaste={preventPasswordClipboard}
+            onCopy={preventPasswordClipboard}
+            onCut={preventPasswordClipboard}
+            onDrop={preventPasswordClipboard}
+            onContextMenu={preventPasswordClipboard}
+            autoComplete="current-password"
+            aria-label="Current password"
+            placeholder="Current password"
+            aria-invalid={Boolean(passwordError)}
+            className={`h-10 w-full rounded-md border bg-background px-3 text-sm ${passwordError ? 'border-destructive' : 'border-input'}`}
+          />
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
               minLength={8}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              onPaste={preventPasswordClipboard}
+              onCopy={preventPasswordClipboard}
+              onCut={preventPasswordClipboard}
+              onDrop={preventPasswordClipboard}
+              onContextMenu={preventPasswordClipboard}
+              autoComplete="new-password"
+              aria-label="New password"
               placeholder="New password"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 pr-10 text-sm"
+              aria-invalid={Boolean(passwordError)}
+              className={`h-10 w-full rounded-md border bg-background px-3 pr-10 text-sm ${passwordError ? 'border-destructive' : 'border-input'}`}
             />
             <button
               type="button"
@@ -306,8 +426,16 @@ export default function Profile({ showGuardian = true }) {
               minLength={8}
               value={retypePassword}
               onChange={(event) => setRetypePassword(event.target.value)}
+              onPaste={preventPasswordClipboard}
+              onCopy={preventPasswordClipboard}
+              onCut={preventPasswordClipboard}
+              onDrop={preventPasswordClipboard}
+              onContextMenu={preventPasswordClipboard}
+              autoComplete="new-password"
+              aria-label="Retype password"
               placeholder="Retype password"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 pr-10 text-sm"
+              aria-invalid={Boolean(passwordError)}
+              className={`h-10 w-full rounded-md border bg-background px-3 pr-10 text-sm ${passwordError ? 'border-destructive' : 'border-input'}`}
             />
             <button
               type="button"
@@ -322,10 +450,21 @@ export default function Profile({ showGuardian = true }) {
               )}
             </button>
           </div>
+          <div className="sm:col-span-2 space-y-1 text-xs" aria-live="polite">
+            {passwordError && <p className="text-destructive">{passwordError}</p>}
+            <p className={password.length === 0 || passwordHasMinimumLength ? 'text-muted-foreground' : 'text-destructive'}>
+              {passwordHasMinimumLength ? '✓' : '•'} Password must be at least 8 characters.
+            </p>
+            {retypePassword.length > 0 && (
+              <p className={passwordsMatch ? 'text-green-700' : 'text-destructive'}>
+                {passwordsMatch ? '✓ Passwords match.' : '• Passwords do not match.'}
+              </p>
+            )}
+          </div>
           <button
             type="submit"
             disabled={
-              savingPassword || password.length < 8 || retypePassword.length < 8
+              savingPassword || !hasCurrentPassword || !passwordHasMinimumLength || !passwordsMatch
             }
             className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
           >
@@ -333,6 +472,36 @@ export default function Profile({ showGuardian = true }) {
           </button>
         </form>
       </section>
+      <Dialog
+        open={passwordConfirmOpen}
+        onOpenChange={(open) => !savingPassword && setPasswordConfirmOpen(open)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure to change your password?</DialogTitle>
+            <DialogDescription>
+              Your new password will be used the next time you sign in.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={savingPassword}
+              onClick={() => setPasswordConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={savingPassword}
+              onClick={confirmPasswordChange}
+            >
+              {savingPassword ? 'Changing...' : 'Yes, change password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -391,7 +560,7 @@ function Detail({ label, value, icon }) {
   );
 }
 
-function Field({ label, value, onChange, required = false, type = 'text' }) {
+function Field({ label, value, onChange, required = false, type = 'text', placeholder, inputMode, maxLength }) {
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">
@@ -402,6 +571,9 @@ function Field({ label, value, onChange, required = false, type = 'text' }) {
         type={type}
         value={value}
         onChange={onChange}
+        placeholder={placeholder}
+        inputMode={inputMode}
+        maxLength={maxLength}
         required={required}
         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
       />

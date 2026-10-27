@@ -50,6 +50,7 @@ const formatEnrollmentReference = (id) =>
   id ? `ENR-${id.slice(0, 8).toUpperCase()}` : '—';
 
 export default function EnrollmentsPage() {
+  const [refreshKey, setRefreshKey] = useState(0);
   const [enrollments, setEnrollments] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -99,7 +100,7 @@ export default function EnrollmentsPage() {
     };
 
     loadEnrollments();
-  }, [page, statusFilter]);
+  }, [page, statusFilter, refreshKey]);
 
   /* ----------------------------------------
      Search
@@ -243,7 +244,7 @@ export default function EnrollmentsPage() {
                 Manage student course enrollments.
               </p>
             </div>
-            <Button variant="outline" onClick={() => window.location.reload()}>
+            <Button variant="outline" onClick={() => setRefreshKey((key) => key + 1)}>
               <RefreshCwIcon className="mr-2 size-4" />
               Refresh
             </Button>

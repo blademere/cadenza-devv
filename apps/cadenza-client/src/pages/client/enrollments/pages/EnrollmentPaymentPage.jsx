@@ -46,8 +46,13 @@ export default function EnrollmentPaymentPage() {
       return;
     }
 
-    if (normalizedPaymentReference.length < 3) {
-      setError('The payment reference must be at least 3 characters.');
+    if (normalizedPaymentReference.length < 13) {
+      setError('The payment reference must be at least 13 characters.');
+      return;
+    }
+
+    if (!/^[a-z0-9]+$/i.test(normalizedPaymentReference)) {
+      setError('The payment reference may contain letters and numbers only.');
       return;
     }
 
@@ -179,15 +184,18 @@ export default function EnrollmentPaymentPage() {
             id="enrollment-payment-reference"
             type="text"
             value={paymentReference}
-            onChange={(event) => setPaymentReference(event.target.value)}
+            onChange={(event) =>
+              setPaymentReference(event.target.value.replace(/[^a-z0-9]/gi, '').slice(0, 100))
+            }
             placeholder="Enter the reference from your payment receipt"
+            minLength={13}
             maxLength={100}
             required
             autoComplete="off"
             className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            This reference will be checked by the front desk.
+            Use letters and numbers only, with at least 13 characters.
           </p>
         </div>
         {error && <p className="mt-4 text-sm text-destructive">{error}</p>}

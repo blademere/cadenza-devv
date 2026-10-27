@@ -2,16 +2,18 @@ import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 import { BadRequestError, ConflictError } from '../../../../common/errors/appError.js';
 
 const prisma = getPrismaClient();
-export const normalizePaymentReference = (reference) => {
-  if (typeof reference !== 'string' || reference.trim().length < 3 || reference.trim().length > 100)
-    throw new BadRequestError('Payment reference must be between 3 and 100 characters.');
+export const normalizePaymentReference = (reference, { minLength = 3, maxLength = 100, alphanumericOnly = false } = {}) => {
+  if (typeof reference !== 'string' || reference.trim().length < minLength || reference.trim().length > maxLength)
+    throw new BadRequestError(`Payment reference must be between ${minLength} and ${maxLength} characters.`);
+  if (alphanumericOnly && !/^[a-z0-9]+$/i.test(reference.trim()))
+    throw new BadRequestError('Payment reference may contain letters and numbers only.');
   return reference.trim().toUpperCase();
 };
 
 // Checks both submitted references and cashier records within this app.
 // Payment verification remains manual; a reference is NOT proof of payment.
-export const assertUnusedPaymentReference = async (appId, reference) => {
-  const normalized = normalizePaymentReference(reference);
+export const assertUnusedPaymentReference = async (appId, reference, options) => {
+  const normalized = normalizePaymentReference(reference, options);
   // Prisma's `mode` filter is not supported for JSON path equality on all
   // deployed Prisma versions. Load only the app's references and normalize
   // them in JavaScript so payment submission cannot become a 500 because of

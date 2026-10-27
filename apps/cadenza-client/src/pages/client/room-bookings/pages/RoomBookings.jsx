@@ -50,6 +50,8 @@ export default function RoomBookings() {
     };
 
     loadBookings();
+    const refreshTimer = window.setInterval(loadBookings, 15000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   const formatDate = (value) => {

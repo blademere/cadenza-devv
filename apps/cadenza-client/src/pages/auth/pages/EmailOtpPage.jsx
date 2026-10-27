@@ -28,10 +28,10 @@ export default function EmailOtpPage() {
       const result = await authService.verifyOtp({ email, otp, purpose });
       const isAllowed = audience === 'client'
         ? result.account?.type === 'CLIENT'
-        : result.account?.type === 'STAFF' && (audience === 'admin' ? result.account.staffType === 'ADMIN' : result.account.staffType === 'FRONT_DESK');
+        : result.account?.type === 'STAFF' && (audience === 'staff' ? ['ADMIN', 'FRONT_DESK'].includes(result.account.staffType) : audience === 'admin' ? result.account.staffType === 'ADMIN' : result.account.staffType === 'FRONT_DESK');
       if (!isAllowed) {
         await authService.logout();
-        throw new Error(`This account cannot sign in through the ${audience === 'admin' ? 'admin' : 'front desk'} login.`);
+        throw new Error('This account is not an administrator or Front Desk account.');
       }
       const destination = result.account?.type === 'CLIENT'
         ? '/client'
@@ -56,7 +56,7 @@ export default function EmailOtpPage() {
         <Field><FieldLabel htmlFor="email-otp">Verification code</FieldLabel><Input id="email-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))} required /></Field>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit" disabled={isLoading}>{isLoading ? 'Verifying...' : 'Verify and continue'}</Button>
-        <FieldDescription className="text-center"><button type="button" className="underline" onClick={() => navigate(purpose === 'signup' ? '/signup' : audience === 'admin' ? '/admin/login' : audience === 'front-desk' ? '/front-desk/login' : '/login')}>Use a different email</button></FieldDescription>
+      <FieldDescription className="text-center"><button type="button" className="underline" onClick={() => navigate(purpose === 'signup' ? '/signup' : audience === 'staff' ? '/staff/login' : '/login')}>Use a different email</button></FieldDescription>
       </FieldGroup></form>
     </CardContent></Card>
   </div>;

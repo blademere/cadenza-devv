@@ -48,6 +48,14 @@ export const authService = {
     return authData;
   },
 
+  async changePassword({ currentPassword, newPassword }) {
+    const response = await apiClient.post('/auth/password/change', {
+      currentPassword,
+      newPassword,
+    });
+    return response?.data ?? response;
+  },
+
   async register(details) {
     const response = await apiClient.post('/auth/register', details);
     return response?.data ?? response;

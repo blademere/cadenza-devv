@@ -77,7 +77,7 @@ const createUser = async ({ email, passwordHash }, db = prisma) => db.user.creat
 
 const findUser = async (userId, db = prisma) => db.user.findUnique({
   where: { id: Number(userId) },
-  select: { id: true, email: true, isActive: true, createdAt: true, updatedAt: true },
+  select: { id: true, email: true, passwordHash: true, isActive: true, createdAt: true, updatedAt: true },
 })
 
 export { findAllUsers, findUserByEmail, createUser, findUser }

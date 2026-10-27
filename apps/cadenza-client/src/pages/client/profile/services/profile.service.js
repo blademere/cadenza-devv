@@ -12,7 +12,10 @@ export async function updateMyProfile(data) {
   return unwrap(response);
 }
 
-export async function updateMyPassword(password) {
-  const response = await apiClient.put('/users/me/password', { password });
+export async function updateMyPassword(currentPassword, password) {
+  const response = await apiClient.put('/users/me/password', {
+    currentPassword,
+    password,
+  });
   return unwrap(response);
 }

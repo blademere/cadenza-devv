@@ -130,7 +130,7 @@ const create = async ({
   status = 'FOR_APPROVAL',
   metadata: additionalMetadata = {},
 }) => {
-  if (status !== 'APPROVED') await assertUnusedPaymentReference(appId, paymentReference);
+  if (status !== 'APPROVED') await assertUnusedPaymentReference(appId, paymentReference, { minLength: 13, maxLength: 100, alphanumericOnly: true });
   const schedule = validateSchedule(
     scheduledStart,
     scheduledEnd,
@@ -371,6 +371,16 @@ const checkIn = async ({ appId, id, checkedInAt }) => {
 
   const bookedDuration = originalEnd.getTime() - originalStart.getTime();
   const adjustedEnd = new Date(actualStart.getTime() + bookedDuration);
+  const bookedDurationMinutes = bookedDuration / 60000;
+  const advanceMinutes = Math.max(
+    0,
+    (originalStart.getTime() - actualStart.getTime()) / 60000,
+  );
+  const ratePerMinute = Number(booking.totalAmount) / bookedDurationMinutes;
+  const advanceAmount = Number.isFinite(ratePerMinute)
+    ? advanceMinutes * ratePerMinute
+    : 0;
+  const updatedTotalAmount = Number(booking.totalAmount) + advanceAmount;
   const [overlappingBookings, overlappingSessions] = await Promise.all([
     repository.findOverlappingBookings({
       appId,
@@ -394,12 +404,17 @@ const checkIn = async ({ appId, id, checkedInAt }) => {
     status: 'CHECKED_IN',
     scheduledStart: actualStart,
     scheduledEnd: adjustedEnd,
+    totalAmount: updatedTotalAmount,
     metadata: {
       ...(booking.metadata || {}),
       checkedInAt: actualStart.toISOString(),
       originalScheduledStart: originalStart.toISOString(),
       originalScheduledEnd: originalEnd.toISOString(),
       bookedDurationMinutes: Math.round(bookedDuration / 60000),
+      advanceMinutes,
+      advanceRatePerMinute: ratePerMinute,
+      advanceAmount,
+      originalTotalAmount: Number(booking.totalAmount),
     },
   });
   if (!result.count) throw new ConflictError('This room booking was already updated.');

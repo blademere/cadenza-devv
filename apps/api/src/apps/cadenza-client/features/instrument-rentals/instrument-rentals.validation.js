@@ -20,7 +20,7 @@ const createRentalSchema = z.object({
     instrumentIds: z.array(z.uuid()).min(1).optional(),
     rentalPackageId: z.uuid().optional(),
     paymentPlan: z.enum(['DOWN_PAYMENT', 'FULL_PAYMENT']).optional(),
-    paymentReference: z.string().trim().min(3).max(100),
+    paymentReference: z.string().trim().min(13).max(100).regex(/^[a-z0-9]+$/i),
     scheduledStart: z.coerce.date(),
     scheduledEnd: z.coerce.date(),
   }),
@@ -70,6 +70,8 @@ const receiveRentalSchema = z.object({
   body: z.object({
     receivedAt: z.coerce.date(),
     depositAmount: z.coerce.number().finite().min(0).max(100000000),
+    idNumber: z.string().regex(/^\d{1,15}$/, 'ID number must contain 1 to 15 digits.'),
+    idType: z.string().trim().min(1).max(100),
   }),
 });
 

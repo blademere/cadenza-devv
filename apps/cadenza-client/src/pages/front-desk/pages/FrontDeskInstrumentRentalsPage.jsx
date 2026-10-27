@@ -239,6 +239,7 @@ const initialRentals = [
 -------------------------------------------------- */
 
 export default function RentalsPage() {
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
   const [rentals, setRentals] = useState([]);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -258,6 +259,8 @@ export default function RentalsPage() {
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
   const [receiveAt, setReceiveAt] = useState(toDateTimeLocalValue());
   const [depositAmount, setDepositAmount] = useState('0');
+  const [idNumber, setIdNumber] = useState('');
+  const [idType, setIdType] = useState('');
   const [returnAt, setReturnAt] = useState(toDateTimeLocalValue());
   const [returnCondition, setReturnCondition] = useState('GOOD');
   const [damageFee, setDamageFee] = useState('0');
@@ -341,7 +344,7 @@ export default function RentalsPage() {
     };
 
     loadRentals();
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => {
     getReturnConditions()
@@ -466,6 +469,8 @@ export default function RentalsPage() {
   const handleReceive = () => {
     setReceiveAt(toDateTimeLocalValue());
     setDepositAmount('0');
+    setIdNumber('');
+    setIdType('');
     setShowReceiveDialog(true);
   };
 
@@ -477,6 +482,8 @@ export default function RentalsPage() {
       const updated = await receiveInstrumentRental(selectedRental.id, {
         receivedAt: new Date(receiveAt).toISOString(),
         depositAmount: Number(depositAmount || 0),
+        idNumber,
+        idType,
       });
       const next = { ...selectedRental, ...updated, status: 'Approved' };
       setRentals((current) =>
@@ -585,7 +592,7 @@ export default function RentalsPage() {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => window.location.reload()}
+                  onClick={() => setRefreshKey((key) => key + 1)}
                 >
                   <RefreshCwIcon className="mr-2 size-4" />
                   Refresh
@@ -1274,6 +1281,40 @@ export default function RentalsPage() {
                   </div>
                 </div>
                 <div className="grid gap-2">
+                  <label htmlFor="id-type" className="text-sm font-medium">
+                    Type of ID
+                  </label>
+                  <input
+                    id="id-type"
+                    type="text"
+                    value={idType}
+                    onChange={(event) => setIdType(event.target.value)}
+                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                    placeholder="e.g. Driver's license"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="id-number" className="text-sm font-medium">
+                    ID number
+                  </label>
+                  <input
+                    id="id-number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={15}
+                    value={idNumber}
+                    onChange={(event) =>
+                      setIdNumber(event.target.value.replace(/\D/g, '').slice(0, 15))
+                    }
+                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                    placeholder="Enter ID number"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Numbers only, maximum 15 digits.
+                  </p>
+                </div>
+                <div className="grid gap-2">
                   <label
                     htmlFor="deposit-amount"
                     className="text-sm font-medium"
@@ -1308,6 +1349,8 @@ export default function RentalsPage() {
                   disabled={
                     actionLoading ||
                     !receiveAt ||
+                    !idType.trim() ||
+                    !/^\d{1,15}$/.test(idNumber) ||
                     !Number.isFinite(Number(depositAmount)) ||
                     Number(depositAmount) < 0
                   }

@@ -6,12 +6,10 @@ import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/Input';
 import { useNavigate } from 'react-router-dom';
 import { authService, getGoogleOAuthUrl } from '@/services/auth/authService';
-import { AuthContext } from '@/core/auth/AuthContext';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 
 export function LoginForm({ className, audience = 'client', ...props }) {
   const navigate = useNavigate();
-  const { login, logout } = useContext(AuthContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,16 +20,6 @@ export function LoginForm({ className, audience = 'client', ...props }) {
     setError('');
     setIsLoading(true);
     try {
-      if (audience !== 'client') {
-        const result = await login({ email, password });
-        const expectedStaffType = audience === 'admin' ? 'ADMIN' : 'FRONT_DESK';
-        if (result.account?.type !== 'STAFF' || result.account.staffType !== expectedStaffType) {
-          await logout();
-          throw new Error(`This account cannot sign in through the ${audience === 'admin' ? 'admin' : 'front desk'} login.`);
-        }
-        navigate(audience === 'admin' ? '/admin' : '/front-desk', { replace: true });
-        return;
-      }
       await authService.requestOtp({ email, password, purpose: 'login' });
       navigate('/signup/verify', { state: { email, purpose: 'login', audience } });
     } catch (requestError) {
@@ -44,11 +32,11 @@ export function LoginForm({ className, audience = 'client', ...props }) {
   return <div className={cn('flex flex-col gap-6', className)} {...props}>
     <Card className="overflow-hidden p-0"><CardContent className="grid p-0 md:grid-cols-2">
       <form className="p-5 sm:p-6 md:p-8" onSubmit={handleSubmit}><FieldGroup>
-        <div className="flex flex-col items-center gap-2 text-center"><h1 className="text-2xl font-bold">{audience === 'front-desk' ? 'Front Desk Login' : audience === 'admin' ? 'Admin Login' : 'Welcome back'}</h1><p className="text-balance text-muted-foreground">Enter your email and password to receive a one-time login code.</p></div>
+        <div className="flex flex-col items-center gap-2 text-center"><h1 className="text-2xl font-bold">{audience === 'staff' ? 'Login' : audience === 'front-desk' ? 'Front Desk Login' : audience === 'admin' ? 'Admin Login' : 'Welcome back'}</h1><p className="text-balance text-muted-foreground">Enter your email and password to receive a one-time login code.</p></div>
         <Field><FieldLabel htmlFor="login-email">Email</FieldLabel><Input id="login-email" type="email" autoComplete="email" placeholder="m@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required /></Field>
         <Field><FieldLabel htmlFor="login-password">Password</FieldLabel><Input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></Field>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit" disabled={isLoading}>{isLoading ? 'Sending code...' : 'Send login code'}</Button>
+        <Button type="submit" disabled={isLoading}>{isLoading ? 'Signing in...' : 'Sign in'}</Button>
         {audience === 'client' ? <Button type="button" onClick={() => { window.location.href = getGoogleOAuthUrl(); }}><GoogleIcon />Continue with Google</Button> : null}
         {audience === 'client' ? <FieldDescription className="text-center">New to Cadenza? <button type="button" className="underline" onClick={() => navigate('/signup')}>Sign up</button></FieldDescription> : <FieldDescription className="text-center">Forgot your password? Contact your Cadenza administrator.</FieldDescription>}
       </FieldGroup></form><div className="relative hidden bg-muted md:block" />

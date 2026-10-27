@@ -33,7 +33,7 @@ const updateMyPasswordController = async (req, res) =>
   successResponse(
     res,
     'Password updated successfully.',
-    await updateMyPassword(req.user.id, req.validated.body.password),
+    await updateMyPassword(req.user.id, req.validated.body.password, req.validated.body.currentPassword),
   )
 
 export {

@@ -24,6 +24,8 @@ export default function ClientBillingPayments() {
     }
 
     loadTransactions();
+    const refreshTimer = window.setInterval(loadTransactions, 15000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   const handleViewTransaction = (transaction) => {

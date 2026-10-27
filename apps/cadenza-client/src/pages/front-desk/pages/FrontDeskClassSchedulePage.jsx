@@ -650,7 +650,11 @@ export default function ClassSchedule() {
       }
     };
     loadSchedule();
-    return () => { active = false; };
+    const refreshTimer = window.setInterval(loadSchedule, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
   }, []);
 
   useEffect(() => {

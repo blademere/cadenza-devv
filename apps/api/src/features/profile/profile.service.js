@@ -67,12 +67,13 @@ const updateMyProfile = async (userId, data) => {
     throw new ConflictError('Your student profile cannot be changed while you have an active enrollment.')
   }
 
-  const { age, gender, guardianName, ...personData } = data
+  const { age, gender, guardianName, email, ...personData } = data
   const existingStudentDetails = person.metadata?.studentDetails && typeof person.metadata.studentDetails === 'object'
     ? person.metadata.studentDetails
     : {}
   const updatedPerson = await peopleService.update(person.id, {
     ...personData,
+    ...(email ? { email } : {}),
     metadata: {
       ...(person.metadata || {}),
       studentDetails: {
@@ -83,11 +84,22 @@ const updateMyProfile = async (userId, data) => {
       },
     },
   })
-  return { user: toUserResponse({ ...user, roles: [] }), person: updatedPerson, ...enrollmentState }
+  if (email && email !== user.email) {
+    try {
+      await prisma.user.update({ where: { id: user.id }, data: { email } })
+    } catch (error) {
+      if (error?.code === 'P2002') throw new ConflictError('That email address is already in use.')
+      throw error
+    }
+  }
+  return { user: toUserResponse({ ...user, email: email || user.email, roles: [] }), person: updatedPerson, ...enrollmentState }
 }
 
-const updateMyPassword = async (userId, password) => {
+const updateMyPassword = async (userId, password, currentPassword) => {
   const user = await getUser(userId)
+  if (currentPassword && !(await bcrypt.compare(currentPassword, user.passwordHash || ''))) {
+    throw new ConflictError('Current password is incorrect.')
+  }
   await prisma.user.update({
     where: { id: user.id },
     data: { passwordHash: await bcrypt.hash(password, 12) },

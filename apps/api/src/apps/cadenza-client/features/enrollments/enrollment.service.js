@@ -875,15 +875,16 @@ export const enrollmentService = {
 
     if (
       typeof paymentReference !== 'string' ||
-      paymentReference.trim().length < 3 ||
-      paymentReference.trim().length > 100
+      paymentReference.trim().length < 13 ||
+      paymentReference.trim().length > 100 ||
+      !/^[a-z0-9]+$/i.test(paymentReference.trim())
     ) {
       throw new BadRequestError(
         'A valid payment reference is required before submitting an enrollment.',
       );
     }
 
-    const normalizedPaymentReference = await assertUnusedPaymentReference(appId, paymentReference);
+    const normalizedPaymentReference = await assertUnusedPaymentReference(appId, paymentReference, { minLength: 13, maxLength: 100, alphanumericOnly: true });
 
     const packageItem =
       await enrollmentRepository.findPackageById(

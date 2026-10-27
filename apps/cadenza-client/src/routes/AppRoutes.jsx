@@ -83,8 +83,7 @@ export default function AppRoutes() {
 
       <Route element={<AuthLayout />}>
         <Route path="login" element={<LoginPage />} />
-        <Route path="front-desk/login" element={<LoginPage audience="front-desk" />} />
-        <Route path="admin/login" element={<LoginPage audience="admin" />} />
+        <Route path="staff/login" element={<LoginPage audience="staff" />} />
         <Route path="signup" element={<SignupPage />} />
         <Route path="signup/verify" element={<EmailOtpPage />} />
         <Route path="auth/callback/success" element={<OAuthCallbackPage />} />
