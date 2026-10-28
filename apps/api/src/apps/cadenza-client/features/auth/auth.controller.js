@@ -8,9 +8,10 @@ import {
   requestEmailOtp,
   verifyEmailOtp,
 } from './auth.service.js';
+import { requestPasswordReset, resetPassword } from '../../../../features/auth/auth.service.js';
 
 import { setCsrfCookie } from '../../../../common/middleware/csrf.js';
-import { UnauthorizedError } from '../../../../common/errors/appError.js';
+import { NotFoundError, UnauthorizedError } from '../../../../common/errors/appError.js';
 import { env } from '../../../../config/index.js';
 
 const refreshCookieOptions = {
@@ -72,6 +73,17 @@ const verifyEmailOtpController = async (req, res) => {
   });
 };
 
+const requestPasswordResetController = async (req, res) => {
+  const result = await requestPasswordReset(req.validated?.body ?? req.body);
+  if (!result.found) throw new NotFoundError('No user found.');
+  return successResponse(res, 'Password reset instructions have been sent to your email.', null, 202);
+};
+
+const resetPasswordController = async (req, res) => {
+  await resetPassword(req.validated?.body ?? req.body);
+  return successResponse(res, 'Password reset successfully. Please sign in again.');
+};
+
 const currentUserController = async (req, res) => {
   const result = await getCurrentUser(req.user.id);
 
@@ -123,4 +135,6 @@ export {
   logoutController,
   requestEmailOtpController,
   verifyEmailOtpController,
+  requestPasswordResetController,
+  resetPasswordController,
 };

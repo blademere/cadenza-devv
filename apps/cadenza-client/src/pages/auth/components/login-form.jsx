@@ -38,7 +38,7 @@ export function LoginForm({ className, audience = 'client', ...props }) {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit" disabled={isLoading}>{isLoading ? 'Signing in...' : 'Sign in'}</Button>
         {audience === 'client' ? <Button type="button" onClick={() => { window.location.href = getGoogleOAuthUrl(); }}><GoogleIcon />Continue with Google</Button> : null}
-        {audience === 'client' ? <FieldDescription className="text-center">New to Cadenza? <button type="button" className="underline" onClick={() => navigate('/signup')}>Sign up</button></FieldDescription> : <FieldDescription className="text-center">Forgot your password? Contact your Cadenza administrator.</FieldDescription>}
+        {audience === 'client' ? <FieldDescription className="flex flex-col items-center gap-2 text-center"><button type="button" className="underline" onClick={() => navigate('/forgot-password')}>Forgot your password?</button><span>New to Cadenza? <button type="button" className="underline" onClick={() => navigate('/signup')}>Sign up</button></span></FieldDescription> : <FieldDescription className="flex justify-center text-center"><button type="button" className="underline" onClick={() => navigate('/staff/forgot-password')}>Forgot your password?</button></FieldDescription>}
       </FieldGroup></form><div className="relative hidden bg-muted md:block" />
     </CardContent></Card>
     <FieldDescription className="px-6 text-center">By continuing, you agree to our <a href="#">Terms of Service</a>.</FieldDescription>

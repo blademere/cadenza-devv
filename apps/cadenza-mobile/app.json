@@ -48,12 +48,19 @@
     },
     "extra": {
       "googleWebClientId": "539575657827-l47dbsjueh6fp9noec8pqiughlskl5bv.apps.googleusercontent.com",
-      "googleAndroidClientId": "539575657827-4g0j1q3f7v6b8k2h5r9l0m1n2o3p4q5r.apps.googleusercontent.com",
+      "googleAndroidClientId": "539575657827-0mjv7h6n2rjbislh77ut9j83l1k78kls.apps.googleusercontent.com",
       "googleIosClientId": "539575657827-l47dbsjueh6fp9noec8pqiughlskl5bv.apps.googleusercontent.com",
       "router": {},
       "eas": {
-        "projectId": "20fa3689-2185-4c61-a6be-e45650b914ae"
+        "projectId": "15ed1e1b-a7d5-4b15-8ef4-fe5bdc5a08d4"
       }
+    },
+    "owner": "blademeresuico10",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/15ed1e1b-a7d5-4b15-8ef4-fe5bdc5a08d4"
     }
   }
 }

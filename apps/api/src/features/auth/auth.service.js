@@ -6,6 +6,7 @@ import { createAccessToken, createRefreshToken, verifyRefreshToken, hashToken, n
 import { getUserMembership, requireAppByKey } from '../../platform/applications/application.service.js'
 import { publish } from '../../platform/event-bus/event-bus.js'
 import { env } from '../../config/index.js'
+import { sendEmail } from '../../infrastructure/email/index.js'
 
 const getRefreshTokenExpiration = () => {
   const match = env.JWT_REFRESH_EXPIRES_IN.match(/^(\d+)([smhd])$/)
@@ -60,15 +61,23 @@ const selectApplication = async ({ userId, appKey }) => {
 }
 const requestPasswordReset = async ({ email }) => {
   const user = await findUserByEmail(email)
+  if (!user?.isActive || !user.passwordHash) return { found: false }
   if (user?.isActive && user.passwordHash) {
     await invalidatePasswordResetTokens(user.id)
     const token = createPasswordResetSecret()
     const expiresAt = getPasswordResetExpiration()
     const encryptedToken = encryptPasswordResetSecret(token)
     await createPasswordResetToken({ tokenHash: hashToken(token), userId: user.id, expiresAt })
-    await publish({ event: 'auth.user.password_reset_requested', entityType: 'User', entityId: user.id, context: { user: { id: user.id, email: user.email }, passwordReset: { url: `${env.PASSWORD_RESET_URL}${encodeURIComponent(encryptedToken)}`, expiresAt: expiresAt.toISOString() } }, idempotencyKey: `auth.password-reset.requested:${user.id}:${Date.now()}` })
+    const resetUrl = `${env.PASSWORD_RESET_URL}${encodeURIComponent(encryptedToken)}`
+    await sendEmail({
+      to: user.email,
+      subject: 'Reset your Cadenza staff password',
+      text: `Reset your password using this link. It expires in 30 minutes: ${resetUrl}`,
+      html: `<p>We received a request to reset your Cadenza password.</p><p><a href="${resetUrl}">Reset your password</a></p><p>This link expires in 30 minutes and can be used only once.</p>`,
+    })
+    await publish({ event: 'auth.user.password_reset_requested', entityType: 'User', entityId: user.id, context: { user: { id: user.id, email: user.email }, passwordReset: { expiresAt: expiresAt.toISOString() } }, idempotencyKey: `auth.password-reset.requested:${user.id}:${Date.now()}` })
   }
-  return { success: true }
+  return { found: true }
 }
 const resetPassword = async ({ token, newPassword }) => {
   const plaintextToken = decryptPasswordResetSecret(token)

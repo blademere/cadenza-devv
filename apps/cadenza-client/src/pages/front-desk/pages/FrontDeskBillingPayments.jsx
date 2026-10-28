@@ -104,6 +104,7 @@ const mapTransaction = (
         ]
       : [],
   metadata: record.metadata || {},
+  enrollmentStatus: type === 'Enrollment' ? record.status : null,
   rentalStatus: ['Instrument Rental', 'Room Booking'].includes(type)
     ? record.status
     : null,
@@ -115,14 +116,14 @@ const mapTransaction = (
 const mapRecords = (enrollments, bookings, rentals) =>
   [
     ...enrollments
-      .filter((item) => item.status === 'APPROVED')
+      .filter((item) => ['FOR_APPROVAL', 'APPROVED'].includes(item.status))
       .map((item) =>
         mapTransaction(
           item,
           'Enrollment',
           item.packageName || 'Enrollment package',
           item.price,
-          item.metadata?.paymentStatus === 'PENDING_CONFIRMATION' ? 0 : (item.metadata?.initialPaymentAmount ?? item.metadata?.paymentAmount ?? 0),
+          item.metadata?.initialPaymentAmount ?? item.metadata?.paymentAmount ?? 0,
           item.metadata?.paymentReference,
         ),
       ),
@@ -136,7 +137,7 @@ const mapRecords = (enrollments, bookings, rentals) =>
           'Room Booking',
           item.room?.name || 'Room booking',
           item.totalAmount,
-          item.metadata?.paymentStatus === 'PENDING_CONFIRMATION' ? 0 : (item.metadata?.initialPaymentAmount ?? 0),
+          item.metadata?.initialPaymentAmount ?? item.metadata?.paymentAmount ?? 0,
           item.metadata?.paymentReference,
         ),
       ),
@@ -155,7 +156,7 @@ const mapRecords = (enrollments, bookings, rentals) =>
             .filter(Boolean)
             .join(', ') || 'Instrument rental',
           item.totalAmount,
-          item.metadata?.paymentStatus === 'PENDING_CONFIRMATION' ? 0 : (item.metadata?.initialPaymentAmount ?? 0),
+          item.metadata?.initialPaymentAmount ?? item.metadata?.paymentAmount ?? 0,
           item.metadata?.paymentReference,
         ),
       ),
@@ -185,8 +186,9 @@ const createPaymentAttemptKey = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 const canProcessTransaction = (transaction) =>
-  !['Instrument Rental', 'Room Booking'].includes(transaction.type) ||
-  transaction.rentalStatus === 'COMPLETED';
+  transaction.type === 'Enrollment'
+    ? transaction.enrollmentStatus === 'APPROVED'
+    : transaction.rentalStatus === 'COMPLETED';
 
 export default function BillingPayments() {
   const [refreshKey, setRefreshKey] = useState(0);

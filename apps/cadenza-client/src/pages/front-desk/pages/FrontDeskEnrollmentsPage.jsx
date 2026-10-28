@@ -8,6 +8,7 @@ import {
   FileIcon,
   CheckCircle2Icon,
   XCircleIcon,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
@@ -290,6 +291,19 @@ export default function EnrollmentsPage() {
               {error && (
                 <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                   {error}
+                </div>
+              )}
+              {filteredEnrollments.some((enrollment) =>
+                ['FOR_APPROVAL', 'PENDING', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION'].includes(
+                  String(enrollment.status || '').toUpperCase(),
+                ),
+              ) && (
+                <div role="alert" className="mb-4 flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <div>
+                    <p className="font-medium">Pending enrollments need review.</p>
+                    <p className="text-muted-foreground">Review the pending enrollment before approving or cancelling it.</p>
+                  </div>
                 </div>
               )}
 

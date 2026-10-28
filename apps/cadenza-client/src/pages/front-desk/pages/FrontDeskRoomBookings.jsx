@@ -1,8 +1,8 @@
 import TransactionRefundPanel from '../components/TransactionRefundPanel';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCwIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Check, ChevronDown, FileIcon, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, FileIcon, Loader2, X } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
 import { SiteHeader } from '../components/site-header';
@@ -392,6 +392,15 @@ export default function FrontDeskRoomBookings() {
               </div>
             </CardHeader>
             <CardContent>
+              {walkInBookings.some((booking) => isPendingBooking(booking.status)) && (
+                <div role="alert" className="mb-4 flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <div>
+                    <p className="font-medium">Pending walk-in room bookings need review.</p>
+                    <p className="text-muted-foreground">Review the pending booking before approving or cancelling it.</p>
+                  </div>
+                </div>
+              )}
               <p className="mb-3 text-sm text-muted-foreground">
                 Walk-in bookings use the same room availability, operating-hour,
                 and payment validation rules.
@@ -497,6 +506,15 @@ export default function FrontDeskRoomBookings() {
                 <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                   {error}
                 </p>
+              )}
+              {filteredBookings.some((booking) => isPendingBooking(booking.status)) && (
+                <div role="alert" className="mb-4 flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <div>
+                    <p className="font-medium">Pending room bookings need review.</p>
+                    <p className="text-muted-foreground">Review the pending booking before approving or cancelling it.</p>
+                  </div>
+                </div>
               )}
               <div className="rounded-md border">
                 <Table>

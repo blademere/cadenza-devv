@@ -9,6 +9,8 @@ import {
   logoutController,
   requestEmailOtpController,
   verifyEmailOtpController,
+  requestPasswordResetController,
+  resetPasswordController,
 } from './auth.controller.js';
 
 import cadenzaAuthenticate from './authenticate.js';
@@ -24,7 +26,7 @@ import {
 
 import { csrfProtection } from '../../../../common/middleware/csrf.js';
 import validate from '../../../../common/middleware/validate.js';
-import { registrationValidator, emailOtpRequestValidator, emailOtpVerifyValidator } from '../../../../features/auth/auth.validation.js';
+import { registrationValidator, emailOtpRequestValidator, emailOtpVerifyValidator, passwordResetRequestValidator, passwordResetValidator } from '../../../../features/auth/auth.validation.js';
 
 const authRouter = express.Router();
 
@@ -51,6 +53,8 @@ authRouter.post('/login', loginRateLimiter, asyncHandler(loginController));
 
 authRouter.post('/otp/request', loginRateLimiter, validate(emailOtpRequestValidator), requireRegistrationIdempotency, asyncHandler(requestEmailOtpController));
 authRouter.post('/otp/verify', loginRateLimiter, validate(emailOtpVerifyValidator), requireRegistrationIdempotency, asyncHandler(verifyEmailOtpController));
+authRouter.post('/password/reset/request', loginRateLimiter, validate(passwordResetRequestValidator), requireRegistrationIdempotency, asyncHandler(requestPasswordResetController));
+authRouter.post('/password/reset', loginRateLimiter, validate(passwordResetValidator), requireRegistrationIdempotency, asyncHandler(resetPasswordController));
 
 authRouter.get('/me', cadenzaAuthenticate, asyncHandler(currentUserController));
 

@@ -38,7 +38,7 @@ const rotateRefreshToken = async ({ currentTokenId, newTokenId, newTokenHash, us
   const consumed = await tx.refreshToken.updateMany({ where: { id: currentTokenId, userId: Number(userId), revokedAt: null }, data: { revokedAt: new Date(), replacedByTokenId: newTokenId } })
   return consumed.count === 1 ? { success: true } : { success: false }
 })
-const createPasswordResetToken = async ({ tokenHash, userId, expiresAt }, db = prisma) => db.passwordResetToken.create({ data: { tokenHash, userId: Number(userId), expiresAt } })
+const createPasswordResetToken = async ({ tokenHash, userId, expiresAt }, db = prisma) => db.passwordResetToken.create({ data: { id: crypto.randomUUID(), tokenHash, userId: Number(userId), expiresAt } })
 const findPasswordResetToken = async (tokenHash, db = prisma) => db.passwordResetToken.findUnique({ where: { tokenHash }, include: { user: true } })
 const consumePasswordResetToken = async ({ tokenId, userId, passwordHash }) => runTransaction(async (tx) => {
   const consumed = await tx.passwordResetToken.updateMany({ where: { id: tokenId, userId: Number(userId), usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } })

@@ -71,7 +71,6 @@ export default function PaymentAccountInstructions({ selectedAccountId = '' } = 
         <QrCode className="h-5 w-5 text-primary" />
         <h2 className="font-semibold">Send payment to</h2>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">Use any active account below, then click Pay after sending the amount.</p>
       {loading && <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading payment accounts...</div>}
       {!loading && error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       {!loading && !error && accounts.length === 0 && <p className="mt-4 text-sm text-muted-foreground">No active payment account is available yet.</p>}

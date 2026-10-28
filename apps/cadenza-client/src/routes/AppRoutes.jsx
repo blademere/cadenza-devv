@@ -9,6 +9,8 @@ import LoginPage from '@/pages/auth/pages/LoginPage';
 import SignupPage from '@/pages/auth/pages/SignupPage';
 import OAuthCallbackPage from '@/pages/auth/pages/OAuthCallbackPage';
 import EmailOtpPage from '@/pages/auth/pages/EmailOtpPage';
+import ForgotPasswordPage from '@/pages/auth/pages/ForgotPasswordPage';
+import ResetPasswordPage from '@/pages/auth/pages/ResetPasswordPage';
 
 import DashboardPage from '@/pages/admin/pages/DashboardPage';
 import StudentsPage from '@/pages/admin/pages/StudentsPage';
@@ -84,6 +86,9 @@ export default function AppRoutes() {
       <Route element={<AuthLayout />}>
         <Route path="login" element={<LoginPage />} />
         <Route path="staff/login" element={<LoginPage audience="staff" />} />
+        <Route path="staff/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="auth/reset-password" element={<ResetPasswordPage />} />
         <Route path="signup" element={<SignupPage />} />
         <Route path="signup/verify" element={<EmailOtpPage />} />
         <Route path="auth/callback/success" element={<OAuthCallbackPage />} />

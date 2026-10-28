@@ -10,6 +10,7 @@ import {
   X,
   Loader2,
   RefreshCwIcon,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
@@ -491,6 +492,7 @@ export default function RentalsPage() {
       );
       setSelectedRental(next);
       setShowReceiveDialog(false);
+      setShowDetails(false);
     } catch (error) {
       setActionError(
         error?.response?.data?.message ||
@@ -724,6 +726,20 @@ export default function RentalsPage() {
               {actionError && (
                 <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                   {actionError}
+                </div>
+              )}
+              {filteredRentals.some((rental) => isPendingRental(rental.status)) && (
+                <div
+                  role="alert"
+                  className="mb-4 flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm"
+                >
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <div>
+                    <p className="font-medium">Pending rental requests need review.</p>
+                    <p className="text-muted-foreground">
+                      Review the pending request before approving or cancelling it.
+                    </p>
+                  </div>
                 </div>
               )}
               <div className="rounded-md border">
@@ -991,9 +1007,8 @@ export default function RentalsPage() {
                               Deposit Collected
                             </p>
                             <p className="font-medium">
-                              {selectedRental.metadata?.depositAmount ??
-                                selectedRental.deposit ??
-                                selectedRental.refundableDeposit ??
+                              {(selectedRental.metadata?.depositAmount ?? 0) &&
+                                0 &&
                                 '—'}
                             </p>
                           </div>
