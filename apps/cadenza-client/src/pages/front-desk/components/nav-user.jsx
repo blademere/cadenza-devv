@@ -41,14 +41,19 @@ import {
 export function NavUser({ user }) {
   const { isMobile } = useSidebar();
   const navigate = useNavigate();
-  const { logout, user: authUser } = useAuth();
+  const { logout, user: authUser, account } = useAuth();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const authenticatedName =
+    authUser?.name ||
+    [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ') ||
+    account?.person?.name ||
+    [account?.person?.firstName, account?.person?.lastName].filter(Boolean).join(' ');
   const displayUser = {
     ...user,
-    name: authUser?.name || user?.name,
-    email: authUser?.email || user?.email,
+    name: authenticatedName || user?.name,
+    email: authUser?.email || account?.person?.email || user?.email,
   };
   useEffect(() => {
     Promise.allSettled([apiClient.get('/enrollments'), apiClient.get('/room-bookings'), apiClient.get('/instrument-rentals')])

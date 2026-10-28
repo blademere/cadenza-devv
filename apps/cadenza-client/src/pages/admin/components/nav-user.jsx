@@ -13,10 +13,19 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/c
 export function NavUser({ user }) {
   const { isMobile } = useSidebar();
   const navigate = useNavigate();
-  const { logout, user: authUser } = useAuth();
+  const { logout, user: authUser, account } = useAuth();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const displayUser = { ...user, name: authUser?.name || user?.name, email: authUser?.email || user?.email };
+  const authenticatedName =
+    authUser?.name ||
+    [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ') ||
+    account?.person?.name ||
+    [account?.person?.firstName, account?.person?.lastName].filter(Boolean).join(' ');
+  const displayUser = {
+    ...user,
+    name: authenticatedName || user?.name,
+    email: authUser?.email || account?.person?.email || user?.email,
+  };
 
   const handleLogout = async () => {
     if (signingOut) return;
