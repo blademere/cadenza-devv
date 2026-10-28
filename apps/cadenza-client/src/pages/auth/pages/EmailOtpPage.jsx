@@ -49,7 +49,7 @@ export default function EmailOtpPage() {
     }
   }
 
-  return <div className="flex flex-col gap-6">
+  return <div className="mx-auto flex w-full max-w-md flex-col gap-6">
     <Card className="overflow-hidden p-0"><CardContent className="p-5 sm:p-6 md:p-8">
       <form onSubmit={handleSubmit}><FieldGroup>
         <div className="flex flex-col items-center gap-2 text-center"><h1 className="text-2xl font-bold">Enter your code</h1><p className="text-balance text-muted-foreground">We sent a one-time code to <strong>{email || 'your email'}</strong>.</p></div>

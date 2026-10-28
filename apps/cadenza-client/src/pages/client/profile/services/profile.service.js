@@ -13,9 +13,10 @@ export async function updateMyProfile(data) {
 }
 
 export async function updateMyPassword(currentPassword, password) {
+  const body = { password };
+  if (currentPassword?.trim()) body.currentPassword = currentPassword;
   const response = await apiClient.put('/users/me/password', {
-    currentPassword,
-    password,
+    ...body,
   });
   return unwrap(response);
 }

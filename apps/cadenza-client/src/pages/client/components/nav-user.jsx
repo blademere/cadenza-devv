@@ -41,14 +41,19 @@ import { getMyNotifications } from "@/pages/client/notifications/services/notifi
 export function NavUser({ user }) {
   const { isMobile } = useSidebar();
   const navigate = useNavigate();
-  const { logout, user: authUser } = useAuth();
+  const { logout, user: authUser, account } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const authenticatedName =
+    authUser?.name ||
+    [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ') ||
+    account?.person?.name ||
+    [account?.person?.firstName, account?.person?.lastName].filter(Boolean).join(' ');
   const displayUser = {
     ...user,
-    name: authUser?.name || user?.name,
+    name: authenticatedName || user?.name,
     email: authUser?.email || user?.email,
   };
   useEffect(() => {

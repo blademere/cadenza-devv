@@ -173,8 +173,12 @@ const login = async (
 
   const user = await cadenzaAuthRepository.findUserByEmail(normalizedEmail);
 
-  if (!user || !user.isActive || !user.passwordHash) {
+  if (!user || !user.isActive) {
     throw new UnauthorizedError('Invalid credentials.');
+  }
+
+  if (!user.passwordHash) {
+    throw new UnauthorizedError('Please set your password first in Account.');
   }
 
   const passwordValid = await bcrypt.compare(password, user.passwordHash);
@@ -425,7 +429,10 @@ const requestEmailOtp = async ({ email, purpose, password }) => {
   } else if (!user || !user.isActive) {
     throw new UnauthorizedError('No active account was found for this email.');
   } else {
-    if (!user.passwordHash || typeof password !== 'string' ||
+    if (!user.passwordHash) {
+      throw new UnauthorizedError('Please set your password first in Account.');
+    }
+    if (typeof password !== 'string' ||
         !(await bcrypt.compare(password, user.passwordHash))) {
       throw new UnauthorizedError('Invalid credentials.');
     }

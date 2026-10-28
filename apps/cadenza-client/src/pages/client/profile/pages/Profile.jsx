@@ -56,8 +56,10 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profileConfirmOpen, setProfileConfirmOpen] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [editing, setEditing] = useState(false);
   const [hasActiveEnrollment, setHasActiveEnrollment] = useState(false);
+  const [hasPassword, setHasPassword] = useState(true);
   const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [retypePassword, setRetypePassword] = useState('');
@@ -72,6 +74,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
         const person = profile?.person || {};
         setEmail(profile?.user?.email || person.email || '');
         setHasActiveEnrollment(Boolean(profile?.hasActiveEnrollment));
+        setHasPassword(profile?.hasPassword !== false);
         const studentDetails = person.metadata?.studentDetails || {};
         setForm({
           firstName: person.firstName || '',
@@ -89,16 +92,56 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
       .catch(() => toast.error('Unable to load your profile.'))
       .finally(() => setLoading(false));
     loadProfile();
-    const refreshTimer = window.setInterval(loadProfile, 15000);
-    return () => window.clearInterval(refreshTimer);
   }, []);
 
   const updateField = (field) => (event) => {
-    setForm((current) => ({ ...current, [field]: event.target.value }));
+    const value = normalizeFieldValue(field, event.target.value);
+    setForm((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => ({ ...current, [field]: validateField(field, value) }));
+  };
+
+  const normalizeFieldValue = (field, rawValue) => {
+    const value = String(rawValue ?? '');
+    if (['firstName', 'middleName', 'lastName', 'guardianName'].includes(field)) {
+      return value
+        .replace(/[^A-Za-z' -]/g, '')
+        .replace(/\b\w/g, (character) => character.toUpperCase());
+    }
+    if (field === 'contactNo') {
+      return value.startsWith('+')
+        ? `+${value.slice(1).replace(/\D/g, '').slice(0, 12)}`
+        : value.replace(/\D/g, '').slice(0, 11);
+    }
+    if (field === 'age') return value.replace(/\D/g, '').slice(0, 3);
+    return value;
+  };
+
+  const validateField = (field, value) => {
+    const text = String(value ?? '').trim();
+    const namePattern = /^[A-Z][A-Za-z]*(?:[ '-][A-Z][A-Za-z]*)*$/;
+    if (['firstName', 'middleName', 'lastName', 'guardianName'].includes(field) && text && !namePattern.test(text)) return 'Must start with a capital letter.';
+    if (field === 'contactNo' && text && !/^(09\d{9}|\+639\d{9})$/.test(text)) return 'Use 09XXXXXXXXX or +639XXXXXXXXX.';
+    if (field === 'email' && (!text || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text))) return 'Enter a valid email address.';
+    if (field === 'age' && text && (!Number.isInteger(Number(text)) || Number(text) < 1 || Number(text) > 120)) return 'Enter an age from 1 to 120.';
+    return '';
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const nextErrors = {
+      firstName: validateField('firstName', form.firstName),
+      middleName: validateField('middleName', form.middleName),
+      lastName: validateField('lastName', form.lastName),
+      guardianName: validateField('guardianName', form.guardianName),
+      contactNo: validateField('contactNo', form.contactNo),
+      email: validateField('email', email),
+      age: validateField('age', form.age),
+    };
+    setFieldErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
+      toast.error('Please correct the highlighted fields.');
+      return;
+    }
 
     if (
       !form.firstName.trim() ||
@@ -109,6 +152,20 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
       return;
     }
 
+    const namePattern = /^[A-Z][A-Za-z]*(?:[ '-][A-Z][A-Za-z]*)*$/;
+    const nameFields = [
+      ['First name', form.firstName],
+      ['Middle name', form.middleName],
+      ['Last name', form.lastName],
+      ['Guardian name', form.guardianName],
+    ];
+    for (const [label, value] of nameFields) {
+      if (value.trim() && !namePattern.test(value.trim())) {
+        toast.error(`${label} must start with a capital letter and contain letters only.`);
+        return;
+      }
+    }
+
     const phonePattern = staffProfile ? /^09\d{9}$/ : /^(09\d{9}|\+639\d{9})$/;
     if (form.contactNo.trim() && !phonePattern.test(form.contactNo.trim())) {
       toast.error(staffProfile
@@ -117,7 +174,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
       return;
     }
 
-    if (staffProfile && (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       toast.error('Enter a valid email address.');
       return;
     }
@@ -139,9 +196,10 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
         age: form.age === '' ? null : Number(form.age),
         gender: form.gender || null,
         guardianName: form.guardianName.trim() || null,
-        ...(staffProfile ? { email: email.trim() } : {}),
+        email: email.trim(),
       });
       const person = updated?.person || {};
+      setEmail(updated?.user?.email || email.trim());
       setForm((current) => ({
         ...current,
         address: getAddressText(person.address) || current.address,
@@ -164,7 +222,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     setPasswordError('');
-    if (currentPassword.length < 8) {
+    if (hasPassword && currentPassword.length < 8) {
       setPasswordError('Enter your current password.');
       return;
     }
@@ -183,7 +241,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
     try {
       setSavingPassword(true);
       setPasswordConfirmOpen(false);
-      await updateMyPassword(currentPassword, password);
+      await updateMyPassword(hasPassword ? currentPassword : '', password);
       setCurrentPassword('');
       setPassword('');
       setRetypePassword('');
@@ -225,18 +283,21 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
                 label="First name"
                 value={form.firstName}
                 onChange={updateField('firstName')}
+                error={fieldErrors.firstName}
                 required
               />
               <Field
                 label="Last name"
                 value={form.lastName}
                 onChange={updateField('lastName')}
+                error={fieldErrors.lastName}
                 required
               />
               <Field
                 label="Middle name"
                 value={form.middleName}
                 onChange={updateField('middleName')}
+                error={fieldErrors.middleName}
               />
               <Field
                 label="Suffix"
@@ -258,6 +319,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
                 inputMode="numeric"
                 maxLength={staffProfile ? 11 : undefined}
                 required={!staffProfile}
+                error={fieldErrors.contactNo}
               />
               <Field
                 label="Age"
@@ -273,9 +335,9 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
                 required={!staffProfile}
               />
               {staffProfile ? (
-                <Field label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+                <Field label="Email" type="email" value={email} onChange={(event) => { const value = event.target.value.toLowerCase(); setEmail(value); setFieldErrors((current) => ({ ...current, email: validateField('email', value) })); }} required error={fieldErrors.email} />
               ) : (
-                <Detail label="Email" value={email} icon={<Mail className="h-4 w-4" />} />
+                <Field label="Email" type="email" value={email} onChange={(event) => { const value = event.target.value.toLowerCase(); setEmail(value); setFieldErrors((current) => ({ ...current, email: validateField('email', value) })); }} required error={fieldErrors.email} />
               )}
             </div>
             <Field
@@ -284,7 +346,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
               onChange={updateField('address')}
               required={!staffProfile}
             />
-            {showGuardian && <Field label="Guardian name" value={form.guardianName} onChange={updateField('guardianName')} required />}
+            {showGuardian && <Field label="Guardian name" value={form.guardianName} onChange={updateField('guardianName')} required error={fieldErrors.guardianName} />}
             <div className="flex justify-end border-t border-border pt-5">
               <button
                 type="submit"
@@ -365,16 +427,17 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
         </DialogContent>
       </Dialog>
       <section className="max-w-3xl rounded-xl border border-border bg-card p-6">
-        <h2 className="font-semibold">Password</h2>
+        <h2 className="font-semibold">{hasPassword ? 'Password' : 'Set password'}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set or update your sign-in password. This is separate from your
-          student details and remains available during an active enrollment.
+          {hasPassword
+            ? 'Set or update your sign-in password. This is separate from your student details and remains available during an active enrollment.'
+            : 'Your Google account does not have a Cadenza password yet. Create one to enable email and password sign-in.'}
         </p>
         <form
           onSubmit={handlePasswordSubmit}
-          className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
+          className={`mt-5 grid gap-3 ${hasPassword ? 'sm:grid-cols-[1fr_1fr_1fr_auto]' : 'sm:grid-cols-[1fr_1fr_auto]'}`}
         >
-          <input
+          {hasPassword && <input
             type="password"
             minLength={8}
             value={currentPassword}
@@ -386,10 +449,10 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
             onContextMenu={preventPasswordClipboard}
             autoComplete="current-password"
             aria-label="Current password"
-            placeholder="Current password"
+            placeholder={hasPassword ? 'Current password' : 'No current password required'}
             aria-invalid={Boolean(passwordError)}
             className={`h-10 w-full rounded-md border bg-background px-3 text-sm ${passwordError ? 'border-destructive' : 'border-input'}`}
-          />
+          />}
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
@@ -464,11 +527,11 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
           <button
             type="submit"
             disabled={
-              savingPassword || !hasCurrentPassword || !passwordHasMinimumLength || !passwordsMatch
+              savingPassword || (hasPassword && !hasCurrentPassword) || !passwordHasMinimumLength || !passwordsMatch
             }
             className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
           >
-            {savingPassword ? 'Saving...' : 'Save password'}
+            {savingPassword ? 'Saving...' : hasPassword ? 'Save password' : 'Set password'}
           </button>
         </form>
       </section>
@@ -560,7 +623,7 @@ function Detail({ label, value, icon }) {
   );
 }
 
-function Field({ label, value, onChange, required = false, type = 'text', placeholder, inputMode, maxLength }) {
+function Field({ label, value, onChange, required = false, type = 'text', placeholder, inputMode, maxLength, error }) {
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">
@@ -575,8 +638,10 @@ function Field({ label, value, onChange, required = false, type = 'text', placeh
         inputMode={inputMode}
         maxLength={maxLength}
         required={required}
-        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+        aria-invalid={Boolean(error)}
+        className={`h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 ${error ? 'border-destructive' : 'border-input'}`}
       />
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

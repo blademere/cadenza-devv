@@ -37,7 +37,7 @@ const getUser = async (userId) => {
 const getMyProfile = async (userId) => {
   const user = await getUser(userId)
   const person = await peopleService.getByUserId(userId)
-  return { user: toUserResponse({ ...user, roles: [] }), person, ...(await getCadenzaEnrollmentState(userId)) }
+  return { user: toUserResponse({ ...user, roles: [] }), person, hasPassword: Boolean(user.passwordHash), ...(await getCadenzaEnrollmentState(userId)) }
 }
 
 const createMyProfile = async (userId, data) => {
