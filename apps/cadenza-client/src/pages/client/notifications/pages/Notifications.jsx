@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, CalendarDays, Check, ClipboardList, CreditCard, DoorOpen, Guitar, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/Badge';
 import { getMyNotifications } from '../services/notifications.service';
@@ -18,6 +19,7 @@ const formatStatus = (status) => String(status || '').replaceAll('_', ' ').toLow
 const statusVariant = (status) => ['APPROVED', 'ACTIVE', 'CONFIRMED', 'COMPLETED'].includes(status) ? 'default' : ['REJECTED', 'CANCELLED'].includes(status) ? 'destructive' : 'secondary';
 
 export default function Notifications() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [readIds, setReadIds] = useState(() => {
@@ -89,14 +91,32 @@ export default function Notifications() {
           <div className="divide-y divide-border">
             {notifications.map((notification) => {
               const Icon = icons[notification.type] || Bell;
+              const openNotification = () => {
+                markRead(notification.id);
+                if (notification.href) navigate(notification.href);
+              };
               return (
-                    <div key={notification.id} className={`flex gap-4 py-4 first:pt-0 last:pb-0 ${!notification.read ? 'bg-primary/[0.03]' : ''}`}>
+                    <div
+                      key={notification.id}
+                      role={notification.href ? 'link' : undefined}
+                      tabIndex={notification.href ? 0 : undefined}
+                      onClick={(event) => {
+                        if (notification.href && !event.target.closest('a, button')) openNotification();
+                      }}
+                      onKeyDown={(event) => {
+                        if (notification.href && (event.key === 'Enter' || event.key === ' ')) {
+                          event.preventDefault();
+                          openNotification();
+                        }
+                      }}
+                      className={`flex gap-4 py-4 first:pt-0 last:pb-0 ${notification.href ? 'cursor-pointer' : ''} ${!notification.read ? 'bg-primary/[0.03]' : ''}`}
+                    >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
-                      <a href={notification.href} className="font-medium hover:text-primary hover:underline">{notification.title}</a>
+                      <button type="button" onClick={openNotification} className="text-left font-medium hover:text-primary hover:underline">{notification.title}</button>
                       {!notification.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{notification.message}</p>

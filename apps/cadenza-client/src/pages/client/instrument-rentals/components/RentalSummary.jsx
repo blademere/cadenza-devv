@@ -88,23 +88,6 @@ export default function RentalSummary({
         </div>
       )}
 
-      {scheduledStart && (
-        <div className="mt-5 border-t border-border pt-5">
-          <p className="text-xs text-muted-foreground">Start</p>
-          <p className="mt-1 text-sm font-medium">
-            {new Date(scheduledStart).toLocaleString()}
-          </p>
-        </div>
-      )}
-
-      {scheduledEnd && (
-        <div className="mt-4">
-          <p className="text-xs text-muted-foreground">End</p>
-          <p className="mt-1 text-sm font-medium">
-            {new Date(scheduledEnd).toLocaleString()}
-          </p>
-        </div>
-      )}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 import { apiClient } from '@/core/api/apiClient';
 import { AppSidebar } from '../components/app-sidebar';
@@ -31,6 +32,7 @@ const personName = (record) => {
 const buildNotifications = (enrollments, bookings, rentals) => [
   ...enrollments.map((item) => ({
     id: `enrollment-${item.id}`,
+    href: `/front-desk/enrollments?enrollmentId=${encodeURIComponent(item.id)}`,
     type: 'enrollment',
     title: 'New enrollment request',
     message: `${item.student || 'A client'} submitted ${item.packageName || 'an enrollment'} for review.`,
@@ -39,6 +41,7 @@ const buildNotifications = (enrollments, bookings, rentals) => [
   })),
   ...bookings.map((item) => ({
     id: `booking-${item.id}`,
+    href: `/front-desk/room-bookings?bookingId=${encodeURIComponent(item.id)}`,
     type: 'booking',
     title: 'Room booking request',
     message: `${personName(item)} requested ${item.room?.name || 'a room booking'}.`,
@@ -47,6 +50,7 @@ const buildNotifications = (enrollments, bookings, rentals) => [
   })),
   ...rentals.map((item) => ({
     id: `rental-${item.id}`,
+    href: `/front-desk/rentals?rentalId=${encodeURIComponent(item.id)}`,
     type: 'rental',
     title: 'Instrument rental request',
     message: `${personName(item)} submitted an instrument rental request.`,
@@ -62,6 +66,7 @@ const icons = {
 };
 
 export default function FrontDeskNotificationsPage() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -127,12 +132,30 @@ export default function FrontDeskNotificationsPage() {
                 <div className="space-y-3">
                   {notifications.map((notification) => {
                     const Icon = icons[notification.type] || CalendarDays;
+                    const openNotification = () => {
+                      markAsRead(notification.id);
+                      navigate(notification.href);
+                    };
                     return (
-                      <div key={notification.id} className={`flex items-start gap-4 rounded-lg border p-4 ${!notification.read ? 'bg-muted/50' : ''}`}>
+                      <div
+                        key={notification.id}
+                        role="link"
+                        tabIndex={0}
+                        onClick={(event) => {
+                          if (!event.target.closest('button')) openNotification();
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            openNotification();
+                          }
+                        }}
+                        className={`flex cursor-pointer items-start gap-4 rounded-lg border p-4 ${!notification.read ? 'bg-muted/50' : ''}`}
+                      >
                         <div className="rounded-full bg-muted p-2"><Icon className="size-5" /></div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                            <p className="font-medium">{notification.title}</p>
+                            <button type="button" onClick={openNotification} className="text-left font-medium hover:text-primary hover:underline">{notification.title}</button>
                             <span className="text-xs text-muted-foreground">
                               {notification.createdAt ? new Date(notification.createdAt).toLocaleString() : 'Recently'}
                             </span>

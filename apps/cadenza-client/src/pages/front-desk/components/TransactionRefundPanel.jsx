@@ -12,6 +12,7 @@ export default function TransactionRefundPanel({ type, transactionId, onRefundRe
   const [reference, setReference] = useState('');
   const [confirmedReceived, setConfirmedReceived] = useState(false);
   const [confirmedReturned, setConfirmedReturned] = useState(false);
+  const validReference = /^[A-Za-z0-9]{13,100}$/.test(reference.trim());
 
   useEffect(() => {
     let active = true;
@@ -29,7 +30,7 @@ export default function TransactionRefundPanel({ type, transactionId, onRefundRe
   const canRefund = Number(quote?.refundableAmount || 0) > 0 && !quote?.refund;
 
   const record = async () => {
-    if (!canRefund || saving || !confirmedReturned || (hasUnverified && !confirmedReceived) || reference.trim().length < 3) return;
+    if (!canRefund || saving || !confirmedReturned || (hasUnverified && !confirmedReceived) || !validReference) return;
     setSaving(true);
     setError('');
     try {
@@ -73,7 +74,7 @@ export default function TransactionRefundPanel({ type, transactionId, onRefundRe
                 </select>
               </label>
               <label className="block text-sm font-medium">Refund receipt / transfer reference
-                <input value={reference} onChange={(event) => setReference(event.target.value)} maxLength={100} disabled={saving} className="mt-1 w-full rounded-md border bg-background p-2" placeholder="Enter refund reference" />
+                <input value={reference} onChange={(event) => setReference(event.target.value.replace(/[^A-Za-z0-9]/g, ''))} minLength={13} maxLength={100} pattern="[A-Za-z0-9]{13,100}" disabled={saving} className="mt-1 w-full rounded-md border bg-background p-2" placeholder="At least 13 letters or numbers" />
               </label>
               {hasUnverified && <label className="flex items-start gap-2 text-sm">
                 <input type="checkbox" checked={confirmedReceived} onChange={(event) => setConfirmedReceived(event.target.checked)} disabled={saving} />
@@ -83,7 +84,7 @@ export default function TransactionRefundPanel({ type, transactionId, onRefundRe
                 <input type="checkbox" checked={confirmedReturned} onChange={(event) => setConfirmedReturned(event.target.checked)} disabled={saving} />
                 I confirm the refundable amount has already been returned to the client.
               </label>
-              <button type="button" onClick={record} disabled={saving || !confirmedReturned || (hasUnverified && !confirmedReceived) || reference.trim().length < 3}
+              <button type="button" onClick={record} disabled={saving || !confirmedReturned || (hasUnverified && !confirmedReceived) || !validReference}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
                 {saving ? 'Recording...' : `Record refund · ${money(quote.refundableAmount)}`}
               </button>

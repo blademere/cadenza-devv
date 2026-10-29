@@ -76,7 +76,11 @@ const mapEnrollment = (enrollment) => {
 const mapRoomBooking = (booking) => {
   const metadata = booking.metadata || {};
   const serviceName =
-    booking.room?.name || booking.room?.roomType || 'Room booking';
+    booking.room?.resource?.name ||
+    booking.roomNameAtBooking ||
+    booking.room?.roomName ||
+    booking.room?.roomType ||
+    'Room booking';
 
   return {
     id: `ROOM_BOOKING-${booking.id}`,
@@ -100,10 +104,21 @@ const mapRoomBooking = (booking) => {
 
 const mapRental = (rental) => {
   const metadata = rental.metadata || {};
-  const serviceName = rental.instrumentName || 'Instrument rental';
+  const itemNames = (Array.isArray(rental.items) ? rental.items : [])
+    .map((item) =>
+      item?.instrument?.name ||
+      item?.instrument?.instrumentType?.name ||
+      item?.instrumentName ||
+      item?.name,
+    )
+    .filter(Boolean);
+  const serviceName =
+    [...new Set(itemNames)].join(', ') ||
+    rental.instrumentName ||
+    'Instrument rental';
 
   return {
-    id: `INSTRUMENT_RENTAL-${rental.id}`,
+    id: rental.id,
     referenceNumber: metadata.paymentReference || rental.id,
     type: 'INSTRUMENT_RENTAL',
     description: `${serviceName} Rental`,

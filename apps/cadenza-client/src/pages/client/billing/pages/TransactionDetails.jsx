@@ -119,12 +119,6 @@ export default function TransactionDetails() {
 
         <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <p className="text-xs text-muted-foreground">Transaction ID</p>
-
-            <p className="mt-1 text-sm font-medium">{transaction.id}</p>
-          </div>
-
-          <div>
             <p className="text-xs text-muted-foreground">Reference Number</p>
 
             <p className="mt-1 text-sm font-medium">
@@ -183,11 +177,6 @@ export default function TransactionDetails() {
             {transaction.serviceDescription}
           </p>
 
-          <div className="mt-4">
-            <p className="text-xs text-muted-foreground">Related Record</p>
-
-            <p className="mt-1 text-sm font-medium">{transaction.serviceId}</p>
-          </div>
         </div>
       </section>
 
@@ -236,24 +225,6 @@ export default function TransactionDetails() {
         </div>
       </section>
 
-      {/* Notes */}
-      {transaction.notes && (
-        <section className="rounded-xl border border-border bg-card p-6">
-          <h2 className="text-lg font-semibold">Notes</h2>
-
-          <p className="mt-3 text-sm text-muted-foreground">
-            {transaction.notes}
-          </p>
-        </section>
-      )}
-
-      {/* Read-only notice */}
-      <div className="rounded-lg border border-border bg-muted/30 p-4">
-        <p className="text-sm text-muted-foreground">
-          A receipt is available only for confirmed fully paid transactions. This transaction is view-only. Transaction information cannot be
-          modified from the client portal.
-        </p>
-      </div>
     </div>
   );
 }

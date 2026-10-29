@@ -7,6 +7,22 @@ import RentalSummary from '../components/RentalSummary';
 
 import { getInstrumentRental } from '../services/instrument-rental.service';
 
+const formatSchedule = (value) => {
+  if (!value) return '—';
+
+  return new Date(value).toLocaleString('en-PH', {
+    timeZone: 'Asia/Manila',
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+};
+
+const formatAmount = (value) =>
+  `₱${Number(value || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 export default function InstrumentRentalDetails() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -83,6 +99,22 @@ export default function InstrumentRentalDetails() {
         rentalRateType: rental.rentalRateType,
       };
 
+  const totalAmount = Number(rental.totalAmount || 0);
+  const paidAmount = Math.min(
+    Math.max(
+      Number(
+        rental.metadata?.paidAmount ??
+          rental.metadata?.initialPaymentAmount ??
+          (totalAmount - Number(rental.metadata?.remainingAmount ?? totalAmount)),
+      ) || 0,
+      0,
+    ),
+    totalAmount,
+  );
+  const remainingBalance = Math.max(totalAmount - paidAmount, 0);
+  const scheduledStart = rental.scheduledStart || rental.startDate;
+  const scheduledEnd = rental.scheduledEnd || rental.endDate;
+
   return (
     <div className="space-y-6 px-4 py-6 lg:px-6">
       <button
@@ -121,16 +153,10 @@ export default function InstrumentRentalDetails() {
 
           <div className="mt-5 space-y-4">
             <div>
-              <p className="text-xs text-muted-foreground">Rental ID</p>
-
-              <p className="mt-1 text-sm font-medium">{rental.id}</p>
-            </div>
-
-            <div>
               <p className="text-xs text-muted-foreground">Start</p>
 
               <p className="mt-1 text-sm font-medium">
-                {rental.scheduledStart || rental.startDate}
+                {formatSchedule(scheduledStart)}
               </p>
             </div>
 
@@ -138,8 +164,18 @@ export default function InstrumentRentalDetails() {
               <p className="text-xs text-muted-foreground">End</p>
 
               <p className="mt-1 text-sm font-medium">
-                {rental.scheduledEnd || rental.endDate}
+                {formatSchedule(scheduledEnd)}
               </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground">Paid</p>
+              <p className="mt-1 text-lg font-semibold">{formatAmount(paidAmount)}</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground">Remaining Balance</p>
+              <p className="mt-1 text-lg font-semibold">{formatAmount(remainingBalance)}</p>
             </div>
 
             <div>
@@ -166,8 +202,8 @@ export default function InstrumentRentalDetails() {
 
         <RentalSummary
           instrument={instrument}
-          scheduledStart={rental.scheduledStart || rental.startDate}
-          scheduledEnd={rental.scheduledEnd || rental.endDate}
+          scheduledStart={scheduledStart}
+          scheduledEnd={scheduledEnd}
         />
       </div>
     </div>

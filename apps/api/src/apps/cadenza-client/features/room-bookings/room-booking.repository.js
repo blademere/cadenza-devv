@@ -88,8 +88,8 @@ const create = (data, db = prisma) =>
     },
   });
 
-const listByCustomer = (customerId, appId, db = prisma) =>
-  db.cadenzaRoomBooking.findMany({
+const listByCustomer = async (customerId, appId, db = prisma) => {
+  const bookings = await db.cadenzaRoomBooking.findMany({
     where: {
       customerId,
       appId,
@@ -101,6 +101,14 @@ const listByCustomer = (customerId, appId, db = prisma) =>
       scheduledStart: 'desc',
     },
   });
+
+  return Promise.all(
+    bookings.map(async (booking) => ({
+      ...booking,
+      room: await hydrateRoom(booking.room, db),
+    })),
+  );
+};
 
 const listAll = (appId, db = prisma) =>
   db.cadenzaRoomBooking.findMany({
@@ -155,8 +163,8 @@ const updateCheckOut = (id, appId, data, db = prisma) =>
     data,
   });
 
-const findById = (id, customerId, appId, db = prisma) =>
-  db.cadenzaRoomBooking.findFirst({
+const findById = async (id, customerId, appId, db = prisma) => {
+  const booking = await db.cadenzaRoomBooking.findFirst({
     where: {
       id,
       customerId,
@@ -171,6 +179,11 @@ const findById = (id, customerId, appId, db = prisma) =>
       },
     },
   });
+
+  return booking
+    ? { ...booking, room: await hydrateRoom(booking.room, db) }
+    : booking;
+};
 
 const cancel = (id, customerId, appId, data, db = prisma) =>
   db.cadenzaRoomBooking.updateMany({

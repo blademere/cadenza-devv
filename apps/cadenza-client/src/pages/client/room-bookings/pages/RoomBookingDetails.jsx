@@ -146,6 +146,21 @@ export default function RoomBookingDetails() {
   const totalAmount = Number(
     booking.totalAmount || 0,
   );
+  const paidAmount = Math.min(
+    Math.max(
+      Number(
+        booking.metadata?.paidAmount ??
+          booking.metadata?.initialPaymentAmount ??
+          (totalAmount - Number(booking.metadata?.remainingAmount ?? totalAmount)),
+      ) || 0,
+      0,
+    ),
+    totalAmount,
+  );
+  const remainingBalance = Math.max(
+    totalAmount - paidAmount,
+    0,
+  );
   const references = getRoomBookingReferences(booking);
 
   return (
@@ -254,6 +269,44 @@ export default function RoomBookingDetails() {
 
             <p className="mt-1 text-xl font-semibold">
               ₱{totalAmount.toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div>
+            <p className="text-xs text-muted-foreground">
+              Paid
+            </p>
+
+            <p className="mt-1 text-xl font-semibold">
+              ₱{paidAmount.toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div>
+            <p className="text-xs text-muted-foreground">
+              Remaining Balance
+            </p>
+
+            <p className="mt-1 text-xl font-semibold">
+              ₱{remainingBalance.toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div>
+            <p className="text-xs text-muted-foreground">
+              Payment Plan
+            </p>
+
+            <p className="mt-1 text-xl font-semibold">
+              {booking.metadata?.paymentPlan === "DOWN_PAYMENT"
+                ? "50% Down Payment"
+                : "Full Payment"}
             </p>
           </div>
         </div>

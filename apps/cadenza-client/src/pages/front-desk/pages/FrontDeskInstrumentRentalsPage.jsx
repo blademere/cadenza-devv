@@ -1171,7 +1171,7 @@ export default function RentalsPage() {
                             onClick={handleReceive}
                             disabled={actionLoading}
                           >
-                            Receive Instrument
+                            Release Instrument
                           </Button>
                         )}
                         <Button
@@ -1379,7 +1379,7 @@ export default function RentalsPage() {
             </DialogContent>
           </Dialog>
           <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
-            <DialogContent className="sm:max-w-[520px]">
+            <DialogContent className="max-h-[90vh] max-w-[min(720px,calc(100vw-2rem))] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Process instrument return</DialogTitle>
                 <DialogDescription>
@@ -1389,20 +1389,20 @@ export default function RentalsPage() {
               </DialogHeader>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4">
-                  <div>
+                <div className="grid min-w-0 gap-3 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2">
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">
                       Rental started
                     </p>
-                    <p className="font-medium">
+                    <p className="break-words font-medium">
                       {formatRentalDate(selectedRental?.scheduledStart)}
                     </p>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">
                       Expected return
                     </p>
-                    <p className="font-medium">
+                    <p className="break-words font-medium">
                       {formatRentalDate(selectedRental?.scheduledEnd)}
                     </p>
                   </div>
@@ -1490,12 +1490,12 @@ export default function RentalsPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>
+                    <div className="flex min-w-0 flex-wrap justify-between gap-x-4 gap-y-1">
+                      <span className="min-w-0">
                         Excess time ({excessHours} hour
                         {excessHours === 1 ? '' : 's'})
                       </span>
-                      <span>
+                      <span className="break-all text-right">
                         ₱
                         {excessCharge.toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
@@ -1503,9 +1503,9 @@ export default function RentalsPage() {
                         })}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Damage charge</span>
-                      <span>
+                    <div className="flex min-w-0 flex-wrap justify-between gap-x-4 gap-y-1">
+                      <span className="min-w-0">Damage charge</span>
+                      <span className="break-all text-right">
                         ₱
                         {damageCharge.toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
@@ -1513,9 +1513,9 @@ export default function RentalsPage() {
                         })}
                       </span>
                     </div>
-                    <div className="flex justify-between border-t pt-2 font-semibold">
-                      <span>Additional amount</span>
-                      <span>
+                    <div className="flex min-w-0 flex-wrap justify-between gap-x-4 gap-y-1 border-t pt-2 font-semibold">
+                      <span className="min-w-0">Additional amount</span>
+                      <span className="break-all text-right">
                         ₱
                         {(excessCharge + damageCharge).toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
@@ -1533,7 +1533,7 @@ export default function RentalsPage() {
                   onClick={() => setShowReturnDialog(false)}
                   disabled={actionLoading}
                 >
-                  Cancel
+                  Close
                 </Button>
                 <Button
                   onClick={handleConfirmReturn}

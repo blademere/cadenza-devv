@@ -2,6 +2,29 @@ import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
 const prisma = getPrismaClient();
 
+const hydrateRentalInstruments = async (rental, db = prisma) => {
+  if (!rental?.items?.length) return rental;
+
+  const resourceIds = rental.items
+    .map((item) => item.instrument?.resourceId)
+    .filter(Boolean);
+  const resources = await db.resource.findMany({
+    where: { id: { in: resourceIds }, appId: rental.appId },
+    select: { id: true, name: true },
+  });
+  const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+
+  return {
+    ...rental,
+    items: rental.items.map((item) => ({
+      ...item,
+      instrument: item.instrument
+        ? { ...item.instrument, name: names.get(item.instrument.resourceId) || item.instrument.name }
+        : item.instrument,
+    })),
+  };
+};
+
 export const instrumentRentalsRepository = {
   findAll(appId) {
     return prisma.cadenzaRental.findMany({
@@ -253,8 +276,8 @@ export const instrumentRentalsRepository = {
     });
   },
 
-  findRentalsByCustomer(appId, customerId) {
-    return prisma.cadenzaRental.findMany({
+  async findRentalsByCustomer(appId, customerId) {
+    const rentals = await prisma.cadenzaRental.findMany({
       where: {
         appId,
         customerId,
@@ -275,10 +298,11 @@ export const instrumentRentalsRepository = {
         scheduledStart: 'desc',
       },
     });
+    return Promise.all(rentals.map((rental) => hydrateRentalInstruments(rental)));
   },
 
-  findRentalById(appId, id, customerId = undefined) {
-    return prisma.cadenzaRental.findFirst({
+  async findRentalById(appId, id, customerId = undefined) {
+    const rental = await prisma.cadenzaRental.findFirst({
       where: {
         id,
         appId,
@@ -297,6 +321,7 @@ export const instrumentRentalsRepository = {
         },
       },
     });
+    return hydrateRentalInstruments(rental);
   },
 
   cancelRental(appId, customerId, id, data) {
