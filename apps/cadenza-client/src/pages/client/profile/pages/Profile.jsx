@@ -50,6 +50,16 @@ const getAddressText = (address) => {
   );
 };
 
+const getApiErrorMessage = (error, fallback) => {
+  const validationMessage = Array.isArray(error?.errors)
+    ? error.errors
+      .map((item) => item?.message || item?.path?.join('.') || item)
+      .filter(Boolean)
+      .join(', ')
+    : '';
+  return validationMessage || error?.response?.data?.message || error?.message || fallback;
+};
+
 export default function Profile({ showGuardian = true, staffProfile = false }) {
   const [form, setForm] = useState(emptyForm);
   const [email, setEmail] = useState('');
@@ -207,9 +217,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
       setEditing(false);
       toast.success('Profile updated successfully.');
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message || 'Unable to update your profile.',
-      );
+      toast.error(getApiErrorMessage(error, 'Unable to update your profile.'));
     } finally {
       setSaving(false);
     }
@@ -250,7 +258,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
         'Password saved. You can now sign in with email and password.',
       );
     } catch (error) {
-      setPasswordError(error?.response?.data?.message || 'Unable to save password.');
+      setPasswordError(getApiErrorMessage(error, 'Unable to save password.'));
     } finally {
       setSavingPassword(false);
     }

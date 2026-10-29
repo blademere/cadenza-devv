@@ -14,7 +14,7 @@ const attendanceValidator = async (req) => z.object({
 }).parse({ body: req.body || {} });
 const rescheduleValidator = async (req) => z.object({
   params: z.object({ sessionId: z.uuid() }),
-  body: z.object({ requestedStart: z.coerce.date(), reason: z.string().max(1000).optional().default('') }),
+  body: z.object({ requestedStart: z.coerce.date(), reason: z.string().trim().min(3).max(500) }),
 }).parse({ params: req.params || {}, body: req.body || {} });
 const feedbackValidator = async (req) => z.object({
   body: z.object({ sessionId: z.uuid(), notes: z.string().max(2000) }),

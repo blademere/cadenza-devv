@@ -183,10 +183,18 @@ export default function EnrollmentDetails() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Payment status</p>
-            <p className="mt-1 font-medium text-amber-600">
+            <p className={`mt-1 font-medium ${
+              ["PAID", "PARTIALLY_PAID"].includes(paymentMetadata.paymentStatus)
+                ? "text-green-600"
+                : "text-amber-600"
+            }`}>
               {paymentMetadata.paymentStatus === "PENDING_CONFIRMATION"
                 ? "Pending confirmation"
-                : paymentMetadata.paymentStatus || "Pending payment"}
+                : paymentMetadata.paymentStatus === "PARTIALLY_PAID"
+                  ? "Partially paid"
+                  : paymentMetadata.paymentStatus === "PAID"
+                    ? "Paid"
+                    : paymentMetadata.paymentStatus || "Pending payment"}
             </p>
           </div>
         </div>

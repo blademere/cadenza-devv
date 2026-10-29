@@ -1203,6 +1203,11 @@ export const enrollmentService = {
       enrollment.priceAtEnrollment ?? enrollment.lessonPackage?.price ?? 0,
     );
     const paymentContinuationRequired = paymentPlan === 'DOWN_PAYMENT';
+    const paymentStatus = paymentAmount >= totalAmount
+      ? 'PAID'
+      : paymentAmount > 0
+        ? 'PARTIALLY_PAID'
+        : 'PENDING_PAYMENT';
 
     const approved = await enrollmentRepository.updateStaffDecision(
       appId,
@@ -1219,6 +1224,10 @@ export const enrollmentService = {
           paymentContinuationStatus: paymentContinuationRequired
             ? 'PENDING'
             : 'NOT_REQUIRED',
+          paymentStatus,
+          ...(paymentStatus === 'PAID'
+            ? { paymentCompletedAt: new Date().toISOString() }
+            : {}),
           paymentBalanceDue: paymentContinuationRequired
             ? Math.max(totalAmount - paymentAmount, 0)
             : 0,

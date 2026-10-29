@@ -57,6 +57,7 @@ function mapSession(session, enrollment) {
           status: session.rescheduleRequests[0].status,
           requestedStart: session.rescheduleRequests[0].requestedStart,
           requestedEnd: session.rescheduleRequests[0].requestedEnd,
+          reason: session.rescheduleRequests[0].reason,
           generatedOptions: session.rescheduleRequests[0].metadata?.generatedOptions || [],
           instructorChoices: session.rescheduleRequests[0].metadata?.instructorChoices || [],
           studentChoices: session.rescheduleRequests[0].metadata?.studentChoices || [],
@@ -302,7 +303,7 @@ export const studentService = {
     return material;
   },
 
-  async requestSchedule(req, sessionId) {
+  async requestSchedule(req, sessionId, reason) {
     const session = await prisma.cadenzaLessonSession.findFirst({
       where: {
         id: sessionId,
@@ -323,7 +324,7 @@ export const studentService = {
         requestedStart: session.scheduledStart,
         requestedEnd: session.scheduledEnd,
         status: 'PENDING',
-        reason: 'Student requested a schedule change.',
+        reason: reason.trim(),
       },
     });
   },

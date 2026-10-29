@@ -15,10 +15,10 @@ export async function getStudentProgress() {
   return response.data?.data ?? response.data;
 }
 
-export async function requestStudentSchedule(sessionId) {
+export async function requestStudentSchedule(sessionId, reason) {
   const response = await api.post(
     `/student/schedule/${sessionId}/request`,
-    {},
+    { reason },
     { headers: { 'Idempotency-Key': `mobile-schedule-${Date.now()}` } },
   );
 

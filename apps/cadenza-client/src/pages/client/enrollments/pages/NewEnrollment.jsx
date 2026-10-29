@@ -274,6 +274,7 @@ export default function NewEnrollment() {
   useEffect(() => {
     setAvailability(selectedInstructorData?.availability || []);
     setSelectedAvailabilityIds([]);
+    setExpandedAvailabilityDays({});
     setStartDate('');
     setStartTime('');
   }, [selectedInstructorData]);
@@ -329,13 +330,14 @@ export default function NewEnrollment() {
           ? result.availability
           : [];
 
-        // The API returns the instructor's complete availability after
-        // removing occupied/conflicting times across the enrollment cycle.
-        // Replace the list and retain only selections that are still valid.
-        setAvailability(availableRules);
-        setSelectedAvailabilityIds((current) =>
-          current.filter((id) => availableRules.some((rule) => rule.id === id)),
-        );
+        // Keep the list and current selections stable while the start-date
+        // availability check refreshes. Replacing the list here can remove
+        // previously selected days when the API returns only the slots valid
+        // for the newly derived start date. Final schedule validation still
+        // happens on submit.
+        if (availability.length === 0) {
+          setAvailability(availableRules);
+        }
       } catch (error) {
         if (!cancelled) {
           setError(
@@ -1121,7 +1123,7 @@ export default function NewEnrollment() {
                             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                               Registered times for {formatDay(Number(day))}
                             </p>
-                            <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="flex flex-wrap gap-2">
                           {rules.map((rule) =>
                             (() => {
                         const isSelected = selectedAvailabilityIds.includes(
@@ -1144,7 +1146,7 @@ export default function NewEnrollment() {
                                 Number(selectedPackage.sessionsPerWeek) ||
                                 hasAnotherTimeOnDay)
                             }
-                            className={`flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                            className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors sm:w-fit sm:min-w-[260px] ${
                               isSelected
                                 ? 'border-primary bg-primary/10'
                                 : 'border-border bg-background hover:bg-accent'

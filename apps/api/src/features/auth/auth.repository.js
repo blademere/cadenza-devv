@@ -3,7 +3,12 @@ import { getPrismaClient } from '../../infrastructure/database/prisma.js'
 import { run as runTransaction } from '../../platform/transactions/transaction.service.js'
 
 const prisma = getPrismaClient()
-const findUserByEmail = async (email, db = prisma) => db.user.findUnique({ where: { email } })
+// Provider emails are case-insensitive, while older local records may contain
+// mixed-case addresses. Keep the unique lookup when possible, but make OAuth
+// matching follow email semantics rather than database casing.
+const findUserByEmail = async (email, db = prisma) => db.user.findFirst({
+  where: { email: { equals: String(email).trim(), mode: 'insensitive' } },
+})
 const findUserById = async (id, db = prisma) => db.user.findUnique({ where: { id: Number(id) } })
 const findUserAuthState = async (id, db = prisma) => db.user.findUnique({ where: { id: Number(id) }, select: { id: true, isActive: true, authVersion: true } })
 const createUser = async ({ email, passwordHash, emailVerifiedAt = undefined }, db = prisma) => db.user.create({ data: { email, passwordHash, emailVerifiedAt } })

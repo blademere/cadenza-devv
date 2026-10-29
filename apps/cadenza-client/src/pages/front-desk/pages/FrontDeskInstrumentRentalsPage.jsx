@@ -1026,6 +1026,24 @@ export default function RentalsPage() {
 
                           <div>
                             <p className="text-xs text-muted-foreground">
+                              ID Type
+                            </p>
+                            <p className="font-medium">
+                              {selectedRental.metadata?.idType || 'Not recorded'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              ID Number
+                            </p>
+                            <p className="font-medium">
+                              {selectedRental.metadata?.idNumber || 'Not recorded'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted-foreground">
                               Total
                             </p>
                             <p className="font-semibold">
@@ -1164,8 +1182,26 @@ export default function RentalsPage() {
                       </p>
                     )}
                     {selectedRental?.status === 'Approved' ? (
-                      <>
-                        {!selectedRental.metadata?.receivedAt && (
+                      selectedRental.metadata?.receivedAt ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowDetails(false)}
+                            disabled={actionLoading}
+                          >
+                            Close
+                          </Button>
+                          <Button onClick={handleReturn} disabled={actionLoading}>
+                            {actionLoading ? (
+                              <Loader2 className="mr-2 size-4 animate-spin" />
+                            ) : (
+                              <Check className="mr-2 size-4" />
+                            )}
+                            Mark as Returned
+                          </Button>
+                        </>
+                      ) : (
+                        <>
                           <Button
                             variant="secondary"
                             onClick={handleReceive}
@@ -1173,32 +1209,8 @@ export default function RentalsPage() {
                           >
                             Release Instrument
                           </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          onClick={() => setShowDetails(false)}
-                          disabled={
-                            actionLoading || !canReturnRental(selectedRental)
-                          }
-                          title={
-                            !canReturnRental(selectedRental)
-                              ? 'Receive the instrument first'
-                              : 'Mark the instrument as returned'
-                          }
-                        >
-                          Close
-                        </Button>
-                        <Button onClick={handleReturn} disabled={actionLoading}>
-                          {actionLoading ? (
-                            <Loader2 className="mr-2 size-4 animate-spin" />
-                          ) : (
-                            <Check className="mr-2 size-4" />
-                          )}
-                          {canReturnRental(selectedRental)
-                            ? 'Mark as Returned'
-                            : 'Receive instrument first'}
-                        </Button>
-                      </>
+                        </>
+                      )
                     ) : canReviewRental(selectedRental) ? (
                       <>
                         {cancellationMode ? (

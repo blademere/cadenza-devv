@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { useEffect } from 'react';
 
@@ -39,10 +41,15 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const googleClientIds = Constants.expoConfig?.extra ?? {};
+  const googleRedirectUri = makeRedirectUri({
+    scheme: 'mobile',
+    path: 'oauthredirect',
+  });
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: googleClientIds.googleAndroidClientId,
     iosClientId: googleClientIds.googleIosClientId,
-    webClientId: googleClientIds.googleWebClientId,
+    webClientId: Platform.OS === 'web' ? googleClientIds.googleWebClientId : undefined,
+    redirectUri: googleRedirectUri,
   });
 
   useEffect(() => {
@@ -54,7 +61,11 @@ export default function Login() {
         await saveAuth(authData);
         router.replace('/student/dashboard');
       } catch (error) {
-        setErrorMessage('Invalid credentials.');
+        setErrorMessage(
+          error?.response?.data?.message ||
+            error?.response?.data?.error?.message ||
+            'Invalid credentials.',
+        );
       } finally { setLoading(false); }
     })();
   }, [response]);

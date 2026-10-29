@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import useMobileResource from '../../hooks/useMobileResource';
 import { getStudentSchedule, requestStudentSchedule } from '../../services/studentService';
 import { ResourceFeedback } from '../../components/common/ResourceFeedback';
@@ -13,6 +13,7 @@ export default function StudentSchedule() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [requestError, setRequestError] = useState('');
+  const [requestReason, setRequestReason] = useState('');
   const enrollments = data?.enrollments ?? [];
   const schedules = data?.schedules ?? [];
   const enrollmentGroups = Object.values(enrollments.reduce((groups, enrollment) => {
@@ -25,11 +26,16 @@ export default function StudentSchedule() {
 
   async function confirmRequest() {
     if (!selectedSession || submitting) return;
+    if (requestReason.trim().length < 3) {
+      setRequestError('Please enter a reason of at least 3 characters.');
+      return;
+    }
     setSubmitting(true);
     setRequestError('');
     try {
-      await requestStudentSchedule(selectedSession.id);
+      await requestStudentSchedule(selectedSession.id, requestReason.trim());
       setSelectedSession(null);
+      setRequestReason('');
       await refresh();
     } catch (requestErrorValue) {
       setRequestError(requestErrorValue?.response?.data?.message || requestErrorValue?.message || 'Unable to submit the schedule request.');
@@ -66,7 +72,7 @@ export default function StudentSchedule() {
             {enrollmentSchedules.map((lesson) => <View key={lesson.id} className="mb-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <View className="flex-row items-center"><View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-[#D7EAF8]"><Text className="text-lg">♪</Text></View><View className="flex-1"><Text className="font-bold" style={{ color: ACCENT }}>{formatDate(lesson.scheduledStart)}</Text><Text className="mt-1 text-sm text-gray-500">{formatTime(lesson.scheduledStart)}</Text></View></View>
               <View className="mt-4 border-t border-slate-200 pt-3"><Text className="text-sm text-gray-600">Instructor <Text className="font-semibold text-gray-800">{lesson.instructor?.name || 'Pending'}</Text></Text><Text className="mt-2 text-sm text-gray-600">Room <Text className="font-semibold text-gray-800">{lesson.room?.name || 'Pending'}</Text></Text>{lesson.rescheduled && <Text className="mt-2 text-sm font-semibold text-blue-700">New schedule: {formatDate(lesson.scheduledStart)} · {formatTime(lesson.scheduledStart)} - {formatTime(lesson.scheduledEnd)}</Text>}</View>
-              {lesson.rescheduled ? <Text className="mt-4 self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">Re-scheduled</Text> : lesson.scheduleRequest?.status === 'PENDING' ? <Text className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold leading-5 text-amber-800">Schedule request pending Front Desk validation.</Text> : <Pressable onPress={() => { setRequestError(''); setSelectedSession(lesson); }} className="mt-4 rounded-xl bg-[#0C447C] px-4 py-3"><Text className="text-center font-semibold text-white">Request schedule</Text></Pressable>}
+              {lesson.rescheduled ? <Text className="mt-4 self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">Re-scheduled</Text> : lesson.scheduleRequest?.status === 'PENDING' ? <View className="mt-4 rounded-xl bg-amber-50 p-3"><Text className="text-sm font-semibold leading-5 text-amber-800">Schedule request pending Front Desk validation.</Text>{lesson.scheduleRequest.reason ? <Text className="mt-1 text-sm text-amber-700">Reason: {lesson.scheduleRequest.reason}</Text> : null}</View> : <Pressable onPress={() => { setRequestError(''); setRequestReason(''); setSelectedSession(lesson); }} className="mt-4 rounded-xl bg-[#0C447C] px-4 py-3"><Text className="text-center font-semibold text-white">Request schedule</Text></Pressable>}
             </View>)}
             </ScrollView>
           </View>;
@@ -87,6 +93,9 @@ export default function StudentSchedule() {
           <View className="w-full rounded-3xl bg-white p-6">
             <Text className="text-xl font-bold text-gray-900">Request a schedule</Text>
             <Text className="mt-3 text-gray-600">Request a schedule for this specific lesson. The Front Desk must validate it before it changes.</Text>
+            <Text className="mt-5 text-sm font-semibold text-gray-800">Reason for rescheduling</Text>
+            <TextInput value={requestReason} onChangeText={(value) => { setRequestReason(value); setRequestError(''); }} multiline maxLength={500} placeholder="Tell the Front Desk why you need to reschedule" className="mt-2 min-h-24 rounded-xl border border-gray-300 px-3 py-3 text-gray-900" textAlignVertical="top" />
+            <Text className="mt-1 text-xs text-gray-500">At least 3 characters</Text>
             {requestError ? <Text className="mt-3 text-sm text-red-600">{requestError}</Text> : null}
             <View className="mt-6 flex-row justify-end gap-3">
               <Pressable onPress={() => setSelectedSession(null)} disabled={submitting} className="rounded-xl px-4 py-3"><Text className="font-semibold text-gray-600">Cancel</Text></Pressable>

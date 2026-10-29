@@ -85,11 +85,15 @@ const authenticateWithOAuth = async ({ provider, code, codeVerifier }) => {
 const authenticateWithGoogleAccessToken = async (accessToken) => {
   const identity = await getProviderIdentity('google', accessToken)
   const user = await findUserByEmail(identity.email)
-  if (!user || !user.isActive) throw new UnauthorizedError('Invalid credentials.')
+  if (!user) throw new UnauthorizedError('No Cadenza account matches this Google email.')
+  if (!user.isActive) throw new UnauthorizedError('This Cadenza account is inactive.')
   const application = await cadenzaAuthRepository.findApplication()
-  const customer = application ? await cadenzaAuthRepository.findCustomerByUserIdAndAppId(user.id, application.id) : null
-  const enrollment = customer ? await cadenzaAuthRepository.findActiveEnrollmentByCustomerId(customer.id) : null
-  if (!customer || !enrollment) throw new UnauthorizedError('Invalid credentials.')
+  if (!application) throw new UnauthorizedError('Cadenza application is not configured.')
+  const customer = await cadenzaAuthRepository.findCustomerByUserIdAndAppId(user.id, application.id)
+  if (!customer) throw new UnauthorizedError('This Google account is not linked to a Cadenza student account.')
+  if (customer.status !== 'ACTIVE') throw new UnauthorizedError('This Cadenza student account is inactive.')
+  const enrollment = await cadenzaAuthRepository.findActiveEnrollmentByCustomerId(customer.id)
+  if (!enrollment) throw new UnauthorizedError('An approved enrollment is required for mobile access.')
   const tokenId = crypto.randomUUID()
   const refreshToken = createRefreshToken(user, tokenId)
   const accessTokenJwt = createAccessToken(user)

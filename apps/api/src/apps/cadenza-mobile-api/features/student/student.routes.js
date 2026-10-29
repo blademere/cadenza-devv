@@ -7,7 +7,8 @@ import { asyncHandler, idempotency, validate } from '../../../../common/middlewa
 const router = Router();
 const requestValidator = async (req) => z.object({
   params: z.object({ sessionId: z.uuid() }),
-}).parse({ params: req.params || {} });
+  body: z.object({ reason: z.string().trim().min(3).max(500) }),
+}).parse({ params: req.params || {}, body: req.body || {} });
 const choiceValidator = async (req) => z.object({
   params: z.object({ sessionId: z.uuid() }),
   body: z.object({ optionIds: z.array(z.string().min(1)).min(1) }),

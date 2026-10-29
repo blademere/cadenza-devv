@@ -34,6 +34,7 @@ export const studentController = {
     const request = await studentService.requestSchedule(
       req,
       req.params.sessionId,
+      req.body.reason,
     );
     res.status(201).json({ success: true, message: 'Schedule request submitted for review.', data: request });
   },
