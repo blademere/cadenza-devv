@@ -878,7 +878,7 @@ export const enrollmentService = {
       !Number.isFinite(Number(details.age)) ||
       Number(details.age) <= 0 ||
       !details.gender ||
-      !String(details.guardianName || '').trim()
+      (Number(details.age) < 18 && !String(details.guardianName || '').trim())
     ) {
       throw new BadRequestError(
         'Complete your required Account profile details before enrolling.',
