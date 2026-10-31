@@ -11,9 +11,9 @@ export default function AuthenticatedLayout({ allowedStaffType, accountType }) {
 
   if (!isAuthenticated) {
     const loginPath = location.pathname.startsWith('/admin')
-      ? '/staff/login'
+      ? '/staff'
       : location.pathname.startsWith('/front-desk')
-        ? '/staff/login'
+        ? '/staff'
         : '/login';
     return <Navigate to={loginPath} replace state={{ from: location }} />;
   }
@@ -35,7 +35,7 @@ export default function AuthenticatedLayout({ allowedStaffType, accountType }) {
         return <Navigate to="/client" replace />;
       }
 
-      return <Navigate to="/staff/login" replace />;
+      return <Navigate to="/staff" replace />;
     }
   }
 

@@ -7,7 +7,7 @@ import { authService } from '@/services/auth/authService';
 
 export default function ForgotPasswordPage() {
   const location = useLocation();
-  const loginPath = location.pathname.startsWith('/staff/') ? '/staff/login' : '/login';
+  const loginPath = location.pathname.startsWith('/staff') ? '/staff' : '/login';
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');

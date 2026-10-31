@@ -40,7 +40,7 @@ export default function ResetPasswordPage() {
       {message && <p role="status" className="text-sm text-green-700">{message}</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <Button className="w-full" type="submit" disabled={loading || !token}>{loading ? 'Saving...' : 'Reset password'}</Button>
-      <Link className="block text-center text-sm underline" to="/staff/login">Back to staff login</Link>
+      <Link className="block text-center text-sm underline" to="/staff">Back to staff login</Link>
     </form>
   </CardContent></Card>;
 }

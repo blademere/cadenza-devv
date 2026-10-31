@@ -56,7 +56,7 @@ export default function EmailOtpPage() {
         <Field><FieldLabel htmlFor="email-otp">Verification code</FieldLabel><Input id="email-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))} required /></Field>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit" disabled={isLoading}>{isLoading ? 'Verifying...' : 'Verify and continue'}</Button>
-      <FieldDescription className="text-center"><button type="button" className="underline" onClick={() => navigate(purpose === 'signup' ? '/signup' : audience === 'staff' ? '/staff/login' : '/login')}>Use a different email</button></FieldDescription>
+      <FieldDescription className="text-center"><button type="button" className="underline" onClick={() => navigate(purpose === 'signup' ? '/signup' : audience === 'staff' ? '/staff' : '/login')}>Use a different email</button></FieldDescription>
       </FieldGroup></form>
     </CardContent></Card>
   </div>;
