@@ -64,6 +64,22 @@ export async function deactivateCourse(id) {
   return response?.data ?? response;
 }
 
+export async function deactivateCourseMaterial(courseId, materialId) {
+  const response = await apiClient.patch(
+    `${COURSES_ENDPOINT}/${courseId}/attachments/${materialId}/deactivate`,
+  );
+
+  return response?.data ?? response;
+}
+
+export async function reactivateCourseMaterial(courseId, materialId) {
+  const response = await apiClient.patch(
+    `${COURSES_ENDPOINT}/${courseId}/attachments/${materialId}/reactivate`,
+  );
+
+  return response?.data ?? response;
+}
+
 export async function reactivateCourse(id) {
   const response = await apiClient.patch(
     `${COURSES_ENDPOINT}/${id}/reactivate`,

@@ -22,6 +22,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '../components/app-sidebar';
 import { SectionCards } from '../components/section-cards';
 import { SiteHeader } from '../components/site-header';
+import { OperatingHoursAlert } from '@/components/OperatingHoursAlert';
 
 const unwrapList = (response) => {
   const data = response?.data?.data ?? response?.data ?? response;
@@ -257,6 +258,8 @@ export default function FrontDeskDashboardPage() {
                 on payments.
               </p>
             </div>
+
+            <OperatingHoursAlert />
 
             <SectionCards stats={stats} loading={loading} />
             {loadError && (

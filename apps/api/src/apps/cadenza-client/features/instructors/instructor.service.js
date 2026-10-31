@@ -136,6 +136,43 @@ export const instructorService = {
       );
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      throw new BadRequestError('A valid email address is required.');
+    }
+
+    const [existingEmailInstructor, existingNameInstructor] = await Promise.all([
+      prisma.cadenzaInstructor.findFirst({
+        where: {
+          appId,
+          person: {
+            OR: [
+              { email: { equals: email, mode: 'insensitive' } },
+              { user: { email: { equals: email, mode: 'insensitive' } } },
+            ],
+          },
+        },
+        select: { id: true },
+      }),
+      prisma.cadenzaInstructor.findFirst({
+        where: {
+          appId,
+          person: {
+            firstName: { equals: firstName, mode: 'insensitive' },
+            lastName: { equals: lastName, mode: 'insensitive' },
+          },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (existingEmailInstructor) {
+      throw new ConflictError('This email is already assigned to an instructor.');
+    }
+
+    if (existingNameInstructor) {
+      throw new ConflictError('An instructor with this name already exists.');
+    }
+
     if (password.length < 8 || password.length > 72) {
       throw new BadRequestError(
         'Password must be between 8 and 72 characters.',
@@ -374,6 +411,27 @@ export const instructorService = {
   },
 
   async deactivateInstructor(appId, instructorId) {
+    const instructor = await instructorRepository.findById(
+      appId,
+      instructorId,
+    );
+
+    if (!instructor) {
+      throw new NotFoundError('Instructor not found.');
+    }
+
+    const activeAssignedEnrollmentCount =
+      await instructorRepository.countActiveAssignedEnrollments(
+        appId,
+        instructorId,
+      );
+
+    if (activeAssignedEnrollmentCount > 0) {
+      throw new ConflictError(
+        'This instructor cannot be deactivated while they have active enrolled students.',
+      );
+    }
+
     return this.updateInstructor(appId, instructorId, {
       status: 'INACTIVE',
     });

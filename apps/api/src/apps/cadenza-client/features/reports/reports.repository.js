@@ -10,7 +10,12 @@ export const reportsRepository = {
       where: { appId, createdAt: range(from, to) },
       include: {
         customer: { include: { person: true } },
-        lessonPackage: { include: { lessons: true } },
+        lessonPackage: {
+          include: {
+            lessons: true,
+            courseMappings: { include: { course: { select: { name: true } } } },
+          },
+        },
         sessions: {
           include: {
             attendance: true,
@@ -26,6 +31,16 @@ export const reportsRepository = {
     return prisma.paymentObligation.findMany({
       where: { appId, createdAt: range(from, to) },
       include: { payments: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  },
+
+  async findCashierPayments(appId, from, to) {
+    return prisma.cadenzaCashierPayment.findMany({
+      where: {
+        appId,
+        createdAt: range(from, to),
+      },
       orderBy: { createdAt: 'asc' },
     });
   },
@@ -76,7 +91,12 @@ export const reportsRepository = {
         enrollment: {
           include: {
             customer: { include: { person: true } },
-            lessonPackage: { include: { lessons: true } },
+            lessonPackage: {
+              include: {
+                lessons: true,
+                courseMappings: { include: { course: { select: { name: true } } } },
+              },
+            },
           },
         },
         instructor: { include: { person: true } },

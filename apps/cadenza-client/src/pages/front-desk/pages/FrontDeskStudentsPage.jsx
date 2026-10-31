@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCwIcon } from 'lucide-react';
+import { FileIcon, RefreshCwIcon } from 'lucide-react';
 import { SearchIcon } from 'lucide-react';
 import { AppSidebar } from '../components/app-sidebar';
 import { SiteHeader } from '../components/site-header';
@@ -26,6 +26,8 @@ import { getStudents } from '@/services/admin/studentService';
 
 const studentName = (student) => student?.name?.trim() || 'Unnamed Student';
 const formatStatus = (value) => value?.replace(/_/g, ' ') || 'Unknown';
+const statusDotClass = (value) =>
+  String(value || '').toUpperCase() === 'ACTIVE' ? 'bg-emerald-500' : 'bg-amber-500';
 const courseNames = (student) =>
   (student?.courses || []).map((course) => course?.name).filter(Boolean);
 const instructorNames = (student) =>
@@ -181,7 +183,7 @@ export default function FrontDeskStudentsPage() {
                           .join(', ')}
                       </p>
                     </div>
-                    <Badge>{formatStatus(enrollment.status)}</Badge>
+                    <Badge className="gap-1.5"><span aria-hidden="true" className={`size-1.5 rounded-full ${statusDotClass(enrollment.status)}`} />{formatStatus(enrollment.status)}</Badge>
                   </div>
                 ))}
               </CardContent>
@@ -292,21 +294,27 @@ export default function FrontDeskStudentsPage() {
                           </TableCell>
                           <TableCell>
                             <Badge
+                              className="gap-1.5"
                               variant={
                                 student.status === 'ACTIVE'
                                   ? 'default'
                                   : 'secondary'
                               }
                             >
+                              <span aria-hidden="true" className={`size-1.5 rounded-full ${statusDotClass(student.status)}`} />
                               {formatStatus(student.status)}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="View student details"
+                              aria-label="View student details"
                               onClick={() => setSelectedStudent(student)}
                             >
-                              View
+                              <FileIcon className="size-4" />
                             </Button>
                           </TableCell>
                         </TableRow>

@@ -124,6 +124,29 @@ export const instructorRepository = {
     });
   },
 
+  async countActiveClasses(appId, instructorId) {
+    return prisma.cadenzaLessonSession.count({
+      where: {
+        appId,
+        instructorId,
+        status: { notIn: ['COMPLETED', 'CANCELLED'] },
+        enrollment: { status: 'APPROVED' },
+      },
+    });
+  },
+
+  async countActiveAssignedEnrollments(appId, instructorId) {
+    return prisma.cadenzaLessonSession.count({
+      where: {
+        appId,
+        instructorId,
+        enrollment: {
+          status: { notIn: ['CANCELLED', 'COMPLETED', 'REJECTED'] },
+        },
+      },
+    });
+  },
+
   async findByPersonId(appId, personId) {
     return prisma.cadenzaInstructor.findFirst({
       where: {

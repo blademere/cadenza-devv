@@ -12,6 +12,7 @@ import { Link, useLocation } from "react-router-dom"
 
 export function NavSecondary({
   items,
+  activeClassName = '',
   ...props
 }) {
   const location = useLocation()
@@ -24,6 +25,7 @@ export function NavSecondary({
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
                 isActive={location.pathname.startsWith(item.url)}
+                className={location.pathname.startsWith(item.url) ? activeClassName : ''}
                 render={<Link to={item.url} />}
               >
                 {item.icon}

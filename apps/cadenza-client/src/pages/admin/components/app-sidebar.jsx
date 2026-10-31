@@ -153,7 +153,11 @@ export function AppSidebar({ ...props }) {
           activeClassName="!bg-blue-100 !text-blue-700 !font-semibold hover:!bg-blue-100 hover:!text-blue-700"
         />
 
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavSecondary
+          items={data.navSecondary}
+          className="mt-auto"
+          activeClassName="!bg-blue-100 !text-blue-700 !font-semibold hover:!bg-blue-100 hover:!text-blue-700"
+        />
       </SidebarContent>
 
       {/* User */}

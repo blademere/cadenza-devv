@@ -60,6 +60,8 @@ const INSTRUMENT_STATUSES = [
   'AVAILABLE',
   'UNAVAILABLE',
   'MAINTENANCE',
+  'DAMAGED',
+  'LOST',
   'RETIRED',
 ];
 
@@ -83,6 +85,7 @@ export default function InstrumentsPage() {
   const [instrumentTypes, setInstrumentTypes] = useState([]);
   const [itemCategories, setItemCategories] = useState([]);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [showDialog, setShowDialog] = useState(false);
   const [editingInstrument, setEditingInstrument] = useState(null);
 
@@ -132,18 +135,25 @@ export default function InstrumentsPage() {
   const filteredInstruments = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) {
-      return instruments;
-    }
-
-    return instruments.filter((instrument) =>
-      [instrument.brand, instrument.model, instrument.serialNumber]
+    return instruments.filter((instrument) => {
+      const searchableText = [
+        instrument.itemCategory?.name,
+        instrument.instrumentType?.name,
+        instrument.brand,
+        instrument.model,
+        instrument.serialNumber,
+        formatStatus(instrument.status),
+      ]
         .filter(Boolean)
         .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [instruments, search]);
+        .toLowerCase();
+
+      return (
+        (!query || searchableText.includes(query)) &&
+        (statusFilter === 'ALL' || instrument.status === statusFilter)
+      );
+    });
+  }, [instruments, search, statusFilter]);
 
   const updateForm = (field, value) => {
     if (field === 'model') {
@@ -324,8 +334,8 @@ export default function InstrumentsPage() {
                 All instruments currently registered in the system.
               </CardDescription>
 
-              <div className="flex items-center justify-between gap-2 pt-4">
-                <div className="relative max-w-sm flex-1">
+              <div className="grid gap-3 pt-4 md:grid-cols-[minmax(0,1fr)_180px]">
+                <div className="relative">
                   <SearchIcon className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
 
                   <Input
@@ -335,6 +345,19 @@ export default function InstrumentsPage() {
                     onChange={(event) => setSearch(event.target.value)}
                   />
                 </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger aria-label="Filter by status">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All statuses</SelectItem>
+                    {INSTRUMENT_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {formatStatus(status)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
 

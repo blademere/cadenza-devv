@@ -87,8 +87,8 @@ const assertWalkInDateWindow = (scheduledStart) => {
   const startDate = manilaDateKey(scheduledStart);
   const todayMs = Date.parse(`${today}T00:00:00Z`);
   const startMs = Date.parse(`${startDate}T00:00:00Z`);
-  if (startMs <= todayMs || startMs > todayMs + 5 * 24 * 60 * 60 * 1000) {
-    throw new BadRequestError('Walk-in rentals are only allowed from tomorrow through the next 5 days.');
+  if (startMs < todayMs) {
+    throw new BadRequestError('Walk-in rentals cannot be scheduled before today.');
   }
 };
 
@@ -279,6 +279,17 @@ export const instrumentRentalsService = {
     if (!returned) {
       throw new ConflictError('This instrument rental was already updated.');
     }
+
+    const instrumentStatus = selectedCondition.value === 'LOST'
+      ? 'LOST'
+      : selectedCondition.value === 'GOOD'
+        ? 'AVAILABLE'
+        : 'DAMAGED';
+    await instrumentRentalsRepository.updateReturnedInstrumentStatuses(
+      appId,
+      id,
+      instrumentStatus,
+    );
 
     return returned;
   },

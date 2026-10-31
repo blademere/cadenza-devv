@@ -121,4 +121,34 @@ export const coursesController = {
       data,
     });
   },
+
+  async deactivateMaterial(req, res) {
+    const appId = req.cadenzaApp.id;
+    const data = await coursesService.deactivateMaterial(
+      appId,
+      req.params.id,
+      req.params.attachmentId,
+    );
+
+    return res.json({
+      success: true,
+      message: 'Course material deactivated successfully.',
+      data,
+    });
+  },
+
+  async reactivateMaterial(req, res) {
+    const appId = req.cadenzaApp.id;
+    const data = await coursesService.reactivateMaterial(
+      appId,
+      req.params.id,
+      req.params.attachmentId,
+    );
+
+    return res.json({
+      success: true,
+      message: 'Course material reactivated successfully.',
+      data,
+    });
+  },
 };

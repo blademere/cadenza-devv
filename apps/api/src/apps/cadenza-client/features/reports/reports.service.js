@@ -28,21 +28,53 @@ const countBy = (items, getKey) => {
   });
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 };
+const packageCourses = (lessonPackage) => [
+  ...(lessonPackage?.lessons || []),
+  ...(lessonPackage?.courseMappings || []).map((mapping) => mapping.course).filter(Boolean),
+];
 
 const buildReport = async (appId, type, from, to) => {
   if (!REPORT_TYPES.has(type)) throw new BadRequestError('Unknown report type.');
 
 
   if (type === 'revenue-sales') {
-    const obligations = await reportsRepository.findPayments(appId, from, to);
-    const payments = obligations.flatMap((o) => (o.payments || []).filter((p) => ['PAID', 'COMPLETED', 'SUCCESSFUL'].includes(p.status)).map((p) => ({ ...p, referenceType: o.referenceType })));
+    const [obligations, cashierPayments] = await Promise.all([
+      reportsRepository.findPayments(appId, from, to),
+      reportsRepository.findCashierPayments(appId, from, to),
+    ]);
+    const payments = [
+      ...obligations.flatMap((o) => (o.payments || [])
+        .filter((p) => ['PAID', 'COMPLETED', 'SUCCESSFUL'].includes(p.status))
+        .map((p) => ({ ...p, referenceType: o.referenceType, reference: p.providerReference || p.referenceId || p.id }))),
+      ...cashierPayments.map((p) => ({
+        ...p,
+        referenceType: p.transactionType,
+        reference: p.reference,
+        paidAt: p.createdAt,
+        status: 'SUCCESSFUL',
+      })),
+    ];
     const total = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     const categories = new Map();
     for (const payment of payments) {
       const type = String(payment.referenceType || 'OTHER').replaceAll('_', ' ');
       categories.set(type, (categories.get(type) || 0) + Number(payment.amount || 0));
     }
-    return { columns: ['Revenue source / payment', 'Amount', 'Status', 'Date', 'Reference'], rows: [['Total received', money(total), 'SUMMARY', '', ''], ...[...categories.entries()].sort((a,b) => b[1] - a[1]).map(([type, value]) => [type, money(value), 'SUMMARY', '', '']), ...payments.map((payment) => [payment.referenceType || 'OTHER', money(payment.amount), payment.status, dateTime(payment.paidAt || payment.createdAt), payment.referenceId || payment.id])] };
+    return {
+      columns: ['Transaction type', 'Payment method', 'Amount', 'Status', 'Date', 'Reference'],
+      rows: [
+        ['Total received', 'ALL METHODS', money(total), 'SUMMARY', '', ''],
+        ...[...categories.entries()].sort((a,b) => b[1] - a[1]).map(([source, value]) => [source, 'ALL METHODS', money(value), 'SUMMARY', '', '']),
+        ...payments.map((payment) => [
+          String(payment.referenceType || 'OTHER').replaceAll('_', ' '),
+          String(payment.method || payment.provider || 'ONLINE').replaceAll('_', ' '),
+          money(payment.amount),
+          payment.status,
+          dateTime(payment.paidAt || payment.createdAt),
+          payment.reference || payment.providerReference || payment.referenceId || payment.id,
+        ]),
+      ],
+    };
   }
 
   if (type === 'student-attendance') {
@@ -90,35 +122,86 @@ const buildReport = async (appId, type, from, to) => {
 
   if (type === 'enrollment-summary') {
     const enrollments = await reportsRepository.findEnrollments(appId, from, to);
-    const courses = enrollments.flatMap((item) => item.lessonPackage?.lessons || []);
+    const courses = enrollments.flatMap((item) => packageCourses(item.lessonPackage));
     const topCourse = countBy(courses, (course) => course.name)[0];
     return {
-      columns: ['Metric / student', 'Value / status', 'Date', 'Enrollment ID'],
+      columns: ['Metric / student', 'Course / value', 'Status', 'Enrollment date', 'Enrollment ID'],
       rows: [
         ['Total enrollments', enrollments.length],
         ['Active enrollments', enrollments.filter((item) => !['CANCELLED', 'COMPLETED'].includes(item.status)).length],
         ['Completed enrollments', enrollments.filter((item) => item.status === 'COMPLETED').length],
         ['Most enrolled course', topCourse ? `${topCourse[0]} (${topCourse[1]})` : '—'],
-        ...enrollments.map((item) => [customerName(item), item.status, dateTime(item.createdAt), item.id]),
+        ...enrollments.map((item) => [
+          customerName(item),
+          packageCourses(item.lessonPackage).map((course) => course.name).join(', ') || '—',
+          item.status,
+          dateTime(item.createdAt),
+          item.id,
+        ]),
       ],
     };
   }
 
   if (type === 'billing-payments') {
-    const obligations = await reportsRepository.findPayments(appId, from, to);
-    const payments = obligations.flatMap((obligation) => obligation.payments);
+    const [obligations, cashierPayments] = await Promise.all([
+      reportsRepository.findPayments(appId, from, to),
+      reportsRepository.findCashierPayments(appId, from, to),
+    ]);
+    const payments = obligations.flatMap((obligation) => obligation.payments.map((payment) => ({
+      ...payment,
+      transactionType: obligation.referenceType,
+      sourceId: obligation.referenceId,
+      billedAmount: obligation.totalAmount,
+    })));
     const received = payments.filter((payment) => ['PAID', 'COMPLETED', 'SUCCESSFUL'].includes(payment.status));
+    const cashierTotal = cashierPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const billedTotal = obligations.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
+    const receivedTotal = received.reduce((sum, item) => sum + Number(item.amount || 0), 0) + cashierTotal;
+    const cashierBySource = new Map();
+    cashierPayments.forEach((payment) => {
+      const key = `${payment.transactionType}:${payment.sourceId}`;
+      cashierBySource.set(key, (cashierBySource.get(key) || 0) + Number(payment.amount || 0));
+    });
+    const obligationPaid = (obligation) => {
+      const onlinePaid = (obligation.payments || [])
+        .filter((p) => ['PAID','COMPLETED','SUCCESSFUL'].includes(p.status))
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      return onlinePaid + (cashierBySource.get(`${obligation.referenceType}:${obligation.referenceId}`) || 0);
+    };
+    const outstandingTotal = obligations.reduce((sum, item) => sum + Math.max(0, Number(item.totalAmount || 0) - obligationPaid(item)), 0);
     return {
-      columns: ['Payment / obligation', 'Amount / status', 'Date', 'Reference'],
+      columns: ['Payment / transaction', 'Billed', 'Paid', 'Balance', 'Status', 'Method / reference', 'Date'],
       rows: [
-        ['Total billed', money(obligations.reduce((sum, item) => sum + Number(item.totalAmount), 0))],
-        ['Payments received', money(received.reduce((sum, item) => sum + Number(item.amount), 0))],
-        ['Outstanding balance', money(obligations.reduce((sum, item) => {
-          const paid = (item.payments || []).filter((p) => ['PAID','COMPLETED','SUCCESSFUL'].includes(p.status)).reduce((n,p) => n + Number(p.amount || 0),0);
-          return sum + Math.max(0, Number(item.totalAmount || 0) - paid);
-        }, 0))],
-        ['Pending payments', payments.filter((payment) => payment.status === 'PENDING').length],
-        ...obligations.flatMap((obligation) => (obligation.payments || []).map((payment) => [obligation.referenceType || 'Payment', `${money(payment.amount)} / ${payment.status}`, dateTime(payment.paidAt || payment.createdAt), payment.referenceId || payment.id])),
+        ['TOTAL BILLED', money(billedTotal), money(receivedTotal), money(Math.max(0, billedTotal - receivedTotal)), 'SUMMARY', '', ''],
+        ['PAYMENTS RECEIVED', '', money(receivedTotal), '', 'SUMMARY', `${received.length + cashierPayments.length} transactions`, ''],
+        ['OUTSTANDING BALANCE', '', '', money(outstandingTotal), 'SUMMARY', '', ''],
+        ['PENDING PAYMENTS', '', '', '', 'SUMMARY', payments.filter((payment) => payment.status === 'PENDING').length, ''],
+        ...obligations.map((obligation) => {
+          const paid = obligationPaid(obligation);
+          const latest = [...(obligation.payments || [])].sort((a, b) => new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt))[0];
+          return [obligation.referenceType || 'Payment', money(obligation.totalAmount), money(paid), money(Math.max(0, Number(obligation.totalAmount || 0) - paid)), obligation.status, latest ? `${latest.method || latest.provider || 'ONLINE'} / ${latest.providerReference || latest.id}` : '—', dateTime(latest?.paidAt || obligation.createdAt)];
+        }),
+        ...cashierPayments.map((payment) => {
+          const parent = obligations.find(
+            (obligation) =>
+              obligation.referenceType === payment.transactionType &&
+              obligation.referenceId === payment.sourceId,
+          );
+          const parentPaid = parent ? obligationPaid(parent) : null;
+          const parentBalance = parent
+            ? Math.max(0, Number(parent.totalAmount || 0) - parentPaid)
+            : null;
+
+          return [
+            `Payment log · ${payment.transactionType || 'CASHIER PAYMENT'}`,
+            parent ? money(parent.totalAmount) : '—',
+            money(payment.amount),
+            parent ? money(parentBalance) : '—',
+            parent ? parent.status : 'SUCCESSFUL',
+            `${payment.method} / ${payment.reference}`,
+            dateTime(payment.createdAt),
+          ];
+        }),
       ],
     };
   }
@@ -173,11 +256,12 @@ const buildReport = async (appId, type, from, to) => {
   }
 
   if (type === 'dashboard-activity') {
-    const [enrollments, bookings, rentals, obligations] = await Promise.all([
+    const [enrollments, bookings, rentals, obligations, cashierPayments] = await Promise.all([
       reportsRepository.findEnrollments(appId, from, to),
       reportsRepository.findRoomBookings(appId, from, to),
       reportsRepository.findRentals(appId, from, to),
       reportsRepository.findPayments(appId, from, to),
+      reportsRepository.findCashierPayments(appId, from, to),
     ]);
     const payments = obligations.flatMap((obligation) =>
       obligation.payments.map((payment) => ({
@@ -189,6 +273,15 @@ const buildReport = async (appId, type, from, to) => {
     const successfulPayments = payments.filter((payment) =>
       ['PAID', 'COMPLETED', 'SUCCESSFUL'].includes(payment.status),
     );
+    const allSuccessfulPayments = [
+      ...successfulPayments,
+      ...cashierPayments.map((payment) => ({
+        ...payment,
+        referenceType: payment.transactionType,
+        referenceId: payment.sourceId,
+        paidAt: payment.createdAt,
+      })),
+    ];
     const outstandingBalance = obligations.reduce((sum, o) => {
       const paid = (o.payments || []).filter((p) => ['PAID','COMPLETED','SUCCESSFUL'].includes(p.status)).reduce((n,p) => n + Number(p.amount || 0),0);
       return sum + Math.max(0, Number(o.totalAmount || 0) - paid);
@@ -214,7 +307,7 @@ const buildReport = async (appId, type, from, to) => {
     enrollments.forEach((item) => { addDay(item.createdAt).enrollments += 1; });
     bookings.forEach((item) => { addDay(item.createdAt).bookings += 1; });
     rentals.forEach((item) => { addDay(item.createdAt).rentals += 1; });
-    successfulPayments.forEach((payment) => {
+    allSuccessfulPayments.forEach((payment) => {
       const day = addDay(payment.paidAt || payment.createdAt);
       day.successfulPayments += Number(payment.amount || 0);
       day.transactions += 1;
@@ -229,13 +322,13 @@ const buildReport = async (appId, type, from, to) => {
         activeEnrollments,
         activeRentals,
         outstandingBalance,
-        successfulPaymentAmount: successfulPayments.reduce(
+        successfulPaymentAmount: allSuccessfulPayments.reduce(
           (sum, payment) => sum + Number(payment.amount || 0),
           0,
         ),
-        successfulTransactionCount: successfulPayments.length,
+        successfulTransactionCount: allSuccessfulPayments.length,
       },
-      recentPayments: [...successfulPayments]
+      recentPayments: [...allSuccessfulPayments]
         .sort((a, b) => new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt))
         .slice(0, 5)
         .map((payment) => ({
@@ -251,13 +344,20 @@ const buildReport = async (appId, type, from, to) => {
   const sessions = await reportsRepository.findSessions(appId, from, to);
   const attended = sessions.filter((session) => session.attendance?.status === 'PRESENT');
   return {
-    columns: ['Student', 'Lesson status', 'Attendance', 'Date', 'Session ID'],
+      columns: ['Student', 'Course', 'Lesson status', 'Attendance', 'Date', 'Session ID'],
     rows: [
       ['Lessons scheduled', sessions.length],
       ['Lessons completed', sessions.filter((session) => session.status === 'COMPLETED').length],
       ['Attendance rate', sessions.length ? `${Math.round((attended.length / sessions.length) * 100)}%` : '0%'],
       ['Students needing follow-up', new Set(sessions.filter((session) => ['ABSENT', 'NO_SHOW'].includes(session.attendance?.status)).map((session) => session.enrollment?.customerId)).size],
-      ...sessions.map((session) => [customerName(session.enrollment), session.status, session.attendance?.status || 'NOT_RECORDED', dateTime(session.scheduledStart), session.id]),
+      ...sessions.map((session) => [
+        customerName(session.enrollment),
+        packageCourses(session.enrollment?.lessonPackage).map((course) => course.name).join(', ') || '—',
+        session.status,
+        session.attendance?.status || 'NOT_RECORDED',
+        dateTime(session.scheduledStart),
+        session.id,
+      ]),
     ],
   };
 };

@@ -619,6 +619,20 @@ export const enrollmentService = {
       (rule) => rule.endMinute - rule.startMinute >= requiredDuration,
     );
 
+    if (!startDate) {
+      const futureSessions = await enrollmentRepository.findInstructorFutureSessions(
+        appId,
+        instructorId,
+      );
+      availability = availability.filter((rule) => !futureSessions.some((session) => {
+        const sessionStart = new Date(session.scheduledStart);
+        const sessionEnd = new Date(session.scheduledEnd);
+        return getDayOfWeek(sessionStart) === Number(rule.dayOfWeek) &&
+          getMinuteOfDay(sessionStart) < Number(rule.endMinute) &&
+          getMinuteOfDay(sessionEnd) > Number(rule.startMinute);
+      }));
+    }
+
     if (startDate) {
       const dateKey = getManilaDateKey(startDate);
       const dateStart = new Date(`${dateKey}T12:00:00+08:00`);

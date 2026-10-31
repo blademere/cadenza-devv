@@ -8,6 +8,7 @@ import {
   Loader2Icon,
   RefreshCwIcon,
   AlertCircleIcon,
+  PowerIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -67,6 +68,7 @@ import {
 import {
   getInstructors,
   deactivateInstructor,
+  updateInstructor,
 } from "@/services/admin/instructorService";
 
 function normalizeInstructor(instructor) {
@@ -133,16 +135,30 @@ function formatStatus(status) {
   }
 }
 
-function getStatusBadgeVariant(status) {
-  switch (String(status ?? "").toUpperCase()) {
-    case "ACTIVE":
-      return "default";
-    case "INACTIVE":
-    case "SUSPENDED":
-      return "destructive";
-    default:
-      return "secondary";
-  }
+function InstructorStatusBadge({ status }) {
+  const normalized = String(status ?? "").toUpperCase();
+  const colors =
+    normalized === "ACTIVE"
+      ? {
+          badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
+          dot: "bg-emerald-500",
+        }
+      : normalized === "SUSPENDED"
+        ? {
+            badge: "border-amber-200 bg-amber-50 text-amber-700",
+            dot: "bg-amber-500",
+          }
+        : {
+            badge: "border-red-200 bg-red-50 text-red-700",
+            dot: "bg-red-500",
+          };
+
+  return (
+    <Badge variant="outline" className={`gap-1.5 ${colors.badge}`}>
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${colors.dot}`} />
+      {formatStatus(status)}
+    </Badge>
+  );
 }
 
 /* Internal instructor UUIDs are intentionally not shown in the admin dialog. */
@@ -176,6 +192,7 @@ export default function InstructorsPage() {
   const [showInstructorDetailsDialog, setShowInstructorDetailsDialog] =
     useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [deactivating, setDeactivating] = useState(false);
@@ -248,6 +265,45 @@ export default function InstructorsPage() {
     setSelectedInstructor(instructor);
     setActionError("");
     setShowDeactivateDialog(true);
+  };
+
+  const handleActivate = (instructor) => {
+    setSelectedInstructor(instructor);
+    setActionError("");
+    setShowActivateDialog(true);
+  };
+
+  const handleConfirmActivate = async () => {
+    if (!selectedInstructor?.id || deactivating) return;
+
+    setDeactivating(true);
+    setActionError("");
+
+    try {
+      await updateInstructor(selectedInstructor.id, { status: "ACTIVE" });
+
+      setInstructors((currentInstructors) =>
+        currentInstructors.map((instructor) =>
+          instructor.id === selectedInstructor.id
+            ? { ...instructor, status: "ACTIVE" }
+            : instructor,
+        ),
+      );
+
+      toast.success("Instructor activated successfully.");
+      setShowActivateDialog(false);
+      setSelectedInstructor(null);
+    } catch (requestError) {
+      const message = getErrorMessage(
+        requestError,
+        "Failed to activate the instructor. Please try again.",
+      );
+
+      setActionError(message);
+      toast.error(message);
+    } finally {
+      setDeactivating(false);
+    }
   };
 
   const closeDeactivateDialog = () => {
@@ -453,13 +509,7 @@ export default function InstructorsPage() {
                           </TableCell>
 
                           <TableCell>
-                            <Badge
-                              variant={getStatusBadgeVariant(
-                                instructor.status,
-                              )}
-                            >
-                              {formatStatus(instructor.status)}
-                            </Badge>
+                            <InstructorStatusBadge status={instructor.status} />
                           </TableCell>
 
                           <TableCell>
@@ -504,6 +554,18 @@ export default function InstructorsPage() {
                                     >
                                       <Trash2Icon className="size-4" />
                                       <span>Deactivate</span>
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {instructor.status !== "ACTIVE" && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="h-10 cursor-pointer gap-3 px-3 text-emerald-600 focus:text-emerald-700"
+                                      onClick={() => handleActivate(instructor)}
+                                    >
+                                      <PowerIcon className="size-4" />
+                                      <span>Activate</span>
                                     </DropdownMenuItem>
                                   </>
                                 )}
@@ -583,13 +645,9 @@ export default function InstructorsPage() {
                       <p className="text-sm text-muted-foreground">Status</p>
 
                       <div className="mt-1">
-                        <Badge
-                          variant={getStatusBadgeVariant(
-                            selectedInstructor.status,
-                          )}
-                        >
-                          {formatStatus(selectedInstructor.status)}
-                        </Badge>
+                        <InstructorStatusBadge
+                          status={selectedInstructor.status}
+                        />
                       </div>
                     </div>
                   </div>
@@ -642,13 +700,9 @@ export default function InstructorsPage() {
                         Account Status
                       </span>
 
-                      <Badge
-                        variant={getStatusBadgeVariant(
-                          selectedInstructor.status,
-                        )}
-                      >
-                        {formatStatus(selectedInstructor.status)}
-                      </Badge>
+                      <InstructorStatusBadge
+                        status={selectedInstructor.status}
+                      />
                     </div>
                   </div>
                 </div>
@@ -664,6 +718,70 @@ export default function InstructorsPage() {
                 }}
               >
                 Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={showActivateDialog}
+          onOpenChange={(open) => {
+            if (!open && !deactivating) {
+              setShowActivateDialog(false);
+              setSelectedInstructor(null);
+              setActionError("");
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Activate Instructor</DialogTitle>
+              <DialogDescription>
+                This will make the instructor active and available for new
+                lessons. Are you sure you want to continue?
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedInstructor && (
+              <div className="rounded-lg border p-4">
+                <p className="font-medium">{selectedInstructor.name}</p>
+                <p className="break-all text-sm text-muted-foreground">
+                  {selectedInstructor.email}
+                </p>
+              </div>
+            )}
+
+            {actionError && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-md border border-destructive/30 p-3 text-sm text-destructive"
+              >
+                <AlertCircleIcon className="mt-0.5 size-4 shrink-0" />
+                {actionError}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowActivateDialog(false);
+                  setSelectedInstructor(null);
+                  setActionError("");
+                }}
+                disabled={deactivating}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                onClick={handleConfirmActivate}
+                disabled={deactivating || !selectedInstructor}
+              >
+                {deactivating && (
+                  <Loader2Icon className="mr-2 size-4 animate-spin" />
+                )}
+                {deactivating ? "Activating..." : "Activate"}
               </Button>
             </DialogFooter>
           </DialogContent>

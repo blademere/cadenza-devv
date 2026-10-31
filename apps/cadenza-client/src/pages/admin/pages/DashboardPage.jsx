@@ -49,6 +49,20 @@ const sameDay = (first, second) => {
   return left.toDateString() === right.toDateString();
 };
 
+const monthKey = (value) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const getMonthTrend = (items, currentMonth, previousMonth) => {
+  const current = items.filter((item) => monthKey(item.createdAt) === currentMonth).length;
+  const previous = items.filter((item) => monthKey(item.createdAt) === previousMonth).length;
+
+  return current >= previous ? 'up' : 'down';
+};
+
 export default function DashboardPage() {
   const [data, setData] = useState({ students: [], instructors: [], staff: [], enrollments: [], activity: null });
   const [loading, setLoading] = useState(true);
@@ -101,12 +115,20 @@ export default function DashboardPage() {
   const activeStudents = data.students.filter((student) => student.status === "ACTIVE").length;
   const activeInstructors = data.instructors.filter((instructor) => instructor.status === "ACTIVE").length;
   const activeStaff = data.staff.filter((member) => member.status === "ACTIVE" && member.staffType === "FRONT_DESK").length;
-  const summary = data.activity?.summary || {};
+  const now = new Date();
+  const currentMonth = monthKey(now);
+  const previousMonth = monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  const currentRevenue = (data.activity?.series || [])
+    .filter((item) => monthKey(item.date) === currentMonth)
+    .reduce((total, item) => total + Number(item.successfulPayments || 0), 0);
+  const previousRevenue = (data.activity?.series || [])
+    .filter((item) => monthKey(item.date) === previousMonth)
+    .reduce((total, item) => total + Number(item.successfulPayments || 0), 0);
   const cards = [
-    { title: "Active Students", value: activeStudents, change: "Live", description: "From current records", footer: "Student enrollment", icon: GraduationCapIcon },
-    { title: "Instructors", value: activeInstructors, change: "Live", description: "From current records", footer: "Teaching team", icon: UsersIcon },
-    { title: "Front Desk Staff", value: activeStaff, change: "Active", description: "Currently active staff", footer: "Staff accounts", icon: UserRoundIcon },
-    { title: "Monthly Revenue", value: formatMoney(summary.successfulPaymentAmount), change: `${summary.successfulTransactionCount || 0} transactions`, description: "Successful payments", footer: "Payment activity", icon: PhilippinePesoIcon },
+    { title: "Active Students", value: activeStudents, trend: getMonthTrend(data.students, currentMonth, previousMonth), description: "From current records", footer: "Student enrollment", icon: GraduationCapIcon },
+    { title: "Instructors", value: activeInstructors, trend: getMonthTrend(data.instructors, currentMonth, previousMonth), description: "From current records", footer: "Teaching team", icon: UsersIcon },
+    { title: "Front Desk Staff", value: activeStaff, trend: getMonthTrend(data.staff, currentMonth, previousMonth), description: "Currently active staff", footer: "Staff accounts", icon: UserRoundIcon },
+    { title: "Monthly Revenue", value: formatMoney(currentRevenue), trend: currentRevenue >= previousRevenue ? "up" : "down", description: "Successful payments", footer: "Payment activity", icon: PhilippinePesoIcon },
   ];
 
   return (

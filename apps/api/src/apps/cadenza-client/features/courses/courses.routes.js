@@ -77,4 +77,18 @@ router.delete(
   coursesController.deleteAttachment,
 );
 
+router.patch(
+  '/:id/attachments/:attachmentId/deactivate',
+  requireAdmin,
+  attachmentIdValidator,
+  coursesController.deactivateMaterial,
+);
+
+router.patch(
+  '/:id/attachments/:attachmentId/reactivate',
+  requireAdmin,
+  attachmentIdValidator,
+  coursesController.reactivateMaterial,
+);
+
 export default router;

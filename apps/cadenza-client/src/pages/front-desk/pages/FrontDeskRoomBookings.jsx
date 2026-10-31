@@ -1,5 +1,6 @@
 import TransactionRefundPanel from '../components/TransactionRefundPanel';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { RefreshCwIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Check, ChevronDown, FileIcon, Loader2, X } from 'lucide-react';
@@ -89,6 +90,13 @@ const statusVariant = (status) =>
     : status === 'Rejected'
       ? 'destructive'
       : 'secondary';
+const statusIndicatorClass = (status) => {
+  if (status === 'Approved') return 'bg-emerald-500';
+  if (status === 'Checked In') return 'bg-blue-500';
+  if (status === 'Checked Out') return 'bg-slate-500';
+  if (status === 'Rejected') return 'bg-red-500';
+  return 'bg-amber-500';
+};
 
 const mapBooking = (booking) => {
   const person = booking.customer?.person;
@@ -437,7 +445,11 @@ export default function FrontDeskRoomBookings() {
                             {formatTime(booking.scheduledEnd)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={statusVariant(booking.status)}>
+                            <Badge variant={statusVariant(booking.status)} className="gap-1.5">
+                              <span
+                                aria-hidden="true"
+                                className={`size-1.5 rounded-full ${statusIndicatorClass(booking.status)}`}
+                              />
                               {booking.status}
                             </Badge>
                           </TableCell>
@@ -503,9 +515,15 @@ export default function FrontDeskRoomBookings() {
             </CardHeader>
             <CardContent>
               {error && (
-                <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                  {error}
-                </p>
+                createPortal(
+                  <p
+                    role="alert"
+                    className="fixed bottom-4 right-4 z-[9999] w-fit max-w-[min(32rem,calc(100vw-2rem))] rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-lg"
+                  >
+                    {error}
+                  </p>,
+                  document.body,
+                )
               )}
               {filteredBookings.some((booking) => isPendingBooking(booking.status)) && (
                 <div role="alert" className="mb-4 flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
@@ -554,7 +572,11 @@ export default function FrontDeskRoomBookings() {
                             {formatTime(booking.scheduledEnd)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={statusVariant(booking.status)}>
+                            <Badge variant={statusVariant(booking.status)} className="gap-1.5">
+                              <span
+                                aria-hidden="true"
+                                className={`size-1.5 rounded-full ${statusIndicatorClass(booking.status)}`}
+                              />
                               {booking.status}
                             </Badge>
                           </TableCell>
@@ -616,7 +638,11 @@ export default function FrontDeskRoomBookings() {
             </CardContent>
           </Card>
 
-          <Dialog open={showDetails} onOpenChange={setShowDetails}>
+          <Dialog
+            open={showDetails}
+            onOpenChange={setShowDetails}
+            disablePointerDismissal
+          >
             <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto p-5 sm:max-w-2xl sm:p-7">
               {selectedBooking && (
                 <>
@@ -772,9 +798,6 @@ export default function FrontDeskRoomBookings() {
                         />
                       </div>
                     )}
-                    {error && (
-                      <p className="text-sm text-destructive">{error}</p>
-                    )}
                   </div>
                   <DialogFooter className="flex flex-wrap gap-2 border-t pt-4">
                     {isPendingBooking(selectedBooking.status) ? (
@@ -875,7 +898,11 @@ export default function FrontDeskRoomBookings() {
               )}
             </DialogContent>
           </Dialog>
-          <Dialog open={showCheckOutDialog} onOpenChange={(open) => { if (!actionLoading) setShowCheckOutDialog(open); }}>
+          <Dialog
+            open={showCheckOutDialog}
+            onOpenChange={(open) => { if (!actionLoading) setShowCheckOutDialog(open); }}
+            disablePointerDismissal
+          >
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Mark room as checked out</DialogTitle>
@@ -907,7 +934,11 @@ export default function FrontDeskRoomBookings() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Dialog open={showCheckInDialog} onOpenChange={setShowCheckInDialog}>
+          <Dialog
+            open={showCheckInDialog}
+            onOpenChange={setShowCheckInDialog}
+            disablePointerDismissal
+          >
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Check in client</DialogTitle>

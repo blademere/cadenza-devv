@@ -83,6 +83,7 @@ export default function NewEnrollment() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const isAdult = Number(studentDetails.age) >= 18;
   useEffect(() => {
     getMyProfile()
       .then((profile) => {
@@ -109,6 +110,13 @@ export default function NewEnrollment() {
   }, []);
 
   useEffect(() => {
+    if (!success) return undefined;
+
+    const timeoutId = window.setTimeout(() => setSuccess(''), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [success]);
+
+  useEffect(() => {
     getOperatingHours().then(setOperatingHours).catch(() => setOperatingHours(null));
   }, []);
 
@@ -130,7 +138,7 @@ export default function NewEnrollment() {
       studentDetails.age &&
       studentDetails.gender &&
       studentDetails.contactNo.trim() &&
-      studentDetails.guardianName.trim(),
+      (isAdult || studentDetails.guardianName.trim()),
   );
 
   const saveDraft = () => {
@@ -249,7 +257,7 @@ export default function NewEnrollment() {
     }
 
     loadInstructors();
-  }, [selectedPackage, selectedCourseId]);
+  }, [selectedPackage?.id, selectedCourseId]);
 
   useEffect(() => {
     if (
@@ -277,7 +285,7 @@ export default function NewEnrollment() {
     setExpandedAvailabilityDays({});
     setStartDate('');
     setStartTime('');
-  }, [selectedInstructorData]);
+  }, [selectedInstructorData?.id]);
 
   useEffect(() => {
     if (
@@ -330,14 +338,10 @@ export default function NewEnrollment() {
           ? result.availability
           : [];
 
-        // Keep the list and current selections stable while the start-date
-        // availability check refreshes. Replacing the list here can remove
-        // previously selected days when the API returns only the slots valid
-        // for the newly derived start date. Final schedule validation still
-        // happens on submit.
-        if (availability.length === 0) {
-          setAvailability(availableRules);
-        }
+        // The date-aware API removes slots already used by active enrollments
+        // or instructor blocks. Replace the displayed list so stale slots do
+        // not remain selectable after a start date is chosen.
+        setAvailability(availableRules);
       } catch (error) {
         if (!cancelled) {
           setError(
@@ -435,6 +439,27 @@ export default function NewEnrollment() {
     }, {});
   }, [availabilityForDisplay]);
 
+  // Availability can be refreshed after selecting a date. Preserve each
+  // weekday's accordion state so a refresh does not look like a page reload.
+  useEffect(() => {
+    setExpandedAvailabilityDays((current) => {
+      const next = {};
+      Object.keys(availabilityByDay).forEach((day) => {
+        next[day] = current[day] ?? true;
+      });
+
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(next);
+      if (
+        currentKeys.length === nextKeys.length &&
+        nextKeys.every((day) => current[day] === next[day])
+      ) {
+        return current;
+      }
+      return next;
+    });
+  }, [availabilityByDay]);
+
   const getDayOfWeekFromDate = (value) => {
     const date = new Date(`${value}T00:00:00`);
     const javascriptDay = date.getDay();
@@ -502,6 +527,13 @@ export default function NewEnrollment() {
 
   const toggleAvailability = (rule) => {
     const isSelected = selectedAvailabilityIds.includes(rule.id);
+
+    // Selecting a time must not collapse the weekday whose times are being
+    // chosen, even if the selection triggers an availability refresh.
+    setExpandedAvailabilityDays((current) => ({
+      ...current,
+      [rule.dayOfWeek]: true,
+    }));
 
     setSelectedAvailabilityIds((current) => {
       if (isSelected) {
@@ -886,18 +918,6 @@ export default function NewEnrollment() {
         </p>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4">
-          <p className="text-sm text-green-600">{success}</p>
-        </div>
-      )}
-
       {selectedPackage && (
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -960,6 +980,7 @@ export default function NewEnrollment() {
                 </button>
               </div>
             )}
+
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -974,11 +995,11 @@ export default function NewEnrollment() {
                   ['suffix', 'Suffix'],
                   ['address', 'Address'],
                   ['age', 'Age'],
-                  ['guardianName', 'Guardian name'],
+                  ['guardianName', isAdult ? 'Guardian name (not required for adults)' : 'Guardian name'],
                   ['contactNo', 'Contact number'],
                   ['gender', 'Gender'],
                 ].map(([field, label]) => (
-                  <DetailField key={field} label={label} value={studentDetails[field]} wide={field === 'address'} />
+                  <DetailField key={field} label={label} value={field === 'guardianName' && isAdult ? 'Not required for adults' : studentDetails[field]} wide={field === 'address'} />
                 ))}
                 <DetailField label="Email" value={profileEmail} />
               </>
@@ -1087,7 +1108,7 @@ export default function NewEnrollment() {
               )}
 
               {availability.length > 0 && (
-                <div className="rounded-lg border border-border bg-muted/20 p-4">
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
                   <p className="text-sm font-medium">
                     Choose {selectedPackage.sessionsPerWeek} time(s) per week
                   </p>
@@ -1098,7 +1119,7 @@ export default function NewEnrollment() {
                     {selectedPackage.sessionsPerWeek}.
                   </p>
 
-                  <div className="mt-3 space-y-4">
+                  <div className="mt-2 space-y-2">
                     {Object.entries(availabilityByDay).map(([day, rules]) => (
                       <div key={day} className="space-y-2">
                         <button
@@ -1109,7 +1130,7 @@ export default function NewEnrollment() {
                               [day]: !current[day],
                             }))
                           }
-                          className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-left text-sm font-semibold hover:bg-accent"
+                        className="flex w-full items-center justify-between rounded-md border bg-background px-2.5 py-1.5 text-left text-sm font-semibold hover:bg-accent"
                         >
                           <span>{formatDay(Number(day))}</span>
                           <span className="text-xs font-normal text-muted-foreground">
@@ -1119,11 +1140,11 @@ export default function NewEnrollment() {
                           </span>
                         </button>
                         {expandedAvailabilityDays[day] && (
-                          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-                            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          <div className="rounded-lg border border-border bg-card p-2 shadow-sm">
+                            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                               Registered times for {formatDay(Number(day))}
                             </p>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5">
                           {rules.map((rule) =>
                             (() => {
                         const isSelected = selectedAvailabilityIds.includes(
@@ -1146,16 +1167,13 @@ export default function NewEnrollment() {
                                 Number(selectedPackage.sessionsPerWeek) ||
                                 hasAnotherTimeOnDay)
                             }
-                            className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors sm:w-fit sm:min-w-[260px] ${
+                            className={`flex w-fit min-w-0 items-center justify-end rounded-md border px-2 py-1 text-left text-sm transition-colors ${
                               isSelected
                                 ? 'border-primary bg-primary/10'
                                 : 'border-border bg-background hover:bg-accent'
                             } disabled:cursor-not-allowed disabled:opacity-50`}
                           >
-                            <span className="font-medium">
-                              {formatDay(rule.dayOfWeek)}
-                            </span>
-                            <span className="text-muted-foreground">
+                            <span className="whitespace-nowrap text-muted-foreground">
                               {formatTime(rule.startMinute)} -{' '}
                               {formatTime(rule.endMinute)}
                             </span>
@@ -1347,6 +1365,20 @@ export default function NewEnrollment() {
           </button>
         </div>
       </form>
+
+      {(error || success) && (
+        <div
+          className={`fixed bottom-5 right-5 z-[100] w-[min(24rem,calc(100vw-2rem))] rounded-lg border p-3 shadow-lg ${
+            error
+              ? 'border-destructive/30 bg-destructive text-destructive-foreground'
+              : 'border-green-600/30 bg-green-600 text-white'
+          }`}
+          role="alert"
+          aria-live="polite"
+        >
+          <p className="text-sm font-medium">{error || success}</p>
+        </div>
+      )}
     </div>
   );
 }

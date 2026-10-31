@@ -13,6 +13,7 @@ import useAuth from '@/core/auth/useAuth';
 import EnrollmentStatus from '../../enrollments/components/EnrollmentStatus';
 import { getMyEnrollment } from '../../enrollments/services/enrollmentServices';
 import { getMyTransactions } from '../../billing/services/billing.service';
+import { OperatingHoursAlert } from '@/components/OperatingHoursAlert';
 
 const actions = [
   {
@@ -120,6 +121,8 @@ export default function Dashboard() {
           <ArrowRight className="h-4 w-4" />
         </Link>
       </section>
+
+      <OperatingHoursAlert />
 
       <section className="grid gap-4 sm:grid-cols-3">
         <SummaryCard label="Active enrollments" value={activeEnrollments.length} />

@@ -54,12 +54,12 @@ function RevenueChart({ series }) {
   const data = [...monthly.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   const maximum = Math.max(1, ...data.map(([, amount]) => amount));
   return (
-    <Card className="reports-ui print:hidden">
-      <CardHeader>
+    <Card size="sm" className="reports-ui print:hidden">
+      <CardHeader className="p-3 pb-2">
         <CardTitle>Revenue trend</CardTitle>
         <CardDescription>Successful payment amounts by month within the selected report period.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3 pt-0">
         {data.length ? (
           <div className="flex min-h-48 items-end gap-3 overflow-x-auto pb-2" role="img" aria-label="Revenue bar chart">
             {data.map(([month, amount]) => (
@@ -148,22 +148,19 @@ export default function ReportsPage() {
       <AppSidebar variant="inset" className="print:hidden" />
       <SidebarInset>
         <SiteHeader className="print:hidden" />
-        <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-          <div className="reports-ui flex flex-wrap items-start justify-between gap-4 print:hidden">
+        <main className="flex flex-1 flex-col gap-3 p-3 lg:p-4">
+          <div className="reports-ui print:hidden">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
               <p className="text-sm text-muted-foreground">Operational overview and detailed reports for Cadenza Music Center.</p>
             </div>
-            <Button onClick={() => { setPrinting(true); requestAnimationFrame(() => window.print()); }} disabled={printing || reportLoading || Boolean(error) || !reportData || !dateValid}>
-              <PrinterIcon className="mr-2 size-4" /> Print / Save PDF
-            </Button>
           </div>
-          <Card className="reports-ui print:hidden">
-            <CardHeader><CardTitle>Report period</CardTitle><CardDescription>All dashboard metrics and report tables follow the selected date range.</CardDescription></CardHeader>
-            <CardContent className="flex flex-wrap items-end gap-3">
-              <div className="min-w-36 flex-1 space-y-2"><label className="text-sm font-medium" htmlFor="report-from">From</label><Input id="report-from" type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div>
-              <div className="min-w-36 flex-1 space-y-2"><label className="text-sm font-medium" htmlFor="report-to">To</label><Input id="report-to" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} /></div>
-              <div className="flex flex-wrap gap-2">{[7, 30, 90].map((days) => <Button key={days} variant="outline" onClick={() => setRange(days)}>Last {days} days</Button>)}</div>
+          <Card size="sm" className="reports-ui print:hidden">
+            <CardHeader className="gap-0 p-3 pb-1"><CardTitle>Report period</CardTitle><CardDescription>All dashboard metrics and report tables follow the selected date range.</CardDescription></CardHeader>
+            <CardContent className="grid gap-1 p-3 pt-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,180px)_minmax(0,180px)_1fr] lg:items-end">
+              <div className="space-y-1.5"><label className="text-sm font-medium" htmlFor="report-from">From</label><Input id="report-from" type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div>
+              <div className="space-y-1.5"><label className="text-sm font-medium" htmlFor="report-to">To</label><Input id="report-to" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} /></div>
+              <div className="flex flex-wrap gap-2 lg:justify-end">{[7, 30, 90].map((days) => <Button key={days} size="sm" variant="outline" onClick={() => setRange(days)}>Last {days} days</Button>)}</div>
             </CardContent>
           </Card>
 
@@ -173,7 +170,7 @@ export default function ReportsPage() {
             {overviewError && <p role="alert" className="text-sm text-destructive">{overviewError}</p>}
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {kpis.map(({ label, value, icon: Icon }) => (
-                <Card key={label}><CardContent className="flex flex-col gap-3 p-5">
+                <Card size="sm" key={label}><CardContent className="flex flex-col gap-2 p-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon className="size-4" />{label}</div>
                   <p className="text-2xl font-semibold tabular-nums">{overviewLoading || overviewError || !overview ? '—' : value}</p>
                 </CardContent></Card>
@@ -200,8 +197,8 @@ export default function ReportsPage() {
                 const Icon = report.icon;
                 return (
                   <button key={report.id} type="button" onClick={() => setSelectedId(report.id)} aria-pressed={selectedId === report.id}
-                    className={`rounded-xl border bg-card p-5 text-left transition-colors hover:bg-muted/50 ${selectedId === report.id ? 'border-primary ring-2 ring-primary/20' : ''}`}>
-                    <Icon className="mb-3 size-5 text-primary" />
+                    className={`rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50 ${selectedId === report.id ? 'border-primary ring-2 ring-primary/20' : ''}`}>
+                    <Icon className="mb-2 size-5 text-primary" />
                     <h3 className="font-semibold">{report.title}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{report.description}</p>
                   </button>
@@ -210,9 +207,14 @@ export default function ReportsPage() {
             </div>
           </section>
 
-          <div className="reports-ui print:hidden">
-            <h2 className="text-lg font-semibold">Report preview</h2>
-            <p className="text-sm text-muted-foreground">Select a report above to preview or print it using the existing PDF layout.</p>
+          <div className="reports-ui flex flex-wrap items-end justify-between gap-3 print:hidden">
+            <div>
+              <h2 className="text-lg font-semibold">Report preview</h2>
+              <p className="text-sm text-muted-foreground">Select a report above to preview or print it using the existing PDF layout.</p>
+            </div>
+            <Button onClick={() => { setPrinting(true); requestAnimationFrame(() => window.print()); }} disabled={printing || reportLoading || Boolean(error) || !reportData || !dateValid}>
+              <PrinterIcon className="mr-2 size-4" /> Print / Save PDF
+            </Button>
           </div>
           <ReportsPageLayout
             report={selectedReport}

@@ -12,6 +12,7 @@ import { getOperatingHours, getHoursForDate } from '@/services/operatingHoursSer
 
 import {
   checkInstrumentAvailability,
+  getAvailableInstruments,
   getInstrument,
 } from '../services/instrument-rental.service';
 import { getPaymentAccounts } from '@/services/paymentAccountsService';
@@ -116,6 +117,13 @@ export default function CreateInstrumentRental() {
     return `${parts.year}-${parts.month}-${parts.day}`;
   };
 
+  const getMinimumReturnDate = (schedule) => {
+    if (!schedule?.start) return schedule?.rentalDate || getToday();
+    return getDateKey(
+      new Date(new Date(schedule.start).getTime() + MINIMUM_RENTAL_HOURS * 60 * 60 * 1000),
+    );
+  };
+
   const getDateTimeOptions = (date, isStart, minimumTime = null, instrumentId = null) => {
     const minDateTime = new Date(now + 30 * 60 * 1000);
     const earliest = new Date(Math.ceil(minDateTime.getTime() / (30 * 60 * 1000)) * (30 * 60 * 1000));
@@ -154,6 +162,7 @@ export default function CreateInstrumentRental() {
   const [operatingHours, setOperatingHours] = useState(null);
   const [now, setNow] = useState(() => Date.now());
   const [instruments, setInstruments] = useState([]);
+  const [catalogInstruments, setCatalogInstruments] = useState([]);
   useEffect(() => {
     const refresh = () => setNow(Date.now());
     const interval = setInterval(refresh, 30_000);
@@ -175,6 +184,8 @@ export default function CreateInstrumentRental() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [showAddItems, setShowAddItems] = useState(false);
   useEffect(() => {
     let active = true;
     import('../services/instrument-rental.service').then(({ getReservedInstrumentTimes }) =>
@@ -197,46 +208,65 @@ export default function CreateInstrumentRental() {
   }, []);
 
   useEffect(() => {
-    const loadInstruments = async () => {
+    const loadInstruments = async (background = false) => {
       if (!instrumentIds.length) {
-        setError('No instruments were selected.');
-        setLoading(false);
+        try {
+          const catalogData = await getAvailableInstruments();
+          if (active) setCatalogInstruments(Array.isArray(catalogData) ? catalogData : []);
+        } catch (requestError) {
+          if (active) setError(requestError?.message || 'Unable to load available instruments.');
+        } finally {
+          if (active) setLoading(false);
+        }
         return;
       }
 
       try {
-        const data = await Promise.all(
+        const [data, catalogData] = await Promise.all([
+          Promise.all(
           instrumentIds.map((id) => getInstrument(id)),
-        );
-
-        setInstruments(data);
-
-        setSchedules(
-          Object.fromEntries(
-            data.map((instrument) => [
-              instrument.id,
-              {
-                rentalDate: '',
-                startTime: '',
-                returnDate: '',
-                endTime: '',
-                start: '',
-                end: '',
-              },
-            ]),
           ),
-        );
+          getAvailableInstruments(),
+        ]);
+
+        const availableCatalog = Array.isArray(catalogData) ? catalogData : [];
+        setCatalogInstruments(availableCatalog);
+        if (!background) setInstruments(data);
+
+        if (!background) {
+          setSchedules(
+            Object.fromEntries(
+              data.map((instrument) => [
+                instrument.id,
+                {
+                  rentalDate: '',
+                  startTime: '',
+                  returnDate: '',
+                  endTime: '',
+                  start: '',
+                  end: '',
+                },
+              ]),
+            ),
+          );
+        }
       } catch (requestError) {
         setError(
           requestError?.message ||
             'Unable to load the selected instruments.',
         );
       } finally {
-        setLoading(false);
+        if (!background) setLoading(false);
       }
     };
 
     loadInstruments();
+    const refreshTimer = window.setInterval(
+      () => loadInstruments(true),
+      15000,
+    );
+
+    return () => window.clearInterval(refreshTimer);
   }, [instrumentIds.join(',')]);
 
   useEffect(() => {
@@ -275,6 +305,9 @@ export default function CreateInstrumentRental() {
       }
       if (field === 'returnDate') next.endTime = '';
       next.start = combineDateTime(next.rentalDate, next.startTime);
+      if (field === 'startTime' && next.start) {
+        next.returnDate = getMinimumReturnDate(next);
+      }
       next.end = combineDateTime(next.returnDate, next.endTime);
       return { ...current, [id]: next };
     });
@@ -282,10 +315,42 @@ export default function CreateInstrumentRental() {
     setError('');
   };
 
+  const toggleCartInstrument = (instrument) => {
+    setInstruments((current) => {
+      if (current.some((item) => item.id === instrument.id)) {
+        setSchedules((scheduleState) => {
+          const next = { ...scheduleState };
+          delete next[instrument.id];
+          return next;
+        });
+        setAvailability((availabilityState) => {
+          const next = { ...availabilityState };
+          delete next[instrument.id];
+          return next;
+        });
+        return current.filter((item) => item.id !== instrument.id);
+      }
+
+      setSchedules((scheduleState) => ({
+        ...scheduleState,
+        [instrument.id]: {
+          rentalDate: '',
+          startTime: '',
+          returnDate: '',
+          endTime: '',
+          start: '',
+          end: '',
+        },
+      }));
+      return [...current, instrument];
+    });
+    setError('');
+  };
+
   const handleRentalDateChange = (id, field, value) => {
     const current = schedules[id] || {};
-    if (field === 'returnDate' && current.rentalDate && value < current.rentalDate) {
-      setError('Return date cannot be before the rental date.');
+    if (field === 'returnDate' && value < getMinimumReturnDate(current)) {
+      setError(`Return date must be at least ${MINIMUM_RENTAL_HOURS} hours after pickup.`);
       return;
     }
     if (isDateBlocked(value)) {
@@ -541,7 +606,7 @@ export default function CreateInstrumentRental() {
     );
   }
 
-  if (!instruments.length) {
+  if (!instruments.length && !catalogInstruments.length) {
     return (
       <div className="space-y-6 px-4 py-6 lg:px-6">
         <button
@@ -569,15 +634,11 @@ export default function CreateInstrumentRental() {
     <main className="space-y-6 px-4 py-6 lg:px-6">
       <button
         type="button"
-        onClick={() =>
-          navigate(
-            '/client/instrument-rentals',
-          )
-        }
+        onClick={() => checkoutOpen ? setCheckoutOpen(false) : navigate('/client/instrument-rentals')}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="h-4 w-4" />
-        Back to Instrument Rentals
+        {checkoutOpen ? 'Back to cart' : 'Back to Instrument Rentals'}
       </button>
 
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -589,11 +650,13 @@ export default function CreateInstrumentRental() {
 
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">
-                Rental Cart
+                {checkoutOpen ? 'Rental Checkout' : 'Rental Cart'}
               </h1>
 
               <p className="mt-1 text-sm text-muted-foreground">
-                Set a separate rental and return schedule for each selected instrument.
+                {checkoutOpen
+                  ? 'Set schedules and payment details for your selected instruments.'
+                  : 'Review your selected instruments before checkout.'}
               </p>
             </div>
           </div>
@@ -616,8 +679,120 @@ export default function CreateInstrumentRental() {
         </div>
       )}
 
+      {!checkoutOpen ? (
+        <section className="rounded-2xl border bg-card p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Your cart</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Review your instruments, then continue to rent.
+              </p>
+            </div>
+            <span className="text-sm font-medium text-muted-foreground">
+              {instruments.length} {instruments.length === 1 ? 'item' : 'items'}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            {catalogInstruments.map((instrument) => {
+              const checked = instruments.some((item) => item.id === instrument.id);
+              return (
+                <label key={instrument.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'}`}>
+                  <input type="checkbox" checked={checked} onChange={() => toggleCartInstrument(instrument)} className="h-4 w-4 accent-primary" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{getName(instrument)}</span>
+                    <span className="block text-xs text-muted-foreground">{formatCurrency(instrument.rentalRate)} / minimum rental</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          {instruments.length ? (
+            <div className="mt-5 space-y-3">
+              {instruments.map((instrument) => (
+                <div key={instrument.id} className="flex items-center justify-between gap-4 rounded-xl border p-4">
+                  <div>
+                    <p className="font-medium">{getName(instrument)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Minimum rental: {formatCurrency(instrument.rentalRate)}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => toggleCartInstrument(instrument)} className="rounded-md border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/5">
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setCheckoutOpen(true)} className="mt-3 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90">
+                Rent now
+              </button>
+            </div>
+          ) : (
+            <div className="mt-5 rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              Your cart is empty. Go back to Instrument Rentals to choose an instrument.
+            </div>
+          )}
+        </section>
+      ) : (
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
+          <section className="rounded-2xl border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Choose rental items</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Review the items for this rental and add another instrument when needed.
+                </p>
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">
+                {instruments.length} selected
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {instruments.map((instrument) => (
+                <div key={instrument.id} className="flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/5 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{getName(instrument)}</p>
+                    <p className="text-xs text-muted-foreground">{formatCurrency(instrument.rentalRate)} / minimum rental</p>
+                  </div>
+                  <button type="button" onClick={() => toggleCartInstrument(instrument)} className="shrink-0 rounded-md border px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/5">
+                    Remove
+                  </button>
+                </div>
+              ))}
+
+              <button type="button" onClick={() => setShowAddItems((current) => !current)} className="mt-2 rounded-md border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-primary/5">
+                {showAddItems ? 'Hide items' : 'Add Item'}
+              </button>
+
+              {showAddItems && (
+                <div className="border-t pt-3">
+                  <p className="mb-2 text-sm font-medium">Available instruments</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {catalogInstruments
+                      .filter((instrument) => !instruments.some((item) => item.id === instrument.id))
+                      .map((instrument) => (
+                        <button key={instrument.id} type="button" onClick={() => toggleCartInstrument(instrument)} className="rounded-lg border p-3 text-left hover:border-primary hover:bg-primary/5">
+                          <span className="block truncate text-sm font-medium">{getName(instrument)}</span>
+                          <span className="text-xs text-muted-foreground">{formatCurrency(instrument.rentalRate)} / minimum rental</span>
+                        </button>
+                      ))}
+                  </div>
+                  {!catalogInstruments.some((instrument) => !instruments.some((item) => item.id === instrument.id)) && (
+                    <p className="text-sm text-muted-foreground">No other instruments are currently available.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {!instruments.length && (
+            <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+              Select at least one instrument to configure its rental schedule.
+            </div>
+          )}
+
           {instruments.map((instrument) => {
             const schedule =
               schedules[instrument.id] || {};
@@ -669,7 +844,7 @@ export default function CreateInstrumentRental() {
                       {formatCurrency(
                         instrument.rentalRate,
                       )}{' '}
-                      / 24 hours
+                      / 8 hours
                     </p>
                   </div>
                 </div>
@@ -768,8 +943,7 @@ export default function CreateInstrumentRental() {
                         )
                       }
                       min={
-                        schedule.rentalDate ||
-                        getToday()
+                        getMinimumReturnDate(schedule)
                       }
                       className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                     />
@@ -1061,7 +1235,8 @@ export default function CreateInstrumentRental() {
             disabled={
               submitting ||
               checkingId !== null ||
-              !paymentPlan
+              !paymentPlan ||
+              !instruments.length
             }
             aria-busy={submitting}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1076,6 +1251,7 @@ export default function CreateInstrumentRental() {
           </button>
         </aside>
       </div>
+      )}
     </main>
   );
 }

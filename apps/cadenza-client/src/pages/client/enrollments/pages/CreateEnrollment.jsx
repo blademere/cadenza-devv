@@ -33,7 +33,7 @@ export default function CreateEnrollment() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadData() {
+    async function loadData(background = false) {
       if (!packageId) {
         setError("No package was selected.");
         setLoading(false);
@@ -41,7 +41,7 @@ export default function CreateEnrollment() {
       }
 
       try {
-        setLoading(true);
+        if (!background) setLoading(true);
 
         const selectedPackage = await getPackageById(packageId);
 
@@ -55,13 +55,16 @@ export default function CreateEnrollment() {
       } catch (error) {
         console.error(error);
 
-        setError("Unable to load enrollment information.");
+        if (!background) setError("Unable to load enrollment information.");
       } finally {
-        setLoading(false);
+        if (!background) setLoading(false);
       }
     }
 
     loadData();
+    const refreshTimer = window.setInterval(() => loadData(true), 15000);
+
+    return () => window.clearInterval(refreshTimer);
   }, [packageId]);
 
   const handleSubmit = async (event) => {

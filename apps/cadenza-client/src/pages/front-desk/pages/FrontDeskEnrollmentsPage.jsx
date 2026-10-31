@@ -50,6 +50,12 @@ import { enrollmentService } from '@/services/front-desk/enrollmentService';
 const formatEnrollmentReference = (id) =>
   id ? `ENR-${id.slice(0, 8).toUpperCase()}` : '—';
 
+const statusDotClass = (status) => {
+  if (status === 'ACTIVE' || status === 'APPROVED') return 'bg-emerald-500';
+  if (status === 'CANCELLED' || status === 'REJECTED') return 'bg-red-500';
+  return 'bg-amber-500';
+};
+
 export default function EnrollmentsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [enrollments, setEnrollments] = useState([]);
@@ -349,12 +355,14 @@ export default function EnrollmentsPage() {
 
                           <TableCell>
                             <Badge
+                              className="gap-1.5"
                               variant={
                                 enrollment.status === 'ACTIVE'
                                   ? 'default'
                                   : 'secondary'
                               }
                             >
+                              <span aria-hidden="true" className={`size-1.5 rounded-full ${statusDotClass(enrollment.status)}`} />
                               {enrollment.status || '—'}
                             </Badge>
                           </TableCell>

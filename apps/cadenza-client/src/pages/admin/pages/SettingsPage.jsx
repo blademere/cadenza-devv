@@ -8,6 +8,8 @@ import {
   PlusIcon,
   ListMusic,
   PowerIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
@@ -24,10 +26,11 @@ import {
 } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { Badge } from '@/components/ui/Badge';
 
 import {
-  Dialog,
-  DialogContent,
+  Dialog as BaseDialog,
+  DialogContent as BaseDialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -67,6 +70,14 @@ import {
   getBankAccountQr,
 } from '@/services/admin/settingsService';
 
+function Dialog(props) {
+  return <BaseDialog {...props} disablePointerDismissal />;
+}
+
+function DialogContent(props) {
+  return <BaseDialogContent {...props} onInteractOutside={(event) => event.preventDefault()} />;
+}
+
 const EMPTY_COURSE_FORM = {
   courseName: '',
 };
@@ -104,6 +115,24 @@ const mapCourse = (item) => ({
   status: item?.status || 'ACTIVE',
 });
 
+const SETTINGS_PAGE_SIZE = 5;
+
+function TablePagination({ page, setPage, total }) {
+  const pageCount = Math.max(1, Math.ceil(total / SETTINGS_PAGE_SIZE));
+  if (total <= SETTINGS_PAGE_SIZE) return null;
+  return (
+    <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
+      <span>Page {page} of {pageCount}</span>
+      <div className="flex items-center gap-1">
+        <Button type="button" variant="ghost" size="icon" className="size-7" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} aria-label="Previous page"><ChevronLeftIcon className="size-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="size-7" disabled={page === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))} aria-label="Next page"><ChevronRightIcon className="size-4" /></Button>
+      </div>
+    </div>
+  );
+}
+
+const pageItems = (items, page) => items.slice((page - 1) * SETTINGS_PAGE_SIZE, page * SETTINGS_PAGE_SIZE);
+
 export default function SettingsPage() {
   const [courses, setCourses] = React.useState(INITIAL_COURSES);
   const [instruments, setInstruments] = React.useState(INITIAL_INSTRUMENTS);
@@ -114,6 +143,8 @@ export default function SettingsPage() {
   const [bankAccountQr, setBankAccountQr] = React.useState(null);
   const [bankAccountSaving, setBankAccountSaving] = React.useState(false);
   const [bankAccountUpdating, setBankAccountUpdating] = React.useState(null);
+  const [bankAccountDialogOpen, setBankAccountDialogOpen] = React.useState(false);
+  const [bankAccountToToggle, setBankAccountToToggle] = React.useState(null);
   const [bankAccountQrUrls, setBankAccountQrUrls] = React.useState({});
   const bankAccountQrUrlsRef = React.useRef({});
   const [operatingHours, setOperatingHours] = React.useState(DEFAULT_OPERATING_HOURS);
@@ -123,7 +154,12 @@ export default function SettingsPage() {
   const tomorrowKey = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
   const [selectedMonth, setSelectedMonth] = React.useState(`${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}`);
   const [selectedDate, setSelectedDate] = React.useState(tomorrowKey);
-  const [overrideForm, setOverrideForm] = React.useState({ isClosed: false, startTime: '08:00', endTime: '17:00' });
+  const [overrideForm, setOverrideForm] = React.useState({ isClosed: false, reason: '', startTime: '08:00', endTime: '17:00' });
+  const [bankPage, setBankPage] = React.useState(1);
+  const [coursePage, setCoursePage] = React.useState(1);
+  const [categoryPage, setCategoryPage] = React.useState(1);
+  const [instrumentPage, setInstrumentPage] = React.useState(1);
+  const [overridePage, setOverridePage] = React.useState(1);
 
   const [courseForm, setCourseForm] = React.useState(EMPTY_COURSE_FORM);
 
@@ -225,22 +261,26 @@ export default function SettingsPage() {
   const selectOperatingDate = (date) => {
     if (date < tomorrowKey) return;
     setSelectedDate(date);
-    setOverrideForm(operatingHours.dateOverrides?.[date] || { ...DEFAULT_OPERATING_HOURS.weeklyHours['1'] });
+    setOverrideForm(operatingHours.dateOverrides?.[date] || { ...DEFAULT_OPERATING_HOURS.weeklyHours['1'], isClosed: false, reason: '' });
   };
 
   const saveDateOverride = async () => {
     if (selectedDate < tomorrowKey) return toast.error('Custom operating hours can only be set from tomorrow onward.');
+    if (overrideForm.isClosed && !overrideForm.reason?.trim()) return toast.error('A reason is required when closing a date.');
     try {
       setHoursSaving(true);
       const nextOperatingHours = {
         ...operatingHours,
         dateOverrides: {
           ...operatingHours.dateOverrides,
-          [selectedDate]: { ...overrideForm },
+          [selectedDate]: { ...overrideForm, reason: overrideForm.isClosed ? overrideForm.reason.trim() : '' },
         },
       };
       const saved = await updateOperatingHours(nextOperatingHours);
       setOperatingHours(saved);
+      setSelectedDate(tomorrowKey);
+      setSelectedMonth(tomorrowKey.slice(0, 7));
+      setOverrideForm({ ...DEFAULT_OPERATING_HOURS.weeklyHours['1'], isClosed: false, reason: '' });
       toast.success(`${selectedDate} customization saved.`);
     } catch (error) {
       toast.error(error?.message || 'Failed to save date customization.');
@@ -322,6 +362,24 @@ export default function SettingsPage() {
       toast.success(`Bank account ${status === 'ACTIVE' ? 'activated' : 'deactivated'}.`);
     } catch (error) { toast.error(error?.message || 'Failed to update bank account.'); }
     finally { setBankAccountUpdating(null); }
+  };
+
+  const openBankAccountDialog = (account) => {
+    setBankAccountToToggle(account);
+    setBankAccountDialogOpen(true);
+  };
+
+  const closeBankAccountDialog = () => {
+    if (bankAccountUpdating) return;
+    setBankAccountDialogOpen(false);
+    setBankAccountToToggle(null);
+  };
+
+  const confirmBankAccountToggle = async () => {
+    if (!bankAccountToToggle) return;
+    await toggleBankAccount(bankAccountToToggle);
+    setBankAccountDialogOpen(false);
+    setBankAccountToToggle(null);
   };
 
   const replaceQrForAccount = async (account, file) => {
@@ -693,9 +751,16 @@ export default function SettingsPage() {
   const [instrumentError, setInstrumentError] = useState('');
   const [categoryError, setCategoryError] = useState('');
 
+  const visibleBankAccounts = pageItems(bankAccounts, bankPage);
+  const visibleCourses = pageItems(courses, coursePage);
+  const visibleCategories = pageItems(categories, categoryPage);
+  const visibleInstruments = pageItems(instruments, instrumentPage);
+  const customizedDates = Object.entries(operatingHours.dateOverrides || {}).sort(([first], [second]) => first.localeCompare(second));
+  const visibleCustomizedDates = pageItems(customizedDates, overridePage);
+
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar variant="inset" />
 
       <SidebarInset>
         <SiteHeader />
@@ -729,12 +794,12 @@ export default function SettingsPage() {
 
                 <Card>
                   <CardHeader><CardTitle>Customize a date</CardTitle><CardDescription>Choose tomorrow or a future date, then set its special hours or mark it closed.</CardDescription></CardHeader>
-                  <CardContent><div className="space-y-4"><div className="flex items-center justify-between gap-3"><div><Label htmlFor="custom-month">Calendar month</Label><p className="text-sm text-muted-foreground">Select tomorrow or a future date.</p></div><Input id="custom-month" className="w-auto" type="month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} /></div><div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">{WEEKDAYS.map((day) => <div key={day} className="py-2">{day.slice(0, 3)}</div>)}{Array.from({ length: monthDays.offset }).map((_, index) => <div key={`empty-${index}`} />)}{monthDays.days.map((day) => { const date = formatDate(day); const unavailable = date < tomorrowKey; const customized = Boolean(operatingHours.dateOverrides?.[date]); return <button key={date} type="button" disabled={unavailable} onClick={() => selectOperatingDate(date)} className={`min-h-10 rounded-md border p-2 text-sm transition ${unavailable ? 'cursor-not-allowed bg-muted text-muted-foreground/50' : selectedDate === date ? 'border-primary bg-primary text-primary-foreground' : customized ? 'border-amber-400 bg-amber-50 text-amber-900' : 'hover:bg-muted'}`}>{day}</button>; })}</div><p className="text-sm font-medium">Selected date: {selectedDate}</p><div className="grid max-w-2xl gap-4 md:grid-cols-3 md:items-end"><div><Label htmlFor="selected-start">Starting time</Label><select id="selected-start" disabled={overrideForm.isClosed} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" value={overrideForm.startTime} onChange={(event) => setOverrideForm({ ...overrideForm, startTime: event.target.value })}>{TIME_OPTIONS.map((time) => <option key={time} value={time}>{formatTimeOption(time)}</option>)}</select></div><div><Label htmlFor="selected-end">Ending time</Label><select id="selected-end" disabled={overrideForm.isClosed} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" value={overrideForm.endTime} onChange={(event) => setOverrideForm({ ...overrideForm, endTime: event.target.value })}>{TIME_OPTIONS.map((time) => <option key={time} value={time}>{formatTimeOption(time)}</option>)}</select></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={overrideForm.isClosed} onChange={(event) => setOverrideForm({ ...overrideForm, isClosed: event.target.checked })} /> Closed</label></div><Button className="mt-4" type="button" onClick={saveDateOverride}>Save date customization</Button></div></CardContent>
+                  <CardContent><div className="space-y-4"><div className="flex items-center justify-between gap-3"><div><Label htmlFor="custom-month">Calendar month</Label><p className="text-sm text-muted-foreground">Select tomorrow or a future date.</p></div><Input id="custom-month" className="w-auto" type="month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} /></div><div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">{WEEKDAYS.map((day) => <div key={day} className="py-2">{day.slice(0, 3)}</div>)}{Array.from({ length: monthDays.offset }).map((_, index) => <div key={`empty-${index}`} />)}{monthDays.days.map((day) => { const date = formatDate(day); const unavailable = date < tomorrowKey; const customized = Boolean(operatingHours.dateOverrides?.[date]); return <button key={date} type="button" disabled={unavailable} onClick={() => selectOperatingDate(date)} className={`min-h-10 rounded-md border p-2 text-sm transition ${unavailable ? 'cursor-not-allowed bg-muted text-muted-foreground/50' : selectedDate === date ? 'border-primary bg-primary text-primary-foreground' : customized ? 'border-amber-400 bg-amber-50 text-amber-900' : 'hover:bg-muted'}`}>{day}</button>; })}</div><p className="text-sm font-medium">Selected date: {selectedDate}</p><div className="grid max-w-2xl gap-4 md:grid-cols-3 md:items-end"><div><Label htmlFor="selected-start">Starting time</Label><select id="selected-start" disabled={overrideForm.isClosed} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" value={overrideForm.startTime} onChange={(event) => setOverrideForm({ ...overrideForm, startTime: event.target.value })}>{TIME_OPTIONS.map((time) => <option key={time} value={time}>{formatTimeOption(time)}</option>)}</select></div><div><Label htmlFor="selected-end">Ending time</Label><select id="selected-end" disabled={overrideForm.isClosed} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" value={overrideForm.endTime} onChange={(event) => setOverrideForm({ ...overrideForm, endTime: event.target.value })}>{TIME_OPTIONS.map((time) => <option key={time} value={time}>{formatTimeOption(time)}</option>)}</select></div><Button type="button" variant={overrideForm.isClosed ? 'outline' : 'destructive'} onClick={() => setOverrideForm((current) => ({ ...current, isClosed: !current.isClosed }))}>{overrideForm.isClosed ? 'Reopen date' : 'Close date'}</Button></div>{overrideForm.isClosed && <div><Label htmlFor="close-reason">Reason for closing</Label><Input id="close-reason" value={overrideForm.reason || ''} placeholder="e.g. Holiday or private event" onChange={(event) => setOverrideForm({ ...overrideForm, reason: event.target.value })} /></div>}<Button className="mt-4" type="button" onClick={saveDateOverride}>Save date customization</Button></div></CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader><CardTitle className="text-base">Customized dates only</CardTitle><CardDescription>These dates override the default 8:00 AM–5:00 PM schedule.</CardDescription></CardHeader>
-                  <CardContent>{Object.keys(operatingHours.dateOverrides || {}).length === 0 ? <p className="text-sm text-muted-foreground">No customized dates yet.</p> : <div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Operating hours</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{Object.entries(operatingHours.dateOverrides).sort(([a], [b]) => a.localeCompare(b)).map(([date, entry]) => <TableRow key={date}><TableCell className="font-medium">{date}</TableCell><TableCell>{entry.isClosed ? 'Closed' : `${entry.startTime} – ${entry.endTime}`}</TableCell><TableCell className="text-right"><Button type="button" variant="ghost" size="sm" onClick={() => removeOverride(date)}>Remove</Button></TableCell></TableRow>)}</TableBody></Table></div>}</CardContent>
+                  <CardContent>{customizedDates.length === 0 ? <p className="text-sm text-muted-foreground">No customized dates yet.</p> : <div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Operating hours</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{visibleCustomizedDates.map(([date, entry]) => <TableRow key={date}><TableCell className="font-medium">{date}</TableCell><TableCell><Badge variant="outline" className={entry.isClosed ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}>{entry.isClosed ? 'Closed' : `${entry.startTime} – ${entry.endTime}`}</Badge></TableCell><TableCell>{entry.reason || '—'}</TableCell><TableCell className="text-right"><Button type="button" variant="ghost" size="sm" onClick={() => removeOverride(date)}>Remove</Button></TableCell></TableRow>)}</TableBody></Table><TablePagination page={overridePage} setPage={setOverridePage} total={customizedDates.length} /></div>}</CardContent>
                 </Card>
                 <div className="hidden">
                   <div><h3 className="font-medium">Date-specific overrides and closures</h3><p className="text-sm text-muted-foreground">Use these for holidays, special events, or extended hours. An override replaces that day’s weekly hours.</p></div>
@@ -778,12 +843,12 @@ export default function SettingsPage() {
                   <div className="rounded-md border">
                     <Table>
                       <TableHeader><TableRow><TableHead>Bank</TableHead><TableHead>Account number</TableHead><TableHead>QR code</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
-                      <TableBody>{bankAccounts.map((account) => (
+                      <TableBody>{visibleBankAccounts.map((account) => (
                         <TableRow key={account.id}>
                           <TableCell className="font-medium">{account.bankName || 'Bank name not set'}</TableCell>
                           <TableCell>{account.accountNumber}</TableCell>
                           <TableCell>{account.hasQr ? <Button type="button" variant="ghost" size="sm" onClick={() => viewBankAccountQr(account)}>View QR</Button> : 'Not uploaded'}</TableCell>
-                          <TableCell>{account.status === 'ACTIVE' ? 'Active' : 'Inactive'}</TableCell>
+                          <TableCell><Badge variant="outline" className={account.status === 'ACTIVE' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}>{account.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge></TableCell>
                           <TableCell className="text-right">
                              <div className="flex flex-wrap items-center justify-end gap-2">
                                <label className="cursor-pointer rounded-md border px-3 py-1.5 text-xs font-medium">
@@ -800,12 +865,13 @@ export default function SettingsPage() {
                                    }}
                                  />
                                </label>
-                               <Button type="button" variant="ghost" size="sm" disabled={bankAccountUpdating === account.id} onClick={() => toggleBankAccount(account)}>{bankAccountUpdating === account.id ? 'Saving...' : account.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</Button>
+                               <Button type="button" variant="ghost" size="icon" className={account.status === 'ACTIVE' ? 'text-destructive hover:bg-destructive/10 hover:text-destructive' : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700'} title={account.status === 'ACTIVE' ? 'Deactivate account' : 'Activate account'} aria-label={account.status === 'ACTIVE' ? 'Deactivate account' : 'Activate account'} disabled={bankAccountUpdating === account.id} onClick={() => openBankAccountDialog(account)}><PowerIcon className="size-4" /></Button>
                              </div>
                            </TableCell>
                         </TableRow>
                       ))}</TableBody>
                     </Table>
+                    <TablePagination page={bankPage} setPage={setBankPage} total={bankAccounts.length} />
                   </div>
                 )}
               </CardContent>
@@ -865,22 +931,14 @@ export default function SettingsPage() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        courses.map((course) => (
+                        visibleCourses.map((course) => (
                           <TableRow key={course.id}>
                             <TableCell className="font-medium">
                               {course.name}
                             </TableCell>
 
                             <TableCell>
-                              <span
-                                className={
-                                  course.status === 'ACTIVE'
-                                    ? 'inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700'
-                                    : 'inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'
-                                }
-                              >
-                                {course.status}
-                              </span>
+                              <Badge variant="outline" className={course.status === 'ACTIVE' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}>{course.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge>
                             </TableCell>
 
                             <TableCell>
@@ -908,6 +966,7 @@ export default function SettingsPage() {
                       )}
                     </TableBody>
                   </Table>
+                  <TablePagination page={coursePage} setPage={setCoursePage} total={courses.length} />
                 </div>
               </CardContent>
             </Card>
@@ -972,22 +1031,14 @@ export default function SettingsPage() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        categories.map((category) => (
+                        visibleCategories.map((category) => (
                           <TableRow key={category.id}>
                             <TableCell className="font-medium">
                               {category.name}
                             </TableCell>
 
                             <TableCell>
-                              <span
-                                className={
-                                  category.status === 'ACTIVE'
-                                    ? 'inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700'
-                                    : 'inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'
-                                }
-                              >
-                                {category.status}
-                              </span>
+                              <Badge variant="outline" className={category.status === 'ACTIVE' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}>{category.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge>
                             </TableCell>
 
                             <TableCell>
@@ -1015,6 +1066,7 @@ export default function SettingsPage() {
                       )}
                     </TableBody>
                   </Table>
+                  <TablePagination page={categoryPage} setPage={setCategoryPage} total={categories.length} />
                 </div>
               </CardContent>
             </Card>
@@ -1065,22 +1117,14 @@ export default function SettingsPage() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        instruments.map((instrument) => (
+                        visibleInstruments.map((instrument) => (
                           <TableRow key={instrument.id}>
                             <TableCell className="font-medium">
                               {instrument.name}
                             </TableCell>
 
                             <TableCell>
-                              <span
-                                className={
-                                  instrument.status === 'ACTIVE'
-                                    ? 'inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700'
-                                    : 'inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'
-                                }
-                              >
-                                {instrument.status}
-                              </span>
+                              <Badge variant="outline" className={instrument.status === 'ACTIVE' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}>{instrument.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge>
                             </TableCell>
 
                             <TableCell>
@@ -1112,12 +1156,39 @@ export default function SettingsPage() {
                       )}
                     </TableBody>
                   </Table>
+                  <TablePagination page={instrumentPage} setPage={setInstrumentPage} total={instruments.length} />
                 </div>
               </CardContent>
             </Card>
           </div>
         </main>
       </SidebarInset>
+
+      <Dialog
+        open={bankAccountDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeBankAccountDialog();
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {bankAccountToToggle?.status === 'ACTIVE' ? 'Deactivate payment bank account?' : 'Activate payment bank account?'}
+            </DialogTitle>
+            <DialogDescription>
+              {bankAccountToToggle?.status === 'ACTIVE'
+                ? <>This account will no longer be available for client payments: <span className="font-medium text-foreground">{bankAccountToToggle?.bankName || 'Payment account'}</span>.</>
+                : <>This account will become available for client payments again: <span className="font-medium text-foreground">{bankAccountToToggle?.bankName || 'Payment account'}</span>.</>}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeBankAccountDialog} disabled={Boolean(bankAccountUpdating)}>Cancel</Button>
+            <Button type="button" variant={bankAccountToToggle?.status === 'ACTIVE' ? 'destructive' : 'default'} onClick={confirmBankAccountToggle} disabled={Boolean(bankAccountUpdating)}>
+              {bankAccountUpdating ? <><Loader2Icon className="mr-2 size-4 animate-spin" />Saving...</> : bankAccountToToggle?.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={courseDialogOpen}

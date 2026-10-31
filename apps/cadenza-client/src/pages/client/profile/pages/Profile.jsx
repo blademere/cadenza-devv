@@ -156,7 +156,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
     if (
       !form.firstName.trim() ||
       !form.lastName.trim() ||
-      (!staffProfile && (!form.contactNo.trim() || !form.address.trim() || !form.age || !form.gender || (showGuardian && !form.guardianName.trim())))
+      (!staffProfile && (!form.contactNo.trim() || !form.address.trim() || !form.age || !form.gender || (showGuardian && !isAdult && !form.guardianName.trim())))
     ) {
       toast.error(showGuardian ? 'First name, last name, contact number, age, gender, address and guardian are required.' : 'First name, last name, contact number, age, gender and address are required.');
       return;
@@ -222,6 +222,8 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
       setSaving(false);
     }
   };
+
+  const isAdult = !staffProfile && Number(form.age) >= 18;
 
   const fullName = [form.firstName, form.middleName, form.lastName, form.suffix]
     .filter(Boolean)
@@ -354,7 +356,7 @@ export default function Profile({ showGuardian = true, staffProfile = false }) {
               onChange={updateField('address')}
               required={!staffProfile}
             />
-            {showGuardian && <Field label="Guardian name" value={form.guardianName} onChange={updateField('guardianName')} required error={fieldErrors.guardianName} />}
+            {showGuardian && <Field label={isAdult ? 'Guardian name (not required for adults)' : 'Guardian name'} value={form.guardianName} onChange={updateField('guardianName')} required={!isAdult} disabled={isAdult} error={isAdult ? '' : fieldErrors.guardianName} />}
             <div className="flex justify-end border-t border-border pt-5">
               <button
                 type="submit"
@@ -631,7 +633,7 @@ function Detail({ label, value, icon }) {
   );
 }
 
-function Field({ label, value, onChange, required = false, type = 'text', placeholder, inputMode, maxLength, error }) {
+function Field({ label, value, onChange, required = false, type = 'text', placeholder, inputMode, maxLength, error, disabled = false }) {
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">
@@ -646,8 +648,9 @@ function Field({ label, value, onChange, required = false, type = 'text', placeh
         inputMode={inputMode}
         maxLength={maxLength}
         required={required}
+        disabled={disabled}
         aria-invalid={Boolean(error)}
-        className={`h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 ${error ? 'border-destructive' : 'border-input'}`}
+        className={`h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground ${error ? 'border-destructive' : 'border-input'}`}
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

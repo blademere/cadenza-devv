@@ -1,6 +1,5 @@
 "use client"
 
-import { Badge } from "@/components/ui/Badge"
 import {
   Card,
   CardAction,
@@ -15,6 +14,7 @@ import {
   UserRoundIcon,
   PhilippinePesoIcon,
   TrendingUpIcon,
+  TrendingDownIcon,
 } from "lucide-react"
 
 const defaultCards = [
@@ -71,10 +71,17 @@ export function SectionCards({ cards = defaultCards, loading = false }) {
               </CardTitle>
 
               <CardAction>
-                <Badge variant="outline">
-                  <TrendingUpIcon className="size-3" />
-                  {card.change}
-                </Badge>
+                <span
+                  className={card.trend === "down" ? "text-red-600" : "text-emerald-600"}
+                  title={card.trend === "down" ? "Lower than last month" : "Higher than or equal to last month"}
+                  aria-label={card.trend === "down" ? "Lower than last month" : "Higher than or equal to last month"}
+                >
+                  {card.trend === "down" ? (
+                    <TrendingDownIcon className="size-6" />
+                  ) : (
+                    <TrendingUpIcon className="size-6" />
+                  )}
+                </span>
               </CardAction>
             </CardHeader>
 

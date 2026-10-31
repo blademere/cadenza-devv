@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 
 import {
   BadRequestError,
+  ConflictError,
   NotFoundError,
 } from '../../../../common/errors/appError.js';
 
@@ -25,6 +26,7 @@ const sanitizeFileName = (fileName) => {
 
 const mapMaterial = (material) => ({
   id: material.id,
+  status: material.status || 'ACTIVE',
   storageReference: material.storageReference,
   name: material.name || '',
   type: material.type,
@@ -226,9 +228,10 @@ export const coursesService = {
           const originalFileName = item.metadata?.fileName;
 
           return (
-            storedFileName === requestedFileName ||
-            referenceFileName === requestedFileName ||
-            originalFileName === requestedFileName
+            item.status !== 'INACTIVE' &&
+            (storedFileName === requestedFileName ||
+              referenceFileName === requestedFileName ||
+              originalFileName === requestedFileName)
           );
         })
       : null;
@@ -495,9 +498,17 @@ export const coursesService = {
       throw new NotFoundError('Course not found.');
     }
 
+    const activeEnrollmentCount =
+      await coursesRepository.countActiveEnrollmentsForCourse(appId, id);
+
+    if (activeEnrollmentCount > 0) {
+      throw new ConflictError(
+        'This course cannot be deactivated while it has active enrollments.',
+      );
+    }
+
     await coursesRepository.updateCourse(appId, id, {
       status: 'INACTIVE',
-      packageId: null,
     });
 
     const result = await coursesRepository.findCourseById(appId, id);
@@ -581,5 +592,63 @@ export const coursesService = {
       id: materialId,
       deleted: true,
     };
+  },
+
+  async deactivateMaterial(appId, courseId, materialId) {
+    const course = await coursesRepository.findCourseById(appId, courseId);
+
+    if (!course) {
+      throw new NotFoundError('Course not found.');
+    }
+
+    const material = Array.isArray(course.materials)
+      ? course.materials.find((item) => item.id === materialId)
+      : null;
+
+    if (!material) {
+      throw new NotFoundError('Course material not found.');
+    }
+
+    const updated = await coursesRepository.updateMaterial(
+      appId,
+      courseId,
+      materialId,
+      { status: 'INACTIVE' },
+    );
+
+    if (!updated.count) {
+      throw new NotFoundError('Course material not found.');
+    }
+
+    return { id: materialId, status: 'INACTIVE' };
+  },
+
+  async reactivateMaterial(appId, courseId, materialId) {
+    const course = await coursesRepository.findCourseById(appId, courseId);
+
+    if (!course) {
+      throw new NotFoundError('Course not found.');
+    }
+
+    const material = Array.isArray(course.materials)
+      ? course.materials.find((item) => item.id === materialId)
+      : null;
+
+    if (!material) {
+      throw new NotFoundError('Course material not found.');
+    }
+
+    const updated = await coursesRepository.updateMaterial(
+      appId,
+      courseId,
+      materialId,
+      { status: 'ACTIVE' },
+    );
+
+    if (!updated.count) {
+      throw new NotFoundError('Course material not found.');
+    }
+
+    return { id: materialId, status: 'ACTIVE' };
   },
 };

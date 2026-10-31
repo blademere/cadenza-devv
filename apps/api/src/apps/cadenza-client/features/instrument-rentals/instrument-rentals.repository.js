@@ -98,6 +98,16 @@ export const instrumentRentalsRepository = {
     return rentals.find((rental) => rental.id === id) || null;
   },
 
+  updateReturnedInstrumentStatuses(appId, rentalId, status) {
+    return prisma.cadenzaInstrument.updateMany({
+      where: {
+        appId,
+        rentalItems: { some: { rentalId } },
+      },
+      data: { status },
+    });
+  },
+
   async receiveRental(appId, id, data) {
     const result = await prisma.cadenzaRental.updateMany({
       where: { id, appId, status: 'APPROVED' },

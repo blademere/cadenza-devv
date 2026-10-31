@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { AppSidebar } from '../components/app-sidebar';
@@ -29,6 +35,21 @@ const addDays = (dateKey, amount) => {
   const date = new Date(`${dateKey}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + amount);
   return date.toISOString().slice(0, 10);
+};
+
+const dateKeyFromDate = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const calendarDaysForMonth = (month) => {
+  const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+  const start = new Date(firstDay);
+  start.setDate(1 - firstDay.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return date;
+  });
 };
 
 const timeOptions = Array.from(
@@ -175,29 +196,48 @@ export default function FrontDeskWalkInRoomBookingPage() {
     type: '',
     text: '',
   });
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const initialDate = new Date(`${addDays(localDate(), 1)}T12:00:00`);
+    return new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
+  });
 
   useEffect(() => {
-    Promise.all([getRooms(), getOperatingHours()])
-      .then(([roomData, hours]) => {
+    const loadSupportingData = async (background = false) => {
+      try {
+        const [roomData, hours] = await Promise.all([
+          getRooms(),
+          getOperatingHours(),
+        ]);
+
         setRooms(
           (Array.isArray(roomData) ? roomData : []).filter(
             (room) =>
               room.status === 'AVAILABLE' && Number(room.rentalRate) > 0,
           ),
         );
-
         setOperatingHours(hours);
-      })
-      .catch((error) => {
-        setMessage({
-          type: 'error',
-          text:
-            error?.response?.data?.message ||
-            error?.message ||
-            'Unable to load walk-in booking settings.',
-        });
-      })
-      .finally(() => setLoading(false));
+      } catch (error) {
+        if (!background) {
+          setMessage({
+            type: 'error',
+            text:
+              error?.response?.data?.message ||
+              error?.message ||
+              'Unable to load walk-in booking settings.',
+          });
+        }
+      } finally {
+        if (!background) setLoading(false);
+      }
+    };
+
+    loadSupportingData();
+    const refreshTimer = window.setInterval(
+      () => loadSupportingData(true),
+      15000,
+    );
+
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   const update = (key, value) => {
@@ -230,6 +270,19 @@ export default function FrontDeskWalkInRoomBookingPage() {
   };
 
   const today = localDate();
+
+  const calendarDays = useMemo(
+    () => calendarDaysForMonth(calendarMonth),
+    [calendarMonth],
+  );
+
+  const selectDate = (dateKey) => {
+    if (dateKey < today) return;
+
+    update('date', dateKey);
+    update('startTime', '');
+    update('endTime', '');
+  };
 
   const selectedHours = getHoursForDate(operatingHours, form.date);
 
@@ -392,7 +445,7 @@ export default function FrontDeskWalkInRoomBookingPage() {
       <SidebarInset>
         <SiteHeader />
 
-        <main className="flex flex-1 flex-col gap-6 p-6">
+        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-6">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -411,17 +464,106 @@ export default function FrontDeskWalkInRoomBookingPage() {
             </div>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Customer and booking details</CardTitle>
+          <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+            <Card className="w-full lg:sticky lg:top-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CalendarDays className="size-4" />
+                  Choose booking date
+                </CardTitle>
+                <CardDescription>
+                  Select a date without changing the booking steps.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Previous month"
+                    onClick={() =>
+                      setCalendarMonth((current) =>
+                        new Date(current.getFullYear(), current.getMonth() - 1, 1),
+                      )
+                    }
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <p className="text-sm font-semibold">
+                    {calendarMonth.toLocaleDateString('en-US', {
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Next month"
+                    onClick={() =>
+                      setCalendarMonth((current) =>
+                        new Date(current.getFullYear(), current.getMonth() + 1, 1),
+                      )
+                    }
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
 
-              <CardDescription>
-                Only registered operating-hour slots are available. The booking
-                is approved after server-side validation.
-              </CardDescription>
-            </CardHeader>
+                <div className="mt-3 grid grid-cols-7 text-center text-xs text-muted-foreground">
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                    <span key={`${day}-${index}`} className="py-2 font-medium">
+                      {day}
+                    </span>
+                  ))}
+                  {calendarDays.map((date) => {
+                    const dateKey = dateKeyFromDate(date);
+                    const isPast = dateKey < today;
+                    const isCurrentMonth = date.getMonth() === calendarMonth.getMonth();
+                    const isSelected = dateKey === form.date;
 
-            <CardContent>
+                    return (
+                      <button
+                        key={dateKey}
+                        type="button"
+                        disabled={isPast}
+                        onClick={() => selectDate(dateKey)}
+                        className={`mx-auto flex size-8 items-center justify-center rounded-full text-sm transition-colors ${
+                          isSelected
+                            ? 'bg-primary text-primary-foreground'
+                            : isPast || !isCurrentMonth
+                              ? 'text-muted-foreground/40'
+                              : 'hover:bg-muted'
+                        }`}
+                        aria-label={`Choose ${date.toLocaleDateString('en-US', {
+                          dateStyle: 'full',
+                        })}`}
+                        aria-pressed={isSelected}
+                      >
+                        {date.getDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="mt-4 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                  Selected: <span className="font-medium text-foreground">{new Date(`${form.date}T12:00:00`).toLocaleDateString('en-US', { dateStyle: 'medium' })}</span>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer and booking details</CardTitle>
+
+                <CardDescription>
+                  Only registered operating-hour slots are available. The booking
+                  is approved after server-side validation.
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent>
               <form onSubmit={submit} className="space-y-5" noValidate>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="text-sm">
@@ -629,39 +771,6 @@ export default function FrontDeskWalkInRoomBookingPage() {
                   )}
 
                   <label className="text-sm">
-                    Date
-                    <input
-                      required
-                      min={addDays(today, 1)}
-                      max={addDays(today, 5)}
-                      type="date"
-                      className={fieldClass}
-                      value={form.date}
-                      onChange={(event) => {
-                        const selectedDate = event.target.value;
-                        update(
-                          'date',
-                          selectedDate < addDays(today, 1)
-                            ? addDays(today, 1)
-                            : selectedDate > addDays(today, 5)
-                              ? addDays(today, 5)
-                              : selectedDate,
-                        );
-                        update('startTime', '');
-                        update('endTime', '');
-                      }}
-                      onBlur={(event) => {
-                        const selectedDate = event.target.value;
-                        if (selectedDate < addDays(today, 1)) {
-                          update('date', addDays(today, 1));
-                        } else if (selectedDate > addDays(today, 5)) {
-                          update('date', addDays(today, 5));
-                        }
-                      }}
-                    />
-                  </label>
-
-                  <label className="text-sm">
                     Start time
                     <select
                       required
@@ -690,8 +799,9 @@ export default function FrontDeskWalkInRoomBookingPage() {
                     End time
                     <select
                       required
-                      className={fieldClass}
+                      className={`${fieldClass} disabled:cursor-not-allowed disabled:border-muted disabled:bg-muted disabled:text-muted-foreground`}
                       value={form.endTime}
+                      disabled={!form.startTime || selectedHours?.isClosed}
                       onChange={(event) =>
                         update('endTime', event.target.value)
                       }
@@ -732,7 +842,8 @@ export default function FrontDeskWalkInRoomBookingPage() {
                 </Button>
               </form>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>

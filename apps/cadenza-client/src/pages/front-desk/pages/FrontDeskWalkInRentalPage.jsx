@@ -43,8 +43,7 @@ const addDays = (dateKey, amount) => {
   date.setUTCDate(date.getUTCDate() + amount);
   return date.toISOString().slice(0, 10);
 };
-const earliestRentalDate = (today) => addDays(today, 1);
-const latestRentalDate = (today) => addDays(today, 5);
+const earliestRentalDate = (today) => today;
 
 const minimumReturn = (config, dateKey, startTime) => {
   if (!dateKey || !startTime) return null;
@@ -183,6 +182,7 @@ export default function FrontDeskWalkInRentalPage() {
   const navigate = useNavigate();
 
   const [instruments, setInstruments] = useState([]);
+  const [instrumentCategory, setInstrumentCategory] = useState('ALL');
   const [operatingHours, setOperatingHours] = useState(null);
 
   const [form, setForm] = useState({
@@ -206,8 +206,13 @@ export default function FrontDeskWalkInRentalPage() {
   const [touched, setTouched] = useState({});
 
   useEffect(() => {
-    Promise.all([getInstruments(), getOperatingHours()])
-      .then(([instrumentData, hours]) => {
+    const loadSupportingData = async (background = false) => {
+      try {
+        const [instrumentData, hours] = await Promise.all([
+          getInstruments(),
+          getOperatingHours(),
+        ]);
+
         setInstruments(
           (Array.isArray(instrumentData) ? instrumentData : []).filter(
             (instrument) =>
@@ -217,17 +222,28 @@ export default function FrontDeskWalkInRentalPage() {
         );
 
         setOperatingHours(hours);
-      })
-      .catch((error) =>
-        setMessage({
-          type: 'error',
-          text:
-            error?.response?.data?.message ||
-            error?.message ||
-            'Unable to load rental settings.',
-        }),
-      )
-      .finally(() => setLoading(false));
+      } catch (error) {
+        if (!background) {
+          setMessage({
+            type: 'error',
+            text:
+              error?.response?.data?.message ||
+              error?.message ||
+              'Unable to load rental settings.',
+          });
+        }
+      } finally {
+        if (!background) setLoading(false);
+      }
+    };
+
+    loadSupportingData();
+    const refreshTimer = window.setInterval(
+      () => loadSupportingData(true),
+      15000,
+    );
+
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   const update = (key, value) => {
@@ -375,6 +391,19 @@ export default function FrontDeskWalkInRentalPage() {
 
   const selectedInstrument = instruments.find(
     (instrument) => instrument.id === form.instrumentId,
+  );
+  const instrumentCategories = Array.from(
+    new Map(
+      instruments
+        .map((instrument) => instrument.itemCategory)
+        .filter((category) => category?.id)
+        .map((category) => [category.id, category]),
+    ).values(),
+  ).sort((left, right) => left.name.localeCompare(right.name));
+  const visibleInstruments = instruments.filter(
+    (instrument) =>
+      instrumentCategory === 'ALL' ||
+      instrument.itemCategory?.id === instrumentCategory,
   );
   const rentalHours = operationalHoursBetween();
   const billableHours = Math.max(8, Math.ceil(rentalHours));
@@ -524,15 +553,21 @@ export default function FrontDeskWalkInRentalPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Customer and rental details</CardTitle>
+              <CardTitle>Walk-in rental checkout</CardTitle>
               <CardDescription>
-                Only registered operating hours count toward the 8-hour
-                minimum. Closed dates and past time slots are blocked.
+                Complete the customer details, choose an available instrument,
+                then confirm the rental schedule and payment.
               </CardDescription>
             </CardHeader>
 
             <CardContent>
               <form onSubmit={submit} className="space-y-5" noValidate>
+                <div className="border-b pb-2">
+                  <h2 className="font-medium">1. Customer details</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Record the walk-in customer’s contact details.
+                  </p>
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="text-sm">
                     First name
@@ -702,7 +737,46 @@ export default function FrontDeskWalkInRentalPage() {
                     )}
                   </label>
 
-                  <label className="text-sm sm:col-span-2">
+                  <div className="border-b pb-2 sm:col-span-2">
+                    <h2 className="font-medium">2. Instrument and schedule</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Choose by category, then select the rental dates and times.
+                    </p>
+                  </div>
+
+                  <label className="text-sm">
+                    Instrument category
+
+                    <select
+                      className={fieldClass}
+                      value={instrumentCategory}
+                      disabled={loading}
+                      onChange={(event) => {
+                        const category = event.target.value;
+                        setInstrumentCategory(category);
+                        if (
+                          form.instrumentId &&
+                          category !== 'ALL' &&
+                          !instruments.some(
+                            (instrument) =>
+                              instrument.id === form.instrumentId &&
+                              instrument.itemCategory?.id === category,
+                          )
+                        ) {
+                          update('instrumentId', '');
+                        }
+                      }}
+                    >
+                      <option value="ALL">All categories</option>
+                      {instrumentCategories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="text-sm">
                     Instrument
 
                     <select
@@ -720,7 +794,7 @@ export default function FrontDeskWalkInRentalPage() {
                           : 'Select an instrument'}
                       </option>
 
-                      {instruments.map((instrument) => (
+                      {visibleInstruments.map((instrument) => (
                         <option key={instrument.id} value={instrument.id}>
                           {[instrument.brand, instrument.model]
                             .filter(Boolean)
@@ -730,9 +804,9 @@ export default function FrontDeskWalkInRentalPage() {
                       ))}
                     </select>
 
-                    {!loading && instruments.length === 0 && (
+                    {!loading && visibleInstruments.length === 0 && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        No available instruments with a rental rate were found.
+                        No available instruments were found in this category.
                       </p>
                     )}
                   </label>
@@ -743,14 +817,13 @@ export default function FrontDeskWalkInRentalPage() {
                     <input
                       required
                       min={earliestRentalDate(today)}
-                      max={latestRentalDate(today)}
                       type="date"
                       className={fieldClass}
                       value={form.date}
                       onChange={(event) => {
                         const nextDate = event.target.value;
 
-                        update('date', nextDate < earliestRentalDate(today) || nextDate > latestRentalDate(today) ? earliestRentalDate(today) : nextDate);
+                        update('date', nextDate < earliestRentalDate(today) ? earliestRentalDate(today) : nextDate);
                         update('startTime', '');
                         update('endTime', '');
 
@@ -868,10 +941,18 @@ export default function FrontDeskWalkInRentalPage() {
                   </p>
                 )}
 
-                <Button type="submit" disabled={saving || loading}>
+                <div className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="font-medium">3. Confirm walk-in rental</h2>
+                    <p className="text-sm text-muted-foreground">
+                      The rental is created as approved after submission.
+                    </p>
+                  </div>
+                  <Button type="submit" disabled={saving || loading || !selectedInstrument}>
                   {saving && <Loader2 className="animate-spin" />}
                   {saving ? 'Creating rental...' : 'Create walk-in rental'}
-                </Button>
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>

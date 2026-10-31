@@ -12,8 +12,10 @@ const packageInclude = {
       level: true,
       status: true,
       materials: {
+        where: { status: 'ACTIVE' },
         select: {
           id: true,
+          status: true,
           name: true,
           type: true,
           storageReference: true,
@@ -40,8 +42,10 @@ const packageInclude = {
           level: true,
           status: true,
           materials: {
+            where: { status: 'ACTIVE' },
             select: {
               id: true,
+              status: true,
               name: true,
               type: true,
               storageReference: true,
@@ -359,6 +363,18 @@ export const enrollmentRepository = {
           startMinute: 'asc',
         },
       ],
+    });
+  },
+
+  async findInstructorFutureSessions(appId, instructorId) {
+    return prisma.cadenzaLessonSession.findMany({
+      where: {
+        appId,
+        instructorId,
+        scheduledEnd: { gte: new Date() },
+        status: { notIn: ['CANCELLED'] },
+      },
+      select: { scheduledStart: true, scheduledEnd: true },
     });
   },
 

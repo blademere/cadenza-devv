@@ -506,6 +506,10 @@ export default function RentalsPage() {
 
   const handleConfirmReturn = async () => {
     if (!selectedRental) return;
+    if (returnCondition !== 'GOOD' && Number(damageFee) <= 0) {
+      setActionError('Enter a damage fee greater than 0 for this condition.');
+      return;
+    }
 
     try {
       setActionLoading(true);
@@ -535,6 +539,12 @@ export default function RentalsPage() {
   const selectedCondition = returnConditions.find(
     (condition) => condition.value === returnCondition,
   );
+  const conditionDescription = {
+    GOOD: 'Returned in working condition with no assessed damage.',
+    MINOR_DAMAGE: 'Usable, but requires minor repair or maintenance.',
+    MAJOR_DAMAGE: 'Significant damage that requires major repair or replacement parts.',
+    LOST: 'The instrument was not returned or cannot be located.',
+  }[returnCondition];
   const expectedReturnAt = selectedRental?.scheduledEnd
     ? new Date(selectedRental.scheduledEnd)
     : null;
@@ -569,6 +579,12 @@ export default function RentalsPage() {
     }
 
     return 'secondary';
+  };
+  const statusDotClass = (status) => {
+    if (status === 'Approved') return 'bg-emerald-500';
+    if (status === 'Returned') return 'bg-slate-500';
+    if (status === 'Rejected') return 'bg-red-500';
+    return 'bg-amber-500';
   };
 
   return (
@@ -819,7 +835,8 @@ export default function RentalsPage() {
                           {/* Status */}
 
                           <TableCell>
-                            <Badge variant={getStatusVariant(rental.status)}>
+                            <Badge variant={getStatusVariant(rental.status)} className="gap-1.5">
+                              <span aria-hidden="true" className={`size-1.5 rounded-full ${statusDotClass(rental.status)}`} />
                               {rental.status}
                             </Badge>
                           </TableCell>
@@ -892,7 +909,11 @@ export default function RentalsPage() {
           {/* ---------------------------------------------
               Rental Details Dialog
           --------------------------------------------- */}
-          <Dialog open={showDetails} onOpenChange={setShowDetails}>
+          <Dialog
+            open={showDetails}
+            onOpenChange={setShowDetails}
+            disablePointerDismissal
+          >
             <DialogContent className="sm:max-w-[520px] sm:max-h-[90vh] overflow-y-auto">
               {selectedRental && (
                 <>
@@ -1007,9 +1028,10 @@ export default function RentalsPage() {
                               Deposit Collected
                             </p>
                             <p className="font-medium">
-                              {(selectedRental.metadata?.depositAmount ?? 0) &&
-                                0 &&
-                                '—'}
+                              ₱{Number(selectedRental.metadata?.depositAmount ?? 0).toLocaleString('en-PH', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
                             </p>
                           </div>
 
@@ -1276,7 +1298,11 @@ export default function RentalsPage() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={showReceiveDialog} onOpenChange={setShowReceiveDialog}>
+          <Dialog
+            open={showReceiveDialog}
+            onOpenChange={setShowReceiveDialog}
+            disablePointerDismissal
+          >
             <DialogContent className="sm:max-w-[420px]">
               <DialogHeader>
                 <DialogTitle>Receive Instrument</DialogTitle>
@@ -1390,7 +1416,11 @@ export default function RentalsPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+          <Dialog
+            open={showReturnDialog}
+            onOpenChange={setShowReturnDialog}
+            disablePointerDismissal
+          >
             <DialogContent className="max-h-[90vh] max-w-[min(720px,calc(100vw-2rem))] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Process instrument return</DialogTitle>
@@ -1455,7 +1485,10 @@ export default function RentalsPage() {
                   <select
                     id="return-condition"
                     value={returnCondition}
-                    onChange={(event) => setReturnCondition(event.target.value)}
+                    onChange={(event) => {
+                      setReturnCondition(event.target.value);
+                      setDamageFee('0');
+                    }}
                     className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     {returnConditions.map((condition) => (
@@ -1464,32 +1497,34 @@ export default function RentalsPage() {
                       </option>
                     ))}
                   </select>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="return-damage-fee"
-                    className="text-sm font-medium"
-                  >
-                    Damage fee
-                  </label>
-                  <div className="mt-2 flex items-center rounded-md border border-input bg-background">
-                    <span className="px-3 text-sm text-muted-foreground">
-                      ₱
-                    </span>
-                    <input
-                      id="return-damage-fee"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={damageFee}
-                      onChange={(event) => setDamageFee(event.target.value)}
-                      className="h-10 w-full bg-transparent pr-3 text-sm outline-none"
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Enter the assessed damage amount manually.
-                  </p>
+                  {selectedCondition && (
+                    <div className="mt-3 grid gap-3 rounded-md border bg-muted/30 p-3 text-sm sm:grid-cols-[1fr_auto] sm:items-start">
+                      <div>
+                        <p className="font-medium">{selectedCondition.label}</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          {conditionDescription}
+                        </p>
+                      </div>
+                      {returnCondition !== 'GOOD' && (
+                        <div className="text-left sm:text-right">
+                          <label htmlFor="return-damage-fee" className="text-xs text-muted-foreground">
+                            Damage fee
+                          </label>
+                          <div className="mt-1 flex items-center rounded-md border border-input bg-background">
+                            <span className="px-2 text-sm text-muted-foreground">₱</span>
+                            <input
+                              id="return-damage-fee"
+                              type="text"
+                              inputMode="decimal"
+                              value={damageFee}
+                              onChange={(event) => setDamageFee(event.target.value)}
+                              className="h-9 w-28 bg-transparent pr-2 text-right text-sm outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <Card className="border-primary/30 bg-primary/5">
@@ -1554,13 +1589,14 @@ export default function RentalsPage() {
                     !returnAt ||
                     !selectedCondition ||
                     !Number.isFinite(Number(damageFee)) ||
-                    Number(damageFee) < 0
+                    Number(damageFee) < 0 ||
+                    (returnCondition !== 'GOOD' && Number(damageFee) <= 0)
                   }
                 >
                   {actionLoading && (
                     <Loader2 className="mr-2 size-4 animate-spin" />
                   )}
-                  Confirm return
+                  Confirm
                 </Button>
               </DialogFooter>
             </DialogContent>

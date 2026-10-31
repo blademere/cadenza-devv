@@ -46,13 +46,6 @@ const assertClientBookingWindow = (scheduledStart) => {
   if (scheduledStart.getTime() < now.getTime() + 30 * 60 * 1000) {
     throw new BadRequestError('Room bookings must start at least 30 minutes from now.');
   }
-  const today = manilaDateKey(now);
-  const startDate = manilaDateKey(scheduledStart);
-  const day0 = Date.parse(`${today}T00:00:00Z`);
-  const selectedDay = Date.parse(`${startDate}T00:00:00Z`);
-  if (selectedDay >= day0 + 5 * 24 * 60 * 60 * 1000) {
-    throw new BadRequestError('Room bookings are only allowed today through the next four calendar days.');
-  }
 };
 
 const calculateTotalAmount = (

@@ -14,7 +14,6 @@ export default function RentalSummary({
     : instrument
       ? [instrument]
       : []
-  const primaryInstrument = instrumentList[0]
   const description =
     instrumentList
       .map((item) =>
@@ -33,18 +32,25 @@ export default function RentalSummary({
     <div className="h-fit rounded-xl border border-border bg-card p-6">
       <h2 className="text-lg font-semibold">Instrument</h2>
 
-      <div className="mt-5 flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <Music2 className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="font-semibold">
-            {instrumentList.length > 1
-              ? `${instrumentList.length} instruments selected`
-              : primaryInstrument?.name || description}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-        </div>
+      <div className="mt-5 space-y-3">
+        {instrumentList.map((item) => (
+          <div key={item.id || item.name} className="flex items-center gap-3 rounded-lg border border-border p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <Music2 className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate font-semibold">
+                {item.name || [item.brand, item.model].filter(Boolean).join(' ') || 'Instrument'}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {item.brand || item.model ? [item.brand, item.model].filter(Boolean).join(' ') : 'Instrument'}
+              </p>
+            </div>
+            <span className="shrink-0 text-sm font-medium">
+              â‚±{Number(item.rentalRate || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        ))}
       </div>
 
       <div className="mt-6 border-t border-border pt-5">

@@ -8,6 +8,7 @@ import {
   Trash2,
   Loader2,
   CircleXIcon,
+  FileIcon,
 } from 'lucide-react';
 
 import { useEffect, useState } from 'react';
@@ -192,6 +193,11 @@ const timeOptions = Array.from({ length: 47 }, (_, index) => {
   };
 });
 
+const statusDotClass = (status) =>
+  status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-red-500';
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+
 export default function InstructorsPage() {
   const [instructors, setInstructors] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -243,6 +249,26 @@ export default function InstructorsPage() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    if (!success) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setSuccess('');
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [success]);
+
+  useEffect(() => {
+    if (!error) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setError('');
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [error]);
 
   const loadInstructors = async () => {
     try {
@@ -386,6 +412,25 @@ export default function InstructorsPage() {
         err?.response?.data?.message ||
           err?.message ||
           'Failed to deactivate instructor.',
+      );
+    } finally {
+      setDeactivatingInstructor(false);
+    }
+  };
+
+  const activateInstructor = async (instructor) => {
+    if (!instructor || deactivatingInstructor) return;
+    try {
+      setDeactivatingInstructor(true);
+      setError('');
+      await instructorService.updateInstructor(instructor.id, { status: 'ACTIVE' });
+      setSuccess('Instructor activated successfully.');
+      await loadInstructors();
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Unable to activate instructor.',
       );
     } finally {
       setDeactivatingInstructor(false);
@@ -611,6 +656,31 @@ export default function InstructorsPage() {
       return;
     }
 
+    if (!isValidEmail(trimmedEmail)) {
+      setError('Enter a valid email address, for example instructor@example.com.');
+      return;
+    }
+
+    const normalizeIdentity = (value) => value.trim().replace(/\s+/g, ' ').toLowerCase();
+    const normalizedName = normalizeIdentity(trimmedName);
+    const normalizedEmail = trimmedEmail.toLowerCase();
+    const duplicateName = instructors.some(
+      (instructor) => normalizeIdentity(getInstructorName(instructor)) === normalizedName,
+    );
+    const duplicateEmail = instructors.some(
+      (instructor) => getInstructorEmail(instructor).trim().toLowerCase() === normalizedEmail,
+    );
+
+    if (duplicateName) {
+      setError('An instructor with this name already exists.');
+      return;
+    }
+
+    if (duplicateEmail) {
+      setError('This email is already assigned to an instructor.');
+      return;
+    }
+
     if (!instructorPassword) {
       setError('Instructor password is required.');
       return;
@@ -771,13 +841,31 @@ export default function InstructorsPage() {
           </div>
 
           {error && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {error}
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="fixed right-4 bottom-4 z-[100] flex w-fit max-w-[calc(100vw-2rem)] items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 shadow-lg"
+            >
+              <span
+                aria-hidden="true"
+                className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500"
+              />
+              <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="rounded-md border px-4 py-3 text-sm">{success}</div>
+            <div
+              role="status"
+              aria-live="polite"
+              className="fixed right-4 bottom-4 z-[100] flex w-fit max-w-[calc(100vw-2rem)] items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 shadow-lg"
+            >
+              <span
+                aria-hidden="true"
+                className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500"
+              />
+              <span>{success}</span>
+            </div>
           )}
 
           {!selectedInstructor && (
@@ -858,12 +946,14 @@ export default function InstructorsPage() {
 
                             <TableCell className="py-4">
                               <Badge
+                                className="gap-1.5"
                                 variant={
                                   instructor.status === 'ACTIVE'
                                     ? 'default'
                                     : 'secondary'
                                 }
                               >
+                                <span aria-hidden="true" className={`size-1.5 rounded-full ${statusDotClass(instructor.status)}`} />
                                 {instructor.status}
                               </Badge>
                             </TableCell>
@@ -872,6 +962,10 @@ export default function InstructorsPage() {
                               <div className="flex justify-end gap-2">
                                 <Button
                                   variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  title="View instructor schedule"
+                                  aria-label="View instructor schedule"
                                   onClick={() => handleViewSchedule(instructor)}
                                   disabled={scheduleLoading}
                                 >
@@ -879,7 +973,7 @@ export default function InstructorsPage() {
                                   selectedInstructor?.id === instructor.id ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                   ) : (
-                                    'View'
+                                    <FileIcon className="size-4" />
                                   )}
                                 </Button>
                                 {instructor.status === 'ACTIVE' && (
@@ -892,6 +986,17 @@ export default function InstructorsPage() {
                                     }
                                   >
                                     Deactivate
+                                  </Button>
+                                )}
+                                {instructor.status !== 'ACTIVE' && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="text-emerald-600 hover:text-emerald-700"
+                                    onClick={() => activateInstructor(instructor)}
+                                    disabled={deactivatingInstructor}
+                                  >
+                                    Activate
                                   </Button>
                                 )}
                               </div>
@@ -1264,7 +1369,7 @@ export default function InstructorsPage() {
                 onClick={() => setInstructorToDeactivate(null)}
                 disabled={deactivatingInstructor}
               >
-                Keep active
+                Close
               </Button>
               <Button
                 type="button"
@@ -1320,10 +1425,18 @@ export default function InstructorsPage() {
                   <Input
                     type="email"
                     placeholder="instructor@cadenzamusic.com"
+                    maxLength={254}
                     value={instructorEmail}
                     onChange={(e) => setInstructorEmail(e.target.value)}
+                    aria-invalid={Boolean(instructorEmail && !isValidEmail(instructorEmail.trim()))}
                     disabled={submitting}
                   />
+
+                  {instructorEmail && !isValidEmail(instructorEmail.trim()) && (
+                    <p className="text-xs text-destructive">
+                      Enter a valid email address, for example instructor@example.com.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1394,7 +1507,13 @@ export default function InstructorsPage() {
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Specialization</label>
+                <label className="text-sm font-medium">
+                  Specialization <span className="text-destructive">*</span>
+                </label>
+
+                <p className="text-xs text-muted-foreground">
+                  Select at least one course specialization.
+                </p>
 
                 <div className="flex flex-wrap gap-1.5">
                   {courses.map((course) => {
@@ -1417,6 +1536,12 @@ export default function InstructorsPage() {
                     );
                   })}
                 </div>
+
+                {selectedSpecializations.length === 0 && (
+                  <p className="text-xs text-destructive">
+                    At least one specialization is required.
+                  </p>
+                )}
               </div>
 
               {employmentType === 'PART_TIME' && (
@@ -1607,6 +1732,7 @@ export default function InstructorsPage() {
                   submitting ||
                   !instructorName.trim() ||
                   !instructorEmail.trim() ||
+                  !isValidEmail(instructorEmail.trim()) ||
                   !instructorPassword ||
                   selectedSpecializations.length === 0 ||
                   (employmentType === 'PART_TIME' && schedules.length === 0)

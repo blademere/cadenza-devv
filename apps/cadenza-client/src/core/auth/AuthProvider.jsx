@@ -161,6 +161,24 @@ return () => {
 
 }, [clearAuthentication, loadCurrentUser]);
 
+useEffect(() => {
+  if (!user || !account) return undefined;
+
+  const refreshActiveSession = async () => {
+    const refreshed = await authService.refresh();
+
+    if (!refreshed) {
+      clearAuthentication();
+    }
+  };
+
+  // Keep active Front Desk pages authenticated before their short-lived
+  // access token expires during polling or other long-running work.
+  const interval = window.setInterval(refreshActiveSession, 5 * 60 * 1000);
+
+  return () => window.clearInterval(interval);
+}, [account, clearAuthentication, user]);
+
 const value = useMemo(
 () => ({
 user,

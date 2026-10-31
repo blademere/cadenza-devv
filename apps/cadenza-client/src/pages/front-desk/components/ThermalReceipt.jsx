@@ -12,9 +12,20 @@ const formatReceiptDate = (value) =>
     timeStyle: 'short',
   });
 
-export default function ThermalReceipt({ transaction, paidAmount, remainingAmount }) {
+export default function ThermalReceipt({
+  transaction,
+  paidAmount,
+  remainingAmount,
+  receiptNumber,
+}) {
   if (!transaction) return null;
   const lastPayment = transaction.payments.at(-1);
+  const currentPayments = Array.isArray(transaction.payments)
+    ? transaction.payments
+    : [];
+  const receiptDate = lastPayment?.processedAt || transaction.createdAt;
+  const isCashPayment = (payment) =>
+    String(payment.method || '').toUpperCase() === 'CASH';
 
   return (
     <article id="thermal-receipt" className="thermal-receipt" aria-label="Payment receipt">
@@ -24,19 +35,31 @@ export default function ThermalReceipt({ transaction, paidAmount, remainingAmoun
       </header>
       <div className="thermal-receipt__rule" />
       <section className="thermal-receipt__meta">
-        <div><span>Receipt for</span><strong>{transaction.person}</strong><small>{transaction.email}</small></div>
-        <div className="thermal-receipt__meta-right"><span>Receipt no.</span><strong>{lastPayment?.reference || transaction.id}</strong><small>{formatReceiptDate(lastPayment?.processedAt)}</small></div>
+        <div><span>Receipt for</span><strong>{transaction.person?.toUpperCase()}</strong></div>
+        <div className="thermal-receipt__meta-right"><span>Receipt no.</span><strong>{receiptNumber || transaction.id}</strong><small>{formatReceiptDate(receiptDate)}</small></div>
       </section>
       <section className="thermal-receipt__details">
-        <div><span>Service</span><strong>{transaction.type}</strong></div>
+        <div><span>Service</span><strong>{transaction.type?.toUpperCase()}</strong></div>
         <div><span>Description</span><strong>{transaction.details}</strong></div>
       </section>
       <div className="thermal-receipt__rule" />
       <section className="thermal-receipt__payments">
         <div className="thermal-receipt__payment-row thermal-receipt__payment-heading"><span>PAYMENT DETAILS</span><span>AMOUNT</span></div>
-        {transaction.payments.map((payment) => (
+        {currentPayments.map((payment) => (
           <div className="thermal-receipt__payment-row" key={payment.id}>
-            <div><strong>{payment.method}</strong><small>{payment.reference}</small></div>
+            <div>
+              <strong>
+                {isCashPayment(payment)
+                  ? 'Cash'
+                  : String(payment.method || '').replace(/_/g, ' ')}
+              </strong>
+              {!isCashPayment(payment) && payment.reference && (
+                <small>Ref no. {payment.reference}</small>
+              )}
+              <small>
+                {formatReceiptDate(payment.processedAt || receiptDate)}
+              </small>
+            </div>
             <strong>{formatReceiptCurrency(payment.amount)}</strong>
           </div>
         ))}
@@ -45,12 +68,14 @@ export default function ThermalReceipt({ transaction, paidAmount, remainingAmoun
       <section className="thermal-receipt__totals">
         <div><span>Total amount</span><strong>{formatReceiptCurrency(transaction.totalAmount)}</strong></div>
         <div><span>Total paid</span><strong>{formatReceiptCurrency(paidAmount(transaction))}</strong></div>
+        {Number(lastPayment?.changeAmount || 0) > 0 && (
+          <div><span>Change</span><strong>{formatReceiptCurrency(lastPayment.changeAmount)}</strong></div>
+        )}
         <div className="thermal-receipt__balance"><span>Balance due</span><strong>{formatReceiptCurrency(remainingAmount(transaction))}</strong></div>
       </section>
       <footer className="thermal-receipt__footer">
         <strong>{transaction.status}</strong>
         <p>Thank you for choosing Cadenza Music Center.</p>
-        <small>Cashier copy · Keep this receipt for your records.</small>
       </footer>
     </article>
   );

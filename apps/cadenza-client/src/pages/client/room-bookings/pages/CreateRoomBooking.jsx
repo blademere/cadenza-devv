@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, CreditCard, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  Loader2,
+} from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import BookingSummary from '../components/BookingSummary';
@@ -18,6 +25,20 @@ const timeToMinutes = (value) => {
   return hour * 60 + minute;
 };
 
+const dateKeyFromDate = (value) =>
+  `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+
+const calendarDaysForMonth = (month) => {
+  const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+  const start = new Date(firstDay);
+  start.setDate(1 - firstDay.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
+};
+
 export default function CreateRoomBooking() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -28,6 +49,7 @@ export default function CreateRoomBooking() {
   const [availableRooms, setAvailableRooms] = useState([]);
 
   const [date, setDate] = useState('');
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
@@ -64,13 +86,12 @@ export default function CreateRoomBooking() {
     return `${parts.year}-${parts.month}-${parts.day}`;
   };
   const todayKey = localDateKey(localToday);
-  const maxBookingDate = localDateKey(new Date(localToday.getTime() + 4 * 24 * 60 * 60 * 1000));
+  const calendarDays = calendarDaysForMonth(calendarMonth);
   const validClientWindow = (selectedDate, selectedTime) => {
     const start = new Date(`${selectedDate}T${selectedTime}:00+08:00`);
     return Number.isFinite(start.getTime()) &&
       start.getTime() >= Date.now() + 30 * 60 * 1000 &&
-      selectedDate >= localDateKey(new Date()) &&
-      selectedDate <= localDateKey(new Date(Date.now() + 4 * 24 * 60 * 60 * 1000));
+      selectedDate >= localDateKey(new Date());
   };
   const todayOperatingHours = getHoursForDate(operatingHours, localToday);
   const todayPastClosing = (() => {
@@ -147,7 +168,7 @@ export default function CreateRoomBooking() {
       if (!validClientWindow(date, startTime)) {
         setAvailableRooms([]);
         setRoom(null);
-        setError('Select a start time at least 30 minutes from now, before the fifth calendar day.');
+        setError('Select a start time at least 30 minutes from now.');
         return;
       }
       const scheduledStart = `${date}T${startTime}:00+08:00`;
@@ -235,8 +256,8 @@ export default function CreateRoomBooking() {
   const handleDateChange = (event) => {
     const nextDate = event.target.value;
     const nextHours = getHoursForDate(operatingHours, nextDate);
-    if (nextDate && (nextDate < todayKey || nextDate > maxBookingDate)) {
-      setError('Booking dates are limited to today and the next four calendar days.');
+    if (nextDate && nextDate < todayKey) {
+      setError('Booking dates cannot be in the past.');
       return;
     }
     const nextIsToday = nextDate === todayKey;
@@ -270,6 +291,10 @@ export default function CreateRoomBooking() {
     setRoom(null);
     setAvailableRooms([]);
     setError(nextIsToday && now >= closing ? 'The current day is no longer available because operating hours have ended.' : '');
+  };
+
+  const selectCalendarDate = (nextDate) => {
+    handleDateChange({ target: { value: nextDate } });
   };
 
   const handleStartTimeChange = (event) => {
@@ -342,7 +367,7 @@ export default function CreateRoomBooking() {
     }
 
     if (!validClientWindow(date, startTime)) {
-      setError('Bookings must begin at least 30 minutes from now and before the fifth calendar day.');
+      setError('Bookings must begin at least 30 minutes from now.');
       return;
     }
     if (!isWithinOperatingHours(operatingHours, `${date}T${startTime}:00+08:00`, `${date}T${endTime}:00+08:00`)) {
@@ -428,27 +453,58 @@ export default function CreateRoomBooking() {
 
       <form
         onSubmit={handleSubmit}
-        className="grid gap-6 lg:grid-cols-[1fr_360px]"
+        className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)_360px]"
       >
+        <section className="h-fit rounded-xl border border-border bg-card p-4 lg:sticky lg:top-6">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="size-4" />
+            <h2 className="text-base font-semibold">Choose booking date</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Select a date without changing the booking steps.
+          </p>
+
+          <div className="mt-3 flex items-center justify-between">
+            <button type="button" className="rounded-md p-1 hover:bg-muted" aria-label="Previous month" onClick={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}>
+              <ChevronLeft className="size-4" />
+            </button>
+            <p className="text-sm font-semibold">{calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+            <button type="button" className="rounded-md p-1 hover:bg-muted" aria-label="Next month" onClick={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}>
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+
+          <div className="mt-2 grid grid-cols-7 text-center text-xs text-muted-foreground">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <span key={`${day}-${index}`} className="py-2 font-medium">{day}</span>)}
+            {calendarDays.map((day) => {
+              const dayKey = dateKeyFromDate(day);
+              const isPast = dayKey < todayKey;
+              const isClosed = getHoursForDate(operatingHours, dayKey)?.isClosed;
+              const isCurrentMonth = day.getMonth() === calendarMonth.getMonth();
+              const isSelected = dayKey === date;
+              return (
+                <button key={dayKey} type="button" disabled={isPast} onClick={() => selectCalendarDate(dayKey)} className={`mx-auto flex size-8 items-center justify-center rounded-full text-sm transition-colors ${isSelected ? 'bg-primary text-primary-foreground' : isPast || !isCurrentMonth || isClosed ? 'text-muted-foreground/40' : 'text-foreground hover:bg-muted'}`} aria-label={`Choose ${day.toLocaleDateString('en-US', { dateStyle: 'full' })}`} aria-pressed={isSelected}>
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+            Selected: <span className="font-medium text-foreground">{date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { dateStyle: 'medium' }) : 'None'}</span>
+          </p>
+        </section>
+
         <div className="space-y-6">
           <section className="rounded-xl border border-border bg-card p-6">
             <h2 className="text-lg font-semibold">Booking Schedule</h2>
 
             <div className="mt-5 grid gap-5 sm:grid-cols-3">
-              <div>
-                <label htmlFor="date" className="text-sm font-medium">
-                  Date
-                </label>
-
-                <input
-                  id="date"
-                  type="date"
-                  value={date}
-                  onChange={handleDateChange}
-                  min={todayPastClosing ? localDateKey(new Date(localToday.getTime() + 24 * 60 * 60 * 1000)) : todayKey}
-                  max={maxBookingDate}
-                  className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                />
+              <div className="sm:col-span-3">
+                <p className="text-sm font-medium">Selected date</p>
+                <p className={`mt-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm ${selectedOperatingHours?.isClosed ? 'text-destructive' : 'text-foreground'}`}>
+                  {date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { dateStyle: 'medium' }) : 'Choose a date from the calendar'}
+                </p>
                 {date && (
                   <p className={`mt-2 text-xs ${selectedOperatingHours?.isClosed ? 'text-destructive' : 'text-muted-foreground'}`}>
                     Operating hours for this date: <span className="font-medium">{selectedDateHoursLabel}</span>
@@ -574,7 +630,7 @@ export default function CreateRoomBooking() {
             )}
           </section>
 
-          {room && (
+          {false && room && (
             <section className="rounded-xl border border-border bg-card p-6">
               <h2 className="text-lg font-semibold">Selected Room</h2>
 

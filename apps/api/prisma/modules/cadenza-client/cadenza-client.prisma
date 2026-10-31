@@ -361,6 +361,7 @@ model CadenzaCoursePackage {
 model CadenzaCourseMaterial {
   id               String   @id @default(uuid())
   courseId         String
+  status           String   @default("ACTIVE")
   storageReference String
   name             String
   type             String

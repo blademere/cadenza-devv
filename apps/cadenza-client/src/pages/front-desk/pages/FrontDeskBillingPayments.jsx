@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   ChevronDown,
+  ChevronRight,
   FileText,
   Loader2,
   Printer,
@@ -68,10 +69,20 @@ const statusVariant = (status) =>
     : status === 'Partially Paid'
       ? 'secondary'
       : 'outline';
-
+const statusIndicatorClass = (status) =>
+  status === 'Paid'
+    ? 'bg-emerald-500'
+    : status === 'Partially Paid'
+      ? 'bg-amber-500'
+      : 'bg-red-500';
 const formatSourceReference = (transaction) => {
   const prefix = transaction.type === 'Enrollment' ? 'ENR' : transaction.type === 'Instrument Rental' ? 'RNT' : 'RB';
   return `${prefix}-${String(transaction.sourceId || '').slice(0, 8).toUpperCase()}`;
+};
+const formatPaymentReference = (reference) => {
+  const value = String(reference || '');
+  if (value.length <= 18) return value || 'No reference';
+  return `${value.slice(0, 8)}…${value.slice(-6)}`;
 };
 
 const mapTransaction = (
@@ -116,7 +127,7 @@ const mapTransaction = (
 const mapRecords = (enrollments, bookings, rentals) =>
   [
     ...enrollments
-      .filter((item) => ['FOR_APPROVAL', 'APPROVED'].includes(item.status))
+      .filter((item) => !['CANCELLED', 'REJECTED'].includes(item.status))
       .map((item) =>
         mapTransaction(
           item,
@@ -128,9 +139,7 @@ const mapRecords = (enrollments, bookings, rentals) =>
         ),
       ),
     ...bookings
-      .filter((item) =>
-        ['APPROVED', 'CHECKED_IN', 'COMPLETED'].includes(item.status),
-      )
+      .filter((item) => !['CANCELLED', 'REJECTED'].includes(item.status))
       .map((item) =>
         mapTransaction(
           item,
@@ -142,7 +151,7 @@ const mapRecords = (enrollments, bookings, rentals) =>
         ),
       ),
     ...rentals
-      .filter((item) => ['APPROVED', 'COMPLETED'].includes(item.status))
+      .filter((item) => !['CANCELLED', 'REJECTED'].includes(item.status))
       .map((item) =>
         mapTransaction(
           item,
@@ -205,9 +214,17 @@ export default function BillingPayments() {
   const [paymentReference, setPaymentReference] = useState('');
   const [amountToPay, setAmountToPay] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [expandedTransactions, setExpandedTransactions] = useState({});
   const paymentAttempt = useRef(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  useEffect(() => {
+    if (!error) return undefined;
+
+    const timeout = window.setTimeout(() => setError(''), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [error]);
 
   useEffect(() => {
     setPage(1);
@@ -231,7 +248,7 @@ export default function BillingPayments() {
         }
         const grouped = new Map();
         for (const payment of history) {
-          const key = `${payment.transactionType}:${payment.sourceId}`;
+          const key = `${String(payment.transactionType || '').toUpperCase()}:${payment.sourceId}`;
           grouped.set(key, [...(grouped.get(key) || []), {
             id: payment.id, amount: Number(payment.amount), method: payment.method,
             reference: payment.reference, processedAt: payment.createdAt,
@@ -270,6 +287,10 @@ export default function BillingPayments() {
       return (
         matchesStatus && matchesType && (!query || searchable.includes(query))
       );
+    }).sort((a, b) => {
+      const latestActivity = (transaction) =>
+        transaction.payments.at(-1)?.processedAt || transaction.date || 0;
+      return new Date(latestActivity(b)).getTime() - new Date(latestActivity(a)).getTime();
     });
   }, [search, statusFilter, transactions, typeFilter]);
   const pageCount = Math.ceil(filteredTransactions.length / pageSize);
@@ -277,6 +298,9 @@ export default function BillingPayments() {
     (page - 1) * pageSize,
     page * pageSize,
   );
+  const receiptNumber = selectedTransaction
+    ? `${selectedTransaction.type === 'Enrollment' ? 'E' : selectedTransaction.type === 'Room Booking' ? 'RM' : 'IR'}-${String(filteredTransactions.findIndex((item) => item.id === selectedTransaction.id) + 1).padStart(3, '0')}`
+    : '';
   const paidCount = transactions.filter(
     (transaction) => transaction.status === 'Paid',
   ).length;
@@ -311,8 +335,10 @@ export default function BillingPayments() {
       return;
     }
     const amountText = String(amount);
-    if (!Number.isFinite(amount) || amount <= 0 || !/^\d+(?:\.\d{1,2})?$/.test(amountText) || amount > remainingAmount(selectedTransaction)) {
-      setError('Enter a valid payment amount no greater than the balance.');
+    const balance = remainingAmount(selectedTransaction);
+    const isCash = method === 'Cash';
+    if (!Number.isFinite(amount) || amount <= 0 || !/^\d+(?:\.\d{1,2})?$/.test(amountText) || (!isCash && amount > balance)) {
+      setError(isCash ? 'Enter a valid amount received.' : 'Enter a valid payment amount no greater than the balance.');
       return;
     }
     if (method !== 'Cash' && reference.trim().length < 3) {
@@ -321,7 +347,9 @@ export default function BillingPayments() {
     }
     setProcessing(true);
     setError('');
-    const signature = JSON.stringify([selectedTransaction.sourceId, selectedTransaction.type, amount, method, reference.trim()]);
+    const appliedAmount = isCash ? Math.min(amount, balance) : amount;
+    const changeAmount = isCash ? Math.max(amount - balance, 0) : 0;
+    const signature = JSON.stringify([selectedTransaction.sourceId, selectedTransaction.type, appliedAmount, method, reference.trim()]);
     if (paymentAttempt.current?.signature !== signature) {
       paymentAttempt.current = { signature, key: createPaymentAttemptKey() };
     }
@@ -330,7 +358,7 @@ export default function BillingPayments() {
     try {
       const response = await apiClient.post('/billing/payments/transactions', {
         type: selectedTransaction.type, id: selectedTransaction.sourceId,
-        amount, method, reference: receiptReference, idempotencyKey,
+        amount: appliedAmount, method, reference: receiptReference, idempotencyKey,
       });
       // apiClient returns the API envelope unchanged: { success, data: { payment } }.
       const record = response.data?.payment;
@@ -338,6 +366,8 @@ export default function BillingPayments() {
       const payment = {
         id: record.id, amount: Number(record.amount), method: record.method,
         reference: record.reference, processedAt: record.createdAt,
+        receivedAmount: amount,
+        changeAmount,
       };
       const updated = {
         ...selectedTransaction,
@@ -346,8 +376,12 @@ export default function BillingPayments() {
       updated.status = paymentStatus(paidAmount(updated), updated.totalAmount);
       setTransactions((current) => current.map((item) => item.id === updated.id ? updated : item));
       setSelectedTransaction(updated);
+      setAmountToPay(String(remainingAmount(updated)));
       setShowPaymentDialog(false);
       setShowReceiptDialog(true);
+      // Refresh the table from the backend so the newly recorded payment is
+      // visible immediately when the receipt dialog is closed.
+      setRefreshKey((key) => key + 1);
       paymentAttempt.current = null;
     } catch (requestError) {
       setError(requestError?.message || 'Unable to record this payment.');
@@ -357,7 +391,6 @@ export default function BillingPayments() {
   };
 
   const processPayment = () => submitCashierPayment(Number(amountToPay), paymentMethod, paymentReference);
-  const markAsPaid = () => submitCashierPayment(remainingAmount(selectedTransaction), 'Cash', '');
 
   return (
     <SidebarProvider>
@@ -477,13 +510,19 @@ export default function BillingPayments() {
               </div>
             </CardHeader>
             <CardContent>
-              {error && (
-                <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                  {error}
-                </p>
-              )}
               <div className="rounded-md border">
-                <Table>
+                <Table className="table-fixed text-sm [&_th]:!whitespace-normal [&_td]:!whitespace-normal [&_td]:break-words">
+                  <colgroup>
+                    <col className="w-[12%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[15%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[21%]" />
+                  </colgroup>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Transaction</TableHead>
@@ -505,27 +544,52 @@ export default function BillingPayments() {
                         </TableCell>
                       </TableRow>
                     ) : pagedTransactions.length ? (
-                      pagedTransactions.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                          <TableCell className="font-medium">
-                            {transaction.id
-                              .split('-')
-                              .slice(-1)[0]
-                              .slice(0, 8)
-                              .toUpperCase()}
+                      pagedTransactions.map((transaction, transactionIndex) => (
+                        <Fragment key={transaction.id}>
+                        {(transactionIndex === 0 || pagedTransactions[transactionIndex - 1].type !== transaction.type) && (
+                          <TableRow className="bg-muted/40 hover:bg-muted/40">
+                            <TableCell colSpan={9} className="py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              {transaction.type} transactions
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        <TableRow>
+                          <TableCell className="min-w-0 max-w-0 overflow-hidden font-medium">
+                            <div className="flex min-w-0 items-center gap-2">
+                              {transaction.payments.length > 0 && (
+                                <button
+                                  type="button"
+                                  className="rounded p-1 hover:bg-muted"
+                                  aria-label={expandedTransactions[transaction.id] ? 'Hide payment history' : 'Show payment history'}
+                                  onClick={() => setExpandedTransactions((current) => ({
+                                    ...current,
+                                    [transaction.id]: !current[transaction.id],
+                                  }))}
+                                >
+                                  {expandedTransactions[transaction.id] ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                                </button>
+                              )}
+                              <span className="block min-w-0 truncate" title={transaction.id}>
+                                {transaction.id.split('-').slice(-1)[0].slice(0, 8).toUpperCase()}
+                              </span>
+                            </div>
                           </TableCell>
-                          <TableCell className="font-mono text-xs">{formatSourceReference(transaction)}</TableCell>
-                          <TableCell>
-                            <div className="font-medium">
+                          <TableCell className="min-w-0 max-w-0 overflow-hidden font-mono text-xs" title={formatSourceReference(transaction)}>
+                            <span className="block max-w-full truncate">
+                              {formatSourceReference(transaction)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="min-w-0 max-w-0 overflow-hidden">
+                            <div className="min-w-0 break-words font-medium">
                               {transaction.person}
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="min-w-0 break-words text-sm text-muted-foreground">
                               {transaction.email}
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{transaction.type}</Badge>
-                            <div className="mt-1 text-sm text-muted-foreground">
+                          <TableCell className="min-w-0 max-w-0 overflow-hidden">
+                            <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left">{transaction.type}</Badge>
+                            <div className="mt-1 break-words text-sm text-muted-foreground">
                               {transaction.details}
                             </div>
                           </TableCell>
@@ -534,20 +598,34 @@ export default function BillingPayments() {
                           </TableCell>
                           <TableCell>
                             {formatCurrency(paidAmount(transaction))}
+                            {transaction.payments.length > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                {transaction.payments.length} {transaction.payments.length === 1 ? 'payment' : 'payments'}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="font-medium">
                             {formatCurrency(remainingAmount(transaction))}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={statusVariant(transaction.status)}>
+                            <Badge
+                              variant={statusVariant(transaction.status)}
+                              className="gap-1.5"
+                            >
+                              <span
+                                aria-hidden="true"
+                                className={`size-1.5 rounded-full ${statusIndicatorClass(transaction.status)}`}
+                              />
                               {transaction.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right">
-                            {transaction.status === 'Paid' ? (
+                          <TableCell className="min-w-0 max-w-0 overflow-hidden text-right">
+                            <div className="flex flex-col items-end gap-1">
+                              {transaction.status === 'Paid' && (
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-8 w-full justify-center px-2 text-xs"
                                 onClick={() => {
                                   setSelectedTransaction(transaction);
                                   setShowReceiptDialog(true);
@@ -556,16 +634,58 @@ export default function BillingPayments() {
                                 <FileText className="mr-2 size-4" />
                                 Receipt
                               </Button>
-                            ) : (
+                              )}
+                              {transaction.status !== 'Paid' && (
                               <Button
                                 size="sm"
+                                className="h-8 w-fit justify-center whitespace-nowrap px-2 text-xs"
                                 onClick={() => openPayment(transaction)}
                               >
                                 Continue payment
                               </Button>
-                            )}
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
+                        {expandedTransactions[transaction.id] && [...transaction.payments].reverse().map((payment, reversedIndex) => {
+                          const paymentIndex = transaction.payments.length - reversedIndex - 1;
+                          const paymentHistory = [payment];
+                          const paymentTransaction = {
+                            ...transaction,
+                            payments: paymentHistory,
+                            status: paymentStatus(
+                              paymentHistory.reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+                              transaction.totalAmount,
+                            ),
+                          };
+
+                          return (
+                            <TableRow key={`${transaction.id}-payment-${payment.id}`} className="bg-muted/20">
+                              <TableCell colSpan={4} className="pl-8 text-xs text-muted-foreground">
+                                Payment {paymentIndex + 1} · {payment.method} · {new Date(payment.processedAt || transaction.date).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}
+                              </TableCell>
+                              <TableCell>{formatCurrency(payment.amount)}</TableCell>
+                              <TableCell colSpan={3} className="font-mono text-xs text-muted-foreground" title={payment.reference || 'No reference'}>
+                                {formatPaymentReference(payment.reference)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                  <Button
+                                  variant="ghost"
+                                  size="sm"
+                                    className="h-8 px-2 text-xs"
+                                  onClick={() => {
+                                    setSelectedTransaction(paymentTransaction);
+                                    setShowReceiptDialog(true);
+                                  }}
+                                >
+                                  <FileText className="mr-2 size-4" />
+                                  Receipt
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        </Fragment>
                       ))
                     ) : (
                       <TableRow>
@@ -606,8 +726,21 @@ export default function BillingPayments() {
               </div>
             </CardContent>
           </Card>
+
+          {error && (
+            <div
+              role="alert"
+              className="fixed right-4 bottom-4 z-[100] flex w-fit max-w-[calc(100vw-2rem)] items-center gap-2 rounded-md border border-red-700 bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-lg"
+            >
+              <span className="truncate">{error}</span>
+            </div>
+          )}
         </main>
-        <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <Dialog
+          open={showPaymentDialog}
+          onOpenChange={setShowPaymentDialog}
+          disablePointerDismissal
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Continue payment</DialogTitle>
@@ -642,11 +775,29 @@ export default function BillingPayments() {
                   <Input
                     type="number"
                     min="0.01"
-                    max={remainingAmount(selectedTransaction)}
+                    max={paymentMethod === 'Cash' ? undefined : remainingAmount(selectedTransaction)}
                     value={amountToPay}
-                    onChange={(event) => setAmountToPay(event.target.value)}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      if (value === '') {
+                        setAmountToPay('');
+                        return;
+                      }
+
+                      const numericValue = Number(value);
+                      setAmountToPay(
+                        paymentMethod !== 'Cash' && Number.isFinite(numericValue) && numericValue > remainingAmount(selectedTransaction)
+                          ? String(remainingAmount(selectedTransaction))
+                          : value,
+                      );
+                    }}
                     className="mt-2"
                   />
+                  {paymentMethod === 'Cash' && Number(amountToPay) > remainingAmount(selectedTransaction) && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Applied: {formatCurrency(remainingAmount(selectedTransaction))} · Change: {formatCurrency(Number(amountToPay) - remainingAmount(selectedTransaction))}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="text-sm font-medium">Payment method</label>
@@ -697,20 +848,12 @@ export default function BillingPayments() {
                 Cancel
               </Button>
               <Button
-                className="border border-green-300 bg-green-100 text-green-800 hover:bg-green-200 hover:text-green-900"
                 disabled={
-                  processing ||
                   !selectedTransaction ||
-                  paymentMethod !== 'Cash' ||
-                  moneyInCents(amountToPay) !== moneyInCents(remainingAmount(selectedTransaction))
-                }
-                onClick={markAsPaid}
-              >
-                <Check className="mr-2 size-4" />
-                Paid
-              </Button>
-              <Button
-                disabled={
+                  moneyInCents(amountToPay) <= 0 ||
+                  (paymentMethod !== 'Cash' &&
+                    moneyInCents(amountToPay) >
+                      moneyInCents(remainingAmount(selectedTransaction))) ||
                   processing ||
                   (paymentMethod !== 'Cash' &&
                     paymentReference.trim().length < 3)
@@ -718,12 +861,16 @@ export default function BillingPayments() {
                 onClick={processPayment}
               >
                 {processing ? <Loader2 className="animate-spin" /> : <Check />}{' '}
-                Issue receipt
+                Pay
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
+        <Dialog
+          open={showReceiptDialog}
+          onOpenChange={setShowReceiptDialog}
+          disablePointerDismissal
+        >
           <DialogContent className="sm:max-w-[520px]">
             {/* Legacy dialog markup replaced by the thermal receipt template. */}
             {/*
@@ -790,6 +937,7 @@ export default function BillingPayments() {
               transaction={selectedTransaction}
               paidAmount={paidAmount}
               remainingAmount={remainingAmount}
+              receiptNumber={receiptNumber}
             />
             <DialogFooter>
               <Button
@@ -799,7 +947,7 @@ export default function BillingPayments() {
                 Close
               </Button>
               <Button onClick={() => window.print()}>
-                <Printer /> Print receipt
+                <Printer /> Issue receipt
               </Button>
             </DialogFooter>
           </DialogContent>

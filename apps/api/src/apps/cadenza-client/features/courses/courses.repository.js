@@ -42,6 +42,19 @@ export const coursesRepository = {
     });
   },
 
+  countActiveEnrollmentsForCourse(appId, courseId) {
+    return prisma.cadenzaEnrollment.count({
+      where: {
+        appId,
+        status: { notIn: ['CANCELLED', 'COMPLETED', 'REJECTED'] },
+        metadata: {
+          path: ['courseId'],
+          equals: courseId,
+        },
+      },
+    });
+  },
+
   findCourseByName(appId, name) {
     return prisma.cadenzaCourse.findFirst({
       where: {
@@ -121,6 +134,17 @@ export const coursesRepository = {
           appId,
         },
       },
+    });
+  },
+
+  updateMaterial(appId, courseId, materialId, data) {
+    return prisma.cadenzaCourseMaterial.updateMany({
+      where: {
+        id: materialId,
+        courseId,
+        course: { appId },
+      },
+      data,
     });
   },
 

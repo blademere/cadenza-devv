@@ -7,6 +7,7 @@ import {
   FileTextIcon,
   Loader2Icon,
   MoreHorizontalIcon,
+  PowerIcon,
   PowerOffIcon,
   PlusIcon,
   UploadIcon,
@@ -55,6 +56,9 @@ import {
   createCourse,
   getCourses,
   deactivateCourse,
+  reactivateCourse,
+  deactivateCourseMaterial,
+  reactivateCourseMaterial,
 } from '@/services/admin/courses-materialsService';
 
 import { getEnrollmentPackages } from '@/services/admin/enrollment-packageService';
@@ -195,11 +199,30 @@ export default function CoursesPage() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [deletingCourse, setDeletingCourse] = React.useState(null);
+  const [courseToDeactivate, setCourseToDeactivate] = React.useState(null);
+  const [courseToReactivate, setCourseToReactivate] = React.useState(null);
+  const [materialToDeactivate, setMaterialToDeactivate] =
+    React.useState(null);
+  const [materialToReactivate, setMaterialToReactivate] =
+    React.useState(null);
+  const [deactivatingMaterial, setDeactivatingMaterial] =
+    React.useState(false);
+  const [actionError, setActionError] = React.useState('');
   const [openingFile, setOpeningFile] = React.useState(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [lockedMaterialTarget, setLockedMaterialTarget] =
     React.useState(false);
   const [form, setForm] = React.useState(EMPTY_FORM);
+
+  React.useEffect(() => {
+    if (!actionError) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setActionError('');
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [actionError]);
 
   const activePackages = React.useMemo(
     () => packages.filter(isActive),
@@ -227,11 +250,11 @@ export default function CoursesPage() {
 
   const listedCourses = React.useMemo(
     () =>
-      activeCourses.filter(
+      courses.filter(
         (course) =>
           course.packageIds.length > 0 && course.files.length > 0,
       ),
-    [activeCourses],
+    [courses],
   );
 
   const packageGroups = React.useMemo(
@@ -429,15 +452,8 @@ export default function CoursesPage() {
   };
 
   const handleDeactivateCourse = async (course) => {
-    const confirmed = window.confirm(
-      `Deactivate ${course.name || 'this course'}? Existing records and materials will be preserved.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     try {
+      setActionError('');
       setDeletingCourse(course.id);
 
       await deactivateCourse(course.id);
@@ -447,11 +463,77 @@ export default function CoursesPage() {
       await loadData();
     } catch (error) {
       console.error('Failed to deactivate course:', error);
-      toast.error(
-        error?.message || 'Failed to deactivate course.',
-      );
+      setActionError(error?.message || 'Failed to deactivate course.');
     } finally {
       setDeletingCourse(null);
+    }
+  };
+
+  const confirmDeactivateCourse = async () => {
+    if (!courseToDeactivate || deletingCourse) return;
+
+    await handleDeactivateCourse(courseToDeactivate);
+    setCourseToDeactivate(null);
+  };
+
+  const confirmReactivateCourse = async () => {
+    if (!courseToReactivate || deletingCourse) return;
+
+    try {
+      setActionError('');
+      setDeletingCourse(courseToReactivate.id);
+      await reactivateCourse(courseToReactivate.id);
+      toast.success('Course reactivated successfully.');
+      setCourseToReactivate(null);
+      await loadData();
+    } catch (error) {
+      setActionError(error?.message || 'Failed to reactivate course.');
+    } finally {
+      setDeletingCourse(null);
+    }
+  };
+
+  const confirmDeactivateMaterial = async () => {
+    if (!materialToDeactivate || deactivatingMaterial) return;
+
+    try {
+      setActionError('');
+      setDeactivatingMaterial(true);
+      await deactivateCourseMaterial(
+        materialToDeactivate.course.id,
+        materialToDeactivate.material.id,
+      );
+      toast.success('Course material deactivated successfully.');
+      setMaterialToDeactivate(null);
+      await loadData();
+    } catch (error) {
+      setActionError(
+        error?.message || 'Failed to deactivate course material.',
+      );
+    } finally {
+      setDeactivatingMaterial(false);
+    }
+  };
+
+  const confirmReactivateMaterial = async () => {
+    if (!materialToReactivate || deactivatingMaterial) return;
+
+    try {
+      setActionError('');
+      setDeactivatingMaterial(true);
+      await reactivateCourseMaterial(
+        materialToReactivate.course.id,
+        materialToReactivate.material.id,
+      );
+      toast.success('Course material reactivated successfully.');
+      setMaterialToReactivate(null);
+      await loadData();
+    } catch (error) {
+      setActionError(
+        error?.message || 'Failed to reactivate course material.',
+      );
+    } finally {
+      setDeactivatingMaterial(false);
     }
   };
 
@@ -523,6 +605,20 @@ export default function CoursesPage() {
         <SiteHeader />
 
         <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+          {actionError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="fixed right-4 bottom-4 z-[100] flex w-fit max-w-[calc(100vw-2rem)] items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 shadow-lg"
+            >
+              <span
+                aria-hidden="true"
+                className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500"
+              />
+              <span>{actionError}</span>
+            </div>
+          )}
+
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">
@@ -626,11 +722,30 @@ export default function CoursesPage() {
                               className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b px-5 py-4 last:border-b-0"
                             >
                               <div className="min-w-0 space-y-3">
-                                <h3 className="font-semibold">
-                                  {course.name ||
-                                    course.lessonName ||
-                                    'Course'}
-                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold">
+                                    {course.name ||
+                                      course.lessonName ||
+                                      'Course'}
+                                  </h3>
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                                      isActive(course)
+                                        ? 'bg-emerald-50 text-emerald-700'
+                                        : 'bg-red-50 text-red-700'
+                                    }`}
+                                  >
+                                    <span
+                                      aria-hidden="true"
+                                      className={`size-1.5 rounded-full ${
+                                        isActive(course)
+                                          ? 'bg-emerald-500'
+                                          : 'bg-red-500'
+                                      }`}
+                                    />
+                                    {isActive(course) ? 'Active' : 'Inactive'}
+                                  </span>
+                                </div>
 
                                 <div className="space-y-2">
                                   {course.files.map((file, index) => {
@@ -644,27 +759,67 @@ export default function CoursesPage() {
                                       (file.id || file.storageReference);
 
                                     return (
-                                      <button
+                                      <div
                                         key={fileKey}
-                                        type="button"
-                                        onClick={() =>
-                                          openFile(file, course.id)
-                                        }
-                                        disabled={isOpening}
-                                        className="group flex w-full items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-left text-sm text-primary hover:bg-muted disabled:opacity-60"
+                                        className={`flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm ${isActive(file) ? 'text-primary' : 'text-muted-foreground opacity-70'}`}
                                       >
-                                        {isOpening ? (
-                                          <Loader2Icon className="h-4 w-4 shrink-0 animate-spin" />
-                                        ) : (
-                                          <FileTextIcon className="h-4 w-4 shrink-0" />
-                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => openFile(file, course.id)}
+                                          disabled={isOpening || !isActive(file)}
+                                          className="group flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-not-allowed"
+                                        >
+                                          {isOpening ? (
+                                            <Loader2Icon className="h-4 w-4 shrink-0 animate-spin" />
+                                          ) : (
+                                            <FileTextIcon className="h-4 w-4 shrink-0" />
+                                          )}
 
-                                        <span className="min-w-0 flex-1 truncate">
+                                          <span className="min-w-0 flex-1 truncate">
                                           {fileName}
-                                        </span>
+                                          </span>
+                                        </button>
 
-                                        <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                                      </button>
+                                        {!isActive(file) ? (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-emerald-600 hover:text-emerald-700"
+                                            title={`Activate ${fileName}`}
+                                            aria-label={`Activate ${fileName}`}
+                                            onClick={() =>
+                                              setMaterialToReactivate({
+                                                course,
+                                                material: file,
+                                              })
+                                            }
+                                            disabled={deactivatingMaterial}
+                                          >
+                                            <PowerIcon className="h-3.5 w-3.5" />
+                                          </Button>
+                                        ) : (
+                                          <>
+                                            <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-7 w-7 text-destructive hover:text-destructive"
+                                              title={`Deactivate ${fileName}`}
+                                              aria-label={`Deactivate ${fileName}`}
+                                              onClick={() =>
+                                                setMaterialToDeactivate({
+                                                  course,
+                                                  material: file,
+                                                })
+                                              }
+                                            >
+                                              <PowerOffIcon className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </>
+                                        )}
+                                      </div>
                                     );
                                   })}
                                 </div>
@@ -697,15 +852,27 @@ export default function CoursesPage() {
 
                                   <DropdownMenuSeparator />
 
-                                  <DropdownMenuItem
-                                    variant="destructive"
-                                    onClick={() =>
-                                      handleDeactivateCourse(course)
-                                    }
-                                  >
-                                    <PowerOffIcon className="mr-2 h-4 w-4" />
-                                    Deactivate Course
-                                  </DropdownMenuItem>
+                                  {isActive(course) ? (
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      onClick={() =>
+                                        setCourseToDeactivate(course)
+                                      }
+                                    >
+                                      <PowerOffIcon className="mr-2 h-4 w-4" />
+                                      Deactivate Course
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem
+                                      className="text-emerald-600 focus:text-emerald-700"
+                                      onClick={() =>
+                                        setCourseToReactivate(course)
+                                      }
+                                    >
+                                      <PowerIcon className="mr-2 h-4 w-4" />
+                                      Activate Course
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -931,6 +1098,166 @@ export default function CoursesPage() {
                     <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   Add Course Materials
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={Boolean(courseToDeactivate)}
+            onOpenChange={(open) => {
+              if (!deletingCourse && !open) setCourseToDeactivate(null);
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Deactivate course?</DialogTitle>
+                <DialogDescription>
+                  {courseToDeactivate
+                    ? `Deactivate ${courseToDeactivate.name || 'this course'}? Existing records and materials will be preserved.`
+                    : ''}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCourseToDeactivate(null)}
+                  disabled={Boolean(deletingCourse)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={confirmDeactivateCourse}
+                  disabled={Boolean(deletingCourse)}
+                >
+                  {deletingCourse && (
+                    <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Deactivate course
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={Boolean(materialToDeactivate)}
+            onOpenChange={(open) => {
+              if (!deactivatingMaterial && !open) {
+                setMaterialToDeactivate(null);
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Deactivate course material?</DialogTitle>
+                <DialogDescription>
+                  {materialToDeactivate
+                    ? `Deactivate ${getFileName(materialToDeactivate.material)}? The material will be preserved but no longer available for use.`
+                    : ''}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setMaterialToDeactivate(null)}
+                  disabled={deactivatingMaterial}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={confirmDeactivateMaterial}
+                  disabled={deactivatingMaterial}
+                >
+                  {deactivatingMaterial && (
+                    <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Deactivate material
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={Boolean(courseToReactivate)}
+            onOpenChange={(open) => {
+              if (!deletingCourse && !open) setCourseToReactivate(null);
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Activate course?</DialogTitle>
+                <DialogDescription>
+                  {courseToReactivate
+                    ? `Activate ${courseToReactivate.name || 'this course'}? It will become available again for new enrollments.`
+                    : ''}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCourseToReactivate(null)}
+                  disabled={Boolean(deletingCourse)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  onClick={confirmReactivateCourse}
+                  disabled={Boolean(deletingCourse)}
+                >
+                  {deletingCourse && (
+                    <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Activate course
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={Boolean(materialToReactivate)}
+            onOpenChange={(open) => {
+              if (!deactivatingMaterial && !open) {
+                setMaterialToReactivate(null);
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Activate course material?</DialogTitle>
+                <DialogDescription>
+                  {materialToReactivate
+                    ? `Activate ${getFileName(materialToReactivate.material)}? It will become available for use again.`
+                    : ''}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setMaterialToReactivate(null)}
+                  disabled={deactivatingMaterial}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  onClick={confirmReactivateMaterial}
+                  disabled={deactivatingMaterial}
+                >
+                  {deactivatingMaterial && (
+                    <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Activate material
                 </Button>
               </DialogFooter>
             </DialogContent>
