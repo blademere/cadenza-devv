@@ -5,7 +5,7 @@ const APP_KEY = 'cadenza-client';
 const users = [
   {
     type: 'CLIENT',
-    email: 'client@example.com',
+    email: 'atanosochristianlee6@gmail.com',
     firstName: 'Cadenza',
     lastName: 'Client',
     phone: '+630000000001',
@@ -13,7 +13,7 @@ const users = [
   {
     type: 'STAFF',
     staffType: 'FRONT_DESK',
-    email: 'frontdesk@example.com',
+    email: 'cadenzafrontdesk@gmail.com',
     firstName: 'Cadenza',
     lastName: 'Front Desk',
     phone: '+630000000002',
@@ -21,7 +21,7 @@ const users = [
   {
     type: 'STAFF',
     staffType: 'ADMIN',
-    email: 'admin@example.com',
+    email: 'cadenzacenter5@gmail.com',
     firstName: 'System',
     lastName: 'Administrator',
     phone: '+630000000004',
@@ -29,7 +29,7 @@ const users = [
   {
     type: 'STAFF',
     staffType: 'Instructor',
-    email: 'instructor@example.com',
+    email: 'atanosochristianlee1@gmail.com',
     firstName: 'Cadenza',
     lastName: 'Instructor',
     phone: '+630000000003',
@@ -37,7 +37,7 @@ const users = [
 ];
 
 const DEVELOPMENT_PASSWORD =
-  process.env.SEED_CADENZA_PASSWORD || '112233445566';
+  process.env.SEED_CADENZA_PASSWORD || '12345678';
 
 async function seedCadenzaClientDevelopmentUsers(prisma, application) {
   const passwordHash = await bcrypt.hash(DEVELOPMENT_PASSWORD, 12);

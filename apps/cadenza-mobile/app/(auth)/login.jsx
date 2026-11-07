@@ -65,12 +65,13 @@ export default function Login() {
   });
 
   useEffect(() => {
-    if (response?.type !== 'success' || !response.authentication?.accessToken) return;
+    const googleAccessToken = response?.authentication?.accessToken || response?.params?.access_token;
+    if (response?.type !== 'success' || !googleAccessToken) return;
     (async () => {
       try {
         setLoading(true);
         await logout();
-        const authData = await loginWithGoogle(response.authentication.accessToken);
+        const authData = await loginWithGoogle(googleAccessToken);
         await saveAuth(authData);
         const homeRoute = getHomeRoute(authData.account);
         if (!homeRoute) throw new Error('This account cannot access the mobile application.');

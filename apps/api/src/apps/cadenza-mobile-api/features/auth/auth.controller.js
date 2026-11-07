@@ -10,6 +10,36 @@ import {
 } from '../../../cadenza-client/features/auth/auth.service.js';
 import { authenticateWithGoogleAccessToken } from '../../../../features/auth/oauth/oauth.service.js';
 import { requestPasswordResetCode, verifyPasswordResetCode, resetPassword } from '../../../../features/auth/auth.service.js';
+import { cadenzaAuthRepository } from '../../../cadenza-client/features/auth/auth.repository.js';
+
+const isMobileInstructor = (account) => account?.type === 'INSTRUCTOR'
+  || (account?.type === 'STAFF' && String(account.staffType || '').toUpperCase() === 'INSTRUCTOR');
+
+const requireMobileRole = (account) => {
+  if (!['CLIENT', 'INSTRUCTOR', 'STAFF'].includes(account?.type) || (account?.type === 'STAFF' && !isMobileInstructor(account))) {
+    throw new UnauthorizedError('Invalid credentials.');
+  }
+  return account;
+};
+
+const requireMobileResetUser = async (email) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const user = await cadenzaAuthRepository.findUserByEmail(normalizedEmail);
+  const application = await cadenzaAuthRepository.findApplication();
+  if (!user?.isActive || !user.passwordHash || !application?.isActive) throw new UnauthorizedError('Invalid credentials.');
+
+  const instructor = await cadenzaAuthRepository.findInstructorByUserIdAndAppId(user.id, application.id);
+  if (instructor?.status === 'ACTIVE') return;
+
+  const staff = await cadenzaAuthRepository.findStaffByUserIdAndAppId(user.id, application.id);
+  if (staff?.status === 'ACTIVE' && String(staff.staffType || '').toUpperCase() === 'INSTRUCTOR') return;
+
+  const customer = await cadenzaAuthRepository.findCustomerByUserIdAndAppId(user.id, application.id);
+  const enrollment = customer?.status === 'ACTIVE'
+    ? await cadenzaAuthRepository.findActiveEnrollmentByCustomerId(customer.id)
+    : null;
+  if (!enrollment) throw new UnauthorizedError('Invalid credentials.');
+};
 
 const refreshCookiePath = '/api/v1/cadenza-mobile/auth';
 
@@ -40,6 +70,7 @@ const csrfController = async (_req, res) => {
 
 const loginController = async (req, res) => {
   const result = await login(req.body, { requireActiveEnrollment: true });
+  requireMobileRole(result.account);
 
   res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
@@ -104,8 +135,14 @@ const logoutController = async (req, res) => {
   return successResponse(res, 'Logout successful.', null, 200);
 };
 
-const requestPasswordResetCodeController = async (req, res) => successResponse(res, 'Password reset code sent.', await requestPasswordResetCode(req.body));
-const verifyPasswordResetCodeController = async (req, res) => successResponse(res, 'Password reset code verified.', await verifyPasswordResetCode(req.body));
+const requestPasswordResetCodeController = async (req, res) => {
+  await requireMobileResetUser(req.body?.email);
+  return successResponse(res, 'Password reset code sent.', await requestPasswordResetCode(req.body));
+};
+const verifyPasswordResetCodeController = async (req, res) => {
+  await requireMobileResetUser(req.body?.email);
+  return successResponse(res, 'Password reset code verified.', await verifyPasswordResetCode(req.body));
+};
 const resetPasswordController = async (req, res) => {
   await resetPassword(req.validated?.body ?? req.body);
   return successResponse(res, 'Password changed successfully. Please sign in again.');
