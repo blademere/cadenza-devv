@@ -29,7 +29,7 @@ const users = [
   {
     type: 'STAFF',
     staffType: 'Instructor',
-    email: 'atanosochristianlee1@gmail.com',
+    email: 'instructor@example.com',
     firstName: 'Cadenza',
     lastName: 'Instructor',
     phone: '+630000000003',

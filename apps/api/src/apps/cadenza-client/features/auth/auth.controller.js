@@ -16,8 +16,8 @@ import { env } from '../../../../config/index.js';
 
 const refreshCookieOptions = {
   httpOnly: true,
-  secure: true,
-  sameSite: 'none',
+  secure: env.COOKIE_SECURE,
+  sameSite: env.COOKIE_SAME_SITE,
   domain: env.COOKIE_DOMAIN || undefined,
   path: '/api/v1/cadenza-client/auth',
   maxAge: env.COOKIE_REFRESH_MAX_AGE_MS,
@@ -26,8 +26,8 @@ const refreshCookieOptions = {
 const clearRefreshCookie = (res) => {
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none',
+    secure: env.COOKIE_SECURE,
+    sameSite: env.COOKIE_SAME_SITE,
     domain: env.COOKIE_DOMAIN || undefined,
     path: '/api/v1/cadenza-client/auth',
   });
