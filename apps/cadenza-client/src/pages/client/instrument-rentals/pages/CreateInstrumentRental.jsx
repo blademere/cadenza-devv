@@ -26,8 +26,8 @@ const formatCurrency = (value) =>
   })}`;
 
 const getName = (instrument) =>
-  instrument?.name ||
   [instrument?.brand, instrument?.model].filter(Boolean).join(' ') ||
+  instrument?.name ||
   'Instrument';
 
 const getMissingScheduleMessage = (instrument) =>
@@ -142,7 +142,7 @@ export default function CreateInstrumentRental() {
       if (minimumTime && time < new Date(combineDateTime(date, minimumTime))) return false;
       if (instrumentId && isStart) {
         const intervals = reservedTimes[instrumentId];
-        if (!Array.isArray(intervals)) return false;
+        if (!Array.isArray(intervals)) return true;
         // An available fragment shorter than one hour is not selectable.
         if (intervals.some((slot) =>
           time < new Date(slot.scheduledEnd) &&

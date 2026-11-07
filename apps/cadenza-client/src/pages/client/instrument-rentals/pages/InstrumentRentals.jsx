@@ -36,8 +36,8 @@ const asList = (value) => (Array.isArray(value) ? value : [])
 const CART_STORAGE_KEY = 'cadenza-instrument-rental-cart'
 
 const instrumentLabel = (instrument) =>
-  instrument?.name ||
-  [instrument?.brand, instrument?.model].filter(Boolean).join(' ') || 'Instrument'
+  [instrument?.brand, instrument?.model].filter(Boolean).join(' ') ||
+  instrument?.name || 'Instrument'
 
 const instrumentCategory = (instrument) =>
   instrument?.instrumentType?.name ||
