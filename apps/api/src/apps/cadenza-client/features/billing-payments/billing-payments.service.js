@@ -108,7 +108,7 @@ export const billingPaymentsService = {
     const reference = String(input?.reference || '').trim();
     if (!Number.isInteger(userId) || userId <= 0) throw new BadRequestError('A staff account is required.');
     if (!['CASH', 'GCASH', 'BANK_TRANSFER'].includes(method)) throw new BadRequestError('Invalid refund method.');
-    if (!/^[A-Za-z0-9]{13,100}$/.test(reference)) throw new BadRequestError('Refund reference must be 13 to 100 letters and numbers only.');
+    if (method !== 'CASH' && !/^[A-Za-z0-9]{13,100}$/.test(reference)) throw new BadRequestError('Refund reference must be 13 to 100 letters and numbers only.');
     if (input?.confirmedReturned !== true) throw new BadRequestError('Confirm the refund was already transferred to the client.');
     try {
       return await prisma.$transaction(async (db) => {
@@ -211,7 +211,7 @@ export const billingPaymentsService = {
     const reference = String(input?.reference || '').trim();
     if (!Number.isInteger(userId) || userId <= 0) throw new BadRequestError('An authenticated staff account is required.');
     if (!['CASH', 'GCASH', 'BANK_TRANSFER'].includes(method)) throw new BadRequestError('Choose the method used to return the money.');
-    if (!/^[A-Za-z0-9]{13,100}$/.test(reference)) throw new BadRequestError('Refund reference must be 13 to 100 letters and numbers only.');
+    if (!/^[A-Za-z0-9]{13,100}$/.test(reference)) throw new BadRequestError('Reference number must be minimum of 13 characters.');
     if (input?.confirmedReturned !== true) throw new BadRequestError('Confirm the refund has already been returned to the client before recording it.');
     try {
       return await prisma.$transaction(async (db) => {

@@ -4,9 +4,12 @@ const prisma = getPrismaClient();
 
 export const cadenzaAuthRepository = {
   async findUserByEmail(email) {
-    return prisma.user.findUnique({
+    // Email addresses are case-insensitive. This matters for mobile login
+    // because Google returns a normalized/lowercase address while older
+    // database records may contain uppercase characters.
+    return prisma.user.findFirst({
       where: {
-        email,
+        email: { equals: String(email).trim(), mode: 'insensitive' },
       },
     });
   },
@@ -109,10 +112,13 @@ export const cadenzaAuthRepository = {
       where: {
         customerId,
         // Mobile access requires at least one currently participating course.
-        // AT_RISK is still an active student enrollment and must remain
-        // accessible. Completed, pending, suspended, and inactive courses do
-        // not qualify, but another ACTIVE/AT_RISK course still can.
-        status: { in: ['ACTIVE', 'AT_RISK'] },
+        // Front Desk approval normally changes status to APPROVED. Older
+        // records may retain FOR_APPROVAL while storing approvalStatus in
+        // metadata, so both representations must authorize mobile access.
+        OR: [
+          { status: { in: ['APPROVED', 'ACTIVE', 'AT_RISK'] } },
+          { status: 'FOR_APPROVAL', metadata: { path: ['approvalStatus'], equals: 'APPROVED' } },
+        ],
       },
       orderBy: [
         { enrolledAt: 'desc' },

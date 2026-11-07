@@ -18,7 +18,9 @@ WebBrowser.maybeCompleteAuthSession();
 
 function getLoginErrorMessage(error) {
   if (error?.response) {
-    if (error.response.status === 401) return 'Invalid credentials.';
+    if (error.response.status === 401) {
+      return error.response.data?.message || 'Invalid credentials.';
+    }
     return (
       error.response.data?.message ||
       `The API rejected the login request (HTTP ${error.response.status}).`

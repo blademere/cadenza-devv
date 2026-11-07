@@ -90,7 +90,7 @@ export default function EnrollmentDetails() {
     ? new Date(enrollment.createdAt).toLocaleString()
     : "Not available";
   const paymentAmount = paymentMetadata.paymentAmount ?? enrollment.price ?? 0;
-  const canCancel = !["CANCELLED", "COMPLETED", "REJECTED"].includes(enrollment.status);
+  const canCancel = !["APPROVED", "CANCELLED", "COMPLETED", "REJECTED"].includes(enrollment.status);
 
   const handleCancel = async () => {
     if (cancelling) return;

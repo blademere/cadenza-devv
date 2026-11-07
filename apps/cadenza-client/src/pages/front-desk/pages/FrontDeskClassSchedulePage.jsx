@@ -95,6 +95,11 @@ const formatDateKey = (date) => {
   return `${parts.year}-${parts.month}-${parts.day}`;
 };
 
+const getManilaWeekday = (date) => new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Manila',
+  weekday: 'long',
+}).format(new Date(date));
+
 const formatFullDate = (date) =>
   new Date(date).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -642,7 +647,8 @@ export default function ClassSchedule() {
           return {
             id: session.id,
             date: formatDateKey(start),
-            time: `${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`,
+            time: `${start.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}`,
+            weekday: getManilaWeekday(start),
             course: enrollment.lessons?.[0]?.name || enrollment.packageName || 'Lesson',
             student: enrollment.student || 'Unassigned',
             instructor: session.instructorName || 'Unassigned',
@@ -699,6 +705,7 @@ export default function ClassSchedule() {
   }, []);
 
   const todayKey = formatDateKey(today);
+  const todayWeekday = getManilaWeekday(today);
 
   const emergencySchedules = useMemo(
     () => schedule.filter((item) => item.date === emergencyDate),
@@ -714,8 +721,8 @@ export default function ClassSchedule() {
   );
 
   const todaySchedules = useMemo(() => {
-    return schedule.filter((item) => item.date === todayKey);
-  }, [schedule, todayKey]);
+    return schedule.filter((item) => item.weekday === todayWeekday);
+  }, [schedule, todayWeekday]);
 
   const ongoingSchedules = useMemo(() => {
     const currentMinutes = getCurrentMinutes();

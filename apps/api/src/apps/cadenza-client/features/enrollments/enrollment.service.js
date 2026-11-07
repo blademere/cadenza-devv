@@ -567,6 +567,7 @@ export const enrollmentService = {
     courseId,
     roomId,
     startDate,
+    customerId,
   ) {
     const packageItem =
       await enrollmentRepository.findPackageById(
@@ -659,11 +660,19 @@ export const enrollmentService = {
     );
 
     if (!startDate) {
-      const futureSessions = await enrollmentRepository.findInstructorFutureSessions(
-        appId,
-        instructorId,
-      );
+      const [futureSessions, customerSessions] = await Promise.all([
+        enrollmentRepository.findInstructorFutureSessions(appId, instructorId),
+        customerId
+          ? enrollmentRepository.findCustomerFutureSessions(appId, customerId)
+          : [],
+      ]);
       availability = availability.filter((rule) => !futureSessions.some((session) => {
+        const sessionStart = new Date(session.scheduledStart);
+        const sessionEnd = new Date(session.scheduledEnd);
+        return getDayOfWeek(sessionStart) === Number(rule.dayOfWeek) &&
+          getMinuteOfDay(sessionStart) < Number(rule.endMinute) &&
+          getMinuteOfDay(sessionEnd) > Number(rule.startMinute);
+      }) && !customerSessions.some((session) => {
         const sessionStart = new Date(session.scheduledStart);
         const sessionEnd = new Date(session.scheduledEnd);
         return getDayOfWeek(sessionStart) === Number(rule.dayOfWeek) &&
@@ -1420,7 +1429,7 @@ export const enrollmentService = {
     }
 
     if (
-      ['CANCELLED', 'COMPLETED'].includes(
+      ['APPROVED', 'CANCELLED', 'COMPLETED'].includes(
         enrollment.status,
       )
     ) {

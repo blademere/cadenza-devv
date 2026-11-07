@@ -80,7 +80,6 @@ export default function EnrollmentsPage() {
   const [showRefundDialog, setShowRefundDialog] = useState(false);
   const [refundMethod, setRefundMethod] = useState('GCASH');
   const [refundReference, setRefundReference] = useState('');
-  const [refundConfirmed, setRefundConfirmed] = useState(false);
   const [refundReceivedConfirmed, setRefundReceivedConfirmed] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -241,7 +240,7 @@ export default function EnrollmentsPage() {
   };
 
   const handleRecordRefund = async () => {
-    if (!selectedEnrollment || actionLoading || !refundConfirmed) return;
+    if (!selectedEnrollment || actionLoading) return;
     try {
       setActionLoading(true);
       setActionError('');
@@ -257,7 +256,6 @@ export default function EnrollmentsPage() {
       } : current);
       setShowRefundDialog(false);
       setRefundReference('');
-      setRefundConfirmed(false);
       setRefundReceivedConfirmed(false);
       setActionMessage('Refund recorded and deducted from the payment ledger.');
     } catch (error) {
@@ -686,7 +684,6 @@ export default function EnrollmentsPage() {
                   </p>
                 )}
                 {refundQuote?.refund && <p className="mt-1 text-muted-foreground">Refund reference: {refundQuote.refund.reference}</p>}
-                <p className="mt-2 text-xs text-muted-foreground">Refunds are sent outside Cadenza. The button records the payment ledger deduction after transfer confirmation.</p>
               </div>
             )}
             {actionError && (
@@ -705,7 +702,7 @@ export default function EnrollmentsPage() {
               </Button>
               {selectedEnrollment?.status === 'CANCELLED' && !refundLoading && Number(refundQuote?.refundableAmount || 0) > 0 && (
                 <Button type="button" variant="destructive" disabled={actionLoading}
-                  onClick={() => { setRefundReference(''); setRefundConfirmed(false); setRefundReceivedConfirmed(false); setShowRefundDialog(true); }}>
+                  onClick={() => { setRefundReference(''); setRefundReceivedConfirmed(false); setShowRefundDialog(true); }}>
                   Refund
                 </Button>
               )}
@@ -753,21 +750,20 @@ export default function EnrollmentsPage() {
               <option value="BANK_TRANSFER">Bank transfer</option>
               <option value="CASH">Cash</option>
             </select>
-            <label className="text-sm font-medium" htmlFor="refund-reference">Refund receipt / transfer reference</label>
-            <Input id="refund-reference" maxLength={100} value={refundReference} onChange={(e) => setRefundReference(e.target.value)} placeholder="Enter refund reference" />
+            {refundMethod !== 'CASH' && (
+              <>
+                <label className="text-sm font-medium" htmlFor="refund-reference">Refund receipt / transfer reference</label>
+                <Input id="refund-reference" maxLength={100} value={refundReference} onChange={(e) => setRefundReference(e.target.value)} placeholder="Enter refund reference" />
+              </>
+            )}
             {Number(refundQuote?.unverifiedSubmittedAmount || 0) > 0 && (
               <label className="flex items-start gap-2 text-sm">
                 <input type="checkbox" checked={refundReceivedConfirmed} onChange={(e) => setRefundReceivedConfirmed(e.target.checked)} />
-                I verified the client's original payment was actually received in our GCash or bank account. The submitted reference alone is not proof of payment.
-              </label>
+                I verified the client's original payment was actually received.</label>
             )}
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={refundConfirmed} onChange={(e) => setRefundConfirmed(e.target.checked)} />
-              I confirm the full refundable amount has been returned to the client.
-            </label>
             <DialogFooter>
               <Button type="button" variant="outline" disabled={actionLoading} onClick={() => setShowRefundDialog(false)}>Cancel</Button>
-              <Button type="button" disabled={actionLoading || !refundConfirmed || (Number(refundQuote?.unverifiedSubmittedAmount || 0) > 0 && !refundReceivedConfirmed) || refundReference.trim().length < 3} onClick={handleRecordRefund}>
+              <Button type="button" disabled={actionLoading || (Number(refundQuote?.unverifiedSubmittedAmount || 0) > 0 && !refundReceivedConfirmed) || (refundMethod !== 'CASH' && refundReference.trim().length < 13)} onClick={handleRecordRefund}>
                 {actionLoading ? 'Recording...' : 'Record refund'}
               </Button>
             </DialogFooter>

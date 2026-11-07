@@ -26,7 +26,7 @@ const requireMobileResetUser = async (email) => {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const user = await cadenzaAuthRepository.findUserByEmail(normalizedEmail);
   const application = await cadenzaAuthRepository.findApplication();
-  if (!user?.isActive || !user.passwordHash || !application?.isActive) throw new UnauthorizedError('Invalid credentials.');
+  if (!user?.isActive || !application?.isActive) throw new UnauthorizedError('Invalid credentials.');
 
   const instructor = await cadenzaAuthRepository.findInstructorByUserIdAndAppId(user.id, application.id);
   if (instructor?.status === 'ACTIVE') return;

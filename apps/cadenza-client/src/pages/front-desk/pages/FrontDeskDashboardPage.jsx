@@ -23,6 +23,7 @@ import { AppSidebar } from '../components/app-sidebar';
 import { SectionCards } from '../components/section-cards';
 import { SiteHeader } from '../components/site-header';
 import { OperatingHoursAlert } from '@/components/OperatingHoursAlert';
+import { getHoursForDate, getOperatingHours } from '@/services/operatingHoursService';
 
 const unwrapList = (response) => {
   const data = response?.data?.data ?? response?.data ?? response;
@@ -64,12 +65,31 @@ const formatTime = (value) =>
       })
     : '—';
 
-const buildRoomTimeline = (room) => {
+const roomLabel = (room) =>
+  room.roomName || room.resource?.name || room.roomType || 'Room';
+
+const roomCategory = (room) => {
+  const value = `${room.roomType || ''} ${room.roomName || ''} ${room.resource?.name || ''}`.toLowerCase();
+  if (value.includes('band')) return 'BAND_ROOM';
+  if (value.includes('lesson')) return 'LESSON_ROOM';
+  return null;
+};
+
+const buildRoomTimeline = (room, operatingHours) => {
   const now = new Date();
-  const dayStart = new Date(now);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  const dateKey = `${parts.year}-${parts.month}-${parts.day}`;
+  const hours = getHoursForDate(operatingHours, now);
+  if (!hours || hours.isClosed) return [];
+  const dayStart = new Date(`${dateKey}T${hours.startTime}:00+08:00`);
+  const dayEnd = new Date(`${dateKey}T${hours.endTime}:00+08:00`);
+  const timelineStart = new Date(Math.max(now, dayStart));
+  if (timelineStart >= dayEnd) return [];
   const bookings = (room.bookings || [])
     .filter((booking) => !['CANCELLED', 'REJECTED'].includes(booking.status))
     .map((booking) => ({
@@ -77,12 +97,12 @@ const buildRoomTimeline = (room) => {
       start: new Date(booking.scheduledStart),
       end: new Date(booking.scheduledEnd),
     }))
-    .filter((booking) => booking.end > dayStart && booking.start < dayEnd)
+    .filter((booking) => booking.end > timelineStart && booking.start < dayEnd)
     .sort((first, second) => first.start - second.start);
-  const points = [dayStart, dayEnd];
+  const points = [timelineStart, dayEnd];
   bookings.forEach((booking) =>
     points.push(
-      new Date(Math.max(booking.start, dayStart)),
+      new Date(Math.max(booking.start, timelineStart)),
       new Date(Math.min(booking.end, dayEnd)),
     ),
   );
@@ -131,6 +151,7 @@ export default function FrontDeskDashboardPage() {
   const [loadError, setLoadError] = useState('');
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [roomFilter, setRoomFilter] = useState('ALL');
+  const [operatingHours, setOperatingHours] = useState(null);
 
   useEffect(() => {
     Promise.allSettled([
@@ -138,8 +159,9 @@ export default function FrontDeskDashboardPage() {
       apiClient.get('/room-bookings'),
       apiClient.get('/instrument-rentals'),
       apiClient.get('/rooms'),
+      getOperatingHours(),
     ])
-      .then(([enrollments, roomBookings, rentals, rooms]) => {
+      .then(([enrollments, roomBookings, rentals, rooms, hours]) => {
         const next = {
           enrollments:
             enrollments.status === 'fulfilled'
@@ -154,6 +176,7 @@ export default function FrontDeskDashboardPage() {
           rooms: rooms.status === 'fulfilled' ? unwrapList(rooms.value) : [],
         };
         setRecords(next);
+        if (hours.status === 'fulfilled') setOperatingHours(hours.value);
         if (
           !Object.values(next).some((items) => items.length) &&
           [enrollments, roomBookings, rentals, rooms].every(
@@ -168,7 +191,7 @@ export default function FrontDeskDashboardPage() {
 
   const roomAvailability = useMemo(() => {
     const now = new Date();
-    return records.rooms.map((room) => {
+    return records.rooms.filter((room) => roomCategory(room)).map((room) => {
       const activeBooking = records.roomBookings.find((booking) => {
         if (
           booking.roomId !== room.id ||
@@ -184,6 +207,7 @@ export default function FrontDeskDashboardPage() {
       });
       return {
         ...room,
+        category: roomCategory(room),
         activeBooking,
         inUse: Boolean(activeBooking),
         bookings: records.roomBookings.filter(
@@ -217,7 +241,7 @@ export default function FrontDeskDashboardPage() {
     () =>
       roomFilter === 'ALL'
         ? roomAvailability
-        : roomAvailability.filter((room) => room.id === roomFilter),
+        : roomAvailability.filter((room) => room.category === roomFilter),
     [roomAvailability, roomFilter],
   );
 
@@ -289,11 +313,8 @@ export default function FrontDeskDashboardPage() {
                     className="h-8 min-w-36 rounded-md border border-input bg-background px-2 text-xs"
                   >
                     <option value="ALL">All rooms</option>
-                    {roomAvailability.map((room) => (
-                      <option key={room.id} value={room.id}>
-                        {room.roomName || room.roomType || 'Room'}
-                      </option>
-                    ))}
+                    <option value="LESSON_ROOM">Lesson Room</option>
+                    <option value="BAND_ROOM">Band Room</option>
                   </select>
                 </div>
               </CardHeader>
@@ -329,7 +350,7 @@ export default function FrontDeskDashboardPage() {
                         <span className="flex min-w-0 items-center gap-2">
                           <DoorOpen className="size-4 shrink-0 text-muted-foreground" />
                           <span className="truncate text-sm font-medium">
-                            {room.roomName || room.roomType || 'Room'}
+                            {roomLabel(room)}
                           </span>
                         </span>
 
@@ -349,9 +370,7 @@ export default function FrontDeskDashboardPage() {
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">
-                          {selectedRoom.roomName ||
-                            selectedRoom.roomType ||
-                            'Room'}
+                          {roomLabel(selectedRoom)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Today's schedule
@@ -366,7 +385,7 @@ export default function FrontDeskDashboardPage() {
                     </div>
 
                     <div className="max-h-64 space-y-1.5 overflow-y-auto">
-                      {buildRoomTimeline(selectedRoom).map((slot, index) => (
+                      {buildRoomTimeline(selectedRoom, operatingHours).map((slot, index) => (
                         <div
                           key={`${slot.start.toISOString()}-${index}`}
                           className={`flex items-center justify-between gap-3 rounded-md border px-2.5 py-2 ${

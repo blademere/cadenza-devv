@@ -404,6 +404,21 @@ export const enrollmentRepository = {
     });
   },
 
+  async findCustomerFutureSessions(appId, customerId) {
+    return prisma.cadenzaLessonSession.findMany({
+      where: {
+        appId,
+        enrollment: {
+          customerId,
+          status: { notIn: ['CANCELLED', 'COMPLETED', 'REJECTED'] },
+        },
+        scheduledEnd: { gte: new Date() },
+        status: { notIn: ['CANCELLED'] },
+      },
+      select: { scheduledStart: true, scheduledEnd: true },
+    });
+  },
+
   async findCourseRooms(appId, courseId) {
     const rooms = await prisma.cadenzaRoom.findMany({
       where: {

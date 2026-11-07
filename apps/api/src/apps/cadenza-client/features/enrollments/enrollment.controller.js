@@ -101,6 +101,7 @@ export const enrollmentController = {
         req.query.courseId,
         req.query.roomId,
         req.query.startDate,
+        req.cadenzaCustomer.id,
       );
 
       return res.json({

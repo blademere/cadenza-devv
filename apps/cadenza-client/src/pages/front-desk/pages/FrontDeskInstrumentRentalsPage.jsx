@@ -971,12 +971,12 @@ export default function RentalsPage() {
             onOpenChange={setShowDetails}
             disablePointerDismissal
           >
-            <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] min-w-0 overflow-x-hidden overflow-y-auto">
+            <DialogContent className="box-border w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] max-h-[90vh] min-w-0 overflow-x-hidden overflow-y-auto p-5 sm:p-6">
               {selectedRental && (
                 <>
                   <DialogHeader>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
+                    <div className="flex min-w-0 items-start justify-between gap-4 pr-8">
+                      <div className="min-w-0">
                         <DialogTitle>Rental Request</DialogTitle>
                         <DialogDescription>
                           {formatRentalReference(selectedRental.id)} · Review
@@ -984,7 +984,7 @@ export default function RentalsPage() {
                         </DialogDescription>
                       </div>
 
-                      <Badge variant={getStatusVariant(selectedRental.status)}>
+                      <Badge className="shrink-0" variant={getStatusVariant(selectedRental.status)}>
                         {selectedRental.status}
                       </Badge>
                     </div>
@@ -993,7 +993,7 @@ export default function RentalsPage() {
                   <div className="space-y-4">
                     {/* Client & Instrument */}
                     <div className="rounded-lg border bg-muted/30 p-4">
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                      <div className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                         <div>
                           <p className="text-xs text-muted-foreground">
                             Client
@@ -1034,11 +1034,11 @@ export default function RentalsPage() {
                             ? 'A replacement instrument is already assigned to this rental.'
                             : 'Choose an available replacement before releasing the instrument to the client.'}
                         </p>
-                        {(!selectedRental.metadata?.reassignedAt || editingAssignment) && <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        {(!selectedRental.metadata?.reassignedAt || editingAssignment) && <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row">
                           <select
                             value={replacementInstrumentId}
                             onChange={(event) => setReplacementInstrumentId(event.target.value)}
-                            className="h-9 flex-1 rounded-md border bg-background px-3 text-sm"
+                            className="h-9 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm"
                           >
                             <option value="">Select replacement item</option>
                             {replacementInstruments.map((instrument) => (
@@ -1048,6 +1048,7 @@ export default function RentalsPage() {
                             ))}
                           </select>
                           <Button
+                            className="shrink-0"
                             variant="outline"
                             onClick={handleReassign}
                             disabled={actionLoading || !replacementInstrumentId}
@@ -1072,7 +1073,7 @@ export default function RentalsPage() {
                         Rental Period
                       </h3>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="rounded-md border p-3">
                           <p className="text-xs text-muted-foreground">
                             Rental Date
@@ -1110,7 +1111,7 @@ export default function RentalsPage() {
                       </div>
 
                       <div className="rounded-lg border p-4">
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                        <div className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                           <div>
                             <p className="text-xs text-muted-foreground">
                               Rental Fee

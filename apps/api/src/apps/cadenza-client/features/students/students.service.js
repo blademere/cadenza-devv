@@ -5,6 +5,8 @@ const fullName = (person) =>
     .filter(Boolean)
     .join(' ');
 
+const ENROLLED_STATUSES = new Set(['ACTIVE', 'AT_RISK', 'APPROVED']);
+
 const getEnrollmentCourses = (enrollment) => {
   const packageItem = enrollment.lessonPackage;
   const legacyCourses = packageItem?.lessons ?? [];
@@ -21,7 +23,9 @@ const getEnrollmentCourses = (enrollment) => {
 
 const mapStudent = (student) => {
   const enrollments = student.enrollments ?? [];
-  const enrolledRecords = enrollments.filter((enrollment) => enrollment.status === 'APPROVED');
+  const enrolledRecords = enrollments.filter((enrollment) =>
+    ENROLLED_STATUSES.has(enrollment.status),
+  );
   const courses = [
     ...new Map(
       enrolledRecords

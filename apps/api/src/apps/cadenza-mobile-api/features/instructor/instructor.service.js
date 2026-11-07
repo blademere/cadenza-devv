@@ -95,7 +95,7 @@ async function findSessions(req) {
   const sessions = await prisma.cadenzaLessonSession.findMany({
     where: {
       appId: req.cadenzaApp.id,
-      enrollment: { status: { in: ['ACTIVE', 'AT_RISK'] } },
+      enrollment: { status: { in: ['APPROVED', 'ACTIVE', 'AT_RISK'] } },
       ...(instructor.id
         ? { instructorId: instructor.id }
         : { instructor: { personId: instructor.personId } }),

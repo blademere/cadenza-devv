@@ -92,7 +92,7 @@ const resetPassword = async ({ token, newPassword }) => {
 const requestPasswordResetCode = async ({ email }) => {
   const normalizedEmail = email.trim().toLowerCase();
   const user = await findUserByEmail(normalizedEmail);
-  if (!user?.isActive || !user.passwordHash) throw new UnauthorizedError('This Gmail address is not registered.');
+  if (!user?.isActive) throw new UnauthorizedError('This email is not registered.');
   const code = String(crypto.randomInt(100000, 1000000));
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   await invalidatePasswordResetTokens(user.id);

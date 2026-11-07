@@ -1,11 +1,22 @@
+import crypto from 'node:crypto'
 import { connectRedis, getRedisClient } from '../../infrastructure/cache/redis.js'
 import { env } from '../../config/index.js'
 
 const WINDOW_MS = 15 * 60 * 1000
-const MAX_REQUESTS = 200
+const MAX_REQUESTS = 1000
+
+const getRateLimitKey = (req) => {
+  const authorization = req.get('authorization') || ''
+  if (/^Bearer\s+\S+$/i.test(authorization)) {
+    const tokenHash = crypto.createHash('sha256').update(authorization).digest('hex')
+    return `rate-limit:auth:${tokenHash}`
+  }
+
+  return `rate-limit:ip:${req.ip}`
+}
 
 const rateLimiter = async (req, res, next) => {
-  const key = `rate-limit:${req.ip}`
+  const key = getRateLimitKey(req)
 
   try {
     await connectRedis()

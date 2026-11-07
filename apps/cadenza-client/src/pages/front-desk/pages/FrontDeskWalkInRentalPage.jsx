@@ -796,10 +796,9 @@ export default function FrontDeskWalkInRentalPage() {
 
                       {visibleInstruments.map((instrument) => (
                         <option key={instrument.id} value={instrument.id}>
-                          {[instrument.brand, instrument.model]
+                          {[instrument.instrumentType?.name || instrument.itemCategory?.name, instrument.brand]
                             .filter(Boolean)
-                            .join(' ') || 'Instrument'}{' '}
-                          — ₱{Number(instrument.rentalRate).toLocaleString()}
+                            .join(' ') || 'Instrument'}
                         </option>
                       ))}
                     </select>
