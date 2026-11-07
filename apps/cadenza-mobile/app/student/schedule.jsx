@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import useMobileResource from '../../hooks/useMobileResource';
 import { getStudentSchedule, requestStudentSchedule } from '../../services/studentService';
@@ -16,6 +16,10 @@ export default function StudentSchedule() {
   const [requestReason, setRequestReason] = useState('');
   const enrollments = data?.enrollments ?? [];
   const schedules = data?.schedules ?? [];
+  useEffect(() => {
+    const refreshTimer = setInterval(() => { void refresh(); }, 15000);
+    return () => clearInterval(refreshTimer);
+  }, [refresh]);
   const enrollmentGroups = Object.values(enrollments.reduce((groups, enrollment) => {
     const key = enrollment.courseName || enrollment.id;
     groups[key] ||= { ...enrollment, enrollmentIds: [], packages: [] };
@@ -59,8 +63,7 @@ export default function StudentSchedule() {
           const enrollmentSchedules = schedules.filter((schedule) => enrollment.enrollmentIds.includes(schedule.enrollmentId));
           return <View key={enrollment.courseName} className="mt-5 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
             <View className="flex-row items-start justify-between gap-3">
-              <View className="flex-1"><Text className="text-xl font-bold text-gray-900">{enrollment.courseName || 'Approved course'}</Text>{enrollment.packages.map((packageName) => <Text key={packageName} className="mt-1 text-sm text-gray-500">{packageName}</Text>)}</View>
-              <View className="rounded-full bg-emerald-50 px-3 py-1"><Text className="text-xs font-bold uppercase text-emerald-700">Approved</Text></View>
+              <View className="flex-1"><Text className="text-xl font-bold text-gray-900">{enrollment.courseName || 'Course'}</Text>{enrollment.packages.map((packageName) => <Text key={packageName} className="mt-1 text-sm text-gray-500">{packageName}</Text>)}</View>
             </View>
             <ScrollView
               className="mt-3 max-h-72 flex-grow-0 rounded-2xl"

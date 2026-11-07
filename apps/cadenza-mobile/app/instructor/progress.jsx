@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Picker } from '@react-native-picker/picker';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ResourceFeedback } from '../../components/common/ResourceFeedback';
@@ -42,6 +43,24 @@ function getProgressPercent(record) {
 export default function InstructorProgressPage() {
   const { data, loading, error, refresh } = useMobileResource(getInstructorProgress);
   const records = Array.isArray(data) ? data : data?.records || [];
+  const [selectedCourse, setSelectedCourse] = useState('ALL');
+  const [selectedStudent, setSelectedStudent] = useState('ALL');
+  const courses = [...new Set(records.map(getLessonName))].sort();
+  const courseRecords = selectedCourse === 'ALL' ? records : records.filter((record) => getLessonName(record) === selectedCourse);
+  const students = [...new Map(courseRecords.map((record) => [record.studentId || getStudentName(record), getStudentName(record)])).entries()];
+  const filteredRecords = selectedStudent === 'ALL' ? courseRecords : courseRecords.filter((record) => (record.studentId || getStudentName(record)) === selectedStudent);
+  const completedLessonCount = filteredRecords.filter((record) => ['PRESENT', 'LATE', 'COMPLETED', 'ATTENDED'].includes(String(record.attendance?.status || record.status || '').toUpperCase())).length;
+  const recordedAttendanceCount = filteredRecords.filter((record) => ['PRESENT', 'LATE', 'ABSENT', 'EXCUSED', 'NO_SHOW', 'COMPLETED', 'ATTENDED'].includes(String(record.attendance?.status || record.status || '').toUpperCase())).length;
+  const attendanceRate = recordedAttendanceCount ? Math.round((completedLessonCount / recordedAttendanceCount) * 100) : 0;
+  const groupedRecords = filteredRecords.reduce((groups, record) => {
+    const course = getLessonName(record);
+    const student = getStudentName(record);
+    const group = groups.find((item) => item.course === course);
+    const studentId = record.studentId || student;
+    if (group) group.students.push({ student, studentId, record });
+    else groups.push({ course, students: [{ student, studentId, record }] });
+    return groups;
+  }, []);
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [savingId, setSavingId] = useState(null);
   const [saveError, setSaveError] = useState('');
@@ -78,21 +97,25 @@ export default function InstructorProgressPage() {
   return (
     <SafeAreaView className="flex-1 bg-[#F7F7FB]">
       <ScrollView
-        contentContainerClassName="px-4 pb-8 pt-4"
+        contentContainerClassName="px-4 pb-36 pt-4"
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
       >
-        <Text className="text-2xl font-bold text-[#0C447C]">Lesson Progress</Text>
-        <Text className="mb-5 mt-2 text-gray-500">Record attendance and leave feedback for each lesson.</Text>
+        <Text className="text-2xl font-bold text-[#0C447C]">Student Progress</Text>
+        <Text className="mb-5 mt-2 text-gray-500">Review each active student’s progress by course and lesson.</Text>
+        <View className="mb-3 overflow-hidden rounded-xl border border-gray-200 bg-white"><Text className="px-4 pt-3 text-xs font-semibold uppercase text-gray-500">Course</Text><Picker selectedValue={selectedCourse} onValueChange={(value) => { setSelectedCourse(value); setSelectedStudent('ALL'); }}><Picker.Item label="All courses" value="ALL" />{courses.map((course) => <Picker.Item key={course} label={course} value={course} />)}</Picker></View>
+        <View className="mb-5 overflow-hidden rounded-xl border border-gray-200 bg-white"><Text className="px-4 pt-3 text-xs font-semibold uppercase text-gray-500">Active student</Text><Picker selectedValue={selectedStudent} onValueChange={setSelectedStudent}><Picker.Item label="All active students" value="ALL" />{students.map(([id, name]) => <Picker.Item key={id} label={name} value={id} />)}</Picker></View>
+        <View className="mb-5 rounded-xl bg-white p-4"><Text className="text-xs font-bold uppercase tracking-wider text-gray-500">Progress summary</Text><View className="mt-3 flex-row justify-between"><View><Text className="text-2xl font-bold text-[#0C447C]">{completedLessonCount}</Text><Text className="text-xs text-gray-500">Completed</Text></View><View><Text className="text-2xl font-bold text-[#0C447C]">{filteredRecords.length}</Text><Text className="text-xs text-gray-500">Total lessons</Text></View><View><Text className="text-2xl font-bold text-[#0C447C]">{attendanceRate}%</Text><Text className="text-xs text-gray-500">Attendance rate</Text></View></View></View>
         {!!saveError && <Text accessibilityRole="alert" className="mb-4 text-sm text-red-700">{saveError}</Text>}
         <ResourceFeedback loading={loading} error={error} onRetry={refresh} />
         {!loading && !error && records.length === 0 && <Text className="text-sm text-gray-500">No lessons available.</Text>}
-        {records.map((record) => {
+        {groupedRecords.map((courseGroup) => <View key={courseGroup.course} className="mb-5"><View className="mb-3 rounded-xl bg-[#E6F1FB] px-4 py-3"><Text className="text-xs font-bold uppercase tracking-wider text-[#0C447C]">Course</Text><Text className="mt-1 text-lg font-bold text-[#0C447C]">{courseGroup.course}</Text><Text className="mt-1 text-xs text-gray-600">{new Set(courseGroup.students.map((item) => item.studentId)).size} student{new Set(courseGroup.students.map((item) => item.studentId)).size === 1 ? '' : 's'}</Text></View>{courseGroup.students.map(({ record }) => {
           const status = String(record.attendance?.status || record.status || 'SCHEDULED').toUpperCase();
           const notes = feedbackDrafts[record.id] ?? record.attendance?.notes ?? '';
           const saving = savingId === record.id;
           const progress = getProgressPercent(record);
           const lessonInProgress = isLessonInProgress(record);
           const attendanceRecorded = ['PRESENT', 'ABSENT', 'EXCUSED'].includes(status);
+          const feedbackSubmitted = !!record.attendance?.notes?.trim();
           return (
             <View key={record.id} className="mb-4 rounded-2xl border border-gray-100 bg-white p-4">
               <Text className="text-base font-bold text-gray-900">{getLessonName(record)}</Text>
@@ -149,16 +172,14 @@ export default function InstructorProgressPage() {
                   accessibilityLabel={`Instructor feedback for ${getStudentName(record)}`}
                   className="min-h-24 rounded-xl border border-gray-300 px-4 py-3 text-gray-900"
                   placeholder="Add feedback for this lesson"
-                  editable={!saving}
+                  editable={!saving && !feedbackSubmitted}
                 />
-                <Pressable accessibilityRole="button" disabled={savingFeedbackId === record.id} onPress={() => saveFeedback(record)} className="mt-3 self-start rounded-xl bg-[#0C447C] px-4 py-3">
-                  <Text className="font-semibold text-white">{savingFeedbackId === record.id ? 'Saving feedback...' : 'Save feedback'}</Text>
-                </Pressable>
+                {feedbackSubmitted ? <Text className="mt-2 text-xs font-semibold text-gray-500">Feedback submitted.</Text> : <Pressable accessibilityRole="button" disabled={savingFeedbackId === record.id} onPress={() => saveFeedback(record)} className="mt-3 self-start rounded-xl bg-[#0C447C] px-4 py-3"><Text className="font-semibold text-white">{savingFeedbackId === record.id ? 'Saving feedback...' : 'Save feedback'}</Text></Pressable>}
               </>}
               {saving && <View className="mt-3 flex-row items-center"><ActivityIndicator size="small" color={ACCENT} /><Text className="ml-2 text-sm text-gray-500">Saving attendance and feedback…</Text></View>}
             </View>
           );
-        })}
+        })}</View>)}
       </ScrollView>
     </SafeAreaView>
   );

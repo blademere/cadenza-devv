@@ -1,8 +1,6 @@
 import dotenv from 'dotenv'
 import { z } from 'zod'
 
-// The API workspace is launched with apps/api as its working directory, while
-// the development environment file is owned by the monorepo root.
 dotenv.config({ path: '../../.env' })
 const emptyToUndefined = (value) => (value === '' ? undefined : value)
 const optionalEnvString = z.preprocess(emptyToUndefined, z.string().optional())
@@ -75,6 +73,9 @@ const refreshTokenLifetimeMs = parseDurationMs(data.JWT_REFRESH_EXPIRES_IN)
 if (data.COOKIE_REFRESH_MAX_AGE_MS !== refreshTokenLifetimeMs) throw new Error('COOKIE_REFRESH_MAX_AGE_MS must exactly match JWT_REFRESH_EXPIRES_IN.')
 if (data.NODE_ENV === 'production' && data.PASSWORD_RESET_URL.startsWith('http://')) throw new Error('PASSWORD_RESET_URL must use HTTPS in production.')
 if (data.NODE_ENV === 'production' && data.EMAIL_VERIFICATION_URL.startsWith('http://')) throw new Error('EMAIL_VERIFICATION_URL must use HTTPS in production.')
+const isLocalHost = (value) => ['localhost', '127.0.0.1', '::1'].includes(new URL(value).hostname)
+if (data.NODE_ENV === 'production' && isLocalHost(data.PASSWORD_RESET_URL)) throw new Error('PASSWORD_RESET_URL must use the public frontend URL in production, not localhost.')
+if (data.NODE_ENV === 'production' && isLocalHost(data.EMAIL_VERIFICATION_URL)) throw new Error('EMAIL_VERIFICATION_URL must use the public frontend URL in production, not localhost.')
 const hasGoogleCredentials = Boolean(data.OAUTH_GOOGLE_CLIENT_ID || data.OAUTH_GOOGLE_CLIENT_SECRET)
 if (hasGoogleCredentials && (!data.OAUTH_GOOGLE_CLIENT_ID || !data.OAUTH_GOOGLE_CLIENT_SECRET || !data.OAUTH_GOOGLE_CALLBACK_URL)) throw new Error('Google OAuth requires OAUTH_GOOGLE_CLIENT_ID, OAUTH_GOOGLE_CLIENT_SECRET, and OAUTH_GOOGLE_CALLBACK_URL.')
 const hasFacebookCredentials = Boolean(data.OAUTH_FACEBOOK_CLIENT_ID || data.OAUTH_FACEBOOK_CLIENT_SECRET)

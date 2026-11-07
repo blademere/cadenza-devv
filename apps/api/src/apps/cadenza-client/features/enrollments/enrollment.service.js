@@ -11,6 +11,10 @@ import {
   assertWithinOperatingHours,
 } from '../settings/operating-hours.js';
 import { getOperatingHoursForDate } from '../settings/operating-hours.js';
+import { sendNotification } from '../../../../platform/notifications/notification.send.service.js';
+import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
+
+const prisma = getPrismaClient();
 
 function getDayOfWeek(date) {
   const weekday = new Intl.DateTimeFormat('en-US', {
@@ -316,6 +320,14 @@ function mapEnrollment(enrollment) {
 }
 
 export const enrollmentService = {
+  async assignRoom(appId, sessionId, roomId) {
+    const result = await enrollmentRepository.assignRoomToSession(appId, sessionId, roomId);
+    if (!result.count) throw new NotFoundError('Class schedule not found.');
+    const session = await prisma.cadenzaLessonSession.findFirst({ where: { id: sessionId, appId }, include: { room: { include: { resource: true } }, enrollment: { include: { customer: { include: { person: { select: { userId: true } } } } } }, instructor: { include: { person: { select: { userId: true } } } } } });
+    const recipients = [session?.enrollment?.customer?.person?.userId, session?.instructor?.person?.userId].filter(Boolean);
+    await Promise.all(recipients.map((userId) => sendNotification({ userId, type: 'ROOM_ASSIGNED', title: 'Room assigned', message: `Your upcoming class room is ${session.room?.resource?.name || session.room?.resourceId || 'assigned room'}.`, data: { route: session.instructor?.person?.userId === userId ? '/instructor/schedule' : '/student/schedule', sessionId, room: session.room?.resource?.name || session.room?.resourceId || null }, channels: ['IN_APP'] })));
+    return { sessionId, roomId };
+  },
   async submitRescheduleOptions(appId, requestId, options) {
     if (!Array.isArray(options) || !options.length) throw new BadRequestError('At least one replacement schedule option is required.');
     const request = await enrollmentRepository.findRescheduleRequestById(appId, requestId);
@@ -339,8 +351,28 @@ export const enrollmentService = {
     const start = new Date(toDate(times[0]));
     const end = new Date(toDate(times[1]));
     if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf()) || end <= start) throw new BadRequestError('The selected schedule time is invalid.');
+    const request = await enrollmentRepository.findRescheduleRequestById(appId, requestId);
+    if (!request) throw new NotFoundError('Pending reschedule request not found.');
+    if (request.metadata?.studentChoice) {
+      const selected = (request.metadata.generatedOptions || []).find((generated) => generated.id === request.metadata.studentChoice);
+      if (!selected || selected.date !== option.date || selected.time !== option.time) throw new ConflictError('Front Desk can only approve the schedule selected by the student.');
+    }
     const result = await enrollmentRepository.confirmReschedule(appId, requestId, start, end);
     if (!result) throw new NotFoundError('Pending reschedule request not found.');
+    const recipients = [
+      { userId: request.session?.enrollment?.customer?.person?.userId, route: '/student/schedule', label: 'student' },
+      { userId: request.session?.instructor?.person?.userId, route: '/instructor/schedule', label: 'instructor' },
+    ].filter((recipient) => recipient.userId);
+    for (const recipient of recipients) {
+      await sendNotification({
+        userId: recipient.userId,
+        type: 'RESCHEDULE_CONFIRMED',
+        title: 'Your schedule was rescheduled',
+        message: `Your new lesson schedule is ${option.date} · ${option.time}.`,
+        data: { route: recipient.route, requestId, sessionId: result.id, scheduledStart: start.toISOString(), scheduledEnd: end.toISOString() },
+        channels: ['IN_APP'],
+      });
+    }
     return result;
   },
   async getRescheduleRequests(appId) {
@@ -367,6 +399,7 @@ export const enrollmentService = {
       generatedOptions: request.metadata?.generatedOptions || [],
       instructorChoices: request.metadata?.instructorChoices || [],
       studentChoices: request.metadata?.studentChoices || [],
+      studentChoice: request.metadata?.studentChoice || null,
       workflowStatus: request.metadata?.workflowStatus || 'PENDING',
     })).filter((request) => request.status === 'PENDING' && request.scheduledStart && new Date(request.scheduledStart) >= todayInManila);
   },
@@ -532,6 +565,7 @@ export const enrollmentService = {
     packageId,
     instructorId,
     courseId,
+    roomId,
     startDate,
   ) {
     const packageItem =
@@ -595,6 +629,11 @@ export const enrollmentService = {
       throw new BadRequestError(
         'This instructor is not mapped to the selected course.',
       );
+    }
+
+    const courseRooms = await enrollmentRepository.findCourseRooms(appId, course.id);
+    if (roomId && !courseRooms.some((room) => room.id === roomId)) {
+      throw new BadRequestError('The selected room is not configured for the selected course.');
     }
 
     const requiredDuration = Number(
@@ -710,6 +749,12 @@ export const enrollmentService = {
       courseId: course.id,
       courseName: course.name,
       availability,
+      rooms: (await enrollmentRepository.findCourseRooms(appId, course.id)).map((room) => ({
+        id: room.id,
+        name: room.roomName,
+        roomType: room.roomType,
+        capacity: room.capacity,
+      })),
     };
   },
 
@@ -851,10 +896,38 @@ export const enrollmentService = {
       );
     }
 
+    const courseRooms = await enrollmentRepository.findCourseRooms(appId, courseId);
+    if (!courseRooms.length) {
+      throw new BadRequestError('No available room is configured for the selected course.');
+    }
+
+    const requestedRoom = session.roomId
+      ? courseRooms.find((room) => room.id === session.roomId)
+      : null;
+    if (session.roomId && !requestedRoom) {
+      throw new BadRequestError('The selected room is not configured for the selected course or is unavailable.');
+    }
+
+    const availableRoom = requestedRoom && !await enrollmentRepository.findConflictingRoom(
+      appId, requestedRoom.id, startsAt, endsAt,
+    )
+      ? requestedRoom
+      : requestedRoom
+        ? null
+        : (await Promise.all(courseRooms.map(async (room) => ({
+          room,
+          conflict: await enrollmentRepository.findConflictingRoom(appId, room.id, startsAt, endsAt),
+        })))).find(({ conflict }) => !conflict)?.room;
+
+    if (!availableRoom) {
+      throw new ConflictError('No room is available for the selected course and time.');
+    }
+
     return {
       instructor,
       startsAt,
       endsAt,
+      roomId: availableRoom.id,
     };
   },
 
@@ -1002,6 +1075,14 @@ export const enrollmentService = {
         throw new ConflictError('Your selected session overlaps an existing enrollment.');
       }
 
+      if (validatedSessions.some((existing) =>
+        existing.roomId === validated.roomId &&
+        validated.startsAt < existing.scheduledEnd &&
+        validated.endsAt > existing.scheduledStart
+      )) {
+        throw new ConflictError('Selected sessions cannot use the same room at overlapping times.');
+      }
+
       try {
         assertWithinOperatingHours(operatingHours, validated.startsAt, validated.endsAt);
       } catch (error) {
@@ -1011,8 +1092,7 @@ export const enrollmentService = {
       validatedSessions.push({
         instructorId:
           adjustedSession.instructorId,
-        roomId:
-          adjustedSession.roomId || null,
+        roomId: validated.roomId,
         scheduledStart:
           validated.startsAt,
         scheduledEnd:
@@ -1154,8 +1234,17 @@ export const enrollmentService = {
         }
       }
 
+      if (validatedScheduleSessions.some((existing) =>
+        existing.roomId === validated.roomId &&
+        validated.startsAt < existing.scheduledEnd &&
+        validated.endsAt > existing.scheduledStart
+      )) {
+        throw new ConflictError('Selected sessions cannot use the same room at overlapping times.');
+      }
+
       validatedScheduleSessions.push({
         instructorId: adjustedSession.instructorId,
+        roomId: validated.roomId,
         scheduledStart: validated.startsAt,
         scheduledEnd: validated.endsAt,
       });
@@ -1288,6 +1377,28 @@ export const enrollmentService = {
     }
 
     return mapEnrollment(cancelled);
+  },
+
+  async updateEnrollmentStatus(appId, enrollmentId, status) {
+    const allowedStatuses = ['ACTIVE', 'AT_RISK', 'READY_TO_COMPLETE', 'COMPLETED', 'SUSPENDED', 'INACTIVE'];
+    if (!allowedStatuses.includes(status)) throw new BadRequestError('Invalid enrollment status.');
+    const updated = await enrollmentRepository.updateStatus(appId, enrollmentId, status);
+    if (!updated) throw new NotFoundError('Enrollment not found.');
+    return updated;
+  },
+
+  async notifyEnrollmentAtRisk(appId, enrollmentId) {
+    const enrollment = await enrollmentRepository.findNotificationRecipient(appId, enrollmentId);
+    const userId = enrollment?.customer?.person?.userId;
+    if (!userId) throw new NotFoundError('Student account cannot receive notifications.');
+    return sendNotification({
+      userId,
+      type: 'ENROLLMENT_AT_RISK',
+      title: 'Enrollment needs your attention',
+      message: 'Your enrollment has been marked At Risk after two consecutive absences. Please contact Cadenza Music Center to continue, reschedule, or suspend your enrollment.',
+      data: { enrollmentId },
+      channels: ['IN_APP', 'EMAIL'],
+    });
   },
 
   async cancelEnrollment(

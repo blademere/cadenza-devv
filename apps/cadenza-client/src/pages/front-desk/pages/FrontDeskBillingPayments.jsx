@@ -510,18 +510,18 @@ export default function BillingPayments() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <Table className="table-fixed text-sm [&_th]:!whitespace-normal [&_td]:!whitespace-normal [&_td]:break-words">
+              <div className="overflow-x-auto rounded-md border">
+                <Table className="min-w-[980px] table-fixed text-sm [&_th]:!whitespace-normal [&_td]:!whitespace-normal [&_td]:break-words">
                   <colgroup>
-                    <col className="w-[12%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[14%]" />
                     <col className="w-[9%]" />
-                    <col className="w-[15%]" />
-                    <col className="w-[12%]" />
-                    <col className="w-[7%]" />
-                    <col className="w-[7%]" />
-                    <col className="w-[7%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[9%]" />
                     <col className="w-[10%]" />
-                    <col className="w-[21%]" />
+                    <col className="w-[14%]" />
                   </colgroup>
                   <TableHeader>
                     <TableRow>
@@ -593,10 +593,10 @@ export default function BillingPayments() {
                               {transaction.details}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="whitespace-nowrap font-mono tabular-nums">
                             {formatCurrency(transaction.totalAmount)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="whitespace-nowrap font-mono tabular-nums">
                             {formatCurrency(paidAmount(transaction))}
                             {transaction.payments.length > 0 && (
                               <div className="text-xs text-muted-foreground">
@@ -604,7 +604,7 @@ export default function BillingPayments() {
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="font-medium">
+                          <TableCell className="whitespace-nowrap font-mono font-medium tabular-nums">
                             {formatCurrency(remainingAmount(transaction))}
                           </TableCell>
                           <TableCell>

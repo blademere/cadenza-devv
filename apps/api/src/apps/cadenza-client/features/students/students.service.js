@@ -21,16 +21,17 @@ const getEnrollmentCourses = (enrollment) => {
 
 const mapStudent = (student) => {
   const enrollments = student.enrollments ?? [];
+  const enrolledRecords = enrollments.filter((enrollment) => enrollment.status === 'APPROVED');
   const courses = [
     ...new Map(
-      enrollments
+      enrolledRecords
         .flatMap(getEnrollmentCourses)
         .map((course) => [course.id, course]),
     ).values(),
   ];
   const instructors = [
     ...new Map(
-      enrollments
+      enrolledRecords
         .flatMap((enrollment) => enrollment.sessions ?? [])
         .map((session) => session.instructor?.person)
         .filter(Boolean)
@@ -44,7 +45,9 @@ const mapStudent = (student) => {
     name: fullName(student.person),
     email: student.person.email,
     phone: student.person.phone,
-    status: student.status,
+    status: enrollments.some((enrollment) => enrollment.status === 'AT_RISK')
+      ? 'AT_RISK'
+      : student.status,
     isActive: student.person.isActive,
     courses,
     instructors,

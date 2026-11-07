@@ -17,12 +17,11 @@ import {
 import {
   EllipsisVerticalIcon,
   CircleUserRoundIcon,
-  BellIcon,
   LogOutIcon,
   Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import useAuth from "@/core/auth/useAuth";
@@ -35,8 +34,6 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { getMyNotifications } from "@/pages/client/notifications/services/notifications.service";
 
 export function NavUser({ user }) {
   const { isMobile } = useSidebar();
@@ -44,7 +41,6 @@ export function NavUser({ user }) {
   const { logout, user: authUser, account } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const authenticatedName =
     authUser?.name ||
@@ -56,14 +52,6 @@ export function NavUser({ user }) {
     name: authenticatedName || user?.name,
     email: authUser?.email || user?.email,
   };
-  useEffect(() => {
-    getMyNotifications().then((items) => {
-      let readIds = [];
-      try { readIds = JSON.parse(localStorage.getItem('cadenza-client-read-notifications') || '[]'); } catch { /* ignore invalid local state */ }
-      setUnreadCount(items.filter((item) => !readIds.includes(item.id)).length);
-    }).catch(() => setUnreadCount(0));
-  }, []);
-
   const handleLogout = async () => {
     if (isSigningOut) {
       return;
@@ -163,12 +151,6 @@ export function NavUser({ user }) {
                 Account
               </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => navigate("/client/notifications")}
-              >
-                <BellIcon />
-                Notifications{unreadCount > 0 && <Badge className="ml-auto">{unreadCount > 99 ? '99+' : unreadCount}</Badge>}
-              </DropdownMenuItem>
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />

@@ -96,6 +96,7 @@ export default function UserManagementPage() {
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [requiredFields, setRequiredFields] = useState({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -133,6 +134,7 @@ export default function UserManagementPage() {
     setError('');
     setEmailError('');
     setPhoneError('');
+    setRequiredFields({});
     setDialogOpen(true);
   };
 
@@ -154,6 +156,12 @@ export default function UserManagementPage() {
   };
 
   const updateForm = (field, value) => {
+    setRequiredFields((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
     if (field === 'email') {
       setEmailError('');
     }
@@ -176,6 +184,18 @@ export default function UserManagementPage() {
       setError('');
       setEmailError('');
       setPhoneError('');
+      if (!selectedStaff) {
+        const missing = {};
+        ['firstName', 'lastName', 'email'].forEach((field) => {
+          if (!form[field].trim()) missing[field] = 'This field is required.';
+        });
+        if (!/^09\d{9}$/.test(form.phone.trim())) {
+          missing.phone = 'Enter a complete 11-digit phone number.';
+        }
+        if (!form.password.trim()) missing.password = 'This field is required.';
+        setRequiredFields(missing);
+        if (Object.keys(missing).length) return;
+      }
 
       const email = form.email.trim();
       const phone = form.phone.trim();
@@ -236,30 +256,6 @@ export default function UserManagementPage() {
     }
   };
 
-  const deactivateStaff = async () => {
-    if (!selectedStaff || selectedStaff.status === 'INACTIVE') {
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      setError('');
-
-      await staffService.deactivateStaff(selectedStaff.id);
-
-      setDialogOpen(false);
-      await fetchStaff();
-    } catch (error) {
-      setError(
-        error.response?.data?.message ||
-          error.message ||
-          'Failed to deactivate staff member.',
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   return (
     <SidebarProvider>
       {' '}
@@ -311,10 +307,12 @@ export default function UserManagementPage() {
                   </CardDescription>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Filter status" />
+                      <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
 
                     <SelectContent>
@@ -326,11 +324,14 @@ export default function UserManagementPage() {
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>
+                    </Select>
+                  </div>
 
-                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">Account Type</Label>
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
                     <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Filter type" />
+                      <SelectValue placeholder="Filter by account type" />
                     </SelectTrigger>
 
                     <SelectContent>
@@ -342,7 +343,8 @@ export default function UserManagementPage() {
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -448,7 +450,7 @@ export default function UserManagementPage() {
                             onChange={(event) =>
                               updateForm('firstName', event.target.value)
                             }
-                            required
+                            className={!selectedStaff && requiredFields.firstName ? 'border-destructive' : ''}
                           />
                         </div>
 
@@ -460,7 +462,7 @@ export default function UserManagementPage() {
                             onChange={(event) =>
                               updateForm('lastName', event.target.value)
                             }
-                            required
+                            className={!selectedStaff && requiredFields.lastName ? 'border-destructive' : ''}
                           />
                         </div>
                       </div>
@@ -487,7 +489,7 @@ export default function UserManagementPage() {
                           aria-describedby={
                             emailError ? 'staff-email-error' : undefined
                           }
-                          required
+                          className={emailError || (!selectedStaff && requiredFields.email) ? 'border-destructive' : ''}
                         />
                         {emailError && (
                           <p
@@ -530,7 +532,7 @@ export default function UserManagementPage() {
                                 maxLength={9}
                                 pattern="[0-9]{9}"
                                 title="Enter the remaining 9 digits."
-                                className="h-full border-0 shadow-none focus-visible:ring-0"
+                                className={`h-full border-0 shadow-none focus-visible:ring-0 ${phoneError || (!selectedStaff && requiredFields.phone) ? 'border-destructive' : ''}`}
                                 aria-invalid={Boolean(phoneError)}
                                 aria-describedby={
                                   phoneError ? 'staff-phone-error' : undefined
@@ -559,7 +561,7 @@ export default function UserManagementPage() {
                             onChange={(event) =>
                               updateForm('password', event.target.value)
                             }
-                            required
+                            className={!selectedStaff && requiredFields.password ? 'border-destructive' : ''}
                           />
                           </div>
                         )}
@@ -613,17 +615,6 @@ export default function UserManagementPage() {
                 </div>
 
                 <DialogFooter>
-                  {selectedStaff && selectedStaff.status !== 'INACTIVE' && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={deactivateStaff}
-                      disabled={isSaving}
-                    >
-                      Deactivate
-                    </Button>
-                  )}
-
                   <Button
                     type="button"
                     variant="outline"

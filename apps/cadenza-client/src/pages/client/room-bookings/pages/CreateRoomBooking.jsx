@@ -499,8 +499,8 @@ export default function CreateRoomBooking() {
           <section className="rounded-xl border border-border bg-card p-6">
             <h2 className="text-lg font-semibold">Booking Schedule</h2>
 
-            <div className="mt-5 grid gap-5 sm:grid-cols-3">
-              <div className="sm:col-span-3">
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <div className="sm:col-span-2">
                 <p className="text-sm font-medium">Selected date</p>
                 <p className={`mt-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm ${selectedOperatingHours?.isClosed ? 'text-destructive' : 'text-foreground'}`}>
                   {date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { dateStyle: 'medium' }) : 'Choose a date from the calendar'}
@@ -523,7 +523,7 @@ export default function CreateRoomBooking() {
                   onChange={handleStartTimeChange}
                   className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 >
-                  <option value="">Select start time</option>
+                  <option value="">Start time</option>
 
                   {selectableStartTimes.map((time) => <option key={time.value} value={time.value}>{time.label}</option>)}
                 </select>
@@ -540,7 +540,7 @@ export default function CreateRoomBooking() {
                   onChange={handleEndTimeChange}
                   className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 >
-                  <option value="">Select end time</option>
+                  <option value="">End time</option>
 
                   {availableEndTimes.map((time) => <option key={time.value} value={time.value}>{time.label}</option>)}
                 </select>

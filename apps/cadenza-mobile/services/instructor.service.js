@@ -22,6 +22,7 @@ export async function getInstructorProgress() {
   const data = unwrap(await api.get('/instructor/progress'));
   return data?.records ?? data ?? [];
 }
+export async function getInstructorMaterial(id) { return unwrap(await api.get(`/instructor/materials/${id}`)); }
 
 export async function getInstructorProfile() {
   const data = unwrap(await api.get('/auth/me'));

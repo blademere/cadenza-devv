@@ -21,6 +21,10 @@ export async function saveAuth(data) {
   ]);
 }
 
+export async function saveAccessToken(accessToken) {
+  if (accessToken) await AsyncStorage.setItem(TOKEN_KEY, accessToken);
+}
+
 // Get saved user
 export async function getUser() {
   const user = await AsyncStorage.getItem(USER_KEY);

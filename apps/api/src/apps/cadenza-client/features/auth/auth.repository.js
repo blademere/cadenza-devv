@@ -108,7 +108,11 @@ export const cadenzaAuthRepository = {
     return prisma.cadenzaEnrollment.findFirst({
       where: {
         customerId,
-        status: 'APPROVED',
+        // Mobile access requires at least one currently participating course.
+        // AT_RISK is still an active student enrollment and must remain
+        // accessible. Completed, pending, suspended, and inactive courses do
+        // not qualify, but another ACTIVE/AT_RISK course still can.
+        status: { in: ['ACTIVE', 'AT_RISK'] },
       },
       orderBy: [
         { enrolledAt: 'desc' },

@@ -96,7 +96,7 @@ export default function Dashboard() {
 
   const firstName = user?.person?.firstName || user?.name?.split(' ')[0] || 'there';
   const activeEnrollments = enrollments.filter((enrollment) =>
-    ['FOR_APPROVAL', 'APPROVED', 'ACTIVE'].includes(enrollment.status),
+    ['FOR_APPROVAL', 'APPROVED', 'ACTIVE', 'AT_RISK'].includes(enrollment.status),
   );
   const pendingPayments = transactions.filter(
     (transaction) => transaction.paymentStatus === 'PENDING',

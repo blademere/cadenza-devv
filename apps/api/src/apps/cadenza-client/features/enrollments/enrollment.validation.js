@@ -12,6 +12,7 @@ const packageInstructorSchema = z.object({
   }),
   query: z.object({
     courseId: z.uuid().optional(),
+    roomId: z.uuid().optional(),
     startDate: z.coerce.date().optional(),
   }).default({}),
 });
@@ -24,6 +25,7 @@ const packageInstructorAvailabilitySchema =
     }),
     query: z.object({
       courseId: z.uuid().optional(),
+      roomId: z.uuid().optional(),
       startDate: z.coerce.date().optional(),
     }).default({}),
   });

@@ -28,7 +28,7 @@ const requireActiveEnrollment = async (req, _res, next) => {
     if (!activeEnrollment) {
       return next(
         new UnauthorizedError(
-          'An approved enrollment is required for mobile access.',
+          'An active enrollment is required for mobile access.',
         ),
       );
     }

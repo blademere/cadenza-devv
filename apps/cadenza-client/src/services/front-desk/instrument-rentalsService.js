@@ -17,6 +17,14 @@ export const getReturnConditions = async () =>
 export const approveInstrumentRental = async (id) =>
   unwrap(await apiClient.patch(`${INSTRUMENT_RENTALS_URL}/${id}/approve`));
 
+export const reassignInstrumentRental = async (id, instrumentId) =>
+  unwrap(await apiClient.patch(`${INSTRUMENT_RENTALS_URL}/${id}/reassign`, { instrumentId }));
+
+export const getAvailableRentalInstruments = async (scheduledStart, scheduledEnd) =>
+  unwrap(await apiClient.get(`${INSTRUMENT_RENTALS_URL}/staff-available`, {
+    params: { scheduledStart, scheduledEnd },
+  }));
+
 export const returnInstrumentRental = async (id, data) =>
   unwrap(await apiClient.patch(`${INSTRUMENT_RENTALS_URL}/${id}/return`, data));
 

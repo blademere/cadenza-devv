@@ -89,6 +89,27 @@ const resetPassword = async ({ token, newPassword }) => {
   await publish({ event: 'auth.user.password_reset', entityType: 'User', entityId: stored.userId, context: { user: { id: stored.userId, email: stored.user.email } }, idempotencyKey: `auth.password-reset.completed:${stored.id}` })
   return { success: true }
 }
+const requestPasswordResetCode = async ({ email }) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await findUserByEmail(normalizedEmail);
+  if (!user?.isActive || !user.passwordHash) throw new UnauthorizedError('This Gmail address is not registered.');
+  const code = String(crypto.randomInt(100000, 1000000));
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await invalidatePasswordResetTokens(user.id);
+  await createPasswordResetToken({ tokenHash: hashToken(`mobile-reset-code:${normalizedEmail}:${code}`), userId: user.id, expiresAt });
+  await sendEmail({ to: normalizedEmail, subject: 'Your Cadenza password reset code', text: `Your Cadenza password reset code is ${code}. It expires in 10 minutes.`, html: `<p>Your Cadenza password reset code is:</p><p style="font-size:28px;letter-spacing:6px"><strong>${code}</strong></p><p>This code expires in 10 minutes.</p>` });
+  return { found: true, expiresAt };
+};
+const verifyPasswordResetCode = async ({ email, code }) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const stored = await findPasswordResetToken(hashToken(`mobile-reset-code:${normalizedEmail}:${code}`));
+  if (!stored || stored.usedAt || stored.expiresAt <= new Date() || stored.user.email !== normalizedEmail || !stored.user.isActive) throw new UnauthorizedError('The code is invalid or expired.');
+  await invalidatePasswordResetTokens(stored.userId);
+  const token = createPasswordResetSecret();
+  const expiresAt = getPasswordResetExpiration();
+  await createPasswordResetToken({ tokenHash: hashToken(token), userId: stored.userId, expiresAt });
+  return { resetToken: encryptPasswordResetSecret(token) };
+};
 const changePassword = async ({ userId, currentPassword, newPassword }) => {
   if (currentPassword === newPassword) throw new BadRequestError('New password must be different from the current password.')
   const user = await findUserById(userId)
@@ -129,4 +150,4 @@ const refreshAccessToken = async ({ refreshToken }) => {
 }
 const logout = async ({ refreshToken }) => { if (!refreshToken) return; let payload; try { payload = verifyRefreshToken(refreshToken) } catch { return }; if (payload.type !== 'refresh' || !payload.tokenId) return; const storedToken = await findRefreshToken(hashToken(refreshToken)); if (!storedToken || storedToken.id !== payload.tokenId || storedToken.revokedAt) return; await revokeRefreshToken(storedToken.id); await publish({ event: 'auth.session.revoked', entityType: 'RefreshToken', entityId: storedToken.userId, actorId: storedToken.userId, context: { user: { id: storedToken.userId } }, idempotencyKey: `auth.session.logout:${storedToken.id}` }) }
 
-export { login, selectApplication, requestPasswordReset, resetPassword, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout }
+export { login, selectApplication, requestPasswordReset, resetPassword, requestPasswordResetCode, verifyPasswordResetCode, changePassword, getSessions, revokeSessionById, revokeAllSessions, refreshAccessToken, logout }

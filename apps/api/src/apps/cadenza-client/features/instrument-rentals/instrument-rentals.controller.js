@@ -1,4 +1,5 @@
 import { instrumentRentalsService } from './instrument-rentals.services.js';
+import { broadcastInstrumentRentalsChanged } from '../../../../platform/websocket/instrument-rentals.socket.js';
 
 const getClientId = (req) => {
   if (!req.cadenzaCustomer?.id) {
@@ -59,12 +60,27 @@ export const instrumentRentalsController = {
         req.cadenzaApp.id,
         req.params.id,
       );
+      broadcastInstrumentRentalsChanged();
 
       return res.json({
         success: true,
         message: 'Instrument rental approved successfully.',
         data: rental,
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async reassignInstrumentRental(req, res, next) {
+    try {
+      const rental = await instrumentRentalsService.reassignInstrumentRental(
+        req.cadenzaApp.id,
+        req.validated.params.id,
+        req.validated.body.instrumentId,
+      );
+      broadcastInstrumentRentalsChanged();
+      return res.json({ success: true, message: 'Instrument reassigned successfully.', data: rental });
     } catch (error) {
       next(error);
     }
@@ -77,6 +93,7 @@ export const instrumentRentalsController = {
         req.params.id,
         req.validated.body,
       );
+      broadcastInstrumentRentalsChanged();
 
       return res.json({
         success: true,
@@ -95,6 +112,7 @@ export const instrumentRentalsController = {
         req.params.id,
         req.validated.body,
       );
+      broadcastInstrumentRentalsChanged();
       return res.json({ success: true, message: 'Instrument handover recorded.', data: rental });
     } catch (error) {
       next(error);
@@ -108,6 +126,7 @@ export const instrumentRentalsController = {
         req.params.id,
         req.body?.cancellationReason,
       );
+      broadcastInstrumentRentalsChanged();
 
       return res.json({
         success: true,
@@ -130,6 +149,7 @@ export const instrumentRentalsController = {
         success: true,
         data: instruments,
       });
+      broadcastInstrumentRentalsChanged();
     } catch (error) {
       next(error);
     }
@@ -252,6 +272,7 @@ export const instrumentRentalsController = {
           customerId: getClientId(req),
           ...req.validated.body,
         });
+      broadcastInstrumentRentalsChanged();
 
       return res.status(201).json({
         success: true,
@@ -269,6 +290,7 @@ export const instrumentRentalsController = {
         appId: req.cadenzaApp.id,
         ...req.validated.body,
       });
+      broadcastInstrumentRentalsChanged();
 
       return res.status(201).json({
         success: true,
@@ -290,6 +312,7 @@ export const instrumentRentalsController = {
           cancellationReason:
             req.validated.body.cancellationReason,
         });
+      broadcastInstrumentRentalsChanged();
 
       return res.json({
         success: true,

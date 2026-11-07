@@ -43,7 +43,7 @@ export default function EmailOtpPage() {
       // provider hydrates the new user and account before the protected route.
       window.location.replace(destination);
     } catch (requestError) {
-      setError(requestError?.message || 'The verification code is invalid or expired.');
+      setError(purpose === 'login' ? 'Invalid Credentials' : (requestError?.message || 'The verification code is invalid or expired.'));
     } finally {
       setIsLoading(false);
     }

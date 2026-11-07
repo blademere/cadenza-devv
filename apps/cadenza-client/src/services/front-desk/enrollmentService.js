@@ -48,4 +48,14 @@ export const enrollmentService = {
 
     return response.data?.data ?? response.data;
   },
+
+  async updateEnrollmentStatus(enrollmentId, status) {
+    const response = await apiClient.patch(`/enrollments/${enrollmentId}/status`, { status });
+    return response.data?.data ?? response.data;
+  },
+
+  async notifyEnrollmentAtRisk(enrollmentId) {
+    const response = await apiClient.post(`/enrollments/${enrollmentId}/notify-at-risk`);
+    return response.data?.data ?? response.data;
+  },
 };

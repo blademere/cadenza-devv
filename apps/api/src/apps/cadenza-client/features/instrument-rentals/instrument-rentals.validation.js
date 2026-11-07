@@ -75,6 +75,11 @@ const receiveRentalSchema = z.object({
   }),
 });
 
+const reassignRentalSchema = z.object({
+  params: z.object({ id: z.uuid() }),
+  body: z.object({ instrumentId: z.uuid() }),
+});
+
 const idValidator = (req, res, next) => {
   try {
     const validated = idSchema.parse({
@@ -204,6 +209,21 @@ const receiveRentalValidator = (req, res, next) => {
   }
 };
 
+const reassignRentalValidator = (req, res, next) => {
+  try {
+    const validated = reassignRentalSchema.parse({
+      params: req.params || {},
+      body: req.body || {},
+    });
+    req.validated = req.validated || {};
+    req.validated.params = validated.params;
+    req.validated.body = validated.body;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export {
   idValidator,
   availabilityValidator,
@@ -212,4 +232,5 @@ export {
   cancelRentalValidator,
   returnRentalValidator,
   receiveRentalValidator,
+  reassignRentalValidator,
 };

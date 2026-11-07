@@ -81,6 +81,7 @@ export default function EnrollmentRatesPage() {
   const [form, setForm] = React.useState(emptyForm);
   const [packageNameError, setPackageNameError] = React.useState('');
   const [statusError, setStatusError] = React.useState('');
+  const [fieldErrors, setFieldErrors] = React.useState({});
 
   const loadPackages = React.useCallback(async () => {
     try {
@@ -114,6 +115,7 @@ export default function EnrollmentRatesPage() {
     setForm({ ...emptyForm });
     setPackageNameError('');
     setStatusError('');
+    setFieldErrors({});
     setDialogOpen(true);
   };
 
@@ -131,6 +133,7 @@ export default function EnrollmentRatesPage() {
 
     setPackageNameError('');
     setStatusError('');
+    setFieldErrors({});
     setDialogOpen(true);
   };
 
@@ -148,6 +151,19 @@ export default function EnrollmentRatesPage() {
   };
 
   const savePackage = async () => {
+    const nextFieldErrors = {
+      name: !String(form.name || '').trim(),
+      price: !form.price || Number(form.price) <= 0,
+      sessions: !form.sessions || Number(form.sessions) <= 0,
+      duration: !form.duration || Number(form.duration) <= 0,
+      frequency: !form.frequency || Number(form.frequency) <= 0,
+    };
+    setFieldErrors(nextFieldErrors);
+    if (Object.values(nextFieldErrors).some(Boolean)) {
+      toast.error('Please complete all required fields.');
+      return;
+    }
+
     if (
       editingPackage?.activeEnrollmentCount > 0 &&
       form.status === 'INACTIVE'
@@ -477,9 +493,10 @@ export default function EnrollmentRatesPage() {
                             name: event.target.value,
                           }));
                           setPackageNameError('');
+                          setFieldErrors((current) => ({ ...current, name: false }));
                         }}
-                        className={packageNameError ? 'border-destructive' : ''}
-                        aria-invalid={Boolean(packageNameError)}
+                        className={packageNameError || fieldErrors.name ? 'border-destructive' : ''}
+                        aria-invalid={Boolean(packageNameError || fieldErrors.name)}
                         aria-describedby={
                           packageNameError ? 'package-name-error' : undefined
                         }
@@ -510,14 +527,16 @@ export default function EnrollmentRatesPage() {
                           type="number"
                           min="1"
                           placeholder="1550"
-                          className="pl-8"
                           value={form.price}
-                          onChange={(event) =>
+                          onChange={(event) => {
                             setForm((current) => ({
                               ...current,
                               price: event.target.value,
-                            }))
-                          }
+                            }));
+                            setFieldErrors((current) => ({ ...current, price: false }));
+                          }}
+                          aria-invalid={fieldErrors.price}
+                          className={`pl-8 ${fieldErrors.price ? 'border-destructive' : ''}`}
                         />
                       </div>
                     </div>
@@ -534,12 +553,15 @@ export default function EnrollmentRatesPage() {
                       min="1"
                       placeholder="4"
                       value={form.sessions}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setForm((current) => ({
                           ...current,
                           sessions: event.target.value,
-                        }))
-                      }
+                        }));
+                        setFieldErrors((current) => ({ ...current, sessions: false }));
+                      }}
+                      aria-invalid={fieldErrors.sessions}
+                      className={fieldErrors.sessions ? 'border-destructive' : ''}
                     />
                   </div>
 
@@ -553,12 +575,15 @@ export default function EnrollmentRatesPage() {
                       type="number"
                       min="1"
                       value={form.duration}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setForm((current) => ({
                           ...current,
                           duration: event.target.value,
-                        }))
-                      }
+                        }));
+                        setFieldErrors((current) => ({ ...current, duration: false }));
+                      }}
+                      aria-invalid={fieldErrors.duration}
+                      className={fieldErrors.duration ? 'border-destructive' : ''}
                     />
                   </div>
 
@@ -573,12 +598,15 @@ export default function EnrollmentRatesPage() {
                       min="1"
                       placeholder="1"
                       value={form.frequency}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setForm((current) => ({
                           ...current,
                           frequency: event.target.value,
-                        }))
-                      }
+                        }));
+                        setFieldErrors((current) => ({ ...current, frequency: false }));
+                      }}
+                      aria-invalid={fieldErrors.frequency}
+                      className={fieldErrors.frequency ? 'border-destructive' : ''}
                     />
                   </div>
                     </div>

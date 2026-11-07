@@ -61,6 +61,7 @@ function mapSession(session, enrollment) {
           generatedOptions: session.rescheduleRequests[0].metadata?.generatedOptions || [],
           instructorChoices: session.rescheduleRequests[0].metadata?.instructorChoices || [],
           studentChoices: session.rescheduleRequests[0].metadata?.studentChoices || [],
+          studentChoice: session.rescheduleRequests[0].metadata?.studentChoice || null,
         }
       : null,
   };
@@ -117,9 +118,13 @@ function mapEnrollmentSchedule(enrollment) {
   };
 }
 
-async function findApprovedEnrollments(appId, customerId) {
+const ACTIVE_ENROLLMENT_STATUS_FILTER = {
+  notIn: ['FOR_APPROVAL', 'COMPLETED', 'CANCELLED', 'REJECTED'],
+};
+
+async function findActiveEnrollments(appId, customerId) {
   return prisma.cadenzaEnrollment.findMany({
-    where: { appId, customerId, status: 'APPROVED' },
+    where: { appId, customerId, status: ACTIVE_ENROLLMENT_STATUS_FILTER },
     include: {
       lessonPackage: {
         select: {
@@ -169,7 +174,7 @@ async function findApprovedEnrollments(appId, customerId) {
 
 export const studentService = {
   async getDashboard(req) {
-    const enrollments = await findApprovedEnrollments(req.cadenzaApp.id, req.cadenzaCustomer.id);
+    const enrollments = await findActiveEnrollments(req.cadenzaApp.id, req.cadenzaCustomer.id);
     const sessions = enrollments.flatMap((enrollment) => enrollment.sessions.map((session) => mapSession(session, enrollment)));
 
     return {
@@ -195,7 +200,7 @@ export const studentService = {
   },
 
   async getSchedule(req) {
-    const enrollments = await findApprovedEnrollments(req.cadenzaApp.id, req.cadenzaCustomer.id);
+    const enrollments = await findActiveEnrollments(req.cadenzaApp.id, req.cadenzaCustomer.id);
     return {
       enrollments: enrollments.map((enrollment) => ({
         id: enrollment.id,
@@ -213,7 +218,7 @@ export const studentService = {
   },
 
   async getProgress(req) {
-    const enrollments = await findApprovedEnrollments(req.cadenzaApp.id, req.cadenzaCustomer.id);
+    const enrollments = await findActiveEnrollments(req.cadenzaApp.id, req.cadenzaCustomer.id);
     const records = enrollments
       .flatMap((enrollment) => enrollment.sessions.map((session) => ({
         ...mapSession(session, enrollment),
@@ -243,7 +248,7 @@ export const studentService = {
   },
 
   async getMaterials(req) {
-    const enrollments = await findApprovedEnrollments(req.cadenzaApp.id, req.cadenzaCustomer.id);
+    const enrollments = await findActiveEnrollments(req.cadenzaApp.id, req.cadenzaCustomer.id);
     const groups = new Map();
 
     for (const enrollment of enrollments) {
@@ -260,6 +265,7 @@ export const studentService = {
         }
 
         for (const material of lesson.materials || []) {
+          if ((material.metadata?.status || 'AVAILABLE') !== 'AVAILABLE' || !material.storageReference) continue;
           if (group.materials.some((item) => item.id === material.id)) continue;
           group.materials.push({
             id: material.id,
@@ -308,7 +314,7 @@ export const studentService = {
       where: {
         id: sessionId,
         appId: req.cadenzaApp.id,
-        enrollment: { customerId: req.cadenzaCustomer.id, status: 'APPROVED' },
+        enrollment: { customerId: req.cadenzaCustomer.id, status: ACTIVE_ENROLLMENT_STATUS_FILTER },
       },
       include: { rescheduleRequests: { where: { status: 'PENDING' }, take: 1 } },
     });
@@ -329,30 +335,20 @@ export const studentService = {
     });
   },
 
-  async chooseSchedule(req, sessionId, optionIds) {
+  async chooseSchedule(req, sessionId, optionId) {
     const session = await prisma.cadenzaLessonSession.findFirst({
-      where: {
-        id: sessionId,
-        appId: req.cadenzaApp.id,
-        enrollment: { customerId: req.cadenzaCustomer.id, status: 'APPROVED' },
-      },
+      where: { id: sessionId, appId: req.cadenzaApp.id, enrollment: { customerId: req.cadenzaCustomer.id, status: ACTIVE_ENROLLMENT_STATUS_FILTER } },
       include: { rescheduleRequests: { where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' }, take: 1 } },
     });
-    if (!session || !session.rescheduleRequests[0]) throw new NotFoundError('Pending schedule request not found.');
-    const request = session.rescheduleRequests[0];
+    const request = session?.rescheduleRequests?.[0];
+    if (!request) throw new NotFoundError('Pending reschedule request not found.');
     const options = request.metadata?.generatedOptions || [];
-    const uniqueOptionIds = [...new Set(optionIds)];
-    if (!uniqueOptionIds.every((id) => options.some((option) => option.id === id))) {
-      throw new ConflictError('One or more selected schedules are no longer available.');
-    }
-    if ((request.metadata?.studentChoices || []).length) throw new ConflictError('Schedule choices have already been submitted.');
-    const instructorChoices = request.metadata?.instructorChoices || [];
-    const workflowStatus = instructorChoices.some((id) => uniqueOptionIds.includes(id))
-      ? 'AWAITING_FRONTDESK_CONFIRMATION'
-      : 'AWAITING_TWO_APPROVALS';
+    if (!options.some((option) => option.id === optionId)) throw new ConflictError('The selected schedule is not a generated option.');
+    if (request.metadata?.studentChoice) throw new ConflictError('A student schedule choice has already been submitted.');
     return prisma.cadenzaRescheduleRequest.update({
       where: { id: request.id },
-      data: { metadata: { ...(request.metadata || {}), studentChoices: uniqueOptionIds, workflowStatus } },
+      data: { metadata: { ...(request.metadata || {}), studentChoice: optionId, workflowStatus: 'AWAITING_INSTRUCTOR_ADAPTATION' } },
     });
   },
+
 };

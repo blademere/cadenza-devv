@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Tabs } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { fonts } from '../../themes/fonts';
 import { logout } from '../../services/authService';
+import { getStudentNotifications, getStudentSchedule, markStudentNotificationRead } from '../../services/studentService';
 const ACCENT = '#0C447C';
 const ACCENT_SOFT = '#E6F1FB';
 const MUTED = '#888780';
@@ -21,7 +22,10 @@ function TabIcon({ name, focused }) {
     </View>
   );
 }
-function ProfileMenu({ visible, onClose, onProfile, onLogout }) {
+function RescheduleTabIcon({ focused, count }) {
+  return <View className="relative"><TabIcon name={focused ? 'swap-horizontal' : 'swap-horizontal-outline'} focused={focused} />{count > 0 ? <View className="absolute -right-2 -top-2 min-w-5 items-center rounded-full bg-red-500 px-1"><Text className="text-[10px] font-bold leading-4 text-white">{count > 99 ? '99+' : count}</Text></View> : null}</View>;
+}
+function ProfileMenu({ visible, onClose, onProfile, onLogout, onNotifications, unreadNotificationCount }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/15" onPress={onClose}>
@@ -30,6 +34,21 @@ function ProfileMenu({ visible, onClose, onProfile, onLogout }) {
           className="absolute right-[15px] top-[60px] w-[190px] rounded-xl bg-white p-2"
           style={{ elevation: 6, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8 }}
         >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            onPress={() => {
+              onClose();
+              onNotifications();
+            }}
+            className="flex-row items-center rounded-lg px-3 py-3"
+          >
+            <View className="relative">
+              <Ionicons name="notifications-outline" size={20} color={ACCENT} />
+              {unreadNotificationCount > 0 ? <View className="absolute -right-3 -top-2 min-w-4 items-center rounded-full bg-red-500 px-1"><Text className="text-[10px] font-bold leading-4 text-white">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</Text></View> : null}
+            </View>
+            <Text className="ml-3 text-base" style={{ fontFamily: fonts.regular }}>Notifications</Text>
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="My Profile"
@@ -68,6 +87,31 @@ export default function StudentLayout() {
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [pendingRescheduleCount, setPendingRescheduleCount] = useState(0);
+  const unreadNotificationCount = notifications.filter((item) => !item.readAt).length;
+
+  async function loadNotifications() {
+    try {
+      const result = await getStudentNotifications();
+      setNotifications(Array.isArray(result) ? result : []);
+    } catch (error) {
+      console.warn('Unable to load notifications.', error);
+    }
+  }
+
+  async function loadPendingReschedules() {
+    try {
+      const result = await getStudentSchedule();
+      const schedules = result?.schedules || [];
+      setPendingRescheduleCount(schedules.filter((item) => item.scheduleRequest?.status === 'PENDING' && item.scheduleRequest?.generatedOptions?.length && !item.scheduleRequest?.studentChoice).length);
+    } catch (error) {
+      console.warn('Unable to load pending reschedules.', error);
+    }
+  }
+
+  useEffect(() => { void loadNotifications(); void loadPendingReschedules(); const timer = setInterval(() => { void loadNotifications(); void loadPendingReschedules(); }, 30000); return () => clearInterval(timer); }, []);
   async function completeLogout() {
     if (loggingOut) return;
 
@@ -86,6 +130,15 @@ export default function StudentLayout() {
     if (loggingOut) return;
     setLogoutDialogVisible(true);
   }
+  async function markNotificationRead(item) {
+    if (item.readAt) return;
+    try {
+      await markStudentNotificationRead(item.id);
+      setNotifications((current) => current.map((notification) => notification.id === item.id ? { ...notification, readAt: new Date().toISOString() } : notification));
+    } catch (error) {
+      console.warn('Unable to mark notification as read.', error);
+    }
+  }
   return (
     <>
       <Tabs
@@ -98,7 +151,7 @@ export default function StudentLayout() {
           headerRight: () => (
             <View className="mr-[15px] flex-row items-center gap-4">
               <Pressable accessibilityRole="button" accessibilityLabel="Profile menu" onPress={() => setProfileMenuVisible(true)} hitSlop={8}>
-                {loggingOut ? <ActivityIndicator size="small" color="#e24b4a" /> : <Ionicons name="person-circle-outline" size={25} color={ACCENT} />}
+                {loggingOut ? <ActivityIndicator size="small" color="#e24b4a" /> : <View className="relative"><Ionicons name="person-circle-outline" size={25} color={ACCENT} />{unreadNotificationCount > 0 ? <View className="absolute -right-3 -top-2 min-w-4 items-center rounded-full bg-red-500 px-1"><Text className="text-[10px] font-bold leading-4 text-white">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</Text></View> : null}</View>}
               </Pressable>
             </View>
           ),
@@ -160,6 +213,14 @@ export default function StudentLayout() {
         />
 
         <Tabs.Screen
+          name="reschedule"
+          options={{
+            title: 'Reschedule',
+            tabBarIcon: ({ focused }) => <RescheduleTabIcon focused={focused} count={pendingRescheduleCount} />,
+          }}
+        />
+
+        <Tabs.Screen
           name="progress"
           options={{
             title: 'Progress',
@@ -202,10 +263,23 @@ export default function StudentLayout() {
         />
       </Tabs>
 
+      <Modal visible={notificationsVisible} transparent animationType="fade" onRequestClose={() => setNotificationsVisible(false)}>
+        <Pressable className="flex-1 bg-black/20">
+          <View onStartShouldSetResponder={() => true} className="absolute left-5 right-5 top-[60px] max-h-[70%] rounded-2xl bg-white p-4" style={{ elevation: 6, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8 }}>
+            <View className="flex-row items-center justify-between"><Text className="text-lg font-bold text-gray-900">Notifications</Text><Pressable onPress={() => setNotificationsVisible(false)}><Text className="text-sm font-semibold text-[#0C447C]">Close</Text></Pressable></View>
+            <ScrollView className="mt-3">
+              {!notifications.length ? <Text className="py-6 text-center text-sm text-gray-500">No notifications yet.</Text> : notifications.map((item) => <Pressable key={item.id} onPress={async () => { await markNotificationRead(item); setNotificationsVisible(false); if (item.data?.route) router.push(item.data.route); }} className={`mb-2 rounded-xl p-3 ${item.readAt ? 'bg-gray-50' : 'bg-blue-50'}`}><Text className="font-semibold text-gray-900">{item.title || 'Cadenza update'}</Text><Text className="mt-1 text-sm leading-5 text-gray-600">{item.message}</Text><Text className="mt-2 text-xs text-gray-400">{item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</Text>{!item.readAt && <Pressable onPress={() => markNotificationRead(item)} className="mt-3 self-start rounded-lg bg-[#0C447C] px-3 py-2"><Text className="text-xs font-semibold text-white">Mark as read</Text></Pressable>}</Pressable>)}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+
       <ProfileMenu
         visible={profileMenuVisible}
         onClose={() => setProfileMenuVisible(false)}
         onProfile={() => router.push('/student/profile')}
+        onNotifications={() => { setNotificationsVisible(true); void loadNotifications(); }}
+        unreadNotificationCount={unreadNotificationCount}
         onLogout={handleLogout}
       />
       <Modal visible={logoutDialogVisible} transparent animationType="fade" onRequestClose={() => !loggingOut && setLogoutDialogVisible(false)}>

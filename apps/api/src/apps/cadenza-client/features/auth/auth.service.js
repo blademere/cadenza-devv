@@ -109,7 +109,7 @@ const getAccount = async (
 
     if (requireActiveEnrollment && !activeEnrollment) {
       throw new UnauthorizedError(
-        'An approved enrollment is required for mobile access.',
+        'An active enrollment is required for mobile access.',
       );
     }
 

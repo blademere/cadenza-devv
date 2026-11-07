@@ -2,7 +2,7 @@
 
 import TransactionRefundPanel from '../components/TransactionRefundPanel';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FileIcon,
   ChevronDown,
@@ -56,6 +56,8 @@ import {
   approveInstrumentRental,
   cancelInstrumentRental,
   getInstrumentRentals,
+  getAvailableRentalInstruments,
+  reassignInstrumentRental,
   getReturnConditions,
   receiveInstrumentRental,
   returnInstrumentRental,
@@ -126,7 +128,7 @@ const isPendingRental = (status) =>
 
 const canReviewRental = (rental) =>
   rental &&
-  !['Approved', 'Returned', 'Rejected', 'CANCELLED', 'COMPLETED'].includes(
+  !['Approved', 'Reassign', 'Returned', 'Rejected', 'CANCELLED', 'COMPLETED'].includes(
     rental.status,
   );
 
@@ -242,6 +244,7 @@ const initialRentals = [
 export default function RentalsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rentals, setRentals] = useState([]);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
@@ -254,6 +257,8 @@ export default function RentalsPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [replacementInstruments, setReplacementInstruments] = useState([]);
+  const [replacementInstrumentId, setReplacementInstrumentId] = useState('');
   const [cancellationReason, setCancellationReason] = useState('');
   const [cancellationMode, setCancellationMode] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
@@ -275,6 +280,9 @@ export default function RentalsPage() {
           const person = rental.customer?.person;
           const payment = rental.metadata || {};
           const items = rental.items || [];
+          const needsReassignment = rental.status === 'APPROVED' &&
+            !rental.metadata?.receivedAt &&
+            items.some((item) => item.instrument?.status && item.instrument.status !== 'AVAILABLE');
           const instrumentNames = items
             .map((item) => item.instrument?.brand)
             .filter(Boolean)
@@ -320,7 +328,9 @@ export default function RentalsPage() {
                   : '—',
             paymentReference: payment.paymentReference || '—',
             paymentDate: '—',
-            status: isPendingRental(rental.status)
+            status: needsReassignment
+              ? 'Reassign'
+              : isPendingRental(rental.status)
               ? 'Pending'
               : rental.status === 'APPROVED'
                 ? 'Approved'
@@ -330,6 +340,7 @@ export default function RentalsPage() {
                       rental.status === 'REJECTED'
                     ? 'Rejected'
                     : rental.status,
+            needsReassignment,
           };
         });
 
@@ -388,7 +399,47 @@ export default function RentalsPage() {
     setDepositAmount('0');
     setReturnCondition('GOOD');
     setDamageFee('0');
+    setReplacementInstrumentId('');
+    setReplacementInstruments([]);
     setShowDetails(true);
+  };
+
+  useEffect(() => {
+    const rentalId = searchParams.get('rentalId');
+    const rental = rentals.find((item) => item.id === rentalId);
+    if (rental && !showDetails) {
+      handleViewDetails(rental);
+      setSearchParams({}, { replace: true });
+    }
+  }, [rentals, searchParams, showDetails]);
+
+  useEffect(() => {
+    if (
+      !selectedRental ||
+      !['Approved', 'Reassign'].includes(selectedRental.status) ||
+      selectedRental.metadata?.receivedAt
+    ) return undefined;
+    let active = true;
+    getAvailableRentalInstruments(selectedRental.scheduledStart, selectedRental.scheduledEnd)
+      .then((items) => { if (active) setReplacementInstruments(Array.isArray(items) ? items : []); })
+      .catch(() => { if (active) setReplacementInstruments([]); });
+    return () => { active = false; };
+  }, [selectedRental]);
+
+  const handleReassign = async () => {
+    if (!selectedRental || !replacementInstrumentId) return;
+    try {
+      setActionLoading(true);
+      setActionError('');
+      const updated = await reassignInstrumentRental(selectedRental.id, replacementInstrumentId);
+      setSelectedRental({ ...selectedRental, ...updated, status: 'Approved', needsReassignment: false });
+      setRentals((current) => current.map((item) => item.id === selectedRental.id ? { ...item, ...updated, status: 'Approved', needsReassignment: false } : item));
+      setReplacementInstrumentId('');
+    } catch (error) {
+      setActionError(error?.response?.data?.message || error?.message || 'Unable to reassign this item.');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   /* --------------------------------------------------
@@ -807,7 +858,7 @@ export default function RentalsPage() {
                           <TableCell>
                             <div>
                               <div
-                                className={`font-medium ${rentalIndicatorColor(rental.instrument)}`}
+                                className="font-bold text-blue-600"
                               >
                                 {rental.type}
                               </div>
@@ -968,6 +1019,36 @@ export default function RentalsPage() {
                         </div>
                       </div>
                     </div>
+
+                    {(selectedRental?.status === 'Approved' || selectedRental?.status === 'Reassign') && !selectedRental.metadata?.receivedAt && (
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                        <p className="font-semibold">Reassign item before release</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Choose an available replacement before releasing the instrument to the client.
+                        </p>
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                          <select
+                            value={replacementInstrumentId}
+                            onChange={(event) => setReplacementInstrumentId(event.target.value)}
+                            className="h-9 flex-1 rounded-md border bg-background px-3 text-sm"
+                          >
+                            <option value="">Select replacement item</option>
+                            {replacementInstruments.map((instrument) => (
+                              <option key={instrument.id} value={instrument.id}>
+                                {[instrument.name, instrument.instrumentType?.name, instrument.brand, instrument.model, instrument.serialNumber].filter(Boolean).join(' ') || instrument.id}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            variant="outline"
+                            onClick={handleReassign}
+                            disabled={actionLoading || !replacementInstrumentId}
+                          >
+                            Reassign Item
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Rental Period */}
                     <div>
@@ -1203,7 +1284,7 @@ export default function RentalsPage() {
                         {actionError}
                       </p>
                     )}
-                    {selectedRental?.status === 'Approved' ? (
+                    {selectedRental?.status === 'Approved' || selectedRental?.status === 'Reassign' ? (
                       selectedRental.metadata?.receivedAt ? (
                         <>
                           <Button
@@ -1227,7 +1308,7 @@ export default function RentalsPage() {
                           <Button
                             variant="secondary"
                             onClick={handleReceive}
-                            disabled={actionLoading}
+                            disabled={actionLoading || selectedRental.status === 'Reassign'}
                           >
                             Release Instrument
                           </Button>

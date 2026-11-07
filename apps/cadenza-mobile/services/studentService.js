@@ -10,6 +10,16 @@ export async function getStudentSchedule() {
   return response.data?.data ?? response.data;
 }
 
+export async function getStudentNotifications() {
+  const response = await api.get('/notifications');
+  return response.data?.data ?? response.data;
+}
+
+export async function markStudentNotificationRead(id) {
+  const response = await api.patch(`/notifications/${id}/read`, {}, { headers: { 'Idempotency-Key': `mobile-notification-read-${id}-${Date.now()}` } });
+  return response.data?.data ?? response.data;
+}
+
 export async function getStudentProgress() {
   const response = await api.get('/student/progress');
   return response.data?.data ?? response.data;
@@ -25,12 +35,8 @@ export async function requestStudentSchedule(sessionId, reason) {
   return response.data?.data ?? response.data;
 }
 
-export async function chooseStudentSchedule(sessionId, optionIds) {
-  const response = await api.post(
-    `/student/schedule/${sessionId}/choice`,
-    { optionIds },
-    { headers: { 'Idempotency-Key': `mobile-student-choice-${sessionId}-${Date.now()}` } },
-  );
+export async function chooseStudentSchedule(sessionId, optionId) {
+  const response = await api.post(`/student/schedule/${sessionId}/choice`, { optionId }, { headers: { 'Idempotency-Key': `mobile-student-choice-${Date.now()}` } });
   return response.data?.data ?? response.data;
 }
 

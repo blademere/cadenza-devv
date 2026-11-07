@@ -186,6 +186,26 @@ export const instrumentRentalsService = {
     return approved;
   },
 
+  async reassignInstrumentRental(appId, id, instrumentId) {
+    const rental = await instrumentRentalsRepository.findRentalById(appId, id);
+    if (!rental) throw new NotFoundError('Instrument rental not found.');
+    if (!['FOR_APPROVAL', 'PENDING', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'PARTIALLY_PAID', 'APPROVED'].includes(rental.status) || rental.checkedOutAt || rental.returnedAt) {
+      throw new ConflictError('Only rentals awaiting handover can be reassigned.');
+    }
+
+    const instrument = await instrumentRentalsRepository.findInstrumentById(appId, instrumentId);
+    if (!instrument) throw new ConflictError('The replacement instrument is unavailable.');
+
+    const overlap = await instrumentRentalsRepository.findOverlappingInstrumentIds(
+      appId, [instrumentId], rental.scheduledStart, rental.scheduledEnd,
+    );
+    if (overlap.length) throw new ConflictError('The replacement instrument is reserved during this rental period.');
+
+    const updated = await instrumentRentalsRepository.reassignRentalItem(appId, id, instrumentId);
+    if (!updated) throw new ConflictError('The rental could not be reassigned.');
+    return updated;
+  },
+
   async returnInstrumentRental(appId, id, {
     returnedAt: requestedReturnedAt,
     condition,

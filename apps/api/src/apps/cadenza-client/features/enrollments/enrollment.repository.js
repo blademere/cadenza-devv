@@ -95,8 +95,21 @@ const instructorSelect = {
 };
 
 export const enrollmentRepository = {
+  async assignRoomToSession(appId, sessionId, roomId) {
+    return prisma.cadenzaLessonSession.updateMany({ where: { id: sessionId, appId }, data: { roomId } });
+  },
   async findRescheduleRequestById(appId, id) {
-    return prisma.cadenzaRescheduleRequest.findFirst({ where: { id, appId, status: 'PENDING' } });
+    return prisma.cadenzaRescheduleRequest.findFirst({
+      where: { id, appId, status: 'PENDING' },
+      include: {
+        session: {
+          include: {
+            enrollment: { include: { customer: { include: { person: { select: { userId: true } } } } } },
+            instructor: { include: { person: { select: { userId: true } } } },
+          },
+        },
+      },
+    });
   },
   async updateRescheduleRequest(id, data) {
     return prisma.cadenzaRescheduleRequest.update({ where: { id }, data });
@@ -211,6 +224,19 @@ export const enrollmentRepository = {
 
     const enrollments = await this.findAll(appId);
     return enrollments.items.find((enrollment) => enrollment.id === enrollmentId) || null;
+  },
+
+  async updateStatus(appId, enrollmentId, status) {
+    const enrollment = await prisma.cadenzaEnrollment.findFirst({ where: { id: enrollmentId, appId } });
+    if (!enrollment) return null;
+    return prisma.cadenzaEnrollment.update({ where: { id: enrollmentId }, data: { status } });
+  },
+
+  async findNotificationRecipient(appId, enrollmentId) {
+    return prisma.cadenzaEnrollment.findFirst({
+      where: { id: enrollmentId, appId },
+      select: { id: true, customer: { select: { person: { select: { userId: true } } } } },
+    });
   },
 
   async findAvailablePackages(appId) {
@@ -376,6 +402,59 @@ export const enrollmentRepository = {
       },
       select: { scheduledStart: true, scheduledEnd: true },
     });
+  },
+
+  async findCourseRooms(appId, courseId) {
+    const rooms = await prisma.cadenzaRoom.findMany({
+      where: {
+        appId,
+        status: 'AVAILABLE',
+        courseMappings: { some: { appId, courseId } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const resources = await prisma.resource.findMany({
+      where: {
+        appId,
+        id: { in: rooms.map((room) => room.resourceId) },
+      },
+      select: { id: true, name: true },
+    });
+    const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+
+    return rooms.map((room) => ({
+      ...room,
+      roomName: names.get(room.resourceId) || room.roomType,
+    }));
+  },
+
+  async findConflictingRoom(appId, roomId, startsAt, endsAt, excludeSessionId = null) {
+    const [session, booking] = await Promise.all([
+      prisma.cadenzaLessonSession.findFirst({
+        where: {
+          appId,
+          roomId,
+          ...(excludeSessionId ? { id: { not: excludeSessionId } } : {}),
+          status: { notIn: ['CANCELLED'] },
+          enrollment: { status: { notIn: ['CANCELLED', 'COMPLETED', 'REJECTED'] } },
+          scheduledStart: { lt: endsAt },
+          scheduledEnd: { gt: startsAt },
+        },
+        select: { id: true },
+      }),
+      prisma.cadenzaRoomBooking.findFirst({
+        where: {
+          appId,
+          roomId,
+          status: { notIn: ['CANCELLED', 'REJECTED'] },
+          scheduledStart: { lt: endsAt },
+          scheduledEnd: { gt: startsAt },
+        },
+        select: { id: true },
+      }),
+    ]);
+    return session || booking;
   },
 
   async findInstructorSessionsForDate(

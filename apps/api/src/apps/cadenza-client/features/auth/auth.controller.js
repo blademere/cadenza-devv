@@ -8,7 +8,7 @@ import {
   requestEmailOtp,
   verifyEmailOtp,
 } from './auth.service.js';
-import { requestPasswordReset, resetPassword } from '../../../../features/auth/auth.service.js';
+import { requestPasswordReset, resetPassword, requestPasswordResetCode, verifyPasswordResetCode } from '../../../../features/auth/auth.service.js';
 
 import { setCsrfCookie } from '../../../../common/middleware/csrf.js';
 import { NotFoundError, UnauthorizedError } from '../../../../common/errors/appError.js';
@@ -83,6 +83,8 @@ const resetPasswordController = async (req, res) => {
   await resetPassword(req.validated?.body ?? req.body);
   return successResponse(res, 'Password reset successfully. Please sign in again.');
 };
+const requestPasswordResetCodeController = async (req, res) => res.json({ success: true, data: await requestPasswordResetCode(req.body) });
+const verifyPasswordResetCodeController = async (req, res) => res.json({ success: true, data: await verifyPasswordResetCode(req.body) });
 
 const currentUserController = async (req, res) => {
   const result = await getCurrentUser(req.user.id);
@@ -137,4 +139,6 @@ export {
   verifyEmailOtpController,
   requestPasswordResetController,
   resetPasswordController,
+  requestPasswordResetCodeController,
+  verifyPasswordResetCodeController,
 };

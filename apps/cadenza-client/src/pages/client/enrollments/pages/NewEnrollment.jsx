@@ -60,6 +60,7 @@ export default function NewEnrollment() {
 
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [selectedInstructor, setSelectedInstructor] = useState('');
+  const [selectedRoom, setSelectedRoom] = useState('');
   const [paymentPlan, setPaymentPlan] = useState(savedDraft?.paymentPlan || '');
   const [paymentAccounts, setPaymentAccounts] = useState([]);
   const [paymentAccountId, setPaymentAccountId] = useState(savedDraft?.paymentAccountId || '');
@@ -237,6 +238,7 @@ export default function NewEnrollment() {
         setLoadingInstructors(true);
         setError('');
         setSelectedInstructor('');
+        setSelectedRoom('');
         setAvailability([]);
         setStartTime('');
         setSelectedAvailabilityIds([]);
@@ -285,6 +287,7 @@ export default function NewEnrollment() {
     setExpandedAvailabilityDays({});
     setStartDate('');
     setStartTime('');
+    setSelectedRoom('');
   }, [selectedInstructorData?.id]);
 
   useEffect(() => {
@@ -305,15 +308,15 @@ export default function NewEnrollment() {
     setStartDate(savedDraft.startDate || '');
   }, [availability, savedDraft, selectedInstructor, selectedInstructorData]);
 
-  // Once the student chooses a start date, refresh the selected instructor's
-  // slots for that exact date. The API removes slots occupied by an active
-  // enrollment or instructor block, so booked times cannot be selected again.
+  // Fetch room-compatible instructor slots once after the student chooses a
+  // room. Selecting schedule buttons afterwards is local-only and must not
+  // trigger another request or clear the selected schedule.
   useEffect(() => {
     if (
-      !startDate ||
       !selectedPackage?.id ||
       !selectedInstructor ||
-      !selectedCourseId
+      !selectedCourseId ||
+      !selectedRoom
     ) {
       return undefined;
     }
@@ -327,7 +330,8 @@ export default function NewEnrollment() {
           selectedPackage.id,
           selectedInstructor,
           selectedCourseId,
-          startDate,
+          null,
+          selectedRoom,
         );
 
         if (cancelled) {
@@ -338,9 +342,6 @@ export default function NewEnrollment() {
           ? result.availability
           : [];
 
-        // The date-aware API removes slots already used by active enrollments
-        // or instructor blocks. Replace the displayed list so stale slots do
-        // not remain selectable after a start date is chosen.
         setAvailability(availableRules);
       } catch (error) {
         if (!cancelled) {
@@ -360,7 +361,7 @@ export default function NewEnrollment() {
     return () => {
       cancelled = true;
     };
-  }, [startDate, selectedPackage?.id, selectedInstructor, selectedCourseId]);
+  }, [selectedPackage?.id, selectedInstructor, selectedCourseId, selectedRoom]);
 
   const availabilityForDisplay = useMemo(() => {
     const duration = Number(selectedPackage?.sessionDurationMinutes) || 0;
@@ -417,9 +418,19 @@ export default function NewEnrollment() {
   }, [operatingHours, startDate]);
 
   useEffect(() => {
-    setSelectedAvailabilityIds((current) =>
-      current.filter((id) => availabilityForDisplay.some((rule) => rule.id === id)),
-    );
+    setSelectedAvailabilityIds((current) => {
+      const selectedRules = current
+        .map((id) => availability.find((rule) => rule.id === id))
+        .filter(Boolean);
+
+      return selectedRules
+        .map((selectedRule) => availabilityForDisplay.find((rule) =>
+          Number(rule.dayOfWeek) === Number(selectedRule.dayOfWeek) &&
+          Number(rule.startMinute) === Number(selectedRule.startMinute) &&
+          Number(rule.endMinute) === Number(selectedRule.endMinute),
+        )?.id)
+        .filter(Boolean);
+    });
   }, [availabilityForDisplay]);
 
   // Keep the order in which the student selected the weekly schedule.
@@ -445,7 +456,7 @@ export default function NewEnrollment() {
     setExpandedAvailabilityDays((current) => {
       const next = {};
       Object.keys(availabilityByDay).forEach((day) => {
-        next[day] = current[day] ?? true;
+        next[day] = current[day] ?? false;
       });
 
       const currentKeys = Object.keys(current);
@@ -495,6 +506,12 @@ export default function NewEnrollment() {
         '0',
       )}:${String(selectedStartRule.startMinute % 60).padStart(2, '0')}`
     : '';
+  const scheduleSelectionComplete = Boolean(
+    selectedRoom &&
+      selectedAvailability.length === Number(selectedPackage?.sessionsPerWeek || 0) &&
+      startDate &&
+      resolvedStartTime,
+  );
   // End date is the date of the final recurring lesson, not the number of calendar days.
   const scheduleEndDate = useMemo(() => {
     const total = Number(selectedPackage?.numberOfSessions || 0);
@@ -672,6 +689,11 @@ export default function NewEnrollment() {
       return;
     }
 
+    if (!selectedRoom) {
+      setError('Please select a room before choosing a schedule.');
+      return;
+    }
+
     if (!paymentPlan) {
       setError('Please select a payment option.');
       return;
@@ -782,6 +804,7 @@ export default function NewEnrollment() {
 
         return {
           instructorId: selectedInstructor,
+          roomId: selectedRoom,
           scheduledStart: sessionStart,
           scheduledEnd: sessionEnd,
         };
@@ -1012,7 +1035,7 @@ export default function NewEnrollment() {
             <h2 className="text-lg font-semibold">Choose Instructor</h2>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Active instructors mapped to{' '}
+              Active instructors for{' '}
               <span className="font-medium text-foreground">
                 {selectedCourse?.name || 'this course'}
               </span>{' '}
@@ -1029,8 +1052,7 @@ export default function NewEnrollment() {
           ) : instructors.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-6 text-center">
               <p className="text-sm text-muted-foreground">
-                No active instructors mapped to this course have registered
-                availability.
+                No instructors available for this course.
               </p>
             </div>
           ) : (
@@ -1083,6 +1105,27 @@ export default function NewEnrollment() {
         </section>
 
         {selectedInstructorData && (
+          <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <label className="text-sm font-medium" htmlFor="enrollment-room-first">Choose Room First</label>
+            <select
+              id="enrollment-room-first"
+              value={selectedRoom}
+              onChange={(event) => {
+                setSelectedRoom(event.target.value);
+                setSelectedAvailabilityIds([]);
+                setStartDate('');
+                setStartTime('');
+              }}
+              disabled={!selectedInstructorData.rooms?.length}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Select a room before choosing a schedule</option>
+              {(selectedInstructorData.rooms || []).map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {selectedInstructorData && selectedRoom && (
           <section className="rounded-xl border border-border bg-card p-5">
             <div className="mb-5">
               <h2 className="text-lg font-semibold">Choose Schedule</h2>
@@ -1203,7 +1246,7 @@ export default function NewEnrollment() {
                 />
               </div>
 
-              {startDate && (
+              {startDate && (!selectedStartRule || !resolvedStartTime) && (
                 <div className="rounded-lg border border-border bg-muted/20 p-4">
                   {!selectedStartRule ? (
                     <p className="mt-2 text-sm text-muted-foreground">
@@ -1280,10 +1323,33 @@ export default function NewEnrollment() {
                   </p>
                 </div>
               )}
+
+              <div className="hidden">
+                <label className="text-sm font-medium" htmlFor="enrollment-room">Choose Room First</label>
+                <select
+                  id="enrollment-room"
+                  value={selectedRoom}
+                  onChange={(event) => {
+                    setSelectedRoom(event.target.value);
+                    setSelectedAvailabilityIds([]);
+                    setStartDate('');
+                    setStartTime('');
+                  }}
+                  disabled={!selectedInstructorData?.rooms?.length}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Select a room before choosing a schedule</option>
+                  {(selectedInstructorData?.rooms || []).map((room) => (
+                    <option key={room.id} value={room.id}>{room.name}</option>
+                  ))}
+                </select>
+                {!selectedInstructorData?.rooms?.length && <p className="text-sm text-destructive">No rooms are configured for this course.</p>}
+              </div>
             </div>
           </section>
         )}
 
+        {scheduleSelectionComplete && (
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-lg font-semibold">Payment Option</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -1329,6 +1395,7 @@ export default function NewEnrollment() {
             The QR payment page will open in a separate tab.
           </p>
         </section>
+        )}
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button

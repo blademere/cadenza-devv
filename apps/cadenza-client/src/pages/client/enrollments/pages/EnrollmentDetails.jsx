@@ -6,12 +6,21 @@ import {
   Music,
   UserRound,
 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/Dialog";
 
 import { useNavigate, useParams } from "react-router-dom";
 
 import EnrollmentStatus from "../components/EnrollmentStatus";
 
-import { getEnrollmentById } from "../services/enrollmentServices";
+import { cancelEnrollment, getEnrollmentById } from "../services/enrollmentServices";
 
 export default function EnrollmentDetails() {
   const navigate = useNavigate();
@@ -21,6 +30,8 @@ export default function EnrollmentDetails() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     async function loadEnrollment() {
@@ -79,6 +90,21 @@ export default function EnrollmentDetails() {
     ? new Date(enrollment.createdAt).toLocaleString()
     : "Not available";
   const paymentAmount = paymentMetadata.paymentAmount ?? enrollment.price ?? 0;
+  const canCancel = !["CANCELLED", "COMPLETED", "REJECTED"].includes(enrollment.status);
+
+  const handleCancel = async () => {
+    if (cancelling) return;
+    try {
+      setCancelling(true);
+      const updated = await cancelEnrollment(enrollment.id);
+      setEnrollment(updated || { ...enrollment, status: "CANCELLED" });
+      setCancelDialogOpen(false);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || requestError?.message || "Unable to cancel this enrollment.");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <div className="space-y-8 px-4 py-6 lg:px-6">
@@ -248,7 +274,32 @@ export default function EnrollmentDetails() {
             </>
           )}
         </div>
+        {canCancel && (
+          <div className="mt-5 flex justify-end">
+            <Button type="button" variant="destructive" onClick={() => setCancelDialogOpen(true)}>
+              Cancel enrollment
+            </Button>
+          </div>
+        )}
       </div>
+
+      <Dialog open={cancelDialogOpen} onOpenChange={(open) => !cancelling && setCancelDialogOpen(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel enrollment?</DialogTitle>
+            <DialogDescription>
+              This will cancel {enrollment.packageName || "this enrollment"}. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={cancelling} onClick={() => setCancelDialogOpen(false)}>Keep enrollment</Button>
+            <Button type="button" variant="destructive" disabled={cancelling} onClick={handleCancel}>
+              {cancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {cancelling ? "Cancelling..." : "Confirm cancellation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

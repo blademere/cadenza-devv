@@ -1,5 +1,7 @@
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../common/errors/appError.js';
 import bcrypt from 'bcrypt';
+import path from 'node:path';
+import { access } from 'node:fs/promises';
 import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
 const prisma = getPrismaClient();
@@ -93,6 +95,7 @@ async function findSessions(req) {
   const sessions = await prisma.cadenzaLessonSession.findMany({
     where: {
       appId: req.cadenzaApp.id,
+      enrollment: { status: { in: ['ACTIVE', 'AT_RISK'] } },
       ...(instructor.id
         ? { instructorId: instructor.id }
         : { instructor: { personId: instructor.personId } }),
@@ -105,8 +108,8 @@ async function findSessions(req) {
           lessonPackage: {
             select: {
               name: true,
-              lessons: { select: { id: true, name: true } },
-              courseMappings: { select: { course: { select: { id: true, name: true } } } },
+              lessons: { select: { id: true, name: true, materials: { select: { id: true, name: true, type: true, storageReference: true, metadata: true } } } },
+              courseMappings: { select: { course: { select: { id: true, name: true, materials: { select: { id: true, name: true, type: true, storageReference: true, metadata: true } } } } } },
             },
           },
         },
@@ -139,16 +142,80 @@ function progressByStudent(sessions) {
       completedLessons: 0,
       totalLessons: 0,
       progress: 0,
+      materials: [],
+      courses: [],
+      recordedAttendance: 0,
+      attendedLessons: 0,
+      absences: 0,
+      lastLesson: null,
     };
     group.totalLessons += 1;
-    if (COMPLETED_STATUSES.has(String(session.attendance?.status || '').toUpperCase())) group.completedLessons += 1;
+    const attendanceStatus = String(session.attendance?.status || '').toUpperCase();
+    if (COMPLETED_STATUSES.has(attendanceStatus)) { group.completedLessons += 1; group.attendedLessons += 1; }
+    if (['PRESENT', 'LATE', 'ABSENT', 'EXCUSED', 'NO_SHOW', 'COMPLETED', 'ATTENDED'].includes(attendanceStatus)) group.recordedAttendance += 1;
+    if (['ABSENT', 'NO_SHOW'].includes(attendanceStatus)) group.absences += 1;
+    if (!group.lastLesson || new Date(session.scheduledStart) > new Date(group.lastLesson.scheduledStart)) group.lastLesson = { scheduledStart: session.scheduledStart, status: attendanceStatus || 'SCHEDULED' };
     group.progress = Math.round((group.completedLessons / group.totalLessons) * 100);
+    const courses = [
+      ...(session.enrollment?.lessonPackage?.lessons || []),
+      ...(session.enrollment?.lessonPackage?.courseMappings || []).map((mapping) => mapping.course).filter(Boolean),
+    ];
+    for (const course of courses) if (!group.courses.some((item) => item.id === course.id)) group.courses.push({ id: course.id, name: course.name });
+    group.attendanceRate = group.recordedAttendance ? Math.round((group.attendedLessons / group.recordedAttendance) * 100) : 0;
+    group.status = group.absences >= 2 ? 'NEEDS_ATTENTION' : 'ON_TRACK';
+    const existingMaterialIds = new Set(group.materials.map((material) => material.id));
+    for (const course of courses) {
+      for (const material of course.materials || []) {
+        if ((material.metadata?.status || 'AVAILABLE') !== 'AVAILABLE' || !material.storageReference) continue;
+        if (existingMaterialIds.has(material.id)) continue;
+        existingMaterialIds.add(material.id);
+        group.materials.push({
+          id: material.id,
+          courseId: course.id,
+          title: material.name,
+          type: material.type,
+          status: material.metadata?.status || 'AVAILABLE',
+        });
+      }
+    }
     groups.set(studentId, group);
   }
   return [...groups.values()];
 }
 
 export const instructorService = {
+  async getMaterials(req) {
+    const { sessions } = await findSessions(req);
+    const materials = new Map();
+    for (const session of sessions) {
+      const courses = [
+        ...(session.enrollment?.lessonPackage?.lessons || []),
+        ...(session.enrollment?.lessonPackage?.courseMappings || []).map((mapping) => mapping.course).filter(Boolean),
+      ];
+      for (const course of courses) for (const material of course.materials || []) {
+        if ((material.metadata?.status || 'AVAILABLE') !== 'AVAILABLE' || !material.storageReference) continue;
+        if (!materials.has(material.id)) materials.set(material.id, { id: material.id, title: material.name, type: material.type, status: material.metadata?.status || 'AVAILABLE', storageReference: material.storageReference, courseId: course.id });
+      }
+    }
+    return [...materials.values()].map(({ storageReference, ...material }) => ({ ...material, fileUrl: storageReference || null }));
+  },
+  async getMaterial(req, materialId) {
+    const material = (await this.getMaterials(req)).find((item) => item.id === materialId);
+    if (!material) throw new NotFoundError('Material not found in assigned courses.');
+    return material;
+  },
+  async getMaterialFile(req, materialId) {
+    const materials = await this.getMaterials(req);
+    const material = materials.find((item) => item.id === materialId);
+    if (!material?.fileUrl) throw new NotFoundError('Material file not found.');
+    const root = path.resolve(process.env.CADENZA_STORAGE_PATH || path.join(process.cwd(), 'storage'));
+    const normalized = String(material.fileUrl).replaceAll('\\', '/');
+    if (path.isAbsolute(normalized) || normalized.split('/').includes('..') || !normalized.startsWith(`cadenza-client/courses/${material.courseId}/`)) throw new NotFoundError('Material file not found.');
+    const absolutePath = path.resolve(root, normalized);
+    if (!absolutePath.startsWith(`${root}${path.sep}`)) throw new NotFoundError('Material file not found.');
+    try { await access(absolutePath); } catch { throw new NotFoundError('Material file not found.'); }
+    return { absolutePath, filename: material.title, contentType: material.type || 'application/octet-stream' };
+  },
   async getDashboard(req) {
     const { instructor, sessions } = await findSessions(req);
     const today = sessions.filter((session) => isToday(session.scheduledStart));
@@ -209,6 +276,7 @@ export const instructorService = {
       include: { attendance: true, enrollment: { include: { customer: { include: { person: true } }, lessonPackage: { select: { name: true } } } }, room: { select: { resourceId: true } } },
     });
     if (!session) throw new NotFoundError('Instructor lesson session not found.');
+    if (session.attendance?.notes?.trim()) throw new ConflictError('Instructor feedback has already been submitted and cannot be modified.');
 
     const attendance = await prisma.cadenzaAttendance.upsert({
       where: { sessionId },
@@ -219,8 +287,53 @@ export const instructorService = {
         markedByPersonId: instructor.personId,
         markedAt: new Date(),
       },
-      update: { status, notes: notes || null, markedByPersonId: instructor.personId, markedAt: new Date() },
+      update: { status, notes: session.attendance?.notes || notes || null, markedByPersonId: instructor.personId, markedAt: new Date() },
     });
+
+    // Two consecutive absences put the enrollment on the follow-up queue.
+    // Keep the enrollment active until staff reviews it; attendance can still
+    // be corrected and the student can be contacted or rescheduled.
+    if (['ABSENT', 'NO_SHOW'].includes(String(status).toUpperCase())) {
+      const recentSessions = await prisma.cadenzaLessonSession.findMany({
+        where: {
+          enrollmentId: session.enrollmentId,
+          scheduledStart: { lte: session.scheduledStart },
+        },
+        orderBy: { scheduledStart: 'desc' },
+        include: { attendance: { select: { status: true } } },
+      });
+
+      let consecutiveAbsences = 0;
+      for (const recentSession of recentSessions) {
+        if (['ABSENT', 'NO_SHOW'].includes(String(recentSession.attendance?.status || '').toUpperCase())) {
+          consecutiveAbsences += 1;
+        } else {
+          break;
+        }
+      }
+
+      if (consecutiveAbsences >= 2 && ['ACTIVE', 'APPROVED'].includes(session.enrollment.status)) {
+        await prisma.cadenzaEnrollment.update({
+          where: { id: session.enrollmentId },
+          data: { status: 'AT_RISK' },
+        });
+      }
+    }
+
+    if (['PRESENT', 'LATE', 'COMPLETED', 'ATTENDED'].includes(String(status).toUpperCase())) {
+      const completedStatuses = ['PRESENT', 'LATE', 'COMPLETED', 'ATTENDED'];
+      const [completedSessions, enrollment] = await Promise.all([
+        prisma.cadenzaLessonSession.count({ where: { enrollmentId: session.enrollmentId, attendance: { status: { in: completedStatuses } } } }),
+        prisma.cadenzaEnrollment.findUnique({ where: { id: session.enrollmentId }, select: { status: true, numberOfSessionsAtEnrollment: true } }),
+      ]);
+      if (enrollment
+        && enrollment.numberOfSessionsAtEnrollment > 0
+        && completedSessions >= enrollment.numberOfSessionsAtEnrollment
+        && ['ACTIVE', 'APPROVED', 'AT_RISK'].includes(enrollment.status)) {
+        await prisma.cadenzaEnrollment.update({ where: { id: session.enrollmentId }, data: { status: 'READY_TO_COMPLETE' } });
+      }
+    }
+
     return { ...mapSession({ ...session, attendance }), attendance };
   },
 
@@ -235,6 +348,7 @@ export const instructorService = {
       include: { attendance: true },
     });
     if (!session) throw new NotFoundError('Instructor lesson session not found.');
+    if (session.attendance?.notes?.trim()) throw new ConflictError('Instructor feedback has already been submitted and cannot be modified.');
 
     const attendance = await prisma.cadenzaAttendance.upsert({
       where: { sessionId },
@@ -254,9 +368,13 @@ export const instructorService = {
     if (!request) throw new NotFoundError('Pending reschedule request not found.');
     const options = request.metadata?.generatedOptions || [];
     const uniqueOptionIds = [...new Set(optionIds)];
+    const studentChoice = request.metadata?.studentChoice;
+    if (!studentChoice) throw new ConflictError('The student must choose a generated schedule first.');
+    if (!optionIds?.length) throw new ConflictError('Select the student schedule to adapt.');
+    if (optionIds.some((optionId) => optionId !== studentChoice)) throw new ConflictError('The instructor can only adapt the schedule chosen by the student.');
     if (uniqueOptionIds.some((optionId) => !options.some((option) => option.id === optionId))) throw new ConflictError('One or more selected schedules are not generated options.');
     if (request.metadata?.instructorChoices?.length) throw new ConflictError('Instructor schedule choices have already been submitted.');
-    const metadata = { ...(request.metadata || {}), instructorChoices: uniqueOptionIds, workflowStatus: 'AWAITING_TWO_APPROVALS' };
+    const metadata = { ...(request.metadata || {}), instructorChoices: uniqueOptionIds, workflowStatus: 'AWAITING_FRONT_DESK_CONFIRMATION' };
     return prisma.cadenzaRescheduleRequest.update({ where: { id: request.id }, data: { metadata } });
   },
 

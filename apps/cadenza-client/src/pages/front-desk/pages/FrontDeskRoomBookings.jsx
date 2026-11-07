@@ -2,7 +2,7 @@ import TransactionRefundPanel from '../components/TransactionRefundPanel';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RefreshCwIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Check, ChevronDown, FileIcon, Loader2, X } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
@@ -124,6 +124,7 @@ const mapBooking = (booking) => {
 
 export default function FrontDeskRoomBookings() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [bookings, setBookings] = useState([]);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [statusFilter, setStatusFilter] = useState('All');
@@ -205,6 +206,19 @@ export default function FrontDeskRoomBookings() {
     .sort((a, b) => new Date(a.scheduledEnd) - new Date(b.scheduledEnd));
   const roomOverdue = (booking) => Number.isFinite(new Date(booking.scheduledEnd).getTime()) &&
     new Date(booking.scheduledEnd).getTime() <= currentTime;
+  const bookingStartsSoon = (booking) => {
+    const start = new Date(booking.scheduledStart).getTime();
+    return Number.isFinite(start) &&
+      start > currentTime &&
+      start - currentTime <= 30 * 60 * 1000 &&
+      ['Approved', 'Pending'].includes(booking.status);
+  };
+  const startingSoonBookings = bookings.filter(bookingStartsSoon);
+  const exceededBookings = bookings.filter((booking) =>
+    ['Approved', 'Checked In'].includes(booking.status) &&
+    !booking.metadata?.checkedOutAt &&
+    roomOverdue(booking),
+  );
 
   const walkInBookings =
     statusFilter === 'All'
@@ -213,6 +227,8 @@ export default function FrontDeskRoomBookings() {
           (booking) =>
             booking.metadata?.walkIn && booking.status === statusFilter,
         );
+  const walkInStartingSoonBookings = startingSoonBookings.filter((booking) => booking.metadata?.walkIn);
+  const walkInExceededBookings = exceededBookings.filter((booking) => booking.metadata?.walkIn);
   const filteredBookings =
     statusFilter === 'All'
       ? bookings.filter((booking) => !booking.metadata?.walkIn)
@@ -237,6 +253,15 @@ export default function FrontDeskRoomBookings() {
     setCheckOutAt(toDateTimeLocalValue());
     setShowDetails(true);
   };
+
+  useEffect(() => {
+    const bookingId = searchParams.get('bookingId');
+    const booking = bookings.find((item) => item.id === bookingId);
+    if (booking && !showDetails) {
+      openDetails(booking);
+      setSearchParams({}, { replace: true });
+    }
+  }, [bookings, searchParams, showDetails]);
 
   const applyDecision = async (decision) => {
     if (!selectedBooking || actionLoading) return;
@@ -409,6 +434,24 @@ export default function FrontDeskRoomBookings() {
                   </div>
                 </div>
               )}
+              {walkInStartingSoonBookings.length > 0 && (
+                <div role="alert" className="mb-4 flex items-start gap-3 rounded-md border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-blue-600" />
+                  <div>
+                    <p className="font-medium">Walk-in booking starting soon.</p>
+                    <p className="text-muted-foreground">{walkInStartingSoonBookings.length} walk-in booking{walkInStartingSoonBookings.length === 1 ? '' : 's'} start within the next 30 minutes.</p>
+                  </div>
+                </div>
+              )}
+              {walkInExceededBookings.length > 0 && (
+                <div role="alert" className="mb-4 flex items-start gap-3 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-600" />
+                  <div>
+                    <p className="font-medium">Walk-in booking time exceeded.</p>
+                    <p className="text-muted-foreground">{walkInExceededBookings.length} walk-in booking{walkInExceededBookings.length === 1 ? '' : 's'} require checkout review.</p>
+                  </div>
+                </div>
+              )}
               <p className="mb-3 text-sm text-muted-foreground">
                 Walk-in bookings use the same room availability, operating-hour,
                 and payment validation rules.
@@ -534,6 +577,28 @@ export default function FrontDeskRoomBookings() {
                   </div>
                 </div>
               )}
+              {startingSoonBookings.length > 0 && (
+                <div role="alert" className="mb-4 flex items-start gap-3 rounded-md border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-blue-600" />
+                  <div>
+                    <p className="font-medium">Room bookings starting soon.</p>
+                    <p className="text-muted-foreground">
+                      {startingSoonBookings.length} booking{startingSoonBookings.length === 1 ? '' : 's'} start within the next 30 minutes. Prepare the room and verify check-in details.
+                    </p>
+                  </div>
+                </div>
+              )}
+              {exceededBookings.length > 0 && (
+                <div role="alert" className="mb-4 flex items-start gap-3 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-600" />
+                  <div>
+                    <p className="font-medium">Room booking time exceeded.</p>
+                    <p className="text-muted-foreground">
+                      {exceededBookings.length} booking{exceededBookings.length === 1 ? '' : 's'} has exceeded its scheduled end time. Review checkout and any additional charges.
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -579,6 +644,11 @@ export default function FrontDeskRoomBookings() {
                               />
                               {booking.status}
                             </Badge>
+                            {bookingStartsSoon(booking) && (
+                              <Badge variant="outline" className="ml-2 border-blue-500/50 text-blue-700">
+                                Starts within 30 min
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button

@@ -3,6 +3,8 @@ const statusStyles = {
   PENDING_PAYMENT: "bg-yellow-100 text-yellow-700",
   FOR_APPROVAL: "bg-yellow-100 text-yellow-700",
   APPROVED: "bg-green-100 text-green-700",
+  ACTIVE: "bg-green-100 text-green-700",
+  AT_RISK: "bg-orange-100 text-orange-700",
   REJECTED: "bg-red-100 text-red-700",
   CANCELLED: "bg-gray-100 text-gray-700",
 };
@@ -12,6 +14,8 @@ const statusLabels = {
   PENDING_PAYMENT: "For Approval",
   FOR_APPROVAL: "For Approval",
   APPROVED: "Approved",
+  ACTIVE: "Active",
+  AT_RISK: "At Risk",
   REJECTED: "Rejected",
   CANCELLED: "Cancelled",
 };

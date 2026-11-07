@@ -2031,7 +2031,9 @@ export default function InstructorsPage() {
                   onValueChange={setSelectedSpecialtyId}
                 >
                   <SelectTrigger id="specialty">
-                    <SelectValue placeholder="Select a course" />
+                    <SelectValue placeholder="Select a course">
+                      {courses.find((course) => String(course.id) === String(selectedSpecialtyId))?.name || 'Select a course'}
+                    </SelectValue>
                   </SelectTrigger>
 
                   <SelectContent>

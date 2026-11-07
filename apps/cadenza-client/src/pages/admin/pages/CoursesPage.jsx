@@ -3,7 +3,6 @@
 import * as React from 'react';
 import {
   BookOpenIcon,
-  ExternalLinkIcon,
   FileTextIcon,
   Loader2Icon,
   MoreHorizontalIcon,
@@ -213,6 +212,7 @@ export default function CoursesPage() {
   const [lockedMaterialTarget, setLockedMaterialTarget] =
     React.useState(false);
   const [form, setForm] = React.useState(EMPTY_FORM);
+  const [formErrors, setFormErrors] = React.useState({});
 
   React.useEffect(() => {
     if (!actionError) return undefined;
@@ -334,6 +334,7 @@ export default function CoursesPage() {
 
   const resetForm = () => {
     setLockedMaterialTarget(false);
+    setFormErrors({});
     setForm({
       ...EMPTY_FORM,
       files: [],
@@ -379,6 +380,7 @@ export default function CoursesPage() {
     });
 
     if (validFiles.length > 0) {
+      setFormErrors((current) => ({ ...current, files: false }));
       const newFiles = validFiles.map((file) => ({
         localFile: file,
         fileName: file.name,
@@ -406,6 +408,17 @@ export default function CoursesPage() {
   };
 
   const saveCourse = async () => {
+    const nextErrors = {
+      packageId: !form.packageId,
+      courseId: !form.courseId,
+      files: !form.files.some((file) => file?.localFile instanceof File),
+    };
+    setFormErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
+      toast.error('Please complete all required fields.');
+      return;
+    }
+
     const validationError = validateCourseForm(
       form,
       courses,
@@ -780,45 +793,6 @@ export default function CoursesPage() {
                                           </span>
                                         </button>
 
-                                        {!isActive(file) ? (
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-emerald-600 hover:text-emerald-700"
-                                            title={`Activate ${fileName}`}
-                                            aria-label={`Activate ${fileName}`}
-                                            onClick={() =>
-                                              setMaterialToReactivate({
-                                                course,
-                                                material: file,
-                                              })
-                                            }
-                                            disabled={deactivatingMaterial}
-                                          >
-                                            <PowerIcon className="h-3.5 w-3.5" />
-                                          </Button>
-                                        ) : (
-                                          <>
-                                            <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-7 w-7 text-destructive hover:text-destructive"
-                                              title={`Deactivate ${fileName}`}
-                                              aria-label={`Deactivate ${fileName}`}
-                                              onClick={() =>
-                                                setMaterialToDeactivate({
-                                                  course,
-                                                  material: file,
-                                                })
-                                              }
-                                            >
-                                              <PowerOffIcon className="h-3.5 w-3.5" />
-                                            </Button>
-                                          </>
-                                        )}
                                       </div>
                                     );
                                   })}
@@ -932,6 +906,8 @@ export default function CoursesPage() {
                       onChange={(event) => {
                         const packageId = event.target.value;
 
+                        setFormErrors((current) => ({ ...current, packageId: false }));
+
                         setForm((current) => ({
                           ...current,
                           packageId,
@@ -939,7 +915,7 @@ export default function CoursesPage() {
                         }));
                       }}
                       disabled={saving || loading}
-                      className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                      className={`h-10 w-full rounded-md border bg-background px-3 text-sm ${formErrors.packageId ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                     >
                       <option value="">
                         Select an enrollment package
@@ -970,6 +946,8 @@ export default function CoursesPage() {
                       onChange={(event) => {
                         const courseId = event.target.value;
 
+                        setFormErrors((current) => ({ ...current, courseId: false }));
+
                         setForm((current) => ({
                           ...current,
                           courseId,
@@ -981,7 +959,7 @@ export default function CoursesPage() {
                         !form.packageId ||
                         selectableCourses.length === 0
                       }
-                      className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                      className={`h-10 w-full rounded-md border bg-background px-3 text-sm ${formErrors.courseId ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                     >
                       <option value="">
                         Select a course
@@ -1014,7 +992,7 @@ export default function CoursesPage() {
                     Course Materials
                   </Label>
 
-                  <div className="rounded-md border border-dashed p-4">
+                  <div className={`rounded-md border border-dashed p-4 ${formErrors.files ? 'border-red-500 ring-1 ring-red-500' : ''}`}>
                     <label
                       htmlFor="course-files"
                       className="flex cursor-pointer flex-col items-center justify-center gap-2 text-center"

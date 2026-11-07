@@ -134,6 +134,7 @@ function TablePagination({ page, setPage, total }) {
 const pageItems = (items, page) => items.slice((page - 1) * SETTINGS_PAGE_SIZE, page * SETTINGS_PAGE_SIZE);
 
 export default function SettingsPage() {
+  const [activeSettingsTab, setActiveSettingsTab] = React.useState('hours');
   const [courses, setCourses] = React.useState(INITIAL_COURSES);
   const [instruments, setInstruments] = React.useState(INITIAL_INSTRUMENTS);
   const [categories, setCategories] = React.useState([]);
@@ -142,6 +143,7 @@ export default function SettingsPage() {
   const [bankAccountNumber, setBankAccountNumber] = React.useState('');
   const [bankAccountQr, setBankAccountQr] = React.useState(null);
   const [bankAccountSaving, setBankAccountSaving] = React.useState(false);
+  const [bankAccountAddDialogOpen, setBankAccountAddDialogOpen] = React.useState(false);
   const [bankAccountUpdating, setBankAccountUpdating] = React.useState(null);
   const [bankAccountDialogOpen, setBankAccountDialogOpen] = React.useState(false);
   const [bankAccountToToggle, setBankAccountToToggle] = React.useState(null);
@@ -348,6 +350,7 @@ export default function SettingsPage() {
       setBankAccountQr(null);
       event.currentTarget.reset();
       toast.success('Bank account added.');
+      setBankAccountAddDialogOpen(false);
     } catch (error) {
       toast.error(error?.message || 'Failed to add bank account.');
     } finally { setBankAccountSaving(false); }
@@ -775,7 +778,20 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid gap-6">
-            <Card>
+            <div className="flex flex-wrap gap-2 rounded-lg border bg-muted/30 p-2">
+              {[
+                ['hours', 'Business Hours'],
+                ['payments', 'Payment Methods'],
+                ['courses', 'Courses'],
+                ['instruments', 'Item Categories'],
+                ['rooms', 'Instruments & Equipment'],
+              ].map(([value, label]) => (
+                <Button key={value} type="button" size="sm" variant={activeSettingsTab === value ? 'default' : 'ghost'} onClick={() => setActiveSettingsTab(value)}>
+                  {label}
+                </Button>
+              ))}
+            </div>
+            <Card className={activeSettingsTab === 'hours' ? '' : 'hidden'}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
@@ -814,28 +830,15 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={activeSettingsTab === 'payments' ? '' : 'hidden'}>
               <CardHeader>
                 <CardTitle>Payment Bank Accounts</CardTitle>
                 <CardDescription>Manage the bank accounts and QR codes customers can use when sending payment.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <form className="grid gap-4 rounded-md border p-4 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end" onSubmit={saveBankAccount}>
-                  <div>
-                    <Label htmlFor="bank-name">Bank name</Label>
-                    <Input id="bank-name" value={bankName} onChange={(event) => setBankName(event.target.value)} placeholder="e.g. BDO" required />
-                  </div>
-                  <div>
-                    <Label htmlFor="bank-account-number">Account number</Label>
-                    <Input id="bank-account-number" value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} placeholder="Enter account number" required />
-                  </div>
-                  <div>
-                    <Label htmlFor="bank-account-qr">QR image</Label>
-                    <Input id="bank-account-qr" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setBankAccountQr(event.target.files?.[0] || null)} required />
-                    <p className="mt-1 text-xs text-muted-foreground">PNG, JPG, or WebP up to 5 MB.</p>
-                  </div>
-                  <Button type="submit" disabled={bankAccountSaving}>{bankAccountSaving ? 'Adding...' : 'Add bank account'}</Button>
-                </form>
+                <div className="flex justify-end rounded-md border p-4">
+                  <Button type="button" onClick={() => setBankAccountAddDialogOpen(true)}>Add bank account</Button>
+                </div>
 
                 {bankAccounts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No bank accounts have been added yet.</p>
@@ -877,7 +880,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={activeSettingsTab === 'courses' ? '' : 'hidden'}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <div className="space-y-1">
                   <CardTitle className="flex items-center gap-2">
@@ -971,12 +974,12 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={activeSettingsTab === 'instruments' ? '' : 'hidden'}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <div className="space-y-1">
                   <CardTitle className="flex items-center gap-2">
                     <BookOpenIcon className="h-5 w-5" />
-                    Items Category Setup
+                    Item Categories
                   </CardTitle>
 
                   <CardDescription>
@@ -1071,12 +1074,12 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={activeSettingsTab === 'rooms' ? '' : 'hidden'}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <div className="space-y-1">
                   <CardTitle className="flex items-center gap-2">
                     <ListMusic className="h-5 w-5" />
-                    Instrument Type or Equipment Setup
+                    Instruments & Equipment
                   </CardTitle>
 
                   <CardDescription>
@@ -1187,6 +1190,37 @@ export default function SettingsPage() {
               {bankAccountUpdating ? <><Loader2Icon className="mr-2 size-4 animate-spin" />Saving...</> : bankAccountToToggle?.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={bankAccountAddDialogOpen}
+        onOpenChange={setBankAccountAddDialogOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add bank account</DialogTitle>
+            <DialogDescription>Add a payment account and its QR code for client payments.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={saveBankAccount}>
+            <div className="space-y-2">
+              <Label htmlFor="bank-name">Bank name</Label>
+              <Input id="bank-name" value={bankName} onChange={(event) => setBankName(event.target.value)} placeholder="e.g. BDO" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bank-account-number">Account number</Label>
+              <Input id="bank-account-number" value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} placeholder="Enter account number" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bank-account-qr">QR image</Label>
+              <Input id="bank-account-qr" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setBankAccountQr(event.target.files?.[0] || null)} required />
+              <p className="text-xs text-muted-foreground">PNG, JPG, or WebP up to 5 MB.</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setBankAccountAddDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={bankAccountSaving}>{bankAccountSaving ? 'Adding...' : 'Add bank account'}</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

@@ -38,6 +38,11 @@ OAUTH_FRONTEND_SUCCESS_URL=https://<vercel-domain>/auth/callback/success
 OAUTH_FRONTEND_FAILURE_URL=https://<vercel-domain>/auth/callback/failure
 ```
 
+These URLs are used directly in emailed links. Replace `<vercel-domain>` with
+the deployed client domain; do not use `localhost` in Railway production
+variables. After changing the Railway variable, redeploy the API and request a
+new reset email. Previously generated links still contain the old URL.
+
 Add the optional email, OAuth, payment, and Sentry variables only when those integrations are enabled. Keep `COOKIE_DOMAIN` empty unless both services are deliberately placed under a shared parent domain.
 
 ## Pre-push checks

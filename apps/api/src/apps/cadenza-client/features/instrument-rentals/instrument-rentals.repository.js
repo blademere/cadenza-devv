@@ -25,6 +25,20 @@ const hydrateRentalInstruments = async (rental, db = prisma) => {
   };
 };
 
+const hydrateInstrumentNames = async (instruments, db = prisma) => {
+  if (!instruments?.length) return instruments;
+  const resourceIds = instruments.map((instrument) => instrument.resourceId).filter(Boolean);
+  const resources = await db.resource.findMany({
+    where: { id: { in: resourceIds } },
+    select: { id: true, name: true },
+  });
+  const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+  return instruments.map((instrument) => ({
+    ...instrument,
+    name: names.get(instrument.resourceId) || instrument.name || null,
+  }));
+};
+
 export const instrumentRentalsRepository = {
   findAll(appId) {
     return prisma.cadenzaRental.findMany({
@@ -80,6 +94,28 @@ export const instrumentRentalsRepository = {
 
     const rentals = await this.findAll(appId);
     return rentals.find((rental) => rental.id === id) || null;
+  },
+
+  async reassignRentalItem(appId, rentalId, instrumentId) {
+    const rental = await prisma.cadenzaRental.findFirst({
+      where: {
+        id: rentalId,
+        appId,
+        status: { in: ['FOR_APPROVAL', 'PENDING', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'PARTIALLY_PAID', 'APPROVED'] },
+        checkedOutAt: null,
+        returnedAt: null,
+      },
+      include: { items: { orderBy: { createdAt: 'asc' } } },
+    });
+    if (!rental || !rental.items.length) return null;
+
+    const result = await prisma.cadenzaRentalItem.updateMany({
+      where: { id: rental.items[0].id, rentalId, appId },
+      data: { instrumentId },
+    });
+    if (!result.count) return null;
+    const rentals = await this.findAll(appId);
+    return rentals.find((item) => item.id === rentalId) || null;
   },
 
   async returnRental(appId, id, data) {
@@ -145,8 +181,8 @@ export const instrumentRentalsRepository = {
     });
   },
 
-  findAvailableInstruments(appId) {
-    return prisma.cadenzaInstrument.findMany({
+  async findAvailableInstruments(appId) {
+    const instruments = await prisma.cadenzaInstrument.findMany({
       where: {
         appId,
         status: 'AVAILABLE',
@@ -176,6 +212,7 @@ export const instrumentRentalsRepository = {
         createdAt: 'asc',
       },
     });
+    return hydrateInstrumentNames(instruments);
   },
 
   findReservedIntervals(appId, instrumentId) {

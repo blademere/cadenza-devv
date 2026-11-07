@@ -9,6 +9,7 @@ import {
   refreshAccessToken,
 } from '../../../cadenza-client/features/auth/auth.service.js';
 import { authenticateWithGoogleAccessToken } from '../../../../features/auth/oauth/oauth.service.js';
+import { requestPasswordResetCode, verifyPasswordResetCode } from '../../../../features/auth/auth.service.js';
 
 const refreshCookiePath = '/api/v1/cadenza-mobile/auth';
 
@@ -57,7 +58,7 @@ const googleLoginController = async (req, res) => {
     accessToken: result.accessToken,
     csrfToken: setCsrfCookie(res),
     user: { id: result.user.id, email: result.user.email, emailVerified: Boolean(result.user.emailVerifiedAt) },
-    account: { type: 'CLIENT' },
+    account: result.account,
   });
 };
 
@@ -103,6 +104,9 @@ const logoutController = async (req, res) => {
   return successResponse(res, 'Logout successful.', null, 200);
 };
 
+const requestPasswordResetCodeController = async (req, res) => successResponse(res, 'Password reset code sent.', await requestPasswordResetCode(req.body));
+const verifyPasswordResetCodeController = async (req, res) => successResponse(res, 'Password reset code verified.', await verifyPasswordResetCode(req.body));
+
 export {
   csrfController,
   loginController,
@@ -110,4 +114,6 @@ export {
   currentUserController,
   refreshController,
   logoutController,
+  requestPasswordResetCodeController,
+  verifyPasswordResetCodeController,
 };

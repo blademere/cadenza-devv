@@ -116,9 +116,9 @@ export default function InstrumentRentalsPage() {
     return [...groups.entries()]
   }, [instruments])
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (background = false) => {
     try {
-      setLoading(true)
+      if (!background) setLoading(true)
       setError('')
 
       const [availableData, rentalsData] = await Promise.all([
@@ -135,14 +135,43 @@ export default function InstrumentRentalsPage() {
           'Unable to load instrument rentals.',
       )
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     loadData()
-    const refreshTimer = window.setInterval(loadData, 15000)
-    return () => window.clearInterval(refreshTimer)
+  }, [loadData])
+
+  useEffect(() => {
+    const token = window.localStorage.getItem('accessToken')
+    if (!token) return undefined
+
+    const apiBaseUrl = new URL(
+      import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
+      window.location.origin,
+    )
+    apiBaseUrl.pathname = '/ws/cadenza-client/instrument-rentals'
+    const socketUrl = new URL(
+      apiBaseUrl,
+    )
+    socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+    const socket = new WebSocket(socketUrl)
+
+    socket.addEventListener('open', () => {
+      socket.send(JSON.stringify({ type: 'authenticate', token }))
+    })
+    socket.addEventListener('message', (event) => {
+      try {
+        if (JSON.parse(event.data)?.type === 'instrument-rentals-changed') {
+          loadData(true)
+        }
+      } catch {
+        // Ignore malformed socket messages and keep the page usable.
+      }
+    })
+
+    return () => socket.close()
   }, [loadData])
 
   useEffect(() => {

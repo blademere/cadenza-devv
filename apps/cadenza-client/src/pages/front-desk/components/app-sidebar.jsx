@@ -83,11 +83,11 @@ const data = {
 };
 
 export function AppSidebar({ ...props }) {
-  const [pendingCounts, setPendingCounts] = useState({ enrollments: 0, rentals: 0, bookings: 0, billing: 0, reschedules: 0 });
+  const [pendingCounts, setPendingCounts] = useState({ enrollments: 0, rentals: 0, bookings: 0, billing: 0, reschedules: 0, startingSoonBookings: 0, atRiskStudents: 0 });
 
   useEffect(() => {
     let mounted = true;
-    Promise.allSettled([getInstrumentRentals(), getRoomBookings(), apiClient.get('/enrollments'), apiClient.get('/enrollments', { params: { status: 'FOR_APPROVAL', page: 1, limit: 1 } }), apiClient.get('/enrollments/reschedule-requests')]).then(([rentalsResult, bookingsResult, enrollmentsResult, approvalResult, rescheduleResult]) => {
+    Promise.allSettled([getInstrumentRentals(), getRoomBookings(), apiClient.get('/enrollments'), apiClient.get('/enrollments', { params: { status: 'FOR_APPROVAL', page: 1, limit: 1 } }), apiClient.get('/enrollments/reschedule-requests'), apiClient.get('/students', { params: { page: 1, limit: 100 } })]).then(([rentalsResult, bookingsResult, enrollmentsResult, approvalResult, rescheduleResult, studentsResult]) => {
       if (!mounted) return;
       const rentals = rentalsResult.status === 'fulfilled' && Array.isArray(rentalsResult.value) ? rentalsResult.value : [];
       const bookings = bookingsResult.status === 'fulfilled' && Array.isArray(bookingsResult.value) ? bookingsResult.value : [];
@@ -108,12 +108,33 @@ export function AppSidebar({ ...props }) {
       const reschedules = rescheduleResult.status === 'fulfilled' && Array.isArray(rescheduleResult.value?.data)
         ? rescheduleResult.value.data.length
         : 0;
+      const students = studentsResult.status === 'fulfilled' && Array.isArray(studentsResult.value?.data)
+        ? studentsResult.value.data
+        : [];
+      const now = Date.now();
+      const startingSoonBookings = bookings.filter((booking) => {
+        const start = new Date(booking.scheduledStart).getTime();
+        return Number.isFinite(start) && start > now && start - now <= 30 * 60 * 1000 && ['APPROVED', 'PENDING'].includes(booking.status);
+      }).length;
+      const exceededBookings = bookings.filter((booking) => {
+        const end = new Date(booking.scheduledEnd).getTime();
+        return ['APPROVED', 'CHECKED_IN'].includes(booking.status) &&
+          !booking.metadata?.checkedOutAt && Number.isFinite(end) && end <= now;
+      }).length;
       setPendingCounts({
         enrollments: Number.isFinite(approvalTotal) ? approvalTotal : 0,
         rentals: rentals.filter((rental) => pendingRentalStatuses.includes(rental.status)).length,
         bookings: bookings.filter((booking) => booking.status === 'FOR_APPROVAL').length,
         billing: pendingBilling,
         reschedules,
+        startingSoonBookings,
+        exceededBookings,
+        atRiskStudents: new Set(
+          students
+            .filter((student) => String(student.status || '').toUpperCase() === 'AT_RISK')
+            .map((student) => student.email || student.id)
+            .filter(Boolean),
+        ).size,
       });
     });
     return () => { mounted = false; };
@@ -121,7 +142,7 @@ export function AppSidebar({ ...props }) {
 
   const navItems = data.navMain.map((item) => ({
     ...item,
-    badge: item.title === 'Enrollments' ? pendingCounts.enrollments : item.title === 'Rentals' ? pendingCounts.rentals : item.title === 'Room Bookings' ? pendingCounts.bookings : item.title === 'Billing & Payments' ? pendingCounts.billing : item.title === 'Class Schedule' ? pendingCounts.reschedules : undefined,
+    badge: item.title === 'Enrollments' ? pendingCounts.enrollments : item.title === 'Students' ? pendingCounts.atRiskStudents : item.title === 'Rentals' ? pendingCounts.rentals : item.title === 'Room Bookings' ? pendingCounts.bookings + pendingCounts.startingSoonBookings + pendingCounts.exceededBookings : item.title === 'Billing & Payments' ? pendingCounts.billing : item.title === 'Class Schedule' ? pendingCounts.reschedules : undefined,
   }));
 
   return (

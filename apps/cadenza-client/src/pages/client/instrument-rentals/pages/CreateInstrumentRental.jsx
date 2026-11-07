@@ -30,6 +30,9 @@ const getName = (instrument) =>
   [instrument?.brand, instrument?.model].filter(Boolean).join(' ') ||
   'Instrument';
 
+const getMissingScheduleMessage = (instrument) =>
+  `Please select the rental date, start time, return date, and return time for ${getName(instrument)}.`;
+
 const getDurationHours = (schedule) => {
   if (!schedule?.start || !schedule?.end) return 0;
 
@@ -176,6 +179,7 @@ export default function CreateInstrumentRental() {
   }, []);
   const [schedules, setSchedules] = useState({});
   const [availability, setAvailability] = useState({});
+  const [availabilityErrors, setAvailabilityErrors] = useState({});
   const [reservedTimes, setReservedTimes] = useState({});
   const [checkingId, setCheckingId] = useState(null);
   const [paymentPlan, setPaymentPlan] = useState('');
@@ -312,6 +316,7 @@ export default function CreateInstrumentRental() {
       return { ...current, [id]: next };
     });
     setAvailability((current) => ({ ...current, [id]: null }));
+    setAvailabilityErrors((current) => ({ ...current, [id]: '' }));
     setError('');
   };
 
@@ -325,6 +330,11 @@ export default function CreateInstrumentRental() {
         });
         setAvailability((availabilityState) => {
           const next = { ...availabilityState };
+          delete next[instrument.id];
+          return next;
+        });
+        setAvailabilityErrors((errorState) => {
+          const next = { ...errorState };
           delete next[instrument.id];
           return next;
         });
@@ -384,6 +394,12 @@ export default function CreateInstrumentRental() {
 
   const checkAvailability = async (instrument) => {
     const schedule = schedules[instrument.id];
+    const setInstrumentError = (message) => {
+      setAvailabilityErrors((current) => ({
+        ...current,
+        [instrument.id]: message,
+      }));
+    };
 
     if (
       !schedule?.rentalDate ||
@@ -391,11 +407,7 @@ export default function CreateInstrumentRental() {
       !schedule?.returnDate ||
       !schedule?.endTime
     ) {
-      setError(
-        `Please select the rental date, start time, return date, and return time for ${getName(
-          instrument,
-        )}.`,
-      );
+      setInstrumentError(getMissingScheduleMessage(instrument));
 
       return false;
     }
@@ -403,17 +415,17 @@ export default function CreateInstrumentRental() {
     const durationHours = getDurationHours(schedule);
 
     if (!isScheduleWithinHours(schedule)) {
-      setError('Pickup and return must be within operating hours for their respective dates.');
+      setInstrumentError('Pickup and return must be within operating hours for their respective dates.');
       return false;
     }
 
     if (!isRentalStartWithinHours(schedule)) {
-      setError(`${getName(instrument)} must start in the future.`);
+      setInstrumentError(`${getName(instrument)} must start in the future.`);
       return false;
     }
 
     if (durationHours < MINIMUM_RENTAL_HOURS) {
-      setError(
+      setInstrumentError(
         `${getName(
           instrument,
         )} requires a minimum rental period of ${MINIMUM_RENTAL_HOURS} hours.`,
@@ -424,16 +436,16 @@ export default function CreateInstrumentRental() {
 
     const reserved = reservedTimes[instrument.id];
     if (!Array.isArray(reserved)) {
-      setError('Reserved times are still loading. Please refresh and try again.');
+      setInstrumentError('Reserved times are still loading. Please refresh and try again.');
       return false;
     }
     if (reserved.some((slot) => new Date(slot.scheduledStart) < new Date(schedule.end) && new Date(slot.scheduledEnd) > new Date(schedule.start))) {
-      setError('This instrument is already reserved during the selected period.');
+      setInstrumentError('This instrument is already reserved during the selected period.');
       return false;
     }
     try {
       setCheckingId(instrument.id);
-      setError('');
+      setInstrumentError('');
 
       const data = await checkInstrumentAvailability({
         scheduledStart: new Date(schedule.start).toISOString(),
@@ -453,7 +465,7 @@ export default function CreateInstrumentRental() {
       }));
 
       if (!isAvailable) {
-        setError(
+        setInstrumentError(
           `${getName(
             instrument,
           )} is not available for this schedule.`,
@@ -467,7 +479,7 @@ export default function CreateInstrumentRental() {
         [instrument.id]: false,
       }));
 
-      setError(
+      setInstrumentError(
         requestError?.message ||
           `Unable to check ${getName(
             instrument,
@@ -501,11 +513,7 @@ export default function CreateInstrumentRental() {
         !schedule?.returnDate ||
         !schedule?.endTime
       ) {
-        setError(
-          `Please complete the rental and return schedule for ${getName(
-            instrument,
-          )}.`,
-        );
+        setError(getMissingScheduleMessage(instrument));
 
         return;
       }
@@ -1046,7 +1054,12 @@ export default function CreateInstrumentRental() {
                       ? 'Available'
                       : 'Check availability'}
                   </button>
-                </div>
+                          {availabilityErrors[instrument.id] && (
+                            <p className="mt-2 text-xs text-destructive">
+                              {availabilityErrors[instrument.id]}
+                            </p>
+                          )}
+                        </div>
               </section>
             );
           })}

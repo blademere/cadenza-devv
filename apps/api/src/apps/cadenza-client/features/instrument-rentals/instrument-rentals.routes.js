@@ -16,6 +16,7 @@ import {
   cancelRentalValidator,
   returnRentalValidator,
   receiveRentalValidator,
+  reassignRentalValidator,
   walkInRentalValidator,
 } from './instrument-rentals.validation.js';
 
@@ -30,6 +31,13 @@ router.get(
 router.get(
   '/available',
   requireClient,
+  instrumentRentalsController.getAvailableInstruments,
+);
+
+router.get(
+  '/staff-available',
+  requireAdminOrFrontDesk,
+  availabilityValidator,
   instrumentRentalsController.getAvailableInstruments,
 );
 
@@ -113,6 +121,13 @@ router.patch(
   requireAdminOrFrontDesk,
   idValidator,
   instrumentRentalsController.approveInstrumentRental,
+);
+
+router.patch(
+  '/:id/reassign',
+  requireAdminOrFrontDesk,
+  reassignRentalValidator,
+  instrumentRentalsController.reassignInstrumentRental,
 );
 
 router.patch(

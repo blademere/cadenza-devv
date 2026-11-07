@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { RefreshCwIcon } from 'lucide-react';
 import {
   SearchIcon,
@@ -46,6 +47,7 @@ import {
 
 import { Badge } from '@/components/ui/Badge';
 import { enrollmentService } from '@/services/front-desk/enrollmentService';
+import { getRooms } from '@/services/admin/roomsService';
 
 const formatEnrollmentReference = (id) =>
   id ? `ENR-${id.slice(0, 8).toUpperCase()}` : '—';
@@ -65,11 +67,13 @@ export default function EnrollmentsPage() {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [selectedEnrollment, setSelectedEnrollment] = useState(null);
 
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showNotifyDialog, setShowNotifyDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [refundQuote, setRefundQuote] = useState(null);
   const [refundLoading, setRefundLoading] = useState(false);
@@ -81,6 +85,11 @@ export default function EnrollmentsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  const [rooms, setRooms] = useState([]);
+
+  useEffect(() => {
+    getRooms().then((data) => setRooms(Array.isArray(data) ? data : [])).catch(() => setRooms([]));
+  }, []);
 
   useEffect(() => {
     const loadEnrollments = async () => {
@@ -143,6 +152,15 @@ export default function EnrollmentsPage() {
     setShowDetailsDialog(true);
   };
 
+  useEffect(() => {
+    const enrollmentId = searchParams.get('enrollmentId');
+    const enrollment = enrollments.find((item) => item.id === enrollmentId);
+    if (enrollment && !showDetailsDialog) {
+      handleViewDetails(enrollment);
+      setSearchParams({}, { replace: true });
+    }
+  }, [enrollments, searchParams, showDetailsDialog]);
+
   const updateEnrollmentInList = (updatedEnrollment) => {
     setEnrollments((current) =>
       current.map((item) =>
@@ -202,6 +220,21 @@ export default function EnrollmentsPage() {
           err?.message ||
           'Unable to cancel this enrollment.',
       );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleNotifyAtRisk = async () => {
+    if (!selectedEnrollment || actionLoading) return;
+    try {
+      setActionLoading(true);
+      setActionError('');
+      await enrollmentService.notifyEnrollmentAtRisk(selectedEnrollment.id);
+      setShowNotifyDialog(false);
+      setActionMessage('At Risk notification sent to the student.');
+    } catch (err) {
+      setActionError(err?.response?.data?.message || err?.message || 'Unable to notify the student.');
     } finally {
       setActionLoading(false);
     }
@@ -287,6 +320,8 @@ export default function EnrollmentsPage() {
                   <option value="FOR_APPROVAL">For approval</option>
                   <option value="APPROVED">Approved</option>
                   <option value="ACTIVE">Active</option>
+                  <option value="AT_RISK">At risk</option>
+                  <option value="READY_TO_COMPLETE">Ready to complete</option>
                   <option value="CANCELLED">Cancelled</option>
                   <option value="ALL">All statuses</option>
                 </select>
@@ -518,6 +553,14 @@ export default function EnrollmentsPage() {
                       </p>
                     </div>
                     <div>
+                      <p className="text-xs text-muted-foreground">Requested Room</p>
+                      <p className="font-medium">
+                        {[...new Set((selectedEnrollment.sessions || [])
+                          .map((session) => rooms.find((room) => String(room.id) === String(session.roomId))?.roomName)
+                          .filter(Boolean))].join(', ') || '—'}
+                      </p>
+                    </div>
+                    <div>
                       <p className="text-xs text-muted-foreground">
                         Enrollment Rate
                       </p>
@@ -535,7 +578,6 @@ export default function EnrollmentsPage() {
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold">Payment Details</h3>
 
-                    <Badge variant="secondary">Backend record</Badge>
                   </div>
 
                   <div className="rounded-lg border p-4">
@@ -687,6 +729,11 @@ export default function EnrollmentsPage() {
                   </Button>
                 </>
               )}
+              {selectedEnrollment?.status === 'AT_RISK' && (
+                <Button variant="outline" disabled={actionLoading} onClick={() => { setActionError(''); setShowNotifyDialog(true); }}>
+                  Notify student
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -764,6 +811,22 @@ export default function EnrollmentsPage() {
                 {actionLoading && <Loader2Icon className="animate-spin" />}
                 {actionLoading ? 'Cancelling...' : 'Confirm cancellation'}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showNotifyDialog} onOpenChange={(open) => { if (!actionLoading) setShowNotifyDialog(open); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Notify student about At Risk enrollment?</DialogTitle>
+              <DialogDescription>
+                This will send the standard At Risk message through the student&apos;s in-app notification and email channels.
+              </DialogDescription>
+            </DialogHeader>
+            {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={actionLoading} onClick={() => setShowNotifyDialog(false)}>Cancel</Button>
+              <Button type="button" disabled={actionLoading} onClick={handleNotifyAtRisk}>{actionLoading ? 'Sending...' : 'Send notification'}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

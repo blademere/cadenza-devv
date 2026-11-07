@@ -55,7 +55,7 @@ export default function InstructorDashboardScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#F7F7FB]">
       <ScrollView
-        contentContainerClassName="px-4 pb-8 pt-4"
+        contentContainerClassName="px-4 pb-36 pt-4"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

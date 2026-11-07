@@ -85,13 +85,14 @@ const getDateAfterDays = (days, baseDate = new Date()) => {
 
 const formatDateKey = (date) => {
   const value = new Date(date);
-  value.setHours(0, 0, 0, 0);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
 
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
+  return `${parts.year}-${parts.month}-${parts.day}`;
 };
 
 const formatFullDate = (date) =>
@@ -586,7 +587,6 @@ export default function ClassSchedule() {
   const [submittingOptions, setSubmittingOptions] = useState(false);
 
   const [instructorChoices, setInstructorChoices] = useState([]);
-  const [studentChoices, setStudentChoices] = useState([]);
 
   const [finalSchedule, setFinalSchedule] = useState(null);
   const [confirmedSchedule, setConfirmedSchedule] = useState(null);
@@ -619,10 +619,22 @@ export default function ClassSchedule() {
       try {
         setScheduleLoading(true);
         setScheduleError('');
-        const [{ items: enrollments }, roomsResponse] = await Promise.all([
-          enrollmentService.getEnrollments({ limit: 1000 }),
+        const [enrollmentPage, roomsResponse] = await Promise.all([
+          enrollmentService.getEnrollments({ page: 1, limit: 100 }),
           getRooms(),
         ]);
+        const enrollments = [...(enrollmentPage.items || [])];
+        let page = enrollmentPage.pagination?.page || 1;
+        const totalPages = enrollmentPage.pagination?.pages || page;
+
+        while (page < totalPages) {
+          page += 1;
+          const nextPage = await enrollmentService.getEnrollments({
+            page,
+            limit: 100,
+          });
+          enrollments.push(...(nextPage.items || []));
+        }
         const roomById = new Map((Array.isArray(roomsResponse) ? roomsResponse : []).map((room) => [room.id, room.roomName || room.resource?.name || room.roomType]));
         const items = (enrollments || []).flatMap((enrollment) => (enrollment.sessions || []).map((session) => {
           const start = new Date(session.scheduledStart);
@@ -731,7 +743,7 @@ export default function ClassSchedule() {
           return false;
         }
 
-        return start > currentMinutes && item.enrolled;
+        return start > currentMinutes && start - currentMinutes <= 10 && item.enrolled;
       })
       .sort((a, b) => {
         return (
@@ -787,21 +799,13 @@ export default function ClassSchedule() {
     const options = selectedRequest?.generatedOptions?.length
       ? selectedRequest.generatedOptions
       : generatedSchedules;
-    const instructorIds = new Set(
-      instructorChoices.length
-        ? instructorChoices
-        : selectedRequest?.instructorChoices || [],
-    );
     const studentIds = new Set(
-      studentChoices.length
-        ? studentChoices
-        : selectedRequest?.studentChoices || [],
+      selectedRequest?.studentChoice ? [selectedRequest.studentChoice] : [],
     );
-
     return options.filter(
-      (option) => instructorIds.has(option.id) && studentIds.has(option.id),
+      (option) => studentIds.has(option.id),
     );
-  }, [generatedSchedules, instructorChoices, studentChoices, selectedRequest]);
+  }, [generatedSchedules, selectedRequest]);
 
   const selectedRequestWindow = useMemo(() => {
     if (!selectedRequest) {
@@ -896,7 +900,7 @@ export default function ClassSchedule() {
     setRoomAssignmentMessage('');
   };
 
-  const assignRoom = () => {
+  const assignRoom = async () => {
     if (!roomAssignmentClass || !selectedRoomId) {
       return;
     }
@@ -934,6 +938,12 @@ export default function ClassSchedule() {
       return;
     }
 
+    try {
+      await apiClient.patch(`/enrollments/sessions/${roomAssignmentClass.id}/room`, { roomId: selectedRoom.id }, { headers: { 'Idempotency-Key': crypto.randomUUID() } });
+    } catch (error) {
+      setRoomAssignmentMessage(error?.response?.data?.message || 'Unable to save the room assignment.');
+      return;
+    }
     setAssignedRooms((current) => ({
       ...current,
       [roomAssignmentClass.id]: {
@@ -963,7 +973,6 @@ export default function ClassSchedule() {
     setSubmittedOptions(savedOptions.length > 0 || request.workflowStatus === 'AWAITING_PARTICIPANT_CHOICES' || request.workflowStatus === 'AWAITING_TWO_APPROVALS');
     setGeneratedSchedules(savedOptions);
     setInstructorChoices(request.instructorChoices || []);
-    setStudentChoices(request.studentChoices || []);
     setFinalSchedule(null);
     setConfirmedSchedule(null);
     setStudentApproved(false);
@@ -1001,7 +1010,6 @@ export default function ClassSchedule() {
     setSubmittedOptions(false);
     setGeneratedSchedules([]);
     setInstructorChoices([]);
-    setStudentChoices([]);
     setFinalSchedule(null);
     setConfirmedSchedule(null);
     setStudentApproved(false);
@@ -1033,7 +1041,6 @@ export default function ClassSchedule() {
     setGenerated(true);
     setSubmittedOptions(false);
     setInstructorChoices([]);
-    setStudentChoices([]);
     setFinalSchedule(null);
     setConfirmedSchedule(null);
     setNoMatchNotificationSent(false);
@@ -1050,7 +1057,6 @@ export default function ClassSchedule() {
       await apiClient.post(`/enrollments/${selectedRequest.id}/submit-options`, { options: generatedSchedules });
       setSubmittedOptions(true);
       setInstructorChoices([]);
-      setStudentChoices([]);
     } catch (error) {
       setSubmitOptionsError(error?.message || 'Unable to submit replacement schedule options.');
     } finally {
@@ -1060,19 +1066,6 @@ export default function ClassSchedule() {
 
   const toggleInstructorChoice = (id) => {
     setInstructorChoices((current) =>
-      current.includes(id)
-        ? current.filter((value) => value !== id)
-        : [...current, id],
-    );
-
-    setFinalSchedule(null);
-    setStudentApproved(false);
-    setInstructorApproved(false);
-    setNoMatchNotificationSent(false);
-  };
-
-  const toggleStudentChoice = (id) => {
-    setStudentChoices((current) =>
       current.includes(id)
         ? current.filter((value) => value !== id)
         : [...current, id],
@@ -1121,6 +1114,7 @@ export default function ClassSchedule() {
       }
     }
     setConfirmedSchedule(scheduleToSave);
+    navigate('/front-desk/schedule');
   };
 
   const resetReschedule = () => {
@@ -1130,7 +1124,6 @@ export default function ClassSchedule() {
     setGenerated(false);
     setSubmittedOptions(false);
     setInstructorChoices([]);
-    setStudentChoices([]);
     setFinalSchedule(null);
     setConfirmedSchedule(null);
     setStudentApproved(false);
@@ -1833,10 +1826,9 @@ export default function ClassSchedule() {
                   </div>
 
                   {!centerReschedule && <div className="rounded-xl border bg-background p-5">
-                    <p className="font-semibold">Participant choices</p>
-                    {(!selectedRequest.instructorChoices?.length || !selectedRequest.studentChoices?.length) && <p className="mt-1 text-sm text-muted-foreground">Waiting for the instructor and student to submit their choices.</p>}
-                      <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Instructor choices</p><p className="mt-1 font-medium">{selectedRequest.instructorChoices?.length ? selectedRequest.instructorChoices.map((id) => selectedRequest.generatedOptions?.find((option) => option.id === id)).filter(Boolean).map((option) => `${option.date} · ${option.time}`).join(', ') : 'Not submitted'}</p></div>
-                      <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Student choices</p><p className="mt-1 font-medium">{selectedRequest.studentChoices?.length ? selectedRequest.studentChoices.map((id) => selectedRequest.generatedOptions?.find((option) => option.id === id)).filter(Boolean).map((option) => `${option.date} · ${option.time}`).join(', ') : 'Not submitted'}</p></div>
+                    <p className="font-semibold">Instructor choice</p>
+                    {!selectedRequest.instructorChoices?.length && <p className="mt-1 text-sm text-muted-foreground">Waiting for the instructor to submit choices.</p>}
+                    <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Selected schedules</p><p className="mt-1 font-medium">{selectedRequest.instructorChoices?.length ? selectedRequest.instructorChoices.map((id) => selectedRequest.generatedOptions?.find((option) => option.id === id)).filter(Boolean).map((option) => `${option.date} · ${option.time}`).join(', ') : 'Not submitted'}</p></div>
                   </div>}
 
                   {centerReschedule && !generated && (
@@ -2067,33 +2059,24 @@ export default function ClassSchedule() {
                           <Card>
                             <CardHeader>
                               <CardTitle>
-                                Instructor Choices
+                                Student Schedule Selection
                               </CardTitle>
 
                               <CardDescription>
-                                The instructor can freely choose multiple
-                                generated schedules.
+                                The student selected one generated schedule for Front Desk approval.
                               </CardDescription>
                             </CardHeader>
 
                             <CardContent>
                               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                 {generatedSchedules.map((option) => {
-                                  const selected =
-                                    instructorChoices.includes(
-                                      option.id,
-                                    );
+                                  const selected = selectedRequest?.studentChoice === option.id;
 
                                   return (
                                     <button
                                       key={option.id}
                                       type="button"
-                                      disabled={!!confirmedSchedule}
-                                      onClick={() =>
-                                        toggleInstructorChoice(
-                                          option.id,
-                                        )
-                                      }
+                                      disabled
                                       className={`rounded-xl border p-4 text-left transition ${confirmedSchedule ? 'cursor-not-allowed opacity-70' : ''} ${
                                         selected
                                           ? 'border-primary bg-primary/5 ring-1 ring-primary'
@@ -2131,71 +2114,7 @@ export default function ClassSchedule() {
                           <Card>
                             <CardHeader>
                               <CardTitle>
-                                Student Choices
-                              </CardTitle>
-
-                              <CardDescription>
-                                The student can freely choose multiple
-                                generated schedules.
-                              </CardDescription>
-                            </CardHeader>
-
-                            <CardContent>
-                              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                {generatedSchedules.map((option) => {
-                                  const selected =
-                                    studentChoices.includes(
-                                      option.id,
-                                    );
-
-                                  return (
-                                    <button
-                                      key={option.id}
-                                      type="button"
-                                      disabled={!!confirmedSchedule}
-                                      onClick={() =>
-                                        toggleStudentChoice(
-                                          option.id,
-                                        )
-                                      }
-                                      className={`rounded-xl border p-4 text-left transition ${confirmedSchedule ? 'cursor-not-allowed opacity-70' : ''} ${
-                                        selected
-                                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                                          : 'hover:bg-muted/50'
-                                      }`}
-                                    >
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                          <p className="font-medium">
-                                            {formatFullDate(
-                                              option.date,
-                                            )}
-                                          </p>
-
-                                          <p className="mt-1 text-sm text-muted-foreground">
-                                            {option.time}
-                                          </p>
-                                        </div>
-
-                                        {selected && (
-                                          <CheckCircle2Icon className="h-5 w-5 text-primary" />
-                                        )}
-                                      </div>
-
-                                      <p className="mt-3 text-sm text-muted-foreground">
-                                        {option.room}
-                                      </p>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          <Card>
-                            <CardHeader>
-                              <CardTitle>
-                                Matching Schedules
+                                Student Submitted Schedule
                               </CardTitle>
 
                             </CardHeader>
@@ -2277,17 +2196,15 @@ export default function ClassSchedule() {
 
                                       <div>
                                         <p className="font-semibold">
-                                          No Matching Schedules
+                                          No Student Schedule Submitted
                                         </p>
 
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                          The instructor and student
-                                          currently have no common
-                                          schedule from their selected
-                                          options. The reschedule process
-                                          will remain active. They can
-                                          change their choices from the
-                                          generated schedules and try again.
+                                          The student has not submitted a
+                                          schedule choice yet. The
+                                          reschedule process will remain
+                                          active until the student submits
+                                          one option.
                                         </p>
                                       </div>
                                     </div>
@@ -2320,7 +2237,6 @@ export default function ClassSchedule() {
                                       </p>
 
                                       <p className="mt-1 text-sm text-muted-foreground">
-                                        The instructor and student will be
                                         The updated schedule is now saved for the student and instructor.
                                       </p>
                                       {centerReschedule && (
@@ -2331,12 +2247,6 @@ export default function ClassSchedule() {
                                     </div>
                                   </div>
 
-                                  <Button
-                                    variant="outline"
-                                    onClick={() => navigate('/front-desk/schedule')}
-                                  >
-                                    Close
-                                  </Button>
                                 </div>
                               </CardContent>
                             </Card>

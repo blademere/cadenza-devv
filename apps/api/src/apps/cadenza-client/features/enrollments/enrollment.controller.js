@@ -24,6 +24,9 @@ export const enrollmentController = {
       return res.json({ success: true, message: 'Matching schedule confirmed.', data: result });
     } catch (error) { next(error); }
   },
+  async assignRoom(req, res, next) {
+    try { return res.json({ success: true, message: 'Room assigned successfully.', data: await enrollmentService.assignRoom(req.cadenzaApp.id, req.params.sessionId, req.body?.roomId) }); } catch (error) { next(error); }
+  },
   async getEnrollments(req, res, next) {
     try {
       const enrollments = await enrollmentService.getEnrollments(
@@ -39,6 +42,18 @@ export const enrollmentController = {
     } catch (error) {
       next(error);
     }
+  },
+  async updateEnrollmentStatus(req, res, next) {
+    try {
+      const enrollment = await enrollmentService.updateEnrollmentStatus(req.cadenzaApp.id, req.params.id, req.body?.status);
+      return res.json({ success: true, data: enrollment });
+    } catch (error) { next(error); }
+  },
+  async notifyEnrollmentAtRisk(req, res, next) {
+    try {
+      const result = await enrollmentService.notifyEnrollmentAtRisk(req.cadenzaApp.id, req.params.id);
+      return res.json({ success: true, data: result });
+    } catch (error) { next(error); }
   },
 
   async getAvailablePackages(req, res, next) {
@@ -82,6 +97,7 @@ export const enrollmentController = {
         req.params.packageId,
         req.params.instructorId,
         req.query.courseId,
+        req.query.roomId,
         req.query.startDate,
       );
 

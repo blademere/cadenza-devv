@@ -28,7 +28,7 @@ export function LoginForm({ className, audience = 'client', ...props }) {
         state: { email, purpose: 'login', audience },
       });
     } catch (requestError) {
-      setError(requestError?.message || 'Unable to log in.');
+      setError('Invalid Credentials');
     } finally {
       setIsLoading(false);
     }

@@ -96,6 +96,8 @@ export default function InstrumentsPage() {
   const [error, setError] = useState('');
   const [modelError, setModelError] = useState('');
   const [serialNumberError, setSerialNumberError] = useState('');
+  const [requiredErrors, setRequiredErrors] = useState({});
+  const [validationMessage, setValidationMessage] = useState('');
 
   const fetchInstruments = useCallback(async () => {
     try {
@@ -163,6 +165,9 @@ export default function InstrumentsPage() {
     if (field === 'serialNumber') {
       setSerialNumberError('');
     }
+    if (field === 'itemCategoryId' || field === 'instrumentTypeId' || field === 'brand' || field === 'model') {
+      setRequiredErrors((current) => ({ ...current, [field]: false }));
+    }
 
     setForm((current) => ({
       ...current,
@@ -176,6 +181,8 @@ export default function InstrumentsPage() {
     setError('');
     setModelError('');
     setSerialNumberError('');
+    setRequiredErrors({});
+    setValidationMessage('');
     setShowDialog(true);
   };
 
@@ -198,10 +205,28 @@ export default function InstrumentsPage() {
     setError('');
     setModelError('');
     setSerialNumberError('');
+    setRequiredErrors({});
+    setValidationMessage('');
     setShowDialog(true);
   };
 
   const handleSave = async () => {
+    if (!editingInstrument) {
+      const nextRequiredErrors = {
+        itemCategoryId: !form.itemCategoryId,
+        instrumentTypeId: !form.instrumentTypeId,
+        brand: !form.brand.trim(),
+        model: !form.model.trim(),
+      };
+      setRequiredErrors(nextRequiredErrors);
+      if (Object.values(nextRequiredErrors).some(Boolean)) {
+        setValidationMessage('Please complete all required fields.');
+        setError('');
+        return;
+      }
+      setValidationMessage('');
+    }
+
     try {
       setIsSaving(true);
       setError('');
@@ -465,7 +490,7 @@ export default function InstrumentsPage() {
                       updateForm('itemCategoryId', value)
                     }
                   >
-                    <SelectTrigger disabled={Boolean(editingInstrument)}>
+                    <SelectTrigger className={requiredErrors.itemCategoryId ? 'border-destructive ring-1 ring-destructive' : ''} disabled={Boolean(editingInstrument)}>
                       <SelectValue placeholder="Select a category">
                         {itemCategories.find(
                           (category) => category.id === form.itemCategoryId,
@@ -488,7 +513,7 @@ export default function InstrumentsPage() {
                       updateForm('instrumentTypeId', value)
                     }
                   >
-                    <SelectTrigger disabled={Boolean(editingInstrument)}>
+                    <SelectTrigger className={requiredErrors.instrumentTypeId ? 'border-destructive ring-1 ring-destructive' : ''} disabled={Boolean(editingInstrument)}>
                       <SelectValue placeholder="Select an instrument type">
                         {instrumentTypes.find(
                           (type) => type.id === form.instrumentTypeId,
@@ -514,6 +539,7 @@ export default function InstrumentsPage() {
                       updateForm('brand', event.target.value)
                     }
                     disabled={Boolean(editingInstrument)}
+                    className={requiredErrors.brand ? 'border-destructive ring-1 ring-destructive' : ''}
                   />
                 </div>
 
@@ -528,7 +554,7 @@ export default function InstrumentsPage() {
                       updateForm('model', event.target.value)
                     }
                     disabled={Boolean(editingInstrument)}
-                    className={modelError ? 'border-destructive' : ''}
+                    className={modelError || requiredErrors.model ? 'border-destructive ring-1 ring-destructive' : ''}
                     aria-invalid={Boolean(modelError)}
                     aria-describedby={modelError ? 'instrument-model-error' : undefined}
                   />
@@ -599,6 +625,11 @@ export default function InstrumentsPage() {
                 </div>
 
                 {error && <p className="text-sm text-destructive">{error}</p>}
+                {validationMessage && (
+                  <p className="text-right text-sm text-destructive" role="alert">
+                    {validationMessage}
+                  </p>
+                )}
               </div>
 
               <DialogFooter>

@@ -89,6 +89,15 @@ const authenticateWithGoogleAccessToken = async (accessToken) => {
   if (!user.isActive) throw new UnauthorizedError('This Cadenza account is inactive.')
   const application = await cadenzaAuthRepository.findApplication()
   if (!application) throw new UnauthorizedError('Cadenza application is not configured.')
+  const instructor = await cadenzaAuthRepository.findInstructorByUserIdAndAppId(user.id, application.id)
+  if (instructor) {
+    if (instructor.status !== 'ACTIVE') throw new UnauthorizedError('This instructor account is inactive.')
+    const tokenId = crypto.randomUUID()
+    const refreshToken = createRefreshToken(user, tokenId)
+    const accessTokenJwt = createAccessToken(user)
+    await createRefreshTokenRecord({ tokenId, tokenHash: hashToken(refreshToken), userId: user.id, expiresAt: new Date(Date.now() + env.COOKIE_REFRESH_MAX_AGE_MS) })
+    return { user, accessToken: accessTokenJwt, refreshToken, account: { type: 'INSTRUCTOR', id: instructor.id, instructorId: instructor.id, status: instructor.status, person: instructor.person } }
+  }
   const customer = await cadenzaAuthRepository.findCustomerByUserIdAndAppId(user.id, application.id)
   if (!customer) throw new UnauthorizedError('This Google account is not linked to a Cadenza student account.')
   if (customer.status !== 'ACTIVE') throw new UnauthorizedError('This Cadenza student account is inactive.')
@@ -98,7 +107,7 @@ const authenticateWithGoogleAccessToken = async (accessToken) => {
   const refreshToken = createRefreshToken(user, tokenId)
   const accessTokenJwt = createAccessToken(user)
   await createRefreshTokenRecord({ tokenId, tokenHash: hashToken(refreshToken), userId: user.id, expiresAt: new Date(Date.now() + env.COOKIE_REFRESH_MAX_AGE_MS) })
-  return { user, accessToken: accessTokenJwt, refreshToken }
+  return { user, accessToken: accessTokenJwt, refreshToken, account: { type: 'CLIENT', id: customer.id, status: customer.status, hasActiveEnrollment: true, person: customer.person } }
 }
 const linkOAuthAccountWithCode = async ({ userId, provider, code, codeVerifier }) => {
   const accessToken = await exchangeCode(provider, code, codeVerifier)

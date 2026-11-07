@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+const roomNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(50)
+  .regex(
+    /^[A-Za-z0-9][A-Za-z0-9 &'().-]*$/,
+    'Room name may contain letters, numbers, spaces, and . \' & ( ) - only.',
+  );
+
 const idSchema = z.object({
   params: z.object({
     id: z.uuid(),
@@ -10,7 +20,7 @@ const createSchema = z.object({
   body: z.object({
     roomType: z.string().trim().min(1).max(100),
     capacity: z.coerce.number().int().positive().optional(),
-    roomName: z.string().trim().min(1).max(100).optional(),
+    roomName: roomNameSchema.optional(),
     rentalRate: z.coerce.number().positive().nullable().optional(),
     rentalDurationHours: z.coerce.number().int().positive().optional(),
     courseIds: z.array(z.uuid()).optional(),
@@ -27,7 +37,7 @@ const updateSchema = z.object({
   body: z.object({
     roomType: z.string().trim().min(1).max(100).optional(),
     capacity: z.coerce.number().int().positive().optional(),
-    roomName: z.string().trim().min(1).max(100).optional(),
+    roomName: roomNameSchema.optional(),
     rentalRate: z.coerce.number().positive().nullable().optional(),
     rentalDurationHours: z.coerce.number().int().positive().optional(),
     courseIds: z.array(z.uuid()).optional(),

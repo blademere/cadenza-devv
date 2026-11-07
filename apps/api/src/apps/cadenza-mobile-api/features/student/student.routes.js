@@ -11,7 +11,7 @@ const requestValidator = async (req) => z.object({
 }).parse({ params: req.params || {}, body: req.body || {} });
 const choiceValidator = async (req) => z.object({
   params: z.object({ sessionId: z.uuid() }),
-  body: z.object({ optionIds: z.array(z.string().min(1)).min(1) }),
+  body: z.object({ optionId: z.string().min(1) }),
 }).parse({ params: req.params || {}, body: req.body || {} });
 
 router.use(requireClient);

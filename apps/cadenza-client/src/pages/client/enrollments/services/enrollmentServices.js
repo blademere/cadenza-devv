@@ -52,6 +52,7 @@ export async function getEnrollmentOptions(packageId, courseId) {
         availability: Array.isArray(result?.availability)
           ? result.availability
           : [],
+        rooms: Array.isArray(result?.rooms) ? result.rooms : [],
       };
     }),
   );
@@ -59,12 +60,7 @@ export async function getEnrollmentOptions(packageId, courseId) {
   return options.filter((instructor) => instructor.availability.length > 0);
 }
 
-export async function getInstructorAvailability(
-  packageId,
-  instructorId,
-  courseId,
-  startDate,
-) {
+export async function getInstructorAvailability(packageId, instructorId, courseId, startDate, roomId) {
   const params = new URLSearchParams();
 
   if (courseId) {
@@ -74,6 +70,7 @@ export async function getInstructorAvailability(
   if (startDate) {
     params.set('startDate', startDate);
   }
+  if (roomId) params.set('roomId', roomId);
 
   const query = params.toString() ? `?${params.toString()}` : '';
 

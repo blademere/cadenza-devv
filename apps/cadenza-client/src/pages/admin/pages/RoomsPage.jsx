@@ -56,6 +56,8 @@ const ROOM_TYPES = {
 };
 
 const ROOM_STATUSES = ['AVAILABLE', 'UNAVAILABLE', 'MAINTENANCE', 'RETIRED'];
+const ROOM_NAME_MAX_LENGTH = 50;
+const ROOM_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 &'().-]*$/;
 
 const emptyForm = {
   roomType: '',
@@ -232,7 +234,23 @@ export default function RoomsPage() {
         return;
       }
 
-      const roomName = form.roomName.trim().toLowerCase();
+      const roomNameValue = form.roomName.trim().replace(/\s+/g, ' ');
+
+      if (roomNameValue.length > ROOM_NAME_MAX_LENGTH) {
+        setRoomNameError(
+          `Room name must be ${ROOM_NAME_MAX_LENGTH} characters or fewer.`,
+        );
+        return;
+      }
+
+      if (!ROOM_NAME_PATTERN.test(roomNameValue)) {
+        setRoomNameError(
+          'Room name may contain letters, numbers, spaces, and . \' & ( ) - only.',
+        );
+        return;
+      }
+
+      const roomName = roomNameValue.toLowerCase();
       const duplicateRoom = rooms.find(
         (room) =>
           room.id !== editingRoom?.id &&
@@ -255,7 +273,7 @@ export default function RoomsPage() {
       const data = {
         roomType: form.roomType,
         status: form.status,
-        roomName: form.roomName.trim(),
+        roomName: roomNameValue,
         ...(form.roomType === ROOM_TYPES.BAND
           ? { capacity }
           : {}),
@@ -411,6 +429,7 @@ export default function RoomsPage() {
                 onChange={(event) =>
                   updateForm('roomName', event.target.value)
                 }
+                maxLength={ROOM_NAME_MAX_LENGTH}
                 required
                 className={roomNameError ? 'border-destructive' : ''}
                 aria-invalid={Boolean(roomNameError)}

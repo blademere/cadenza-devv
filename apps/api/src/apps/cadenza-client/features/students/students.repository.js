@@ -7,9 +7,6 @@ export const studentsRepository = {
   async findAll(appId, filters = {}) {
     const where = {
       appId,
-      enrollments: {
-        some: { status: 'APPROVED' },
-      },
     };
 
     return paginate({
@@ -31,7 +28,6 @@ export const studentsRepository = {
           },
         },
         enrollments: {
-          where: { status: 'APPROVED' },
           orderBy: { createdAt: 'desc' },
           include: {
             lessonPackage: {

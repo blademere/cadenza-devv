@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  BellIcon,
   CircleUserRoundIcon,
   EllipsisVerticalIcon,
   Loader2,
@@ -11,8 +10,6 @@ import {
 
 import useAuth from '@/core/auth/useAuth';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { apiClient } from '@/core/api/apiClient';
 import {
   Dialog,
   DialogContent,
@@ -44,7 +41,6 @@ export function NavUser({ user }) {
   const { logout, user: authUser, account } = useAuth();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const authenticatedName =
     authUser?.name ||
     [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ') ||
@@ -55,15 +51,6 @@ export function NavUser({ user }) {
     name: authenticatedName || user?.name,
     email: authUser?.email || account?.person?.email || user?.email,
   };
-  useEffect(() => {
-    Promise.allSettled([apiClient.get('/enrollments'), apiClient.get('/room-bookings'), apiClient.get('/instrument-rentals')])
-      .then((results) => setUnreadCount(results.reduce((count, result) => {
-        if (result.status !== 'fulfilled') return count;
-        const data = result.value?.data?.data ?? result.value?.data ?? result.value;
-        return count + (Array.isArray(data) ? data.length : 0);
-      }, 0)));
-  }, []);
-
   const handleLogout = async () => {
     if (signingOut) return;
 
@@ -120,10 +107,6 @@ export function NavUser({ user }) {
               <DropdownMenuItem onClick={() => navigate('/front-desk/profile')}>
                 <CircleUserRoundIcon />
                 Account
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/front-desk/notifications')}>
-                <BellIcon />
-                Notifications{unreadCount > 0 && <Badge className="ml-auto">{unreadCount > 99 ? '99+' : unreadCount}</Badge>}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

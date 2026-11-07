@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -11,6 +11,18 @@ import { API_BASE_URL } from '../../services/api';
 import { getToken } from '../../services/authStorage';
 
 const ACCENT = '#0C447C';
+const extensionForType = (type = '') => ({
+  'application/pdf': '.pdf',
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'text/plain': '.txt',
+  'application/zip': '.zip',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+}[String(type).toLowerCase()] || '');
 
 export default function StudentMaterialDetails() {
   const params = useLocalSearchParams();
@@ -26,7 +38,7 @@ export default function StudentMaterialDetails() {
     if (!data?.fileUrl) throw new Error('This material has no uploaded file.');
     const token = await getToken();
     if (!token) throw new Error('Please sign in again to access this material.');
-    const extension = (data.title || '').match(/\.[a-z0-9]{1,8}$/i)?.[0] || (isPdf ? '.pdf' : isImage ? '.jpg' : '.bin');
+    const extension = (data.title || '').match(/\.[a-z0-9]{1,8}$/i)?.[0] || extensionForType(data.type) || (isPdf ? '.pdf' : isImage ? '.jpg' : '.bin');
     const target = FileSystem.cacheDirectory + 'cadenza-material-' + encodeURIComponent(String(materialId)) + extension;
     const response = await FileSystem.downloadAsync(`${API_BASE_URL}/student/materials/${encodeURIComponent(String(materialId))}/file`, target, { headers: { Authorization: `Bearer ${token}` } });
     if (response.status !== 200) throw new Error(`Unable to load file (HTTP ${response.status}).`);
@@ -40,7 +52,7 @@ export default function StudentMaterialDetails() {
     try {
       const uri = localUri || await fetchMaterial();
       if (isImage) return;
-      if (isPdf) {
+      if (isPdf && Platform.OS === 'android') {
         const contentUri = await FileSystem.getContentUriAsync(uri);
         await IntentLauncher.startActivityAsync('android.intent.action.VIEW', { data: contentUri, flags: 1, type: 'application/pdf' });
         return;
@@ -59,7 +71,8 @@ export default function StudentMaterialDetails() {
     setBusy(true);
     try {
       const uri = localUri || await fetchMaterial();
-      const name = (data?.title || 'Learning material').replace(/[\\/]/g, '_');
+      const baseName = (data?.title || 'Learning material').replace(/[\\/]/g, '_');
+      const name = /\.[a-z0-9]{1,8}$/i.test(baseName) ? baseName : `${baseName}${extensionForType(data?.type) || (isPdf ? '.pdf' : isImage ? '.jpg' : '')}`;
       const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
       if (!permissions.granted) return;
       const bytes = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
@@ -80,13 +93,11 @@ export default function StudentMaterialDetails() {
       {data && <View className="mt-6 rounded-3xl border border-gray-200 p-5">
         <Text className="text-xl font-bold text-gray-800">{data.title}</Text>
         <Text className="mt-3 leading-6 text-gray-600">{data.description}</Text>
-        <Text className="mt-5 text-sm text-gray-600">Type: {data.type}</Text>
         <Text className="mt-1 text-sm text-gray-600">Instructor: {data.instructor?.name || 'Pending'}</Text>
-        <Text className="mt-1 text-sm text-gray-600">Status: {data.status}</Text>
         <Text className="mt-1 text-sm text-gray-600">Uploaded: {data.uploadedAt ? new Date(data.uploadedAt).toLocaleDateString() : 'Pending'}</Text>
         {isImage && localUri && <Image source={{ uri: localUri }} resizeMode="contain" style={{ width: '100%', height: 350, marginTop: 20, backgroundColor: '#F1F5F9' }} />}
         <Pressable disabled={busy} onPress={openMaterial} className="mt-6 items-center rounded-2xl p-4" style={{ backgroundColor: ACCENT }}>
-          {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text className="font-bold text-white">Open Material</Text>}
+          {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text className="font-bold text-white">Open</Text>}
         </Pressable>
         <Pressable disabled={busy} onPress={downloadMaterial} className="mt-3 items-center rounded-2xl border p-4" style={{ borderColor: ACCENT }}>
           <Text style={{ color: ACCENT, fontWeight: '700' }}>Download</Text>

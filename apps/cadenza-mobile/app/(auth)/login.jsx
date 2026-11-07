@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -18,6 +18,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 function getLoginErrorMessage(error) {
   if (error?.response) {
+    if (error.response.status === 401) return 'Invalid credentials.';
     return (
       error.response.data?.message ||
       `The API rejected the login request (HTTP ${error.response.status}).`
@@ -41,8 +42,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const googleClientIds = Constants.expoConfig?.extra ?? {};
+  const googleNativeScheme = googleClientIds.googleAndroidClientId
+    ? `com.googleusercontent.apps.${googleClientIds.googleAndroidClientId.split('.')[0]}`
+    : 'mobile';
   const googleRedirectUri = makeRedirectUri({
-    scheme: 'mobile',
+    native: `${googleNativeScheme}:/oauthredirect`,
+    scheme: googleNativeScheme,
     path: 'oauthredirect',
   });
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -59,13 +64,9 @@ export default function Login() {
         setLoading(true);
         const authData = await loginWithGoogle(response.authentication.accessToken);
         await saveAuth(authData);
-        router.replace('/student/dashboard');
+        router.replace(authData.account?.type === 'CLIENT' ? '/student/dashboard' : '/instructor/dashboard');
       } catch (error) {
-        setErrorMessage(
-          error?.response?.data?.message ||
-            error?.response?.data?.error?.message ||
-            'Invalid credentials.',
-        );
+        setErrorMessage(getLoginErrorMessage(error));
       } finally { setLoading(false); }
     })();
   }, [response]);
@@ -161,6 +162,9 @@ export default function Login() {
         <Button onPress={() => promptAsync()} disabled={!request || loading} variant="outline">
           Login with Google
         </Button>
+        <Pressable onPress={() => router.push('/forgot-password')} disabled={loading} className="items-center py-1">
+          <Text className="font-semibold text-[#0C447C]">Forgot password?</Text>
+        </Pressable>
       </View>
     </View>
   );

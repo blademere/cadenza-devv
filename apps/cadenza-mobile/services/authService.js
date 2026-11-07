@@ -68,6 +68,14 @@ export async function loginWithGoogle(accessToken) {
   return response.data?.data ?? response.data;
 }
 
+export async function requestPasswordReset(email) {
+  const response = await api.post('/auth/password/reset/request', { email }, { headers: { 'Idempotency-Key': createIdempotencyKey() } });
+  return response.data?.data ?? response.data;
+}
+export async function requestPasswordResetCode(email) { const response = await api.post('/auth/password/reset/code/request', { email }, { headers: { 'Idempotency-Key': createIdempotencyKey() } }); return response.data?.data ?? response.data; }
+export async function verifyPasswordResetCode(email, code) { const response = await api.post('/auth/password/reset/code/verify', { email, code }, { headers: { 'Idempotency-Key': createIdempotencyKey() } }); return response.data?.data ?? response.data; }
+export async function resetPasswordWithToken(token, newPassword) { const response = await api.post('/auth/password/reset', { token, newPassword }, { headers: { 'Idempotency-Key': createIdempotencyKey() } }); return response.data?.data ?? response.data; }
+
 export async function getMe() {
   const response = await api.get('/auth/me');
 

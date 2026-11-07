@@ -6,7 +6,6 @@ import {
   FileText,
   Loader2,
   Receipt,
-  Printer,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -106,7 +105,9 @@ export default function TransactionDetails() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3"><TransactionStatus status={transaction.paymentStatus} />{transaction.paymentStatus === "PAID" && <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm print:hidden"><Printer className="h-4 w-4" />Print Receipt</button>}</div>
+        <div className="flex items-center gap-3">
+          <TransactionStatus status={transaction.paymentStatus} />
+        </div>
       </div>
 
       {/* Transaction Information */}

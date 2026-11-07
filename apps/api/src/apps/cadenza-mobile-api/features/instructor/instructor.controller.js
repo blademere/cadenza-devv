@@ -10,6 +10,14 @@ export const instructorController = {
   async progress(req, res) {
     res.json({ success: true, data: await instructorService.getProgress(req) });
   },
+  async materials(req, res) { res.json({ success: true, data: await instructorService.getMaterials(req) }); },
+  async material(req, res) { res.json({ success: true, data: await instructorService.getMaterial(req, req.params.materialId) }); },
+  async materialFile(req, res) {
+    const file = await instructorService.getMaterialFile(req, req.params.materialId);
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${String(file.filename).replace(/[\r\n"\\]/g, '_')}"`);
+    return res.sendFile(file.absolutePath);
+  },
   async attendance(req, res) {
     res.json({ success: true, data: await instructorService.getProgress(req) });
   },

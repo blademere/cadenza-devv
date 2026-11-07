@@ -23,6 +23,15 @@ import {
   TableRow,
 } from '@/components/ui/Table';
 import { getStudents } from '@/services/admin/studentService';
+import { enrollmentService } from '@/services/front-desk/enrollmentService';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 
 const studentName = (student) => student?.name?.trim() || 'Unnamed Student';
 const formatStatus = (value) => value?.replace(/_/g, ' ') || 'Unknown';
@@ -39,10 +48,15 @@ export default function FrontDeskStudentsPage() {
   const [search, setSearch] = useState('');
   const [courseFilter, setCourseFilter] = useState('All');
   const [instructorFilter, setInstructorFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [completionEnrollment, setCompletionEnrollment] = useState(null);
+  const [completionSaving, setCompletionSaving] = useState(false);
+  const [notifyEnrollment, setNotifyEnrollment] = useState(null);
+  const [notifySaving, setNotifySaving] = useState(false);
 
   const loadStudents = useCallback(async () => {
     setLoading(true);
@@ -70,6 +84,7 @@ export default function FrontDeskStudentsPage() {
           courseNames(student).includes(courseFilter)) &&
         (instructorFilter === 'All' ||
           instructorNames(student).includes(instructorFilter)) &&
+        (statusFilter === 'ALL' || String(student.status || '').toUpperCase() === statusFilter) &&
         (!query ||
           [
             studentName(student),
@@ -83,9 +98,39 @@ export default function FrontDeskStudentsPage() {
             .toLowerCase()
             .includes(query)),
     );
-  }, [search, students, courseFilter, instructorFilter]);
+  }, [search, students, courseFilter, instructorFilter, statusFilter]);
   const courses = [...new Set(students.flatMap(courseNames))].sort();
   const instructors = [...new Set(students.flatMap(instructorNames))].sort();
+
+  const confirmCompletion = async () => {
+    if (!completionEnrollment) return;
+    try {
+      setCompletionSaving(true);
+      await enrollmentService.updateEnrollmentStatus(completionEnrollment.id, 'COMPLETED');
+      setSelectedStudent((current) => current ? {
+        ...current,
+        enrollments: current.enrollments.map((item) => item.id === completionEnrollment.id ? { ...item, status: 'COMPLETED' } : item),
+      } : current);
+      setCompletionEnrollment(null);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to complete enrollment.');
+    } finally {
+      setCompletionSaving(false);
+    }
+  };
+
+  const notifyAtRisk = async () => {
+    if (!notifyEnrollment) return;
+    try {
+      setNotifySaving(true);
+      await enrollmentService.notifyEnrollmentAtRisk(notifyEnrollment.id);
+      setNotifyEnrollment(null);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to notify the student.');
+    } finally {
+      setNotifySaving(false);
+    }
+  };
 
   if (selectedStudent)
     return (
@@ -184,12 +229,36 @@ export default function FrontDeskStudentsPage() {
                       </p>
                     </div>
                     <Badge className="gap-1.5"><span aria-hidden="true" className={`size-1.5 rounded-full ${statusDotClass(enrollment.status)}`} />{formatStatus(enrollment.status)}</Badge>
+                    {enrollment.status === 'READY_TO_COMPLETE' && (
+                      <Button type="button" size="sm" onClick={() => setCompletionEnrollment(enrollment)}>
+                        Confirm completion
+                      </Button>
+                    )}
+                    {enrollment.status === 'AT_RISK' && (
+                      <Button type="button" size="sm" variant="outline" onClick={() => setNotifyEnrollment(enrollment)}>
+                        Notify student
+                      </Button>
+                    )}
                   </div>
                 ))}
               </CardContent>
             </Card>
           </main>
         </SidebarInset>
+        <Dialog open={Boolean(notifyEnrollment)} onOpenChange={(open) => !open && setNotifyEnrollment(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Notify student about At Risk enrollment?</DialogTitle>
+              <DialogDescription>
+                This sends the standard At Risk message through the student&apos;s in-app notification and email channels.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setNotifyEnrollment(null)} disabled={notifySaving}>Cancel</Button>
+              <Button type="button" onClick={notifyAtRisk} disabled={notifySaving}>{notifySaving ? 'Sending...' : 'Send notification'}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarProvider>
     );
 
@@ -202,7 +271,7 @@ export default function FrontDeskStudentsPage() {
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-2xl font-semibold">Students</h1>
             <p className="text-muted-foreground">
-              Only students with an active enrollment are shown.
+              All student accounts are shown; course summaries use approved enrollments.
             </p>
             <Button variant="outline" onClick={loadStudents} disabled={loading}>
               <RefreshCwIcon className="mr-2 size-4" />
@@ -224,27 +293,30 @@ export default function FrontDeskStudentsPage() {
                   onChange={(event) => setSearch(event.target.value)}
                 />
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <select
-                  value={courseFilter}
-                  onChange={(event) => setCourseFilter(event.target.value)}
-                  className="h-10 rounded-md border bg-background px-3 text-sm"
-                >
-                  <option>All</option>
-                  {courses.map((course) => (
-                    <option key={course}>{course}</option>
-                  ))}
-                </select>
-                <select
-                  value={instructorFilter}
-                  onChange={(event) => setInstructorFilter(event.target.value)}
-                  className="h-10 rounded-md border bg-background px-3 text-sm"
-                >
-                  <option>All</option>
-                  {instructors.map((instructor) => (
-                    <option key={instructor}>{instructor}</option>
-                  ))}
-                </select>
+              <div className="mt-3 flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium" htmlFor="frontdesk-course-filter">Course</label>
+                  <select id="frontdesk-course-filter" value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                    <option>All</option>{courses.map((course) => <option key={course}>{course}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium" htmlFor="frontdesk-instructor-filter">Instructor</label>
+                  <select id="frontdesk-instructor-filter" value={instructorFilter} onChange={(event) => setInstructorFilter(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                    <option>All</option>{instructors.map((instructor) => <option key={instructor}>{instructor}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium" htmlFor="frontdesk-student-status-filter">Status</label>
+                  <select id="frontdesk-student-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="ALL">All statuses</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="AT_RISK">At Risk</option>
+                    <option value="READY_TO_COMPLETE">Ready to complete</option>
+                    <option value="INACTIVE">Inactive</option>
+                    <option value="SUSPENDED">Suspended</option>
+                  </select>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -351,6 +423,20 @@ export default function FrontDeskStudentsPage() {
           </Card>
         </main>
       </SidebarInset>
+      <Dialog open={Boolean(completionEnrollment)} onOpenChange={(open) => !open && setCompletionEnrollment(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm enrollment completion?</DialogTitle>
+            <DialogDescription>
+              This will mark {completionEnrollment?.packageName || 'this enrollment'} as completed. The student account and enrollment history will be preserved.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCompletionEnrollment(null)} disabled={completionSaving}>Cancel</Button>
+            <Button type="button" onClick={confirmCompletion} disabled={completionSaving}>{completionSaving ? 'Saving...' : 'Confirm completion'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }
