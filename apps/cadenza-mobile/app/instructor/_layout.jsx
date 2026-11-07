@@ -212,15 +212,7 @@ export default function InstructorLayout() {
           }}
         />
 
-        {/*
-          profile still lives in this route group so router.push('/instructor/profile')
-          keeps working, but it's hidden from the tab bar to avoid a 6th cramped tab.
-          Its title and avatar previously lived in the drawer header — worth surfacing
-          a small avatar button in the Tabs headerLeft on that one screen if you want
-          quick profile access without the logout icon there.
-        */}
-        <Tabs.Screen name="profile" options={{ href: null }} />
-        <Tabs.Screen name="material-details" options={{ href: null }} />
+        <Tabs.Screen name="Profile" options={{ href: null }} />
       </Tabs>
 
       <Modal visible={notificationsVisible} transparent animationType="fade" onRequestClose={() => setNotificationsVisible(false)}><View className="flex-1 bg-black/20"><View className="absolute left-5 right-5 top-[60px] max-h-[70%] rounded-2xl bg-white p-4" style={{ elevation: 6 }}><View className="flex-row items-center justify-between"><Text className="text-lg font-bold text-gray-900">Notifications</Text><Pressable onPress={() => setNotificationsVisible(false)}><Text className="text-sm font-semibold text-[#0C447C]">Close</Text></Pressable></View><ScrollView className="mt-3">{!notifications.length ? <Text className="py-6 text-center text-sm text-gray-500">No notifications yet.</Text> : notifications.map((item) => <Pressable key={item.id} onPress={async () => { await markInstructorNotificationRead(item); setNotificationsVisible(false); if (item.data?.route) router.push(item.data.route); }} className={`mb-2 rounded-xl p-3 ${item.readAt ? 'bg-gray-50' : 'bg-blue-50'}`}><Text className="font-semibold text-gray-900">{item.title || 'Cadenza update'}</Text><Text className="mt-1 text-sm leading-5 text-gray-600">{item.message}</Text>{!item.readAt ? <Pressable onStartShouldSetResponder={() => true} onPress={() => { void markInstructorNotificationRead(item); }} className="mt-3 self-start rounded-lg bg-[#0C447C] px-3 py-2"><Text className="text-xs font-semibold text-white">Mark as read</Text></Pressable> : null}</Pressable>)}</ScrollView></View></View></Modal>

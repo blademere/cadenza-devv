@@ -6,9 +6,9 @@ import { getStudentDashboard } from '../../services/studentService';
 import { ResourceFeedback } from '../../components/common/ResourceFeedback';
 
 const ACCENT = '#0C447C';
-const formatDate = (value) => value ? new Date(value).toLocaleDateString() : 'Schedule pending';
-const formatTime = (value) => value ? new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-const formatDay = (value) => value ? new Date(value).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : 'Schedule pending';
+const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila' }) : 'Schedule pending';
+const formatTime = (value) => value ? new Date(value).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+const formatDay = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'short', day: 'numeric' }) : 'Schedule pending';
 
 export default function StudentDashboard() {
   const { data, loading, error, refresh } = useMobileResource(getStudentDashboard);
@@ -44,7 +44,7 @@ export default function StudentDashboard() {
           </View>}
           <Text className="mt-3 text-xl font-bold" style={{ color: ACCENT }}>{selectedGroup?.courseName || 'No active enrollment'}</Text>
           {selectedGroup?.packages.map((packageName) => <Text key={packageName} className="mt-1 text-gray-500">{packageName}</Text>)}
-          {selectedEnrollment?.status && <View className={`mt-4 self-start rounded-full px-3 py-1 ${selectedEnrollment.status === 'AT_RISK' ? 'bg-red-100' : 'bg-green-100'}`}><Text className={`text-sm font-semibold ${selectedEnrollment.status === 'AT_RISK' ? 'text-red-700' : 'text-green-700'}`}>{selectedEnrollment.status}</Text></View>}
+          {selectedEnrollment?.status && selectedEnrollment.status !== 'APPROVED' && <View className="mt-4 self-start rounded-full bg-red-100 px-3 py-1"><Text className="text-sm font-semibold text-red-700">{selectedEnrollment.status}</Text></View>}
         </View>
 
         {upcomingClasses.length > 0 && <View className="mt-5 rounded-3xl border border-slate-200 bg-white p-5"><View className="flex-row items-center justify-between"><Text className="text-lg font-bold text-gray-900">Weekly schedule</Text><Text className="text-sm text-gray-500">{upcomingClasses.length} lesson{upcomingClasses.length === 1 ? '' : 's'}</Text></View>{upcomingClasses.slice(0, 3).map((lesson) => <View key={lesson.id} className="mt-3 flex-row items-center rounded-2xl bg-slate-50 p-3"><View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-[#D7EAF8]"><Text className="text-lg">♪</Text></View><View className="flex-1"><Text className="font-semibold text-gray-800">{formatDay(lesson.scheduledStart)}</Text><Text className="mt-1 text-sm text-gray-500">{formatTime(lesson.scheduledStart)} · {lesson.instructor?.name || 'Instructor pending'}</Text></View></View>)}</View>}

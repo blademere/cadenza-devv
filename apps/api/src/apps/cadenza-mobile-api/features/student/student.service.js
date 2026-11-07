@@ -50,7 +50,7 @@ function mapSession(session, enrollment) {
     instructor: session.instructor?.person
       ? { name: [session.instructor.person.firstName, session.instructor.person.lastName].filter(Boolean).join(' ') }
       : null,
-    room: session.room ? { name: session.room.resourceId } : null,
+    room: session.room ? { name: session.room.name || session.room.resourceId } : null,
     scheduleRequest: session.rescheduleRequests?.[0]
       ? {
           id: session.rescheduleRequests[0].id,
@@ -123,7 +123,7 @@ const ACTIVE_ENROLLMENT_STATUS_FILTER = {
 };
 
 async function findActiveEnrollments(appId, customerId) {
-  return prisma.cadenzaEnrollment.findMany({
+  const enrollments = await prisma.cadenzaEnrollment.findMany({
     where: { appId, customerId, status: ACTIVE_ENROLLMENT_STATUS_FILTER },
     include: {
       lessonPackage: {
@@ -162,7 +162,7 @@ async function findActiveEnrollments(appId, customerId) {
         include: {
           attendance: true,
           instructor: { select: { person: { select: { firstName: true, lastName: true } } } },
-          room: { select: { resourceId: true } },
+          room: { select: { resourceId: true, roomType: true } },
           rescheduleRequests: { where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' }, take: 1 },
         },
         orderBy: { scheduledStart: 'asc' },
@@ -170,6 +170,16 @@ async function findActiveEnrollments(appId, customerId) {
     },
     orderBy: { createdAt: 'desc' },
   });
+  const roomIds = [...new Set(enrollments.flatMap((enrollment) => enrollment.sessions.map((session) => session.room?.resourceId).filter(Boolean)))];
+  if (!roomIds.length) return enrollments;
+  const resources = await prisma.resource.findMany({ where: { appId, id: { in: roomIds } }, select: { id: true, name: true } });
+  const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+  return enrollments.map((enrollment) => ({
+    ...enrollment,
+    sessions: enrollment.sessions.map((session) => session.room
+      ? { ...session, room: { ...session.room, name: names.get(session.room.resourceId) || session.room.roomType || session.room.resourceId } }
+      : session),
+  }));
 }
 
 export const studentService = {
@@ -292,7 +302,7 @@ export const studentService = {
     if (!material.fileUrl) throw new NotFoundError('Material file not found.');
     const root = path.resolve(process.env.CADENZA_STORAGE_PATH || path.join(process.cwd(), 'storage'));
     const normalized = String(material.fileUrl).replaceAll('\\', '/');
-    if (path.isAbsolute(normalized) || normalized.split('/').includes('..') || !normalized.startsWith(`cadenza-client/courses/${material.courseId}/`)) {
+    if (path.isAbsolute(normalized) || normalized.split('/').includes('..')) {
       throw new NotFoundError('Material file not found.');
     }
     const absolutePath = path.resolve(root, normalized);

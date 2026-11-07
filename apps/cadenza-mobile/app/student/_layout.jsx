@@ -255,12 +255,7 @@ export default function StudentLayout() {
           }}
         />
 
-        <Tabs.Screen
-          name="material-details"
-          options={{
-            href: null,
-          }}
-        />
+       
       </Tabs>
 
       <Modal visible={notificationsVisible} transparent animationType="fade" onRequestClose={() => setNotificationsVisible(false)}>

@@ -9,11 +9,11 @@ import { getInstructorSchedule } from '../../services/instructor.service';
 const ACCENT = '#0C447C';
 
 function formatDate(value) {
-  return value ? new Date(value).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : 'Date pending';
+  return value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'short', day: 'numeric' }) : 'Date pending';
 }
 
 function formatTime(value) {
-  return value ? new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Time pending';
+  return value ? new Date(value).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true }) : 'Time pending';
 }
 
 export default function SchedulePage() {

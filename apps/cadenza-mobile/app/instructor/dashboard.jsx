@@ -126,8 +126,7 @@ export default function InstructorDashboardScreen() {
           data.studentProgress.map((student) => (
             <StudentProgressCard
               key={student.id}
-              name={student.name}
-              progress={student.progress}
+              {...student}
             />
           ))
         )}

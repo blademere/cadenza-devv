@@ -192,12 +192,20 @@ export default function CreateInstrumentRental() {
   const [showAddItems, setShowAddItems] = useState(false);
   useEffect(() => {
     let active = true;
+    const selectedIds = instrumentIds.length
+      ? instrumentIds
+      : instruments.map((instrument) => instrument.id);
+
+    if (!selectedIds.length) {
+      return () => { active = false; };
+    }
+
     import('../services/instrument-rental.service').then(({ getReservedInstrumentTimes }) =>
-      Promise.all(instrumentIds.map(async (id) => [id, await getReservedInstrumentTimes(id)]))
+      Promise.all(selectedIds.map(async (id) => [id, await getReservedInstrumentTimes(id)]))
     ).then((entries) => { if (active) setReservedTimes(Object.fromEntries(entries)); })
       .catch(() => { if (active) setError('Unable to load reserved rental times.'); });
     return () => { active = false; };
-  }, [instrumentIds.join(',')]);
+  }, [instrumentIds.join(','), instruments.map((instrument) => instrument.id).join(',')]);
 
   useEffect(() => {
     let active = true;
@@ -212,6 +220,7 @@ export default function CreateInstrumentRental() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     const loadInstruments = async (background = false) => {
       if (!instrumentIds.length) {
         try {
@@ -270,7 +279,10 @@ export default function CreateInstrumentRental() {
       15000,
     );
 
-    return () => window.clearInterval(refreshTimer);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
   }, [instrumentIds.join(',')]);
 
   useEffect(() => {

@@ -42,14 +42,18 @@ function fullName(person) {
   return [person?.firstName, person?.lastName].filter(Boolean).join(' ') || 'Student';
 }
 
-function mapSession(session) {
+function coursesForSession(session) {
   const legacyCourses = session.enrollment?.lessonPackage?.lessons || [];
   const mappedCourses = (session.enrollment?.lessonPackage?.courseMappings || [])
     .map((mapping) => mapping.course)
     .filter(Boolean);
-  const courses = [...legacyCourses, ...mappedCourses].filter(
+  return [...legacyCourses, ...mappedCourses].filter(
     (course, index, allCourses) => allCourses.findIndex((item) => item.id === course.id) === index,
   );
+}
+
+function mapSession(session) {
+  const courses = coursesForSession(session);
   const selectedCourseId = session.enrollment?.metadata?.courseId
     || session.enrollment?.termsSnapshot?.courseId;
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) || (courses.length === 1 ? courses[0] : null);
@@ -66,7 +70,7 @@ function mapSession(session) {
     student: fullName(session.enrollment?.customer?.person),
     studentName: fullName(session.enrollment?.customer?.person),
     studentId: session.enrollment?.customerId,
-    room: session.room ? { name: session.room.resourceId } : null,
+    room: session.room ? { name: session.room.name || session.room.resourceId } : null,
     attendance: session.attendance
       ? {
           id: session.attendance.id,
@@ -114,13 +118,19 @@ async function findSessions(req) {
           },
         },
       },
-      room: { select: { resourceId: true } },
+      room: { select: { resourceId: true, roomType: true } },
       rescheduleRequests: { where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' }, take: 1 },
     },
     orderBy: { scheduledStart: 'asc' },
   });
 
-  return { instructor, sessions };
+  const roomIds = [...new Set(sessions.map((session) => session.room?.resourceId).filter(Boolean))];
+  if (!roomIds.length) return { instructor, sessions };
+  const resources = await prisma.resource.findMany({ where: { appId: req.cadenzaApp.id, id: { in: roomIds } }, select: { id: true, name: true } });
+  const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+  return { instructor, sessions: sessions.map((session) => session.room
+    ? { ...session, room: { ...session.room, name: names.get(session.room.resourceId) || session.room.roomType || session.room.resourceId } }
+    : session) };
 }
 
 function isToday(value) {
@@ -156,10 +166,10 @@ function progressByStudent(sessions) {
     if (['ABSENT', 'NO_SHOW'].includes(attendanceStatus)) group.absences += 1;
     if (!group.lastLesson || new Date(session.scheduledStart) > new Date(group.lastLesson.scheduledStart)) group.lastLesson = { scheduledStart: session.scheduledStart, status: attendanceStatus || 'SCHEDULED' };
     group.progress = Math.round((group.completedLessons / group.totalLessons) * 100);
-    const courses = [
-      ...(session.enrollment?.lessonPackage?.lessons || []),
-      ...(session.enrollment?.lessonPackage?.courseMappings || []).map((mapping) => mapping.course).filter(Boolean),
-    ];
+    const allCourses = coursesForSession(session);
+    const selectedCourseId = session.enrollment?.metadata?.courseId || session.enrollment?.termsSnapshot?.courseId;
+    const selectedCourse = allCourses.find((course) => course.id === selectedCourseId) || (allCourses.length === 1 ? allCourses[0] : null);
+    const courses = selectedCourse ? [selectedCourse] : [];
     for (const course of courses) if (!group.courses.some((item) => item.id === course.id)) group.courses.push({ id: course.id, name: course.name });
     group.attendanceRate = group.recordedAttendance ? Math.round((group.attendedLessons / group.recordedAttendance) * 100) : 0;
     group.status = group.absences >= 2 ? 'NEEDS_ATTENTION' : 'ON_TRACK';
@@ -210,7 +220,7 @@ export const instructorService = {
     if (!material?.fileUrl) throw new NotFoundError('Material file not found.');
     const root = path.resolve(process.env.CADENZA_STORAGE_PATH || path.join(process.cwd(), 'storage'));
     const normalized = String(material.fileUrl).replaceAll('\\', '/');
-    if (path.isAbsolute(normalized) || normalized.split('/').includes('..') || !normalized.startsWith(`cadenza-client/courses/${material.courseId}/`)) throw new NotFoundError('Material file not found.');
+    if (path.isAbsolute(normalized) || normalized.split('/').includes('..')) throw new NotFoundError('Material file not found.');
     const absolutePath = path.resolve(root, normalized);
     if (!absolutePath.startsWith(`${root}${path.sep}`)) throw new NotFoundError('Material file not found.');
     try { await access(absolutePath); } catch { throw new NotFoundError('Material file not found.'); }
@@ -227,8 +237,8 @@ export const instructorService = {
       },
       todaySchedule: today.map((session) => ({
         ...mapSession(session),
-        time: new Date(session.scheduledStart).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
-        location: session.room?.resourceId || null,
+        time: `${new Date(session.scheduledStart).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true })} - ${new Date(session.scheduledEnd).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true })}`,
+        location: mapSession(session).room?.name || null,
       })),
       studentProgress: progressByStudent(sessions),
     };
