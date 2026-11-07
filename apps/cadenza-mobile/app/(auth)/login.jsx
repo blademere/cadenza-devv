@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
@@ -46,6 +47,7 @@ function getHomeRoute(account) {
 }
 
 export default function Login() {
+  const { reason } = useLocalSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,6 +67,12 @@ export default function Login() {
     webClientId: Platform.OS === 'web' ? googleClientIds.googleWebClientId : undefined,
     redirectUri: googleRedirectUri,
   });
+
+  useEffect(() => {
+    if (reason === 'inactive') {
+      setErrorMessage('You were signed out after 8 hours of inactivity. Please log in again.');
+    }
+  }, [reason]);
 
   useEffect(() => {
     const googleAccessToken = response?.authentication?.accessToken || response?.params?.access_token;

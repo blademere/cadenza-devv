@@ -1,7 +1,14 @@
-import { getAccount, getToken } from '../services/authStorage';
+import { getAccount, getLastActivityAt, getToken, logout } from '../services/authStorage';
+
+const INACTIVITY_LIMIT_MS = 8 * 60 * 60 * 1000;
 
 export async function getInitialRoute() {
-  const [token, account] = await Promise.all([getToken(), getAccount()]);
+  const [token, account, lastActivityAt] = await Promise.all([getToken(), getAccount(), getLastActivityAt()]);
+
+  if (token && account && lastActivityAt && Date.now() - lastActivityAt >= INACTIVITY_LIMIT_MS) {
+    await logout();
+    return '/login?reason=inactive';
+  }
 
   if (!token || !account) {
     return '/login';

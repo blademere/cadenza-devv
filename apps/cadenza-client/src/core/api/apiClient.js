@@ -23,6 +23,13 @@ const CSRF_COOKIE_NAME = 'csrfToken';
 const CSRF_HEADER_NAME = 'x-csrf-token';
 const CSRF_ENDPOINT = '/auth/csrf';
 const REFRESH_ENDPOINT = '/auth/refresh';
+const LAST_ACTIVITY_KEY = 'lastActivityAt';
+
+const touchActivity = () => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+  }
+};
 
 const getCookie = (name) => {
   if (typeof document === 'undefined') {
@@ -202,6 +209,7 @@ const addRequestHeaders = (options = {}, tokenOverride = null) => {
 };
 
 const request = async (path, options = {}, allowRefresh = true) => {
+  touchActivity();
   const method = normalizeMethod(options.method);
   let tokenOverride = null;
 

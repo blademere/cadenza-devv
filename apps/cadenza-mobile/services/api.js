@@ -1,6 +1,6 @@
 import axios from "axios";
 import { Platform } from "react-native";
-import { getCsrfToken, getToken, saveAccessToken } from "./authStorage";
+import { getCsrfToken, getRefreshToken, getToken, saveAccessToken, saveRefreshToken, touchActivity } from "./authStorage";
 
 const DEFAULT_API_HOST = Platform.OS === "android" ? "10.0.2.2" : "localhost";
 const DEFAULT_API_BASE_URL = `http://${DEFAULT_API_HOST}:3000/api/v1/cadenza-mobile`;
@@ -44,6 +44,7 @@ api.interceptors.request.use(async (config) => {
   }
 
   const token = await getToken();
+  await touchActivity();
 
   if (token) {
     config.headers = config.headers || {};
@@ -59,11 +60,12 @@ api.interceptors.response.use((response) => response, async (error) => {
   if (error.response?.status !== 401 || original?._retryAuth || original?._skipAuthRefresh || original?.url?.endsWith('/auth/refresh') || isPublicAuthRequest(original?.url)) throw error;
   original._retryAuth = true;
   try {
-    refreshPromise ||= api.post('/auth/refresh', {}, { _skipAuthRefresh: true, headers: { 'X-CSRF-Token': await getCsrfToken(), 'Idempotency-Key': `mobile-refresh-${Date.now()}` } });
+    refreshPromise ||= api.post('/auth/refresh', { refreshToken: await getRefreshToken() }, { _skipAuthRefresh: true, headers: { 'X-CSRF-Token': await getCsrfToken(), 'Idempotency-Key': `mobile-refresh-${Date.now()}` } });
     const response = await refreshPromise;
     refreshPromise = null;
     const accessToken = response.data?.data?.accessToken ?? response.data?.accessToken;
     await saveAccessToken(accessToken);
+    await saveRefreshToken(response.data?.data?.refreshToken ?? response.data?.refreshToken);
     original.headers = original.headers || {};
     original.headers.Authorization = `Bearer ${accessToken}`;
     return api(original);

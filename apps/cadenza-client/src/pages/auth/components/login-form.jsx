@@ -4,18 +4,25 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { FieldDescription, FieldGroup } from '@/components/ui/field';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/Input';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService, getGoogleOAuthUrl } from '@/services/auth/authService';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
 export function LoginForm({ className, audience = 'client', ...props }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('reason') === 'inactive') {
+      setError('You were signed out after 8 hours of inactivity. Please sign in again.');
+    }
+  }, [searchParams]);
 
   async function handleSubmit(event) {
     event.preventDefault();

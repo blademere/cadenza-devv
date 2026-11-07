@@ -4,6 +4,8 @@ const USER_KEY = "user";
 const ACCOUNT_KEY = "account";
 const TOKEN_KEY = "auth_token";
 const CSRF_KEY = "csrf_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
+const LAST_ACTIVITY_KEY = "last_activity_at";
 
 export async function saveAuth(data) {
   const authData = data?.data ?? data;
@@ -17,12 +19,31 @@ export async function saveAuth(data) {
     [USER_KEY, JSON.stringify(authData.user)],
     [ACCOUNT_KEY, JSON.stringify(authData.account ?? null)],
     [TOKEN_KEY, token],
+    [REFRESH_TOKEN_KEY, authData.refreshToken ?? ""],
     [CSRF_KEY, authData.csrfToken ?? ""],
+    [LAST_ACTIVITY_KEY, String(Date.now())],
   ]);
 }
 
 export async function saveAccessToken(accessToken) {
   if (accessToken) await AsyncStorage.setItem(TOKEN_KEY, accessToken);
+}
+
+export async function getRefreshToken() {
+  return AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export async function saveRefreshToken(refreshToken) {
+  if (refreshToken) await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+export async function getLastActivityAt() {
+  const value = await AsyncStorage.getItem(LAST_ACTIVITY_KEY);
+  return Number(value || 0);
+}
+
+export async function touchActivity() {
+  await AsyncStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
 }
 
 // Get saved user
@@ -48,5 +69,5 @@ export async function getCsrfToken() {
 }
 
 export async function logout() {
-  await AsyncStorage.multiRemove([USER_KEY, ACCOUNT_KEY, TOKEN_KEY, CSRF_KEY]);
+  await AsyncStorage.multiRemove([USER_KEY, ACCOUNT_KEY, TOKEN_KEY, REFRESH_TOKEN_KEY, CSRF_KEY, LAST_ACTIVITY_KEY]);
 }

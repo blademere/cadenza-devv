@@ -76,6 +76,7 @@ const loginController = async (req, res) => {
 
   return successResponse(res, 'Login successful.', {
     accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
     csrfToken: setCsrfCookie(res),
     user: result.user,
     account: result.account,
@@ -87,6 +88,7 @@ const googleLoginController = async (req, res) => {
   res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
   return successResponse(res, 'Login successful.', {
     accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
     csrfToken: setCsrfCookie(res),
     user: { id: result.user.id, email: result.user.email, emailVerified: Boolean(result.user.emailVerifiedAt) },
     account: result.account,
@@ -102,7 +104,7 @@ const currentUserController = async (req, res) => {
 };
 
 const refreshController = async (req, res) => {
-  const refreshToken = req.cookies?.refreshToken;
+  const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken;
 
   if (!refreshToken) {
     throw new UnauthorizedError('Refresh token is missing.');
@@ -117,6 +119,7 @@ const refreshController = async (req, res) => {
 
   return successResponse(res, 'Access token refreshed.', {
     accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
     account: result.account,
   });
 };
