@@ -26,9 +26,9 @@ const formatDate = (value) => {
 
 const normalizePaymentStatus = (record) => {
   const status = String(record.metadata?.paymentStatus || '').toUpperCase();
+  if (status === 'REFUNDED') return 'REFUNDED';
   if (record.status === 'CANCELLED') return 'CANCELLED';
   if (['REJECTED', 'FAILED'].includes(status)) return 'REJECTED';
-  if (status === 'REFUNDED') return 'REFUNDED';
   if (['PENDING_CONFIRMATION', 'PENDING_VERIFICATION', 'PENDING'].includes(status)) return 'PENDING_VERIFICATION';
   if (['PARTIALLY_PAID', 'PARTIAL'].includes(status)) return 'PARTIALLY_PAID';
   if (['PAID', 'SUCCEEDED', 'COMPLETED', 'SUCCESSFUL'].includes(status)) return 'PAID';
@@ -41,6 +41,17 @@ const amounts = (record, total) => {
   const submitted = Number(metadata.paymentAmount ?? metadata.initialPaymentAmount ?? 0) || 0;
   const paid = Math.min(total, Math.max(0, submitted));
   return { totalAmount: total, amountPaid: paid, remainingBalance: Math.max(0, total - paid), claimedAmount: paid };
+};
+
+const refundDetails = (record) => {
+  const metadata = record.metadata || {};
+  if (String(metadata.paymentStatus || '').toUpperCase() !== 'REFUNDED') return {};
+  return {
+    refundAmount: Number(metadata.refundAmount || 0),
+    refundReference: metadata.refundReference || 'Not provided',
+    refundMethod: metadata.refundMethod || 'Not provided',
+    refundedAt: formatDate(metadata.refundedAt),
+  };
 };
 
 const mapEnrollment = (enrollment) => {
@@ -60,12 +71,13 @@ const mapEnrollment = (enrollment) => {
     serviceDescription: 'Music lesson enrollment.',
     amount: Number(enrollment.priceAtEnrollment ?? enrollment.price ?? 0),
     ...amounts(enrollment, Number(enrollment.priceAtEnrollment ?? enrollment.price ?? 0)),
+    ...refundDetails(enrollment),
     currency: 'PHP',
     paymentMethod: metadata.paymentMethod || 'QR',
     paymentStatus: normalizePaymentStatus(enrollment),
     transactionDate: formatDate(enrollment.createdAt),
     paidAt: formatDate(metadata.paymentCompletedAt),
-    rawDate: enrollment.createdAt,
+    rawDate: metadata.refundedAt || enrollment.createdAt,
     notes:
       metadata.paymentStatus === 'PENDING_CONFIRMATION'
         ? 'Payment reference submitted for front desk confirmation.'
@@ -92,11 +104,12 @@ const mapRoomBooking = (booking) => {
     serviceDescription: 'Music room booking.',
     amount: Number(booking.totalAmount || 0),
     ...amounts(booking, Number(booking.totalAmount || 0)),
+    ...refundDetails(booking),
     currency: 'PHP',
     paymentMethod: metadata.paymentMethod || 'QR',
     paymentStatus: normalizePaymentStatus(booking),
     transactionDate: formatDate(booking.createdAt || booking.scheduledStart),
-    rawDate: booking.createdAt || booking.scheduledStart,
+    rawDate: metadata.refundedAt || booking.createdAt || booking.scheduledStart,
     paidAt: formatDate(metadata.paymentCompletedAt),
     notes: 'Room booking payment.',
   };
@@ -127,11 +140,12 @@ const mapRental = (rental) => {
     serviceDescription: 'Instrument rental.',
     amount: Number(rental.totalAmount || 0),
     ...amounts(rental, Number(rental.totalAmount || 0)),
+    ...refundDetails(rental),
     currency: 'PHP',
     paymentMethod: metadata.paymentMethod || 'QR',
     paymentStatus: normalizePaymentStatus(rental),
     transactionDate: formatDate(rental.createdAt || rental.scheduledStart),
-    rawDate: rental.createdAt || rental.scheduledStart,
+    rawDate: metadata.refundedAt || rental.createdAt || rental.scheduledStart,
     paidAt: formatDate(metadata.paymentCompletedAt),
     notes: 'Instrument rental payment.',
   };

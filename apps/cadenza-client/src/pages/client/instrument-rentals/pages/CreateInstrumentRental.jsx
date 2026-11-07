@@ -192,9 +192,10 @@ export default function CreateInstrumentRental() {
   const [showAddItems, setShowAddItems] = useState(false);
   useEffect(() => {
     let active = true;
-    const selectedIds = instrumentIds.length
-      ? instrumentIds
-      : instruments.map((instrument) => instrument.id);
+    const selectedIds = Array.from(new Set([
+      ...instrumentIds,
+      ...instruments.map((instrument) => instrument.id),
+    ]));
 
     if (!selectedIds.length) {
       return () => { active = false; };

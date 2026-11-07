@@ -285,6 +285,7 @@ export const studentService = {
             status: material.metadata?.status || 'AVAILABLE',
             uploadedAt: material.createdAt,
             fileUrl: material.storageReference || null,
+            storedFileName: material.metadata?.storedFileName || null,
             courseId: lesson.id,
             courseName: lesson.name,
           });
@@ -305,9 +306,18 @@ export const studentService = {
     if (path.isAbsolute(normalized) || normalized.split('/').includes('..')) {
       throw new NotFoundError('Material file not found.');
     }
-    const absolutePath = path.resolve(root, normalized);
+    let absolutePath = path.resolve(root, normalized);
     if (!absolutePath.startsWith(`${root}${path.sep}`)) throw new NotFoundError('Material file not found.');
-    try { await access(absolutePath); } catch { throw new NotFoundError('Material file not found.'); }
+    try {
+      await access(absolutePath);
+    } catch {
+      const fallbackPath = material.courseId && material.storedFileName
+        ? path.resolve(root, 'cadenza-client', 'courses', material.courseId, material.storedFileName)
+        : null;
+      if (!fallbackPath || !fallbackPath.startsWith(`${root}${path.sep}`)) throw new NotFoundError('Material file not found.');
+      try { await access(fallbackPath); } catch { throw new NotFoundError('Material file not found.'); }
+      absolutePath = fallbackPath;
+    }
     return { absolutePath, filename: material.title || 'material', contentType: material.type || 'application/octet-stream' };
   },
 

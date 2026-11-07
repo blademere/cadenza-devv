@@ -29,12 +29,18 @@ export default function TransactionCard({ transaction, onView }) {
         <div className="flex items-center justify-between gap-5 sm:justify-end">
           <div className="text-right">
             <p className="font-semibold">
-              ₱{transaction.amount.toLocaleString()}
+              &#8369;{transaction.amount.toLocaleString()}
             </p>
 
             <div className="mt-1">
               <TransactionStatus status={transaction.paymentStatus} />
             </div>
+            {transaction.paymentStatus === "REFUNDED" && (
+              <p className="mt-1 text-xs text-blue-700">
+                Refund: &#8369;{Number(transaction.refundAmount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                {transaction.refundMethod ? ` · ${transaction.refundMethod}` : ""}
+              </p>
+            )}
           </div>
 
           <ChevronRight className="h-5 w-5 text-muted-foreground" />

@@ -4,8 +4,19 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import RentalStatus from '../components/RentalStatus';
 import RentalSummary from '../components/RentalSummary';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 
-import { getInstrumentRental } from '../services/instrument-rental.service';
+import {
+  cancelInstrumentRental,
+  getInstrumentRental,
+} from '../services/instrument-rental.service';
 
 const formatSchedule = (value) => {
   if (!value) return '—';
@@ -30,6 +41,8 @@ export default function InstrumentRentalDetails() {
   const [rental, setRental] = useState(null);
 
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   const [error, setError] = useState('');
 
@@ -49,6 +62,27 @@ export default function InstrumentRentalDetails() {
 
     loadRental();
   }, [id]);
+
+  const handleCancel = async () => {
+    try {
+      setCancelling(true);
+      setError('');
+      const updatedRental = await cancelInstrumentRental(
+        id,
+        'Cancelled by customer.',
+      );
+      setRental(updatedRental);
+      setCancelDialogOpen(false);
+    } catch (requestError) {
+      setError(
+        requestError?.response?.data?.message ||
+          requestError?.message ||
+          'Unable to cancel this rental.',
+      );
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -142,8 +176,7 @@ export default function InstrumentRentalDetails() {
 
       {rental.status === 'CANCELLED' && rental.metadata?.cancellationReason && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-          <p className="font-medium">Cancelled by Front Desk</p>
-          <p className="mt-1 text-sm">Reason: {rental.metadata.cancellationReason}</p>
+          <p className="font-medium">Rentals cancelled</p>
         </div>
       )}
 
@@ -206,6 +239,51 @@ export default function InstrumentRentalDetails() {
           scheduledEnd={scheduledEnd}
         />
       </div>
+
+      {rental.status !== 'CANCELLED' && rental.status !== 'COMPLETED' && (
+        <button
+          type="button"
+          onClick={() => setCancelDialogOpen(true)}
+          disabled={cancelling}
+          className="rounded-md border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/5 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {cancelling ? 'Cancelling...' : 'Cancel Rental'}
+        </button>
+      )}
+
+      <Dialog
+        open={cancelDialogOpen}
+        onOpenChange={(open) => {
+          if (!cancelling) setCancelDialogOpen(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel instrument rental?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this rental? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              className="rounded-md border px-4 py-2 font-medium"
+              disabled={cancelling}
+              onClick={() => setCancelDialogOpen(false)}
+            >
+              Keep rental
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-destructive px-4 py-2 font-medium text-destructive-foreground disabled:opacity-50"
+              disabled={cancelling}
+              onClick={handleCancel}
+            >
+              {cancelling ? 'Cancelling...' : 'Confirm cancellation'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

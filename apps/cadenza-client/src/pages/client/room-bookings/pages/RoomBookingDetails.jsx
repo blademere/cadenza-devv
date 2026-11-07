@@ -12,6 +12,14 @@ import {
 } from "react-router-dom";
 
 import BookingStatus from "../components/BookingStatus";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/Dialog";
 import roomBookingService, {
   getRoomBookingReferences,
 } from "../services/roomBookingsService";
@@ -23,6 +31,7 @@ export default function RoomBookingDetails() {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -53,14 +62,6 @@ export default function RoomBookingDetails() {
   }, [id]);
 
   const handleCancel = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to cancel this room booking?",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     try {
       setCancelling(true);
       setError("");
@@ -72,6 +73,7 @@ export default function RoomBookingDetails() {
         );
 
       setBooking(updatedBooking);
+      setCancelDialogOpen(false);
     } catch (error) {
       console.error(error);
 
@@ -383,7 +385,7 @@ export default function RoomBookingDetails() {
           booking.status !== "COMPLETED" && (
             <button
               type="button"
-              onClick={handleCancel}
+              onClick={() => setCancelDialogOpen(true)}
               disabled={cancelling}
               className="mt-4 rounded-md border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/5 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -393,6 +395,40 @@ export default function RoomBookingDetails() {
             </button>
           )}
       </div>
+
+      <Dialog
+        open={cancelDialogOpen}
+        onOpenChange={(open) => {
+          if (!cancelling) setCancelDialogOpen(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel room booking?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this room booking? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              className="rounded-md border px-4 py-2 font-medium"
+              disabled={cancelling}
+              onClick={() => setCancelDialogOpen(false)}
+            >
+              Keep booking
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-destructive px-4 py-2 font-medium text-destructive-foreground disabled:opacity-50"
+              disabled={cancelling}
+              onClick={handleCancel}
+            >
+              {cancelling ? "Cancelling..." : "Confirm cancellation"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

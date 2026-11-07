@@ -47,7 +47,7 @@ export default function RentalSummary({
               </p>
             </div>
             <span className="shrink-0 text-sm font-medium">
-              â‚±{Number(item.rentalRate || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₱{Number(item.rentalRate || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         ))}

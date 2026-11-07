@@ -246,6 +246,11 @@ export default function StudentLayout() {
           }}
         />
 
+        <Tabs.Screen
+          name="material-details"
+          options={{ href: null }}
+        />
+
         {/* Profile remains available as a route but is hidden from the tab bar. */}
         <Tabs.Screen
           name="profile"

@@ -212,6 +212,11 @@ export default function InstructorLayout() {
           }}
         />
 
+        <Tabs.Screen
+          name="material-details"
+          options={{ href: null }}
+        />
+
         <Tabs.Screen name="Profile" options={{ href: null }} />
       </Tabs>
 

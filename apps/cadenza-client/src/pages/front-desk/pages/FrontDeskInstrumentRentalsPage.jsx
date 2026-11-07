@@ -971,7 +971,7 @@ export default function RentalsPage() {
             onOpenChange={setShowDetails}
             disablePointerDismissal
           >
-            <DialogContent className="box-border w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] max-h-[90vh] min-w-0 overflow-x-hidden overflow-y-auto p-5 sm:p-6">
+            <DialogContent className="box-border w-[calc(100vw-2rem)] max-w-[900px] max-h-[90vh] min-w-0 overflow-x-hidden overflow-y-auto p-5 sm:p-6">
               {selectedRental && (
                 <>
                   <DialogHeader>
@@ -1029,12 +1029,12 @@ export default function RentalsPage() {
                     {(selectedRental?.status === 'Approved' || selectedRental?.status === 'Reassign') && !selectedRental.metadata?.receivedAt && (
                       <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
                         <p className="font-semibold">Instrument assignment</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 break-words text-sm text-muted-foreground">
                           {selectedRental.metadata?.reassignedAt
                             ? 'A replacement instrument is already assigned to this rental.'
                             : 'Choose an available replacement before releasing the instrument to the client.'}
                         </p>
-                        {(!selectedRental.metadata?.reassignedAt || editingAssignment) && <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row">
+                        {(!selectedRental.metadata?.reassignedAt || editingAssignment) && <div className="mt-3 flex min-w-0 flex-col gap-2">
                           <select
                             value={replacementInstrumentId}
                             onChange={(event) => setReplacementInstrumentId(event.target.value)}

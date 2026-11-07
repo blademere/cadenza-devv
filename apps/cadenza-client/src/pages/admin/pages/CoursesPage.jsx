@@ -793,6 +793,27 @@ export default function CoursesPage() {
                                           </span>
                                         </button>
 
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (isActive(file)) {
+                                              setMaterialToDeactivate({ course, material: file });
+                                            } else {
+                                              setMaterialToReactivate({ course, material: file });
+                                            }
+                                          }}
+                                          disabled={deactivatingMaterial}
+                                          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 ${isActive(file) ? 'text-destructive' : 'text-emerald-600'}`}
+                                          aria-label={`${isActive(file) ? 'Deactivate' : 'Activate'} ${fileName}`}
+                                          title={`${isActive(file) ? 'Deactivate' : 'Activate'} material`}
+                                        >
+                                          {isActive(file) ? (
+                                            <PowerOffIcon className="h-4 w-4" />
+                                          ) : (
+                                            <PowerIcon className="h-4 w-4" />
+                                          )}
+                                        </button>
+
                                       </div>
                                     );
                                   })}

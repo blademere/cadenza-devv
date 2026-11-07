@@ -165,6 +165,30 @@ export default function TransactionDetails() {
         </div>
       </section>
 
+      {transaction.paymentStatus === "REFUNDED" && (
+        <section className="rounded-xl border border-blue-200 bg-blue-50/50 p-6 dark:border-blue-900 dark:bg-blue-950/20">
+          <h2 className="text-lg font-semibold">Refund Details</h2>
+          <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Refund amount</p>
+              <p className="mt-1 text-sm font-semibold">&#8369;{Number(transaction.refundAmount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Refund method</p>
+              <p className="mt-1 text-sm font-medium">{transaction.refundMethod}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Refund reference</p>
+              <p className="mt-1 text-sm font-medium">{transaction.refundReference}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Refunded at</p>
+              <p className="mt-1 text-sm font-medium">{transaction.refundedAt}</p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Service */}
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="text-lg font-semibold">Service Information</h2>
@@ -211,15 +235,15 @@ export default function TransactionDetails() {
           </div>
 
           <div className="space-y-3 border-t border-border pt-4">
-            <div className="flex justify-between gap-3 text-sm"><span>Confirmed payment</span><strong>₱{Number(transaction.amountPaid || 0).toLocaleString("en-PH", {minimumFractionDigits:2})}</strong></div>
-            <div className="flex justify-between gap-3 text-sm"><span>Remaining balance</span><strong>₱{Number(transaction.remainingBalance || 0).toLocaleString("en-PH", {minimumFractionDigits:2})}</strong></div>
+            <div className="flex justify-between gap-3 text-sm"><span>Confirmed payment</span><strong>&#8369;{Number(transaction.amountPaid || 0).toLocaleString("en-PH", {minimumFractionDigits:2})}</strong></div>
+            <div className="flex justify-between gap-3 text-sm"><span>Remaining balance</span><strong>&#8369;{Number(transaction.remainingBalance || 0).toLocaleString("en-PH", {minimumFractionDigits:2})}</strong></div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 Total Amount
               </span>
 
               <span className="text-2xl font-semibold">
-                ₱{transaction.amount.toLocaleString()}
+                &#8369;{transaction.amount.toLocaleString()}
               </span>
             </div>
           </div>

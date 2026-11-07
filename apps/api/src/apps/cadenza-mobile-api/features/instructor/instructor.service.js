@@ -204,7 +204,7 @@ export const instructorService = {
       ];
       for (const course of courses) for (const material of course.materials || []) {
         if ((material.metadata?.status || 'AVAILABLE') !== 'AVAILABLE' || !material.storageReference) continue;
-        if (!materials.has(material.id)) materials.set(material.id, { id: material.id, title: material.name, type: material.type, status: material.metadata?.status || 'AVAILABLE', storageReference: material.storageReference, courseId: course.id });
+        if (!materials.has(material.id)) materials.set(material.id, { id: material.id, title: material.name, type: material.type, status: material.metadata?.status || 'AVAILABLE', storageReference: material.storageReference, storedFileName: material.metadata?.storedFileName || null, courseId: course.id });
       }
     }
     return [...materials.values()].map(({ storageReference, ...material }) => ({ ...material, fileUrl: storageReference || null }));
@@ -221,9 +221,18 @@ export const instructorService = {
     const root = path.resolve(process.env.CADENZA_STORAGE_PATH || path.join(process.cwd(), 'storage'));
     const normalized = String(material.fileUrl).replaceAll('\\', '/');
     if (path.isAbsolute(normalized) || normalized.split('/').includes('..')) throw new NotFoundError('Material file not found.');
-    const absolutePath = path.resolve(root, normalized);
+    let absolutePath = path.resolve(root, normalized);
     if (!absolutePath.startsWith(`${root}${path.sep}`)) throw new NotFoundError('Material file not found.');
-    try { await access(absolutePath); } catch { throw new NotFoundError('Material file not found.'); }
+    try {
+      await access(absolutePath);
+    } catch {
+      const fallbackPath = material.courseId && material.storedFileName
+        ? path.resolve(root, 'cadenza-client', 'courses', material.courseId, material.storedFileName)
+        : null;
+      if (!fallbackPath || !fallbackPath.startsWith(`${root}${path.sep}`)) throw new NotFoundError('Material file not found.');
+      try { await access(fallbackPath); } catch { throw new NotFoundError('Material file not found.'); }
+      absolutePath = fallbackPath;
+    }
     return { absolutePath, filename: material.title, contentType: material.type || 'application/octet-stream' };
   },
   async getDashboard(req) {

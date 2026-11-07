@@ -86,11 +86,12 @@ export async function getMyNotifications() {
   const refundNotifications = asList(saved).filter((item) => item.type === 'PAYMENT_REFUNDED').map((item) => {
     const transactionType = item.data?.transactionType;
     const id = item.data?.sourceId;
-    const href = transactionType === 'ENROLLMENT'
-      ? `/client/enrollments/${id}`
+    const transactionId = transactionType === 'ENROLLMENT'
+      ? `ENROLLMENT-${id}`
       : transactionType === 'ROOM_BOOKING'
-        ? `/client/room-bookings/${id}`
-        : `/client/instrument-rentals/${id}`;
+        ? `ROOM_BOOKING-${id}`
+        : id;
+    const href = `/client/billing/${transactionId}`;
     return {
       id: item.id,
       type: 'PAYMENT',
