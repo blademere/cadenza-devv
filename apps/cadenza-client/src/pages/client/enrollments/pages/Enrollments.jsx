@@ -270,7 +270,7 @@ export default function Enrollments() {
                       )}
                       <PackageCard
                         packageData={courseData}
-                        enrolled
+                        enrolled={courseData.status !== 'CANCELLED'}
                         onEnroll={handleEnroll}
                       />
                     </div>
