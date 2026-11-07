@@ -101,12 +101,9 @@ export const authService = {
 
         return true;
       } catch {
-        apiClient.clearAccessToken();
-        apiClient.setCsrfToken(null);
-
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('csrfToken');
-
+        // Do not turn a transient refresh failure into an automatic logout.
+        // The request that triggered the refresh still surfaces its 401, and
+        // a later request can try the refresh again.
         return false;
       } finally {
         refreshPromise = null;
