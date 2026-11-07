@@ -109,9 +109,18 @@ export const instrumentRentalsRepository = {
     });
     if (!rental || !rental.items.length) return null;
 
-    const result = await prisma.cadenzaRentalItem.updateMany({
-      where: { id: rental.items[0].id, rentalId, appId },
-      data: { instrumentId },
+    const result = await prisma.$transaction(async (tx) => {
+      const itemResult = await tx.cadenzaRentalItem.updateMany({
+        where: { id: rental.items[0].id, rentalId, appId },
+        data: { instrumentId },
+      });
+      if (!itemResult.count) return itemResult;
+      const metadata = rental.metadata && typeof rental.metadata === 'object' ? rental.metadata : {};
+      await tx.cadenzaRental.update({
+        where: { id: rentalId },
+        data: { metadata: { ...metadata, reassignedAt: new Date().toISOString(), assignedInstrumentId: instrumentId } },
+      });
+      return itemResult;
     });
     if (!result.count) return null;
     const rentals = await this.findAll(appId);

@@ -57,6 +57,13 @@ const mapStudent = (student) => {
       status: enrollment.status,
       enrolledAt: enrollment.enrolledAt,
       courses: getEnrollmentCourses(enrollment),
+      sessions: (enrollment.sessions ?? []).map((session) => ({
+        id: session.id,
+        roomId: session.roomId,
+        scheduledStart: session.scheduledStart,
+        scheduledEnd: session.scheduledEnd,
+        status: session.status,
+      })),
     })),
     createdAt: student.createdAt,
   };

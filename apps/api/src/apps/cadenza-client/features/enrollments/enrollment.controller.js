@@ -1,4 +1,5 @@
 import { enrollmentService } from './enrollment.service.js';
+import { broadcastEnrollmentsChanged } from '../../../../platform/websocket/enrollments.socket.js';
 
 export const enrollmentController = {
   async emergencyReschedule(req, res, next) {
@@ -46,6 +47,7 @@ export const enrollmentController = {
   async updateEnrollmentStatus(req, res, next) {
     try {
       const enrollment = await enrollmentService.updateEnrollmentStatus(req.cadenzaApp.id, req.params.id, req.body?.status);
+      broadcastEnrollmentsChanged();
       return res.json({ success: true, data: enrollment });
     } catch (error) { next(error); }
   },
@@ -117,6 +119,7 @@ export const enrollmentController = {
         req.cadenzaCustomer.id,
         req.body,
       );
+      broadcastEnrollmentsChanged();
 
       return res.status(201).json({
         success: true,
@@ -181,6 +184,7 @@ export const enrollmentController = {
         req.cadenzaApp.id,
         req.params.id,
       );
+      broadcastEnrollmentsChanged();
 
       return res.json({
         success: true,
@@ -199,6 +203,7 @@ export const enrollmentController = {
         req.params.id,
         req.body?.reason,
       );
+      broadcastEnrollmentsChanged();
 
       return res.json({
         success: true,
@@ -217,6 +222,7 @@ export const enrollmentController = {
         req.cadenzaCustomer.id,
         req.params.id,
       );
+      broadcastEnrollmentsChanged();
 
       return res.json({
         success: true,

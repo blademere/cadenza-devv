@@ -9,7 +9,7 @@ import {
   refreshAccessToken,
 } from '../../../cadenza-client/features/auth/auth.service.js';
 import { authenticateWithGoogleAccessToken } from '../../../../features/auth/oauth/oauth.service.js';
-import { requestPasswordResetCode, verifyPasswordResetCode } from '../../../../features/auth/auth.service.js';
+import { requestPasswordResetCode, verifyPasswordResetCode, resetPassword } from '../../../../features/auth/auth.service.js';
 
 const refreshCookiePath = '/api/v1/cadenza-mobile/auth';
 
@@ -106,6 +106,10 @@ const logoutController = async (req, res) => {
 
 const requestPasswordResetCodeController = async (req, res) => successResponse(res, 'Password reset code sent.', await requestPasswordResetCode(req.body));
 const verifyPasswordResetCodeController = async (req, res) => successResponse(res, 'Password reset code verified.', await verifyPasswordResetCode(req.body));
+const resetPasswordController = async (req, res) => {
+  await resetPassword(req.validated?.body ?? req.body);
+  return successResponse(res, 'Password changed successfully. Please sign in again.');
+};
 
 export {
   csrfController,
@@ -116,4 +120,5 @@ export {
   logoutController,
   requestPasswordResetCodeController,
   verifyPasswordResetCodeController,
+  resetPasswordController,
 };

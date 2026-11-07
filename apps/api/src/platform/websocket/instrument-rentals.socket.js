@@ -1,6 +1,7 @@
 import { WebSocketServer } from 'ws'
 
 import { verifyAccessToken } from '../../features/auth/auth.tokens.js'
+import { cadenzaAuthRepository } from '../../apps/cadenza-client/features/auth/auth.repository.js'
 
 const SOCKET_PATH = '/ws/cadenza-client/instrument-rentals'
 const clients = new Set()
@@ -24,13 +25,14 @@ const attachInstrumentRentalsSocket = (server) => {
     const authenticationTimer = setTimeout(() => socket.close(4001, 'Authentication required'), 5000)
     authenticationTimer.unref?.()
 
-    socket.once('message', (message) => {
+    socket.once('message', async (message) => {
       try {
         const payload = JSON.parse(message.toString())
         const token = payload?.type === 'authenticate' ? payload.token : null
         const claims = verifyAccessToken(token)
+        const application = await cadenzaAuthRepository.findApplication()
 
-        if (claims.type !== 'access') throw new Error('Invalid access token')
+        if (claims.type !== 'access' || !application || claims.appId !== application.id) throw new Error('Invalid access token')
 
         clearTimeout(authenticationTimer)
         clients.add(socket)
@@ -50,7 +52,6 @@ const attachInstrumentRentalsSocket = (server) => {
   server.on('upgrade', (request, socket, head) => {
     const requestUrl = new URL(request.url, 'http://localhost')
     if (requestUrl.pathname !== SOCKET_PATH) {
-      socket.destroy()
       return
     }
 

@@ -39,7 +39,8 @@ const modelFor = (db, type) => type === 'ENROLLMENT' ? db.cadenzaEnrollment :
 const assertReady = (record, type) => {
   if (!record) throw new NotFoundError('Billing transaction not found.');
   if (type === 'ENROLLMENT' && record.status !== 'APPROVED') throw new BadRequestError('Enrollment must be approved before cashier payment.');
-  if (type !== 'ENROLLMENT' && record.status !== 'COMPLETED') throw new BadRequestError('Complete the rental or room booking before recording continuation payments.');
+  if (type === 'ROOM_BOOKING' && record.status !== 'COMPLETED') throw new BadRequestError('Complete the room booking before recording continuation payments.');
+  if (type === 'INSTRUMENT_RENTAL' && !['APPROVED', 'COMPLETED'].includes(record.status)) throw new BadRequestError('Approve the instrument rental before recording continuation payments.');
 };
 const totalFor = (record, type) => Number(type === 'ENROLLMENT' ? record.priceAtEnrollment : record.totalAmount);
 const initialPaid = (record) => {

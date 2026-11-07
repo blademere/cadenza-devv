@@ -259,6 +259,7 @@ export default function RentalsPage() {
   const [actionError, setActionError] = useState('');
   const [replacementInstruments, setReplacementInstruments] = useState([]);
   const [replacementInstrumentId, setReplacementInstrumentId] = useState('');
+  const [editingAssignment, setEditingAssignment] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [cancellationMode, setCancellationMode] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
@@ -284,7 +285,7 @@ export default function RentalsPage() {
             !rental.metadata?.receivedAt &&
             items.some((item) => item.instrument?.status && item.instrument.status !== 'AVAILABLE');
           const instrumentNames = items
-            .map((item) => item.instrument?.brand)
+            .map((item) => item.instrument?.name || item.instrument?.brand)
             .filter(Boolean)
             .join(', ');
           const instrumentItemNames = items
@@ -341,6 +342,7 @@ export default function RentalsPage() {
                     ? 'Rejected'
                     : rental.status,
             needsReassignment,
+            hasReplacement: Boolean(rental.metadata?.reassignedAt),
           };
         });
 
@@ -400,6 +402,7 @@ export default function RentalsPage() {
     setReturnCondition('GOOD');
     setDamageFee('0');
     setReplacementInstrumentId('');
+    setEditingAssignment(false);
     setReplacementInstruments([]);
     setShowDetails(true);
   };
@@ -417,7 +420,7 @@ export default function RentalsPage() {
     if (
       !selectedRental ||
       !['Approved', 'Reassign'].includes(selectedRental.status) ||
-      selectedRental.metadata?.receivedAt
+      selectedRental.metadata?.receivedAt || selectedRental.metadata?.reassignedAt
     ) return undefined;
     let active = true;
     getAvailableRentalInstruments(selectedRental.scheduledStart, selectedRental.scheduledEnd)
@@ -432,9 +435,11 @@ export default function RentalsPage() {
       setActionLoading(true);
       setActionError('');
       const updated = await reassignInstrumentRental(selectedRental.id, replacementInstrumentId);
-      setSelectedRental({ ...selectedRental, ...updated, status: 'Approved', needsReassignment: false });
-      setRentals((current) => current.map((item) => item.id === selectedRental.id ? { ...item, ...updated, status: 'Approved', needsReassignment: false } : item));
+      const next = { ...selectedRental, ...updated, status: 'Approved', needsReassignment: false, hasReplacement: true };
+      setSelectedRental(next);
+      setRentals((current) => current.map((item) => item.id === selectedRental.id ? next : item));
       setReplacementInstrumentId('');
+      setEditingAssignment(false);
     } catch (error) {
       setActionError(error?.response?.data?.message || error?.message || 'Unable to reassign this item.');
     } finally {
@@ -512,6 +517,7 @@ export default function RentalsPage() {
     new Date(rental.scheduledEnd).getTime() <= currentTime;
 
   const handleReturn = () => {
+    setActionError('');
     setReturnAt(toDateTimeLocalValue());
     setReturnCondition('GOOD');
     setDamageFee('0');
@@ -965,7 +971,7 @@ export default function RentalsPage() {
             onOpenChange={setShowDetails}
             disablePointerDismissal
           >
-            <DialogContent className="sm:max-w-[520px] sm:max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] min-w-0 overflow-x-hidden overflow-y-auto">
               {selectedRental && (
                 <>
                   <DialogHeader>
@@ -1022,11 +1028,13 @@ export default function RentalsPage() {
 
                     {(selectedRental?.status === 'Approved' || selectedRental?.status === 'Reassign') && !selectedRental.metadata?.receivedAt && (
                       <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-                        <p className="font-semibold">Reassign item before release</p>
+                        <p className="font-semibold">Instrument assignment</p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          Choose an available replacement before releasing the instrument to the client.
+                          {selectedRental.metadata?.reassignedAt
+                            ? 'A replacement instrument is already assigned to this rental.'
+                            : 'Choose an available replacement before releasing the instrument to the client.'}
                         </p>
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        {(!selectedRental.metadata?.reassignedAt || editingAssignment) && <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                           <select
                             value={replacementInstrumentId}
                             onChange={(event) => setReplacementInstrumentId(event.target.value)}
@@ -1035,7 +1043,7 @@ export default function RentalsPage() {
                             <option value="">Select replacement item</option>
                             {replacementInstruments.map((instrument) => (
                               <option key={instrument.id} value={instrument.id}>
-                                {[instrument.name, instrument.instrumentType?.name, instrument.brand, instrument.model, instrument.serialNumber].filter(Boolean).join(' ') || instrument.id}
+                                {[instrument.instrumentType?.name || instrument.itemCategory?.name, instrument.name].filter(Boolean).join(' ') || instrument.id}
                               </option>
                             ))}
                           </select>
@@ -1044,8 +1052,16 @@ export default function RentalsPage() {
                             onClick={handleReassign}
                             disabled={actionLoading || !replacementInstrumentId}
                           >
-                            Reassign Item
+                            Assign replacement
                           </Button>
+                        </div>}
+                        <div className="mt-4 border-t border-amber-500/20 pt-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Assigned instrument</p>
+                          <p className="mt-1 font-medium">
+                            {selectedRental.items?.map((item) => item.instrument?.name || item.instrument?.brand || item.instrument?.instrumentType?.name).filter(Boolean).join(', ') || selectedRental.instrument || 'Not assigned'}
+                          </p>
+                          {selectedRental.metadata?.reassignedAt && <p className="mt-1 text-xs text-muted-foreground">Replacement assigned {formatRentalDate(selectedRental.metadata.reassignedAt)}</p>}
+                          {selectedRental.metadata?.reassignedAt && !editingAssignment && !selectedRental.metadata?.receivedAt && <Button type="button" variant="ghost" size="sm" className="mt-2 px-0" onClick={() => setEditingAssignment(true)} disabled={actionLoading}>Edit assignment</Button>}
                         </div>
                       </div>
                     )}
@@ -1654,6 +1670,15 @@ export default function RentalsPage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {actionError && (
+                <div
+                  role="alert"
+                  className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                >
+                  {actionError}
+                </div>
+              )}
 
               <DialogFooter>
                 <Button

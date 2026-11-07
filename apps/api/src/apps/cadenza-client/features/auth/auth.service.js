@@ -199,9 +199,9 @@ const login = async (
 
   const tokenId = createTokenId();
 
-  const accessToken = createAccessToken(user);
+  const accessToken = createAccessToken(user, application.id);
 
-  const refreshToken = createRefreshToken(user, tokenId);
+  const refreshToken = createRefreshToken(user, tokenId, application.id);
 
   await createRefreshTokenRecord({
     tokenId,
@@ -330,13 +330,23 @@ const refreshAccessToken = async ({
     throw new UnauthorizedError('Cadenza application is unavailable.');
   }
 
+  let appId;
+  try {
+    appId = payload.appId;
+    if (appId !== application.id) {
+      throw new Error('Refresh token is not for the Cadenza application.');
+    }
+  } catch {
+    throw new UnauthorizedError('Refresh token is invalid.');
+  }
+
   const account = await getAccount(userId, application.id, {
     requireActiveEnrollment,
   });
 
   const newTokenId = createTokenId();
 
-  const newRefreshToken = createRefreshToken(storedToken.user, newTokenId);
+  const newRefreshToken = createRefreshToken(storedToken.user, newTokenId, appId);
 
   const rotation = await rotateRefreshToken({
     currentTokenId: storedToken.id,
@@ -353,7 +363,7 @@ const refreshAccessToken = async ({
   }
 
   return {
-    accessToken: createAccessToken(storedToken.user),
+    accessToken: createAccessToken(storedToken.user, appId),
     refreshToken: newRefreshToken,
     account: formatAccount(account),
   };
@@ -484,9 +494,9 @@ const verifyEmailOtp = async ({ email, otp, purpose }) => {
 
   const account = await getAccount(record.userId, application.id);
   const tokenId = createTokenId();
-  const refreshToken = createRefreshToken(record.user, tokenId);
+  const refreshToken = createRefreshToken(record.user, tokenId, application.id);
   await createRefreshTokenRecord({ tokenId, tokenHash: hashToken(refreshToken), userId: record.userId, expiresAt: getRefreshTokenExpiration() });
-  return { accessToken: createAccessToken(record.user), refreshToken, user: { id: record.user.id, email: record.user.email, emailVerified: true }, account: formatAccount(account) };
+  return { accessToken: createAccessToken(record.user, application.id), refreshToken, user: { id: record.user.id, email: record.user.email, emailVerified: true }, account: formatAccount(account) };
 };
 
 export { login, registerClient, refreshAccessToken, logout, getCurrentUser, requestEmailOtp, verifyEmailOtp };

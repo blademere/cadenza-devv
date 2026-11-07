@@ -26,17 +26,20 @@ const api = axios.create({
   },
 });
 
+const isPublicAuthRequest = (url = '') => [
+  '/auth/login',
+  '/auth/password/reset/request',
+  '/auth/password/reset/code/request',
+  '/auth/password/reset/code/verify',
+  '/auth/password/reset',
+  '/auth/oauth/google',
+].some((path) => url.endsWith(path));
+
 api.interceptors.request.use(async (config) => {
   // These endpoints must remain usable while the local session is expired or
   // invalid. A stale bearer token can make older production API deployments
   // reject an otherwise public login/reset request with a 401.
-  const publicAuthRequest = [
-    '/auth/login',
-    '/auth/password/reset/request',
-    '/auth/oauth/google',
-  ].some((path) => config.url?.endsWith(path));
-
-  if (publicAuthRequest) {
+  if (isPublicAuthRequest(config.url)) {
     return config;
   }
 
@@ -53,7 +56,7 @@ api.interceptors.request.use(async (config) => {
 let refreshPromise = null;
 api.interceptors.response.use((response) => response, async (error) => {
   const original = error.config;
-  if (error.response?.status !== 401 || original?._retryAuth || original?.url?.endsWith('/auth/refresh') || original?.url?.endsWith('/auth/login')) throw error;
+  if (error.response?.status !== 401 || original?._retryAuth || original?._skipAuthRefresh || original?.url?.endsWith('/auth/refresh') || isPublicAuthRequest(original?.url)) throw error;
   original._retryAuth = true;
   try {
     refreshPromise ||= api.post('/auth/refresh', {}, { _skipAuthRefresh: true, headers: { 'X-CSRF-Token': await getCsrfToken(), 'Idempotency-Key': `mobile-refresh-${Date.now()}` } });

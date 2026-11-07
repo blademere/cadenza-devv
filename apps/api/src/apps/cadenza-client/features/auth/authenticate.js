@@ -25,6 +25,12 @@ const cadenzaAuthenticate = async (req, res, next) => {
       );
     }
 
+    if (req.auth?.appId !== application.id) {
+      return next(
+        new UnauthorizedError('Access token is not for the Cadenza application.'),
+      );
+    }
+
     const staff = await cadenzaAuthRepository.findStaffByUserIdAndAppId(
       req.user.id,
       application.id,

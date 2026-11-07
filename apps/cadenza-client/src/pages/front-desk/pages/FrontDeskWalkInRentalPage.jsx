@@ -209,7 +209,7 @@ export default function FrontDeskWalkInRentalPage() {
     const loadSupportingData = async (background = false) => {
       try {
         const [instrumentData, hours] = await Promise.all([
-          getInstruments(),
+          getInstruments({ status: 'AVAILABLE' }),
           getOperatingHours(),
         ]);
 

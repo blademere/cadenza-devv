@@ -197,7 +197,9 @@ const createPaymentAttemptKey = () => {
 const canProcessTransaction = (transaction) =>
   transaction.type === 'Enrollment'
     ? transaction.enrollmentStatus === 'APPROVED'
-    : transaction.rentalStatus === 'COMPLETED';
+    : transaction.type === 'Instrument Rental'
+      ? ['APPROVED', 'COMPLETED'].includes(transaction.rentalStatus)
+      : transaction.rentalStatus === 'COMPLETED';
 
 export default function BillingPayments() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -317,7 +319,7 @@ export default function BillingPayments() {
       setError(
         transaction.type === 'Room Booking'
           ? 'Check out the room booking before issuing a receipt.'
-          : 'Mark the instrument rental as returned before issuing a receipt.',
+          : 'Approve the instrument rental before issuing a receipt.',
       );
       return;
     }
@@ -331,7 +333,11 @@ export default function BillingPayments() {
   const submitCashierPayment = async (amount, method, reference) => {
     if (!selectedTransaction || processing) return;
     if (!canProcessTransaction(selectedTransaction)) {
-      setError('Complete the rental or room booking before recording payment.');
+      setError(
+        selectedTransaction.type === 'Room Booking'
+          ? 'Complete the room booking before recording payment.'
+          : 'Approve the instrument rental before recording payment.',
+      );
       return;
     }
     const amountText = String(amount);

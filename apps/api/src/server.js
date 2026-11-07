@@ -7,6 +7,7 @@ import {
 import { disconnectPrisma } from './infrastructure/database/prisma.js'
 import { disconnectRedis } from './infrastructure/cache/redis.js'
 import { attachInstrumentRentalsSocket } from './platform/websocket/instrument-rentals.socket.js'
+import { attachEnrollmentsSocket } from './platform/websocket/enrollments.socket.js'
 
 initializeSentry()
 
@@ -16,6 +17,7 @@ const server = app.listen(env.PORT, '0.0.0.0', () => {
 })
 
 attachInstrumentRentalsSocket(server)
+attachEnrollmentsSocket(server)
 
 server.on('error', (error) => {
   logger.error({ err: error }, 'HTTP server error')

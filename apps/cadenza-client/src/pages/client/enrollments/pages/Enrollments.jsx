@@ -106,8 +106,27 @@ export default function Enrollments() {
     }
 
     loadData();
-    const refreshTimer = window.setInterval(loadData, 15000);
-    return () => window.clearInterval(refreshTimer);
+    const token = window.localStorage.getItem('accessToken');
+    if (!token) return undefined;
+
+    const apiBaseUrl = new URL(
+      import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
+      window.location.origin,
+    );
+    apiBaseUrl.pathname = '/ws/cadenza-client/enrollments';
+    apiBaseUrl.protocol = apiBaseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(apiBaseUrl);
+    socket.addEventListener('open', () => {
+      socket.send(JSON.stringify({ type: 'authenticate', token }));
+    });
+    socket.addEventListener('message', (event) => {
+      try {
+        if (JSON.parse(event.data)?.type === 'enrollments-changed') loadData();
+      } catch {
+        // Ignore malformed socket messages.
+      }
+    });
+    return () => socket.close();
   }, []);
 
   const handleEnroll = (packageData) => {

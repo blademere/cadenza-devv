@@ -10,7 +10,7 @@ import { useEffect } from 'react';
 
 import Input from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { login, loginWithGoogle, MOCK_INSTRUCTOR_CREDENTIALS } from '../../services/authService';
+import { login, loginWithGoogle, logout, MOCK_INSTRUCTOR_CREDENTIALS } from '../../services/authService';
 import { API_BASE_URL } from '../../services/api';
 import { saveAuth } from '../../services/authStorage';
 
@@ -34,6 +34,13 @@ function getLoginErrorMessage(error) {
   }
 
   return 'Unable to log in. Please try again.';
+}
+
+function getHomeRoute(account) {
+  if (account?.type === 'CLIENT') return '/student/dashboard';
+  if (account?.type === 'INSTRUCTOR') return '/instructor/dashboard';
+  if (account?.type === 'STAFF' && String(account.staffType || '').toUpperCase() === 'INSTRUCTOR') return '/instructor/dashboard';
+  return null;
 }
 
 export default function Login() {
@@ -62,9 +69,12 @@ export default function Login() {
     (async () => {
       try {
         setLoading(true);
+        await logout();
         const authData = await loginWithGoogle(response.authentication.accessToken);
         await saveAuth(authData);
-        router.replace(authData.account?.type === 'CLIENT' ? '/student/dashboard' : '/instructor/dashboard');
+        const homeRoute = getHomeRoute(authData.account);
+        if (!homeRoute) throw new Error('This account cannot access the mobile application.');
+        router.replace(homeRoute);
       } catch (error) {
         setErrorMessage(getLoginErrorMessage(error));
       } finally { setLoading(false); }
@@ -81,25 +91,16 @@ export default function Login() {
 
     try {
       setLoading(true);
+      await logout();
       const authData = await login(email.trim(), password);
       await saveAuth(authData);
-
-      if (authData.account?.type === 'CLIENT') {
-        router.replace('/student/dashboard');
+      const homeRoute = getHomeRoute(authData.account);
+      if (!homeRoute) {
+        await logout();
+        setErrorMessage('This account cannot access the mobile application.');
         return;
       }
-
-      if (authData.account?.type === 'STAFF') {
-        router.replace('/instructor/dashboard');
-        return;
-      }
-
-      if (authData.account?.type === 'INSTRUCTOR') {
-        router.replace('/instructor/dashboard');
-        return;
-      }
-
-      setErrorMessage('This account cannot access the mobile application.');
+      router.replace(homeRoute);
     } catch (error) {
       console.error('Login error:', error);
       setErrorMessage(getLoginErrorMessage(error));

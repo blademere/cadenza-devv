@@ -23,6 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/Table';
 import { getStudents } from '@/services/admin/studentService';
+import { getRooms } from '@/services/admin/roomsService';
 import { enrollmentService } from '@/services/front-desk/enrollmentService';
 import {
   Dialog,
@@ -41,6 +42,11 @@ const courseNames = (student) =>
   (student?.courses || []).map((course) => course?.name).filter(Boolean);
 const instructorNames = (student) =>
   (student?.instructors || []).filter(Boolean);
+const assignedRoomIds = (student) =>
+  (student?.enrollments || [])
+    .flatMap((enrollment) => enrollment.sessions || [])
+    .map((session) => session.roomId)
+    .filter(Boolean);
 
 export default function FrontDeskStudentsPage() {
   const [students, setStudents] = useState([]);
@@ -57,14 +63,19 @@ export default function FrontDeskStudentsPage() {
   const [completionSaving, setCompletionSaving] = useState(false);
   const [notifyEnrollment, setNotifyEnrollment] = useState(null);
   const [notifySaving, setNotifySaving] = useState(false);
+  const [rooms, setRooms] = useState([]);
 
   const loadStudents = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const result = await getStudents({ page, limit: 10 });
+      const [result, roomList] = await Promise.all([
+        getStudents({ page, limit: 10 }),
+        getRooms(),
+      ]);
       setStudents(result.items);
       setPagination(result.pagination);
+      setRooms(Array.isArray(roomList) ? roomList : []);
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Failed to load students.');
     } finally {
@@ -101,6 +112,10 @@ export default function FrontDeskStudentsPage() {
   }, [search, students, courseFilter, instructorFilter, statusFilter]);
   const courses = [...new Set(students.flatMap(courseNames))].sort();
   const instructors = [...new Set(students.flatMap(instructorNames))].sort();
+  const roomNames = new Map(rooms.map((room) => [
+    room.id,
+    room.roomName || room.resource?.name || room.roomType,
+  ]));
 
   const confirmCompletion = async () => {
     if (!completionEnrollment) return;
@@ -330,6 +345,7 @@ export default function FrontDeskStudentsPage() {
                       <TableHead>Student</TableHead>
                       <TableHead>Courses</TableHead>
                       <TableHead>Instructor</TableHead>
+                      <TableHead>Assigned Room</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -337,13 +353,13 @@ export default function FrontDeskStudentsPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                           Loading students...
                         </TableCell>
                       </TableRow>
                     ) : filteredStudents.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                           No enrolled students found.
                         </TableCell>
                       </TableRow>
@@ -363,6 +379,9 @@ export default function FrontDeskStudentsPage() {
                           </TableCell>
                           <TableCell>
                             {instructorNames(student).join(', ') || '—'}
+                          </TableCell>
+                          <TableCell>
+                            {[...new Set(assignedRoomIds(student).map((id) => roomNames.get(id)).filter(Boolean))].join(', ') || '—'}
                           </TableCell>
                           <TableCell>
                             <Badge

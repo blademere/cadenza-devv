@@ -715,7 +715,7 @@ export default function ClassSchedule() {
 
   const todaySchedules = useMemo(() => {
     return schedule.filter((item) => item.date === todayKey);
-  }, [todayKey]);
+  }, [schedule, todayKey]);
 
   const ongoingSchedules = useMemo(() => {
     const currentMinutes = getCurrentMinutes();
@@ -793,7 +793,7 @@ export default function ClassSchedule() {
           .includes(search),
       );
     });
-  }, [selectedDay, weeklySearch]);
+  }, [schedule, selectedDay, weeklySearch]);
 
   const matchingSchedules = useMemo(() => {
     const options = selectedRequest?.generatedOptions?.length

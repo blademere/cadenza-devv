@@ -76,9 +76,11 @@ const authenticateWithOAuth = async ({ provider, code, codeVerifier }) => {
     await runTransaction((tx) => ensureCadenzaClientAccount(user, identity, tx))
   }
   if (!user.isActive) throw new UnauthorizedError('User account is inactive.')
+  const application = await cadenzaAuthRepository.findApplication()
+  if (!application || !application.isActive) throw new UnauthorizedError('Cadenza application is not configured.')
   const tokenId = crypto.randomUUID()
-  const refreshToken = createRefreshToken(user, tokenId)
-  const accessTokenJwt = createAccessToken(user)
+  const refreshToken = createRefreshToken(user, tokenId, application.id)
+  const accessTokenJwt = createAccessToken(user, application.id)
   await createRefreshTokenRecord({ tokenId, tokenHash: hashToken(refreshToken), userId: user.id, expiresAt: new Date(Date.now() + env.COOKIE_REFRESH_MAX_AGE_MS) })
   return { user, accessToken: accessTokenJwt, refreshToken }
 }
@@ -93,8 +95,8 @@ const authenticateWithGoogleAccessToken = async (accessToken) => {
   if (instructor) {
     if (instructor.status !== 'ACTIVE') throw new UnauthorizedError('This instructor account is inactive.')
     const tokenId = crypto.randomUUID()
-    const refreshToken = createRefreshToken(user, tokenId)
-    const accessTokenJwt = createAccessToken(user)
+    const refreshToken = createRefreshToken(user, tokenId, application.id)
+    const accessTokenJwt = createAccessToken(user, application.id)
     await createRefreshTokenRecord({ tokenId, tokenHash: hashToken(refreshToken), userId: user.id, expiresAt: new Date(Date.now() + env.COOKIE_REFRESH_MAX_AGE_MS) })
     return { user, accessToken: accessTokenJwt, refreshToken, account: { type: 'INSTRUCTOR', id: instructor.id, instructorId: instructor.id, status: instructor.status, person: instructor.person } }
   }
@@ -104,8 +106,8 @@ const authenticateWithGoogleAccessToken = async (accessToken) => {
   const enrollment = await cadenzaAuthRepository.findActiveEnrollmentByCustomerId(customer.id)
   if (!enrollment) throw new UnauthorizedError('An approved enrollment is required for mobile access.')
   const tokenId = crypto.randomUUID()
-  const refreshToken = createRefreshToken(user, tokenId)
-  const accessTokenJwt = createAccessToken(user)
+  const refreshToken = createRefreshToken(user, tokenId, application.id)
+  const accessTokenJwt = createAccessToken(user, application.id)
   await createRefreshTokenRecord({ tokenId, tokenHash: hashToken(refreshToken), userId: user.id, expiresAt: new Date(Date.now() + env.COOKIE_REFRESH_MAX_AGE_MS) })
   return { user, accessToken: accessTokenJwt, refreshToken, account: { type: 'CLIENT', id: customer.id, status: customer.status, hasActiveEnrollment: true, person: customer.person } }
 }

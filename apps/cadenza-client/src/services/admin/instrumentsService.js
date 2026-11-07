@@ -5,8 +5,10 @@ const INSTRUMENTS_URL = '/instruments'
 const unwrap = (response) =>
   response?.data?.data ?? response?.data ?? response
 
-export const getInstruments = async () => {
-  const response = await apiClient.get(INSTRUMENTS_URL)
+export const getInstruments = async ({ status } = {}) => {
+  const response = await apiClient.get(INSTRUMENTS_URL, {
+    params: status ? { status } : undefined,
+  })
 
   return unwrap(response)
 }
