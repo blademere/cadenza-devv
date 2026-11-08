@@ -25,6 +25,7 @@ import {
 import { getStudents } from '@/services/admin/studentService';
 import { getRooms } from '@/services/admin/roomsService';
 import { enrollmentService } from '@/services/front-desk/enrollmentService';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -77,7 +78,9 @@ export default function FrontDeskStudentsPage() {
       setPagination(result.pagination);
       setRooms(Array.isArray(roomList) ? roomList : []);
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to load students.');
+      const message = err?.response?.data?.message || err?.message || 'Failed to load students.';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -127,8 +130,11 @@ export default function FrontDeskStudentsPage() {
         enrollments: current.enrollments.map((item) => item.id === completionEnrollment.id ? { ...item, status: 'COMPLETED' } : item),
       } : current);
       setCompletionEnrollment(null);
+      toast.success('Enrollment marked as completed.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to complete enrollment.');
+      const message = err?.response?.data?.message || err?.message || 'Failed to complete enrollment.';
+      setError(message);
+      toast.error(message);
     } finally {
       setCompletionSaving(false);
     }
@@ -140,8 +146,11 @@ export default function FrontDeskStudentsPage() {
       setNotifySaving(true);
       await enrollmentService.notifyEnrollmentAtRisk(notifyEnrollment.id);
       setNotifyEnrollment(null);
+      toast.success('At Risk notification sent to the student.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to notify the student.');
+      const message = err?.response?.data?.message || err?.message || 'Failed to notify the student.';
+      setError(message);
+      toast.error(message);
     } finally {
       setNotifySaving(false);
     }

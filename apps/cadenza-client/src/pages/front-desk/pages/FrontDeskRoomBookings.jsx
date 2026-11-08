@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RefreshCwIcon } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { AlertTriangle, Check, ChevronDown, FileIcon, Loader2, X } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
@@ -135,6 +136,10 @@ export default function FrontDeskRoomBookings() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
   const [cancellationReason, setCancellationReason] = useState('');
   const [cancellationMode, setCancellationMode] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);

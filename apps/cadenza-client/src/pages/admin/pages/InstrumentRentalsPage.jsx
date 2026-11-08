@@ -41,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/Table'
+import { toast } from 'sonner'
 
 import {
   getInstruments,
@@ -48,7 +49,10 @@ import {
 } from '@/services/admin/instrumentsService'
 
 const getInstrumentName = (instrument) =>
-  [instrument.brand, instrument.model]
+  [
+    instrument.instrumentType?.name || instrument.item?.name || instrument.itemName,
+    instrument.brand,
+  ]
     .filter(Boolean)
     .join(' ') || 'Instrument'
 
@@ -157,6 +161,7 @@ export default function InstrumentRentalsPage() {
 
     if (!Number.isFinite(rentalRate) || rentalRate <= 0) {
       setError('Rental rate must be greater than zero.')
+      toast.error('Rental rate must be greater than zero.')
       return
     }
 
@@ -166,12 +171,11 @@ export default function InstrumentRentalsPage() {
 
       await updateInstrument(instrument.id, { rentalRate })
       await fetchInstruments()
+      toast.success(`${getInstrumentName(instrument)} rental rate updated successfully.`)
     } catch (requestError) {
-      setError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          'Failed to save instrument rental rate.',
-      )
+      const message = requestError?.response?.data?.message || requestError?.message || 'Failed to save instrument rental rate.'
+      setError(message)
+      toast.error(message)
     } finally {
       setSavingRateId(null)
     }
@@ -182,6 +186,7 @@ export default function InstrumentRentalsPage() {
 
     if (!Number.isFinite(rentalRate) || rentalRate <= 0) {
       setError('Rental rate must be greater than zero.')
+      toast.error('Rental rate must be greater than zero.')
       return
     }
 
@@ -392,17 +397,29 @@ export default function InstrumentRentalsPage() {
         >
           <DialogContent className="sm:max-w-[460px]">
             <DialogHeader>
-              <DialogTitle>Confirm rental rate update</DialogTitle>
+              <DialogTitle>
+                {confirmationInstrument?.rentalRate === null ||
+                confirmationInstrument?.rentalRate === undefined ||
+                Number(confirmationInstrument?.rentalRate) <= 0
+                  ? 'Confirm rental rate'
+                  : 'Confirm rental rate update'}
+              </DialogTitle>
               <DialogDescription>
-                Updating the rate for{' '}
+                {confirmationInstrument?.rentalRate === null ||
+                confirmationInstrument?.rentalRate === undefined ||
+                Number(confirmationInstrument?.rentalRate) <= 0
+                  ? 'Adding a rental rate for '
+                  : 'Updating the rate for '}
                 <span className="font-medium">
                   {confirmationInstrument
                     ? getInstrumentName(confirmationInstrument)
                     : 'this instrument'}
                 </span>{' '}
-                applies only to future rentals. Existing pending, approved,
-                active, and completed rentals keep their saved amount and
-                rental terms.
+                {confirmationInstrument?.rentalRate === null ||
+                confirmationInstrument?.rentalRate === undefined ||
+                Number(confirmationInstrument?.rentalRate) <= 0
+                  ? 'will make this instrument available for rental.'
+                  : 'applies only to future rentals. Existing pending, approved, active, and completed rentals keep their saved amount and rental terms.'}
               </DialogDescription>
             </DialogHeader>
 
@@ -423,7 +440,11 @@ export default function InstrumentRentalsPage() {
                 disabled={Boolean(savingRateId)}
               >
                 {savingRateId && <RefreshCwIcon className="mr-2 animate-spin" />}
-                Confirm Update
+                {confirmationInstrument?.rentalRate === null ||
+                confirmationInstrument?.rentalRate === undefined ||
+                Number(confirmationInstrument?.rentalRate) <= 0
+                  ? 'Confirm Add Rate'
+                  : 'Confirm Update'}
               </Button>
             </DialogFooter>
           </DialogContent>

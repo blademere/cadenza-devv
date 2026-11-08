@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from '@/components/ui/Dialog'
 import { getRoomRentals, updateRoomRental } from '@/services/admin/room-rentalsService'
+import { toast } from 'sonner'
 
 const emptyForm = {
   rentalRate: '',
@@ -79,11 +80,9 @@ export default function RoomRentalsPage() {
         ),
       )
     } catch (requestError) {
-      setError(
-        requestError.response?.data?.message ||
-        requestError.message ||
-        'Failed to load room rentals.'
-      )
+      const message = requestError.response?.data?.message || requestError.message || 'Failed to load room rentals.'
+      setError(message)
+      toast.error(message)
     } finally {
       setIsLoading(false)
     }
@@ -156,12 +155,11 @@ export default function RoomRentalsPage() {
       setForm({ ...emptyForm })
 
       await fetchRooms()
+      toast.success('Room rental settings saved successfully.')
     } catch (requestError) {
-      setError(
-        requestError.response?.data?.message ||
-        requestError.message ||
-        'Failed to save rental setup.'
-      )
+      const message = requestError.response?.data?.message || requestError.message || 'Failed to save rental setup.'
+      setError(message)
+      toast.error(message)
     } finally {
       setIsSaving(false)
     }

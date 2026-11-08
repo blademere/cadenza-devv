@@ -348,7 +348,6 @@ export default function SettingsPage() {
       setBankName('');
       setBankAccountNumber('');
       setBankAccountQr(null);
-      event.currentTarget.reset();
       toast.success('Bank account added.');
       setBankAccountAddDialogOpen(false);
     } catch (error) {

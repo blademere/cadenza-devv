@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   CalendarDaysIcon,
   CheckCircle2Icon,
@@ -597,6 +598,12 @@ export default function ClassSchedule() {
   const [confirmedSchedule, setConfirmedSchedule] = useState(null);
   const [emergencySaving, setEmergencySaving] = useState(false);
   const [emergencySaveError, setEmergencySaveError] = useState('');
+
+  useEffect(() => {
+    [scheduleError, operatingHoursError, submitOptionsError, emergencySaveError]
+      .filter(Boolean)
+      .forEach((message) => toast.error(message));
+  }, [scheduleError, operatingHoursError, submitOptionsError, emergencySaveError]);
   const [studentApproved, setStudentApproved] = useState(false);
   const [instructorApproved, setInstructorApproved] = useState(false);
 
@@ -1064,6 +1071,7 @@ export default function ClassSchedule() {
       await apiClient.post(`/enrollments/${selectedRequest.id}/submit-options`, { options: generatedSchedules });
       setSubmittedOptions(true);
       setInstructorChoices([]);
+      toast.success('Replacement schedule options submitted successfully.');
     } catch (error) {
       setSubmitOptionsError(error?.message || 'Unable to submit replacement schedule options.');
     } finally {
@@ -1112,9 +1120,11 @@ export default function ClassSchedule() {
         return;
       }
       setEmergencySaving(false);
+      toast.success('Emergency schedule updated successfully.');
     } else {
       try {
         await apiClient.post(`/enrollments/${selectedRequest.id}/confirm-reschedule`, { option: scheduleToSave });
+        toast.success('Class schedule confirmed successfully.');
       } catch (error) {
         setSubmitOptionsError(error?.message || 'Unable to confirm the matching schedule.');
         return;

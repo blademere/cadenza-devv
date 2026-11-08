@@ -29,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/Table';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -95,11 +96,9 @@ export default function RoomsPage() {
       const data = await getRooms();
       setRooms(Array.isArray(data) ? data : []);
     } catch (requestError) {
-      setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          'Failed to load rooms.',
-      );
+      const message = requestError.response?.data?.message || requestError.message || 'Failed to load rooms.';
+      setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -218,6 +217,7 @@ export default function RoomsPage() {
 
       if (!form.roomType) {
         setError('Please select a room type.');
+        toast.error('Please select a room type.');
         return;
       }
 
@@ -226,11 +226,13 @@ export default function RoomsPage() {
         (!Number.isInteger(capacity) || capacity < 1)
       ) {
         setError('Capacity must be at least 1.');
+        toast.error('Capacity must be at least 1.');
         return;
       }
 
       if (!form.roomName.trim()) {
         setRoomNameError('Please enter a room name.');
+        toast.error('Please enter a room name.');
         return;
       }
 
@@ -259,6 +261,7 @@ export default function RoomsPage() {
 
       if (duplicateRoom) {
         setRoomNameError('Room name already exists.');
+        toast.error('Room name already exists.');
         return;
       }
 
@@ -267,6 +270,7 @@ export default function RoomsPage() {
         form.courseIds.length === 0
       ) {
         setError('Please select at least one course.');
+        toast.error('Please select at least one course.');
         return;
       }
 
@@ -290,12 +294,11 @@ export default function RoomsPage() {
 
       closeDialogs();
       await fetchRooms();
+      toast.success(editingRoom ? 'Room updated successfully.' : 'Room added successfully.');
     } catch (requestError) {
-      setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          'Failed to save room.',
-      );
+      const message = requestError.response?.data?.message || requestError.message || 'Failed to save room.';
+      setError(message);
+      toast.error(message);
       if (
         (requestError.response?.data?.message ||
           requestError.message) === 'Room name already exists.'

@@ -117,7 +117,9 @@ export default function StudentsPage() {
       }
     } catch (requestError) {
       if (isMounted) {
-        setError(getErrorMessage(requestError));
+        const message = getErrorMessage(requestError);
+        setError(message);
+        toast.error(message);
         setStudents([]);
       }
     } finally {
@@ -187,8 +189,11 @@ export default function StudentsPage() {
         status: status === 'AT_RISK' || current.enrollments.some((item) => item.id !== enrollmentId && item.status === 'AT_RISK') ? 'AT_RISK' : current.status,
       } : current);
       setStudents((current) => current.map((student) => student.id === selectedStudent?.id ? { ...student, status: status === 'AT_RISK' ? 'AT_RISK' : student.status } : student));
+      toast.success('Enrollment status updated successfully.');
     } catch (requestError) {
-      setError(getErrorMessage(requestError));
+      const message = getErrorMessage(requestError);
+      setError(message);
+      toast.error(message);
     } finally {
       setUpdatingEnrollmentId(null);
     }

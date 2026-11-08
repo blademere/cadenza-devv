@@ -16,6 +16,7 @@ import {
   TableCell,
   TableRow,
 } from '@/components/ui/Table';
+import { toast } from 'sonner';
 
 import {
   Card,
@@ -120,11 +121,9 @@ export default function InstrumentsPage() {
           : [],
       );
     } catch (requestError) {
-      setError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          'Failed to load instruments.',
-      );
+      const message = requestError?.response?.data?.message || requestError?.message || 'Failed to load instruments.';
+      setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -222,6 +221,7 @@ export default function InstrumentsPage() {
       if (Object.values(nextRequiredErrors).some(Boolean)) {
         setValidationMessage('Please complete all required fields.');
         setError('');
+        toast.error('Please complete all required fields.');
         return;
       }
       setValidationMessage('');
@@ -289,17 +289,14 @@ export default function InstrumentsPage() {
       setForm({ ...emptyForm });
 
       await fetchInstruments();
+      toast.success(editingInstrument ? 'Instrument updated successfully.' : 'Instrument added successfully.');
     } catch (requestError) {
-      setError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          'Failed to save instrument.',
-      );
-
       const message =
         requestError?.response?.data?.message ||
         requestError?.message ||
-        '';
+        'Failed to save instrument.';
+      setError(message);
+      toast.error(message);
 
       if (message.includes('model already exists')) {
         setModelError(message);

@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { toast } from 'sonner';
 import {
   Table,
   TableBody,
@@ -114,11 +115,9 @@ export default function UserManagementPage() {
       setStaff(result);
     } catch (error) {
       console.error(error);
-      setError(
-        error.response?.data?.message ||
-          error.message ||
-          'Failed to load staff.',
-      );
+      const message = error.response?.data?.message || error.message || 'Failed to load staff.';
+      setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +193,10 @@ export default function UserManagementPage() {
         }
         if (!form.password.trim()) missing.password = 'This field is required.';
         setRequiredFields(missing);
-        if (Object.keys(missing).length) return;
+        if (Object.keys(missing).length) {
+          toast.error('Please complete all required fields.');
+          return;
+        }
       }
 
       const email = form.email.trim();
@@ -202,6 +204,7 @@ export default function UserManagementPage() {
 
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         setEmailError('Enter a valid email address.');
+        toast.error('Enter a valid email address.');
         return;
       }
 
@@ -209,6 +212,7 @@ export default function UserManagementPage() {
         setPhoneError(
           'Phone number must contain 11 digits and start with 09.',
         );
+        toast.error('Phone number must contain 11 digits and start with 09.');
         return;
       }
 
@@ -234,6 +238,7 @@ export default function UserManagementPage() {
 
       setDialogOpen(false);
       await fetchStaff();
+      toast.success(selectedStaff ? 'Staff member updated successfully.' : 'Staff member added successfully.');
     } catch (error) {
       const message =
         error.response?.data?.message ||
@@ -243,6 +248,7 @@ export default function UserManagementPage() {
       setError(
         message,
       );
+      toast.error(message);
 
       if (message.toLowerCase().includes('email')) {
         setEmailError(message);

@@ -3,6 +3,7 @@
 import TransactionRefundPanel from '../components/TransactionRefundPanel';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   FileIcon,
   ChevronDown,
@@ -257,6 +258,10 @@ export default function RentalsPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
+
+  useEffect(() => {
+    if (actionError) toast.error(actionError);
+  }, [actionError]);
   const [replacementInstruments, setReplacementInstruments] = useState([]);
   const [replacementInstrumentId, setReplacementInstrumentId] = useState('');
   const [editingAssignment, setEditingAssignment] = useState(false);
@@ -440,6 +445,7 @@ export default function RentalsPage() {
       setRentals((current) => current.map((item) => item.id === selectedRental.id ? next : item));
       setReplacementInstrumentId('');
       setEditingAssignment(false);
+      toast.success('Rental instrument reassigned successfully.');
     } catch (error) {
       setActionError(error?.response?.data?.message || error?.message || 'Unable to reassign this item.');
     } finally {
@@ -463,6 +469,7 @@ export default function RentalsPage() {
         current.map((rental) => (rental.id === next.id ? next : rental)),
       );
       setSelectedRental(next);
+      toast.success('Rental request approved successfully.');
     } catch (error) {
       setActionError(
         error?.response?.data?.message ||
@@ -493,6 +500,7 @@ export default function RentalsPage() {
         current.map((rental) => (rental.id === next.id ? next : rental)),
       );
       setSelectedRental(next);
+      toast.success('Rental request cancelled successfully.');
     } catch (error) {
       setActionError(
         error?.response?.data?.message ||
@@ -550,6 +558,7 @@ export default function RentalsPage() {
       setSelectedRental(next);
       setShowReceiveDialog(false);
       setShowDetails(false);
+      toast.success('Rental pickup recorded successfully.');
     } catch (error) {
       setActionError(
         error?.response?.data?.message ||
@@ -582,6 +591,7 @@ export default function RentalsPage() {
       );
       setSelectedRental(next);
       setShowReturnDialog(false);
+      toast.success('Rental return recorded successfully.');
     } catch (error) {
       setActionError(
         error?.response?.data?.message ||

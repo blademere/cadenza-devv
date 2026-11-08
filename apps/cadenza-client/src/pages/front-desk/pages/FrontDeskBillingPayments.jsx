@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import {
   Check,
   ChevronDown,
@@ -206,6 +207,10 @@ export default function BillingPayments() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
   const [statusFilter, setStatusFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
   const [search, setSearch] = useState('');
@@ -385,12 +390,15 @@ export default function BillingPayments() {
       setAmountToPay(String(remainingAmount(updated)));
       setShowPaymentDialog(false);
       setShowReceiptDialog(true);
+      toast.success('Payment recorded successfully.');
       // Refresh the table from the backend so the newly recorded payment is
       // visible immediately when the receipt dialog is closed.
       setRefreshKey((key) => key + 1);
       paymentAttempt.current = null;
     } catch (requestError) {
-      setError(requestError?.message || 'Unable to record this payment.');
+      const message = requestError?.message || 'Unable to record this payment.';
+      setError(message);
+      toast.error(message);
     } finally {
       setProcessing(false);
     }

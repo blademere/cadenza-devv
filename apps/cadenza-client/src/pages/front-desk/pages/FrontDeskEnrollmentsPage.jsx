@@ -46,6 +46,7 @@ import {
 } from '@/components/ui/Dialog';
 
 import { Badge } from '@/components/ui/Badge';
+import { toast } from 'sonner';
 import { enrollmentService } from '@/services/front-desk/enrollmentService';
 import { getRooms } from '@/services/admin/roomsService';
 
@@ -104,11 +105,9 @@ export default function EnrollmentsPage() {
         setPagination(result.pagination || null);
       } catch (err) {
         console.error(err);
-        setError(
-          err?.response?.data?.message ||
-            err?.message ||
-            'Failed to load enrollments.',
-        );
+        const message = err?.response?.data?.message || err?.message || 'Failed to load enrollments.';
+        setError(message);
+        toast.error(message);
       } finally {
         setLoading(false);
       }
@@ -184,12 +183,11 @@ export default function EnrollmentsPage() {
           ? 'Enrollment approved. Payment continuation is still required for the remaining balance.'
           : 'Enrollment approved. Full payment has been recorded for this enrollment.',
       );
+      toast.success(updatedEnrollment.metadata?.paymentContinuationRequired ? 'Enrollment approved. Payment continuation is still required.' : 'Enrollment approved successfully.');
     } catch (err) {
-      setActionError(
-        err?.response?.data?.message ||
-          err?.message ||
-          'Unable to approve this enrollment.',
-      );
+      const message = err?.response?.data?.message || err?.message || 'Unable to approve this enrollment.';
+      setActionError(message);
+      toast.error(message);
     } finally {
       setActionLoading(false);
     }
@@ -199,6 +197,7 @@ export default function EnrollmentsPage() {
     if (!selectedEnrollment || actionLoading) return;
     if (cancellationReason.trim().length < 3) {
       setActionError('Please enter a cancellation reason (at least 3 characters).');
+      toast.error('Please enter a cancellation reason (at least 3 characters).');
       return;
     }
 
@@ -213,12 +212,11 @@ export default function EnrollmentsPage() {
       updateEnrollmentInList(updatedEnrollment);
       setShowCancelDialog(false);
       setActionMessage('Enrollment cancelled.');
+      toast.success('Enrollment cancelled successfully.');
     } catch (err) {
-      setActionError(
-        err?.response?.data?.message ||
-          err?.message ||
-          'Unable to cancel this enrollment.',
-      );
+      const message = err?.response?.data?.message || err?.message || 'Unable to cancel this enrollment.';
+      setActionError(message);
+      toast.error(message);
     } finally {
       setActionLoading(false);
     }
@@ -232,8 +230,11 @@ export default function EnrollmentsPage() {
       await enrollmentService.notifyEnrollmentAtRisk(selectedEnrollment.id);
       setShowNotifyDialog(false);
       setActionMessage('At Risk notification sent to the student.');
+      toast.success('At Risk notification sent to the student.');
     } catch (err) {
-      setActionError(err?.response?.data?.message || err?.message || 'Unable to notify the student.');
+      const message = err?.response?.data?.message || err?.message || 'Unable to notify the student.';
+      setActionError(message);
+      toast.error(message);
     } finally {
       setActionLoading(false);
     }
@@ -258,8 +259,11 @@ export default function EnrollmentsPage() {
       setRefundReference('');
       setRefundReceivedConfirmed(false);
       setActionMessage('Refund recorded and deducted from the payment ledger.');
+      toast.success('Refund recorded and deducted from the payment ledger.');
     } catch (error) {
-      setActionError(error?.response?.data?.message || error?.message || 'Unable to record refund.');
+      const message = error?.response?.data?.message || error?.message || 'Unable to record refund.';
+      setActionError(message);
+      toast.error(message);
       setShowRefundDialog(false);
     } finally {
       setActionLoading(false);
