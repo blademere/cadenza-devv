@@ -1,5 +1,5 @@
 import TransactionRefundPanel from '../components/TransactionRefundPanel';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RefreshCwIcon } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -146,7 +146,6 @@ export default function FrontDeskRoomBookings() {
   const [checkInAt, setCheckInAt] = useState(toDateTimeLocalValue());
   const [showCheckOutDialog, setShowCheckOutDialog] = useState(false);
   const [checkOutAt, setCheckOutAt] = useState(toDateTimeLocalValue());
-  const autoCheckedOut = useRef(new Set());
 
   const loadRoomBookings = useCallback(async () => {
     setLoading(true);
@@ -173,39 +172,6 @@ export default function FrontDeskRoomBookings() {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 30000);
     return () => window.clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    bookings
-      .filter(
-        (booking) =>
-          booking.status === 'Checked In' &&
-          roomOverdue(booking) &&
-          !autoCheckedOut.current.has(booking.id),
-      )
-      .forEach(async (booking) => {
-        autoCheckedOut.current.add(booking.id);
-        try {
-          const updated = await checkOutRoomBooking(
-            booking.id,
-            new Date(booking.scheduledEnd).toISOString(),
-          );
-          const next = mapBooking({ ...booking, ...updated });
-          setBookings((current) =>
-            current.map((item) => (item.id === next.id ? next : item)),
-          );
-          setSelectedBooking((current) =>
-            current?.id === next.id ? next : current,
-          );
-        } catch (requestError) {
-          autoCheckedOut.current.delete(booking.id);
-          setError(
-            requestError?.response?.data?.message ||
-              requestError?.message ||
-              'Unable to automatically check out this room booking.',
-          );
-        }
-      });
-  }, [bookings, currentTime]);
 
   const inUsedRooms = bookings.filter((booking) => booking.status === 'Checked In')
     .sort((a, b) => new Date(a.scheduledEnd) - new Date(b.scheduledEnd));
