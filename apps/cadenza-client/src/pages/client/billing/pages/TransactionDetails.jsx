@@ -188,6 +188,12 @@ export default function TransactionDetails() {
           </div>
         </section>
       )}
+      {transaction.nextPaymentDue && transaction.remainingBalance > 0 && (
+        <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">Next payment due</p>
+          <p className="mt-1 text-sm text-amber-800">{new Date(transaction.nextPaymentDue).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+        </div>
+      )}
 
       {/* Service */}
       <section className="rounded-xl border border-border bg-card p-6">

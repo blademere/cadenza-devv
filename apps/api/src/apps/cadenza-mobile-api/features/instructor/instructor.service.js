@@ -339,10 +339,10 @@ export const instructorService = {
       }
     }
 
-    if (['PRESENT', 'LATE', 'COMPLETED', 'ATTENDED'].includes(String(status).toUpperCase())) {
-      const completedStatuses = ['PRESENT', 'LATE', 'COMPLETED', 'ATTENDED'];
+    if (['PRESENT', 'LATE', 'ABSENT', 'EXCUSED', 'NO_SHOW', 'COMPLETED', 'ATTENDED'].includes(String(status).toUpperCase())) {
+      const recordedStatuses = ['PRESENT', 'LATE', 'ABSENT', 'EXCUSED', 'NO_SHOW', 'COMPLETED', 'ATTENDED'];
       const [completedSessions, enrollment] = await Promise.all([
-        prisma.cadenzaLessonSession.count({ where: { enrollmentId: session.enrollmentId, attendance: { status: { in: completedStatuses } } } }),
+        prisma.cadenzaLessonSession.count({ where: { enrollmentId: session.enrollmentId, attendance: { status: { in: recordedStatuses } } } }),
         prisma.cadenzaEnrollment.findUnique({ where: { id: session.enrollmentId }, select: { status: true, numberOfSessionsAtEnrollment: true } }),
       ]);
       if (enrollment

@@ -211,12 +211,21 @@ export default function FrontDeskRoomBookings() {
     .sort((a, b) => new Date(a.scheduledEnd) - new Date(b.scheduledEnd));
   const roomOverdue = (booking) => Number.isFinite(new Date(booking.scheduledEnd).getTime()) &&
     new Date(booking.scheduledEnd).getTime() <= currentTime;
-  const bookingStartsSoon = (booking) => {
+  const bookingTimeStage = (booking) => {
+    if (!['Approved', 'Pending', 'Checked In'].includes(booking.status)) return null;
+    if (booking.status === 'Checked In') return 'In use';
     const start = new Date(booking.scheduledStart).getTime();
-    return Number.isFinite(start) &&
-      start > currentTime &&
-      start - currentTime <= 30 * 60 * 1000 &&
-      ['Approved', 'Pending'].includes(booking.status);
+    if (!Number.isFinite(start)) return null;
+    const minutesUntilStart = (start - currentTime) / 60000;
+    if (minutesUntilStart <= 0) return 'In use';
+    if (minutesUntilStart <= 5) return 'Starts within 5 min';
+    if (minutesUntilStart <= 10) return 'Starts within 10 min';
+    if (minutesUntilStart <= 20) return 'Starts within 20 min';
+    if (minutesUntilStart <= 30) return 'Starts within 30 min';
+    return null;
+  };
+  const bookingStartsSoon = (booking) => {
+    return Boolean(bookingTimeStage(booking)?.startsWith('Starts within'));
   };
   const startingSoonBookings = bookings.filter(bookingStartsSoon);
   const exceededBookings = bookings.filter((booking) =>
@@ -649,9 +658,9 @@ export default function FrontDeskRoomBookings() {
                               />
                               {booking.status}
                             </Badge>
-                            {bookingStartsSoon(booking) && (
+                            {bookingTimeStage(booking) && (
                               <Badge variant="outline" className="ml-2 border-blue-500/50 text-blue-700">
-                                Starts within 30 min
+                                {bookingTimeStage(booking)}
                               </Badge>
                             )}
                           </TableCell>

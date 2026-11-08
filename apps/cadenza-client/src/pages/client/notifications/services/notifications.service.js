@@ -83,6 +83,15 @@ export async function getMyNotifications() {
 
   const [enrollments, bookings, rentals, savedResponse] = results.map((result) => result.status === 'fulfilled' ? result.value : []);
   const saved = savedResponse?.data?.data ?? savedResponse?.data ?? [];
+  const paymentDueNotifications = asList(saved).filter((item) => item.type === 'ENROLLMENT_PAYMENT_DUE').map((item) => ({
+    id: item.id,
+    type: 'PAYMENT',
+    title: item.title,
+    message: item.message,
+    status: 'PAYMENT_DUE',
+    href: item.data?.enrollmentId ? `/client/enrollments/${item.data.enrollmentId}` : '/client/billing',
+    createdAt: item.createdAt,
+  }));
   const refundNotifications = asList(saved).filter((item) => item.type === 'PAYMENT_REFUNDED').map((item) => {
     const transactionType = item.data?.transactionType;
     const id = item.data?.sourceId;
@@ -103,6 +112,7 @@ export async function getMyNotifications() {
     };
   });
   return [
+    ...paymentDueNotifications,
     ...refundNotifications,
     ...asList(enrollments).map(enrollmentNotification),
     ...asList(bookings).map(roomBookingNotification),

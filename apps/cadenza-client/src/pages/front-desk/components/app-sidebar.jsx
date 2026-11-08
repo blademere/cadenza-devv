@@ -169,6 +169,7 @@ export function AppSidebar({ ...props }) {
       <SidebarContent>
         <NavMain
           items={navItems}
+          label="Front Desk"
           activeClassName="!bg-blue-100 !text-blue-700 !font-semibold hover:!bg-blue-100 hover:!text-blue-700"
         />
 

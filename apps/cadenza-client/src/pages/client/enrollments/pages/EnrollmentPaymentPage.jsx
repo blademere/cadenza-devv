@@ -202,7 +202,7 @@ export default function EnrollmentPaymentPage() {
         <button
           type="button"
           onClick={handlePay}
-          disabled={paying || !paymentReference.trim()}
+          disabled={paying || paymentReference.trim().length < 13}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
         >
           {paying ? (

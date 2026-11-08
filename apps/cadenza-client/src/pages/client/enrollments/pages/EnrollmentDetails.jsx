@@ -89,7 +89,13 @@ export default function EnrollmentDetails() {
   const submittedAt = enrollment.createdAt
     ? new Date(enrollment.createdAt).toLocaleString()
     : "Not available";
-  const paymentAmount = paymentMetadata.paymentAmount ?? enrollment.price ?? 0;
+  const payment = enrollment.payment || {};
+  const totalAmount = Number(payment.totalAmount ?? enrollment.price ?? 0);
+  const paidAmount = Number(payment.paidAmount ?? paymentMetadata.paymentAmount ?? 0);
+  const remainingBalance = Number(payment.remainingBalance ?? Math.max(totalAmount - paidAmount, 0));
+  const paymentStatus = payment.paymentStatus || paymentMetadata.paymentStatus || (remainingBalance > 0 ? "PARTIALLY_PAID" : "PAID");
+  const nextPaymentDue = payment.nextPaymentDue || enrollment.paymentExpiresAt || paymentMetadata.paymentDueDate;
+  const transactionAmount = paymentMetadata.initialPaymentAmount ?? paymentMetadata.paymentAmount ?? 0;
   const canCancel = !["APPROVED", "CANCELLED", "COMPLETED", "REJECTED"].includes(enrollment.status);
 
   const handleCancel = async () => {
@@ -184,7 +190,15 @@ export default function EnrollmentDetails() {
       </div>
 
       <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="font-semibold">Payment Transaction</h2>
+        <h2 className="font-semibold">Payment Summary</h2>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div><p className="text-xs text-muted-foreground">Total amount</p><p className="mt-1 font-medium">₱{totalAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div>
+          <div><p className="text-xs text-muted-foreground">Paid</p><p className="mt-1 font-medium">₱{paidAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div>
+          <div><p className="text-xs text-muted-foreground">Remaining balance</p><p className={`mt-1 font-semibold ${remainingBalance > 0 ? "text-amber-600" : "text-green-600"}`}>₱{remainingBalance.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div>
+          <div><p className="text-xs text-muted-foreground">Next payment due</p><p className="mt-1 font-medium">{nextPaymentDue ? new Date(nextPaymentDue).toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "long", day: "numeric", year: "numeric" }) : "Not set"}</p></div>
+        </div>
+        <div className="mt-5 border-t border-border pt-5">
+          <h3 className="text-sm font-semibold">Latest payment transaction</h3>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div>
             <p className="text-xs text-muted-foreground">Transaction reference</p>
@@ -195,7 +209,7 @@ export default function EnrollmentDetails() {
           <div>
             <p className="text-xs text-muted-foreground">Amount</p>
             <p className="mt-1 font-medium">
-              ₱{Number(paymentAmount).toLocaleString("en-PH", {
+              ₱{Number(transactionAmount).toLocaleString("en-PH", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
@@ -210,19 +224,20 @@ export default function EnrollmentDetails() {
           <div>
             <p className="text-xs text-muted-foreground">Payment status</p>
             <p className={`mt-1 font-medium ${
-              ["PAID", "PARTIALLY_PAID"].includes(paymentMetadata.paymentStatus)
+              ["PAID", "PARTIALLY_PAID"].includes(paymentStatus)
                 ? "text-green-600"
                 : "text-amber-600"
             }`}>
-              {paymentMetadata.paymentStatus === "PENDING_CONFIRMATION"
+              {paymentStatus === "PENDING_CONFIRMATION"
                 ? "Pending confirmation"
-                : paymentMetadata.paymentStatus === "PARTIALLY_PAID"
+                : paymentStatus === "PARTIALLY_PAID"
                   ? "Partially paid"
-                  : paymentMetadata.paymentStatus === "PAID"
+                  : paymentStatus === "PAID"
                     ? "Paid"
-                    : paymentMetadata.paymentStatus || "Pending payment"}
+                    : paymentStatus || "Pending payment"}
             </p>
           </div>
+        </div>
         </div>
       </div>
 

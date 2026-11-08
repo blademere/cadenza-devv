@@ -232,10 +232,62 @@ export const enrollmentRepository = {
     return prisma.cadenzaEnrollment.update({ where: { id: enrollmentId }, data: { status } });
   },
 
+  findCompletionData(appId, enrollmentId) {
+    return prisma.cadenzaEnrollment.findFirst({
+      where: { id: enrollmentId, appId },
+      select: {
+        status: true,
+        numberOfSessionsAtEnrollment: true,
+        sessions: { select: { attendance: { select: { status: true } } } },
+      },
+    });
+  },
+
   async findNotificationRecipient(appId, enrollmentId) {
     return prisma.cadenzaEnrollment.findFirst({
       where: { id: enrollmentId, appId },
-      select: { id: true, customer: { select: { person: { select: { userId: true } } } } },
+      select: {
+        id: true,
+        priceAtEnrollment: true,
+        metadata: true,
+        lessonPackage: { select: { price: true } },
+        customer: { select: { person: { select: { userId: true } } } },
+      },
+    });
+  },
+
+  async addPaymentDueDate(appId, enrollmentId, nextPaymentDue, actorId) {
+    const enrollment = await prisma.cadenzaEnrollment.findFirst({
+      where: { id: enrollmentId, appId },
+      select: { id: true, metadata: true, updatedAt: true },
+    });
+    if (!enrollment) return null;
+    const metadata = enrollment.metadata || {};
+    const history = Array.isArray(metadata.paymentScheduleHistory) ? metadata.paymentScheduleHistory : [];
+    const historyWithLegacyDate = history.length || !metadata.paymentDueDate
+      ? history
+      : [{
+          id: `payment-schedule-legacy-${Date.now()}`,
+          nextPaymentDue: metadata.paymentDueDate,
+          createdAt: enrollment.updatedAt?.toISOString?.() || new Date().toISOString(),
+          createdByUserId: null,
+        }];
+    const entry = {
+      id: `payment-schedule-${Date.now()}`,
+      nextPaymentDue: nextPaymentDue.toISOString(),
+      createdAt: new Date().toISOString(),
+      createdByUserId: actorId || null,
+    };
+    return prisma.cadenzaEnrollment.update({
+      where: { id: enrollmentId },
+      data: {
+        paymentExpiresAt: nextPaymentDue,
+        metadata: {
+          ...metadata,
+          paymentDueDate: nextPaymentDue.toISOString(),
+          paymentScheduleHistory: [...historyWithLegacyDate, entry],
+        },
+      },
     });
   },
 
@@ -612,7 +664,7 @@ export const enrollmentRepository = {
   },
 
   async findMyEnrollment(appId, customerId) {
-    return prisma.cadenzaEnrollment.findMany({
+    const enrollments = await prisma.cadenzaEnrollment.findMany({
       where: {
         appId,
         customerId,
@@ -640,6 +692,22 @@ export const enrollmentRepository = {
         createdAt: 'desc',
       },
     });
+    const ids = enrollments.map((enrollment) => enrollment.id);
+    if (!ids.length) return enrollments;
+    const payments = await prisma.cadenzaCashierPayment.findMany({
+      where: { appId, transactionType: 'ENROLLMENT', sourceId: { in: ids } },
+      orderBy: { createdAt: 'asc' },
+    });
+    const byEnrollment = new Map();
+    for (const payment of payments) {
+      const list = byEnrollment.get(payment.sourceId) || [];
+      list.push(payment);
+      byEnrollment.set(payment.sourceId, list);
+    }
+    return enrollments.map((enrollment) => ({
+      ...enrollment,
+      cashierPayments: byEnrollment.get(enrollment.id) || [],
+    }));
   },
 
   async createEnrollment(data) {

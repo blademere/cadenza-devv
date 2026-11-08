@@ -36,6 +36,10 @@ const actions = [
   },
 ];
 
+const formatPaymentDate = (value) => value
+  ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' })
+  : 'Date not set';
+
 const formatCurrency = (value) =>
   `₱${Number(value || 0).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
@@ -98,9 +102,11 @@ export default function Dashboard() {
   const activeEnrollments = enrollments.filter((enrollment) =>
     ['FOR_APPROVAL', 'APPROVED', 'ACTIVE', 'AT_RISK'].includes(enrollment.status),
   );
-  const pendingPayments = transactions.filter(
-    (transaction) => transaction.paymentStatus === 'PENDING',
-  );
+  const pendingPayments = transactions.filter((transaction) => (
+    transaction.type !== 'ENROLLMENT_PAYMENT' &&
+    !['PAID', 'RECORDED', 'REFUNDED', 'CANCELLED'].includes(transaction.paymentStatus) &&
+    Number(transaction.remainingBalance || 0) > 0
+  ));
 
   return (
     <div className="space-y-8 px-4 py-6 lg:px-8">
@@ -129,6 +135,34 @@ export default function Dashboard() {
         <SummaryCard label="Pending payments" value={pendingPayments.length} />
         <SummaryCard label="Transactions" value={transactions.length} />
       </section>
+
+      {pendingPayments.length > 0 && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-amber-950">Pending payments</h2>
+              <p className="mt-1 text-sm text-amber-800">Payments that still need your attention.</p>
+            </div>
+            <Link to="/client/billing" className="text-sm font-medium text-amber-900 hover:underline">View billing</Link>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {pendingPayments.map((transaction) => (
+              <Link key={transaction.id} to={`/client/billing/${transaction.id}`} className="rounded-lg border border-amber-200 bg-white p-4 transition-colors hover:border-amber-400">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-medium text-amber-950">{transaction.description}</p>
+                  <span className="shrink-0 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">
+                    {transaction.paymentStatus === 'PARTIALLY_PAID' ? 'Partially paid' : 'Pending'}
+                  </span>
+                </div>
+                <p className="mt-2 text-lg font-semibold text-amber-950">{formatCurrency(transaction.remainingBalance)} remaining</p>
+                <p className="mt-1 text-xs text-amber-700">
+                  {transaction.nextPaymentDue ? `Due ${formatPaymentDate(transaction.nextPaymentDue)}` : 'Payment due'}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="mb-4">

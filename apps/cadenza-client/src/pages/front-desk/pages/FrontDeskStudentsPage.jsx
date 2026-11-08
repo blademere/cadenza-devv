@@ -37,6 +37,8 @@ import {
 
 const studentName = (student) => student?.name?.trim() || 'Unnamed Student';
 const formatStatus = (value) => value?.replace(/_/g, ' ') || 'Unknown';
+const formatPaymentDate = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' }) : 'Not set';
+const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const statusDotClass = (value) =>
   String(value || '').toUpperCase() === 'ACTIVE' ? 'bg-emerald-500' : 'bg-amber-500';
 const courseNames = (student) =>
@@ -64,6 +66,13 @@ export default function FrontDeskStudentsPage() {
   const [completionSaving, setCompletionSaving] = useState(false);
   const [notifyEnrollment, setNotifyEnrollment] = useState(null);
   const [notifySaving, setNotifySaving] = useState(false);
+  const [paymentNotifyEnrollment, setPaymentNotifyEnrollment] = useState(null);
+  const [paymentNotifySaving, setPaymentNotifySaving] = useState(false);
+  const [paymentDateEnrollment, setPaymentDateEnrollment] = useState(null);
+  const [paymentDate, setPaymentDate] = useState('');
+  const [paymentDateSaving, setPaymentDateSaving] = useState(false);
+  const [dropEnrollment, setDropEnrollment] = useState(null);
+  const [dropSaving, setDropSaving] = useState(false);
   const [rooms, setRooms] = useState([]);
 
   const loadStudents = useCallback(async () => {
@@ -156,6 +165,64 @@ export default function FrontDeskStudentsPage() {
     }
   };
 
+  const notifyPaymentDue = async () => {
+    if (!paymentNotifyEnrollment) return;
+    try {
+      setPaymentNotifySaving(true);
+      await enrollmentService.notifyEnrollmentPaymentDue(paymentNotifyEnrollment.id);
+      setPaymentNotifyEnrollment(null);
+      toast.success('Next payment notification sent to the student.');
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to notify the student about the remaining balance.';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setPaymentNotifySaving(false);
+    }
+  };
+
+  const savePaymentDate = async () => {
+    if (!paymentDateEnrollment) return;
+    try {
+      setPaymentDateSaving(true);
+      const updated = await enrollmentService.addEnrollmentPaymentDue(paymentDateEnrollment.id, paymentDate);
+      setSelectedStudent((current) => current ? {
+        ...current,
+        enrollments: current.enrollments.map((item) => item.id === updated.id
+          ? { ...item, billing: { ...item.billing, nextPaymentDue: updated.paymentExpiresAt || null } }
+          : item),
+      } : current);
+      setPaymentDateEnrollment(null);
+      toast.success('Next payment date added to the payment schedule.');
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to save the next payment date.';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setPaymentDateSaving(false);
+    }
+  };
+
+  const dropCourse = async () => {
+    if (!dropEnrollment) return;
+    try {
+      setDropSaving(true);
+      const updated = await enrollmentService.updateEnrollmentStatus(dropEnrollment.id, 'CANCELLED');
+      setSelectedStudent((current) => current ? {
+        ...current,
+        enrollments: current.enrollments.map((item) => item.id === updated.id ? { ...item, status: 'CANCELLED' } : item),
+      } : current);
+      setDropEnrollment(null);
+      toast.success('Course dropped successfully.');
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to drop course.';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setDropSaving(false);
+    }
+  };
+
   if (selectedStudent)
     return (
       <SidebarProvider>
@@ -239,30 +306,76 @@ export default function FrontDeskStudentsPage() {
                 {selectedStudent.enrollments?.map((enrollment) => (
                   <div
                     key={enrollment.id}
-                    className="mb-3 flex items-center justify-between rounded-lg border p-4"
+                    className="mb-3 flex flex-col gap-4 rounded-lg border p-4"
                   >
-                    <div>
-                      <p className="font-medium">
-                        {enrollment.packageName || 'Enrollment'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {(enrollment.courses || [])
-                          .map((course) => course.name)
-                          .filter(Boolean)
-                          .join(', ')}
-                      </p>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium">
+                          {enrollment.packageName || 'Enrollment'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {(enrollment.courses || [])
+                            .map((course) => course.name)
+                            .filter(Boolean)
+                            .join(', ')}
+                        </p>
+                      </div>
+                      <Badge className="gap-1.5"><span aria-hidden="true" className={`size-1.5 rounded-full ${statusDotClass(enrollment.status)}`} />{formatStatus(enrollment.status)}</Badge>
                     </div>
-                    <Badge className="gap-1.5"><span aria-hidden="true" className={`size-1.5 rounded-full ${statusDotClass(enrollment.status)}`} />{formatStatus(enrollment.status)}</Badge>
-                    {enrollment.status === 'READY_TO_COMPLETE' && (
-                      <Button type="button" size="sm" onClick={() => setCompletionEnrollment(enrollment)}>
-                        Confirm completion
-                      </Button>
-                    )}
+                    <Card className="bg-muted/20">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Payment details</CardTitle>
+                        <CardDescription>Review the enrollment balance and notify the student when another payment is due.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid gap-3 text-sm sm:grid-cols-4">
+                          <div><p className="text-muted-foreground">Total amount</p><p className="font-medium">{formatCurrency(enrollment.billing?.totalAmount)}</p></div>
+                          <div><p className="text-muted-foreground">Paid</p><p className="font-medium">{formatCurrency(enrollment.billing?.paidAmount)}</p></div>
+                          <div><p className="text-muted-foreground">Remaining balance</p><p className={`font-semibold ${enrollment.billing?.remainingBalance > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>{formatCurrency(enrollment.billing?.remainingBalance)}</p></div>
+                          <div><p className="text-muted-foreground">Payment status</p><p className="font-medium">{formatStatus(enrollment.billing?.paymentStatus)}</p></div>
+                        </div>
+                        <div className="mt-3 text-sm"><p className="text-muted-foreground">Next payment date</p><p className="font-medium">{formatPaymentDate(enrollment.billing?.nextPaymentDue)}</p></div>
+                        {enrollment.billing?.paymentScheduleHistory?.length > 0 && (
+                          <div className="mt-4 border-t pt-3 text-sm">
+                            <p className="text-muted-foreground">Payment schedule history</p>
+                            <div className="mt-2 space-y-1">
+                              {enrollment.billing.paymentScheduleHistory.map((entry) => <p key={entry.id} className="text-xs">{formatPaymentDate(entry.nextPaymentDue)} <span className="text-muted-foreground">· added {formatPaymentDate(entry.createdAt)}</span></p>)}
+                            </div>
+                          </div>
+                        )}
+                        {Number(enrollment.billing?.remainingBalance || 0) > 0 && (
+                          <div className="mt-4 flex justify-end">
+                            <Button type="button" size="sm" variant="outline" onClick={() => { setPaymentDateEnrollment(enrollment); setPaymentDate(''); }}>
+                              Add payment date
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => setPaymentNotifyEnrollment(enrollment)}>
+                              Notify for next payment
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setCompletionEnrollment(enrollment)}
+                      disabled={enrollment.status !== 'READY_TO_COMPLETE'}
+                      title={enrollment.status === 'READY_TO_COMPLETE' ? 'Mark course as completed' : 'Complete all course sessions first'}
+                    >
+                      Course Completed
+                    </Button>
                     {enrollment.status === 'AT_RISK' && (
                       <Button type="button" size="sm" variant="outline" onClick={() => setNotifyEnrollment(enrollment)}>
                         Notify student
                       </Button>
                     )}
+                    {['ACTIVE', 'APPROVED', 'AT_RISK', 'READY_TO_COMPLETE'].includes(enrollment.status) && (
+                      <Button type="button" size="sm" variant="destructive" onClick={() => setDropEnrollment(enrollment)}>
+                        Drop course
+                      </Button>
+                    )}
+                    </div>
                   </div>
                 ))}
               </CardContent>
@@ -280,6 +393,47 @@ export default function FrontDeskStudentsPage() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setNotifyEnrollment(null)} disabled={notifySaving}>Cancel</Button>
               <Button type="button" onClick={notifyAtRisk} disabled={notifySaving}>{notifySaving ? 'Sending...' : 'Send notification'}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={Boolean(paymentDateEnrollment)} onOpenChange={(open) => !open && !paymentDateSaving && setPaymentDateEnrollment(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add next payment date</DialogTitle>
+              <DialogDescription>This creates a new payment schedule entry for the selected course enrollment.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2"><label className="text-sm font-medium" htmlFor="next-payment-date">Next payment due</label><Input id="next-payment-date" type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPaymentDateEnrollment(null)} disabled={paymentDateSaving}>Cancel</Button>
+              <Button type="button" onClick={savePaymentDate} disabled={paymentDateSaving || !paymentDate}>{paymentDateSaving ? 'Adding...' : 'Add date'}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={Boolean(paymentNotifyEnrollment)} onOpenChange={(open) => !open && !paymentNotifySaving && setPaymentNotifyEnrollment(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Notify student about the remaining balance?</DialogTitle>
+              <DialogDescription>
+                This sends the student a reminder about the next enrollment payment through in-app notification and email.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPaymentNotifyEnrollment(null)} disabled={paymentNotifySaving}>Cancel</Button>
+              <Button type="button" onClick={notifyPaymentDue} disabled={paymentNotifySaving}>{paymentNotifySaving ? 'Sending...' : 'Send notification'}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={Boolean(dropEnrollment)} onOpenChange={(open) => !open && !dropSaving && setDropEnrollment(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Drop this course?</DialogTitle>
+              <DialogDescription>
+                This removes the course from the student&apos;s active mobile learning access. Attendance and session history will be preserved.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDropEnrollment(null)} disabled={dropSaving}>Cancel</Button>
+              <Button type="button" variant="destructive" onClick={dropCourse} disabled={dropSaving}>{dropSaving ? 'Dropping...' : 'Drop course'}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

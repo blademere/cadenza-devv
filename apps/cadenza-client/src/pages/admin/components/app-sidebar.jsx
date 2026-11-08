@@ -150,6 +150,7 @@ export function AppSidebar({ ...props }) {
       <SidebarContent>
         <NavMain
           items={data.navMain}
+          label="Administration"
           activeClassName="!bg-blue-100 !text-blue-700 !font-semibold hover:!bg-blue-100 hover:!text-blue-700"
         />
 

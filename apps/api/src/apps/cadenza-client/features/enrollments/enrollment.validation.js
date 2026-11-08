@@ -62,6 +62,16 @@ const idValidator = async (req) =>
     params: req.params || {},
   });
 
+const paymentScheduleSchema = z.object({
+  params: z.object({ id: z.uuid() }),
+  body: z.object({ nextPaymentDue: z.coerce.date().nullable() }),
+});
+
+const paymentScheduleValidator = async (req) => paymentScheduleSchema.parse({
+  params: req.params || {},
+  body: req.body || {},
+});
+
 const packageInstructorValidator = async (req) =>
   packageInstructorSchema.parse({
     params: req.params || {},
@@ -84,6 +94,7 @@ const validateScheduleValidator = createValidator;
 
 export {
   idValidator,
+  paymentScheduleValidator,
   packageInstructorValidator,
   packageInstructorAvailabilityValidator,
   createValidator,

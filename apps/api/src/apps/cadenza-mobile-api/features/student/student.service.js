@@ -119,8 +119,32 @@ function mapEnrollmentSchedule(enrollment) {
 }
 
 const ACTIVE_ENROLLMENT_STATUS_FILTER = {
-  notIn: ['FOR_APPROVAL', 'COMPLETED', 'CANCELLED', 'REJECTED'],
+  in: ['APPROVED', 'ACTIVE', 'AT_RISK'],
 };
+
+function mapEnrollmentPayment(enrollment) {
+  const metadata = enrollment.metadata || {};
+  const totalAmount = Number(enrollment.priceAtEnrollment ?? enrollment.lessonPackage?.price ?? 0);
+  const isPendingConfirmation = String(metadata.paymentStatus || '').toUpperCase() === 'PENDING_CONFIRMATION';
+  const initialPayment = isPendingConfirmation
+    ? 0
+    : Number(metadata.paymentAmount || 0);
+  const cashierPayments = (enrollment.cashierPayments || []).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const paidAmount = Math.min(totalAmount, isPendingConfirmation
+    ? 0
+    : metadata.paymentAmount != null
+      ? initialPayment
+      : Number(metadata.initialPaymentAmount || 0) + cashierPayments);
+  const remainingBalance = Math.max(totalAmount - paidAmount, 0);
+  return {
+    totalAmount,
+    paidAmount,
+    remainingBalance,
+    paymentStatus: remainingBalance <= 0 ? 'PAID' : paidAmount > 0 ? 'PARTIALLY_PAID' : 'PENDING_PAYMENT',
+    nextPaymentDue: enrollment.paymentExpiresAt || metadata.paymentDueDate || null,
+    lastPaymentDate: metadata.paymentVerifiedAt || metadata.paymentSubmittedAt || null,
+  };
+}
 
 async function findActiveEnrollments(appId, customerId) {
   const enrollments = await prisma.cadenzaEnrollment.findMany({
@@ -170,11 +194,25 @@ async function findActiveEnrollments(appId, customerId) {
     },
     orderBy: { createdAt: 'desc' },
   });
+  const payments = await prisma.cadenzaCashierPayment.findMany({
+    where: { appId, transactionType: 'ENROLLMENT', sourceId: { in: enrollments.map((enrollment) => enrollment.id) } },
+    orderBy: { createdAt: 'asc' },
+  });
+  const paymentsByEnrollment = new Map();
+  for (const payment of payments) {
+    const list = paymentsByEnrollment.get(payment.sourceId) || [];
+    list.push(payment);
+    paymentsByEnrollment.set(payment.sourceId, list);
+  }
+  const enrollmentsWithPayments = enrollments.map((enrollment) => ({
+    ...enrollment,
+    cashierPayments: paymentsByEnrollment.get(enrollment.id) || [],
+  }));
   const roomIds = [...new Set(enrollments.flatMap((enrollment) => enrollment.sessions.map((session) => session.room?.resourceId).filter(Boolean)))];
-  if (!roomIds.length) return enrollments;
+  if (!roomIds.length) return enrollmentsWithPayments;
   const resources = await prisma.resource.findMany({ where: { appId, id: { in: roomIds } }, select: { id: true, name: true } });
   const names = new Map(resources.map((resource) => [resource.id, resource.name]));
-  return enrollments.map((enrollment) => ({
+  return enrollmentsWithPayments.map((enrollment) => ({
     ...enrollment,
     sessions: enrollment.sessions.map((session) => session.room
       ? { ...session, room: { ...session.room, name: names.get(session.room.resourceId) || session.room.roomType || session.room.resourceId } }
@@ -194,6 +232,7 @@ export const studentService = {
         packageName: enrollment.lessonPackage?.name,
         courseName: courseName(enrollment),
         status: enrollment.status,
+        payment: mapEnrollmentPayment(enrollment),
       })),
       enrollment: enrollments[0]
         ? {

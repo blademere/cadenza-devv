@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { enrollmentController } from './enrollment.controller.js';
 import {
   idValidator,
+  paymentScheduleValidator,
   packageInstructorValidator,
   packageInstructorAvailabilityValidator,
   createValidator,
@@ -84,6 +85,8 @@ router.patch(
 
 router.patch('/:id/status', requireAdminOrFrontDesk, validate(idValidator), asyncHandler(enrollmentController.updateEnrollmentStatus));
 router.post('/:id/notify-at-risk', requireAdminOrFrontDesk, validate(idValidator), asyncHandler(enrollmentController.notifyEnrollmentAtRisk));
+router.post('/:id/notify-payment-due', requireAdminOrFrontDesk, validate(idValidator), asyncHandler(enrollmentController.notifyEnrollmentPaymentDue));
+router.post('/:id/payment-schedule', requireAdminOrFrontDesk, validate(paymentScheduleValidator), asyncHandler(enrollmentController.addEnrollmentPaymentDue));
 
 router.patch(
   '/:id/cancel-by-staff',

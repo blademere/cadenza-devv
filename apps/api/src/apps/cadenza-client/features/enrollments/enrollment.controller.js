@@ -57,6 +57,18 @@ export const enrollmentController = {
       return res.json({ success: true, data: result });
     } catch (error) { next(error); }
   },
+  async notifyEnrollmentPaymentDue(req, res, next) {
+    try {
+      const result = await enrollmentService.notifyEnrollmentPaymentDue(req.cadenzaApp.id, req.params.id);
+      return res.json({ success: true, data: result });
+    } catch (error) { next(error); }
+  },
+  async addEnrollmentPaymentDue(req, res, next) {
+    try {
+      const result = await enrollmentService.addEnrollmentPaymentDue(req.cadenzaApp.id, req.params.id, req.body.nextPaymentDue, req.user.id);
+      return res.json({ success: true, data: result });
+    } catch (error) { next(error); }
+  },
 
   async getAvailablePackages(req, res, next) {
     try {

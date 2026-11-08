@@ -58,4 +58,14 @@ export const enrollmentService = {
     const response = await apiClient.post(`/enrollments/${enrollmentId}/notify-at-risk`);
     return response.data?.data ?? response.data;
   },
+
+  async notifyEnrollmentPaymentDue(enrollmentId) {
+    const response = await apiClient.post(`/enrollments/${enrollmentId}/notify-payment-due`);
+    return response.data?.data ?? response.data;
+  },
+
+  async addEnrollmentPaymentDue(enrollmentId, nextPaymentDue) {
+    const response = await apiClient.post(`/enrollments/${enrollmentId}/payment-schedule`, { nextPaymentDue });
+    return response.data?.data ?? response.data;
+  },
 };

@@ -23,6 +23,11 @@ export default function TransactionCard({ transaction, onView }) {
             <p className="mt-1 text-sm text-muted-foreground">
               {transaction.transactionDate}
             </p>
+            {transaction.nextPaymentDue && transaction.remainingBalance > 0 && (
+              <p className="mt-1 text-xs text-amber-700">
+                Next payment due: {new Date(transaction.nextPaymentDue).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            )}
           </div>
         </div>
 

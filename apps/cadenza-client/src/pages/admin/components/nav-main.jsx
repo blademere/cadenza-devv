@@ -11,12 +11,12 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-export function NavMain({ items, activeClassName = '' }) {
+export function NavMain({ items, activeClassName = '', label = 'Navigation' }) {
   const location = useLocation()
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Administration</SidebarGroupLabel>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
 
       <SidebarGroupContent>
         <SidebarMenu>

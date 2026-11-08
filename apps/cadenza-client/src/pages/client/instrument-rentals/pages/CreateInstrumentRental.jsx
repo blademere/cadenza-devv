@@ -26,7 +26,10 @@ const formatCurrency = (value) =>
   })}`;
 
 const getName = (instrument) =>
-  [instrument?.brand, instrument?.model].filter(Boolean).join(' ') ||
+  [
+    instrument?.instrumentType?.name || instrument?.item?.name || instrument?.itemName,
+    instrument?.model,
+  ].filter(Boolean).join(' ') ||
   instrument?.name ||
   'Instrument';
 

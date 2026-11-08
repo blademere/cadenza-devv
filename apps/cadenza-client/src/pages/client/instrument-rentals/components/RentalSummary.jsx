@@ -14,11 +14,14 @@ export default function RentalSummary({
     : instrument
       ? [instrument]
       : []
+  const getInstrumentName = (item) =>
+    [
+      item?.instrumentType?.name || item?.item?.name || item?.itemName,
+      item?.model,
+    ].filter(Boolean).join(' ') || item?.name || 'Instrument'
   const description =
     instrumentList
-      .map((item) =>
-        [item?.brand, item?.model].filter(Boolean).join(' ') || 'Instrument',
-      )
+      .map(getInstrumentName)
       .join(', ') ||
     'Instrument'
 
@@ -40,7 +43,7 @@ export default function RentalSummary({
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-semibold">
-                {item.name || [item.brand, item.model].filter(Boolean).join(' ') || 'Instrument'}
+                {getInstrumentName(item)}
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
                 {item.brand || item.model ? [item.brand, item.model].filter(Boolean).join(' ') : 'Instrument'}

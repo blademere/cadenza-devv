@@ -163,8 +163,8 @@ export const instrumentRentalsRepository = {
     return rentals.find((rental) => rental.id === id) || null;
   },
 
-  findInstrumentById(appId, id) {
-    return prisma.cadenzaInstrument.findFirst({
+  async findInstrumentById(appId, id) {
+    const instrument = await prisma.cadenzaInstrument.findFirst({
       where: {
         id,
         appId,
@@ -187,7 +187,15 @@ export const instrumentRentalsRepository = {
           },
         },
       },
+      include: {
+        instrumentType: true,
+        itemCategory: true,
+      },
     });
+
+    if (!instrument) return null;
+    const [hydrated] = await hydrateInstrumentNames([instrument]);
+    return hydrated;
   },
 
   async findAvailableInstruments(appId) {

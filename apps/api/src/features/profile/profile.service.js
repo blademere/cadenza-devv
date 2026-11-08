@@ -17,7 +17,7 @@ const getCadenzaEnrollmentState = async (userId) => {
     where: { person: { userId: Number(userId) }, app: { key: 'cadenza-client' } },
     select: {
       enrollments: {
-        where: { status: { notIn: ['CANCELLED', 'COMPLETED'] } },
+        where: { status: { in: ['ACTIVE', 'AT_RISK'] } },
         select: { id: true },
       },
     },

@@ -38,6 +38,7 @@ export const studentsRepository = {
           },
           orderBy: { createdAt: 'desc' },
           include: {
+            // Billing fields are mapped by the student service for Front Desk details.
             lessonPackage: {
               include: {
                 lessons: {

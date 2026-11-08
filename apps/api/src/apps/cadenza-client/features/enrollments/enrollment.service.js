@@ -258,6 +258,12 @@ function mapPackage(packageItem) {
 }
 
 function mapEnrollment(enrollment) {
+  const paymentMetadata = enrollment.metadata || {};
+  const totalPaymentAmount = Number(enrollment.priceAtEnrollment ?? enrollment.lessonPackage?.price ?? 0);
+  const paidPaymentAmount = String(paymentMetadata.paymentStatus || '').toUpperCase() === 'PENDING_CONFIRMATION'
+    ? 0
+    : Number(paymentMetadata.paymentAmount ?? paymentMetadata.initialPaymentAmount ?? 0);
+  const remainingPaymentAmount = Math.max(totalPaymentAmount - paidPaymentAmount, 0);
   const lessons = getConfiguredLessons(
     getPackageLessons(enrollment.lessonPackage),
   );
@@ -279,6 +285,32 @@ function mapEnrollment(enrollment) {
     packageName: enrollment.packageNameAtEnrollment || enrollment.lessonPackage?.name,
     courseId: enrollment.metadata?.courseId || null,
     metadata: enrollment.metadata,
+    payment: {
+      totalAmount: totalPaymentAmount,
+      paidAmount: paidPaymentAmount,
+      remainingBalance: remainingPaymentAmount,
+      paymentStatus: remainingPaymentAmount <= 0 ? 'PAID' : paidPaymentAmount > 0 ? 'PARTIALLY_PAID' : 'PENDING_PAYMENT',
+      nextPaymentDue: enrollment.paymentExpiresAt || paymentMetadata.paymentDueDate || null,
+      lastPaymentDate: paymentMetadata.paymentVerifiedAt || paymentMetadata.paymentSubmittedAt || null,
+      history: [
+        ...(Number(paymentMetadata.initialPaymentAmount ?? paymentMetadata.paymentAmount ?? 0) > 0 ? [{
+          id: `initial-${enrollment.id}`,
+          amount: Number(paymentMetadata.initialPaymentAmount ?? paymentMetadata.paymentAmount),
+          method: paymentMetadata.paymentMethod || 'QR',
+          reference: paymentMetadata.paymentReference || null,
+          createdAt: enrollment.createdAt,
+          source: 'INITIAL_PAYMENT',
+        }] : []),
+        ...(enrollment.cashierPayments || []).map((item) => ({
+          id: item.id,
+          amount: Number(item.amount),
+          method: item.method,
+          reference: item.reference,
+          createdAt: item.createdAt,
+          source: 'FRONT_DESK_PAYMENT',
+        })),
+      ],
+    },
     price: enrollment.priceAtEnrollment != null
       ? Number(enrollment.priceAtEnrollment)
       : enrollment.lessonPackage
@@ -1389,8 +1421,17 @@ export const enrollmentService = {
   },
 
   async updateEnrollmentStatus(appId, enrollmentId, status) {
-    const allowedStatuses = ['ACTIVE', 'AT_RISK', 'READY_TO_COMPLETE', 'COMPLETED', 'SUSPENDED', 'INACTIVE'];
+    const allowedStatuses = ['ACTIVE', 'AT_RISK', 'READY_TO_COMPLETE', 'COMPLETED', 'CANCELLED', 'SUSPENDED', 'INACTIVE'];
     if (!allowedStatuses.includes(status)) throw new BadRequestError('Invalid enrollment status.');
+    if (status === 'COMPLETED') {
+      const completionData = await enrollmentRepository.findCompletionData(appId, enrollmentId);
+      if (!completionData) throw new NotFoundError('Enrollment not found.');
+      const recordedStatuses = new Set(['PRESENT', 'LATE', 'ABSENT', 'EXCUSED', 'NO_SHOW', 'COMPLETED', 'ATTENDED']);
+      const recordedSessions = completionData.sessions.filter((session) => recordedStatuses.has(String(session.attendance?.status || '').toUpperCase())).length;
+      if (recordedSessions < completionData.numberOfSessionsAtEnrollment) {
+        throw new ConflictError('All course sessions must have a recorded attendance result before completion.');
+      }
+    }
     const updated = await enrollmentRepository.updateStatus(appId, enrollmentId, status);
     if (!updated) throw new NotFoundError('Enrollment not found.');
     return updated;
@@ -1408,6 +1449,37 @@ export const enrollmentService = {
       data: { enrollmentId },
       channels: ['IN_APP', 'EMAIL'],
     });
+  },
+
+  async notifyEnrollmentPaymentDue(appId, enrollmentId) {
+    const enrollment = await enrollmentRepository.findNotificationRecipient(appId, enrollmentId);
+    const userId = enrollment?.customer?.person?.userId;
+    if (!userId) throw new NotFoundError('Student account cannot receive notifications.');
+
+    const totalAmount = Number(enrollment.priceAtEnrollment ?? enrollment.lessonPackage?.price ?? 0);
+    const paidAmount = Number(enrollment.metadata?.paymentAmount || 0);
+    const remainingBalance = Math.max(totalAmount - paidAmount, 0);
+    if (remainingBalance <= 0) throw new BadRequestError('This enrollment has no remaining balance.');
+
+    return sendNotification({
+      userId,
+      type: 'ENROLLMENT_PAYMENT_DUE',
+      title: 'Enrollment payment due',
+      message: `Your enrollment has a remaining balance of ₱${remainingBalance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Please complete your next payment through Cadenza Music Center.`,
+      data: { enrollmentId, remainingBalance },
+      channels: ['IN_APP', 'EMAIL'],
+    });
+  },
+
+  async addEnrollmentPaymentDue(appId, enrollmentId, nextPaymentDue, actorId) {
+    const normalizedDate = nextPaymentDue ? new Date(nextPaymentDue) : null;
+    if (normalizedDate && Number.isNaN(normalizedDate.getTime())) {
+      throw new BadRequestError('Next payment date must be a valid date.');
+    }
+    if (!normalizedDate) throw new BadRequestError('A next payment date is required.');
+    const updated = await enrollmentRepository.addPaymentDueDate(appId, enrollmentId, normalizedDate, actorId);
+    if (!updated) throw new NotFoundError('Enrollment not found.');
+    return updated;
   },
 
   async cancelEnrollment(

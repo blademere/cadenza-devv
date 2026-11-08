@@ -1,6 +1,6 @@
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { AppState, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import useMobileResource from '../../hooks/useMobileResource';
 import { getStudentDashboard } from '../../services/studentService';
 import { ResourceFeedback } from '../../components/common/ResourceFeedback';
@@ -9,9 +9,17 @@ const ACCENT = '#0C447C';
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila' }) : 'Schedule pending';
 const formatTime = (value) => value ? new Date(value).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true }) : '';
 const formatDay = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'short', day: 'numeric' }) : 'Schedule pending';
+const formatPaymentDate = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date pending';
+const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function StudentDashboard() {
   const { data, loading, error, refresh } = useMobileResource(getStudentDashboard);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') refresh();
+    });
+    return () => subscription.remove();
+  }, [refresh]);
   const enrollmentGroups = Object.values((data?.enrollments || []).reduce((groups, enrollment) => {
     const key = enrollment.courseName || enrollment.id;
     groups[key] ||= { courseName: enrollment.courseName || 'Approved course', packages: [] };
@@ -24,6 +32,10 @@ export default function StudentDashboard() {
     : enrollmentGroups[0]?.courseName || '';
   const selectedGroup = enrollmentGroups.find((group) => group.courseName === activeCourseName);
   const selectedEnrollment = data?.enrollments?.find((enrollment) => enrollment.courseName === activeCourseName);
+  const pendingPayments = (data?.enrollments || []).filter((enrollment) => {
+    const payment = enrollment.payment || {};
+    return Number(payment.remainingBalance || 0) > 0 && payment.paymentStatus !== 'PAID';
+  });
   const upcomingClasses = (data?.upcomingClasses || []).filter((lesson) => lesson.courseName === activeCourseName).sort((first, second) => new Date(first.scheduledStart) - new Date(second.scheduledStart));
   const nextLesson = upcomingClasses.find((lesson) => !lesson.scheduledStart || new Date(lesson.scheduledStart) >= new Date()) || upcomingClasses[0];
 
@@ -33,6 +45,7 @@ export default function StudentDashboard() {
       <ResourceFeedback loading={loading} error={error} onRetry={refresh} />
 
       {data && <>
+        {pendingPayments.length > 0 && <View className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4"><Text className="text-base font-bold text-amber-900">Next payment due</Text>{pendingPayments.map((enrollment) => <View key={enrollment.id} className="mt-3 border-t border-amber-200 pt-3"><Text className="text-sm font-semibold text-amber-900">{enrollment.courseName || 'Enrollment'}</Text><Text className="mt-1 text-sm text-amber-800">{formatCurrency(enrollment.payment.remainingBalance)} remaining</Text><Text className="mt-1 text-xs text-amber-700">Due {formatPaymentDate(enrollment.payment.nextPaymentDue)}{enrollment.payment.lastPaymentDate ? ` · Last payment ${formatPaymentDate(enrollment.payment.lastPaymentDate)}` : ''}</Text></View>)}</View>}
         {nextLesson && <View className="mt-5 rounded-3xl bg-[#0C447C] p-5"><Text className="text-sm font-semibold uppercase tracking-widest text-blue-100">Next lesson</Text><Text className="mt-3 text-xl font-bold text-white">{formatDay(nextLesson.scheduledStart)}</Text><Text className="mt-1 text-base text-blue-100">{formatTime(nextLesson.scheduledStart)}{nextLesson.scheduledEnd ? ` – ${formatTime(nextLesson.scheduledEnd)}` : ''}</Text><View className="mt-4 border-t border-blue-300/40 pt-3"><Text className="font-semibold text-white">{nextLesson.lesson || activeCourseName || 'Lesson'}</Text><Text className="mt-1 text-sm text-blue-100">{nextLesson.instructor?.name || 'Instructor pending'}{nextLesson.room?.name ? ` · ${nextLesson.room.name}` : ''}</Text></View></View>}
 
         <View className="mt-5 rounded-3xl bg-[#F4F8FB] p-5">

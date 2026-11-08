@@ -7,6 +7,24 @@ const fullName = (person) =>
 
 const ENROLLED_STATUSES = new Set(['ACTIVE', 'AT_RISK', 'APPROVED']);
 
+const getEnrollmentBilling = (enrollment) => {
+  const metadata = enrollment.metadata || {};
+  const totalAmount = Number(enrollment.priceAtEnrollment || enrollment.lessonPackage?.price || 0);
+  const paymentStatus = metadata.paymentStatus || 'PENDING';
+  const paidAmount = paymentStatus === 'PENDING_CONFIRMATION'
+    ? 0
+    : Number(metadata.paymentAmount ?? metadata.initialPaymentAmount ?? 0);
+
+  return {
+    totalAmount,
+    paidAmount,
+    remainingBalance: Math.max(totalAmount - paidAmount, 0),
+    paymentStatus,
+    nextPaymentDue: enrollment.paymentExpiresAt || metadata.paymentDueDate || null,
+    paymentScheduleHistory: Array.isArray(metadata.paymentScheduleHistory) ? metadata.paymentScheduleHistory : [],
+  };
+};
+
 const getEnrollmentCourses = (enrollment) => {
   const packageItem = enrollment.lessonPackage;
   const legacyCourses = packageItem?.lessons ?? [];
@@ -68,6 +86,7 @@ const mapStudent = (student) => {
         scheduledEnd: session.scheduledEnd,
         status: session.status,
       })),
+      billing: getEnrollmentBilling(enrollment),
     })),
     createdAt: student.createdAt,
   };

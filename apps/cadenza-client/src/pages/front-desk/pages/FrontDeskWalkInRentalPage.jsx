@@ -38,47 +38,17 @@ const minutes = (value) => {
   return hour * 60 + minute;
 };
 
-const addDays = (dateKey, amount) => {
-  const date = new Date(`${dateKey}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + amount);
-  return date.toISOString().slice(0, 10);
-};
 const earliestRentalDate = (today) => today;
 
-const minimumReturn = (config, dateKey, startTime) => {
+const minimumReturn = (dateKey, startTime) => {
   if (!dateKey || !startTime) return null;
-  let date = dateKey;
-  let time = minutes(startTime);
-  let remaining = 8 * 60;
+  const start = new Date(`${dateKey}T${startTime}:00Z`);
+  const end = new Date(start.getTime() + 8 * 60 * 60 * 1000);
 
-  for (let index = 0; index < 370 && remaining > 0; index += 1) {
-    const hours = getHoursForDate(config, date);
-    if (!hours || hours.isClosed) {
-      date = addDays(date, 1);
-      time = 0;
-      continue;
-    }
-
-    const opening = minutes(hours.startTime);
-    const closing = minutes(hours.endTime);
-    const cursor = Math.max(time, opening);
-    if (cursor < closing) {
-      const available = closing - cursor;
-      if (remaining <= available) {
-        const end = cursor + remaining;
-        return {
-          date,
-          time: `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`,
-        };
-      }
-      remaining -= available;
-    }
-
-    date = addDays(date, 1);
-    time = 0;
-  }
-
-  return null;
+  return {
+    date: end.toISOString().slice(0, 10),
+    time: end.toISOString().slice(11, 16),
+  };
 };
 
 const displayTime = (value) => {
@@ -327,14 +297,14 @@ export default function FrontDeskWalkInRentalPage() {
           minutes(time) >= minutes(returnHours?.startTime || '08:00') &&
           minutes(time) <= minutes(returnHours?.endTime || '17:00') &&
           (() => {
-            const minimum = minimumReturn(operatingHours, form.date, form.startTime);
+            const minimum = minimumReturn(form.date, form.startTime);
             return !minimum || form.returnDate > minimum.date ||
               (form.returnDate === minimum.date && time >= minimum.time);
           })(),
       );
 
   const setStartTime = (value) => {
-    const minimum = minimumReturn(operatingHours, form.date, value);
+    const minimum = minimumReturn(form.date, value);
     setForm((current) => ({
       ...current,
       startTime: value,
@@ -344,7 +314,7 @@ export default function FrontDeskWalkInRentalPage() {
     }));
   };
 
-  const operationalHoursBetween = () => {
+  const rentalHoursBetween = () => {
     if (!form.startTime || !form.endTime || !form.date || !form.returnDate) {
       return 0;
     }
@@ -354,39 +324,7 @@ export default function FrontDeskWalkInRentalPage() {
 
     if (end <= start) return 0;
 
-    let total = 0;
-
-    const day = new Date(start);
-    day.setHours(0, 0, 0, 0);
-
-    const last = new Date(end);
-    last.setHours(0, 0, 0, 0);
-
-    for (let index = 0; index < 370 && day <= last; index += 1) {
-      const hours = getHoursForDate(operatingHours, day);
-
-      if (hours && !hours.isClosed) {
-        const opening = new Date(day);
-        const closing = new Date(day);
-
-        const [oh, om] = hours.startTime.split(':').map(Number);
-        const [ch, cm] = hours.endTime.split(':').map(Number);
-
-        opening.setHours(oh, om, 0, 0);
-        closing.setHours(ch, cm, 0, 0);
-
-        total +=
-          Math.max(
-            0,
-            Math.min(end.getTime(), closing.getTime()) -
-              Math.max(start.getTime(), opening.getTime()),
-          ) / 3600000;
-      }
-
-      day.setDate(day.getDate() + 1);
-    }
-
-    return total;
+    return (end.getTime() - start.getTime()) / 3600000;
   };
 
   const selectedInstrument = instruments.find(
@@ -405,7 +343,7 @@ export default function FrontDeskWalkInRentalPage() {
       instrumentCategory === 'ALL' ||
       instrument.itemCategory?.id === instrumentCategory,
   );
-  const rentalHours = operationalHoursBetween();
+  const rentalHours = rentalHoursBetween();
   const billableHours = Math.max(8, Math.ceil(rentalHours));
   const rentalAmount = selectedInstrument
     ? (Number(selectedInstrument.rentalRate) / 8) * billableHours
@@ -467,10 +405,10 @@ export default function FrontDeskWalkInRentalPage() {
       return;
     }
 
-    if (operationalHoursBetween() < 8) {
+    if (rentalHoursBetween() < 8) {
       setMessage({
         type: 'error',
-        text: 'Instrument rentals must contain at least 8 registered operating hours.',
+        text: 'Instrument rentals must contain at least 8 elapsed hours.',
       });
       return;
     }
@@ -879,7 +817,7 @@ export default function FrontDeskWalkInRentalPage() {
                         <span className="text-lg font-semibold">₱{rentalAmount.toLocaleString()}</span>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {rentalHours.toFixed(1)} operating hours · minimum 8 hours
+                        {rentalHours.toFixed(1)} elapsed hours · minimum 8 hours
                       </p>
                     </div>
                   )}

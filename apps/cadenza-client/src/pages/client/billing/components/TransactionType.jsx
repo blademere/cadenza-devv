@@ -6,6 +6,11 @@ const typeConfig = {
     icon: BookOpen,
   },
 
+  ENROLLMENT_PAYMENT: {
+    label: "Enrollment Payment",
+    icon: BookOpen,
+  },
+
   ROOM_BOOKING: {
     label: "Room Booking",
     icon: DoorOpen,
