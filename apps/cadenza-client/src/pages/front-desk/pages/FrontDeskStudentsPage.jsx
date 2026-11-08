@@ -38,6 +38,14 @@ import {
 const studentName = (student) => student?.name?.trim() || 'Unnamed Student';
 const formatStatus = (value) => value?.replace(/_/g, ' ') || 'Unknown';
 const formatPaymentDate = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' }) : 'Not set';
+const formatScheduleDate = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Date not set';
+const formatScheduleTime = (value) => value ? new Date(value).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }) : 'Time not set';
+const isSchedulePast = (session) => {
+  const end = new Date(session.scheduledEnd || session.scheduledStart).getTime();
+  return Number.isFinite(end) && end < Date.now();
+};
+const pendingPaymentForStudent = (student) =>
+  (student?.enrollments || []).find((enrollment) => Number(enrollment.billing?.remainingBalance || 0) > 0)?.billing;
 const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const statusDotClass = (value) =>
   String(value || '').toUpperCase() === 'ACTIVE' ? 'bg-emerald-500' : 'bg-amber-500';
@@ -50,6 +58,29 @@ const assignedRoomIds = (student) =>
     .flatMap((enrollment) => enrollment.sessions || [])
     .map((session) => session.roomId)
     .filter(Boolean);
+
+const scheduleByCourse = (student) => {
+  const groups = new Map();
+
+  (student?.enrollments || []).forEach((enrollment) => {
+    const courses = enrollment.courses?.length
+      ? enrollment.courses
+      : [{ id: enrollment.id, name: enrollment.packageName || 'Enrolled course' }];
+    const sessions = (enrollment.sessions || [])
+      .filter((session) => Number.isFinite(new Date(session.scheduledStart).getTime()))
+      .sort((a, b) => new Date(a.scheduledStart) - new Date(b.scheduledStart));
+
+    courses.forEach((course) => {
+      const key = course.id || course.name;
+      if (!groups.has(key)) groups.set(key, { name: course.name || 'Enrolled course', sessions: [] });
+      groups.get(key).sessions.push(...sessions);
+    });
+  });
+
+  return [...groups.values()]
+    .filter((group) => group.sessions.length)
+    .sort((a, b) => new Date(a.sessions[0].scheduledStart) - new Date(b.sessions[0].scheduledStart));
+};
 
 export default function FrontDeskStudentsPage() {
   const [students, setStudents] = useState([]);
@@ -300,6 +331,39 @@ export default function FrontDeskStudentsPage() {
             </div>
             <Card>
               <CardHeader>
+                <CardTitle>Student Schedules</CardTitle>
+                <CardDescription>Review all lessons grouped by enrolled course.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {scheduleByCourse(selectedStudent).length ? (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {scheduleByCourse(selectedStudent).map((group) => (
+                      <details key={group.name} className="rounded-lg border bg-muted/20" open={scheduleByCourse(selectedStudent).length === 1}>
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-medium [&::-webkit-details-marker]:hidden">
+                          <span>{group.name}</span>
+                          <Badge variant="secondary">{group.sessions.length} lessons</Badge>
+                        </summary>
+                        <div className="max-h-72 space-y-2 overflow-y-auto border-t px-4 py-3">
+                          {group.sessions.map((session) => (
+                            <div key={session.id} className={`grid gap-1 rounded-md border p-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center ${isSchedulePast(session) ? 'border-muted bg-muted/50 text-muted-foreground' : 'bg-background'}`}>
+                              <div>
+                                <p className="font-medium">{formatScheduleDate(session.scheduledStart)}</p>
+                                <p className="text-muted-foreground">{formatScheduleTime(session.scheduledStart)} – {formatScheduleTime(session.scheduledEnd)}</p>
+                              </div>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">{formatStatus(session.status || 'SCHEDULED')}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">No lessons are scheduled for this student.</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
                 <CardTitle>Enrollments</CardTitle>
               </CardHeader>
               <CardContent>
@@ -414,7 +478,7 @@ export default function FrontDeskStudentsPage() {
             <DialogHeader>
               <DialogTitle>Notify student about the remaining balance?</DialogTitle>
               <DialogDescription>
-                This sends the student a reminder about the next enrollment payment through in-app notification and email.
+                This sends the student a reminder about the next enrollment payment through in-app notification.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -462,16 +526,16 @@ export default function FrontDeskStudentsPage() {
               <CardDescription>
                 Students are loaded from the backend with pagination.
               </CardDescription>
-              <div className="relative max-w-sm">
-                <SearchIcon className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder="Search this page..."
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-              </div>
-              <div className="mt-3 flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end">
+                <div className="relative w-full md:max-w-sm md:flex-1">
+                  <SearchIcon className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search this page..."
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                  />
+                </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium" htmlFor="frontdesk-course-filter">Course</label>
                   <select id="frontdesk-course-filter" value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
@@ -509,6 +573,7 @@ export default function FrontDeskStudentsPage() {
                       <TableHead>Courses</TableHead>
                       <TableHead>Instructor</TableHead>
                       <TableHead>Assigned Room</TableHead>
+                      <TableHead>Payment</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -516,13 +581,13 @@ export default function FrontDeskStudentsPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={7} className="h-24 text-center">
                           Loading students...
                         </TableCell>
                       </TableRow>
                     ) : filteredStudents.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={7} className="h-24 text-center">
                           No enrolled students found.
                         </TableCell>
                       </TableRow>
@@ -545,6 +610,13 @@ export default function FrontDeskStudentsPage() {
                           </TableCell>
                           <TableCell>
                             {[...new Set(assignedRoomIds(student).map((id) => roomNames.get(id)).filter(Boolean))].join(', ') || '—'}
+                          </TableCell>
+                          <TableCell>
+                            {pendingPaymentForStudent(student) ? (
+                              <Badge variant="secondary" className="text-amber-700">Payment due</Badge>
+                            ) : (
+                              <Badge variant="outline">Paid</Badge>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge

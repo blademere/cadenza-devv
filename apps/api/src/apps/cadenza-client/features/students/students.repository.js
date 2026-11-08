@@ -54,8 +54,7 @@ export const studentsRepository = {
               },
             },
             sessions: {
-              orderBy: { scheduledStart: 'desc' },
-              take: 1,
+              orderBy: { scheduledStart: 'asc' },
               include: {
                 instructor: {
                   select: {

@@ -83,7 +83,7 @@ const data = {
 };
 
 export function AppSidebar({ ...props }) {
-  const [pendingCounts, setPendingCounts] = useState({ enrollments: 0, rentals: 0, bookings: 0, billing: 0, reschedules: 0, startingSoonBookings: 0, atRiskStudents: 0 });
+  const [pendingCounts, setPendingCounts] = useState({ enrollments: 0, rentals: 0, bookings: 0, billing: 0, reschedules: 0, startingSoonBookings: 0, atRiskStudents: 0, pendingPaymentStudents: 0 });
 
   useEffect(() => {
     let mounted = true;
@@ -111,6 +111,9 @@ export function AppSidebar({ ...props }) {
       const students = studentsResult.status === 'fulfilled' && Array.isArray(studentsResult.value?.data)
         ? studentsResult.value.data
         : [];
+      const pendingPaymentStudents = students.filter((student) =>
+        (student.enrollments || []).some((enrollment) => Number(enrollment.billing?.remainingBalance || 0) > 0),
+      ).length;
       const now = Date.now();
       const startingSoonBookings = bookings.filter((booking) => {
         const start = new Date(booking.scheduledStart).getTime();
@@ -135,6 +138,7 @@ export function AppSidebar({ ...props }) {
             .map((student) => student.email || student.id)
             .filter(Boolean),
         ).size,
+        pendingPaymentStudents,
       });
     });
     return () => { mounted = false; };
@@ -142,7 +146,7 @@ export function AppSidebar({ ...props }) {
 
   const navItems = data.navMain.map((item) => ({
     ...item,
-    badge: item.title === 'Enrollments' ? pendingCounts.enrollments : item.title === 'Students' ? pendingCounts.atRiskStudents : item.title === 'Rentals' ? pendingCounts.rentals : item.title === 'Room Bookings' ? pendingCounts.bookings + pendingCounts.startingSoonBookings + pendingCounts.exceededBookings : item.title === 'Billing & Payments' ? pendingCounts.billing : item.title === 'Class Schedule' ? pendingCounts.reschedules : undefined,
+    badge: item.title === 'Enrollments' ? pendingCounts.enrollments : item.title === 'Students' ? pendingCounts.pendingPaymentStudents : item.title === 'Rentals' ? pendingCounts.rentals : item.title === 'Room Bookings' ? pendingCounts.bookings + pendingCounts.startingSoonBookings + pendingCounts.exceededBookings : item.title === 'Billing & Payments' ? pendingCounts.billing : item.title === 'Class Schedule' ? pendingCounts.reschedules : undefined,
   }));
 
   return (
