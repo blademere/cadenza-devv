@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService, getGoogleOAuthUrl } from '@/services/auth/authService';
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, UserRound, UsersRound } from 'lucide-react';
 
 export function LoginForm({ className, audience = 'client', ...props }) {
   const navigate = useNavigate();
@@ -43,11 +43,14 @@ export function LoginForm({ className, audience = 'client', ...props }) {
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
-      <Card className="overflow-hidden p-0">
-        <CardContent className="grid p-0 md:grid-cols-2">
-          <form className="p-5 sm:p-6 md:p-8" onSubmit={handleSubmit}>
+      <Card className="mx-auto min-w-0 border-0 bg-white/90 p-0 shadow-xl backdrop-blur" style={{ width: '560px', maxWidth: 'calc(100vw - 2rem)' }}>
+        <CardContent className="p-5 sm:p-7">
+          <form className="w-full" onSubmit={handleSubmit}>
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
+                <div className="mb-1 grid size-10 place-items-center rounded-full bg-blue-100 text-blue-700">
+                  {audience === 'staff' ? <UsersRound className="size-5" /> : <UserRound className="size-5" />}
+                </div>
                 <h1 className="text-2xl font-bold">
                   {audience === 'staff'
                     ? 'Login'
@@ -55,17 +58,13 @@ export function LoginForm({ className, audience = 'client', ...props }) {
                       ? 'Front Desk Login'
                       : audience === 'admin'
                         ? 'Admin Login'
-                        : 'Welcome back'}
+                    : 'Client Login'}
                 </h1>
-                <p className="text-balance text-muted-foreground">
-                  Enter your email and password to receive a one-time login
-                  code.
-                </p>
               </div>
 
               <Field>
-                <FieldLabel htmlFor="login-email">Email</FieldLabel>
-                <Input
+                  <FieldLabel htmlFor="login-email">{audience === 'staff' ? 'Staff ID or Email' : 'Email'}</FieldLabel>
+                  <Input
                   id="login-email"
                   type="email"
                   autoComplete="email"
@@ -108,7 +107,7 @@ export function LoginForm({ className, audience = 'client', ...props }) {
                 <p className="text-sm text-destructive">{error}</p>
               ) : null}
 
-              <Button type="submit" disabled={isLoading}>
+              <Button className="bg-blue-700 hover:bg-blue-800" type="submit" disabled={isLoading}>
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
 
@@ -157,14 +156,9 @@ export function LoginForm({ className, audience = 'client', ...props }) {
               )}
             </FieldGroup>
           </form>
-
-          <div className="relative hidden bg-muted md:block" />
         </CardContent>
       </Card>
 
-      <FieldDescription className="px-6 text-center">
-        By continuing, you agree to our <a href="#">Terms of Service</a>.
-      </FieldDescription>
     </div>
   );
 }

@@ -5,18 +5,31 @@ import app from "@/config/app";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-const navItems = [];
+const navItems = [
+  { to: '/', label: 'Home' },
+  { to: '/#services', label: 'Services' },
+  { to: '/#about', label: 'About' },
+  { to: '/#contact', label: 'Contact' },
+];
 
 function NavItem({ to, label, onClick }) {
+  const sectionId = to.includes('#') ? to.split('#')[1] : null;
+
   return (
     <NavLink
       to={to}
-      onClick={onClick}
+      onClick={(event) => {
+        if (sectionId) {
+          event.preventDefault();
+          document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        onClick?.();
+      }}
       className={({ isActive }) =>
         cn(
           "rounded-md px-3 py-2 text-sm font-medium transition-colors",
           "hover:bg-accent hover:text-accent-foreground",
-          isActive
+          isActive && to === '/'
             ? "bg-accent text-accent-foreground"
             : "text-muted-foreground",
         )
