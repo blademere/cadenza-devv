@@ -23,6 +23,8 @@ async function ensureUpcomingClassNotification(userId) {
   const sessions = await prisma.cadenzaLessonSession.findMany({
     where: {
       scheduledStart: { gt: now, lte: inTenMinutes },
+      status: { notIn: ['CANCELLED', 'COMPLETED'] },
+      enrollment: { status: { in: ['APPROVED', 'ACTIVE', 'AT_RISK'] } },
       OR: [
         { enrollment: { customer: { person: { userId: Number(userId) } } } },
         { instructor: { person: { userId: Number(userId) } } },
@@ -33,6 +35,12 @@ async function ensureUpcomingClassNotification(userId) {
       instructor: { include: { person: true } },
       room: { select: { resourceId: true } },
     },
+  });
+  const formatClassTime = (value) => new Date(value).toLocaleTimeString('en-PH', {
+    timeZone: 'Asia/Manila',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   });
   for (const session of sessions) {
     const isInstructor = session.instructor?.person?.userId === Number(userId);
@@ -45,7 +53,7 @@ async function ensureUpcomingClassNotification(userId) {
         userId: Number(userId),
         type: 'UPCOMING_CLASS_REMINDER',
         title: 'Class starts in 10 minutes',
-        message: isInstructor ? `Your class with ${studentName} starts at ${new Date(session.scheduledStart).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : `Your ${session.enrollment?.packageNameAtEnrollment || 'lesson'} starts at ${new Date(session.scheduledStart).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`,
+        message: isInstructor ? `Your class with ${studentName} starts at ${formatClassTime(session.scheduledStart)}.` : `Your ${session.enrollment?.packageNameAtEnrollment || 'lesson'} starts at ${formatClassTime(session.scheduledStart)}.`,
         data: { route: isInstructor ? '/instructor/schedule' : '/student/schedule', sessionId: session.id, scheduledStart: session.scheduledStart, room: session.room?.resourceId || null },
         idempotencyKey,
       },
