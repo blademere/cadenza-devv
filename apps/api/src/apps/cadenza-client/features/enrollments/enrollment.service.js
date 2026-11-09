@@ -358,7 +358,7 @@ export const enrollmentService = {
     }
     const reason = typeof options.reason === 'string' ? options.reason.trim() : '';
     const outcome = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${appId}), hashtext(${roomId}))`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${appId}), hashtext(${roomId}))::text AS locked`;
       const session = await tx.cadenzaLessonSession.findFirst({
         where: { id: sessionId, appId },
         include: {
