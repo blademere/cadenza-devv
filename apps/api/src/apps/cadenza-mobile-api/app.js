@@ -45,7 +45,7 @@ async function ensureUpcomingClassNotification(userId) {
   for (const session of sessions) {
     const isInstructor = session.instructor?.person?.userId === Number(userId);
     const recipientRole = isInstructor ? 'instructor' : 'student';
-    const idempotencyKey = `class-reminder-${session.id}-${recipientRole}`;
+    const idempotencyKey = `class-reminder-${session.id}-${new Date(session.scheduledStart).getTime()}-${recipientRole}`;
     const studentName = [session.enrollment?.customer?.person?.firstName, session.enrollment?.customer?.person?.lastName].filter(Boolean).join(' ') || 'Student';
     await prisma.notification.upsert({
       where: { idempotencyKey },
