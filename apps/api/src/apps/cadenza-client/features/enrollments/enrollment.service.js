@@ -362,7 +362,7 @@ export const enrollmentService = {
       const session = await tx.cadenzaLessonSession.findFirst({
         where: { id: sessionId, appId },
         include: {
-          enrollment: { include: { customer: { include: { person: { select: { userId: true } } } } } } },
+          enrollment: { include: { customer: { include: { person: { select: { userId: true } } } } } },
           instructor: { include: { person: { select: { userId: true } } } },
         },
       });
