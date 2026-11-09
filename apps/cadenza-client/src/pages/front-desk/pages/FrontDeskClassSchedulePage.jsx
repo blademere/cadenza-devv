@@ -499,7 +499,7 @@ function ScheduleRow({
             onClick={() => onAssignRoom(item)}
           >
             <MapPinIcon className="mr-2 h-4 w-4" />
-            Assign Room
+            {item.room ? 'Change Room' : 'Assign Room'}
           </Button>
         )}
 
@@ -632,6 +632,8 @@ export default function ClassSchedule() {
             id: session.id,
             roomId: session.roomId,
             courseId: enrollment.courseId,
+            studentId: enrollment.customerId,
+            instructorId: session.instructorId,
             date: formatDateKey(start),
             scheduledStart: session.scheduledStart,
             scheduledEnd: session.scheduledEnd,
@@ -819,17 +821,17 @@ export default function ClassSchedule() {
     if (!roomAssignmentClass) return [];
     return todaySchedules.filter((item) =>
       item.id !== roomAssignmentClass.id &&
-      item.roomId &&
+      item.roomId === selectedRoomId &&
       !['CANCELLED', 'REJECTED'].includes(String(item.status).toUpperCase()) &&
       isScheduleConflict(item, roomAssignmentClass),
     );
-  }, [roomAssignmentClass, todaySchedules]);
+  }, [roomAssignmentClass, selectedRoomId, todaySchedules]);
 
   const instructorConflicts = useMemo(() => {
     if (!roomAssignmentClass || roomAssignmentClass.instructor === 'Unassigned') return [];
     return todaySchedules.filter((item) =>
       item.id !== roomAssignmentClass.id &&
-      item.instructor === roomAssignmentClass.instructor &&
+      (roomAssignmentClass.instructorId ? item.instructorId === roomAssignmentClass.instructorId : item.instructor === roomAssignmentClass.instructor) &&
       !['CANCELLED', 'REJECTED'].includes(String(item.status).toUpperCase()) &&
       isScheduleConflict(item, roomAssignmentClass),
     );
@@ -839,7 +841,7 @@ export default function ClassSchedule() {
     if (!roomAssignmentClass) return [];
     return todaySchedules.filter((item) =>
       item.id !== roomAssignmentClass.id &&
-      item.student === roomAssignmentClass.student &&
+      (roomAssignmentClass.studentId ? item.studentId === roomAssignmentClass.studentId : item.student === roomAssignmentClass.student) &&
       !['CANCELLED', 'REJECTED'].includes(String(item.status).toUpperCase()) &&
       isScheduleConflict(item, roomAssignmentClass),
     );
@@ -848,7 +850,12 @@ export default function ClassSchedule() {
   const availableRooms = useMemo(() => {
     if (!roomAssignmentClass) return [];
 
-    const occupiedRoomIds = new Set(roomConflicts.map((item) => item.roomId));
+    const occupiedRoomIds = new Set(todaySchedules.filter((item) =>
+      item.id !== roomAssignmentClass.id &&
+      item.roomId &&
+      !['CANCELLED', 'REJECTED'].includes(String(item.status).toUpperCase()) &&
+      isScheduleConflict(item, roomAssignmentClass),
+    ).map((item) => item.roomId));
     const targetStart = roomAssignmentClass.scheduledStart;
     const targetEnd = roomAssignmentClass.scheduledEnd;
 
@@ -864,7 +871,7 @@ export default function ClassSchedule() {
     }
 
     return lessonRooms.filter((room) =>
-      !occupiedRoomIds.has(room.id) &&
+      (room.id === roomAssignmentClass.roomId || !occupiedRoomIds.has(room.id)) &&
       (!roomAssignmentClass.courseId ||
         (Array.isArray(room.courseIds) && room.courseIds.includes(roomAssignmentClass.courseId))),
     ).map((room) => ({
@@ -888,6 +895,7 @@ export default function ClassSchedule() {
 
   const assignRoom = async () => {
     if (!roomAssignmentClass || !selectedRoomId || assigningRoom) return;
+    if (selectedRoomId === roomAssignmentClass.roomId) return;
     const selectedRoom = availableRooms.find((room) => room.id === selectedRoomId);
     if (!selectedRoom) {
       setRoomAssignmentMessage('This lesson room is no longer available for the selected class.');
@@ -922,7 +930,8 @@ export default function ClassSchedule() {
         ? { ...current, roomId: selectedRoom.id, room: selectedRoom.name }
         : current,
       );
-      setRoomAssignmentMessage(`${selectedRoom.name} has been assigned successfully.`);
+      closeRoomAssignment();
+      toast.success(`${selectedRoom.name} has been ${roomAssignmentClass.roomId ? 'updated' : 'assigned'} successfully.`);
     } catch (error) {
       setRoomAssignmentMessage(error?.response?.data?.message || 'Unable to save the room assignment.');
     } finally {
@@ -1208,10 +1217,8 @@ export default function ClassSchedule() {
                             </div>
 
                             <CardDescription className="mt-1">
-                              The next enrolled classes can be assigned a
-                              room before the instructor and student arrive.
-                              Rooms are filtered automatically to prevent
-                              conflicts.
+                              Enrollment rooms are assigned automatically.
+                              Change a room only when an adjustment is necessary.
                             </CardDescription>
                           </div>
 
@@ -1294,11 +1301,11 @@ export default function ClassSchedule() {
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                           <div>
                             <CardTitle>
-                              Assign Room Ahead of Time
+                              {roomAssignmentClass.roomId ? 'Change Room' : 'Assign Room'}
                             </CardTitle>
 
                             <CardDescription>
-                              Select a room for{' '}
+                              {roomAssignmentClass.roomId ? 'Change the assigned room for ' : 'Select a room for '}
                               <span className="font-medium text-foreground">
                                 {roomAssignmentClass.course}
                               </span>{' '}
@@ -1354,6 +1361,9 @@ export default function ClassSchedule() {
                         </div>
 
                         <div>
+                          {roomAssignmentClass.room && (
+                            <p className="mb-3 text-sm font-medium">Assigned Room: {roomAssignmentClass.room}</p>
+                          )}
                           <div className="mb-3">
                             <p className="font-semibold">
                               Available Rooms
@@ -1473,11 +1483,11 @@ export default function ClassSchedule() {
 
                         <div className="flex justify-end">
                           <Button
-                            disabled={!selectedRoomId || assigningRoom || !availableRooms.some((room) => room.id === selectedRoomId)}
+                            disabled={!selectedRoomId || assigningRoom || selectedRoomId === roomAssignmentClass.roomId || !availableRooms.some((room) => room.id === selectedRoomId)}
                             onClick={assignRoom}
                           >
                             <CheckCircle2Icon className="mr-2 h-4 w-4" />
-                            {assigningRoom ? 'Assigning Room...' : 'Confirm Room Assignment'}
+                            {assigningRoom ? 'Saving Room...' : roomAssignmentClass.roomId ? 'Confirm Room Change' : 'Confirm Room Assignment'}
                           </Button>
                         </div>
                       </CardContent>
