@@ -542,6 +542,12 @@ export default function ClassSchedule() {
   const [operatingHours, setOperatingHours] = useState(null);
   const [operatingHoursError, setOperatingHoursError] = useState('');
   const [activeTab, setActiveTab] = useState('today');
+  const [currentDayKey, setCurrentDayKey] = useState(() => formatDateKey(new Date()));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentDayKey(formatDateKey(new Date())), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [selectedDay, setSelectedDay] = useState(formatDateKey(today));
   const [weeklySearch, setWeeklySearch] = useState('');
 
@@ -688,7 +694,7 @@ export default function ClassSchedule() {
     return () => { active = false; window.clearInterval(refreshTimer); };
   }, []);
 
-  const todayKey = formatDateKey(today);
+  const todayKey = currentDayKey;
 
 
   const emergencySchedules = useMemo(
