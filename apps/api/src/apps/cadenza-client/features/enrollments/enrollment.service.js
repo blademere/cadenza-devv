@@ -353,11 +353,65 @@ function mapEnrollment(enrollment) {
 
 export const enrollmentService = {
   async assignRoom(appId, sessionId, roomId) {
+    if (typeof roomId !== 'string' || !roomId.trim()) {
+      throw new BadRequestError('A valid lesson room is required.');
+    }
+    const session = await prisma.cadenzaLessonSession.findFirst({
+      where: { id: sessionId, appId },
+      include: {
+        enrollment: { include: { customer: { include: { person: { select: { userId: true } } } } } },
+        instructor: { include: { person: { select: { userId: true } } } },
+      },
+    });
+    if (!session) throw new NotFoundError('Class schedule not found.');
+    if (session.scheduledStart <= new Date() || ['CANCELLED', 'COMPLETED'].includes(session.status)) {
+      throw new ConflictError('Only upcoming classes can have their room assigned.');
+    }
+    const room = await prisma.cadenzaRoom.findFirst({
+      where: {
+        id: roomId,
+        appId,
+        roomType: 'LESSON_ROOM',
+        status: 'AVAILABLE',
+        courseMappings: {
+          some: {
+            appId,
+            courseId: session.enrollment?.metadata?.courseId || undefined,
+          },
+        },
+      },
+    });
+    if (!room) throw new BadRequestError('The selected lesson room is unavailable or not configured for this class.');
+    const resource = await prisma.resource.findFirst({
+      where: { id: room.resourceId, appId, status: 'ACTIVE' },
+    });
+    if (!resource) throw new BadRequestError('The selected lesson room is unavailable.');
+    const conflicts = await enrollmentRepository.findConflictingRoom(
+      appId,
+      roomId,
+      session.scheduledStart,
+      session.scheduledEnd,
+      session.id,
+    );
+    if (conflicts) throw new ConflictError('This lesson room is occupied during the selected class.');
     const result = await enrollmentRepository.assignRoomToSession(appId, sessionId, roomId);
     if (!result.count) throw new NotFoundError('Class schedule not found.');
-    const session = await prisma.cadenzaLessonSession.findFirst({ where: { id: sessionId, appId }, include: { room: { include: { resource: true } }, enrollment: { include: { customer: { include: { person: { select: { userId: true } } } } } }, instructor: { include: { person: { select: { userId: true } } } } } });
-    const recipients = [session?.enrollment?.customer?.person?.userId, session?.instructor?.person?.userId].filter(Boolean);
-    await Promise.all(recipients.map((userId) => sendNotification({ userId, type: 'ROOM_ASSIGNED', title: 'Room assigned', message: `Your upcoming class room is ${session.room?.resource?.name || session.room?.resourceId || 'assigned room'}.`, data: { route: session.instructor?.person?.userId === userId ? '/instructor/schedule' : '/student/schedule', sessionId, room: session.room?.resource?.name || session.room?.resourceId || null }, channels: ['IN_APP'] })));
+    const recipients = [
+      session.enrollment?.customer?.person?.userId,
+      session.instructor?.person?.userId,
+    ].filter(Boolean);
+    await Promise.all(recipients.map((userId) => sendNotification({
+      userId,
+      type: 'ROOM_ASSIGNED',
+      title: 'Room assigned',
+      message: `Your upcoming class room is ${resource.name}.`,
+      data: {
+        route: session.instructor?.person?.userId === userId ? '/instructor/schedule' : '/student/schedule',
+        sessionId,
+        room: resource.name,
+      },
+      channels: ['IN_APP'],
+    })));
     return { sessionId, roomId };
   },
   async submitRescheduleOptions(appId, requestId, options) {
