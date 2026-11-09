@@ -38,45 +38,6 @@ import { getRooms } from '@/services/admin/roomsService';
 import { getHoursForDate, getOperatingHours } from '@/services/operatingHoursService';
 import { apiClient } from '@/core/api/apiClient';
 
-const rooms = [
-  {
-    id: 'room-1',
-    name: 'Room 1',
-    capacity: 1,
-    type: 'Private',
-  },
-  {
-    id: 'room-2',
-    name: 'Room 2',
-    capacity: 1,
-    type: 'Private',
-  },
-  {
-    id: 'room-3',
-    name: 'Room 3',
-    capacity: 1,
-    type: 'Private',
-  },
-  {
-    id: 'room-4',
-    name: 'Room 4',
-    capacity: 1,
-    type: 'Private',
-  },
-  {
-    id: 'band-room',
-    name: 'Band Room',
-    capacity: 6,
-    type: 'Group',
-  },
-  {
-    id: 'lesson-room',
-    name: 'Lesson Room',
-    capacity: 4,
-    type: 'Group',
-  },
-];
-
 const getDateAfterDays = (days, baseDate = new Date()) => {
   const date = new Date(baseDate);
   date.setHours(0, 0, 0, 0);
@@ -574,6 +535,8 @@ export default function ClassSchedule() {
       ? 'Select a closure date and reschedule affected enrolled classes.'
       : 'View today and weekly classes, assigned rooms, instructors, and students.';
   const [schedule, setSchedule] = useState([]);
+  const [lessonRooms, setLessonRooms] = useState([]);
+  const [roomBookings, setRoomBookings] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [scheduleError, setScheduleError] = useState('');
   const [operatingHours, setOperatingHours] = useState(null);
@@ -620,6 +583,7 @@ export default function ClassSchedule() {
 
   const [roomAssignmentClass, setRoomAssignmentClass] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
+  const [assigningRoom, setAssigningRoom] = useState(false);
   const [roomAssignmentMessage, setRoomAssignmentMessage] =
     useState('');
 
@@ -631,10 +595,17 @@ export default function ClassSchedule() {
       try {
         setScheduleLoading(true);
         setScheduleError('');
-        const [enrollmentPage, roomsResponse] = await Promise.all([
+        const [enrollmentPage, roomsResponse, bookingsResponse] = await Promise.all([
           enrollmentService.getEnrollments({ page: 1, limit: 100 }),
           getRooms(),
+          apiClient.get('/room-bookings'),
         ]);
+        const databaseRooms = Array.isArray(roomsResponse) ? roomsResponse : [];
+        const bookings = bookingsResponse?.data?.data ?? bookingsResponse?.data ?? [];
+        if (active) {
+          setLessonRooms(databaseRooms.filter((room) => room.roomType === 'LESSON_ROOM' && room.status === 'AVAILABLE' && room.resource?.status === 'ACTIVE'));
+          setRoomBookings(Array.isArray(bookings) ? bookings : []);
+        }
         const enrollments = [...(enrollmentPage.items || [])];
         let page = enrollmentPage.pagination?.page || 1;
         const totalPages = enrollmentPage.pagination?.pages || page;
@@ -647,13 +618,17 @@ export default function ClassSchedule() {
           });
           enrollments.push(...(nextPage.items || []));
         }
-        const roomById = new Map((Array.isArray(roomsResponse) ? roomsResponse : []).map((room) => [room.id, room.roomName || room.resource?.name || room.roomType]));
+        const roomById = new Map(databaseRooms.map((room) => [room.id, room.roomName || room.resource?.name || room.roomType]));
         const items = (enrollments || []).flatMap((enrollment) => (enrollment.sessions || []).map((session) => {
           const start = new Date(session.scheduledStart);
           const end = new Date(session.scheduledEnd);
           return {
             id: session.id,
+            roomId: session.roomId,
+            courseId: enrollment.courseId,
             date: formatDateKey(start),
+            scheduledStart: session.scheduledStart,
+            scheduledEnd: session.scheduledEnd,
             time: `${start.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}`,
             weekday: getManilaWeekday(start),
             course: enrollment.lessons?.[0]?.name || enrollment.packageName || 'Lesson',
@@ -668,6 +643,8 @@ export default function ClassSchedule() {
       } catch (error) {
         if (active) {
           setSchedule([]);
+          setLessonRooms([]);
+          setRoomBookings([]);
           setScheduleError(error?.response?.data?.message || error.message || 'Unable to load class schedule.');
         }
       } finally {
@@ -712,7 +689,7 @@ export default function ClassSchedule() {
   }, []);
 
   const todayKey = formatDateKey(today);
-  const todayWeekday = getManilaWeekday(today);
+
 
   const emergencySchedules = useMemo(
     () => schedule.filter((item) => item.date === emergencyDate),
@@ -728,8 +705,8 @@ export default function ClassSchedule() {
   );
 
   const todaySchedules = useMemo(() => {
-    return schedule.filter((item) => item.weekday === todayWeekday);
-  }, [schedule, todayWeekday]);
+    return schedule.filter((item) => item.date === todayKey);
+  }, [schedule, todayKey]);
 
   const ongoingSchedules = useMemo(() => {
     const currentMinutes = getCurrentMinutes();
@@ -833,78 +810,67 @@ export default function ClassSchedule() {
   }, [selectedRequest, centerReschedule]);
 
   const roomConflicts = useMemo(() => {
-    if (!roomAssignmentClass) {
-      return [];
-    }
-
-    return todaySchedules.filter((item) => {
-      if (item.id === roomAssignmentClass.id) {
-        return false;
-      }
-
-      if (!item.room) {
-        return false;
-      }
-
-      return isScheduleConflict(item, roomAssignmentClass);
-    });
+    if (!roomAssignmentClass) return [];
+    return todaySchedules.filter((item) =>
+      item.id !== roomAssignmentClass.id &&
+      item.roomId &&
+      !['CANCELLED', 'REJECTED'].includes(String(item.status).toUpperCase()) &&
+      isScheduleConflict(item, roomAssignmentClass),
+    );
   }, [roomAssignmentClass, todaySchedules]);
 
   const instructorConflicts = useMemo(() => {
-    if (!roomAssignmentClass) {
-      return [];
-    }
-
-    return todaySchedules.filter((item) => {
-      if (item.id === roomAssignmentClass.id) {
-        return false;
-      }
-
-      if (item.instructor !== roomAssignmentClass.instructor) {
-        return false;
-      }
-
-      return isScheduleConflict(item, roomAssignmentClass);
-    });
+    if (!roomAssignmentClass || roomAssignmentClass.instructor === 'Unassigned') return [];
+    return todaySchedules.filter((item) =>
+      item.id !== roomAssignmentClass.id &&
+      item.instructor === roomAssignmentClass.instructor &&
+      !['CANCELLED', 'REJECTED'].includes(String(item.status).toUpperCase()) &&
+      isScheduleConflict(item, roomAssignmentClass),
+    );
   }, [roomAssignmentClass, todaySchedules]);
 
   const studentConflicts = useMemo(() => {
-    if (!roomAssignmentClass) {
-      return [];
-    }
-
-    return todaySchedules.filter((item) => {
-      if (item.id === roomAssignmentClass.id) {
-        return false;
-      }
-
-      if (item.student !== roomAssignmentClass.student) {
-        return false;
-      }
-
-      return isScheduleConflict(item, roomAssignmentClass);
-    });
+    if (!roomAssignmentClass) return [];
+    return todaySchedules.filter((item) =>
+      item.id !== roomAssignmentClass.id &&
+      item.student === roomAssignmentClass.student &&
+      !['CANCELLED', 'REJECTED'].includes(String(item.status).toUpperCase()) &&
+      isScheduleConflict(item, roomAssignmentClass),
+    );
   }, [roomAssignmentClass, todaySchedules]);
 
   const availableRooms = useMemo(() => {
-    if (!roomAssignmentClass) {
-      return [];
+    if (!roomAssignmentClass) return [];
+
+    const occupiedRoomIds = new Set(roomConflicts.map((item) => item.roomId));
+    const targetStart = roomAssignmentClass.scheduledStart;
+    const targetEnd = roomAssignmentClass.scheduledEnd;
+
+    for (const booking of roomBookings) {
+      if (
+        booking.roomId &&
+        !['CANCELLED', 'REJECTED'].includes(String(booking.status).toUpperCase()) &&
+        new Date(booking.scheduledStart) < new Date(targetEnd) &&
+        new Date(booking.scheduledEnd) > new Date(targetStart)
+      ) {
+        occupiedRoomIds.add(booking.roomId);
+      }
     }
 
-    const conflictingRoomNames = new Set(
-      roomConflicts.map((item) => item.room),
-    );
-
-    return rooms.filter(
-      (room) => !conflictingRoomNames.has(room.name),
-    );
-  }, [roomAssignmentClass, roomConflicts]);
+    return lessonRooms.filter((room) =>
+      !occupiedRoomIds.has(room.id) &&
+      (!roomAssignmentClass.courseId ||
+        (Array.isArray(room.courseIds) && room.courseIds.includes(roomAssignmentClass.courseId))),
+    ).map((room) => ({
+      id: room.id,
+      name: room.roomName || room.resource?.name || room.roomType,
+      type: 'Lesson Room',
+    }));
+  }, [roomAssignmentClass, roomConflicts, roomBookings, lessonRooms]);
 
   const openRoomAssignment = (classItem) => {
     setRoomAssignmentClass(classItem);
-    setSelectedRoomId(
-      assignedRooms[classItem.id]?.roomId ?? null,
-    );
+    setSelectedRoomId(classItem.roomId || null);
     setRoomAssignmentMessage('');
   };
 
@@ -915,60 +881,47 @@ export default function ClassSchedule() {
   };
 
   const assignRoom = async () => {
-    if (!roomAssignmentClass || !selectedRoomId) {
-      return;
-    }
-
-    const selectedRoom = rooms.find(
-      (room) => room.id === selectedRoomId,
-    );
-
+    if (!roomAssignmentClass || !selectedRoomId || assigningRoom) return;
+    const selectedRoom = availableRooms.find((room) => room.id === selectedRoomId);
     if (!selectedRoom) {
+      setRoomAssignmentMessage('This lesson room is no longer available for the selected class.');
       return;
     }
-
-    const conflictingRoom = roomConflicts.find(
-      (item) => item.room === selectedRoom.name,
-    );
-
-    if (conflictingRoom) {
-      setRoomAssignmentMessage(
-        `${selectedRoom.name} is already occupied by ${conflictingRoom.course} from ${conflictingRoom.time}.`,
-      );
-      return;
-    }
-
     if (instructorConflicts.length) {
-      setRoomAssignmentMessage(
-        `${roomAssignmentClass.instructor} already has another enrolled class during this time.`,
-      );
+      setRoomAssignmentMessage(`${roomAssignmentClass.instructor} already has another enrolled class during this time.`);
       return;
     }
-
     if (studentConflicts.length) {
-      setRoomAssignmentMessage(
-        `${roomAssignmentClass.student} is already enrolled in another class during this time.`,
-      );
+      setRoomAssignmentMessage(`${roomAssignmentClass.student} is already enrolled in another class during this time.`);
       return;
     }
 
+    setAssigningRoom(true);
     try {
-      await apiClient.patch(`/enrollments/sessions/${roomAssignmentClass.id}/room`, { roomId: selectedRoom.id }, { headers: { 'Idempotency-Key': crypto.randomUUID() } });
+      await apiClient.patch(
+        `/enrollments/sessions/${roomAssignmentClass.id}/room`,
+        { roomId: selectedRoom.id },
+        { headers: { 'Idempotency-Key': crypto.randomUUID() } },
+      );
+      setAssignedRooms((current) => ({
+        ...current,
+        [roomAssignmentClass.id]: { roomId: selectedRoom.id, roomName: selectedRoom.name },
+      }));
+      setSchedule((current) => current.map((item) =>
+        item.id === roomAssignmentClass.id
+          ? { ...item, roomId: selectedRoom.id, room: selectedRoom.name }
+          : item,
+      ));
+      setRoomAssignmentClass((current) => current && current.id === roomAssignmentClass.id
+        ? { ...current, roomId: selectedRoom.id, room: selectedRoom.name }
+        : current,
+      );
+      setRoomAssignmentMessage(`${selectedRoom.name} has been assigned successfully.`);
     } catch (error) {
       setRoomAssignmentMessage(error?.response?.data?.message || 'Unable to save the room assignment.');
-      return;
+    } finally {
+      setAssigningRoom(false);
     }
-    setAssignedRooms((current) => ({
-      ...current,
-      [roomAssignmentClass.id]: {
-        roomId: selectedRoom.id,
-        roomName: selectedRoom.name,
-      },
-    }));
-
-    setRoomAssignmentMessage(
-      `${selectedRoom.name} has been assigned successfully.`,
-    );
   };
 
   const getRoomForSchedule = (item) => {
@@ -1514,11 +1467,11 @@ export default function ClassSchedule() {
 
                         <div className="flex justify-end">
                           <Button
-                            disabled={!selectedRoomId}
+                            disabled={!selectedRoomId || assigningRoom || !availableRooms.some((room) => room.id === selectedRoomId)}
                             onClick={assignRoom}
                           >
                             <CheckCircle2Icon className="mr-2 h-4 w-4" />
-                            Confirm Room Assignment
+                            {assigningRoom ? 'Assigning Room...' : 'Confirm Room Assignment'}
                           </Button>
                         </div>
                       </CardContent>
