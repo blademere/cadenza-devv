@@ -162,7 +162,9 @@ const parseTime = (time) => {
 const getCurrentMinutes = () => {
   const now = new Date();
 
-  return now.getHours() * 60 + now.getMinutes();
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+  const values = Object.fromEntries(parts.filter((part) => part.type === 'hour' || part.type === 'minute').map((part) => [part.type, Number(part.value)]));
+  return values.hour * 60 + values.minute;
 };
 
 const getScheduleStartMinutes = (time) => {
@@ -714,7 +716,7 @@ export default function ClassSchedule() {
   );
 
   const todaySchedules = useMemo(() => {
-    return schedule.filter((item) => item.date === todayKey);
+    return schedule.filter((item) => item.date === todayKey).sort((first, second) => new Date(first.scheduledStart) - new Date(second.scheduledStart));
   }, [schedule, todayKey]);
 
   const ongoingSchedules = useMemo(() => {
@@ -743,7 +745,7 @@ export default function ClassSchedule() {
           return false;
         }
 
-        return start > currentMinutes && start - currentMinutes <= 10 && item.enrolled;
+        return start > currentMinutes && start - currentMinutes <= 10 && item.enrolled && !['CANCELLED', 'COMPLETED', 'REJECTED'].includes(String(item.status).toUpperCase());
       })
       .sort((a, b) => {
         return (
@@ -792,7 +794,7 @@ export default function ClassSchedule() {
           .toLowerCase()
           .includes(search),
       );
-    });
+    }).sort((first, second) => new Date(first.scheduledStart) - new Date(second.scheduledStart));
   }, [schedule, selectedDay, weeklySearch]);
 
   const matchingSchedules = useMemo(() => {
@@ -1543,7 +1545,8 @@ export default function ClassSchedule() {
                         const isUpcoming =
                           start !== null &&
                           start > currentMinutes &&
-                          item.enrolled;
+                          item.enrolled &&
+                          !['CANCELLED', 'COMPLETED', 'REJECTED'].includes(String(item.status).toUpperCase());
 
                         return (
                           <ScheduleRow
