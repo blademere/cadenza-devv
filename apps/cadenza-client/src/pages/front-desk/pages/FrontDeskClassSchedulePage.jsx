@@ -590,6 +590,7 @@ export default function ClassSchedule() {
   const [roomAssignmentClass, setRoomAssignmentClass] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [assigningRoom, setAssigningRoom] = useState(false);
+  const [roomChangeReason, setRoomChangeReason] = useState('');
   const [roomAssignmentMessage, setRoomAssignmentMessage] =
     useState('');
 
@@ -884,18 +885,24 @@ export default function ClassSchedule() {
   const openRoomAssignment = (classItem) => {
     setRoomAssignmentClass(classItem);
     setSelectedRoomId(classItem.roomId || null);
+    setRoomChangeReason('');
     setRoomAssignmentMessage('');
   };
 
   const closeRoomAssignment = () => {
     setRoomAssignmentClass(null);
     setSelectedRoomId(null);
+    setRoomChangeReason('');
     setRoomAssignmentMessage('');
   };
 
   const assignRoom = async () => {
     if (!roomAssignmentClass || !selectedRoomId || assigningRoom) return;
     if (selectedRoomId === roomAssignmentClass.roomId) return;
+    if (roomAssignmentClass.roomId && (roomChangeReason.trim().length < 3 || roomChangeReason.trim().length > 500)) {
+      setRoomAssignmentMessage('Please provide a room change reason (3–500 characters).');
+      return;
+    }
     const selectedRoom = availableRooms.find((room) => room.id === selectedRoomId);
     if (!selectedRoom) {
       setRoomAssignmentMessage('This lesson room is no longer available for the selected class.');
@@ -914,7 +921,7 @@ export default function ClassSchedule() {
     try {
       await apiClient.patch(
         `/enrollments/sessions/${roomAssignmentClass.id}/room`,
-        { roomId: selectedRoom.id },
+        { roomId: selectedRoom.id, ...(roomAssignmentClass.roomId ? { reason: roomChangeReason.trim() } : {}) },
         { headers: { 'Idempotency-Key': crypto.randomUUID() } },
       );
       setAssignedRooms((current) => ({
@@ -1433,6 +1440,12 @@ export default function ClassSchedule() {
                           )}
                         </div>
 
+                        {roomAssignmentClass.roomId && (
+                          <div className="space-y-2">
+                            <label htmlFor="room-change-reason" className="text-sm font-medium">Reason for changing the assigned room</label>
+                            <textarea id="room-change-reason" value={roomChangeReason} onChange={(event) => setRoomChangeReason(event.target.value)} maxLength={500} rows={2} className="w-full rounded-lg border bg-background p-3 text-sm" placeholder="Enter the reason for changing the assigned room" />
+                          </div>
+                        )}
                         <div className="grid gap-3 md:grid-cols-3">
                           <div className="rounded-lg border p-3">
                             <p className="text-xs text-muted-foreground">
@@ -1483,7 +1496,7 @@ export default function ClassSchedule() {
 
                         <div className="flex justify-end">
                           <Button
-                            disabled={!selectedRoomId || assigningRoom || selectedRoomId === roomAssignmentClass.roomId || !availableRooms.some((room) => room.id === selectedRoomId)}
+                            disabled={!selectedRoomId || assigningRoom || selectedRoomId === roomAssignmentClass.roomId || (roomAssignmentClass.roomId && roomChangeReason.trim().length < 3) || !availableRooms.some((room) => room.id === selectedRoomId)}
                             onClick={assignRoom}
                           >
                             <CheckCircle2Icon className="mr-2 h-4 w-4" />
