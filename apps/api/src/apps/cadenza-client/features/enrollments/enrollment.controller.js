@@ -26,7 +26,7 @@ export const enrollmentController = {
     } catch (error) { next(error); }
   },
   async assignRoom(req, res, next) {
-    try { return res.json({ success: true, message: 'Room assigned successfully.', data: await enrollmentService.assignRoom(req.cadenzaApp.id, req.params.sessionId, req.body?.roomId) }); } catch (error) { next(error); }
+    try { return res.json({ success: true, message: 'Room assigned successfully.', data: await enrollmentService.assignRoom(req.cadenzaApp.id, req.params.sessionId, req.body?.roomId, { reason: req.body?.reason, personId: req.cadenzaStaff?.personId }) }); } catch (error) { next(error); }
   },
   async getEnrollments(req, res, next) {
     try {
