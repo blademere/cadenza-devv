@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx/xlsx.mjs';
 import {
   ActivityIcon, BarChart3Icon, BookOpenCheckIcon, CalendarDaysIcon,
   CreditCardIcon, GraduationCapIcon, GuitarIcon, PrinterIcon,
