@@ -129,6 +129,22 @@ export const enrollmentRepository = {
       return session;
     });
   },
+  async rejectReschedule(appId, requestId, reviewedByPersonId, reason) {
+    return prisma.$transaction(async (tx) => {
+      const request = await tx.cadenzaRescheduleRequest.findFirst({ where: { id: requestId, appId, status: 'PENDING' } });
+      if (!request) return null;
+      return tx.cadenzaRescheduleRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'REJECTED',
+          reviewedByPersonId: reviewedByPersonId || null,
+          reviewedAt: new Date(),
+          reason,
+          metadata: { ...(request.metadata || {}), rejectionReason: reason, rejectedAt: new Date().toISOString() },
+        },
+      });
+    });
+  },
   async findRescheduleRequests(appId) {
     return prisma.cadenzaRescheduleRequest.findMany({
       where: { status: 'PENDING', session: { appId } },

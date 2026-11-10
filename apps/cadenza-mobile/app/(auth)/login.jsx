@@ -96,7 +96,7 @@ export default function Login() {
     setErrorMessage('');
 
     if (!email.trim() || !password) {
-      setErrorMessage('Please enter your email and password.');
+      setErrorMessage('Please enter your email or username and password.');
       return;
     }
 
@@ -139,7 +139,7 @@ export default function Login() {
 
       <View className="gap-4">
         <Input
-          placeholder="Email"
+          placeholder="Email or username"
           value={email}
           onChangeText={(text) => {
             setEmail(text);
@@ -147,7 +147,7 @@ export default function Login() {
           }}
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="email-address"
+          keyboardType="default"
         />
 
         <View>

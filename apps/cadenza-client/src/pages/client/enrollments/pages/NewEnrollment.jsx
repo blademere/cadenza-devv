@@ -10,6 +10,7 @@ import {
 import { getMyProfile } from '../../profile/services/profile.service';
 import { getHoursForDate, getOperatingHours } from '@/services/operatingHoursService';
 import { getPaymentAccounts } from '@/services/paymentAccountsService';
+import { getDependents } from '../../dependents/services/dependents.service';
 
 const addDaysToDateKey = (value, days) => {
   const date = new Date(`${value}T00:00:00Z`);
@@ -39,6 +40,19 @@ const getManilaDateTime = (dateKey, minutes) => {
 const getEnrollmentDraftKey = (packageId, courseId) =>
   `cadenza-enrollment-draft:${packageId || 'none'}:${courseId || 'none'}`;
 
+const ENROLLMENT_PACKAGE_TIMEOUT_MS = Math.max(
+  5000,
+  Number(import.meta.env.VITE_ENROLLMENT_PACKAGE_TIMEOUT_MS) || 10000,
+);
+
+const withRequestTimeout = (request, message, timeoutMs = ENROLLMENT_PACKAGE_TIMEOUT_MS) => {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([request, timeout]).finally(() => window.clearTimeout(timeoutId));
+};
+
 const readEnrollmentDraft = (key) => {
   try {
     return JSON.parse(localStorage.getItem(key) || 'null');
@@ -59,8 +73,9 @@ export default function NewEnrollment() {
   const [availability, setAvailability] = useState([]);
 
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [dependents, setDependents] = useState([]);
+  const [selectedDependentId, setSelectedDependentId] = useState('SELF');
   const [selectedInstructor, setSelectedInstructor] = useState('');
-  const [selectedRoom, setSelectedRoom] = useState('');
   const [paymentPlan, setPaymentPlan] = useState(savedDraft?.paymentPlan || '');
   const [paymentAccounts, setPaymentAccounts] = useState([]);
   const [paymentAccountId, setPaymentAccountId] = useState(savedDraft?.paymentAccountId || '');
@@ -68,6 +83,7 @@ export default function NewEnrollment() {
     firstName: '', middleName: '', lastName: '', suffix: '', address: '', age: '',
     gender: '', guardianName: '', contactNo: '',
   });
+  const [guardianDetails, setGuardianDetails] = useState(null);
 
   const [startDate, setStartDate] = useState('');
   const [, setStartTime] = useState('');
@@ -94,7 +110,8 @@ export default function NewEnrollment() {
         const address = typeof person.address === 'string'
           ? person.address
           : person.address?.line1 || person.address?.fullAddress || '';
-        setStudentDetails({
+        const guardianName = [person.firstName, person.middleName, person.lastName].filter(Boolean).join(' ');
+        const baseDetails = {
           firstName: person.firstName || '',
           middleName: person.middleName || '',
           lastName: person.lastName || '',
@@ -102,13 +119,27 @@ export default function NewEnrollment() {
           address,
           age: details.age ?? '',
           gender: details.gender || '',
-          guardianName: details.guardianName || '',
+          guardianName: details.guardianName || guardianName,
           contactNo: person.phone || '',
+        };
+        setGuardianDetails({ name: guardianName, address, contactNo: person.phone || '', baseStudentDetails: baseDetails });
+        setStudentDetails({
+          ...baseDetails,
         });
       })
       .catch(() => setError('Unable to load your student profile.'))
       .finally(() => setLoadingStudentProfile(false));
   }, []);
+
+  useEffect(() => { getDependents().then(setDependents).catch(() => setDependents([])); }, []);
+  const selectedDependent = dependents.find((item) => item.id === selectedDependentId);
+  useEffect(() => {
+    if (!selectedDependent) {
+      if (selectedDependentId === 'SELF' && guardianDetails?.baseStudentDetails) setStudentDetails(guardianDetails.baseStudentDetails);
+      return;
+    }
+    setStudentDetails((current) => ({ ...current, firstName: selectedDependent.firstName || '', middleName: selectedDependent.middleName || '', lastName: selectedDependent.lastName || '', age: selectedDependent.age || '', gender: selectedDependent.gender || '', address: guardianDetails?.address || current.address, contactNo: guardianDetails?.contactNo || current.contactNo, guardianName: guardianDetails?.name || current.guardianName }));
+  }, [selectedDependent, selectedDependentId, guardianDetails]);
 
   useEffect(() => {
     if (!success) return undefined;
@@ -203,7 +234,10 @@ export default function NewEnrollment() {
         setLoadingPackages(true);
         setError('');
 
-        const data = await getAvailablePackages();
+        const data = await withRequestTimeout(
+          getAvailablePackages(selectedDependentId === 'SELF' ? null : selectedDependentId),
+          'Loading enrollment packages is taking too long. Please try again.',
+        );
 
         const currentPackage = data.find(
           (item) => String(item.id) === String(packageId),
@@ -217,14 +251,14 @@ export default function NewEnrollment() {
         setSelectedPackage(currentPackage);
       } catch (error) {
         console.error(error);
-        setError('Unable to load the selected package.');
+        setError(error?.message || 'Unable to load the selected package.');
       } finally {
         setLoadingPackages(false);
       }
     }
 
     loadPackage();
-  }, [packageId]);
+  }, [packageId, selectedDependentId]);
 
   useEffect(() => {
     async function loadInstructors() {
@@ -238,7 +272,6 @@ export default function NewEnrollment() {
         setLoadingInstructors(true);
         setError('');
         setSelectedInstructor('');
-        setSelectedRoom('');
         setAvailability([]);
         setStartTime('');
         setSelectedAvailabilityIds([]);
@@ -247,6 +280,7 @@ export default function NewEnrollment() {
         const data = await getEnrollmentOptions(
           selectedPackage.id,
           selectedCourseId,
+          selectedDependentId === 'SELF' ? null : selectedDependentId,
         );
 
         setInstructors(data);
@@ -259,7 +293,7 @@ export default function NewEnrollment() {
     }
 
     loadInstructors();
-  }, [selectedPackage?.id, selectedCourseId]);
+  }, [selectedPackage?.id, selectedCourseId, selectedDependentId]);
 
   useEffect(() => {
     if (
@@ -287,7 +321,6 @@ export default function NewEnrollment() {
     setExpandedAvailabilityDays({});
     setStartDate('');
     setStartTime('');
-    setSelectedRoom('');
   }, [selectedInstructorData?.id]);
 
   useEffect(() => {
@@ -307,61 +340,6 @@ export default function NewEnrollment() {
     setSelectedAvailabilityIds(restoredIds);
     setStartDate(savedDraft.startDate || '');
   }, [availability, savedDraft, selectedInstructor, selectedInstructorData]);
-
-  // Fetch room-compatible instructor slots once after the student chooses a
-  // room. Selecting schedule buttons afterwards is local-only and must not
-  // trigger another request or clear the selected schedule.
-  useEffect(() => {
-    if (
-      !selectedPackage?.id ||
-      !selectedInstructor ||
-      !selectedCourseId ||
-      !selectedRoom
-    ) {
-      return undefined;
-    }
-
-    let cancelled = false;
-
-    async function refreshAvailabilityForDate() {
-      try {
-        setLoadingAvailability(true);
-        const result = await getInstructorAvailability(
-          selectedPackage.id,
-          selectedInstructor,
-          selectedCourseId,
-          null,
-          selectedRoom,
-        );
-
-        if (cancelled) {
-          return;
-        }
-
-        const availableRules = Array.isArray(result?.availability)
-          ? result.availability
-          : [];
-
-        setAvailability(availableRules);
-      } catch (error) {
-        if (!cancelled) {
-          setError(
-            error?.message || 'Unable to refresh instructor availability.',
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingAvailability(false);
-        }
-      }
-    }
-
-    refreshAvailabilityForDate();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedPackage?.id, selectedInstructor, selectedCourseId, selectedRoom]);
 
   const availabilityForDisplay = useMemo(() => {
     const duration = Number(selectedPackage?.sessionDurationMinutes) || 0;
@@ -507,7 +485,6 @@ export default function NewEnrollment() {
       )}:${String(selectedStartRule.startMinute % 60).padStart(2, '0')}`
     : '';
   const scheduleSelectionComplete = Boolean(
-    selectedRoom &&
       selectedAvailability.length === Number(selectedPackage?.sessionsPerWeek || 0) &&
       startDate &&
       resolvedStartTime,
@@ -689,18 +666,13 @@ export default function NewEnrollment() {
       return;
     }
 
-    if (!selectedRoom) {
-      setError('Please select a room before choosing a schedule.');
-      return;
-    }
-
     if (!paymentPlan) {
       setError('Please select a payment option.');
       return;
     }
 
     if (!paymentAccountId) {
-      setError('Please select a bank account for payment.');
+      setError('Please select a mode payment.');
       return;
     }
 
@@ -804,7 +776,6 @@ export default function NewEnrollment() {
 
         return {
           instructorId: selectedInstructor,
-          roomId: selectedRoom,
           scheduledStart: sessionStart,
           scheduledEnd: sessionEnd,
         };
@@ -860,6 +831,7 @@ export default function NewEnrollment() {
       await validateEnrollmentSchedule({
         lessonPackageId: selectedPackage.id,
         sessions: formattedSessions,
+        enrollmentForCustomerId: selectedDependentId === 'SELF' ? undefined : selectedDependentId,
         metadata: {
           courseId: selectedCourseId || null,
           studentDetails: {
@@ -877,6 +849,7 @@ export default function NewEnrollment() {
           paymentPlan,
           paymentAccountId,
           lessonPackageId: selectedPackage.id,
+          enrollmentForCustomerId: selectedDependentId === 'SELF' ? undefined : selectedDependentId,
           sessions: formattedSessions,
           metadata: {
             courseId: selectedCourseId || null,
@@ -987,8 +960,9 @@ export default function NewEnrollment() {
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5">
             <h2 className="text-lg font-semibold">Student Details</h2>
+            {dependents.length > 0 && <div className="mt-4 max-w-md"><label htmlFor="enrollment-student" className="text-sm font-medium">Who is being enrolled?</label><select id="enrollment-student" value={selectedDependentId} onChange={(event) => { setSelectedDependentId(event.target.value); setSelectedInstructor(''); setAvailability([]); }} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="SELF">Myself</option>{dependents.map((child) => <option key={child.id} value={child.id}>{[child.firstName, child.middleName, child.lastName].filter(Boolean).join(' ')} (Age {child.age})</option>)}</select><p className="mt-1 text-xs text-muted-foreground">The selected student will own the enrollment, schedule, attendance, and progress.</p></div>}
             <p className="mt-1 text-sm text-muted-foreground">
-              These details are fetched from your Account profile and will be used for this enrollment.
+              These details are fetched from the selected student profile and will be used for this enrollment.
             </p>
             {!loadingStudentProfile && !isStudentProfileComplete && (
               <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800">
@@ -1105,27 +1079,6 @@ export default function NewEnrollment() {
         </section>
 
         {selectedInstructorData && (
-          <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-4">
-            <label className="text-sm font-medium" htmlFor="enrollment-room-first">Choose Room First</label>
-            <select
-              id="enrollment-room-first"
-              value={selectedRoom}
-              onChange={(event) => {
-                setSelectedRoom(event.target.value);
-                setSelectedAvailabilityIds([]);
-                setStartDate('');
-                setStartTime('');
-              }}
-              disabled={!selectedInstructorData.rooms?.length}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Select a room before choosing a schedule</option>
-              {(selectedInstructorData.rooms || []).map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
-            </select>
-          </div>
-        )}
-
-        {selectedInstructorData && selectedRoom && (
           <section className="rounded-xl border border-border bg-card p-5">
             <div className="mb-5">
               <h2 className="text-lg font-semibold">Choose Schedule</h2>
@@ -1324,29 +1277,55 @@ export default function NewEnrollment() {
                 </div>
               )}
 
-              <div className="hidden">
-                <label className="text-sm font-medium" htmlFor="enrollment-room">Choose Room First</label>
-                <select
-                  id="enrollment-room"
-                  value={selectedRoom}
-                  onChange={(event) => {
-                    setSelectedRoom(event.target.value);
-                    setSelectedAvailabilityIds([]);
-                    setStartDate('');
-                    setStartTime('');
-                  }}
-                  disabled={!selectedInstructorData?.rooms?.length}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">Select a room before choosing a schedule</option>
-                  {(selectedInstructorData?.rooms || []).map((room) => (
-                    <option key={room.id} value={room.id}>{room.name}</option>
-                  ))}
-                </select>
-                {!selectedInstructorData?.rooms?.length && <p className="text-sm text-destructive">No rooms are configured for this course.</p>}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
+                A suitable room will be assigned automatically based on your selected time and room availability.
               </div>
             </div>
           </section>
+        )}
+
+        {scheduleSelectionComplete && (
+        <section className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+          <h2 className="text-lg font-semibold">Review Enrollment Details</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Review the enrollment information before choosing payment.
+          </p>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Course / package</p>
+              <p className="mt-1 font-medium">{selectedPackage.name}</p>
+              <p className="text-sm text-muted-foreground">{selectedPackage.numberOfSessions} sessions · {selectedPackage.sessionDurationMinutes} minutes each</p>
+            </div>
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Instructor</p>
+              <p className="mt-1 font-medium">{selectedInstructorData.name}</p>
+              <p className="text-sm text-muted-foreground">{selectedInstructorData.email || 'Assigned instructor'}</p>
+            </div>
+            <div className="rounded-lg border bg-background p-3 sm:col-span-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Selected schedule</p>
+              <div className="mt-2 grid gap-1 text-sm">
+                {selectedAvailability.map((rule) => (
+                  <div key={rule.id} className="flex justify-between gap-3">
+                    <span>{formatDay(rule.dayOfWeek)}</span>
+                    <span className="font-medium">{formatTime(rule.startMinute)} - {formatTime(rule.startMinute + selectedPackage.sessionDurationMinutes)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">Start: {startDate} · End: {scheduleEndDate || 'Calculated after validation'}</p>
+            </div>
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Room assignment</p>
+              <p className="mt-1 font-medium">Automatic</p>
+              <p className="text-sm text-muted-foreground">A suitable available room is selected for each lesson time before payment.</p>
+            </div>
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Amounts</p>
+              <p className="mt-1 text-lg font-semibold">₱{Number(selectedPackage.price || selectedPackage.totalAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+              <p className="text-sm text-muted-foreground">50% down payment: ₱{(Number(selectedPackage.price || selectedPackage.totalAmount || 0) / 2).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+            </div>
+          </div>
+        </section>
         )}
 
         {scheduleSelectionComplete && (
@@ -1383,7 +1362,7 @@ export default function NewEnrollment() {
           </div>
 
           <div className="mt-4 space-y-2">
-            <label htmlFor="enrollment-payment-account" className="text-sm font-medium">Bank account for payment</label>
+            <label htmlFor="enrollment-payment-account" className="text-sm font-medium">Mode of payment</label>
             <select id="enrollment-payment-account" value={paymentAccountId} onChange={(event) => setPaymentAccountId(event.target.value)} disabled={submitting || paymentAccounts.length === 0} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="">{paymentAccounts.length ? 'Select an active bank account' : 'No active bank accounts available'}</option>
               {paymentAccounts.map((account) => <option key={account.id} value={account.id}>{account.bankName} · {account.accountNumber}</option>)}

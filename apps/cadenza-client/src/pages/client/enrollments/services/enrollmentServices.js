@@ -3,8 +3,8 @@ import { apiClient } from "@/core/api/apiClient";
 const unwrapData = (response, fallback) =>
   response?.data?.data ?? response?.data ?? response ?? fallback;
 
-export async function getAvailablePackages() {
-  const response = await apiClient.get('/enrollments/available-packages');
+export async function getAvailablePackages(customerId) {
+  const response = await apiClient.get(`/enrollments/available-packages${customerId ? `?customerId=${encodeURIComponent(customerId)}` : ''}`);
 
   const data = unwrapData(response, []);
 
@@ -17,10 +17,11 @@ export async function getMyEnrollment() {
   return unwrapData(response, null);
 }
 
-export async function getCompatibleInstructors(packageId, courseId) {
-  const query = courseId
-    ? `?courseId=${encodeURIComponent(courseId)}`
-    : '';
+export async function getCompatibleInstructors(packageId, courseId, customerId) {
+  const params = new URLSearchParams();
+  if (courseId) params.set('courseId', courseId);
+  if (customerId) params.set('customerId', customerId);
+  const query = params.toString() ? `?${params.toString()}` : '';
 
   const response = await apiClient.get(
     `/enrollments/packages/${packageId}/instructors${query}`,
@@ -36,8 +37,8 @@ export async function getCompatibleInstructors(packageId, courseId) {
  * loaded here, instead of making the page fetch it only after an instructor is
  * selected, so unavailable instructors never become selectable options.
  */
-export async function getEnrollmentOptions(packageId, courseId) {
-  const instructors = await getCompatibleInstructors(packageId, courseId);
+export async function getEnrollmentOptions(packageId, courseId, customerId) {
+  const instructors = await getCompatibleInstructors(packageId, courseId, customerId);
 
   const options = await Promise.all(
     instructors.map(async (instructor) => {
@@ -45,6 +46,9 @@ export async function getEnrollmentOptions(packageId, courseId) {
         packageId,
         instructor.id,
         courseId,
+        undefined,
+        undefined,
+        customerId,
       );
 
       return {
@@ -60,7 +64,7 @@ export async function getEnrollmentOptions(packageId, courseId) {
   return options.filter((instructor) => instructor.availability.length > 0);
 }
 
-export async function getInstructorAvailability(packageId, instructorId, courseId, startDate, roomId) {
+export async function getInstructorAvailability(packageId, instructorId, courseId, startDate, roomId, customerId) {
   const params = new URLSearchParams();
 
   if (courseId) {
@@ -71,6 +75,7 @@ export async function getInstructorAvailability(packageId, instructorId, courseI
     params.set('startDate', startDate);
   }
   if (roomId) params.set('roomId', roomId);
+  if (customerId) params.set('customerId', customerId);
 
   const query = params.toString() ? `?${params.toString()}` : '';
 

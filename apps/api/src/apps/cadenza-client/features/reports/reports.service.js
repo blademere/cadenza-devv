@@ -2,24 +2,36 @@ import { BadRequestError } from '../../../../common/errors/appError.js';
 import { reportsRepository } from './reports.repository.js';
 
 const REPORT_TYPES = new Set([
-  'enrollment-summary',
-  'billing-payments',
-  'instructor-assignments',
-  'studio-bookings',
-  'instrument-usage',
-  'lesson-progress',
+  'payment-sales', 'instrument-equipment', 'student-report', 'instructor-report',
+  'enrollment-report', 'cancellation-report', 'outstanding-balance', 'refund-report',
+  'attendance-report', 'room-utilization', 'student-progress',
   'dashboard-activity',
-  'revenue-sales',
-  'student-attendance',
-  'course-performance',
-  'rental-monitoring',
-  'cancellation-summary',
 ]);
+
+const REPORT_ALIASES = {
+  'payment-sales': 'revenue-sales',
+  'instrument-equipment': 'instrument-usage',
+  'student-report': 'enrollment-summary',
+  'instructor-report': 'instructor-assignments',
+  'enrollment-report': 'enrollment-summary',
+  'cancellation-report': 'cancellation-summary',
+  'outstanding-balance': 'billing-payments',
+  'refund-report': 'billing-payments',
+  'attendance-report': 'student-attendance',
+  'room-utilization': 'studio-bookings',
+  'student-progress': 'student-attendance',
+};
 
 const money = (amount) => `₱${Number(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
 const personName = (person) => [person?.firstName, person?.lastName].filter(Boolean).join(' ') || 'Unassigned';
 const dateTime = (value) => value ? new Date(value).toLocaleString('en-PH', { timeZone: 'Asia/Manila' }) : '—';
 const customerName = (item) => personName(item?.customer?.person);
+const paymentReference = (payment) => {
+  const method = String(payment?.method || payment?.provider || '').toUpperCase();
+  return method === 'CASH'
+    ? 'No reference (cash)'
+    : payment?.reference || payment?.providerReference || payment?.referenceId || payment?.id || '—';
+};
 const countBy = (items, getKey) => {
   const counts = new Map();
   items.forEach((item) => {
@@ -35,6 +47,7 @@ const packageCourses = (lessonPackage) => [
 
 const buildReport = async (appId, type, from, to) => {
   if (!REPORT_TYPES.has(type)) throw new BadRequestError('Unknown report type.');
+  type = REPORT_ALIASES[type] || type;
 
 
   if (type === 'revenue-sales') {
@@ -71,7 +84,7 @@ const buildReport = async (appId, type, from, to) => {
           money(payment.amount),
           payment.status,
           dateTime(payment.paidAt || payment.createdAt),
-          payment.reference || payment.providerReference || payment.referenceId || payment.id,
+          paymentReference(payment),
         ]),
       ],
     };
@@ -198,7 +211,7 @@ const buildReport = async (appId, type, from, to) => {
             money(payment.amount),
             parent ? money(parentBalance) : '—',
             parent ? parent.status : 'SUCCESSFUL',
-            `${payment.method} / ${payment.reference}`,
+            `${payment.method} / ${String(payment.method || '').toUpperCase() === 'CASH' ? 'No reference (cash)' : payment.reference || '—'}`,
             dateTime(payment.createdAt),
           ];
         }),

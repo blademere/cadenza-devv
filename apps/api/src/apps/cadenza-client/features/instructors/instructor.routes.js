@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { instructorController } from './instructor.controller.js';
 import {
   requireAdminOrFrontDesk,
+  requireAdmin,
 } from '../auth/authorization.js';
 
 const router = Router();
@@ -14,7 +15,7 @@ router.get(
 
 router.post(
   '/accounts',
-  requireAdminOrFrontDesk,
+  requireAdmin,
   instructorController.createInstructorAccount,
 );
 

@@ -71,6 +71,7 @@ const mapStudent = (student) => {
       ? 'AT_RISK'
       : student.status,
     isActive: student.person.isActive,
+    guardian: student.guardian ? { id: student.guardian.id, name: fullName(student.guardian.person) } : null,
     courses,
     instructors,
     enrollments: enrollments.map((enrollment) => ({
@@ -96,5 +97,10 @@ export const studentsService = {
   async getStudents(appId, filters = {}) {
     const result = await studentsRepository.findAll(appId, filters);
     return { ...result, items: result.items.map(mapStudent) };
+  },
+  async updateStatus(appId, studentId, status) {
+    const result = await studentsRepository.updateStatus(appId, studentId, status);
+    if (!result) throw new Error('Student account not found.');
+    return mapStudent(result);
   },
 };

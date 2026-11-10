@@ -162,16 +162,16 @@ const formatAccount = (account) => ({
 });
 
 const login = async (
-  { email, password },
+  { email, username, password },
   { requireActiveEnrollment = false } = {},
 ) => {
-  const normalizedEmail = email?.trim().toLowerCase();
+  const identifier = (email || username)?.trim().toLowerCase();
 
-  if (!normalizedEmail || !password) {
-    throw new BadRequestError('Email and password are required.');
+  if (!identifier || !password) {
+    throw new BadRequestError('Username/email and password are required.');
   }
 
-  const user = await cadenzaAuthRepository.findUserByEmail(normalizedEmail);
+  const user = await cadenzaAuthRepository.findUserByIdentifier(identifier);
 
   if (!user || !user.isActive) {
     throw new UnauthorizedError('Invalid credentials.');

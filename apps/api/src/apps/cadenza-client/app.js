@@ -26,6 +26,7 @@ import roomBookingsRoutes from './features/room-bookings/room-booking.routes.js'
 import enrollmentRoutes from './features/enrollments/enrollment.routes.js';
 import { requireAdminOrFrontDesk } from './features/auth/authorization.js';
 import { listCadenzaAudit } from './features/audit/cadenza-audit.service.js';
+import dependentsRoutes from './features/dependents/dependents.routes.js';
 
 const router = express.Router();
 
@@ -62,6 +63,7 @@ router.use('/instructors', frontDeskInstructorRoutes);
 //client routes
 router.use('/room-bookings', roomBookingsRoutes);
 router.use('/enrollments', enrollmentRoutes);
+router.use('/dependents', dependentsRoutes);
 
 router.get('/audit', requireAdminOrFrontDesk, async (req, res, next) => {
   try {

@@ -11,6 +11,8 @@ const formatTime = (value) => value ? new Date(value).toLocaleTimeString('en-PH'
 const formatDay = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'short', day: 'numeric' }) : 'Schedule pending';
 const formatPaymentDate = (value) => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date pending';
 const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const MARKED_STATUSES = ['PRESENT', 'ABSENT', 'EXCUSED', 'EXCUSE', 'LATE', 'COMPLETED', 'ATTENDED', 'NO_SHOW'];
+const isMarked = (lesson) => MARKED_STATUSES.includes(String(lesson.attendance?.status || lesson.status || '').toUpperCase()) || lesson.rescheduled === true;
 
 export default function StudentDashboard() {
   const { data, loading, error, refresh } = useMobileResource(getStudentDashboard);
@@ -36,7 +38,7 @@ export default function StudentDashboard() {
     const payment = enrollment.payment || {};
     return Number(payment.remainingBalance || 0) > 0 && payment.paymentStatus !== 'PAID';
   });
-  const upcomingClasses = (data?.upcomingClasses || []).filter((lesson) => lesson.courseName === activeCourseName).sort((first, second) => new Date(first.scheduledStart) - new Date(second.scheduledStart));
+  const upcomingClasses = (data?.upcomingClasses || []).filter((lesson) => lesson.courseName === activeCourseName && !isMarked(lesson)).sort((first, second) => new Date(first.scheduledStart) - new Date(second.scheduledStart));
   const nextLesson = upcomingClasses.find((lesson) => !lesson.scheduledStart || new Date(lesson.scheduledStart) >= new Date()) || upcomingClasses[0];
 
   return (

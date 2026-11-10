@@ -6,11 +6,13 @@ import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/Input';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService, getGoogleOAuthUrl } from '@/services/auth/authService';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { AuthContext } from '@/core/auth/AuthContext';
 import { Eye, EyeOff, UserRound, UsersRound } from 'lucide-react';
 
 export function LoginForm({ className, audience = 'client', ...props }) {
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,10 +32,13 @@ export function LoginForm({ className, audience = 'client', ...props }) {
     setIsLoading(true);
 
     try {
-      await authService.requestOtp({ email, password, purpose: 'login' });
-      navigate('/signup/verify', {
-        state: { email, purpose: 'login', audience },
-      });
+      if (email.includes('@')) {
+        await authService.requestOtp({ email, password, purpose: 'login' });
+        navigate('/signup/verify', { state: { email, purpose: 'login', audience } });
+      } else {
+        const authData = await login({ username: email, password });
+        navigate(authData.account?.type === 'STAFF' ? '/staff' : '/client');
+      }
     } catch (requestError) {
       setError('Invalid Credentials');
     } finally {
@@ -63,12 +68,12 @@ export function LoginForm({ className, audience = 'client', ...props }) {
               </div>
 
               <Field>
-                  <FieldLabel htmlFor="login-email">{audience === 'staff' ? 'Staff ID or Email' : 'Email'}</FieldLabel>
+                  <FieldLabel htmlFor="login-email">{audience === 'staff' ? 'Email' : 'Email or username'}</FieldLabel>
                   <Input
                   id="login-email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="m@example.com"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="m@example.com or username"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required

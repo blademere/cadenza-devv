@@ -4,6 +4,8 @@ model Person {
   firstName                 String
   middleName                String?
   lastName                  String
+  age                       Int?
+  gender                    String?
   suffix                    String?
   email                     String?
   phone                     String?

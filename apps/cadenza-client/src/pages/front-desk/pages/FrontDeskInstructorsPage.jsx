@@ -198,7 +198,7 @@ const statusDotClass = (status) =>
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
 
-export default function InstructorsPage() {
+export default function InstructorsPage({ allowCreate = false }) {
   const [instructors, setInstructors] = useState([]);
   const [courses, setCourses] = useState([]);
 
@@ -833,10 +833,10 @@ export default function InstructorsPage() {
                 <RefreshCwIcon className="mr-2 size-4" />
                 Refresh
               </Button>
-              <Button size="lg" onClick={handleAddInstructor}>
+              {allowCreate && <Button size="lg" onClick={handleAddInstructor}>
                 <PlusIcon className="mr-2 h-4 w-4" />
                 Add Instructor
-              </Button>
+              </Button>}
             </div>
           </div>
 

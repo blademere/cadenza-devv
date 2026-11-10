@@ -79,10 +79,13 @@ function mapSession(session) {
           markedAt: session.attendance.markedAt,
         }
       : null,
-    scheduleRequest: session.metadata?.rescheduled !== true && session.rescheduleRequests?.[0]?.status === 'PENDING'
+    scheduleRequest: session.metadata?.rescheduled !== true && session.rescheduleRequests?.[0]
       ? {
           id: session.rescheduleRequests[0].id,
           status: session.rescheduleRequests[0].status,
+          reason: session.rescheduleRequests[0].reason,
+          rejectionReason: session.rescheduleRequests[0].metadata?.rejectionReason || null,
+          reviewedAt: session.rescheduleRequests[0].reviewedAt,
           requestedStart: session.rescheduleRequests[0].requestedStart,
           requestedEnd: session.rescheduleRequests[0].requestedEnd,
           status: session.rescheduleRequests[0].status,
@@ -119,7 +122,7 @@ async function findSessions(req) {
         },
       },
       room: { select: { resourceId: true, roomType: true } },
-      rescheduleRequests: { where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' }, take: 1 },
+      rescheduleRequests: { where: { status: { in: ['PENDING', 'REJECTED'] } }, orderBy: { createdAt: 'desc' }, take: 1 },
     },
     orderBy: { scheduledStart: 'asc' },
   });

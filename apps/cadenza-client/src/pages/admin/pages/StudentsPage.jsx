@@ -18,7 +18,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { getStudents } from '@/services/admin/studentService';
+import { getStudents, updateStudentStatus } from '@/services/admin/studentService';
 import { enrollmentService } from '@/services/front-desk/enrollmentService';
 
 import {
@@ -103,6 +103,7 @@ export default function StudentsPage() {
   const [updatingEnrollmentId, setUpdatingEnrollmentId] = useState(null);
   const [notifyingEnrollmentId, setNotifyingEnrollmentId] = useState(null);
   const [pendingEnrollmentAction, setPendingEnrollmentAction] = useState(null);
+  const [pendingAccountAction, setPendingAccountAction] = useState(null);
 
   const loadStudents = useCallback(async () => {
     let isMounted = true;
@@ -210,6 +211,17 @@ export default function StudentsPage() {
     } finally {
       setNotifyingEnrollmentId(null);
     }
+  };
+
+  const confirmAccountAction = async () => {
+    const action = pendingAccountAction;
+    setPendingAccountAction(null);
+    if (!action) return;
+    try {
+      await updateStudentStatus(action.student.id, action.status);
+      setStudents((current) => current.map((student) => student.id === action.student.id ? { ...student, status: action.status } : student));
+      toast.success(`Student account ${action.status === 'ACTIVE' ? 'activated' : 'deactivated'} successfully.`);
+    } catch (requestError) { toast.error(getErrorMessage(requestError)); }
   };
 
   const confirmEnrollmentAction = async () => {
@@ -412,6 +424,9 @@ export default function StudentsPage() {
                                   >
                                     <UserIcon className="size-4" />
                                     Student Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="cursor-pointer" onClick={() => setPendingAccountAction({ student, status: student.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' })}>
+                                    {student.status === 'ACTIVE' ? 'Deactivate client account' : 'Activate client account'}
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -684,6 +699,23 @@ export default function StudentsPage() {
             <Button type="button" onClick={confirmEnrollmentAction}>
               {pendingEnrollmentAction?.type === 'notify' ? 'Send notification' : 'Confirm change'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(pendingAccountAction)} onOpenChange={(open) => !open && setPendingAccountAction(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{pendingAccountAction?.status === 'ACTIVE' ? 'Activate client account?' : 'Deactivate client account?'}</DialogTitle>
+            <DialogDescription>
+              {pendingAccountAction?.status === 'ACTIVE'
+                ? `This will allow ${getStudentDisplayName(pendingAccountAction?.student)} to sign in again.`
+                : `This will prevent ${getStudentDisplayName(pendingAccountAction?.student)} from signing in. Their records will be preserved.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPendingAccountAction(null)}>Cancel</Button>
+            <Button type="button" variant={pendingAccountAction?.status === 'ACTIVE' ? 'default' : 'destructive'} onClick={confirmAccountAction}>Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

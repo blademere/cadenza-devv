@@ -567,6 +567,8 @@ export default function ClassSchedule() {
 
   const [finalSchedule, setFinalSchedule] = useState(null);
   const [confirmedSchedule, setConfirmedSchedule] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectingReschedule, setRejectingReschedule] = useState(false);
   const [emergencySaving, setEmergencySaving] = useState(false);
   const [emergencySaveError, setEmergencySaveError] = useState('');
 
@@ -1111,6 +1113,25 @@ export default function ClassSchedule() {
     navigate('/front-desk/schedule');
   };
 
+  const rejectSelectedReschedule = async () => {
+    const reason = rejectionReason.trim();
+    if (reason.length < 3) {
+      toast.error('Enter a rejection reason before rejecting this request.');
+      return;
+    }
+    setRejectingReschedule(true);
+    try {
+      await apiClient.post(`/enrollments/${selectedRequest.id}/reject-reschedule`, { reason });
+      toast.success('Reschedule request rejected.');
+      resetReschedule();
+      navigate('/front-desk/schedule');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message || 'Unable to reject the reschedule request.');
+    } finally {
+      setRejectingReschedule(false);
+    }
+  };
+
   const resetReschedule = () => {
     setSelectedRequest(null);
     setSelectedClass(null);
@@ -1120,6 +1141,7 @@ export default function ClassSchedule() {
     setInstructorChoices([]);
     setFinalSchedule(null);
     setConfirmedSchedule(null);
+    setRejectionReason('');
     setStudentApproved(false);
     setInstructorApproved(false);
     setNoMatchNotificationSent(false);
@@ -1832,6 +1854,32 @@ export default function ClassSchedule() {
                     {!selectedRequest.instructorChoices?.length && <p className="mt-1 text-sm text-muted-foreground">Waiting for the instructor to submit choices.</p>}
                     <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Selected schedules</p><p className="mt-1 font-medium">{selectedRequest.instructorChoices?.length ? selectedRequest.instructorChoices.map((id) => selectedRequest.generatedOptions?.find((option) => option.id === id)).filter(Boolean).map((option) => `${option.date} · ${option.time}`).join(', ') : 'Not submitted'}</p></div>
                   </div>}
+
+                  {!centerReschedule && !confirmedSchedule && (
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
+                      <p className="font-semibold">Review Reschedule Request</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Approve the selected schedule below, or reject this request when the reason is invalid.
+                      </p>
+                      <textarea
+                        value={rejectionReason}
+                        onChange={(event) => setRejectionReason(event.target.value)}
+                        placeholder="Required only when rejecting"
+                        maxLength={500}
+                        rows={3}
+                        className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      />
+                      <div className="mt-3 flex justify-end">
+                        <Button
+                          variant="destructive"
+                          disabled={rejectingReschedule || rejectionReason.trim().length < 3}
+                          onClick={rejectSelectedReschedule}
+                        >
+                          {rejectingReschedule ? 'Rejecting...' : 'Reject Request'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {centerReschedule && !generated && (
                     <div className="rounded-xl border bg-background p-5">

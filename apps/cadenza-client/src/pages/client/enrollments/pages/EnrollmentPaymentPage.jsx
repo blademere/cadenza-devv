@@ -71,6 +71,7 @@ export default function EnrollmentPaymentPage() {
       const enrollment = await createEnrollment({
         lessonPackageId: checkout.lessonPackageId,
         sessions: checkout.sessions,
+        enrollmentForCustomerId: checkout.enrollmentForCustomerId,
         metadata: paymentMetadata,
       });
 

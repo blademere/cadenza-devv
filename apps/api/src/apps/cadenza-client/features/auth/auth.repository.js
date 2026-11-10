@@ -14,6 +14,11 @@ export const cadenzaAuthRepository = {
     });
   },
 
+  async findUserByIdentifier(identifier) {
+    const value = String(identifier).trim();
+    return prisma.user.findFirst({ where: { OR: [{ email: { equals: value, mode: 'insensitive' } }, { username: { equals: value, mode: 'insensitive' } }] } });
+  },
+
   async findApplication() {
     return prisma.app.findUnique({
       where: {

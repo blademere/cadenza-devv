@@ -7,6 +7,8 @@ import RescheduleRequestButton from '../../components/common/RescheduleRequestBu
 import { getInstructorSchedule } from '../../services/instructor.service';
 
 const ACCENT = '#0C447C';
+const MARKED_STATUSES = ['PRESENT', 'ABSENT', 'EXCUSED', 'EXCUSE', 'LATE', 'COMPLETED', 'ATTENDED', 'NO_SHOW'];
+const isClosed = (item) => MARKED_STATUSES.includes(String(item.attendance?.status || item.status || '').toUpperCase()) || item.rescheduled === true;
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'short', day: 'numeric' }) : 'Date pending';
@@ -56,6 +58,7 @@ export default function SchedulePage() {
   ).values()].sort((first, second) => first.name.localeCompare(second.name)), [schedules]);
   const filteredSchedules = useMemo(
     () => schedules.filter((item) => {
+      if (isClosed(item)) return false;
       const matchesCourse = selectedCourse === 'ALL' || (item.courseId || item.courseName || item.lesson) === selectedCourse;
       const matchesStudent = selectedStudent === 'ALL' || (item.studentId || item.studentName || item.student) === selectedStudent;
       return matchesCourse && matchesStudent;
@@ -116,7 +119,7 @@ export default function SchedulePage() {
                   {item.students.map((studentName) => <Text key={studentName} className="mb-1 text-sm text-gray-600">• {studentName}</Text>)}
                 </View>
                 {item.room?.name && <Text className="mt-2 text-sm text-gray-600">Room: {item.room.name}</Text>}
-                {item.rescheduled ? <Text className="mt-4 self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">Re-scheduled</Text> : item.hasSavedRequest ? <Text className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">Reschedule request saved: {item.scheduleRequest?.status || 'SUBMITTED'}. Front Desk will review it.</Text> : <RescheduleRequestButton sessionId={item.id} lesson={item.lesson || 'Lesson'} scheduledStart={item.scheduledStart} />}
+                {item.rescheduled ? <Text className="mt-4 self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">Re-scheduled</Text> : item.scheduleRequest?.status === 'REJECTED' ? <Text className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">Reschedule request rejected: {item.scheduleRequest.rejectionReason || item.scheduleRequest.reason || 'No reason provided.'}</Text> : item.hasSavedRequest ? <Text className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">Reschedule request saved: {item.scheduleRequest?.status || 'SUBMITTED'}. Front Desk will review it.</Text> : <RescheduleRequestButton sessionId={item.id} lesson={item.lesson || 'Lesson'} scheduledStart={item.scheduledStart} />}
               </View>
             ))}
           </View>

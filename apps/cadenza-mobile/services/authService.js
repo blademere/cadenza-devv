@@ -55,8 +55,9 @@ export async function login(email, password) {
     return createMockInstructorSession();
   }
 
+  const identifier = email.trim();
   const response = await api.post('/auth/login', {
-    email,
+    ...(identifier.includes('@') ? { email: identifier } : { username: identifier }),
     password,
   });
 

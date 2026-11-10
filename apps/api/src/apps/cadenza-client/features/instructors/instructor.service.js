@@ -191,12 +191,6 @@ export const instructorService = {
       ? [...new Set(data.courseIds.filter(Boolean))]
       : [];
 
-    if (courseIds.length === 0) {
-      throw new BadRequestError(
-        'At least one course specialization is required.',
-      );
-    }
-
     const courses = await prisma.cadenzaCourse.findMany({
       where: {
         appId,

@@ -569,7 +569,7 @@ export default function FrontDeskStudentsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Student</TableHead>
+                      <TableHead>Student / Guardian</TableHead>
                       <TableHead>Courses</TableHead>
                       <TableHead>Instructor</TableHead>
                       <TableHead>Assigned Room</TableHead>
@@ -596,7 +596,8 @@ export default function FrontDeskStudentsPage() {
                         <TableRow key={student.id}>
                           <TableCell>
                             <div className="font-medium">
-                              {studentName(student)}
+                            <div>{studentName(student)}</div>
+                            {student.guardian ? <div className="text-xs text-muted-foreground">Guardian: {student.guardian.name}</div> : null}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               {student.email || '—'}

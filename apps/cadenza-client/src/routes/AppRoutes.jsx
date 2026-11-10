@@ -49,6 +49,7 @@ import BillingPayments from '@/pages/front-desk/pages/FrontDeskBillingPayments';
 import ClientPageLayout from '@/pages/client/layouts/ClientPageLayout';
 import ClientDashboard from '@/pages/client/dashboard/pages/Dashboard';
 import { ClientProfile } from '@/pages/client/profile';
+import Dependents from '@/pages/client/dependents/pages/Dependents';
 import { ClientNotifications } from '@/pages/client/notifications';
 import {
   Enrollments,
@@ -101,7 +102,7 @@ export default function AppRoutes() {
           <Route index element={<DashboardPage />} />
 
           <Route path="students" element={<StudentsPage />} />
-          <Route path="instructors" element={<InstructorsPage />} />
+          <Route path="instructors" element={<Navigate to="/admin/users" replace />} />
           <Route path="courses" element={<CoursesPage />} />
           <Route path="enrollments" element={<EnrollmentsPage />} />
           <Route path="schedule" element={<ClassSchedulePage />} />
@@ -177,6 +178,7 @@ export default function AppRoutes() {
           <Route index element={<ClientDashboard />} />
 
           <Route path="profile" element={<ClientProfile />} />
+          <Route path="children" element={<Dependents />} />
           <Route path="notifications" element={<ClientNotifications />} />
 
           <Route path="enrollments" element={<Enrollments />} />

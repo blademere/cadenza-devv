@@ -32,6 +32,7 @@ export const studentsRepository = {
             isActive: true,
           },
         },
+        guardian: { include: { person: { select: { firstName: true, middleName: true, lastName: true } } } },
         enrollments: {
           where: {
             status: { in: ['ACTIVE', 'AT_RISK', 'APPROVED'] },
@@ -80,5 +81,10 @@ export const studentsRepository = {
       }),
       count: () => prisma.cadenzaCustomer.count({ where }),
     });
+  },
+  async updateStatus(appId, id, status) {
+    const result = await prisma.cadenzaCustomer.updateMany({ where: { id, appId }, data: { status } });
+    if (!result.count) return null;
+    return prisma.cadenzaCustomer.findFirst({ where: { id, appId }, include: { person: true, enrollments: true } });
   },
 };

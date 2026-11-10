@@ -49,11 +49,6 @@ const data = {
       icon: <GraduationCapIcon />,
     },
     {
-      title: "Instructors",
-      url: "/admin/instructors",
-      icon: <UsersIcon />,
-    },
-    {
       title: "Courses",
       url: "/admin/courses",
       icon: <MusicIcon />,

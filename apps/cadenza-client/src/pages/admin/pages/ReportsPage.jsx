@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import * as XLSX from 'xlsx';
 import {
   ActivityIcon, BarChart3Icon, BookOpenCheckIcon, CalendarDaysIcon,
   CreditCardIcon, GraduationCapIcon, GuitarIcon, PrinterIcon,
@@ -23,17 +24,17 @@ const CATEGORIES = [
 ];
 
 const REPORTS = [
-  { id: 'revenue-sales', title: 'Cashflow', description: 'Money received and cash inflow by transaction type.', category: 'financial', icon: WalletIcon },
-  { id: 'billing-payments', title: 'Payment Reports', description: 'Billed amounts, confirmed payments, pending payments and outstanding balances.', category: 'financial', icon: CreditCardIcon },
-  { id: 'enrollment-summary', title: 'Enrollment Summary', description: 'Enrollment totals, statuses and course demand.', category: 'students', icon: GraduationCapIcon },
-  { id: 'student-attendance', title: 'Lesson & Attendance', description: 'Scheduled lessons, attendance records and attendance rates.', category: 'students', icon: UsersIcon },
-  { id: 'lesson-progress', title: 'Lesson Progress', description: 'Completed lessons and students needing follow-up.', category: 'students', icon: BookOpenCheckIcon },
-  { id: 'course-performance', title: 'Course Performance', description: 'Enrollments by course.', category: 'students', icon: BarChart3Icon },
-  { id: 'instrument-usage', title: 'Instrument Usage', description: 'Instrument rental volume and popular items.', category: 'rentals', icon: GuitarIcon },
-  { id: 'rental-monitoring', title: 'Rentals Reports', description: 'Rental volume, active rentals, returns, overdue rentals and value.', category: 'rentals', icon: ActivityIcon },
-  { id: 'studio-bookings', title: 'Bookings Reports', description: 'Room booking volume, approvals, cancellations and usage.', category: 'rentals', icon: CalendarDaysIcon },
-  { id: 'instructor-assignments', title: 'Instructor Assignments', description: 'Assigned teaching sessions and courses by instructor.', category: 'instructors', icon: UsersIcon },
-  { id: 'cancellation-summary', title: 'Cancellations & Exceptions', description: 'Cancelled enrollments, room bookings and instrument rentals for operational follow-up.', category: 'operations', icon: AlertCircleIcon },
+  { id: 'payment-sales', title: 'Payment and Sales Report', description: 'Payments received by service, client, method, status, and date.', category: 'financial', icon: WalletIcon },
+  { id: 'instrument-equipment', title: 'Instrument and Equipment Report', description: 'Inventory condition, availability, usage, and rental income.', category: 'rentals', icon: GuitarIcon },
+  { id: 'student-report', title: 'Student Report', description: 'Students, guardians, contacts, courses, instructors, and status.', category: 'students', icon: UsersIcon },
+  { id: 'instructor-report', title: 'Instructor List Report', description: 'Instructor courses, scheduled lessons, students, and status.', category: 'instructors', icon: UsersIcon },
+  { id: 'enrollment-report', title: 'Enrollment Report', description: 'Enrollment details, payment status, and enrollment status.', category: 'students', icon: GraduationCapIcon },
+  { id: 'cancellation-report', title: 'Cancellation Report', description: 'Cancelled services, reasons, payments, and refunds.', category: 'operations', icon: AlertCircleIcon },
+  { id: 'outstanding-balance', title: 'Outstanding Balance Report', description: 'Balances remaining by client and service.', category: 'financial', icon: CreditCardIcon },
+  { id: 'refund-report', title: 'Refund Report', description: 'Refund transactions and processing details.', category: 'financial', icon: CreditCardIcon },
+  { id: 'attendance-report', title: 'Attendance Report', description: 'Lesson attendance, rescheduling, and remarks.', category: 'students', icon: CalendarDaysIcon },
+  { id: 'room-utilization', title: 'Room Utilization Report', description: 'Room bookings, hours, utilization, and income.', category: 'operations', icon: CalendarDaysIcon },
+  { id: 'student-progress', title: 'Student Progress Report', description: 'Summary and lesson-level progress by student and course.', category: 'students', icon: BookOpenCheckIcon },
 ];
 
 const dateValue = (date) => {
@@ -135,6 +136,18 @@ export default function ReportsPage() {
     setEndDate(dateValue(end));
   };
   const generatedAt = new Date().toLocaleString('en-PH');
+  const exportExcel = () => {
+    const columns = Array.isArray(reportData?.columns) ? reportData.columns : [];
+    const rows = Array.isArray(reportData?.rows) ? reportData.rows : [];
+    if (!columns.length || !rows.length) return;
+    const worksheet = XLSX.utils.aoa_to_sheet([columns, ...rows]);
+    worksheet['!cols'] = columns.map((column, index) => ({
+      wch: Math.min(40, Math.max(String(column).length + 2, ...rows.map((row) => String(row?.[index] ?? '').length + 2))),
+    }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+    XLSX.writeFile(workbook, `${selectedReport.title.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()}-${startDate}-to-${endDate}.xlsx`);
+  };
   const summary = overview?.summary || {};
   const kpis = [
     { label: 'Total revenue collected', value: peso(summary.successfulPaymentAmount), icon: WalletIcon },
@@ -212,9 +225,14 @@ export default function ReportsPage() {
               <h2 className="text-lg font-semibold">Report preview</h2>
               <p className="text-sm text-muted-foreground">Select a report above to preview or print it using the existing PDF layout.</p>
             </div>
-            <Button onClick={() => { setPrinting(true); requestAnimationFrame(() => window.print()); }} disabled={printing || reportLoading || Boolean(error) || !reportData || !dateValid}>
-              <PrinterIcon className="mr-2 size-4" /> Print / Save PDF
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={exportExcel} disabled={reportLoading || Boolean(error) || !reportData || !dateValid}>
+                Export Excel
+              </Button>
+              <Button onClick={() => { setPrinting(true); requestAnimationFrame(() => window.print()); }} disabled={printing || reportLoading || Boolean(error) || !reportData || !dateValid}>
+                <PrinterIcon className="mr-2 size-4" /> Print / Save PDF
+              </Button>
+            </div>
           </div>
           <ReportsPageLayout
             report={selectedReport}

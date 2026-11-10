@@ -342,7 +342,7 @@ export default function CreateRoomBooking() {
     }
 
     if (!paymentAccountId) {
-      setError('Please select a bank account for payment.');
+      setError('Please select a mode of payment.');
       return;
     }
 
@@ -731,7 +731,7 @@ export default function CreateRoomBooking() {
               </div>
 
               <div className="mt-4 space-y-2">
-                <label htmlFor="room-payment-account" className="text-sm font-medium">Bank account for payment</label>
+                <label htmlFor="room-payment-account" className="text-sm font-medium">Mode of payment</label>
                 <select id="room-payment-account" value={paymentAccountId} onChange={(event) => setPaymentAccountId(event.target.value)} disabled={submitting || paymentAccounts.length === 0} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                   <option value="">{paymentAccounts.length ? 'Select an active bank account' : 'No active bank accounts available'}</option>
                   {paymentAccounts.map((account) => <option key={account.id} value={account.id}>{account.bankName} · {account.accountNumber}</option>)}

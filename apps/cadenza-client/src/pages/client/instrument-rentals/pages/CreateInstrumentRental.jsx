@@ -516,7 +516,7 @@ export default function CreateInstrumentRental() {
       return;
     }
     if (!paymentAccountId) {
-      setError('Please select a bank account for payment.');
+      setError('Please select a mode of payment.');
       return;
     }
 
@@ -1225,7 +1225,7 @@ export default function CreateInstrumentRental() {
 
             <div className="mt-4 space-y-2">
               <label htmlFor="rental-payment-account" className="text-sm font-medium">
-                Bank account for payment
+                Mode of payment
               </label>
               <select
                 id="rental-payment-account"

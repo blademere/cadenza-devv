@@ -1,5 +1,6 @@
 import { enrollmentService } from './enrollment.service.js';
 import { broadcastEnrollmentsChanged } from '../../../../platform/websocket/enrollments.socket.js';
+import { resolveEnrollmentCustomer } from '../dependents/dependents.service.js';
 
 export const enrollmentController = {
   async emergencyReschedule(req, res, next) {
@@ -23,6 +24,12 @@ export const enrollmentController = {
     try {
       const result = await enrollmentService.confirmReschedule(req.cadenzaApp.id, req.params.id, req.body?.option);
       return res.json({ success: true, message: 'Matching schedule confirmed.', data: result });
+    } catch (error) { next(error); }
+  },
+  async rejectReschedule(req, res, next) {
+    try {
+      const result = await enrollmentService.rejectReschedule(req.cadenzaApp.id, req.params.id, req.cadenzaStaff?.personId, req.body?.reason);
+      return res.json({ success: true, message: 'Reschedule request rejected.', data: result });
     } catch (error) { next(error); }
   },
   async assignRoom(req, res, next) {
@@ -74,7 +81,7 @@ export const enrollmentController = {
     try {
       const packages = await enrollmentService.getAvailablePackages(
         req.cadenzaApp.id,
-        req.cadenzaCustomer.id,
+        await resolveEnrollmentCustomer(req, req.query.customerId),
       );
 
       return res.json({
@@ -92,7 +99,7 @@ export const enrollmentController = {
         req.cadenzaApp.id,
         req.params.packageId,
         req.query.courseId,
-        req.cadenzaCustomer.id,
+        await resolveEnrollmentCustomer(req, req.query.customerId),
       );
 
       return res.json({
@@ -113,7 +120,7 @@ export const enrollmentController = {
         req.query.courseId,
         req.query.roomId,
         req.query.startDate,
-        req.cadenzaCustomer.id,
+        await resolveEnrollmentCustomer(req, req.query.customerId),
       );
 
       return res.json({
@@ -129,7 +136,7 @@ export const enrollmentController = {
     try {
       const enrollment = await enrollmentService.createEnrollment(
         req.cadenzaApp.id,
-        req.cadenzaCustomer.id,
+        await resolveEnrollmentCustomer(req, req.body?.enrollmentForCustomerId || req.body?.metadata?.enrollmentForCustomerId),
         req.body,
       );
       broadcastEnrollmentsChanged();
@@ -149,7 +156,7 @@ export const enrollmentController = {
       const result = await enrollmentService.validateSchedule(
         req.cadenzaApp.id,
         req.body,
-        req.cadenzaCustomer.id,
+        await resolveEnrollmentCustomer(req, req.body?.enrollmentForCustomerId || req.body?.metadata?.enrollmentForCustomerId),
       );
 
       return res.json({ success: true, data: result });

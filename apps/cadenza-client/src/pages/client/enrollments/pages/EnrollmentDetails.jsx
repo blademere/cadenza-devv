@@ -84,7 +84,10 @@ export default function EnrollmentDetails() {
   const firstSession = enrollment.sessions?.[0];
   const paymentMetadata = enrollment.metadata || {};
   const startDate = firstSession?.scheduledStart
-    ? new Date(firstSession.scheduledStart).toLocaleDateString()
+    ? new Date(firstSession.scheduledStart).toLocaleString('en-PH', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+      })
     : "Not scheduled";
   const submittedAt = enrollment.createdAt
     ? new Date(enrollment.createdAt).toLocaleString()
@@ -172,7 +175,7 @@ export default function EnrollmentDetails() {
 
             <div>
               <p className="text-xs text-muted-foreground">
-                Preferred Start Date
+                Preferred Start Date & Time
               </p>
 
               <p className="font-medium">{startDate}</p>

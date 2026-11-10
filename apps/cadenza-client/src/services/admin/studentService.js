@@ -20,3 +20,9 @@ export async function getStudents(params = {}) {
   };
   return Object.keys(params).length ? result : result.items;
 }
+
+export async function updateStudentStatus(id, status) {
+  const response = await apiClient.patch(`${STUDENTS_ENDPOINT}/${id}/status`, { status });
+  const payload = unwrap(response);
+  return payload?.data ?? payload;
+}

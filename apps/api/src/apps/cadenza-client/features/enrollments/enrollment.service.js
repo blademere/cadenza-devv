@@ -507,6 +507,30 @@ export const enrollmentService = {
     }
     return result;
   },
+  async rejectReschedule(appId, requestId, reviewedByPersonId, reason) {
+    const normalizedReason = typeof reason === 'string' ? reason.trim() : '';
+    if (normalizedReason.length < 3) throw new BadRequestError('A rejection reason is required.');
+    if (normalizedReason.length > 500) throw new BadRequestError('The rejection reason must be 500 characters or fewer.');
+    const request = await enrollmentRepository.findRescheduleRequestById(appId, requestId);
+    if (!request) throw new NotFoundError('Pending reschedule request not found.');
+    const result = await enrollmentRepository.rejectReschedule(appId, requestId, reviewedByPersonId, normalizedReason);
+    if (!result) throw new ConflictError('This reschedule request has already been reviewed.');
+    const recipients = [
+      { userId: request.session?.enrollment?.customer?.person?.userId, route: '/student/schedule' },
+      { userId: request.session?.instructor?.person?.userId, route: '/instructor/schedule' },
+    ].filter((recipient) => recipient.userId);
+    for (const recipient of recipients) {
+      await sendNotification({
+        userId: recipient.userId,
+        type: 'RESCHEDULE_REJECTED',
+        title: 'Reschedule request rejected',
+        message: `The reschedule request was rejected: ${normalizedReason}`,
+        data: { route: recipient.route, requestId, sessionId: request.sessionId, reason: normalizedReason },
+        channels: ['IN_APP'],
+      });
+    }
+    return result;
+  },
   async getRescheduleRequests(appId) {
     const requests = await enrollmentRepository.findRescheduleRequests(appId);
     const todayInManila = new Date(new Intl.DateTimeFormat('en-CA', {
@@ -1079,15 +1103,19 @@ export const enrollmentService = {
   ) {
     const customer = await enrollmentRepository.findCustomerProfile(appId, customerId);
     const person = customer?.person;
-    const details = person?.metadata?.studentDetails || {};
-    const address = typeof person?.address === 'string'
+    const submittedDetails = data.metadata?.studentDetails || {};
+    const details = { ...(person?.metadata?.studentDetails || {}), ...submittedDetails };
+    const submittedAddress = submittedDetails.address;
+    const address = submittedAddress || (typeof person?.address === 'string'
       ? person.address
-      : person?.address?.line1 || person?.address?.fullAddress || '';
+      : person?.address?.line1 || person?.address?.fullAddress || '');
+    const contactPhone = submittedDetails.contactNo || person?.phone;
+    const contactEmail = submittedDetails.email || person?.user?.email || person?.email;
     if (
       !person?.firstName?.trim() ||
       !person?.lastName?.trim() ||
-      !(person?.user?.email || person?.email)?.trim() ||
-      !person?.phone?.trim() ||
+      !contactEmail?.trim() ||
+      !contactPhone?.trim() ||
       !String(address).trim() ||
       !Number.isFinite(Number(details.age)) ||
       Number(details.age) <= 0 ||

@@ -2,9 +2,10 @@ import { z } from 'zod'
 
 const loginSchema = z.object({
   body: z.object({
-    email: z.email().trim().toLowerCase(),
+    email: z.email().trim().toLowerCase().optional(),
+    username: z.string().trim().min(1).max(100).optional(),
     password: z.string().min(8).max(72),
-  }),
+  }).refine((data) => data.email || data.username, { message: 'Email or username is required.' }),
 })
 const registrationSchema = z.object({
   body: z.object({

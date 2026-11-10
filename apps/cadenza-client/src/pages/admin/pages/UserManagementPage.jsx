@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MoreHorizontalIcon, PlusIcon, RefreshCwIcon } from 'lucide-react';
 
 import { AppSidebar } from '../components/app-sidebar';
@@ -43,8 +44,9 @@ import {
 } from '@/components/ui/Table';
 
 import { staffService } from '@/services/admin/staffService';
+import { createInstructorAccount } from '@/services/admin/instructorService';
 
-const STAFF_TYPES = ['FRONT_DESK'];
+const STAFF_TYPES = ['ADMIN', 'FRONT_DESK', 'INSTRUCTOR', 'CLIENT'];
 const STAFF_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
 
 const emptyForm = {
@@ -54,6 +56,7 @@ const emptyForm = {
   phone: '',
   password: '',
   staffType: 'FRONT_DESK',
+  employmentType: 'FULL_TIME',
   status: 'ACTIVE',
 };
 
@@ -89,6 +92,7 @@ const getStatusVariant = (status) =>
       : 'secondary';
 
 export default function UserManagementPage() {
+  const navigate = useNavigate();
   const [staff, setStaff] = useState([]);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -146,6 +150,7 @@ export default function UserManagementPage() {
       phone: user.person?.phone || '',
       password: '',
       staffType: user.staffType || 'FRONT_DESK',
+      employmentType: user.metadata?.employmentType || 'FULL_TIME',
       status: user.status || 'ACTIVE',
     });
     setError('');
@@ -225,7 +230,17 @@ export default function UserManagementPage() {
           status: form.status,
         });
       } else {
-        await staffService.createStaffAccount({
+        if (form.staffType === 'INSTRUCTOR') {
+          await createInstructorAccount({
+            firstName: form.firstName.trim(),
+            lastName: form.lastName.trim(),
+            email: form.email.trim(),
+            password: form.password,
+            courseIds: [],
+            metadata: { employmentType: form.employmentType },
+          });
+        } else {
+          await staffService.createStaffAccount({
           firstName: form.firstName.trim(),
           lastName: form.lastName.trim(),
           email: form.email.trim(),
@@ -233,7 +248,8 @@ export default function UserManagementPage() {
           password: form.password,
           staffType: form.staffType,
           status: form.status,
-        });
+          });
+        }
       }
 
       setDialogOpen(false);
@@ -616,6 +632,24 @@ export default function UserManagementPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {form.staffType === 'INSTRUCTOR' && !selectedStaff && (
+                    <div className="grid gap-2">
+                      <Label>Employment type</Label>
+                      <Select
+                        value={form.employmentType}
+                        onValueChange={(value) => updateForm('employmentType', value)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="FULL_TIME">Full Time</SelectItem>
+                          <SelectItem value="PART_TIME">Part Time</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {error && <p className="text-sm text-destructive">{error}</p>}
                 </div>

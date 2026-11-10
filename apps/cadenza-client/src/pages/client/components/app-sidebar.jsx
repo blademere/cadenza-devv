@@ -18,6 +18,7 @@ import {
   GuitarIcon,
   DoorOpenIcon,
   MusicIcon,
+  UsersRoundIcon,
 } from "lucide-react";
 
 const data = {
@@ -37,6 +38,11 @@ const data = {
       title: "Enrollments",
       url: "/client/enrollments",
       icon: <ClipboardListIcon />,
+    },
+    {
+      title: "My Children",
+      url: "/client/children",
+      icon: <UsersRoundIcon />,
     },
     {
       title: "Room Bookings",
