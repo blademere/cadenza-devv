@@ -10,7 +10,6 @@ export default function ReportsPageLayout({ report, columns, rows, startDate, en
     'rental-monitoring': [0, 1, 2, 3, 4],
     'cancellation-summary': [0, 1, 2],
     'room-utilization': [0, 1, 2, 3, reportRows.length - 1],
-    'instrument-equipment': [0, 1, 2, reportRows.length - 1],
     'lesson-progress': [0, 1, 2, 3],
   };
   const summaryIndexes = summaryIndexMap[report.id] || [];

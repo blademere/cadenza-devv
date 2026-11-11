@@ -273,8 +273,7 @@ const buildReport = async (appId, type, from, to) => {
     const itemRows = inventory.map((instrument) => {
       const currentRental = latestRental.get(instrument.id);
       return [
-        instrument.name || instrument.instrumentType?.name || 'Unnamed item',
-        instrument.itemCategory?.name || instrument.instrumentType?.name || 'Uncategorized',
+        instrument.instrumentType?.name || 'Uncategorized',
         [instrument.brand, instrument.model].filter(Boolean).join(' / ') || 'Not recorded',
         instrument.serialNumber || 'Not recorded',
         instrument.status || 'UNKNOWN',
@@ -284,13 +283,8 @@ const buildReport = async (appId, type, from, to) => {
       ];
     });
     return {
-      columns: ['Item', 'Category', 'Brand / Model', 'Serial No.', 'Status', 'Rental count', 'Last rented', 'Rental rate'],
-      rows: [
-        ['Total item rentals', rentals.length, '', '', 'SUMMARY', '', '', ''],
-        ['Active item rentals', rentals.filter((item) => !['CANCELLED', 'RETURNED', 'COMPLETED'].includes(item.status)).length, '', '', 'SUMMARY', '', '', ''],
-        ['Returned items', rentals.filter((item) => item.returnedAt || item.status === 'RETURNED').length, '', '', 'SUMMARY', '', '', ''],
-        ...itemRows,
-      ],
+      columns: ['Item', 'Brand / Model', 'Serial No.', 'Status', 'Rental count', 'Last rented', 'Rental rate'],
+      rows: itemRows,
     };
   }
 

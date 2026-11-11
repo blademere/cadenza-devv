@@ -25,7 +25,7 @@ const REPORTS = [
 const REPORT_STATUS_OPTIONS = {
   'payment-sales': ['ALL', 'PAID', 'SUCCESSFUL', 'PENDING', 'PARTIALLY_PAID', 'REFUNDED'],
   'enrollment-report': ['ALL', 'FOR_APPROVAL', 'APPROVED', 'ACTIVE', 'AT_RISK', 'COMPLETED', 'CANCELLED', 'REJECTED'],
-  'instrument-equipment': ['ALL', 'REQUESTED', 'APPROVED', 'ACTIVE', 'RETURNED', 'OVERDUE', 'COMPLETED', 'CANCELLED'],
+  'instrument-equipment': ['ALL', 'AVAILABLE', 'UNAVAILABLE', 'MAINTENANCE', 'RETIRED'],
   'rental-monitoring': ['ALL', 'REQUESTED', 'APPROVED', 'ACTIVE', 'RETURNED', 'OVERDUE', 'CANCELLED', 'REJECTED'],
   'room-utilization': ['ALL', 'REQUESTED', 'APPROVED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'REJECTED'],
 };
