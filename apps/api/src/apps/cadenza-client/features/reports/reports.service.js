@@ -292,7 +292,6 @@ const buildReport = async (appId, type, from, to) => {
         ['Active item rentals', rentals.filter((item) => !['CANCELLED', 'RETURNED', 'COMPLETED'].includes(item.status)).length, '', '', 'SUMMARY', '', '', '', ''],
         ['Returned items', rentals.filter((item) => item.returnedAt || item.status === 'RETURNED').length, '', '', 'SUMMARY', '', '', '', ''],
         ...itemRows,
-        ['Most used instrument', topInstrument ? `${topInstrument[0]} (${topInstrument[1]})` : '—'],
       ],
     };
   }
