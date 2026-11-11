@@ -50,6 +50,7 @@ import ClientPageLayout from '@/pages/client/layouts/ClientPageLayout';
 import ClientDashboard from '@/pages/client/dashboard/pages/Dashboard';
 import { ClientProfile } from '@/pages/client/profile';
 import Dependents from '@/pages/client/dependents/pages/Dependents';
+import ChildDetails from '@/pages/client/dependents/pages/ChildDetails';
 import { ClientNotifications } from '@/pages/client/notifications';
 import {
   Enrollments,
@@ -179,6 +180,7 @@ export default function AppRoutes() {
 
           <Route path="profile" element={<ClientProfile />} />
           <Route path="children" element={<Dependents />} />
+          <Route path="children/:childId" element={<ChildDetails />} />
           <Route path="notifications" element={<ClientNotifications />} />
 
           <Route path="enrollments" element={<Enrollments />} />

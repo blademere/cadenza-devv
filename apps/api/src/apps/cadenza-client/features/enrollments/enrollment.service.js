@@ -264,9 +264,13 @@ function mapEnrollment(enrollment) {
     ? 0
     : Number(paymentMetadata.paymentAmount ?? paymentMetadata.initialPaymentAmount ?? 0);
   const remainingPaymentAmount = Math.max(totalPaymentAmount - paidPaymentAmount, 0);
-  const lessons = getConfiguredLessons(
+  const packageLessons = getConfiguredLessons(
     getPackageLessons(enrollment.lessonPackage),
   );
+  const selectedCourseId = enrollment.metadata?.courseId || null;
+  const lessons = selectedCourseId
+    ? packageLessons.filter((lesson) => lesson.id === selectedCourseId)
+    : packageLessons;
 
   return {
     id: enrollment.id,
@@ -283,7 +287,7 @@ function mapEnrollment(enrollment) {
     studentEmail: enrollment.customer?.person?.email || null,
     packageId: enrollment.lessonPackageId,
     packageName: enrollment.packageNameAtEnrollment || enrollment.lessonPackage?.name,
-    courseId: enrollment.metadata?.courseId || null,
+    courseId: selectedCourseId,
     metadata: enrollment.metadata,
     payment: {
       totalAmount: totalPaymentAmount,

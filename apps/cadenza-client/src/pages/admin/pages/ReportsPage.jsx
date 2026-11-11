@@ -14,28 +14,23 @@ import { Input } from '@/components/ui/Input';
 import { apiClient } from '@/core/api/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 
-const CATEGORIES = [
-  { id: 'all', name: 'All reports' },
-  { id: 'financial', name: 'Financial Reports' },
-  { id: 'students', name: 'Enrollment and Student Reports' },
-  { id: 'rentals', name: 'Rental and Inventory Reports' },
-  { id: 'instructors', name: 'Instructor Reports' },
-  { id: 'operations', name: 'Operational Reports' },
+const REPORTS = [
+  { id: 'payment-sales', title: 'Payment Report', description: 'Payments received, methods, statuses, balances, and references.', icon: WalletIcon },
+  { id: 'enrollment-report', title: 'Enrollment Report', description: 'Student courses, packages, instructors, and enrollment statuses.', icon: GraduationCapIcon },
+  { id: 'instrument-equipment', title: 'Instrument and Equipment Report', description: 'Instrument and equipment availability, condition, and usage.', icon: GuitarIcon },
+  { id: 'rental-monitoring', title: 'Rentals Report', description: 'Rental transactions, returns, overdue items, and rental value.', icon: UsersIcon },
+  { id: 'room-utilization', title: 'Bookings Report', description: 'Room reservations, dates, status, duration, and booking value.', icon: CalendarDaysIcon },
 ];
 
-const REPORTS = [
-  { id: 'payment-sales', title: 'Payment and Sales Report', description: 'Payments received by service, client, method, status, and date.', category: 'financial', icon: WalletIcon },
-  { id: 'instrument-equipment', title: 'Instrument and Equipment Report', description: 'Inventory condition, availability, usage, and rental income.', category: 'rentals', icon: GuitarIcon },
-  { id: 'student-report', title: 'Student Report', description: 'Students, guardians, contacts, courses, instructors, and status.', category: 'students', icon: UsersIcon },
-  { id: 'instructor-report', title: 'Instructor List Report', description: 'Instructor courses, scheduled lessons, students, and status.', category: 'instructors', icon: UsersIcon },
-  { id: 'enrollment-report', title: 'Enrollment Report', description: 'Enrollment details, payment status, and enrollment status.', category: 'students', icon: GraduationCapIcon },
-  { id: 'cancellation-report', title: 'Cancellation Report', description: 'Cancelled services, reasons, payments, and refunds.', category: 'operations', icon: AlertCircleIcon },
-  { id: 'outstanding-balance', title: 'Outstanding Balance Report', description: 'Balances remaining by client and service.', category: 'financial', icon: CreditCardIcon },
-  { id: 'refund-report', title: 'Refund Report', description: 'Refund transactions and processing details.', category: 'financial', icon: CreditCardIcon },
-  { id: 'attendance-report', title: 'Attendance Report', description: 'Lesson attendance, rescheduling, and remarks.', category: 'students', icon: CalendarDaysIcon },
-  { id: 'room-utilization', title: 'Room Utilization Report', description: 'Room bookings, hours, utilization, and income.', category: 'operations', icon: CalendarDaysIcon },
-  { id: 'student-progress', title: 'Student Progress Report', description: 'Summary and lesson-level progress by student and course.', category: 'students', icon: BookOpenCheckIcon },
-];
+const REPORT_STATUS_OPTIONS = {
+  'payment-sales': ['ALL', 'PAID', 'SUCCESSFUL', 'PENDING', 'PARTIALLY_PAID', 'REFUNDED', 'FAILED'],
+  'enrollment-report': ['ALL', 'FOR_APPROVAL', 'APPROVED', 'ACTIVE', 'AT_RISK', 'COMPLETED', 'CANCELLED', 'REJECTED'],
+  'instrument-equipment': ['ALL', 'AVAILABLE', 'RENTED', 'MAINTENANCE', 'RETIRED'],
+  'rental-monitoring': ['ALL', 'REQUESTED', 'APPROVED', 'ACTIVE', 'RETURNED', 'OVERDUE', 'CANCELLED', 'REJECTED'],
+  'room-utilization': ['ALL', 'REQUESTED', 'APPROVED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'REJECTED'],
+};
+
+const statusLabel = (value) => value === 'ALL' ? 'All statuses' : value.replaceAll('_', ' ').replace(/\\b\\w/g, (letter) => letter.toUpperCase());
 
 const dateValue = (date) => {
   const year = date.getFullYear();
@@ -82,8 +77,8 @@ function RevenueChart({ series }) {
 export default function ReportsPage() {
   const [startDate, setStartDate] = useState(() => dateValue(new Date(Date.now() - 29 * 86400000)));
   const [endDate, setEndDate] = useState(() => dateValue(new Date()));
-  const [category, setCategory] = useState('all');
-  const [selectedId, setSelectedId] = useState('revenue-sales');
+  const [selectedId, setSelectedId] = useState('payment-sales');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [reportData, setReportData] = useState(null);
   const [overview, setOverview] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
@@ -93,9 +88,16 @@ export default function ReportsPage() {
   const [printing, setPrinting] = useState(false);
 
   const selectedReport = REPORTS.find((report) => report.id === selectedId) || REPORTS[0];
-  const visibleReports = useMemo(() => REPORTS.filter((report) => category === 'all' || report.category === category), [category]);
+  const visibleReports = REPORTS;
   const dateValid = Boolean(startDate && endDate && startDate <= endDate);
   const queryRange = `from=${encodeURIComponent(startDate)}&to=${encodeURIComponent(endDate)}`;
+  const filteredRows = useMemo(() => {
+    const rows = Array.isArray(reportData?.rows) ? reportData.rows : [];
+    return rows.filter((row) => {
+      const text = row.map((value) => String(value ?? '')).join(' ').toLowerCase();
+      return statusFilter === 'ALL' || text.includes(statusFilter.toLowerCase());
+    });
+  }, [reportData, statusFilter]);
 
   useEffect(() => {
     if (!dateValid) return;
@@ -168,15 +170,6 @@ export default function ReportsPage() {
               <p className="text-sm text-muted-foreground">Operational overview and detailed reports for Cadenza Music Center.</p>
             </div>
           </div>
-          <Card size="sm" className="reports-ui print:hidden">
-            <CardHeader className="gap-0 p-3 pb-1"><CardTitle>Report period</CardTitle><CardDescription>All dashboard metrics and report tables follow the selected date range.</CardDescription></CardHeader>
-            <CardContent className="grid gap-1 p-3 pt-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,180px)_minmax(0,180px)_1fr] lg:items-end">
-              <div className="space-y-1.5"><label className="text-sm font-medium" htmlFor="report-from">From</label><Input id="report-from" type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div>
-              <div className="space-y-1.5"><label className="text-sm font-medium" htmlFor="report-to">To</label><Input id="report-to" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} /></div>
-              <div className="flex flex-wrap gap-2 lg:justify-end">{[7, 30, 90].map((days) => <Button key={days} size="sm" variant="outline" onClick={() => setRange(days)}>Last {days} days</Button>)}</div>
-            </CardContent>
-          </Card>
-
           <section className="reports-ui space-y-3 print:hidden">
             <h2 className="text-lg font-semibold">Admin reports dashboard</h2>
             {!dateValid && <p role="alert" className="text-sm text-destructive">Select a valid date range.</p>}
@@ -193,31 +186,8 @@ export default function ReportsPage() {
           </section>
 
           <section className="reports-ui space-y-4 print:hidden">
-            <h2 className="text-lg font-semibold">Report categories</h2>
-            <div className="flex flex-wrap gap-2" aria-label="Report categories">
-              {CATEGORIES.map((item) => (
-                <Button key={item.id} type="button" variant={category === item.id ? 'default' : 'outline'} onClick={() => {
-                  setCategory(item.id);
-                  if (item.id !== 'all') {
-                    const first = REPORTS.find((report) => report.category === item.id);
-                    if (first) setSelectedId(first.id);
-                  }
-                }}>{item.name}</Button>
-              ))}
-            </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {visibleReports.map((report) => {
-                const Icon = report.icon;
-                return (
-                  <button key={report.id} type="button" onClick={() => setSelectedId(report.id)} aria-pressed={selectedId === report.id}
-                    className={`rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50 ${selectedId === report.id ? 'border-primary ring-2 ring-primary/20' : ''}`}>
-                    <Icon className="mb-2 size-5 text-primary" />
-                    <h3 className="font-semibold">{report.title}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{report.description}</p>
-                  </button>
-                );
-              })}
-            </div>
+            <h2 className="text-lg font-semibold">Reports</h2>
+            <Card size="sm"><CardContent className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,220px)_minmax(0,170px)_minmax(0,170px)_minmax(0,220px)_auto_auto] lg:items-end"><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-type">Report type</label><select id="report-type" value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setStatusFilter('ALL'); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{visibleReports.map((report) => <option key={report.id} value={report.id}>{report.title}</option>)}</select></div><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-from">From</label><Input id="report-from" type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-to">To</label><Input id="report-to" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} /></div><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-status">Status</label><select id="report-status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{(REPORT_STATUS_OPTIONS[selectedId] || ['ALL']).map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div><Button type="button" variant="outline" size="sm" onClick={() => setStatusFilter('ALL')}>Reset filters</Button><div className="flex flex-wrap gap-2">{[7, 30, 90].map((days) => <Button key={days} size="sm" variant="ghost" onClick={() => setRange(days)}>Last {days} days</Button>)}</div></CardContent></Card>
           </section>
 
           <div className="reports-ui flex flex-wrap items-end justify-between gap-3 print:hidden">
@@ -237,7 +207,7 @@ export default function ReportsPage() {
           <ReportsPageLayout
             report={selectedReport}
             columns={Array.isArray(reportData?.columns) ? reportData.columns : ['Metric', 'Value']}
-            rows={Array.isArray(reportData?.rows) ? reportData.rows : []}
+            rows={filteredRows}
             startDate={startDate}
             endDate={endDate}
             generatedAt={generatedAt}
