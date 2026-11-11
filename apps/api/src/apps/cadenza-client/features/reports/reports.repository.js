@@ -80,9 +80,17 @@ export const reportsRepository = {
       where: { appId, scheduledStart: range(from, to) },
       include: {
         customer: { include: { person: true } },
-        items: { include: { instrument: { include: { instrumentType: true } } } },
+        items: { include: { instrument: { include: { instrumentType: true, itemCategory: true } } } },
       },
       orderBy: { scheduledStart: 'asc' },
+    });
+  },
+
+  async findInstruments(appId) {
+    return prisma.cadenzaInstrument.findMany({
+      where: { appId },
+      include: { instrumentType: true, itemCategory: true },
+      orderBy: { resourceId: 'asc' },
     });
   },
 

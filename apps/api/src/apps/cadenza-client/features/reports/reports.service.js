@@ -259,16 +259,39 @@ const buildReport = async (appId, type, from, to) => {
   }
 
   if (type === 'instrument-usage') {
-    const rentals = await reportsRepository.findRentals(appId, from, to);
-    const instruments = rentals.flatMap((rental) => rental.items);
-    const topInstrument = countBy(instruments, (item) => item.instrument?.instrumentType?.name || item.instrument?.resourceId)[0];
+    const [rentals, inventory] = await Promise.all([
+      reportsRepository.findRentals(appId, from, to),
+      reportsRepository.findInstruments(appId),
+    ]);
+    const rentalItems = rentals.flatMap((rental) => (rental.items || []).map((item) => ({ ...item, rental })));
+    const rentalCounts = countBy(rentalItems, (item) => item.instrument?.id || item.instrument?.resourceId);
+    const latestRental = new Map();
+    rentalItems.forEach((item) => {
+      const key = item.instrument?.id || item.instrument?.resourceId;
+      if (!latestRental.has(key) || new Date(item.rental?.scheduledStart || 0) > new Date(latestRental.get(key)?.rental?.scheduledStart || 0)) latestRental.set(key, item);
+    });
+    const itemRows = inventory.map((instrument) => {
+      const currentRental = latestRental.get(instrument.id);
+      const condition = instrument.metadata?.condition || instrument.metadata?.conditionStatus || 'Not recorded';
+      return [
+        instrument.resourceId || instrument.instrumentType?.name || 'Item',
+        instrument.itemCategory?.name || instrument.instrumentType?.name || 'Uncategorized',
+        [instrument.brand, instrument.model].filter(Boolean).join(' / ') || 'Not recorded',
+        instrument.serialNumber || 'Not recorded',
+        instrument.status || 'UNKNOWN',
+        rentalCounts[instrument.id] || 0,
+        dateTime(currentRental?.rental?.scheduledStart),
+        instrument.rentalRate ? money(instrument.rentalRate) : 'Not set',
+        condition,
+      ];
+    });
     return {
-      columns: ['Instrument / Equipment', 'Customer', 'Status', 'Start', 'End'],
+      columns: ['Item', 'Category', 'Brand / Model', 'Serial No.', 'Status', 'Rental count', 'Last rented', 'Rental rate', 'Condition'],
       rows: [
-        ['Total rentals', rentals.length, 'SUMMARY', '', ''],
-        ['Active rentals', rentals.filter((item) => !['CANCELLED', 'RETURNED', 'COMPLETED'].includes(item.status)).length, 'SUMMARY', '', ''],
-        ['Returned instruments', rentals.filter((item) => item.returnedAt || item.status === 'RETURNED').length, 'SUMMARY', '', ''],
-        ...rentals.flatMap((rental) => (rental.items || []).map((item) => [item.instrument?.instrumentType?.name || item.instrument?.resourceId || 'Instrument', customerName(rental), rental.status, dateTime(rental.scheduledStart), dateTime(rental.scheduledEnd)])),
+        ['Total item rentals', rentals.length, '', '', 'SUMMARY', '', '', '', ''],
+        ['Active item rentals', rentals.filter((item) => !['CANCELLED', 'RETURNED', 'COMPLETED'].includes(item.status)).length, '', '', 'SUMMARY', '', '', '', ''],
+        ['Returned items', rentals.filter((item) => item.returnedAt || item.status === 'RETURNED').length, '', '', 'SUMMARY', '', '', '', ''],
+        ...itemRows,
         ['Most used instrument', topInstrument ? `${topInstrument[0]} (${topInstrument[1]})` : '—'],
       ],
     };

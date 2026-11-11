@@ -93,7 +93,7 @@ export default function EnrollmentDetails() {
     ? new Date(enrollment.createdAt).toLocaleString()
     : "Not available";
   const payment = enrollment.payment || {};
-  const enrollee = enrollment.customer?.person || enrollment.person || enrollment.metadata?.student || {};
+  const enrollee = enrollment.student || enrollment.metadata?.studentDetails || enrollment.customer?.person || enrollment.person || {};
   const enrolleeName = [enrollee.firstName, enrollee.middleName, enrollee.lastName].filter(Boolean).join(" ") || "Account holder";
   const totalAmount = Number(payment.totalAmount ?? enrollment.price ?? 0);
   const paidAmount = Number(payment.paidAmount ?? paymentMetadata.paymentAmount ?? 0);

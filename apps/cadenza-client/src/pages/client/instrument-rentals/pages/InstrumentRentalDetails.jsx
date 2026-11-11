@@ -148,7 +148,7 @@ export default function InstrumentRentalDetails() {
   const remainingBalance = Math.max(totalAmount - paidAmount, 0);
   const scheduledStart = rental.scheduledStart || rental.startDate;
   const scheduledEnd = rental.scheduledEnd || rental.endDate;
-  const customer = rental.customer?.person || rental.metadata?.customerSnapshot || {};
+  const customer = rental.customer?.person || rental.metadata?.customerSnapshot || rental.customerSnapshot || {};
   const customerName = [customer.firstName, customer.middleName, customer.lastName].filter(Boolean).join(' ') || 'Account holder';
 
   return (

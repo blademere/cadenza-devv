@@ -46,6 +46,7 @@ export const instrumentRentalsRepository = {
         appId,
       },
       include: {
+        customer: { include: { person: true } },
         rentalPackage: {
           include: {
             items: true,
@@ -373,6 +374,7 @@ export const instrumentRentalsRepository = {
         ...(customerId ? { customerId } : {}),
       },
       include: {
+        customer: { include: { person: true } },
         rentalPackage: {
           include: {
             items: true,
