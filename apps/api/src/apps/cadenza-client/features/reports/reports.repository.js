@@ -87,11 +87,17 @@ export const reportsRepository = {
   },
 
   async findInstruments(appId) {
-    return prisma.cadenzaInstrument.findMany({
+    const instruments = await prisma.cadenzaInstrument.findMany({
       where: { appId },
       include: { instrumentType: true, itemCategory: true },
       orderBy: { resourceId: 'asc' },
     });
+    const resources = await prisma.resource.findMany({
+      where: { appId, id: { in: instruments.map((instrument) => instrument.resourceId).filter(Boolean) } },
+      select: { id: true, name: true },
+    });
+    const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+    return instruments.map((instrument) => ({ ...instrument, name: names.get(instrument.resourceId) || instrument.instrumentType?.name || 'Unnamed item' }));
   },
 
   async findSessions(appId, from, to) {
