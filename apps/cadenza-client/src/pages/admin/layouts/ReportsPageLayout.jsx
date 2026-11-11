@@ -6,11 +6,11 @@ const formatDate = (value) => {
 export default function ReportsPageLayout({ report, columns, rows, startDate, endDate, generatedAt, isLoading, error }) {
   const reportRows = Array.isArray(rows) ? rows : [];
   const summaryIndexMap = {
-    'enrollment-summary': [0, 1, 2, 3],
+    'enrollment-report': [0, 1, 2, 3],
     'rental-monitoring': [0, 1, 2, 3, 4],
     'cancellation-summary': [0, 1, 2],
-    'studio-bookings': [0, 1, 2, 3, reportRows.length - 1],
-    'instrument-usage': [0, 1, 2, reportRows.length - 1],
+    'room-utilization': [0, 1, 2, 3, reportRows.length - 1],
+    'instrument-equipment': [0, 1, 2, reportRows.length - 1],
     'lesson-progress': [0, 1, 2, 3],
   };
   const summaryIndexes = summaryIndexMap[report.id] || [];

@@ -51,10 +51,25 @@ const buildReport = async (appId, type, from, to) => {
 
 
   if (type === 'revenue-sales') {
-    const [obligations, cashierPayments] = await Promise.all([
+    const [obligations, cashierPayments, enrollments, bookings, rentals] = await Promise.all([
       reportsRepository.findPayments(appId, from, to),
       reportsRepository.findCashierPayments(appId, from, to),
+      reportsRepository.findEnrollments(appId, from, to),
+      reportsRepository.findRoomBookings(appId, from, to),
+      reportsRepository.findRentals(appId, from, to),
     ]);
+    const metadataPayment = (record, referenceType) => {
+      const metadata = record.metadata || {};
+      const amount = Number(metadata.initialPaymentAmount ?? metadata.paymentAmount ?? 0);
+      return amount > 0 ? {
+        amount,
+        method: metadata.paymentMethod || 'QR',
+        referenceType,
+        reference: metadata.paymentReference || null,
+        status: metadata.paymentStatus || 'PENDING',
+        createdAt: metadata.paymentSubmittedAt || record.createdAt || record.scheduledStart,
+      } : null;
+    };
     const payments = [
       ...obligations.flatMap((o) => (o.payments || [])
         .map((p) => ({ ...p, referenceType: o.referenceType, reference: p.providerReference || p.referenceId || p.id }))),
@@ -65,6 +80,7 @@ const buildReport = async (appId, type, from, to) => {
         paidAt: p.createdAt,
         status: 'SUCCESSFUL',
       })),
+      ...[...enrollments.map((item) => metadataPayment(item, 'ENROLLMENT')), ...bookings.map((item) => metadataPayment(item, 'ROOM_BOOKING')), ...rentals.map((item) => metadataPayment(item, 'INSTRUMENT_RENTAL'))].filter(Boolean),
     ];
     return {
       columns: ['Transaction type', 'Payment method', 'Amount', 'Status', 'Date', 'Reference'],
