@@ -1445,7 +1445,7 @@ export const enrollmentService = {
     enrollmentId,
   ) {
     const enrollment =
-      await enrollmentRepository.findEnrollmentById(
+      await enrollmentRepository.findEnrollmentByIdForGuardian(
         appId,
         customerId,
         enrollmentId,

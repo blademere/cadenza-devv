@@ -57,7 +57,6 @@ const buildReport = async (appId, type, from, to) => {
     ]);
     const payments = [
       ...obligations.flatMap((o) => (o.payments || [])
-        .filter((p) => ['PAID', 'COMPLETED', 'SUCCESSFUL'].includes(p.status))
         .map((p) => ({ ...p, referenceType: o.referenceType, reference: p.providerReference || p.referenceId || p.id }))),
       ...cashierPayments.map((p) => ({
         ...p,

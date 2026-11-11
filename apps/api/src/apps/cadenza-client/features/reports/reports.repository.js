@@ -29,8 +29,11 @@ export const reportsRepository = {
 
   async findPayments(appId, from, to) {
     return prisma.paymentObligation.findMany({
-      where: { appId, createdAt: range(from, to) },
-      include: { payments: true },
+      where: {
+        appId,
+        payments: { some: { createdAt: range(from, to) } },
+      },
+      include: { payments: { where: { createdAt: range(from, to) }, orderBy: { createdAt: 'asc' } } },
       orderBy: { createdAt: 'asc' },
     });
   },

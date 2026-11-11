@@ -23,7 +23,7 @@ const REPORTS = [
 ];
 
 const REPORT_STATUS_OPTIONS = {
-  'payment-sales': ['ALL', 'PAID', 'SUCCESSFUL', 'PENDING', 'PARTIALLY_PAID', 'REFUNDED', 'FAILED'],
+  'payment-sales': ['ALL', 'PAID', 'SUCCESSFUL', 'PENDING', 'PARTIALLY_PAID', 'REFUNDED'],
   'enrollment-report': ['ALL', 'FOR_APPROVAL', 'APPROVED', 'ACTIVE', 'AT_RISK', 'COMPLETED', 'CANCELLED', 'REJECTED'],
   'instrument-equipment': ['ALL', 'AVAILABLE', 'RENTED', 'MAINTENANCE', 'RETIRED'],
   'rental-monitoring': ['ALL', 'REQUESTED', 'APPROVED', 'ACTIVE', 'RETURNED', 'OVERDUE', 'CANCELLED', 'REJECTED'],

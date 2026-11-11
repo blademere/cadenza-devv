@@ -679,6 +679,31 @@ export const enrollmentRepository = {
     });
   },
 
+  async findEnrollmentByIdForGuardian(appId, guardianId, enrollmentId) {
+    return prisma.cadenzaEnrollment.findFirst({
+      where: {
+        id: enrollmentId,
+        appId,
+        customer: {
+          OR: [
+            { id: guardianId },
+            { guardianId, status: 'ACTIVE' },
+          ],
+        },
+      },
+      include: {
+        lessonPackage: { include: packageInclude },
+        sessions: {
+          include: {
+            instructor: { select: instructorSelect },
+            room: true,
+          },
+          orderBy: { scheduledStart: 'asc' },
+        },
+      },
+    });
+  },
+
   async findMyEnrollment(appId, customerId) {
     const enrollments = await prisma.cadenzaEnrollment.findMany({
       where: {
