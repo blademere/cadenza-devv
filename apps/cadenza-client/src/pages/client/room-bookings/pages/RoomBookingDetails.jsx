@@ -124,6 +124,8 @@ export default function RoomBookingDetails() {
     booking.room?.resource?.name ||
     booking.room?.roomType ||
     "Band Room";
+  const customer = booking.customer?.person || booking.metadata?.customerSnapshot || {};
+  const customerName = [customer.firstName, customer.middleName, customer.lastName].filter(Boolean).join(" ") || "Account holder";
 
   const start = new Date(
     booking.scheduledStart,
@@ -205,6 +207,11 @@ export default function RoomBookingDetails() {
       )}
 
       <div className="grid gap-5 md:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-6 md:col-span-2">
+          <p className="text-xs text-muted-foreground">Booked by</p>
+          <p className="mt-1 text-lg font-semibold">{customerName}</p>
+          {customer.email && <p className="mt-1 text-sm text-muted-foreground">{customer.email}</p>}
+        </div>
         <div className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-center gap-3">
             <DoorOpen className="h-5 w-5 text-muted-foreground" />

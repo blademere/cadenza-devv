@@ -263,12 +263,12 @@ const buildReport = async (appId, type, from, to) => {
     const instruments = rentals.flatMap((rental) => rental.items);
     const topInstrument = countBy(instruments, (item) => item.instrument?.instrumentType?.name || item.instrument?.resourceId)[0];
     return {
-      columns: ['Instrument / customer', 'Status', 'Start', 'End'],
+      columns: ['Instrument / Equipment', 'Customer', 'Status', 'Start', 'End'],
       rows: [
-        ['Total rentals', rentals.length],
-        ['Active rentals', rentals.filter((item) => !['CANCELLED', 'RETURNED', 'COMPLETED'].includes(item.status)).length],
-        ['Returned instruments', rentals.filter((item) => item.returnedAt || item.status === 'RETURNED').length],
-        ...rentals.flatMap((rental) => (rental.items || []).map((item) => [item.instrument?.instrumentType?.name || item.instrument?.resourceId || 'Instrument', `${customerName(rental)} / ${rental.status}`, dateTime(rental.scheduledStart), dateTime(rental.scheduledEnd)])),
+        ['Total rentals', rentals.length, 'SUMMARY', '', ''],
+        ['Active rentals', rentals.filter((item) => !['CANCELLED', 'RETURNED', 'COMPLETED'].includes(item.status)).length, 'SUMMARY', '', ''],
+        ['Returned instruments', rentals.filter((item) => item.returnedAt || item.status === 'RETURNED').length, 'SUMMARY', '', ''],
+        ...rentals.flatMap((rental) => (rental.items || []).map((item) => [item.instrument?.instrumentType?.name || item.instrument?.resourceId || 'Instrument', customerName(rental), rental.status, dateTime(rental.scheduledStart), dateTime(rental.scheduledEnd)])),
         ['Most used instrument', topInstrument ? `${topInstrument[0]} (${topInstrument[1]})` : '—'],
       ],
     };

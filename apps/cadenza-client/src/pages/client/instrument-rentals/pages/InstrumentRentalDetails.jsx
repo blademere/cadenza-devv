@@ -148,6 +148,8 @@ export default function InstrumentRentalDetails() {
   const remainingBalance = Math.max(totalAmount - paidAmount, 0);
   const scheduledStart = rental.scheduledStart || rental.startDate;
   const scheduledEnd = rental.scheduledEnd || rental.endDate;
+  const customer = rental.customer?.person || rental.metadata?.customerSnapshot || {};
+  const customerName = [customer.firstName, customer.middleName, customer.lastName].filter(Boolean).join(' ') || 'Account holder';
 
   return (
     <div className="space-y-6 px-4 py-6 lg:px-6">
@@ -182,6 +184,11 @@ export default function InstrumentRentalDetails() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="rounded-xl border border-border bg-card p-6">
+          <div className="mb-5 border-b border-border pb-5">
+            <p className="text-xs text-muted-foreground">Rented by</p>
+            <p className="mt-1 text-lg font-semibold">{customerName}</p>
+            {customer.email && <p className="mt-1 text-sm text-muted-foreground">{customer.email}</p>}
+          </div>
           <h2 className="text-lg font-semibold">Rental Information</h2>
 
           <div className="mt-5 space-y-4">

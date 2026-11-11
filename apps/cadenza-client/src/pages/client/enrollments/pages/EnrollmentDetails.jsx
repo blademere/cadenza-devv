@@ -93,6 +93,8 @@ export default function EnrollmentDetails() {
     ? new Date(enrollment.createdAt).toLocaleString()
     : "Not available";
   const payment = enrollment.payment || {};
+  const enrollee = enrollment.customer?.person || enrollment.person || enrollment.metadata?.student || {};
+  const enrolleeName = [enrollee.firstName, enrollee.middleName, enrollee.lastName].filter(Boolean).join(" ") || "Account holder";
   const totalAmount = Number(payment.totalAmount ?? enrollment.price ?? 0);
   const paidAmount = Number(payment.paidAmount ?? paymentMetadata.paymentAmount ?? 0);
   const remainingBalance = Number(payment.remainingBalance ?? Math.max(totalAmount - paidAmount, 0));
@@ -143,6 +145,11 @@ export default function EnrollmentDetails() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-6 md:col-span-2">
+          <p className="text-xs text-muted-foreground">Enrolled student</p>
+          <p className="mt-1 text-lg font-semibold">{enrolleeName}</p>
+          {enrollee.email && <p className="mt-1 text-sm text-muted-foreground">{enrollee.email}</p>}
+        </div>
         <div className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-center gap-3">
             <Music className="h-5 w-5 text-muted-foreground" />

@@ -25,7 +25,7 @@ const REPORTS = [
 const REPORT_STATUS_OPTIONS = {
   'payment-sales': ['ALL', 'PAID', 'SUCCESSFUL', 'PENDING', 'PARTIALLY_PAID', 'REFUNDED'],
   'enrollment-report': ['ALL', 'FOR_APPROVAL', 'APPROVED', 'ACTIVE', 'AT_RISK', 'COMPLETED', 'CANCELLED', 'REJECTED'],
-  'instrument-equipment': ['ALL', 'AVAILABLE', 'RENTED', 'MAINTENANCE', 'RETIRED'],
+  'instrument-equipment': ['ALL', 'REQUESTED', 'APPROVED', 'ACTIVE', 'RETURNED', 'OVERDUE', 'COMPLETED', 'CANCELLED'],
   'rental-monitoring': ['ALL', 'REQUESTED', 'APPROVED', 'ACTIVE', 'RETURNED', 'OVERDUE', 'CANCELLED', 'REJECTED'],
   'room-utilization': ['ALL', 'REQUESTED', 'APPROVED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'REJECTED'],
 };
@@ -95,7 +95,7 @@ export default function ReportsPage() {
     const rows = Array.isArray(reportData?.rows) ? reportData.rows : [];
     return rows.filter((row) => {
       const text = row.map((value) => String(value ?? '')).join(' ').toLowerCase();
-      return statusFilter === 'ALL' || text.includes(statusFilter.toLowerCase());
+      return row.some((cell) => String(cell).toUpperCase() === 'SUMMARY') || statusFilter === 'ALL' || text.includes(statusFilter.toLowerCase());
     });
   }, [reportData, statusFilter]);
 
