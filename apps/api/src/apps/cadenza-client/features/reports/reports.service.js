@@ -53,64 +53,71 @@ const buildReport = async (appId, type, from, to) => {
 
 
   if (type === 'revenue-sales') {
-    const [obligations, cashierPayments, enrollments, bookings, rentals] = await Promise.all([
+    const [obligations, cashierPayments, enrollments, bookings, rentals, enrollmentRefunds, bookingRentalRefunds] = await Promise.all([
       reportsRepository.findPayments(appId, from, to),
       reportsRepository.findCashierPayments(appId, from, to),
       reportsRepository.findEnrollments(appId, from, to),
       reportsRepository.findRoomBookings(appId, from, to),
       reportsRepository.findRentals(appId, from, to),
+      reportsRepository.findEnrollmentRefunds(appId, from, to),
+      reportsRepository.findBookingRentalRefunds(appId, from, to),
     ]);
     const metadataPayment = (record, referenceType) => {
       const metadata = record.metadata || {};
       const amount = Number(metadata.initialPaymentAmount ?? metadata.paymentAmount ?? 0);
-      return amount > 0 ? {
+      if (!(amount > 0)) return null;
+      return {
         amount,
         method: metadata.paymentMethod || 'QR',
         referenceType,
         reference: metadata.paymentReference || null,
-        status: metadata.paymentStatus || 'PENDING',
+        status: metadata.paymentStatus || 'PENDING_CONFIRMATION',
         createdAt: metadata.paymentSubmittedAt || record.createdAt || record.scheduledStart,
-      } : null;
+      };
     };
-    const payments = [
-      ...obligations.flatMap((o) => (o.payments || [])
-        .map((p) => ({ ...p, referenceType: o.referenceType, reference: p.providerReference || p.referenceId || p.id }))),
-      ...cashierPayments.map((p) => ({
-        ...p,
-        referenceType: p.transactionType,
-        reference: p.reference,
-        paidAt: p.createdAt,
-        status: 'SUCCESSFUL',
-      })),
-      ...[...enrollments.map((item) => metadataPayment(item, 'ENROLLMENT')), ...bookings.map((item) => metadataPayment(item, 'ROOM_BOOKING')), ...rentals.map((item) => metadataPayment(item, 'INSTRUMENT_RENTAL'))].filter(Boolean),
-    ];
-    const [enrollmentRefunds, bookingRentalRefunds] = await Promise.all([
-      reportsRepository.findEnrollmentRefunds(appId, from, to),
-      reportsRepository.findBookingRentalRefunds(appId, from, to),
+    const paymentKey = (referenceType, reference) => `${String(referenceType || '').toUpperCase()}:${String(reference || '').trim().toUpperCase()}`;
+    const recordedReferences = new Set([
+      ...obligations.flatMap((obligation) => (obligation.payments || []).map((payment) => paymentKey(obligation.referenceType, payment.providerReference || payment.referenceId))),
+      ...cashierPayments.map((payment) => paymentKey(payment.transactionType, payment.reference)),
     ]);
-    const totalCollected = payments.filter((payment) => paymentSuccessful(payment.status))
+    const metadataPayments = [
+      ...enrollments.map((item) => metadataPayment(item, 'ENROLLMENT')),
+      ...bookings.map((item) => metadataPayment(item, 'ROOM_BOOKING')),
+      ...rentals.map((item) => metadataPayment(item, 'INSTRUMENT_RENTAL')),
+    ].filter((payment) => payment && (!payment.reference || !recordedReferences.has(paymentKey(payment.referenceType, payment.reference))));
+    const payments = [
+      ...obligations.flatMap((obligation) => (obligation.payments || []).map((payment) => ({
+        ...payment, referenceType: obligation.referenceType,
+        reference: payment.providerReference || payment.referenceId || payment.id,
+      }))),
+      ...cashierPayments.map((payment) => ({
+        ...payment, referenceType: payment.transactionType, paidAt: payment.createdAt, status: 'SUCCESSFUL',
+      })),
+      ...metadataPayments,
+    ];
+    const rows = [
+      ...payments.map((payment) => [
+        String(payment.referenceType || 'OTHER').replaceAll('_', ' '),
+        String(payment.method || payment.provider || 'ONLINE').replaceAll('_', ' '),
+        money(payment.amount),
+        String(payment.status || 'PENDING_CONFIRMATION').toUpperCase(),
+        dateTime(payment.paidAt || payment.createdAt),
+        paymentReference(payment),
+      ]),
+      ...enrollmentRefunds.map((refund) => ['ENROLLMENT', refund.method, money(refund.amount), 'REFUNDED', dateTime(refund.createdAt), paymentReference(refund)]),
+      ...bookingRentalRefunds.map((refund) => [String(refund.transactionType).replaceAll('_', ' '), refund.method, money(refund.amount), 'REFUNDED', dateTime(refund.createdAt), paymentReference(refund)]),
+    ];
+    const amountFor = (statuses) => payments.filter((payment) => statuses.includes(String(payment.status || '').toUpperCase()))
       .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-    const pendingConfirmation = payments.filter((payment) => paymentPending(payment.status))
-      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-    const refunded = [...enrollmentRefunds, ...bookingRentalRefunds]
-      .reduce((sum, refund) => sum + Number(refund.amount || 0), 0);
+    const refunded = [...enrollmentRefunds, ...bookingRentalRefunds].reduce((sum, refund) => sum + Number(refund.amount || 0), 0);
     return {
       columns: ['Transaction type', 'Payment method', 'Amount', 'Status', 'Date', 'Reference'],
       summary: [
-        { label: 'Total Collected', value: money(totalCollected) },
-        { label: 'Pending Confirmation', value: money(pendingConfirmation) },
+        { label: 'Total Collected', value: money(amountFor(['PAID', 'COMPLETED', 'SUCCESSFUL'])) },
+        { label: 'Pending Confirmation', value: money(amountFor(['PENDING', 'PENDING_CONFIRMATION', 'PENDING_PROCEED', 'PARTIALLY_PAID', 'FOR_APPROVAL'])) },
         { label: 'Refunded', value: money(refunded) },
       ],
-      rows: [
-        ...payments.map((payment) => [
-          String(payment.referenceType || 'OTHER').replaceAll('_', ' '),
-          String(payment.method || payment.provider || 'ONLINE').replaceAll('_', ' '),
-          money(payment.amount),
-          payment.status,
-          dateTime(payment.paidAt || payment.createdAt),
-          paymentReference(payment),
-        ]),
-      ],
+      rows,
     };
   }
 
@@ -132,7 +139,7 @@ const buildReport = async (appId, type, from, to) => {
     const rentals = await reportsRepository.findRentals(appId, from, to);
     const now = new Date();
     return {
-      columns: ['Rental / customer', 'Value / status', 'Start', 'End'],
+      columns: ['Rental / customer', 'Instrument', 'Value / status', 'Start', 'End'],
       summary: [
         { label: 'Total rentals', value: rentals.length },
         { label: 'Active / pending', value: rentals.filter((r) => !['COMPLETED', 'CANCELLED', 'RETURNED', 'REJECTED'].includes(r.status)).length },
@@ -140,7 +147,13 @@ const buildReport = async (appId, type, from, to) => {
         { label: 'Completed / returned', value: rentals.filter((r) => ['COMPLETED', 'RETURNED'].includes(r.status) || r.returnedAt).length },
         { label: 'Scheduled rental value', value: money(rentals.filter((r) => !['CANCELLED', 'REJECTED'].includes(r.status)).reduce((sum, r) => sum + Number(r.totalAmount || 0), 0)) },
       ],
-      rows: rentals.map((rental) => [customerName(rental), `${money(rental.totalAmount)} / ${rental.status}`, dateTime(rental.scheduledStart), dateTime(rental.scheduledEnd)]),
+      rows: rentals.map((rental) => [
+        customerName(rental),
+        [...new Set((rental.items || []).map((item) => item.instrument?.name || item.instrument?.instrumentType?.name || 'Unnamed instrument'))].join(', ') || 'Not specified',
+        `${money(rental.totalAmount)} / ${rental.status}`,
+        dateTime(rental.scheduledStart),
+        dateTime(rental.scheduledEnd),
+      ]),
     };
   }
 
@@ -177,7 +190,7 @@ const buildReport = async (appId, type, from, to) => {
       columns: ['Student', 'Course', 'Status', 'Enrollment date'],
       summary: [
         { label: 'Total enrollments', value: enrollments.length },
-        { label: 'Active enrollments', value: enrollments.filter((item) => ['ACTIVE', 'APPROVED'].includes(item.status)).length },
+        { label: 'Approved enrollments', value: enrollments.filter((item) => item.status === 'APPROVED').length },
         { label: 'Completed enrollments', value: enrollments.filter((item) => item.status === 'COMPLETED').length },
         { label: 'Most enrolled course', value: topCourse ? `${topCourse[0]} (${topCourse[1]})` : '—' },
       ],
@@ -276,7 +289,7 @@ const buildReport = async (appId, type, from, to) => {
     const bookings = await reportsRepository.findRoomBookings(appId, from, to);
     const topRoom = countBy(bookings, (booking) => booking.room?.resource?.name || booking.roomNameAtBooking || booking.room?.resourceId)[0];
     return {
-      columns: ['Room / customer', 'Status', 'Start', 'End'],
+      columns: ['Room', 'Customer / status', 'Start', 'End'],
       summary: [
         { label: 'Total bookings', value: bookings.length },
         { label: 'Total completed', value: bookings.filter((item) => item.status === 'COMPLETED').length },
@@ -293,7 +306,7 @@ const buildReport = async (appId, type, from, to) => {
       reportsRepository.findInstruments(appId),
     ]);
     const rentalItems = rentals.flatMap((rental) => (rental.items || []).map((item) => ({ ...item, rental })));
-    const rentalCounts = countBy(rentalItems, (item) => item.instrument?.id || item.instrument?.resourceId);
+    const rentalCounts = new Map(countBy(rentalItems, (item) => item.instrumentId));
     const latestRental = new Map();
     rentalItems.forEach((item) => {
       const key = item.instrument?.id || item.instrument?.resourceId;
@@ -306,7 +319,7 @@ const buildReport = async (appId, type, from, to) => {
         [instrument.brand, instrument.model].filter(Boolean).join(' / ') || 'Not recorded',
         instrument.serialNumber || 'Not recorded',
         instrument.status || 'UNKNOWN',
-        rentalCounts[instrument.id] || 0,
+        rentalCounts.get(instrument.id) || 0,
         dateTime(currentRental?.rental?.scheduledStart),
         instrument.rentalRate ? money(instrument.rentalRate) : 'Not set',
       ];

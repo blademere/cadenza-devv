@@ -23,11 +23,11 @@ const REPORTS = [
 ];
 
 const REPORT_STATUS_OPTIONS = {
-  'payment-sales': ['ALL', 'PAID', 'SUCCESSFUL', 'PENDING', 'PARTIALLY_PAID', 'REFUNDED'],
+  'payment-sales': ['ALL', 'PAID', 'SUCCESSFUL', 'PENDING', 'PENDING_CONFIRMATION', 'PENDING_PROCEED', 'PARTIALLY_PAID', 'REFUNDED'],
   'enrollment-report': ['ALL', 'FOR_APPROVAL', 'APPROVED', 'ACTIVE', 'AT_RISK', 'COMPLETED', 'CANCELLED', 'REJECTED'],
   'instrument-equipment': ['ALL', 'AVAILABLE', 'UNAVAILABLE', 'MAINTENANCE', 'RETIRED'],
   'rental-monitoring': ['ALL', 'REQUESTED', 'APPROVED', 'ACTIVE', 'RETURNED', 'OVERDUE', 'CANCELLED', 'REJECTED'],
-  'room-utilization': ['ALL', 'REQUESTED', 'APPROVED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'REJECTED'],
+  'room-utilization': ['ALL', 'REQUESTED', 'APPROVED', 'COMPLETED', 'CANCELLED', 'REJECTED'],
 };
 
 const statusLabel = (value) => value === 'ALL' ? 'All statuses' : value.replaceAll('_', ' ').replace(/\\b\\w/g, (letter) => letter.toUpperCase());
@@ -79,6 +79,7 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState(() => dateValue(new Date()));
   const [selectedId, setSelectedId] = useState('payment-sales');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [transactionFilter, setTransactionFilter] = useState('ALL');
   const [reportData, setReportData] = useState(null);
   const [overview, setOverview] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
@@ -93,7 +94,7 @@ export default function ReportsPage() {
   const queryRange = `from=${encodeURIComponent(startDate)}&to=${encodeURIComponent(endDate)}`;
   const filteredRows = useMemo(() => {
     const rows = Array.isArray(reportData?.rows) ? reportData.rows : [];
-    if (statusFilter === 'ALL') return rows;
+    if (statusFilter === 'ALL' && (selectedId !== 'payment-sales' || transactionFilter === 'ALL')) return rows;
     const statusColumn = {
       'payment-sales': 3,
       'enrollment-report': 2,
@@ -106,17 +107,31 @@ export default function ReportsPage() {
       const exactStatus = ['rental-monitoring', 'room-utilization'].includes(selectedId)
         ? status.split(' / ').at(-1)
         : status;
-      return exactStatus === statusFilter;
+      const matchesStatus = statusFilter === 'ALL' || exactStatus === statusFilter;
+      const matchesType = selectedId !== 'payment-sales' || transactionFilter === 'ALL'
+        || String(row[0] || '').toUpperCase().replace(/\s+/g, '_') === transactionFilter;
+      return matchesStatus && matchesType;
     });
-  }, [reportData, selectedId, statusFilter]);
+  }, [reportData, selectedId, statusFilter, transactionFilter]);
   const visibleSummary = useMemo(() => {
     const items = Array.isArray(reportData?.summary) ? reportData.summary : [];
+    if (selectedId === 'payment-sales') {
+      const parseAmount = (value) => Number(String(value || '').replace(/[^0-9.-]/g, '')) || 0;
+      const total = (matches) => filteredRows.reduce((sum, row) => (
+        matches.includes(String(row[3] || '').toUpperCase()) ? sum + parseAmount(row[2]) : sum
+      ), 0);
+      return [
+        { label: 'Total Collected', value: peso(total(['PAID', 'COMPLETED', 'SUCCESSFUL'])) },
+        { label: 'Pending Confirmation', value: peso(total(['PENDING', 'PENDING_CONFIRMATION', 'PENDING_PROCEED', 'PARTIALLY_PAID', 'FOR_APPROVAL'])) },
+        { label: 'Refunded', value: peso(total(['REFUNDED'])) },
+      ];
+    }
     if (selectedId === 'enrollment-report' && ['FOR_APPROVAL', 'CANCELLED'].includes(statusFilter)) return [];
     if (selectedId === 'room-utilization' && statusFilter !== 'ALL') {
       return statusFilter === 'COMPLETED' ? items.filter((item) => item.label === 'Total completed') : [];
     }
     return items;
-  }, [reportData, selectedId, statusFilter]);
+  }, [reportData, selectedId, statusFilter, filteredRows]);
 
   useEffect(() => {
     if (!dateValid) return;
@@ -206,7 +221,7 @@ export default function ReportsPage() {
 
           <section className="reports-ui space-y-4 print:hidden">
             <h2 className="text-lg font-semibold">Reports</h2>
-            <Card size="sm"><CardContent className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,220px)_minmax(0,170px)_minmax(0,170px)_minmax(0,220px)_auto_auto] lg:items-end"><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-type">Report type</label><select id="report-type" value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setStatusFilter('ALL'); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{visibleReports.map((report) => <option key={report.id} value={report.id}>{report.title}</option>)}</select></div><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-from">From</label><Input id="report-from" type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-to">To</label><Input id="report-to" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} /></div><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-status">Status</label><select id="report-status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{(REPORT_STATUS_OPTIONS[selectedId] || ['ALL']).map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div><Button type="button" variant="outline" size="sm" onClick={() => setStatusFilter('ALL')}>Reset filters</Button><div className="flex flex-wrap gap-2">{[7, 30, 90].map((days) => <Button key={days} size="sm" variant="ghost" onClick={() => setRange(days)}>Last {days} days</Button>)}</div></CardContent></Card>
+            <Card size="sm"><CardContent className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,220px)_minmax(0,170px)_minmax(0,170px)_minmax(0,220px)_auto_auto] lg:items-end"><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-type">Report type</label><select id="report-type" value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setStatusFilter('ALL'); setTransactionFilter('ALL'); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{visibleReports.map((report) => <option key={report.id} value={report.id}>{report.title}</option>)}</select></div><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-from">From</label><Input id="report-from" type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-to">To</label><Input id="report-to" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} /></div><div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="report-status">Status</label><select id="report-status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{(REPORT_STATUS_OPTIONS[selectedId] || ['ALL']).map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>{selectedId === 'payment-sales' && <div className="space-y-1"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="transaction-type">Transaction type</label><select id="transaction-type" value={transactionFilter} onChange={(event) => setTransactionFilter(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="ALL">All transactions</option><option value="ENROLLMENT">Enrollment</option><option value="ROOM_BOOKING">Booking</option><option value="INSTRUMENT_RENTAL">Rentals</option></select></div>}<Button type="button" variant="outline" size="sm" onClick={() => { setStatusFilter('ALL'); setTransactionFilter('ALL'); }}>Reset filters</Button><div className="flex flex-wrap gap-2">{[7, 30, 90].map((days) => <Button key={days} size="sm" variant="ghost" onClick={() => setRange(days)}>Last {days} days</Button>)}</div></CardContent></Card>
           </section>
 
           <div className="reports-ui flex flex-wrap items-end justify-between gap-3 print:hidden">

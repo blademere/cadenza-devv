@@ -76,7 +76,7 @@ export const reportsRepository = {
   },
 
   async findRentals(appId, from, to) {
-    return prisma.cadenzaRental.findMany({
+    const rentals = await prisma.cadenzaRental.findMany({
       where: { appId, createdAt: range(from, to) },
       include: {
         customer: { include: { person: true } },
@@ -84,6 +84,22 @@ export const reportsRepository = {
       },
       orderBy: { createdAt: 'asc' },
     });
+    const resourceIds = [...new Set(rentals.flatMap((rental) => rental.items.map((item) => item.instrument?.resourceId).filter(Boolean)))];
+    const resources = resourceIds.length ? await prisma.resource.findMany({
+      where: { appId, id: { in: resourceIds } },
+      select: { id: true, name: true },
+    }) : [];
+    const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+    return rentals.map((rental) => ({
+      ...rental,
+      items: rental.items.map((item) => ({
+        ...item,
+        instrument: item.instrument ? {
+          ...item.instrument,
+          name: names.get(item.instrument.resourceId) || item.instrument.instrumentType?.name || 'Unnamed instrument',
+        } : null,
+      })),
+    }));
   },
 
   async findEnrollmentRefunds(appId, from, to) {
