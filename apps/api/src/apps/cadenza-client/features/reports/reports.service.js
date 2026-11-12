@@ -1,5 +1,6 @@
 import { BadRequestError } from '../../../../common/errors/appError.js';
 import { reportsRepository } from './reports.repository.js';
+import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
 const REPORT_TYPES = new Set([
   'payment-sales', 'instrument-equipment', 'student-report', 'instructor-report',
@@ -22,6 +23,7 @@ const REPORT_ALIASES = {
   'student-progress': 'student-attendance',
 };
 
+const prisma = getPrismaClient();
 const money = (amount) => `₱${Number(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
 const personName = (person) => [person?.firstName, person?.lastName].filter(Boolean).join(' ') || 'Unassigned';
 const dateTime = (value) => value ? new Date(value).toLocaleString('en-PH', { timeZone: 'Asia/Manila' }) : '—';
@@ -70,6 +72,8 @@ const buildReport = async (appId, type, from, to) => {
         amount,
         method: metadata.paymentMethod || 'QR',
         referenceType,
+        sourceId: record.id,
+        customer: customerName(record),
         reference: metadata.paymentReference || null,
         status: metadata.paymentStatus || 'PENDING_CONFIRMATION',
         createdAt: metadata.paymentSubmittedAt || record.createdAt || record.scheduledStart,
@@ -87,31 +91,66 @@ const buildReport = async (appId, type, from, to) => {
     ].filter((payment) => payment && (!payment.reference || !recordedReferences.has(paymentKey(payment.referenceType, payment.reference))));
     const payments = [
       ...obligations.flatMap((obligation) => (obligation.payments || []).map((payment) => ({
-        ...payment, referenceType: obligation.referenceType,
+        ...payment, referenceType: obligation.referenceType, sourceId: obligation.referenceId,
         reference: payment.providerReference || payment.referenceId || payment.id,
       }))),
       ...cashierPayments.map((payment) => ({
-        ...payment, referenceType: payment.transactionType, paidAt: payment.createdAt, status: 'SUCCESSFUL',
+        ...payment, referenceType: payment.transactionType, sourceId: payment.sourceId,
+        paidAt: payment.createdAt, status: 'SUCCESSFUL',
       })),
       ...metadataPayments,
     ];
+    const normalizedType = (value) => String(value || '').toUpperCase().replace(/[ -]/g, '_');
+    const sourceRecords = [
+      ...enrollments.map((record) => ({ ...record, transactionType: 'ENROLLMENT' })),
+      ...bookings.map((record) => ({ ...record, transactionType: 'ROOM_BOOKING' })),
+      ...rentals.map((record) => ({ ...record, transactionType: 'INSTRUMENT_RENTAL' })),
+    ];
+    const sourceKey = (type, id) => `${normalizedType(type)}:${id}`;
+    const sourceNames = new Map(sourceRecords.map((record) => [sourceKey(record.transactionType, record.id), customerName(record)]));
+    const sourceIds = { ENROLLMENT: new Set(), ROOM_BOOKING: new Set(), INSTRUMENT_RENTAL: new Set() };
+    for (const record of [...payments, ...enrollmentRefunds.map((refund) => ({ ...refund, referenceType: 'ENROLLMENT', sourceId: refund.enrollmentId })), ...bookingRentalRefunds.map((refund) => ({ ...refund, referenceType: refund.transactionType }))]) {
+      const type = normalizedType(record.referenceType);
+      if (sourceIds[type] && record.sourceId && !sourceNames.has(sourceKey(type, record.sourceId))) {
+        sourceIds[type].add(record.sourceId);
+      }
+    }
+    const [additionalEnrollments, additionalBookings, additionalRentals] = await Promise.all([
+      sourceIds.ENROLLMENT.size ? prisma.cadenzaEnrollment.findMany({
+        where: { appId, id: { in: [...sourceIds.ENROLLMENT] } },
+        select: { id: true, customer: { select: { person: { select: { firstName: true, lastName: true } } } } },
+      }) : [],
+      sourceIds.ROOM_BOOKING.size ? prisma.cadenzaRoomBooking.findMany({
+        where: { appId, id: { in: [...sourceIds.ROOM_BOOKING] } },
+        select: { id: true, customer: { select: { person: { select: { firstName: true, lastName: true } } } } },
+      }) : [],
+      sourceIds.INSTRUMENT_RENTAL.size ? prisma.cadenzaRental.findMany({
+        where: { appId, id: { in: [...sourceIds.INSTRUMENT_RENTAL] } },
+        select: { id: true, customer: { select: { person: { select: { firstName: true, lastName: true } } } } },
+      }) : [],
+    ]);
+    for (const [type, records] of [['ENROLLMENT', additionalEnrollments], ['ROOM_BOOKING', additionalBookings], ['INSTRUMENT_RENTAL', additionalRentals]]) {
+      for (const record of records) sourceNames.set(sourceKey(type, record.id), customerName(record));
+    }
+    const paymentCustomer = (type, id) => sourceNames.get(sourceKey(type, id)) || 'Unknown customer';
     const rows = [
       ...payments.map((payment) => [
         String(payment.referenceType || 'OTHER').replaceAll('_', ' '),
-        String(payment.method || payment.provider || 'ONLINE').replaceAll('_', ' '),
+        paymentCustomer(payment.referenceType, payment.sourceId),
+        String(payment.method || payment.provider || 'ONLINE').replaceAll('_', '),
         money(payment.amount),
         String(payment.status || 'PENDING_CONFIRMATION').toUpperCase(),
         dateTime(payment.paidAt || payment.createdAt),
         paymentReference(payment),
       ]),
-      ...enrollmentRefunds.map((refund) => ['ENROLLMENT', refund.method, money(refund.amount), 'REFUNDED', dateTime(refund.createdAt), paymentReference(refund)]),
-      ...bookingRentalRefunds.map((refund) => [String(refund.transactionType).replaceAll('_', ' '), refund.method, money(refund.amount), 'REFUNDED', dateTime(refund.createdAt), paymentReference(refund)]),
+      ...enrollmentRefunds.map((refund) => ['ENROLLMENT', paymentCustomer('ENROLLMENT', refund.enrollmentId), refund.method, money(refund.amount), 'REFUNDED', dateTime(refund.createdAt), paymentReference(refund)]),
+      ...bookingRentalRefunds.map((refund) => [String(refund.transactionType).replaceAll('_', ' '), paymentCustomer(refund.transactionType, refund.sourceId), refund.method, money(refund.amount), 'REFUNDED', dateTime(refund.createdAt), paymentReference(refund)]),
     ];
     const amountFor = (statuses) => payments.filter((payment) => statuses.includes(String(payment.status || '').toUpperCase()))
       .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
     const refunded = [...enrollmentRefunds, ...bookingRentalRefunds].reduce((sum, refund) => sum + Number(refund.amount || 0), 0);
     return {
-      columns: ['Transaction type', 'Payment method', 'Amount', 'Status', 'Date', 'Reference'],
+      columns: ['Transaction type', 'Customer', 'Payment method', 'Amount', 'Status', 'Date', 'Reference'],
       summary: [
         { label: 'Total Collected', value: money(amountFor(['PAID', 'COMPLETED', 'SUCCESSFUL'])) },
         { label: 'Pending Confirmation', value: money(amountFor(['PENDING', 'PENDING_CONFIRMATION', 'PENDING_PROCEED', 'PARTIALLY_PAID', 'FOR_APPROVAL'])) },
@@ -175,11 +214,21 @@ const buildReport = async (appId, type, from, to) => {
 
   if (type === 'enrollment-summary') {
     const enrollments = await reportsRepository.findEnrollments(appId, from, to);
+    const selectedCourseIds = [...new Set(enrollments.map((item) => item.metadata?.courseId || item.termsSnapshot?.courseId).filter(Boolean))];
+    const selectedCourses = selectedCourseIds.length ? await prisma.cadenzaCourse.findMany({
+      where: { appId, id: { in: selectedCourseIds } },
+      select: { id: true, name: true },
+    }) : [];
+    const selectedCourseNames = new Map(selectedCourses.map((course) => [course.id, course.name]));
     const enrolledCourse = (enrollment) => {
-      const selectedCourseId = enrollment.metadata?.courseId;
+      const selectedCourseId = enrollment.metadata?.courseId || enrollment.termsSnapshot?.courseId;
       const courses = packageCourses(enrollment.lessonPackage);
       if (selectedCourseId) {
-        return courses.find((course) => course.id === selectedCourseId)?.name || 'Unknown course';
+        return selectedCourseNames.get(selectedCourseId)
+          || courses.find((course) => course.id === selectedCourseId)?.name
+          || enrollment.metadata?.courseName
+          || enrollment.termsSnapshot?.courseName
+          || 'Not specified';
       }
       const distinctCourses = [...new Set(courses.map((course) => course.name).filter(Boolean))];
       return distinctCourses.length === 1 ? distinctCourses[0] : 'Not specified';
