@@ -96,7 +96,7 @@ export default function ReportsPage() {
     const rows = Array.isArray(reportData?.rows) ? reportData.rows : [];
     if (statusFilter === 'ALL' && (selectedId !== 'payment-sales' || transactionFilter === 'ALL')) return rows;
     const statusColumn = {
-      'payment-sales': 3,
+      'payment-sales': 4,
       'enrollment-report': 2,
       'instrument-equipment': 3,
       'rental-monitoring': 1,
@@ -118,7 +118,7 @@ export default function ReportsPage() {
     if (selectedId === 'payment-sales') {
       const parseAmount = (value) => Number(String(value || '').replace(/[^0-9.-]/g, '')) || 0;
       const total = (matches) => filteredRows.reduce((sum, row) => (
-        matches.includes(String(row[3] || '').toUpperCase()) ? sum + parseAmount(row[2]) : sum
+        matches.includes(String(row[4] || '').toUpperCase()) ? sum + parseAmount(row[3]) : sum
       ), 0);
       return [
         { label: 'Total Collected', value: peso(total(['PAID', 'COMPLETED', 'SUCCESSFUL'])) },
