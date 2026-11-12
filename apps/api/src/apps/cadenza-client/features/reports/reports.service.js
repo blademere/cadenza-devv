@@ -137,7 +137,7 @@ const buildReport = async (appId, type, from, to) => {
       ...payments.map((payment) => [
         String(payment.referenceType || 'OTHER').replaceAll('_', ' '),
         paymentCustomer(payment.referenceType, payment.sourceId),
-        String(payment.method || payment.provider || 'ONLINE').replaceAll('_', '),
+        String(payment.method || payment.provider || 'ONLINE').replaceAll('_', ' '),
         money(payment.amount),
         String(payment.status || 'PENDING_CONFIRMATION').toUpperCase(),
         dateTime(payment.paidAt || payment.createdAt),
