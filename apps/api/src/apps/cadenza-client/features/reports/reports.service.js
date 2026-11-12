@@ -162,24 +162,31 @@ const buildReport = async (appId, type, from, to) => {
 
   if (type === 'enrollment-summary') {
     const enrollments = await reportsRepository.findEnrollments(appId, from, to);
-    const courses = enrollments.flatMap((item) => packageCourses(item.lessonPackage));
-    const topCourse = countBy(courses, (course) => course.name)[0];
+    const enrolledCourse = (enrollment) => {
+      const selectedCourseId = enrollment.metadata?.courseId;
+      const courses = packageCourses(enrollment.lessonPackage);
+      if (selectedCourseId) {
+        return courses.find((course) => course.id === selectedCourseId)?.name || 'Unknown course';
+      }
+      const distinctCourses = [...new Set(courses.map((course) => course.name).filter(Boolean))];
+      return distinctCourses.length === 1 ? distinctCourses[0] : 'Not specified';
+    };
+    const courses = enrollments.map(enrolledCourse).filter((name) => !['Not specified', 'Unknown course'].includes(name));
+    const topCourse = countBy(courses, (name) => name)[0];
     return {
-      columns: ['Metric / student', 'Course / value', 'Status', 'Enrollment date'],
+      columns: ['Student', 'Course', 'Status', 'Enrollment date'],
       summary: [
         { label: 'Total enrollments', value: enrollments.length },
-        { label: 'Active enrollments', value: enrollments.filter((item) => item.status === 'ACTIVE').length },
+        { label: 'Active enrollments', value: enrollments.filter((item) => ['ACTIVE', 'APPROVED'].includes(item.status)).length },
         { label: 'Completed enrollments', value: enrollments.filter((item) => item.status === 'COMPLETED').length },
         { label: 'Most enrolled course', value: topCourse ? `${topCourse[0]} (${topCourse[1]})` : '—' },
       ],
-      rows: [
-        ...enrollments.map((item) => [
-          customerName(item),
-          packageCourses(item.lessonPackage).map((course) => course.name).join(', ') || '—',
-          item.status,
-          dateTime(item.createdAt),
-        ]),
-      ],
+      rows: enrollments.map((item) => [
+        customerName(item),
+        enrolledCourse(item),
+        item.status,
+        dateTime(item.createdAt),
+      ]),
     };
   }
 
