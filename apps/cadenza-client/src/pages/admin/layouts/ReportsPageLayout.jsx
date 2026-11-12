@@ -3,33 +3,10 @@ const formatDate = (value) => {
   return new Date(`${value}T00:00:00`).toLocaleDateString();
 };
 
-export default function ReportsPageLayout({ report, columns, rows, startDate, endDate, generatedAt, isLoading, error }) {
+export default function ReportsPageLayout({ report, columns, rows, summary, startDate, endDate, generatedAt, isLoading, error }) {
   const reportRows = Array.isArray(rows) ? rows : [];
-  const summaryIndexMap = {
-    'enrollment-report': [0, 1, 2, 3],
-    'rental-monitoring': [0, 1, 2, 3, 4],
-    'cancellation-summary': [0, 1, 2],
-    'room-utilization': [0, 1, 2, 3, reportRows.length - 1],
-    'lesson-progress': [0, 1, 2, 3],
-  };
-  const summaryIndexes = summaryIndexMap[report.id] || [];
-  const isSummaryRow = (row, index) =>
-    row.some((cell) => String(cell).toUpperCase() === 'SUMMARY') || summaryIndexes.includes(index);
-  const detailRows = reportRows.filter((row, index) => !isSummaryRow(row, index));
-  const summaryRows = reportRows.filter((row, index) => isSummaryRow(row, index));
-  const summaryItems = report.id === 'billing-payments'
-    ? [
-      { label: 'Total billed', value: summaryRows[0]?.[1] || '-' },
-      { label: 'Payments received', value: summaryRows[0]?.[2] || '-' },
-      { label: 'Outstanding balance', value: summaryRows[0]?.[3] || '-' },
-      { label: 'Pending payments', value: summaryRows[3]?.[5] || '0' },
-    ]
-    : summaryRows.map((row) => ({
-      label: row[0] || 'Summary',
-      value: report.id === 'revenue-sales'
-        ? row[2] || '-'
-        : row.find((cell, index) => index > 0 && String(cell).toUpperCase() !== 'SUMMARY' && cell !== '') || '-',
-    }));
+  const summaryItems = Array.isArray(summary) ? summary : [];
+  const detailRows = reportRows;
 
   return (
     <article id="report-print-document" className="report-template" aria-label={`${report.title} printable report`}>
@@ -51,7 +28,7 @@ export default function ReportsPageLayout({ report, columns, rows, startDate, en
           <p className="report-template__message report-template__message--error">{error}</p>
         ) : (
           <>
-          {summaryRows.length > 0 && (
+          {summaryItems.length > 0 && (
             <section className="report-template__summary" aria-label="Report summary">
               <h3>Summary</h3>
               <div className="report-template__summary-grid">

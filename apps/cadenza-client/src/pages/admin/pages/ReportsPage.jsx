@@ -93,11 +93,30 @@ export default function ReportsPage() {
   const queryRange = `from=${encodeURIComponent(startDate)}&to=${encodeURIComponent(endDate)}`;
   const filteredRows = useMemo(() => {
     const rows = Array.isArray(reportData?.rows) ? reportData.rows : [];
+    if (statusFilter === 'ALL') return rows;
+    const statusColumn = {
+      'payment-sales': 3,
+      'enrollment-report': 2,
+      'instrument-equipment': 3,
+      'rental-monitoring': 1,
+      'room-utilization': 1,
+    }[selectedId];
     return rows.filter((row) => {
-      const text = row.map((value) => String(value ?? '')).join(' ').toLowerCase();
-      return row.some((cell) => String(cell).toUpperCase() === 'SUMMARY') || statusFilter === 'ALL' || text.includes(statusFilter.toLowerCase());
+      const status = String(row[statusColumn] ?? '').toUpperCase();
+      const exactStatus = ['rental-monitoring', 'room-utilization'].includes(selectedId)
+        ? status.split(' / ').at(-1)
+        : status;
+      return exactStatus === statusFilter;
     });
-  }, [reportData, statusFilter]);
+  }, [reportData, selectedId, statusFilter]);
+  const visibleSummary = useMemo(() => {
+    const items = Array.isArray(reportData?.summary) ? reportData.summary : [];
+    if (selectedId === 'enrollment-report' && ['FOR_APPROVAL', 'CANCELLED'].includes(statusFilter)) return [];
+    if (selectedId === 'room-utilization' && statusFilter !== 'ALL') {
+      return statusFilter === 'COMPLETED' ? items.filter((item) => item.label === 'Total completed') : [];
+    }
+    return items;
+  }, [reportData, selectedId, statusFilter]);
 
   useEffect(() => {
     if (!dateValid) return;
@@ -140,7 +159,7 @@ export default function ReportsPage() {
   const generatedAt = new Date().toLocaleString('en-PH');
   const exportExcel = () => {
     const columns = Array.isArray(reportData?.columns) ? reportData.columns : [];
-    const rows = Array.isArray(reportData?.rows) ? reportData.rows : [];
+    const rows = filteredRows;
     if (!columns.length || !rows.length) return;
     const worksheet = XLSX.utils.aoa_to_sheet([columns, ...rows]);
     worksheet['!cols'] = columns.map((column, index) => ({
@@ -208,6 +227,7 @@ export default function ReportsPage() {
             report={selectedReport}
             columns={Array.isArray(reportData?.columns) ? reportData.columns : ['Metric', 'Value']}
             rows={filteredRows}
+            summary={visibleSummary}
             startDate={startDate}
             endDate={endDate}
             generatedAt={generatedAt}

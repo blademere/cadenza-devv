@@ -77,12 +77,26 @@ export const reportsRepository = {
 
   async findRentals(appId, from, to) {
     return prisma.cadenzaRental.findMany({
-      where: { appId, scheduledStart: range(from, to) },
+      where: { appId, createdAt: range(from, to) },
       include: {
         customer: { include: { person: true } },
         items: { include: { instrument: { include: { instrumentType: true, itemCategory: true } } } },
       },
-      orderBy: { scheduledStart: 'asc' },
+      orderBy: { createdAt: 'asc' },
+    });
+  },
+
+  async findEnrollmentRefunds(appId, from, to) {
+    return prisma.cadenzaEnrollmentRefund.findMany({
+      where: { appId, createdAt: range(from, to) },
+      orderBy: { createdAt: 'asc' },
+    });
+  },
+
+  async findBookingRentalRefunds(appId, from, to) {
+    return prisma.cadenzaBookingRentalRefund.findMany({
+      where: { appId, createdAt: range(from, to) },
+      orderBy: { createdAt: 'asc' },
     });
   },
 

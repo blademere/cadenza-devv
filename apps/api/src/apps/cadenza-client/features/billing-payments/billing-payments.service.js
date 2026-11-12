@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestError, NotFoundError, ConflictError } from '../../../../common/errors/appError.js';
 import { getPrismaClient } from '../../../../infrastructure/database/prisma.js';
 
@@ -20,7 +21,7 @@ const refundNotification = async (db, { appId, customerId, transactionType, sour
       userId: recipientId,
       type: 'PAYMENT_REFUNDED',
       title: `${name} refund recorded`,
-      message: `Your ${name.toLowerCase()} refund of ₱${amount} has been recorded. Refund reference: ${refund.reference}.`,
+      message: `Your ${name.toLowerCase()} refund of ₱${amount} has been recorded.${refund.method === 'CASH' ? ' Refund method: cash.' : ` Refund reference: ${refund.reference}.`}`,
       data: { appId, transactionType, sourceId, refundId: refund.id, amount: Number(refund.amount), reference: refund.reference, method: refund.method },
       idempotencyKey: `cadenza-refund:${refund.id}`,
     },
@@ -105,7 +106,7 @@ export const billingPaymentsService = {
     const transactionType = normalizeType(type);
     if (transactionType === 'ENROLLMENT') throw new BadRequestError('Use the enrollment refund endpoint.');
     const method = String(input?.method || '').trim().toUpperCase().replace(/\s+/g, '_');
-    const reference = String(input?.reference || '').trim();
+    const reference = method === 'CASH' ? `CASH-${randomUUID()}` : String(input?.reference || '').trim();
     if (!Number.isInteger(userId) || userId <= 0) throw new BadRequestError('A staff account is required.');
     if (!['CASH', 'GCASH', 'BANK_TRANSFER'].includes(method)) throw new BadRequestError('Invalid refund method.');
     if (method !== 'CASH' && !/^[A-Za-z0-9]{13,100}$/.test(reference)) throw new BadRequestError('Refund reference must be 13 to 100 letters and numbers only.');
@@ -208,10 +209,10 @@ export const billingPaymentsService = {
 
   async recordEnrollmentRefund(appId, userId, enrollmentId, input) {
     const method = String(input?.method || '').trim().toUpperCase().replace(/\s+/g, '_');
-    const reference = String(input?.reference || '').trim();
+    const reference = method === 'CASH' ? `CASH-${randomUUID()}` : String(input?.reference || '').trim();
     if (!Number.isInteger(userId) || userId <= 0) throw new BadRequestError('An authenticated staff account is required.');
     if (!['CASH', 'GCASH', 'BANK_TRANSFER'].includes(method)) throw new BadRequestError('Choose the method used to return the money.');
-    if (!/^[A-Za-z0-9]{13,100}$/.test(reference)) throw new BadRequestError('Reference number must be minimum of 13 characters.');
+    if (method !== 'CASH' && !/^[A-Za-z0-9]{13,100}$/.test(reference)) throw new BadRequestError('Reference number must be 13 to 100 letters and numbers.');
     if (input?.confirmedReturned !== true) throw new BadRequestError('Confirm the refund has already been returned to the client before recording it.');
     try {
       return await prisma.$transaction(async (db) => {

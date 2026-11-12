@@ -32,6 +32,8 @@ const paymentReference = (payment) => {
     ? 'No reference (cash)'
     : payment?.reference || payment?.providerReference || payment?.referenceId || payment?.id || '—';
 };
+const paymentSuccessful = (status) => ['PAID', 'COMPLETED', 'SUCCESSFUL'].includes(String(status || '').toUpperCase());
+const paymentPending = (status) => ['PENDING', 'PENDING_CONFIRMATION', 'PENDING_PROCEED', 'PARTIALLY_PAID', 'FOR_APPROVAL'].includes(String(status || '').toUpperCase());
 const countBy = (items, getKey) => {
   const counts = new Map();
   items.forEach((item) => {
@@ -82,8 +84,23 @@ const buildReport = async (appId, type, from, to) => {
       })),
       ...[...enrollments.map((item) => metadataPayment(item, 'ENROLLMENT')), ...bookings.map((item) => metadataPayment(item, 'ROOM_BOOKING')), ...rentals.map((item) => metadataPayment(item, 'INSTRUMENT_RENTAL'))].filter(Boolean),
     ];
+    const [enrollmentRefunds, bookingRentalRefunds] = await Promise.all([
+      reportsRepository.findEnrollmentRefunds(appId, from, to),
+      reportsRepository.findBookingRentalRefunds(appId, from, to),
+    ]);
+    const totalCollected = payments.filter((payment) => paymentSuccessful(payment.status))
+      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const pendingConfirmation = payments.filter((payment) => paymentPending(payment.status))
+      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const refunded = [...enrollmentRefunds, ...bookingRentalRefunds]
+      .reduce((sum, refund) => sum + Number(refund.amount || 0), 0);
     return {
       columns: ['Transaction type', 'Payment method', 'Amount', 'Status', 'Date', 'Reference'],
+      summary: [
+        { label: 'Total Collected', value: money(totalCollected) },
+        { label: 'Pending Confirmation', value: money(pendingConfirmation) },
+        { label: 'Refunded', value: money(refunded) },
+      ],
       rows: [
         ...payments.map((payment) => [
           String(payment.referenceType || 'OTHER').replaceAll('_', ' '),
@@ -114,14 +131,17 @@ const buildReport = async (appId, type, from, to) => {
   if (type === 'rental-monitoring') {
     const rentals = await reportsRepository.findRentals(appId, from, to);
     const now = new Date();
-    return { columns: ['Rental / customer', 'Value / status', 'Start', 'End'], rows: [
-      ['Total rentals', rentals.length],
-      ['Active / pending', rentals.filter((r) => !['COMPLETED','CANCELLED','RETURNED'].includes(r.status)).length],
-      ['Overdue (not completed)', rentals.filter((r) => r.scheduledEnd < now && !['COMPLETED','CANCELLED','RETURNED'].includes(r.status)).length],
-      ['Completed / returned', rentals.filter((r) => ['COMPLETED','RETURNED'].includes(r.status) || r.returnedAt).length],
-      ['Scheduled rental value', money(rentals.filter((r) => r.status !== 'CANCELLED').reduce((sum, r) => sum + Number(r.totalAmount || 0), 0)), '', 'SUMMARY', ''],
-      ...rentals.map((rental) => [customerName(rental), `${money(rental.totalAmount)} / ${rental.status}`, dateTime(rental.scheduledStart), dateTime(rental.scheduledEnd)]),
-    ] };
+    return {
+      columns: ['Rental / customer', 'Value / status', 'Start', 'End'],
+      summary: [
+        { label: 'Total rentals', value: rentals.length },
+        { label: 'Active / pending', value: rentals.filter((r) => !['COMPLETED', 'CANCELLED', 'RETURNED', 'REJECTED'].includes(r.status)).length },
+        { label: 'Overdue (not completed)', value: rentals.filter((r) => r.scheduledEnd < now && !['COMPLETED', 'CANCELLED', 'RETURNED', 'REJECTED'].includes(r.status)).length },
+        { label: 'Completed / returned', value: rentals.filter((r) => ['COMPLETED', 'RETURNED'].includes(r.status) || r.returnedAt).length },
+        { label: 'Scheduled rental value', value: money(rentals.filter((r) => !['CANCELLED', 'REJECTED'].includes(r.status)).reduce((sum, r) => sum + Number(r.totalAmount || 0), 0)) },
+      ],
+      rows: rentals.map((rental) => [customerName(rental), `${money(rental.totalAmount)} / ${rental.status}`, dateTime(rental.scheduledStart), dateTime(rental.scheduledEnd)]),
+    };
   }
 
   if (type === 'cancellation-summary') {
@@ -146,11 +166,13 @@ const buildReport = async (appId, type, from, to) => {
     const topCourse = countBy(courses, (course) => course.name)[0];
     return {
       columns: ['Metric / student', 'Course / value', 'Status', 'Enrollment date'],
+      summary: [
+        { label: 'Total enrollments', value: enrollments.length },
+        { label: 'Active enrollments', value: enrollments.filter((item) => item.status === 'ACTIVE').length },
+        { label: 'Completed enrollments', value: enrollments.filter((item) => item.status === 'COMPLETED').length },
+        { label: 'Most enrolled course', value: topCourse ? `${topCourse[0]} (${topCourse[1]})` : '—' },
+      ],
       rows: [
-        ['Total enrollments', enrollments.length],
-        ['Active enrollments', enrollments.filter((item) => !['CANCELLED', 'COMPLETED'].includes(item.status)).length],
-        ['Completed enrollments', enrollments.filter((item) => item.status === 'COMPLETED').length],
-        ['Most enrolled course', topCourse ? `${topCourse[0]} (${topCourse[1]})` : '—'],
         ...enrollments.map((item) => [
           customerName(item),
           packageCourses(item.lessonPackage).map((course) => course.name).join(', ') || '—',
@@ -248,13 +270,13 @@ const buildReport = async (appId, type, from, to) => {
     const topRoom = countBy(bookings, (booking) => booking.room?.resource?.name || booking.roomNameAtBooking || booking.room?.resourceId)[0];
     return {
       columns: ['Room / customer', 'Status', 'Start', 'End'],
-      rows: [
-        ['Total bookings', bookings.length],
-        ['Approved bookings', bookings.filter((item) => item.status === 'APPROVED').length],
-        ['Cancelled bookings', bookings.filter((item) => item.status === 'CANCELLED').length],
-        ...bookings.map((booking) => [booking.room?.resource?.name || booking.roomNameAtBooking || 'Room', `${customerName(booking)} / ${booking.status}`, dateTime(booking.scheduledStart), dateTime(booking.scheduledEnd)]),
-        ['Most used room', topRoom ? `${topRoom[0]} (${topRoom[1]})` : '—'],
+      summary: [
+        { label: 'Total bookings', value: bookings.length },
+        { label: 'Total completed', value: bookings.filter((item) => item.status === 'COMPLETED').length },
+        { label: 'Cancelled bookings', value: bookings.filter((item) => item.status === 'CANCELLED').length },
+        { label: 'Most used room', value: topRoom ? `${topRoom[0]} (${topRoom[1]})` : '—' },
       ],
+      rows: bookings.map((booking) => [booking.room?.resource?.name || booking.roomNameAtBooking || 'Room', `${customerName(booking)} / ${booking.status}`, dateTime(booking.scheduledStart), dateTime(booking.scheduledEnd)]),
     };
   }
 
@@ -284,6 +306,7 @@ const buildReport = async (appId, type, from, to) => {
     });
     return {
       columns: ['Item', 'Brand / Model', 'Serial No.', 'Status', 'Rental count', 'Last rented', 'Rental rate'],
+      summary: [{ label: 'Total items', value: inventory.length }],
       rows: itemRows,
     };
   }

@@ -12,7 +12,7 @@ export default function TransactionRefundPanel({ type, transactionId, onRefundRe
   const [reference, setReference] = useState('');
   const [confirmedReceived, setConfirmedReceived] = useState(false);
   const [confirmedReturned, setConfirmedReturned] = useState(false);
-  const validReference = /^[A-Za-z0-9]{13,100}$/.test(reference.trim());
+  const validReference = method === 'CASH' || /^[A-Za-z0-9]{13,100}$/.test(reference.trim());
 
   useEffect(() => {
     let active = true;
@@ -35,7 +35,7 @@ export default function TransactionRefundPanel({ type, transactionId, onRefundRe
     setError('');
     try {
       await recordTransactionRefund(type, transactionId, {
-        method, reference: reference.trim(), confirmedReceived, confirmedReturned,
+        method, reference: method === 'CASH' ? '' : reference.trim(), confirmedReceived, confirmedReturned,
       });
       const updated = await getTransactionRefundQuote(type, transactionId);
       setQuote(updated);
@@ -73,9 +73,9 @@ export default function TransactionRefundPanel({ type, transactionId, onRefundRe
                   <option value="CASH">Cash</option>
                 </select>
               </label>
-              <label className="block text-sm font-medium">Refund receipt / transfer reference
+              {method !== 'CASH' && <label className="block text-sm font-medium">Refund receipt / transfer reference
                 <input value={reference} onChange={(event) => setReference(event.target.value.replace(/[^A-Za-z0-9]/g, ''))} minLength={13} maxLength={100} pattern="[A-Za-z0-9]{13,100}" disabled={saving} className="mt-1 w-full rounded-md border bg-background p-2" placeholder="At least 13 letters or numbers" />
-              </label>
+              </label>}
               {hasUnverified && <label className="flex items-start gap-2 text-sm">
                 <input type="checkbox" checked={confirmedReceived} onChange={(event) => setConfirmedReceived(event.target.checked)} disabled={saving} />
                 I verified the original submitted payment was received. A submitted reference alone is not proof.
