@@ -1841,8 +1841,8 @@ export default function ClassSchedule() {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        resetReschedule();
                         navigate('/front-desk/schedule', { replace: true });
+                        resetReschedule();
                       }}
                     >
                       Back
