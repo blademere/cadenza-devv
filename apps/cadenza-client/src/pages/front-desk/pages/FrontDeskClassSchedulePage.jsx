@@ -592,7 +592,7 @@ export default function ClassSchedule() {
     useState(false);
 
   const [centerRescheduleState, setCenterReschedule] = useState(false);
-  const centerReschedule = centerRescheduleState && processMode === 'emergency';
+  const centerReschedule = centerRescheduleState && processMode !== 'manage-request';
   const [centerStartMessage, setCenterStartMessage] = useState('');
   const [emergencyDate, setEmergencyDate] = useState(() => formatDateKey(today));
   const [emergencyTargetDate, setEmergencyTargetDate] = useState('');
@@ -713,8 +713,10 @@ export default function ClassSchedule() {
 
 
   const emergencySchedules = useMemo(
-    () => schedule.filter((item) => item.date === emergencyDate),
-    [schedule, emergencyDate],
+    () => centerReschedule && selectedClass
+      ? schedule.filter((item) => item.id === selectedClass.id)
+      : schedule.filter((item) => item.date === emergencyDate),
+    [schedule, emergencyDate, centerReschedule, selectedClass],
   );
   const emergencyHours = useMemo(
     () => getHoursForDate(operatingHours, emergencyDate),
@@ -981,12 +983,15 @@ export default function ClassSchedule() {
     setNoMatchNotificationSent(false);
   };
 
-  const openCenterReschedule = (classItem) => {
+  const openCenterReschedule = (classItem, singleClass = false) => {
     if (!classItem) {
       setCenterStartMessage('No class schedule is available for today. Select another date or refresh the schedule after the class data loads.');
       return;
     }
     setCenterStartMessage('');
+    setEmergencyDate(classItem.date);
+    const nextDate = getNextSameWeekdayDate(classItem.date);
+    setEmergencyTargetDate(nextDate);
     const request = {
       id: `center-${classItem.id}`,
       classId: classItem.id,
@@ -994,7 +999,7 @@ export default function ClassSchedule() {
       requestedBy: 'Music Center',
       requestedAt: formatDateKey(today),
       rescheduleFromDate: classItem.date,
-      rescheduleToDate: emergencyTargetDate || getNextSameWeekdayDate(classItem.date),
+      rescheduleToDate: nextDate,
       course: classItem.course,
       student: classItem.student,
       instructor: classItem.instructor,
@@ -1005,7 +1010,7 @@ export default function ClassSchedule() {
     };
 
     setCenterReschedule(true);
-    setSelectedClass(classItem);
+    setSelectedClass(singleClass ? classItem : null);
     setSelectedRequest(request);
     setGenerated(false);
     setSubmittedOptions(false);
@@ -1035,7 +1040,9 @@ export default function ClassSchedule() {
       return;
     }
 
-    const options = buildGeneratedSchedules(selectedRequest);
+    const options = buildGeneratedSchedules(centerReschedule
+      ? { ...selectedRequest, rescheduleToDate: emergencyTargetDate || selectedRequest.rescheduleToDate }
+      : selectedRequest);
 
     setGeneratedSchedules(options);
     if (centerReschedule) setFinalSchedule(options[0] || null);
@@ -1089,6 +1096,11 @@ export default function ClassSchedule() {
       setEmergencySaving(true);
       setEmergencySaveError('');
       const parsed = parseTime(scheduleToSave.time);
+      if (!parsed || !emergencySchedules.length) {
+        setEmergencySaveError('Select a valid replacement schedule for the affected class.');
+        setEmergencySaving(false);
+        return;
+      }
       const date = scheduleToSave.date;
       const toIso = (minutes) => {
         const hours = String(Math.floor(minutes / 60)).padStart(2, '0');
@@ -1158,7 +1170,7 @@ export default function ClassSchedule() {
   };
 
   useEffect(() => {
-    if (processMode === 'schedule' && selectedRequest) {
+    if (processMode === 'schedule' && selectedRequest && !centerReschedule) {
       resetReschedule();
       return;
     }
@@ -1596,9 +1608,7 @@ export default function ClassSchedule() {
                               ...item,
                               room: getRoomForSchedule(item),
                             }}
-                            onReschedule={
-                              openCenterReschedule
-                            }
+                            onReschedule={(classItem) => openCenterReschedule(classItem, true)}
                             canReschedule={canReschedule}
                             onAssignRoom={openRoomAssignment}
                             canAssignRoom={isUpcoming}
@@ -1665,9 +1675,12 @@ export default function ClassSchedule() {
                             ...item,
                             room: getRoomForSchedule(item),
                           }}
-                          onReschedule={openCenterReschedule}
+                          onReschedule={(classItem) => openCenterReschedule(classItem, true)}
                           onAssignRoom={openRoomAssignment}
                           canAssignRoom={false}
+                          canReschedule={Number.isFinite(new Date(item.scheduledEnd).getTime()) &&
+                            new Date(item.scheduledEnd).getTime() > currentTime &&
+                            !['CANCELLED', 'COMPLETED', 'REJECTED'].includes(String(item.status).toUpperCase())}
                         />
                       ))
                     ) : (
