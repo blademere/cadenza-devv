@@ -110,17 +110,26 @@ const listByCustomer = async (customerId, appId, db = prisma) => {
   );
 };
 
-const listAll = (appId, db = prisma) =>
-  db.cadenzaRoomBooking.findMany({
+const listAll = async (appId, db = prisma) => {
+  const bookings = await db.cadenzaRoomBooking.findMany({
     where: { appId },
-    include: {
-      room: true,
-      customer: {
-        include: { person: true },
-      },
-    },
+    include: { room: true, customer: { include: { person: true } } },
     orderBy: { createdAt: 'desc' },
   });
+  const resourceIds = [...new Set(bookings.map((booking) => booking.room?.resourceId).filter(Boolean))];
+  const resources = resourceIds.length ? await db.resource.findMany({
+    where: { appId, id: { in: resourceIds } },
+    select: { id: true, name: true },
+  }) : [];
+  const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+  return bookings.map((booking) => ({
+    ...booking,
+    room: booking.room ? {
+      ...booking.room,
+      resource: { name: names.get(booking.room.resourceId) || booking.roomNameAtBooking || null },
+    } : null,
+  }));
+};
 
 const updateStaffDecision = async (id, appId, data, db = prisma) => {
   const result = await db.cadenzaRoomBooking.updateMany({

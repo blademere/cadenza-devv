@@ -45,10 +45,11 @@ const serializeEnrollment = (item) => {
       scheduledStart: session.scheduledStart,
       scheduledEnd: session.scheduledEnd,
       status: session.status,
+      attendance: session.attendance?.status || null,
       instructor: session.instructor?.person
         ? [session.instructor.person.firstName, session.instructor.person.lastName].filter(Boolean).join(' ')
         : null,
-      room: session.room?.roomType || session.room?.resourceId || null,
+      room: session.room?.resource?.name || session.room?.roomType || null,
     })),
     billing: {
       totalAmount: Number(item.priceAtEnrollment || item.lessonPackage?.price || 0),
@@ -74,7 +75,7 @@ const serialize = (customer) => ({
   gender: customer.person.gender,
   status: customer.status,
   enrollments: customer.enrollments.map((item) => ({ id: item.id, packageName: item.packageNameAtEnrollment, status: item.status })),
-  activeEnrollments: customer.enrollments.filter((item) => CURRENT_ENROLLMENT_STATUSES.has(item.status)).map(serializeEnrollment),
+  activeEnrollments: customer.enrollments.map(serializeEnrollment),
 });
 const enrollmentInclude = {
   lessonPackage: {
@@ -86,6 +87,7 @@ const enrollmentInclude = {
   sessions: {
     include: {
       instructor: { include: { person: { select: { firstName: true, lastName: true } } } },
+      attendance: { select: { status: true } },
       room: { select: { resourceId: true, roomType: true } },
     },
     orderBy: { scheduledStart: 'asc' },
@@ -101,7 +103,25 @@ router.get('/', async (req, res) => {
     include: { person: { include: { user: { select: { username: true, email: true } } } }, enrollments: { orderBy: { createdAt: 'desc' }, include: enrollmentInclude } },
     orderBy: { person: { lastName: 'asc' } },
   });
-  return res.json({ success: true, data: dependents.map(serialize) });
+  const resourceIds = [...new Set(dependents.flatMap((child) => child.enrollments.flatMap((enrollment) =>
+    enrollment.sessions.map((session) => session.room?.resourceId).filter(Boolean),
+  )))];
+  const resources = resourceIds.length ? await prisma.resource.findMany({
+    where: { appId: req.cadenzaApp.id, id: { in: resourceIds } },
+    select: { id: true, name: true },
+  }) : [];
+  const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+  const populated = dependents.map((child) => ({
+    ...child,
+    enrollments: child.enrollments.map((enrollment) => ({
+      ...enrollment,
+      sessions: enrollment.sessions.map((session) => ({
+        ...session,
+        room: session.room ? { ...session.room, resource: { name: names.get(session.room.resourceId) || null } } : null,
+      })),
+    })),
+  }));
+  return res.json({ success: true, data: populated.map(serialize) });
 });
 
 router.post('/', async (req, res) => {

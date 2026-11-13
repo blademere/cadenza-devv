@@ -108,7 +108,7 @@ const mapBooking = (booking) => {
       [person?.firstName, person?.lastName].filter(Boolean).join(' ') ||
       'Client',
     email: person?.email || '—',
-    roomName: booking.room?.name || 'Room',
+    roomName: booking.room?.resource?.name || booking.roomNameAtBooking || booking.room?.roomType || 'Room not assigned',
     paymentPlan:
       metadata.paymentPlan === 'DOWN_PAYMENT'
         ? 'Partial downpayment'
