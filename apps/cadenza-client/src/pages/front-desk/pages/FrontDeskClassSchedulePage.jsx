@@ -437,6 +437,7 @@ function ScheduleRow({
   onReschedule,
   onAssignRoom,
   canAssignRoom,
+  canReschedule = true,
 }) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border bg-background p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -505,13 +506,15 @@ function ScheduleRow({
           </Button>
         )}
 
-        <Button
-          variant="outline"
-          onClick={() => onReschedule(item)}
-        >
-          <RefreshCwIcon className="mr-2 h-4 w-4" />
-          Re-Sched
-        </Button>
+        {canReschedule && (
+          <Button
+            variant="outline"
+            onClick={() => onReschedule(item)}
+          >
+            <RefreshCwIcon className="mr-2 h-4 w-4" />
+            Re-Sched
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -545,9 +548,14 @@ export default function ClassSchedule() {
   const [operatingHoursError, setOperatingHoursError] = useState('');
   const [activeTab, setActiveTab] = useState('today');
   const [currentDayKey, setCurrentDayKey] = useState(() => formatDateKey(new Date()));
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   useEffect(() => {
-    const timer = window.setInterval(() => setCurrentDayKey(formatDateKey(new Date())), 15000);
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setCurrentTime(now);
+      setCurrentDayKey(formatDateKey(now));
+    }, 15000);
     return () => window.clearInterval(timer);
   }, []);
   const [selectedDay, setSelectedDay] = useState(formatDateKey(today));
@@ -1563,6 +1571,13 @@ export default function ClassSchedule() {
                           getScheduleStartMinutes(item.time);
                         const currentMinutes =
                           getCurrentMinutes();
+                        const sessionStart = new Date(item.scheduledStart).getTime();
+                        const sessionEnd = new Date(item.scheduledEnd).getTime();
+                        const canReschedule = Number.isFinite(sessionStart) &&
+                          Number.isFinite(sessionEnd) &&
+                          currentTime >= sessionStart &&
+                          currentTime < sessionEnd &&
+                          !['CANCELLED', 'COMPLETED', 'REJECTED'].includes(String(item.status).toUpperCase());
 
                         const isUpcoming =
                           start !== null &&
@@ -1580,6 +1595,7 @@ export default function ClassSchedule() {
                             onReschedule={
                               openCenterReschedule
                             }
+                            canReschedule={canReschedule}
                             onAssignRoom={openRoomAssignment}
                             canAssignRoom={isUpcoming}
                           />
@@ -1841,7 +1857,7 @@ export default function ClassSchedule() {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        navigate('/front-desk/schedule', { replace: true });
+                        navigate('/front-desk/schedule/manage-request', { replace: true });
                         resetReschedule();
                       }}
                     >
