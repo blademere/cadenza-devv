@@ -119,7 +119,7 @@ export const enrollmentRepository = {
   },
   async findRescheduleRequestById(appId, id) {
     return prisma.cadenzaRescheduleRequest.findFirst({
-      where: { id, appId, status: 'PENDING', session: { appId } },
+      where: { id, status: 'PENDING', session: { appId } },
       include: {
         session: {
           include: {
