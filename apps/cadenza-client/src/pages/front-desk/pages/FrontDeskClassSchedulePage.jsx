@@ -1158,6 +1158,10 @@ export default function ClassSchedule() {
   };
 
   useEffect(() => {
+    if (processMode === 'schedule' && selectedRequest) {
+      resetReschedule();
+      return;
+    }
     if (processMode === 'manage-request' && centerReschedule) {
       setCenterReschedule(false);
     }
@@ -1857,8 +1861,7 @@ export default function ClassSchedule() {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        navigate('/front-desk/schedule/manage-request', { replace: true });
-                        resetReschedule();
+                        navigate('/front-desk/schedule', { replace: true });
                       }}
                     >
                       Back
