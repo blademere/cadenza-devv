@@ -1862,6 +1862,7 @@ export default function ClassSchedule() {
                       variant="outline"
                       onClick={() => {
                         navigate('/front-desk/schedule', { replace: true });
+                        resetReschedule();
                       }}
                     >
                       Back
