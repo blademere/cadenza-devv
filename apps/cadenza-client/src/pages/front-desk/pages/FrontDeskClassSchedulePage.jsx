@@ -650,6 +650,7 @@ export default function ClassSchedule() {
             date: formatDateKey(start),
             scheduledStart: session.scheduledStart,
             scheduledEnd: session.scheduledEnd,
+            metadata: session.metadata || {},
             time: `${start.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}`,
             weekday: getManilaWeekday(start),
             course: enrollment.lessons?.[0]?.name || enrollment.packageName || 'Lesson',
@@ -718,6 +719,7 @@ export default function ClassSchedule() {
       : schedule.filter((item) => item.date === emergencyDate),
     [schedule, emergencyDate, centerReschedule, selectedClass],
   );
+  const emergencyAlreadyUpdated = emergencySchedules.length > 0 && emergencySchedules.every((item) => item.metadata?.emergencyRescheduled === true);
   const emergencyHours = useMemo(
     () => getHoursForDate(operatingHours, emergencyDate),
     [operatingHours, emergencyDate],
@@ -1041,7 +1043,7 @@ export default function ClassSchedule() {
     }
 
     const options = buildGeneratedSchedules(centerReschedule
-      ? { ...selectedRequest, rescheduleToDate: emergencyTargetDate || selectedRequest.rescheduleToDate }
+      ? { ...selectedRequest, rescheduleToDate: emergencyTargetDate || formatDateKey(selectedRequestWindow[0]) }
       : selectedRequest);
 
     setGeneratedSchedules(options);
@@ -2007,23 +2009,21 @@ export default function ClassSchedule() {
                           {centerReschedule && (
                             <div className="mt-4 max-w-xs space-y-2">
                               <label htmlFor="emergency-target-date" className="text-sm font-medium">New schedule date</label>
-                              <input
+                              <select
                                 id="emergency-target-date"
-                                type="date"
-                                value={emergencyTargetDate || getNextSameWeekdayDate(emergencyDate)}
+                                value={emergencyTargetDate || (selectedRequestWindow[0] ? formatDateKey(selectedRequestWindow[0]) : '')}
                                 onChange={(event) => {
                                   const value = event.target.value;
-                                  const sourceWeekday = new Date(`${emergencyDate}T00:00:00+08:00`).getDay();
-                                  const targetWeekday = new Date(`${value}T00:00:00+08:00`).getDay();
-                                  if (sourceWeekday !== targetWeekday) {
-                                    setCenterStartMessage(`Choose a ${new Date(`${emergencyDate}T00:00:00+08:00`).toLocaleDateString('en-US', { weekday: 'long' })}. The affected classes must move together to the same weekday.`);
-                                    return;
-                                  }
                                   setEmergencyTargetDate(value);
                                   setCenterStartMessage('');
                                 }}
                                 className="block h-9 w-full rounded-md border bg-background px-3 text-sm"
-                              />
+                              >
+                                {selectedRequestWindow.map((date) => {
+                                  const dateKey = formatDateKey(date);
+                                  return <option key={dateKey} value={dateKey}>{formatFullDate(date)}</option>;
+                                })}
+                              </select>
                               <p className="text-xs text-muted-foreground">All {emergencySchedules.length} affected class{emergencySchedules.length === 1 ? '' : 'es'} will be moved to this date.</p>
                             </div>
                           )}
@@ -2065,13 +2065,13 @@ export default function ClassSchedule() {
                               </Button>
                             )}
                             {centerReschedule && (
-                              <Button disabled={!emergencySchedules.length || !generatedSchedules.length || emergencySaving} onClick={() => {
+                              <Button disabled={emergencyAlreadyUpdated || !emergencySchedules.length || !generatedSchedules.length || emergencySaving} onClick={() => {
                                 const schedule = finalSchedule || generatedSchedules[0];
                                 setFinalSchedule(schedule);
                                 submitFinalSchedule(schedule);
                               }}>
                                 <CheckCircle2Icon className="mr-2 h-4 w-4" />
-                                {emergencySaving ? 'Updating...' : 'Update Emergency Schedule'}
+                                {emergencySaving ? 'Updating...' : emergencyAlreadyUpdated ? 'Emergency Schedule Updated' : 'Update Emergency Schedule'}
                               </Button>
                             )}
                           </div>

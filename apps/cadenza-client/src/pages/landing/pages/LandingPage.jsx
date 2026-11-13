@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, Check, Guitar, Music2, UserRound } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, Download, Guitar, Music2, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import app from '@/config/app';
@@ -16,6 +16,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen overflow-hidden bg-white text-slate-950">
       <Header />
+      <a href="https://github.com/waaxxx/cadenza-mobile-download/releases/download/v1.0.0/cadenza-app.apk" target="_blank" rel="noreferrer" download className="fixed bottom-5 right-5 z-50 inline-flex max-w-[calc(100vw-2.5rem)] items-center justify-center gap-2 rounded-full border border-blue-600 bg-blue-700 px-4 py-3 text-sm font-bold text-white shadow-xl transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 animate-[heartbeat_1.8s_ease-in-out_infinite] sm:right-8 sm:px-5"><Download className="size-4 shrink-0" />Download Mobile App here</a>
       <main>
         <section className="relative isolate overflow-hidden bg-[#eef6ff]">
           <div className="pointer-events-none absolute -bottom-32 -left-24 z-0 h-64 w-[70%] rotate-6 rounded-[50%] bg-white/80" />

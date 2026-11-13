@@ -3,6 +3,14 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.06); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.04); }
+  56% { transform: scale(1); }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
