@@ -3,6 +3,25 @@ import { paginate } from '../../../../common/pagination/pagination.js';
 
 const prisma = getPrismaClient();
 
+const populateSessionRooms = async (appId, enrollments) => {
+  const items = Array.isArray(enrollments) ? enrollments : [enrollments].filter(Boolean);
+  const roomIds = [...new Set(items.flatMap((enrollment) => (enrollment.sessions || []).map((session) => session.room?.resourceId).filter(Boolean)))];
+  if (!roomIds.length) return enrollments;
+  const resources = await prisma.resource.findMany({
+    where: { appId, id: { in: roomIds } },
+    select: { id: true, name: true },
+  });
+  const names = new Map(resources.map((resource) => [resource.id, resource.name]));
+  const enriched = items.map((enrollment) => ({
+    ...enrollment,
+    sessions: (enrollment.sessions || []).map((session) => ({
+      ...session,
+      room: session.room ? { ...session.room, resource: { name: names.get(session.room.resourceId) || null } } : null,
+    })),
+  }));
+  return Array.isArray(enrollments) ? enriched : enriched[0] || null;
+};
+
 const packageInclude = {
   lessons: {
     select: {
@@ -680,7 +699,7 @@ export const enrollmentRepository = {
   },
 
   async findEnrollmentByIdForGuardian(appId, guardianId, enrollmentId) {
-    return prisma.cadenzaEnrollment.findFirst({
+    const enrollment = await prisma.cadenzaEnrollment.findFirst({
       where: {
         id: enrollmentId,
         appId,
@@ -697,11 +716,13 @@ export const enrollmentRepository = {
           include: {
             instructor: { select: instructorSelect },
             room: true,
+            attendance: true,
           },
           orderBy: { scheduledStart: 'asc' },
         },
       },
     });
+    return populateSessionRooms(appId, enrollment);
   },
 
   async findMyEnrollment(appId, customerId) {
@@ -709,9 +730,6 @@ export const enrollmentRepository = {
       where: {
         appId,
         customerId,
-        status: {
-          notIn: ['COMPLETED', 'REJECTED'],
-        },
       },
       include: {
         lessonPackage: {
@@ -723,6 +741,7 @@ export const enrollmentRepository = {
               select: instructorSelect,
             },
             room: true,
+            attendance: true,
           },
           orderBy: {
             scheduledStart: 'asc',
@@ -745,10 +764,10 @@ export const enrollmentRepository = {
       list.push(payment);
       byEnrollment.set(payment.sourceId, list);
     }
-    return enrollments.map((enrollment) => ({
+    return populateSessionRooms(appId, enrollments.map((enrollment) => ({
       ...enrollment,
       cashierPayments: byEnrollment.get(enrollment.id) || [],
-    }));
+    })));
   },
 
   async createEnrollment(data) {

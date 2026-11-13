@@ -1,10 +1,6 @@
-import { Check, Music } from "lucide-react";
+import { Music } from "lucide-react";
 
-export default function PackageCard({ packageData, enrolled, onEnroll }) {
-  const isForApproval = ['PENDING', 'PENDING_PAYMENT', 'FOR_APPROVAL'].includes(
-    packageData.status,
-  );
-
+export default function PackageCard({ packageData, enrolled, onEnroll, onViewDetails }) {
   return (
     <div className="flex min-h-[280px] flex-col rounded-xl border border-border bg-card p-8">
       <div className="flex items-start gap-4">
@@ -62,10 +58,9 @@ export default function PackageCard({ packageData, enrolled, onEnroll }) {
 
       <div className="mt-6">
         {enrolled ? (
-          <div className="flex items-center justify-center gap-2 rounded-md border border-border bg-muted px-4 py-2 text-sm font-medium">
-            <Check className="h-4 w-4" />
-            {isForApproval ? 'For Approval' : 'Currently Enrolled'}
-          </div>
+          <button type="button" onClick={() => onViewDetails?.(packageData)} className="flex w-full items-center justify-center rounded-md border border-border bg-muted px-4 py-2 text-sm font-medium hover:bg-muted/70">
+            View Details
+          </button>
         ) : (
           <button
             type="button"

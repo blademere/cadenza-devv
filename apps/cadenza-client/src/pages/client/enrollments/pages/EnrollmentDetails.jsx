@@ -81,7 +81,25 @@ export default function EnrollmentDetails() {
     );
   }
 
-  const firstSession = enrollment.sessions?.[0];
+  const scheduledSessions = [...(enrollment.sessions || [])].sort((a, b) =>
+    new Date(a.scheduledStart) - new Date(b.scheduledStart),
+  );
+  const firstSession = scheduledSessions[0];
+  const formatSession = (session) => {
+    const start = new Date(session.scheduledStart);
+    const end = new Date(session.scheduledEnd);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'Schedule unavailable';
+    const date = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' }).format(start);
+    const time = (value) => new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true }).format(value).replace(/:00(?=\s*[AP]M)/, '').replace(/\s+/g, '').toLowerCase();
+    return `${date}: ${time(start)} - ${time(end)}`;
+  };
+  const sessionIndicator = (session) => {
+    const status = String(session.status || '').toUpperCase();
+    if (['COMPLETED', 'DONE'].includes(status)) return 'Done';
+    if (session.attendance) return `Marked · ${session.attendance.replaceAll('_', ' ')}`;
+    if (status === 'CANCELLED') return 'Cancelled';
+    return new Date(session.scheduledEnd).getTime() < Date.now() ? 'Awaiting marking' : 'Upcoming';
+  };
   const paymentMetadata = enrollment.metadata || {};
   const startDate = firstSession?.scheduledStart
     ? new Date(firstSession.scheduledStart).toLocaleString('en-PH', {
@@ -94,7 +112,9 @@ export default function EnrollmentDetails() {
     : "Not available";
   const payment = enrollment.payment || {};
   const enrollee = enrollment.student || enrollment.metadata?.studentDetails || enrollment.customer?.person || enrollment.person || {};
-  const enrolleeName = [enrollee.firstName, enrollee.middleName, enrollee.lastName].filter(Boolean).join(" ") || "Account holder";
+  const enrolleeName = typeof enrollee === 'string'
+    ? enrollee
+    : [enrollee.firstName, enrollee.middleName, enrollee.lastName].filter(Boolean).join(" ") || enrollment.student || "Account holder";
   const totalAmount = Number(payment.totalAmount ?? enrollment.price ?? 0);
   const paidAmount = Number(payment.paidAmount ?? paymentMetadata.paymentAmount ?? 0);
   const remainingBalance = Number(payment.remainingBalance ?? Math.max(totalAmount - paidAmount, 0));
@@ -199,6 +219,22 @@ export default function EnrollmentDetails() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-border bg-card p-6">
+        <h2 className="font-semibold">All Scheduled Sessions ({scheduledSessions.length})</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Student: {enrolleeName}</p>
+        <div className="mt-4 space-y-3">
+          {scheduledSessions.length ? scheduledSessions.map((session) => (
+            <div key={session.id} className="rounded-lg border p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium">{formatSession(session)}</p>
+                <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium">{sessionIndicator(session)}</span>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">Room: {session.roomName || 'Not assigned'}</p>
+              <p className="text-sm text-muted-foreground">Instructor: {session.instructorName || 'Pending assignment'}</p>
+            </div>
+          )) : <p className="text-sm text-muted-foreground">No sessions scheduled.</p>}
+        </div>
+      </div>
       <div className="rounded-xl border border-border bg-card p-6">
         <h2 className="font-semibold">Payment Summary</h2>
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

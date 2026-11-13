@@ -344,6 +344,8 @@ function mapEnrollment(enrollment) {
             ? getInstructorName(session.instructor)
             : null,
         roomId: session.roomId,
+        roomName: session.room?.resource?.name || session.room?.roomType || null,
+        attendance: session.attendance?.status || null,
         scheduledStart:
           session.scheduledStart,
         scheduledEnd:

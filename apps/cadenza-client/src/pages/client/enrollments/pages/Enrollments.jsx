@@ -272,6 +272,7 @@ export default function Enrollments() {
                         packageData={courseData}
                         enrolled={courseData.status !== 'CANCELLED'}
                         onEnroll={handleEnroll}
+                        onViewDetails={() => navigate(`/client/enrollments/${courseData.id}`)}
                       />
                     </div>
                   ))}
